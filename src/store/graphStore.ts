@@ -1,19 +1,26 @@
 "use client";
 
 import { create } from "zustand";
-import type { NodeChange } from "@xyflow/react";
+import type { NodeChange, Connection, EdgeChange } from "@xyflow/react";
+import { v4 as uuid } from "uuid";
 import type {
   GraphirNode,
   GraphirEdge,
   LayoutDirection,
+  EdgeStyle,
   ExportSettings,
 } from "@/lib/graphir/types";
 import { layoutGraph } from "@/lib/graphir/layout";
+import { validateConnection } from "@/lib/graphir/validation";
 
 interface GraphState {
   nodes: GraphirNode[];
   edges: GraphirEdge[];
   direction: LayoutDirection;
+  edgeStyle: EdgeStyle;
+  cornerRadius: number;
+  nodeWidth: number;
+  nodeHeight: number;
   searchQuery: string;
   selectedNodeIds: string[];
   /** ids of nodes that the user has hidden via the context menu */
@@ -27,6 +34,7 @@ interface GraphState {
   searchOpen: boolean;
   exportOpen: boolean;
   sidebarOpen: boolean;
+  advancedOpen: boolean;
   /** id of the node currently being renamed inline (null = none) */
   renamingId: string | null;
 
@@ -36,6 +44,10 @@ interface GraphState {
   // actions
   setGraph: (nodes: GraphirNode[], edges: GraphirEdge[], pushHistory?: boolean) => void;
   setDirection: (direction: LayoutDirection) => void;
+  setEdgeStyle: (style: EdgeStyle) => void;
+  setCornerRadius: (radius: number) => void;
+  setNodeDimensions: (w: number, h: number) => void;
+  setAdvancedOpen: (open: boolean) => void;
   relayout: () => void;
   setSearchQuery: (query: string) => void;
   setSearchOpen: (open: boolean) => void;
@@ -47,6 +59,7 @@ interface GraphState {
 
   // react-flow change handling (drag/select/remove)
   applyNodeChanges: (changes: NodeChange[]) => void;
+  applyEdgeChanges: (changes: EdgeChange[]) => void;
   /** Snapshot current nodes/edges into the undo stack */
   commitHistory: () => void;
 
@@ -54,6 +67,10 @@ interface GraphState {
   deleteNodes: (ids: string[]) => void;
   renameNode: (id: string, newLabel: string) => void;
   addNode: (parentId: string | null, label: string, type: "folder" | "file") => void;
+  /** Add a standalone root node at the given canvas position */
+  addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => void;
+  /** Validate + create an edge between two existing nodes */
+  connectNodes: (connection: Connection) => { ok: boolean; reason?: string };
   hideNode: (id: string) => void;
   hideNodes: (ids: string[]) => void;
   unhideAll: () => void;
@@ -98,6 +115,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   nodes: [],
   edges: [],
   direction: "TB",
+  edgeStyle: "curved",
+  cornerRadius: 8,
+  nodeWidth: 200,
+  nodeHeight: 56,
   searchQuery: "",
   selectedNodeIds: [],
   hiddenIds: [],
@@ -106,6 +127,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   searchOpen: false,
   exportOpen: false,
   sidebarOpen: true,
+  advancedOpen: false,
   renamingId: null,
   exportSettings: {
     format: "svg",
@@ -134,6 +156,14 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ direction });
     get().relayout();
   },
+
+  setEdgeStyle: (style) => set({ edgeStyle: style }),
+
+  setCornerRadius: (radius) => set({ cornerRadius: Math.max(0, Math.min(20, radius)) }),
+
+  setNodeDimensions: (w, h) => set({ nodeWidth: Math.max(120, w), nodeHeight: Math.max(40, h) }),
+
+  setAdvancedOpen: (open) => set({ advancedOpen: open }),
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery } = get();
@@ -204,6 +234,38 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       if (!needsRebuild) return state;
       return { nodes, selectedNodeIds };
     });
+  },
+
+  /**
+   * Apply React Flow's edge change events (select, remove).
+   * Edge removal defers to deleteNodes for descendant cleanup.
+   */
+  applyEdgeChanges: (changes) => {
+    const state = get();
+    let edges = state.edges;
+    let needsRebuild = false;
+
+    for (const change of changes) {
+      if (change.type === "select") {
+        edges = edges.map((e) =>
+          e.id === change.id ? { ...e, selected: change.selected } : e
+        );
+        needsRebuild = true;
+      } else if (change.type === "remove") {
+        // Find the edge, delete the target node (and its descendants)
+        const edge = state.edges.find((e) => e.id === change.id);
+        if (edge) {
+          // Just remove the edge itself (disconnect), don't delete the node
+          edges = edges.filter((e) => e.id !== change.id);
+          needsRebuild = true;
+        }
+      }
+    }
+
+    if (needsRebuild) {
+      set({ edges });
+      get().commitHistory();
+    }
   },
 
   /**
@@ -310,6 +372,54 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       edges: newEdges,
     });
     get().relayout();
+  },
+
+  addStandaloneNode: (label, type, position) => {
+    const { nodes, edges, past } = get();
+    const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
+    const newNode: GraphirNode = {
+      id: `n-${uuid().slice(0, 8)}`,
+      type,
+      position,
+      data: {
+        label: trimmed,
+        path: trimmed,
+        type,
+        extension: type === "file" ? trimmed.split(".").pop() ?? "" : "",
+        category: undefined,
+        size: 0,
+        depth: 0,
+        isRoot: true,
+      },
+    };
+    const newNodes = [...nodes, newNode];
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      nodes: applySearch(newNodes, edges, get().searchQuery),
+    });
+  },
+
+  connectNodes: (connection) => {
+    const { nodes, edges, past } = get();
+    if (!connection.source || !connection.target) {
+      return { ok: false, reason: "Missing source or target." };
+    }
+    const result = validateConnection(connection.source, connection.target, nodes, edges);
+    if (!result.ok) return result;
+
+    const newEdge: GraphirEdge = {
+      id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`,
+      source: connection.source,
+      target: connection.target,
+      type: "default",
+    };
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      edges: [...edges, newEdge],
+    });
+    return { ok: true };
   },
 
   hideNode: (id) => {

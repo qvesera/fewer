@@ -289,9 +289,28 @@ function ChildEntry({ child }: { child: GraphirNode }) {
       onDelete={() => deleteNodes([child.id])}
     >
       <div
+        // Folders are draggable so they can be dropped onto the canvas to
+        // create new standalone child nodes. Files are not draggable.
+        draggable={child.data.type === "folder"}
+        onDragStart={(e) => {
+          if (child.data.type !== "folder") {
+            e.preventDefault();
+            return;
+          }
+          e.dataTransfer.setData(
+            "application/graphir-child",
+            JSON.stringify({
+              label: child.data.label,
+              type: child.data.type,
+              parentId: child.id,
+            })
+          );
+          e.dataTransfer.effectAllowed = "copy";
+        }}
         className={cn(
           "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
           "hover:bg-foreground/10",
+          child.data.type === "folder" && "cursor-grab active:cursor-grabbing",
           isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
           isDimmed && "opacity-40"
         )}

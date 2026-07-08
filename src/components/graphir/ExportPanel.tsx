@@ -24,10 +24,16 @@ import {
   FileText,
   FileSpreadsheet,
   FileCode,
+  FileTerminal,
+  FolderTree,
   Download,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { exportGraph } from "@/lib/graphir/exportUtils";
+import {
+  exportDirectoryScript,
+  exportDirectoryTree,
+} from "@/lib/graphir/scriptExport";
 import { computeStats } from "@/lib/graphir/stats";
 import type { ExportSettings } from "@/lib/graphir/types";
 
@@ -42,6 +48,8 @@ const FORMATS: {
   { value: "json", label: "JSON", desc: "Graph state", icon: FileJson },
   { value: "csv", label: "CSV", desc: "Tabular data", icon: FileSpreadsheet },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText },
+  { value: "script", label: "Dir Script", desc: "mkdir .sh / .bat", icon: FileTerminal },
+  { value: "tree", label: "Dir Tree", desc: "Unicode ASCII tree .txt", icon: FolderTree },
 ];
 
 export function ExportPanel() {
@@ -53,8 +61,14 @@ export function ExportPanel() {
   const edges = useGraphStore((s) => s.edges);
 
   const handleExport = () => {
-    const stats = computeStats(nodes, edges);
-    exportGraph(nodes, edges, settings, stats);
+    if (settings.format === "script") {
+      exportDirectoryScript(nodes, edges);
+    } else if (settings.format === "tree") {
+      exportDirectoryTree(nodes, edges);
+    } else {
+      const stats = computeStats(nodes, edges);
+      exportGraph(nodes, edges, settings, stats);
+    }
     setOpen(false);
   };
 

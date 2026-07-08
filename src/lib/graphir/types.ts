@@ -49,6 +49,8 @@ export type GraphirEdge = Edge<{ label?: string }, "default">;
 
 export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 
+export type EdgeStyle = "curved" | "angled" | "straight";
+
 export interface GraphSnapshot {
   nodes: GraphirNode[];
   edges: GraphirEdge[];
@@ -62,7 +64,7 @@ export interface DirectoryStats {
 }
 
 export interface ExportSettings {
-  format: "svg" | "png" | "json" | "csv" | "dot";
+  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree";
   quality: number; // 1-100
   transparentBackground: boolean;
   includeStats: boolean;
@@ -74,4 +76,12 @@ export interface TreeEntry {
   type: EntryType;
   size?: number;
   children?: TreeEntry[];
+}
+
+/** Optional File System Access handle stored on each node/item */
+export interface FSHandle {
+  /** directory or file handle from the File System Access API */
+  handle?: FileSystemHandle;
+  /** relative path from the root */
+  relativePath?: string;
 }

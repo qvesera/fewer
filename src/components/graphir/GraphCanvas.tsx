@@ -11,6 +11,8 @@ import {
   type NodeTypes,
   type OnSelectionChangeParams,
   type NodeChange,
+  type EdgeChange,
+  type Connection,
   Panel,
   ReactFlowProvider,
 } from "@xyflow/react";
@@ -32,11 +34,24 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
+import type { EdgeStyle } from "@/lib/graphir/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
   file: CustomNode,
 };
+
+/** Map our edge style enum to React Flow edge type strings. */
+function edgeTypeFor(style: EdgeStyle): string {
+  switch (style) {
+    case "curved":
+      return "default";
+    case "angled":
+      return "smoothstep";
+    case "straight":
+      return "straight";
+  }
+}
 
 function CanvasInner() {
   // Select raw arrays + hiddenIds, then derive visible nodes/edges with useMemo.
@@ -46,9 +61,14 @@ function CanvasInner() {
   const allEdges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const direction = useGraphStore((s) => s.direction);
+  const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const applyNodeChanges = useGraphStore((s) => s.applyNodeChanges);
+  const applyEdgeChanges = useGraphStore((s) => s.applyEdgeChanges);
+  const connectNodes = useGraphStore((s) => s.connectNodes);
+  const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const commitHistory = useGraphStore((s) => s.commitHistory);
   const { toast } = useToast();
   const { theme } = useTheme();
@@ -72,7 +92,7 @@ function CanvasInner() {
   const nodes = visibleNodes;
   const edges = visibleEdges;
 
-  const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
   // Re-fit the view whenever the layout direction changes so the user
   // actually sees the repositioned graph.
@@ -103,6 +123,62 @@ function CanvasInner() {
     },
     [applyNodeChanges]
   );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      applyEdgeChanges(changes);
+    },
+    [applyEdgeChanges]
+  );
+
+  /**
+   * Validate + create an edge when the user drag-connects two handles.
+   */
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const result = connectNodes(connection);
+      if (!result.ok) {
+        toast({
+          title: "Connection rejected",
+          description: result.reason,
+          variant: "destructive",
+        });
+      }
+    },
+    [connectNodes, toast]
+  );
+
+  /**
+   * Drop a folder child entry onto the canvas to create a new standalone
+   * child node. The dragged payload is set in CustomNode's ChildEntry.
+   */
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const payload = event.dataTransfer.getData("application/graphir-child");
+      if (!payload) return;
+      try {
+        const { label, type } = JSON.parse(payload);
+        const position = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        addStandaloneNode(label, type, position);
+        toast({
+          title: "Node created",
+          description: `"${label}" dropped onto canvas`,
+        });
+      } catch {
+        // ignore malformed payload
+      }
+    },
+    [screenToFlowPosition, addStandaloneNode, toast]
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }, []);
 
   /**
    * When a drag finishes, take a single snapshot for undo/redo.
@@ -154,28 +230,36 @@ function CanvasInner() {
       {/* Canvas-level context menu (right-click on empty canvas) */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="absolute inset-0">
+          <div
+            className="absolute inset-0"
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+          >
             <ReactFlow
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
               onNodeDragStop={onNodeDragStop}
               onSelectionDragStop={onSelectionDragStop}
               onSelectionChange={onSelectionChange}
               onDelete={({ nodes }) => deleteNodes(nodes.map((n) => n.id))}
               nodesDraggable
-              nodesConnectable={false}
+              nodesConnectable
               elementsSelectable
+              connectionLineType={"smoothstep" as never}
               fitView
               fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
               minZoom={0.15}
               maxZoom={3}
               defaultEdgeOptions={{
-                type: "smoothstep",
+                type: edgeTypeFor(edgeStyle),
                 style: {
                   stroke: isDark ? "rgba(148, 163, 184, 0.35)" : "rgba(71, 85, 105, 0.4)",
                   strokeWidth: 1.5,
+                  borderRadius: cornerRadius,
                 },
               }}
               proOptions={{ hideAttribution: true }}
