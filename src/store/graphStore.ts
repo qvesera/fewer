@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import type { NodeChange } from "@xyflow/react";
 import type {
   GraphirNode,
   GraphirEdge,
@@ -15,6 +16,8 @@ interface GraphState {
   direction: LayoutDirection;
   searchQuery: string;
   selectedNodeIds: string[];
+  /** ids of nodes that the user has hidden via the context menu */
+  hiddenIds: string[];
 
   // history
   past: { nodes: GraphirNode[]; edges: GraphirEdge[] }[];
@@ -24,6 +27,8 @@ interface GraphState {
   searchOpen: boolean;
   exportOpen: boolean;
   sidebarOpen: boolean;
+  /** id of the node currently being renamed inline (null = none) */
+  renamingId: string | null;
 
   // export settings
   exportSettings: ExportSettings;
@@ -38,11 +43,21 @@ interface GraphState {
   setSidebarOpen: (open: boolean) => void;
   setExportSettings: (settings: Partial<ExportSettings>) => void;
   setSelectedNodeIds: (ids: string[]) => void;
+  setRenamingId: (id: string | null) => void;
+
+  // react-flow change handling (drag/select/remove)
+  applyNodeChanges: (changes: NodeChange[]) => void;
+  /** Snapshot current nodes/edges into the undo stack */
+  commitHistory: () => void;
 
   // mutations
   deleteNodes: (ids: string[]) => void;
   renameNode: (id: string, newLabel: string) => void;
   addNode: (parentId: string | null, label: string, type: "folder" | "file") => void;
+  hideNode: (id: string) => void;
+  hideNodes: (ids: string[]) => void;
+  unhideAll: () => void;
+  unhideNode: (id: string) => void;
 
   // history
   undo: () => void;
@@ -85,11 +100,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   direction: "TB",
   searchQuery: "",
   selectedNodeIds: [],
+  hiddenIds: [],
   past: [],
   future: [],
   searchOpen: false,
   exportOpen: false,
   sidebarOpen: true,
+  renamingId: null,
   exportSettings: {
     format: "svg",
     quality: 90,
@@ -110,7 +127,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const laid = layoutGraph(nodes, edges, state.direction);
     const searched = applySearch(laid, edges, state.searchQuery);
-    set({ nodes: searched, edges });
+    set({ nodes: searched, edges, hiddenIds: [] });
   },
 
   setDirection: (direction) => {
@@ -138,6 +155,69 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setExportSettings: (settings) =>
     set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+  setRenamingId: (id) => set({ renamingId: id }),
+
+  /**
+   * Apply React Flow's node change events (drag, select, remove) directly
+   * to the store. Position changes during drag do NOT push history — that
+   * happens once on drag-stop via commitHistory().
+   */
+  applyNodeChanges: (changes) => {
+    set((state) => {
+      let nodes = state.nodes;
+      let selectedNodeIds = state.selectedNodeIds;
+      let needsRebuild = false;
+
+      for (const change of changes) {
+        if (change.type === "position" && change.position) {
+          nodes = nodes.map((n) =>
+            n.id === change.id
+              ? { ...n, position: change.position, dragging: change.dragging }
+              : n
+          );
+          needsRebuild = true;
+        } else if (change.type === "select") {
+          nodes = nodes.map((n) =>
+            n.id === change.id ? { ...n, selected: change.selected } : n
+          );
+          needsRebuild = true;
+          if (change.selected) {
+            if (!selectedNodeIds.includes(change.id)) {
+              selectedNodeIds = [...selectedNodeIds, change.id];
+            }
+          } else {
+            selectedNodeIds = selectedNodeIds.filter((id) => id !== change.id);
+          }
+        } else if (change.type === "remove") {
+          // Defer to deleteNodes which handles descendants
+          continue;
+        } else if (change.type === "dimensions" && change.dimensions) {
+          nodes = nodes.map((n) =>
+            n.id === change.id
+              ? { ...n, width: change.dimensions!.width, height: change.dimensions!.height }
+              : n
+          );
+          needsRebuild = true;
+        }
+      }
+
+      if (!needsRebuild) return state;
+      return { nodes, selectedNodeIds };
+    });
+  },
+
+  /**
+   * Snapshot the current nodes/edges into the undo stack.
+   * Called on drag-stop so a full drag is one undo step.
+   */
+  commitHistory: () => {
+    const { nodes, edges, past } = get();
+    if (nodes.length === 0) return;
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+    });
+  },
 
   deleteNodes: (ids) => {
     const { nodes, edges, past } = get();
@@ -169,13 +249,26 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   renameNode: (id, newLabel) => {
     const { nodes, edges, past } = get();
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
     const newNodes = nodes.map((n) =>
-      n.id === id ? { ...n, data: { ...n.data, label: newLabel } } : n
+      n.id === id
+        ? {
+            ...n,
+            data: {
+              ...n.data,
+              label: trimmed,
+              extension:
+                n.data.type === "file" ? trimmed.split(".").pop() ?? "" : "",
+            },
+          }
+        : n
     );
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
       nodes: applySearch(newNodes, edges, get().searchQuery),
+      renamingId: null,
     });
   },
 
@@ -219,6 +312,31 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     get().relayout();
   },
 
+  hideNode: (id) => {
+    const { hiddenIds, selectedNodeIds } = get();
+    if (hiddenIds.includes(id)) return;
+    set({
+      hiddenIds: [...hiddenIds, id],
+      selectedNodeIds: selectedNodeIds.filter((sid) => sid !== id),
+    });
+  },
+
+  hideNodes: (ids) => {
+    const { hiddenIds, selectedNodeIds } = get();
+    const newHidden = [...new Set([...hiddenIds, ...ids])];
+    set({
+      hiddenIds: newHidden,
+      selectedNodeIds: selectedNodeIds.filter((sid) => !ids.includes(sid)),
+    });
+  },
+
+  unhideNode: (id) => {
+    const { hiddenIds } = get();
+    set({ hiddenIds: hiddenIds.filter((h) => h !== id) });
+  },
+
+  unhideAll: () => set({ hiddenIds: [] }),
+
   undo: () => {
     const { past, future, nodes, edges } = get();
     if (past.length === 0) return;
@@ -254,5 +372,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       future: [],
       selectedNodeIds: [],
       searchQuery: "",
+      hiddenIds: [],
+      renamingId: null,
     }),
 }));

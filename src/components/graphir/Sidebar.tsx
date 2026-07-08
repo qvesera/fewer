@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,8 @@ import {
   Trash2,
   Layers,
   Plus,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 import type { LayoutDirection } from "@/lib/graphir/types";
 import { StatsPanel } from "./StatsPanel";
@@ -25,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useState } from "react";
 
 const LAYOUTS: {
   value: LayoutDirection;
@@ -50,6 +52,14 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
   const nodes = useGraphStore((s) => s.nodes);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const addNode = useGraphStore((s) => s.addNode);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const unhideAll = useGraphStore((s) => s.unhideAll);
+  const unhideNode = useGraphStore((s) => s.unhideNode);
+
+  const hiddenNodes = useMemo(
+    () => nodes.filter((n) => hiddenIds.includes(n.id)),
+    [nodes, hiddenIds]
+  );
 
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -134,6 +144,48 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
 
       <div className="h-px bg-border/40" />
 
+      {hiddenIds.length > 0 && (
+        <section>
+          <Label className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <EyeOff className="h-3 w-3" /> Hidden ({hiddenIds.length})
+          </Label>
+          <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/40 bg-card/40 p-1.5">
+            {hiddenNodes.map((n) => (
+              <div
+                key={n.id}
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-muted/40"
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    n.data.type === "folder" ? "bg-orange-400" : "bg-purple-400"
+                  )}
+                />
+                <span className="truncate text-foreground/80">{n.data.label}</span>
+                <button
+                  onClick={() => unhideNode(n.id)}
+                  className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  title="Unhide"
+                >
+                  <Eye className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full gap-1.5"
+            onClick={() => unhideAll()}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Unhide all
+          </Button>
+        </section>
+      )}
+
+      <div className="h-px bg-border/40" />
+
       <section>
         <Label className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
           <Layers className="h-3 w-3" /> Statistics
@@ -143,7 +195,8 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
 
       <div className="mt-auto rounded-xl border border-border/40 bg-muted/30 p-3 text-[10px] leading-relaxed text-muted-foreground">
         <div className="mb-1 font-medium text-foreground">Tips</div>
-        Drag to pan · scroll to zoom · Ctrl+Click to multi-select · Ctrl+F to search · Space to fit view.
+        Drag nodes anywhere · right-click for context menus · Ctrl+Click to multi-select ·
+        Ctrl+F to search · Space to fit view.
       </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

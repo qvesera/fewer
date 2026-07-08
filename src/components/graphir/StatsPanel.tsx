@@ -37,6 +37,8 @@ const CATEGORY_META: Record<
 export function StatsPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const hiddenCount = useGraphStore((s) => s.hiddenIds.length);
+  const selectedCount = useGraphStore((s) => s.selectedNodeIds.length);
   const stats = useMemo(() => computeStats(nodes, edges), [nodes, edges]);
 
   if (nodes.length === 0) return null;
@@ -121,10 +123,14 @@ export function StatsPanel() {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Selected</span>
-          <span className="tabular-nums font-medium">
-            {useGraphStore.getState().selectedNodeIds.length}
-          </span>
+          <span className="tabular-nums font-medium">{selectedCount}</span>
         </div>
+        {hiddenCount > 0 && (
+          <div className="flex items-center justify-between text-amber-300">
+            <span>Hidden</span>
+            <span className="tabular-nums font-medium">{hiddenCount}</span>
+          </div>
+        )}
       </div>
     </div>
   );
