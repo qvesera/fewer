@@ -252,7 +252,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         if (change.type === "position" && change.position) {
           nodes = nodes.map((n) =>
             n.id === change.id
-              ? { ...n, position: change.position, dragging: change.dragging }
+              ? { ...n, position: change.position!, dragging: change.dragging }
               : n
           );
           needsRebuild = true;

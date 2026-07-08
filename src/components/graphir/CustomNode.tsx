@@ -405,6 +405,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
   const renamingId = useGraphStore((s) => s.renamingId);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
+  const renameNode = useGraphStore((s) => s.renameNode);
 
   const children = useMemo(() => {
     if (!isFolder) return [];

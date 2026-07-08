@@ -28,6 +28,7 @@ import {
 import type { LayoutDirection, EdgeStyle, ThemeMode } from "@/lib/graphir/types";
 import { StatsPanel } from "./StatsPanel";
 import { CustomThemeEditor } from "./CustomThemeEditor";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -93,6 +94,7 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
   const unhideNode = useGraphStore((s) => s.unhideNode);
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
+  const { toast } = useToast();
 
   const hiddenNodes = useMemo(
     () => nodes.filter((n) => hiddenIds.includes(n.id)),
@@ -117,18 +119,21 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
       if (!rootHandle) {
         setUpdateConfirmOpen(false);
         setUpdating(false);
+        toast({
+          title: "No directory handle",
+          description: "Import a folder first to use Update Directory.",
+          variant: "destructive",
+        });
         return;
       }
       const result = await updateDirectoryOnDisk(rootHandle, nodes, edges);
       setUpdateConfirmOpen(false);
-      const { toast } = await import("@/hooks/use-toast");
-      toast().toast({
+      toast({
         title: "Directory updated",
         description: `${result.created.length} created, ${result.skipped.length} already existed${result.failed.length ? `, ${result.failed.length} failed` : ""}`,
       });
     } catch (err) {
-      const { toast } = await import("@/hooks/use-toast");
-      toast().toast({
+      toast({
         title: "Update failed",
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",

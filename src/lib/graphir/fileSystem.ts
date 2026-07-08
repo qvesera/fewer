@@ -57,7 +57,16 @@ async function buildTreeFromHandle(
   const children: TreeEntry[] = [];
 
   if (depth < MAX_DEPTH) {
-    for await (const entry of handle.values()) {
+    // Cast to access .values() which exists at runtime but isn't in older TS lib defs
+    const iterable = handle as unknown as {
+      values: () => AsyncIterableIterator<
+        { name: string; kind: "file" | "directory" } & (
+          | FileSystemFileHandle
+          | FileSystemDirectoryHandle
+        )
+      >;
+    };
+    for await (const entry of iterable.values()) {
       if (entry.name.startsWith(".git") || entry.name === "node_modules") continue;
       if (entry.kind === "directory") {
         children.push(

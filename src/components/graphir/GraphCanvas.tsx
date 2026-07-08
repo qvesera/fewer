@@ -27,7 +27,7 @@ import { ZoomIn, ZoomOut, Maximize2, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStyle } from "@/lib/graphir/types";
+import type { EdgeStyle, GraphirNode } from "@/lib/graphir/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -128,11 +128,11 @@ function CanvasInner() {
    * to our Zustand store for undo/redo.
    */
   const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
+    (changes: NodeChange<GraphirNode>[]) => {
       onNodesChange(changes);
       // Sync position changes back to store (for undo/redo persistence)
       const positionChanges = changes.filter(
-        (c): c is NodeChange & { id: string; position: { x: number; y: number } } =>
+        (c): c is NodeChange<GraphirNode> & { id: string; position: { x: number; y: number } } =>
           c.type === "position" && !!c.position
       );
       if (positionChanges.length > 0) {

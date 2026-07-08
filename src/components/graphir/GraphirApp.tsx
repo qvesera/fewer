@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, Suspense, lazy } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Toolbar } from "./Toolbar";
 import { Sidebar } from "./Sidebar";
 import { SearchPanel } from "./SearchPanel";
 import { ExportPanel } from "./ExportPanel";
-import { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { GraphCanvas } from "./GraphCanvas";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE, ADVANCED_TREE } from "@/lib/graphir/sampleData";
@@ -22,13 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
-
-// Lazy-load the GraphCanvas + CustomNode for better initial load performance.
-// The ErrorBoundary wraps it so a render crash in any node doesn't take down
-// the whole app — the user gets a retry button instead.
-const GraphCanvas = lazy(() =>
-  import("./GraphCanvas").then((m) => ({ default: m.GraphCanvas }))
-);
 
 export function GraphirApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -113,9 +107,7 @@ export function GraphirApp() {
         )}
         <main className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
-            <Suspense fallback={<NodeLoadingFallback />}>
-              <GraphCanvas />
-            </Suspense>
+            <GraphCanvas />
           </ErrorBoundary>
           <SearchPanel />
         </main>
