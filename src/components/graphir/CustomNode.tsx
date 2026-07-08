@@ -61,14 +61,14 @@ function CustomNodeImpl({ data, selected }: NodeProps<GraphirNode>) {
     <div
       className={cn(
         "group relative flex items-center gap-3 rounded-xl border px-3 py-2.5 backdrop-blur-xl transition-all duration-200",
-        "min-w-[200px] max-w-[260px]",
+        "min-w-[180px] max-w-[220px]",
         isFolder
           ? "border-orange-400/40 bg-orange-500/15 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]"
           : "border-purple-400/40 bg-purple-500/15 shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
         data.highlighted && "ring-2 ring-amber-400 ring-offset-2 ring-offset-background",
         data.dimmed && "opacity-30 saturate-50",
-        selected && "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background scale-[1.02]",
-        "hover:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)] hover:-translate-y-0.5"
+        selected && "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background",
+        "hover:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]"
       )}
     >
       {selected && (

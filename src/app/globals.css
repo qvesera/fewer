@@ -206,19 +206,17 @@ aside::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
 
-/* Subtle entrance animation for nodes */
-@keyframes gm-node-in {
-  from {
-    opacity: 0;
-    transform: scale(0.94) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+/* Subtle entrance animation for nodes.
+   ⚠ DO NOT animate `transform` on `.react-flow__node` — React Flow uses
+   `transform: translate(x,y)` to position each node. Animating transform
+   here will override React Flow's positioning and stack all nodes at (0,0).
+   We animate opacity on the INNER div only. */
+@keyframes gm-node-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.react-flow__node {
-  animation: gm-node-in 0.28s ease-out both;
+.react-flow__node > div {
+  animation: gm-node-fade-in 0.22s ease-out both;
 }
 
 /* Spring micro-interaction for handle hover */

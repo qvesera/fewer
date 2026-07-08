@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -31,12 +31,23 @@ const nodeTypes: NodeTypes = {
 function CanvasInner() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const direction = useGraphStore((s) => s.direction);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
+
+  // Re-fit the view whenever the layout direction changes so the user
+  // actually sees the repositioned graph.
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const t = setTimeout(() => {
+      fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [direction, nodes.length, fitView]);
 
   const onSelectionChange = useCallback(
     ({ nodes }: OnSelectionChangeParams) => {
@@ -78,7 +89,7 @@ function CanvasInner() {
         onSelectionChange={onSelectionChange}
         onDelete={({ nodes }) => deleteNodes(nodes.map((n) => n.id))}
         fitView
-        fitViewOptions={{ padding: 0.25, maxZoom: 1.4 }}
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15}
         maxZoom={3}
         defaultEdgeOptions={{

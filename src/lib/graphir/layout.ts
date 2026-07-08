@@ -1,8 +1,8 @@
 import dagre from "@dagrejs/dagre";
 import type { GraphirNode, GraphirEdge, LayoutDirection } from "./types";
 
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 64;
+const NODE_WIDTH = 200;
+const NODE_HEIGHT = 56;
 
 /**
  * Run a dagre layout pass over the supplied nodes/edges.
@@ -19,10 +19,10 @@ export function layoutGraph(
   const g = new dagre.graphlib.Graph({ multigraph: false, compound: false });
   g.setGraph({
     rankdir: direction,
-    nodesep: 36,
-    ranksep: 80,
-    marginx: 24,
-    marginy: 24,
+    nodesep: 24,
+    ranksep: 60,
+    marginx: 20,
+    marginy: 20,
     ranker: "tight-tree",
   });
   g.setDefaultEdgeLabel(() => ({}));
