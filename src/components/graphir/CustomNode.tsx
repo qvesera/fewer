@@ -16,6 +16,7 @@ import {
   File as FileIcon,
   FileType,
   ChevronRight,
+  GripVertical,
 } from "lucide-react";
 import type { GraphirNode, FileCategory } from "@/lib/graphir/types";
 import { useGraphStore } from "@/store/graphStore";
@@ -289,32 +290,35 @@ function ChildEntry({ child }: { child: GraphirNode }) {
       onDelete={() => deleteNodes([child.id])}
     >
       <div
-        // Folders are draggable so they can be dropped onto the canvas to
-        // create new standalone child nodes. Files are not draggable.
-        draggable={child.data.type === "folder"}
-        onDragStart={(e) => {
-          if (child.data.type !== "folder") {
-            e.preventDefault();
-            return;
-          }
-          e.dataTransfer.setData(
-            "application/graphir-child",
-            JSON.stringify({
-              label: child.data.label,
-              type: child.data.type,
-              parentId: child.id,
-            })
-          );
-          e.dataTransfer.effectAllowed = "copy";
-        }}
         className={cn(
-          "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+          "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors nodrag",
           "hover:bg-foreground/10",
-          child.data.type === "folder" && "cursor-grab active:cursor-grabbing",
           isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
           isDimmed && "opacity-40"
         )}
       >
+        {/* Drag handle for folder entries — drag this to drop onto the canvas
+            and create a new standalone child node. */}
+        {child.data.type === "folder" && (
+          <span
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData(
+                "application/graphir-child",
+                JSON.stringify({
+                  label: child.data.label,
+                  type: child.data.type,
+                  parentId: child.id,
+                })
+              );
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+            className="cursor-grab shrink-0 text-muted-foreground/40 hover:text-foreground active:cursor-grabbing nodrag"
+            title="Drag to canvas to create a new node"
+          >
+            <GripVertical className="h-3 w-3" />
+          </span>
+        )}
         <NodeIcon
           type={child.data.type}
           category={child.data.category}
@@ -397,6 +401,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         <Handle
           type="target"
           position={target}
+          isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -466,6 +471,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         <Handle
           type="source"
           position={source}
+          isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>
@@ -503,6 +509,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         <Handle
           type="target"
           position={target}
+          isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -544,6 +551,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         <Handle
           type="source"
           position={source}
+          isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>

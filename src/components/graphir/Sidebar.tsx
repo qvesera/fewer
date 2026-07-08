@@ -193,37 +193,36 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
                 />
               </div>
             )}
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Default node size
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground">W</span>
-                  <input
-                    type="number"
-                    value={nodeWidth}
-                    onChange={(e) =>
-                      setNodeDimensions(Number(e.target.value) || 200, nodeHeight)
-                    }
-                    className="w-16 rounded-md border border-border bg-background px-2 py-1 text-xs"
-                    min={120}
-                    max={400}
-                  />
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Node width
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">{nodeWidth}px</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-muted-foreground">H</span>
-                  <input
-                    type="number"
-                    value={nodeHeight}
-                    onChange={(e) =>
-                      setNodeDimensions(nodeWidth, Number(e.target.value) || 56)
-                    }
-                    className="w-16 rounded-md border border-border bg-background px-2 py-1 text-xs"
-                    min={40}
-                    max={300}
-                  />
+                <Slider
+                  value={[nodeWidth]}
+                  onValueChange={([v]) => setNodeDimensions(v, nodeHeight)}
+                  min={120}
+                  max={400}
+                  step={10}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Node height
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">{nodeHeight}px</span>
                 </div>
+                <Slider
+                  value={[nodeHeight]}
+                  onValueChange={([v]) => setNodeDimensions(nodeWidth, v)}
+                  min={40}
+                  max={300}
+                  step={5}
+                />
               </div>
             </div>
           </div>

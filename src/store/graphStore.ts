@@ -161,7 +161,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setCornerRadius: (radius) => set({ cornerRadius: Math.max(0, Math.min(20, radius)) }),
 
-  setNodeDimensions: (w, h) => set({ nodeWidth: Math.max(120, w), nodeHeight: Math.max(40, h) }),
+  setNodeDimensions: (w, h) => {
+    const newW = Math.max(120, w);
+    const newH = Math.max(40, h);
+    const { nodes } = get();
+    // Apply the new dimensions to all existing nodes via inline style
+    const updatedNodes = nodes.map((n) => ({
+      ...n,
+      style: { ...n.style, width: newW, minHeight: newH },
+    }));
+    set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes });
+    // Trigger relayout so dagre uses the new dimensions
+    setTimeout(() => get().relayout(), 0);
+  },
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
 

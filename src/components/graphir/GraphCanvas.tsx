@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,10 +8,11 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  useNodesState,
+  useEdgesState,
   type NodeTypes,
   type OnSelectionChangeParams,
   type NodeChange,
-  type EdgeChange,
   type Connection,
   Panel,
   ReactFlowProvider,
@@ -25,14 +26,6 @@ import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuLabel,
-} from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle } from "@/lib/graphir/types";
 
@@ -53,10 +46,13 @@ function edgeTypeFor(style: EdgeStyle): string {
   }
 }
 
+interface CanvasMenuPosition {
+  x: number;
+  y: number;
+}
+
 function CanvasInner() {
-  // Select raw arrays + hiddenIds, then derive visible nodes/edges with useMemo.
-  // This avoids creating new array references on every store update (which would
-  // cause useSyncExternalStore to loop).
+  // Select raw arrays + hiddenIds from our Zustand store
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -65,15 +61,15 @@ function CanvasInner() {
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const applyNodeChanges = useGraphStore((s) => s.applyNodeChanges);
-  const applyEdgeChanges = useGraphStore((s) => s.applyEdgeChanges);
+  const commitHistory = useGraphStore((s) => s.commitHistory);
   const connectNodes = useGraphStore((s) => s.connectNodes);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
-  const commitHistory = useGraphStore((s) => s.commitHistory);
   const { toast } = useToast();
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
 
+  // Derive visible nodes/edges (filter out hidden)
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
     const hidden = new Set(hiddenIds);
@@ -88,21 +84,36 @@ function CanvasInner() {
 
   const hiddenCount = hiddenIds.length;
 
-  // Use the same reference for `nodes` so downstream effects don't refire.
-  const nodes = visibleNodes;
-  const edges = visibleEdges;
+  // Use React Flow's built-in state hooks for local rendering.
+  // Sync from the Zustand store whenever the store's visible data changes.
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
+  const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
+
+  // Sync store -> React Flow state when store changes (new graph loaded, relayout, etc.)
+  useEffect(() => {
+    setRfNodes(visibleNodes);
+  }, [visibleNodes, setRfNodes]);
+
+  useEffect(() => {
+    setRfEdges(visibleEdges);
+  }, [visibleEdges, setRfEdges]);
+
+  // Debug
+  useEffect(() => {
+    console.log("[GraphCanvas] rfNodes:", rfNodes.length, "rfEdges:", rfEdges.length);
+  }, [rfNodes.length, rfEdges.length]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
   // Re-fit the view whenever the layout direction changes so the user
   // actually sees the repositioned graph.
   useEffect(() => {
-    if (nodes.length === 0) return;
+    if (rfNodes.length === 0) return;
     const t = setTimeout(() => {
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
     }, 80);
     return () => clearTimeout(t);
-  }, [direction, nodes.length, fitView]);
+  }, [direction, rfNodes.length, fitView]);
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
@@ -112,23 +123,28 @@ function CanvasInner() {
   );
 
   /**
-   * Receive every React Flow change event (drag, select, dimension) and
-   * apply it to the store WITHOUT pushing history. Position changes during
-   * drag fire many times per second — committing them all to history would
-   * flood the undo stack.
+   * Handle node changes from React Flow. Use the built-in handler from
+   * useNodesState (which updates rfNodes), then sync position changes back
+   * to our Zustand store for undo/redo.
    */
-  const onNodesChange = useCallback(
+  const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      applyNodeChanges(changes);
+      onNodesChange(changes);
+      // Sync position changes back to store (for undo/redo persistence)
+      const positionChanges = changes.filter(
+        (c): c is NodeChange & { id: string; position: { x: number; y: number } } =>
+          c.type === "position" && !!c.position
+      );
+      if (positionChanges.length > 0) {
+        useGraphStore.setState((s) => ({
+          nodes: s.nodes.map((n) => {
+            const change = positionChanges.find((c) => c.id === n.id);
+            return change ? { ...n, position: change.position } : n;
+          }),
+        }));
+      }
     },
-    [applyNodeChanges]
-  );
-
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      applyEdgeChanges(changes);
-    },
-    [applyEdgeChanges]
+    [onNodesChange]
   );
 
   /**
@@ -143,9 +159,20 @@ function CanvasInner() {
           description: result.reason,
           variant: "destructive",
         });
+      } else {
+        // Also add to React Flow's local edge state
+        if (connection.source && connection.target) {
+          const newEdge = {
+            id: `e-${connection.source}-${connection.target}-${Date.now()}`,
+            source: connection.source,
+            target: connection.target,
+            type: "default" as const,
+          };
+          setRfEdges((eds) => [...eds, newEdge]);
+        }
       }
     },
-    [connectNodes, toast]
+    [connectNodes, toast, setRfEdges]
   );
 
   /**
@@ -201,7 +228,7 @@ function CanvasInner() {
       return;
     }
     fitView({
-      nodes: selected.map((n) => n.id),
+      nodes: selected.map((n) => ({ id: n.id })),
       duration: 600,
       padding: 0.3,
     });
@@ -226,45 +253,51 @@ function CanvasInner() {
   );
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
-      {/* Canvas-level context menu (right-click on empty canvas) */}
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div
-            className="absolute inset-0"
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-          >
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeDragStop={onNodeDragStop}
-              onSelectionDragStop={onSelectionDragStop}
-              onSelectionChange={onSelectionChange}
-              onDelete={({ nodes }) => deleteNodes(nodes.map((n) => n.id))}
-              nodesDraggable
-              nodesConnectable
-              elementsSelectable
-              connectionLineType={"smoothstep" as never}
-              fitView
-              fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
-              minZoom={0.15}
-              maxZoom={3}
-              defaultEdgeOptions={{
-                type: edgeTypeFor(edgeStyle),
-                style: {
-                  stroke: isDark ? "rgba(148, 163, 184, 0.35)" : "rgba(71, 85, 105, 0.4)",
-                  strokeWidth: 1.5,
-                  borderRadius: cornerRadius,
-                },
-              }}
-              proOptions={{ hideAttribution: true }}
-              className="bg-transparent"
-            >
+    <div
+      ref={containerRef}
+      className="relative h-full w-full"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onContextMenu={(e) => {
+        // Only show the custom canvas menu when right-clicking on empty canvas
+        // (not on nodes — nodes have their own context menus).
+        const target = e.target as HTMLElement;
+        if (target.closest(".react-flow__node")) return;
+        e.preventDefault();
+        setCanvasMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        nodeTypes={nodeTypes}
+        onNodesChange={handleNodesChange}
+        onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionDragStop={onSelectionDragStop}
+        onSelectionChange={onSelectionChange}
+        onDelete={({ nodes: deletedNodes }) => deleteNodes(deletedNodes.map((n) => n.id))}
+        onInit={(instance) => {
+          console.log("[ReactFlow] onInit - edges:", instance.getEdges().length, "nodes:", instance.getNodes().length);
+        }}
+        nodesDraggable
+        nodesConnectable
+        elementsSelectable
+        onlyRenderVisibleElements={false}
+        fitView
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        minZoom={0.15}
+        maxZoom={3}
+        defaultEdgeOptions={{
+          type: edgeTypeFor(edgeStyle),
+          style: {
+            stroke: isDark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)",
+            strokeWidth: 2,
+          },
+        }}
+        proOptions={{ hideAttribution: true }}
+        className="bg-transparent h-full w-full"
+      >
               <Background
                 variant={BackgroundVariant.Dots}
                 gap={24}
@@ -330,7 +363,7 @@ function CanvasInner() {
                 </div>
               </Panel>
 
-              {nodes.length === 0 && (
+              {rfNodes.length === 0 && (
                 <Panel position="top-center" className="!top-1/3">
                   <div
                     className={cn(
@@ -354,51 +387,70 @@ function CanvasInner() {
                   </div>
                 </Panel>
               )}
-            </ReactFlow>
-          </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-56">
-          <ContextMenuLabel className="text-xs text-muted-foreground">
-            Canvas actions
-          </ContextMenuLabel>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => fitView({ duration: 500, padding: 0.2 })}
-            className="cursor-pointer"
-          >
-            Fit View
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={selectAll} className="cursor-pointer">
-            Select All
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => zoomIn({ duration: 250 })}
-            className="cursor-pointer"
-          >
-            Zoom In
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => zoomOut({ duration: 250 })}
-            className="cursor-pointer"
-          >
-            Zoom Out
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => {
-              useGraphStore.getState().unhideAll();
-              toast({
-                title: "Unhid all nodes",
-                description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
-              });
+      </ReactFlow>
+
+      {/* Canvas context menu (custom, positioned at cursor) */}
+      {canvasMenu && (
+        <>
+          {/* Click-away overlay */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setCanvasMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setCanvasMenu(null);
             }}
-            className="cursor-pointer"
-            disabled={hiddenCount === 0}
+          />
+          <div
+            className="fixed z-50 min-w-[200px] rounded-xl border border-border/40 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl"
+            style={{ left: canvasMenu.x, top: canvasMenu.y }}
           >
-            Unhide All Nodes
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Canvas actions
+            </div>
+            <div className="my-1 h-px bg-border/40" />
+            <button
+              onClick={() => { fitView({ duration: 500, padding: 0.2 }); setCanvasMenu(null); }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+            >
+              Fit View
+            </button>
+            <button
+              onClick={() => { selectAll(); setCanvasMenu(null); }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+            >
+              Select All
+            </button>
+            <button
+              onClick={() => { zoomIn({ duration: 250 }); setCanvasMenu(null); }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+            >
+              Zoom In
+            </button>
+            <button
+              onClick={() => { zoomOut({ duration: 250 }); setCanvasMenu(null); }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+            >
+              Zoom Out
+            </button>
+            <div className="my-1 h-px bg-border/40" />
+            <button
+              onClick={() => {
+                useGraphStore.getState().unhideAll();
+                toast({
+                  title: "Unhid all nodes",
+                  description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
+                });
+                setCanvasMenu(null);
+              }}
+              disabled={hiddenCount === 0}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              Unhide All Nodes
+            </button>
+          </div>
+        </>
+      )}
       <KeyboardShortcuts />
     </div>
   );
