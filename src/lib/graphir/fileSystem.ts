@@ -36,7 +36,8 @@ export async function pickDirectoryTree(): Promise<TreeEntry | null> {
   }
 
   try {
-    const handle = await w.showDirectoryPicker({ mode: "read" });
+    const handle = await w.showDirectoryPicker({ mode: "readwrite" });
+    setStoredRootHandle(handle);
     return buildTreeFromHandle(handle);
   } catch (err) {
     // User cancelled — return null instead of throwing
@@ -201,4 +202,85 @@ export function isIframeContext(): boolean {
   } catch {
     return true;
   }
+}
+
+/**
+ * Create directories on the local file system matching the graph structure.
+ * Uses a stored root directory handle to recursively create missing folders.
+ *
+ * Returns a report of created vs skipped vs failed entries.
+ */
+export async function updateDirectoryOnDisk(
+  rootHandle: FileSystemDirectoryHandle,
+  nodes: { id: string; data: { label: string; type: string; path: string } }[],
+  edges: { source: string; target: string }[]
+): Promise<{ created: string[]; skipped: string[]; failed: string[] }> {
+  const created: string[] = [];
+  const skipped: string[] = [];
+  const failed: string[] = [];
+
+  // Build child map: parentId -> childIds
+  const childMap = new Map<string, string[]>();
+  for (const e of edges) {
+    const arr = childMap.get(e.source) ?? [];
+    arr.push(e.target);
+    childMap.set(e.source, arr);
+  }
+
+  // Find root nodes (folders with no parent)
+  const hasParent = new Set(edges.map((e) => e.target));
+  const roots = nodes.filter((n) => !hasParent.has(n.id) && n.data.type === "folder");
+
+  /**
+   * Recursively create directory entries under the given handle.
+   */
+  async function createRecursively(
+    parentId: string | null,
+    parentHandle: FileSystemDirectoryHandle,
+    basePath: string
+  ) {
+    const childIds = (parentId ? childMap.get(parentId) : roots.map((r) => r.id)) ?? [];
+    for (const childId of childIds) {
+      const childNode = nodes.find((n) => n.id === childId);
+      if (!childNode || childNode.data.type !== "folder") continue;
+
+      const fullPath = basePath ? `${basePath}/${childNode.data.label}` : childNode.data.label;
+      try {
+        // Check if the directory already exists
+        let childHandle: FileSystemDirectoryHandle;
+      try {
+          childHandle = await parentHandle.getDirectoryHandle(childNode.data.label);
+          skipped.push(fullPath);
+        } catch {
+          // Doesn't exist — create it
+          childHandle = await parentHandle.getDirectoryHandle(childNode.data.label, {
+            create: true,
+          });
+          created.push(fullPath);
+        }
+        // Recurse into the child
+        await createRecursively(childId, childHandle, fullPath);
+      } catch (err) {
+        console.warn(`Failed to create directory "${fullPath}":`, err);
+        failed.push(fullPath);
+      }
+    }
+  }
+
+  await createRecursively(null, rootHandle, "");
+  return { created, skipped, failed };
+}
+
+/**
+ * Store the root directory handle from the last import so we can use it
+ * for "Update Directory" operations later.
+ */
+let storedRootHandle: FileSystemDirectoryHandle | null = null;
+
+export function setStoredRootHandle(handle: FileSystemDirectoryHandle | null) {
+  storedRootHandle = handle;
+}
+
+export function getStoredRootHandle(): FileSystemDirectoryHandle | null {
+  return storedRootHandle;
 }

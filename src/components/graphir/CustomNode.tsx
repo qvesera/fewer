@@ -144,12 +144,14 @@ function FolderContextMenu({
 }) {
   const hideNode = useGraphStore((s) => s.hideNode);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
+  const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const { toast } = useToast();
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
+      <ContextMenuContent className="w-56">
         <ContextMenuLabel className="text-xs text-muted-foreground">
           Folder actions
         </ContextMenuLabel>
@@ -177,6 +179,54 @@ function FolderContextMenu({
         >
           Copy Path
         </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={async () => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (!node) return;
+            const data = JSON.stringify(
+              { id: node.id, label: node.data.label, path: node.data.path, type: node.data.type },
+              null,
+              2
+            );
+            try {
+              await navigator.clipboard.writeText(data);
+              toast({ title: "Node data copied", description: "JSON copied to clipboard" });
+            } catch {
+              toast({ title: "Copy failed", variant: "destructive" });
+            }
+          }}
+          className="cursor-pointer"
+        >
+          Copy Node Data
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={async () => {
+            // Export subtree as a tree TXT
+            const { exportDirectoryTree } = await import("@/lib/graphir/scriptExport");
+            // Find descendants and build a subgraph
+            const descendants = new Set<string>([nodeId]);
+            const queue = [nodeId];
+            while (queue.length) {
+              const cur = queue.shift()!;
+              for (const e of edges) {
+                if (e.source === cur && !descendants.has(e.target)) {
+                  descendants.add(e.target);
+                  queue.push(e.target);
+                }
+              }
+            }
+            const subNodes = nodes.filter((n) => descendants.has(n.id));
+            const subEdges = edges.filter(
+              (e) => descendants.has(e.source) && descendants.has(e.target)
+            );
+            exportDirectoryTree(subNodes, subEdges);
+            toast({ title: "Subtree exported", description: `${subNodes.length} nodes` });
+          }}
+          className="cursor-pointer"
+        >
+          Export Subtree
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() =>
             toast({

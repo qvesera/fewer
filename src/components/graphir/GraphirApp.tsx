@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense, lazy } from "react";
 import { Toolbar } from "./Toolbar";
 import { Sidebar } from "./Sidebar";
-import { GraphCanvas } from "./GraphCanvas";
 import { SearchPanel } from "./SearchPanel";
 import { ExportPanel } from "./ExportPanel";
+import { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE, ADVANCED_TREE } from "@/lib/graphir/sampleData";
 import { pickDirectoryTree, isFileSystemAccessSupported } from "@/lib/graphir/fileSystem";
 import { useToast } from "@/hooks/use-toast";
+import { useDevice } from "@/hooks/use-device";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,13 +23,29 @@ import {
 } from "@/components/ui/dialog";
 import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
 
+// Lazy-load the GraphCanvas + CustomNode for better initial load performance.
+// The ErrorBoundary wraps it so a render crash in any node doesn't take down
+// the whole app — the user gets a retry button instead.
+const GraphCanvas = lazy(() =>
+  import("./GraphCanvas").then((m) => ({ default: m.GraphCanvas }))
+);
+
 export function GraphirApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
   const { toast } = useToast();
+  const device = useDevice();
 
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [fsSupported] = useState(() => isFileSystemAccessSupported());
+
+  // On mobile, start with sidebar closed
+  useEffect(() => {
+    if (device.isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [device.isMobile, setSidebarOpen]);
 
   useEffect(() => {
     // Preload the sample tree on first mount so the canvas isn't empty.
@@ -82,8 +99,24 @@ export function GraphirApp() {
             <Sidebar onOpenDirectory={handleOpenDirectory} />
           </div>
         )}
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div className="sm:hidden fixed inset-0 z-40 flex">
+            <div
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+              onClick={() => useGraphStore.getState().setSidebarOpen(false)}
+            />
+            <div className="relative w-[280px] h-full">
+              <Sidebar onOpenDirectory={handleOpenDirectory} />
+            </div>
+          </div>
+        )}
         <main className="relative min-w-0 flex-1 min-h-0">
-          <GraphCanvas />
+          <ErrorBoundary>
+            <Suspense fallback={<NodeLoadingFallback />}>
+              <GraphCanvas />
+            </Suspense>
+          </ErrorBoundary>
           <SearchPanel />
         </main>
       </div>

@@ -9,7 +9,10 @@ import type {
   LayoutDirection,
   EdgeStyle,
   ExportSettings,
+  CustomTheme,
+  ThemeMode,
 } from "@/lib/graphir/types";
+import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/graphir/types";
 import { layoutGraph } from "@/lib/graphir/layout";
 import { validateConnection } from "@/lib/graphir/validation";
 
@@ -25,6 +28,10 @@ interface GraphState {
   selectedNodeIds: string[];
   /** ids of nodes that the user has hidden via the context menu */
   hiddenIds: string[];
+
+  // theme
+  themeMode: ThemeMode;
+  customTheme: CustomTheme;
 
   // history
   past: { nodes: GraphirNode[]; edges: GraphirEdge[] }[];
@@ -56,6 +63,9 @@ interface GraphState {
   setExportSettings: (settings: Partial<ExportSettings>) => void;
   setSelectedNodeIds: (ids: string[]) => void;
   setRenamingId: (id: string | null) => void;
+  setCustomTheme: (theme: Partial<CustomTheme>) => void;
+  resetCustomTheme: () => void;
+  setThemeMode: (mode: ThemeMode) => void;
 
   // react-flow change handling (drag/select/remove)
   applyNodeChanges: (changes: NodeChange[]) => void;
@@ -122,6 +132,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   searchQuery: "",
   selectedNodeIds: [],
   hiddenIds: [],
+  themeMode: "dark",
+  customTheme: { ...DEFAULT_CUSTOM_THEME },
   past: [],
   future: [],
   searchOpen: false,
@@ -176,6 +188,32 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
+
+  setCustomTheme: (partial) => {
+    set((s) => ({ customTheme: { ...s.customTheme, ...partial } }));
+    // Immediately apply the updated CSS variables to the document root
+    applyCustomThemeToDOM(get().customTheme);
+  },
+
+  resetCustomTheme: () => {
+    set({ customTheme: { ...DEFAULT_CUSTOM_THEME } });
+    applyCustomThemeToDOM(DEFAULT_CUSTOM_THEME);
+  },
+
+  setThemeMode: (mode) => {
+    set({ themeMode: mode });
+    if (mode === "custom") {
+      applyCustomThemeToDOM(get().customTheme);
+    } else {
+      clearCustomThemeFromDOM();
+      // Sync with next-themes by setting the class on <html>
+      if (typeof document !== "undefined") {
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(mode);
+        document.documentElement.style.colorScheme = mode;
+      }
+    }
+  },
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery } = get();
@@ -498,3 +536,29 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       renamingId: null,
     }),
 }));
+
+/**
+ * Apply custom theme colors as inline CSS variables on document.documentElement.
+ * This overrides the values from globals.css for the 12 themeable variables.
+ */
+function applyCustomThemeToDOM(theme: CustomTheme) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  for (const meta of THEME_COLOR_META) {
+    root.style.setProperty(meta.cssVar, theme[meta.key]);
+  }
+  // Also set the body background directly
+  root.style.setProperty("--background", theme.background);
+}
+
+/**
+ * Remove all custom theme overrides so the default light/dark palette applies.
+ */
+function clearCustomThemeFromDOM() {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  for (const meta of THEME_COLOR_META) {
+    root.style.removeProperty(meta.cssVar);
+  }
+  root.style.removeProperty("--background");
+}

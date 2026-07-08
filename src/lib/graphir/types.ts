@@ -85,3 +85,64 @@ export interface FSHandle {
   /** relative path from the root */
   relativePath?: string;
 }
+
+/**
+ * Custom theme — 12 CSS variable color overrides.
+ * When themeMode === "custom", these values are injected as inline CSS variables
+ * on document.documentElement.
+ */
+export interface CustomTheme {
+  background: string;
+  nodeBg: string;
+  nodeBorder: string;
+  headerBg: string;
+  headerText: string;
+  defaultText: string;
+  subtleText: string;
+  itemHover: string;
+  handle: string;
+  edge: string;
+  icon: string;
+  accent: string;
+}
+
+export type ThemeMode = "light" | "dark" | "custom";
+
+/** Default custom theme (warm orange + purple palette) */
+export const DEFAULT_CUSTOM_THEME: CustomTheme = {
+  background: "#0b0b13",
+  nodeBg: "rgba(249, 115, 22, 0.12)",
+  nodeBorder: "rgba(249, 115, 22, 0.4)",
+  headerBg: "rgba(249, 115, 22, 0.2)",
+  headerText: "#f8fafc",
+  defaultText: "#e2e8f0",
+  subtleText: "#94a3b8",
+  itemHover: "rgba(148, 163, 184, 0.12)",
+  handle: "#475569",
+  edge: "rgba(148, 163, 184, 0.55)",
+  icon: "#a855f7",
+  accent: "#a855f7",
+};
+
+/**
+ * Metadata for each color in the custom theme editor.
+ * Maps theme keys to labels and CSS variable names.
+ */
+export const THEME_COLOR_META: {
+  key: keyof CustomTheme;
+  label: string;
+  cssVar: string;
+}[] = [
+  { key: "background", label: "Background", cssVar: "--background" },
+  { key: "nodeBg", label: "Node BG", cssVar: "--card" },
+  { key: "nodeBorder", label: "Node Border", cssVar: "--border" },
+  { key: "headerBg", label: "Header BG", cssVar: "--accent" },
+  { key: "headerText", label: "Header Text", cssVar: "--accent-foreground" },
+  { key: "defaultText", label: "Default Text", cssVar: "--foreground" },
+  { key: "subtleText", label: "Subtle Text", cssVar: "--muted-foreground" },
+  { key: "itemHover", label: "Item Hover", cssVar: "--muted" },
+  { key: "handle", label: "Handle", cssVar: "--ring" },
+  { key: "edge", label: "Edge", cssVar: "--sidebar-border" },
+  { key: "icon", label: "Icon", cssVar: "--sidebar-foreground" },
+  { key: "accent", label: "Accent", cssVar: "--primary" },
+];

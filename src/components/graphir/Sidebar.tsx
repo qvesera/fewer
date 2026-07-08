@@ -12,6 +12,7 @@ import {
   ArrowLeftToLine,
   RefreshCw,
   FolderOpen,
+  FolderPlus,
   Trash2,
   Layers,
   Plus,
@@ -20,9 +21,13 @@ import {
   ChevronDown,
   ChevronRight,
   Settings2,
+  Sun,
+  Moon,
+  Palette,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle } from "@/lib/graphir/types";
+import type { LayoutDirection, EdgeStyle, ThemeMode } from "@/lib/graphir/types";
 import { StatsPanel } from "./StatsPanel";
+import { CustomThemeEditor } from "./CustomThemeEditor";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -79,12 +84,15 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const addNode = useGraphStore((s) => s.addNode);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const unhideAll = useGraphStore((s) => s.unhideAll);
   const unhideNode = useGraphStore((s) => s.unhideNode);
+  const themeMode = useGraphStore((s) => s.themeMode);
+  const setThemeMode = useGraphStore((s) => s.setThemeMode);
 
   const hiddenNodes = useMemo(
     () => nodes.filter((n) => hiddenIds.includes(n.id)),
@@ -98,6 +106,37 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
   const [standaloneName, setStandaloneName] = useState("");
   const [standaloneType, setStandaloneType] = useState<"folder" | "file">("folder");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const handleUpdateDirectory = async () => {
+    setUpdating(true);
+    try {
+      const { getStoredRootHandle, updateDirectoryOnDisk } = await import("@/lib/graphir/fileSystem");
+      const rootHandle = getStoredRootHandle();
+      if (!rootHandle) {
+        setUpdateConfirmOpen(false);
+        setUpdating(false);
+        return;
+      }
+      const result = await updateDirectoryOnDisk(rootHandle, nodes, edges);
+      setUpdateConfirmOpen(false);
+      const { toast } = await import("@/hooks/use-toast");
+      toast().toast({
+        title: "Directory updated",
+        description: `${result.created.length} created, ${result.skipped.length} already existed${result.failed.length ? `, ${result.failed.length} failed` : ""}`,
+      });
+    } catch (err) {
+      const { toast } = await import("@/hooks/use-toast");
+      toast().toast({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   return (
     <aside className="flex h-full w-full flex-col gap-4 overflow-y-auto border-r border-border/40 bg-card/40 p-3 backdrop-blur-xl">
@@ -249,6 +288,16 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
             variant="outline"
             size="sm"
             className="w-full gap-1.5"
+            onClick={() => setUpdateConfirmOpen(true)}
+            disabled={nodes.length === 0}
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            Update Directory
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5"
             onClick={() => setAddStandaloneOpen(true)}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -275,6 +324,41 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
             Clear canvas
           </Button>
         </div>
+      </section>
+
+      <div className="h-px bg-border/40" />
+
+      {/* Theme & Layout section */}
+      <section>
+        <Label className="mb-2 block text-[10px] uppercase tracking-wider text-muted-foreground">
+          Theme
+        </Label>
+        <div className="grid grid-cols-3 gap-2">
+          {(["light", "dark", "custom"] as ThemeMode[]).map((mode) => {
+            const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
+            const active = themeMode === mode;
+            return (
+              <button
+                key={mode}
+                onClick={() => setThemeMode(mode)}
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all",
+                  active
+                    ? "border-purple-400 bg-purple-500/10 text-purple-300"
+                    : "border-border/40 hover:bg-muted/40"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-[10px] font-medium capitalize">{mode}</span>
+              </button>
+            );
+          })}
+        </div>
+        {themeMode === "custom" && (
+          <div className="mt-3">
+            <CustomThemeEditor />
+          </div>
+        )}
       </section>
 
       <div className="h-px bg-border/40" />
@@ -494,6 +578,30 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Clear canvas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Update Directory confirmation */}
+      <AlertDialog open={updateConfirmOpen} onOpenChange={setUpdateConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update directory on disk?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create all missing folders from your graph on the local file
+              system inside the directory you imported. Existing folders will be skipped.
+              This requires File System Access API permission.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUpdateDirectory}
+              disabled={updating}
+              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600"
+            >
+              {updating ? "Creating…" : "Create folders"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
