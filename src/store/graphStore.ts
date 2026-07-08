@@ -67,6 +67,18 @@ interface GraphState {
   resetCustomTheme: () => void;
   setThemeMode: (mode: ThemeMode) => void;
 
+  // clipboard (copy/cut file handles for paste)
+  clipboard: {
+    mode: "copy" | "cut";
+    nodeIds: string[];
+  } | null;
+  setClipboard: (mode: "copy" | "cut", nodeIds: string[]) => void;
+  clearClipboard: () => void;
+
+  // focused node for keyboard navigation
+  focusedNodeId: string | null;
+  setFocusedNodeId: (id: string | null) => void;
+
   // react-flow change handling (drag/select/remove)
   applyNodeChanges: (changes: NodeChange[]) => void;
   applyEdgeChanges: (changes: EdgeChange[]) => void;
@@ -134,6 +146,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   hiddenIds: [],
   themeMode: "dark",
   customTheme: { ...DEFAULT_CUSTOM_THEME },
+  clipboard: null,
+  focusedNodeId: null,
   past: [],
   future: [],
   searchOpen: false,
@@ -214,6 +228,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       }
     }
   },
+
+  setClipboard: (mode, nodeIds) =>
+    set({ clipboard: { mode, nodeIds: [...nodeIds] } }),
+
+  clearClipboard: () => set({ clipboard: null }),
+
+  setFocusedNodeId: (id) => set({ focusedNodeId: id }),
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery } = get();

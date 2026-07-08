@@ -38,6 +38,7 @@ export function treeToGraph(
         size: entry.size ?? 0,
         depth,
         isRoot: parentId === null,
+        fsHandle: entry.fsHandle ?? null,
       },
     });
 

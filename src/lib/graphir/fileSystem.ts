@@ -69,9 +69,12 @@ async function buildTreeFromHandle(
     for await (const entry of iterable.values()) {
       if (entry.name.startsWith(".git") || entry.name === "node_modules") continue;
       if (entry.kind === "directory") {
-        children.push(
-          await buildTreeFromHandle(entry as FileSystemDirectoryHandle, depth + 1)
+        const childTree = await buildTreeFromHandle(
+          entry as FileSystemDirectoryHandle,
+          depth + 1
         );
+        childTree.fsHandle = entry as FileSystemDirectoryHandle;
+        children.push(childTree);
       } else {
         let size: number | undefined;
         try {
@@ -80,7 +83,12 @@ async function buildTreeFromHandle(
         } catch {
           size = 0;
         }
-        children.push({ name: entry.name, type: "file", size });
+        children.push({
+          name: entry.name,
+          type: "file",
+          size,
+          fsHandle: entry as FileSystemFileHandle,
+        });
       }
     }
   }
@@ -91,7 +99,7 @@ async function buildTreeFromHandle(
     return a.name.localeCompare(b.name);
   });
 
-  return { name: handle.name, type: "folder", children };
+  return { name: handle.name, type: "folder", children, fsHandle: handle };
 }
 
 /**

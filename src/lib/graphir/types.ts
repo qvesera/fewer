@@ -41,6 +41,8 @@ export interface GraphirNodeData {
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
+  /** File System Access API handle for this node (if loaded from disk) */
+  fsHandle?: FileSystemHandle | null;
   [key: string]: unknown;
 }
 
@@ -76,6 +78,8 @@ export interface TreeEntry {
   type: EntryType;
   size?: number;
   children?: TreeEntry[];
+  /** File System Access handle (if loaded from disk) */
+  fsHandle?: FileSystemHandle | null;
 }
 
 /** Optional File System Access handle stored on each node/item */

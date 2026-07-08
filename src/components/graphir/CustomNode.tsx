@@ -144,6 +144,7 @@ function FolderContextMenu({
 }) {
   const hideNode = useGraphStore((s) => s.hideNode);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
+  const setClipboard = useGraphStore((s) => s.setClipboard);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const { toast } = useToast();
@@ -240,6 +241,31 @@ function FolderContextMenu({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
+          onSelect={() => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setClipboard("copy", [nodeId]);
+              toast({ title: "Copied", description: nodeLabel });
+            }
+          }}
+          className="cursor-pointer"
+        >
+          Copy
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setClipboard("cut", [nodeId]);
+              toast({ title: "Cut", description: nodeLabel });
+            }
+          }}
+          className="cursor-pointer"
+        >
+          Cut
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
           onSelect={() => hideNode(nodeId)}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
@@ -268,6 +294,8 @@ function FileEntryContextMenu({
   children: React.ReactNode;
 }) {
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
+  const setClipboard = useGraphStore((s) => s.setClipboard);
+  const nodes = useGraphStore((s) => s.nodes);
   const { toast } = useToast();
 
   return (
@@ -286,6 +314,25 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={async () => {
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node?.data.fsHandle) {
+              try {
+                const { openFile } = await import("@/lib/graphir/fileOps");
+                await openFile(node.data.fsHandle as FileSystemFileHandle);
+                toast({ title: "Opening file", description: nodeLabel });
+              } catch {
+                toast({ title: "Cannot open file", variant: "destructive" });
+              }
+            } else {
+              toast({ title: "No file handle", description: "File not loaded from disk", variant: "destructive" });
+            }
+          }}
+          className="cursor-pointer"
+        >
+          Open File
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={async () => {
             try {
               await navigator.clipboard.writeText(nodeLabel);
               toast({ title: "Name copied", description: nodeLabel });
@@ -300,6 +347,25 @@ function FileEntryContextMenu({
           className="cursor-pointer"
         >
           Copy Name
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => {
+            setClipboard("copy", [nodeId]);
+            toast({ title: "Copied", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Copy
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            setClipboard("cut", [nodeId]);
+            toast({ title: "Cut", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Cut
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem

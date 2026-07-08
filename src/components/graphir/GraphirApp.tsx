@@ -7,6 +7,7 @@ import { SearchPanel } from "./SearchPanel";
 import { ExportPanel } from "./ExportPanel";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { GraphCanvas } from "./GraphCanvas";
+import { BreadcrumbBar } from "./BreadcrumbBar";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE, ADVANCED_TREE } from "@/lib/graphir/sampleData";
@@ -109,6 +110,7 @@ export function GraphirApp() {
           <ErrorBoundary>
             <GraphCanvas />
           </ErrorBoundary>
+          <BreadcrumbBar />
           <SearchPanel />
         </main>
       </div>
