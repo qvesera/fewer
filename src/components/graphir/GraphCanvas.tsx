@@ -105,6 +105,19 @@ function CanvasInner() {
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
+  // Track whether nodes have been measured yet. React Flow fires dimension
+  // changes after the first render — we need to re-run dagre once those
+  // measurements are available so nodes are positioned with their real sizes.
+  const hasMeasuredRef = useRef(false);
+  const relayout = useGraphStore((s) => s.relayout);
+
+  // Reset the measured flag when a completely new graph is loaded
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      hasMeasuredRef.current = false;
+    }
+  }, [rfNodes.length]);
+
   // Re-fit the view whenever the layout direction changes so the user
   // actually sees the repositioned graph.
   useEffect(() => {
@@ -130,6 +143,13 @@ function CanvasInner() {
   const handleNodesChange = useCallback(
     (changes: NodeChange<GraphirNode>[]) => {
       onNodesChange(changes);
+
+      // Check if any dimension changes came in (React Flow measuring nodes)
+      const dimensionChanges = changes.filter(
+        (c): c is NodeChange<GraphirNode> & { id: string; dimensions: { width: number; height: number } } =>
+          c.type === "dimensions" && !!c.dimensions
+      );
+
       // Sync position changes back to store (for undo/redo persistence)
       const positionChanges = changes.filter(
         (c): c is NodeChange<GraphirNode> & { id: string; position: { x: number; y: number } } =>
@@ -143,8 +163,35 @@ function CanvasInner() {
           }),
         }));
       }
+
+      // When React Flow first measures nodes, re-run dagre with the real
+      // dimensions so nodes are positioned with correct spacing.
+      if (dimensionChanges.length > 0 && !hasMeasuredRef.current) {
+        hasMeasuredRef.current = true;
+        // Update the store's nodes with measured dimensions, then relayout
+        useGraphStore.setState((s) => ({
+          nodes: s.nodes.map((n) => {
+            const change = dimensionChanges.find((c) => c.id === n.id);
+            if (change) {
+              return {
+                ...n,
+                measured: {
+                  width: change.dimensions.width,
+                  height: change.dimensions.height,
+                },
+              };
+            }
+            return n;
+          }),
+        }));
+        // Re-run layout with the measured dimensions
+        setTimeout(() => {
+          relayout();
+          fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
+        }, 50);
+      }
     },
-    [onNodesChange]
+    [onNodesChange, relayout, fitView]
   );
 
   /**

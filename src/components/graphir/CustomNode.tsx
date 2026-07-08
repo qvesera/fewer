@@ -605,7 +605,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
       <div
         className={cn(
           "group relative flex items-center gap-3 rounded-xl border backdrop-blur-xl transition-shadow",
-          "min-w-[200px] max-w-[240px] cursor-context-menu",
+          "w-[240px] cursor-context-menu",
           "border-purple-400/40 bg-purple-500/15 shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
