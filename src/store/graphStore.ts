@@ -183,22 +183,45 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     get().relayout();
   },
 
-  setEdgeStyle: (style) => set({ edgeStyle: style }),
+  setEdgeStyle: (style) => {
+    set({ edgeStyle: style });
+    // Update ALL existing edges with the new type so the change is visible
+    const edgeType = (style === "curved" ? "default" : style === "angled" ? "smoothstep" : "straight") as GraphirEdge["type"];
+    set((s) => ({
+      edges: s.edges.map((e) => ({ ...e, type: edgeType })),
+    }));
+  },
 
-  setCornerRadius: (radius) => set({ cornerRadius: Math.max(0, Math.min(20, radius)) }),
+  setCornerRadius: (radius) => {
+    const clamped = Math.max(0, Math.min(20, radius));
+    set({ cornerRadius: clamped });
+    // Force edge re-render by creating new edge objects with updated pathOptions
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        // smoothstep edges support borderRadius via pathOptions
+        pathOptions: { borderRadius: clamped },
+      })),
+    }));
+  },
 
   setNodeDimensions: (w, h) => {
     const newW = Math.max(120, w);
     const newH = Math.max(40, h);
     const { nodes } = get();
-    // Apply the new dimensions to all existing nodes via inline style
+    // Apply the new dimensions to all existing nodes via inline style.
+    // Clear `measured` so dagre uses the new style dimensions instead of
+    // the stale measured dimensions from the previous render.
     const updatedNodes = nodes.map((n) => ({
       ...n,
       style: { ...n.style, width: newW, minHeight: newH },
+      measured: undefined,
     }));
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes });
     // Trigger relayout so dagre uses the new dimensions
-    setTimeout(() => get().relayout(), 0);
+    setTimeout(() => {
+      get().relayout();
+    }, 50);
   },
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
