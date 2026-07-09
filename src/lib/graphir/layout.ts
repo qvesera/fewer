@@ -14,7 +14,7 @@ const DEFAULT_FILE_HEIGHT = 58;
 /**
  * Get the best available dimensions for a node, in priority order:
  * 1. React Flow's measured dimensions (after render — most accurate)
- * 2. Node's style.width/height (set by NodeResizer)
+ * 2. Node's style.width/height (set by NodeResizer or setNodeDimensions)
  * 3. Type-based defaults (folder vs file)
  */
 function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
@@ -36,8 +36,12 @@ function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
   const defaultW = isFolder ? DEFAULT_FOLDER_WIDTH : DEFAULT_FILE_WIDTH;
   const defaultH = isFolder ? DEFAULT_FOLDER_HEIGHT : DEFAULT_FILE_HEIGHT;
 
+  // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured
+  // For file nodes: use style.minHeight if set, otherwise measured
   const w = measuredW || nodeW || styleW || defaultW;
-  const h = measuredH || nodeH || styleH || styleMinH || defaultH;
+  const h = isFolder
+    ? (styleH || measuredH || nodeH || defaultH)
+    : (measuredH || nodeH || styleH || styleMinH || defaultH);
 
   return { w, h };
 }

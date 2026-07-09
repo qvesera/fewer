@@ -481,7 +481,7 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
     const hidden = new Set(hiddenIds);
     return allNodes
       .filter((n) => childIds.includes(n.id) && !hidden.has(n.id))
-      .slice(0, 8); // cap to keep card compact
+      .slice(0, 20); // cap higher so taller nodes can show more
   }, [edges, allNodes, id, isFolder, hiddenIds]);
 
   const childCount = useMemo(() => {
@@ -495,9 +495,11 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
+    // Calculate the child list max height: nodeHeight minus header (~44px) and footer (~28px)
+    const childListMaxHeight = Math.max(60, nodeHeight - 72);
     return (
       <div
-        style={{ width: `${nodeWidth}px`, minHeight: `${nodeHeight}px` }}
+        style={{ width: `${nodeWidth}px` }}
         className={cn(
           "group relative flex flex-col rounded-xl border backdrop-blur-xl transition-shadow",
           "border-orange-400/40 bg-orange-500/10 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
@@ -563,19 +565,23 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         </FolderContextMenu>
 
         {/* Body — child entries (each with file context menu) */}
-        <div className="max-h-[180px] overflow-y-auto p-1.5">
+        <div
+          className="overflow-y-auto p-1.5"
+          style={{ maxHeight: `${childListMaxHeight}px` }}
+        >
           {children.length === 0 ? (
             <div className="px-2 py-3 text-center text-xs text-muted-foreground">
               Empty folder
             </div>
           ) : (
             <div className="space-y-0.5">
-              {children.map((child) => (
+              {/* Show more items when the node is taller */}
+              {children.slice(0, Math.max(3, Math.floor(childListMaxHeight / 22))).map((child) => (
                 <ChildEntry key={child.id} child={child} />
               ))}
-              {childCount > 8 && (
+              {childCount > Math.max(3, Math.floor(childListMaxHeight / 22)) && (
                 <div className="px-2 py-1 text-center text-[10px] text-muted-foreground">
-                  + {childCount - 8} more
+                  + {childCount - Math.max(3, Math.floor(childListMaxHeight / 22))} more
                 </div>
               )}
             </div>

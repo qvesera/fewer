@@ -210,12 +210,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const newH = Math.max(40, h);
     const { nodes } = get();
     // Apply the new dimensions to all existing nodes via inline style.
-    // Clear `measured` so dagre uses the new style dimensions instead of
-    // the stale measured dimensions from the previous render.
+    // Use `height` (not minHeight) so dagre gets the actual rendered height
+    // and positions nodes with correct vertical spacing.
     const updatedNodes = nodes.map((n) => ({
       ...n,
-      style: { ...n.style, width: newW, minHeight: newH },
-      measured: undefined,
+      style: {
+        ...n.style,
+        width: newW,
+        // For folder nodes, height controls the child list area.
+        // For file nodes, height is the card height.
+        height: n.data.type === "folder" ? newH : undefined,
+        minHeight: n.data.type === "file" ? newH : undefined,
+      },
+      measured: undefined, // force dagre to use style dimensions
     }));
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes });
     // Trigger relayout so dagre uses the new dimensions
