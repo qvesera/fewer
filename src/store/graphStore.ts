@@ -79,6 +79,9 @@ interface GraphState {
   focusedNodeId: string | null;
   setFocusedNodeId: (id: string | null) => void;
 
+  // zoom-to-node trigger (set by SearchPanel, watched by GraphCanvas)
+  zoomToNode: { nodeId: string; timestamp: number } | null;
+
   // react-flow change handling (drag/select/remove)
   applyNodeChanges: (changes: NodeChange[]) => void;
   applyEdgeChanges: (changes: EdgeChange[]) => void;
@@ -148,6 +151,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   customTheme: { ...DEFAULT_CUSTOM_THEME },
   clipboard: null,
   focusedNodeId: null,
+  zoomToNode: null,
   past: [],
   future: [],
   searchOpen: false,

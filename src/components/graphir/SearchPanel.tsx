@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, Folder, FileIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ export function SearchPanel() {
   const query = useGraphStore((s) => s.searchQuery);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const nodes = useGraphStore((s) => s.nodes);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
+  const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,9 +32,50 @@ export function SearchPanel() {
 
   if (!open) return null;
 
+  // Search ALL nodes in the store — this includes files that are inside
+  // folder cards (they're nodes connected via edges, just not always visible
+  // as standalone cards). Also includes hidden nodes so the user can find
+  // them and unhide.
   const matches = query
-    ? nodes.filter((n) => fuzzyMatch(query, n.data.label) || fuzzyMatch(query, n.data.path))
+    ? nodes.filter(
+        (n) =>
+          fuzzyMatch(query, n.data.label) ||
+          fuzzyMatch(query, n.data.path) ||
+          (n.data.extension ?? "").toLowerCase().includes(query.toLowerCase())
+      )
     : [];
+
+  const handleResultClick = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    // If the node is hidden, unhide it first
+    if (hiddenIds.includes(nodeId)) {
+      useGraphStore.getState().unhideNode(nodeId);
+    }
+
+    // Select + focus the node
+    setSelectedNodeIds([nodeId]);
+    setFocusedNodeId(nodeId);
+
+    // Mark the node as selected in the store so the canvas reflects it
+    useGraphStore.setState((s) => ({
+      nodes: s.nodes.map((n) => ({
+        ...n,
+        selected: n.id === nodeId,
+      })),
+    }));
+
+    // Set a "zoomToNode" flag in the store that GraphCanvas watches.
+    // GraphCanvas will call reactFlow.setCenter() when this changes.
+    // We include a timestamp so the same node can be re-zoomed.
+    useGraphStore.setState({
+      zoomToNode: { nodeId, timestamp: Date.now() },
+    });
+
+    // Close the search panel
+    setOpen(false);
+  };
 
   return (
     <div className="absolute right-3 top-3 z-30 w-[min(360px,calc(100vw-1.5rem))] rounded-2xl border border-border/40 bg-card/90 p-3 shadow-2xl backdrop-blur-xl">
@@ -79,20 +123,35 @@ export function SearchPanel() {
             </div>
           ) : (
             <ul className="pb-1">
-              {matches.slice(0, 50).map((n) => (
-                <li
-                  key={n.id}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/60",
-                    n.data.type === "folder" ? "text-orange-300" : "text-purple-300"
-                  )}
-                >
-                  <span className="truncate font-medium">{n.data.label}</span>
-                  <span className="ml-auto truncate text-[10px] text-muted-foreground">
-                    {n.data.path}
-                  </span>
-                </li>
-              ))}
+              {matches.slice(0, 50).map((n) => {
+                const isHidden = hiddenIds.includes(n.id);
+                const Icon = n.data.type === "folder" ? Folder : FileIcon;
+                return (
+                  <li
+                    key={n.id}
+                    onClick={() => handleResultClick(n.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer rounded-md mx-1 transition-colors",
+                      "hover:bg-muted/60",
+                      n.data.type === "folder"
+                        ? "text-orange-300"
+                        : "text-purple-300",
+                      isHidden && "opacity-50"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate font-medium">{n.data.label}</span>
+                    {isHidden && (
+                      <span className="shrink-0 rounded bg-amber-500/20 px-1 text-[9px] text-amber-300">
+                        hidden
+                      </span>
+                    )}
+                    <span className="ml-auto truncate text-[10px] text-muted-foreground">
+                      {n.data.path}
+                    </span>
+                  </li>
+                );
+              })}
               {matches.length > 50 && (
                 <li className="px-3 py-2 text-center text-xs text-muted-foreground">
                   + {matches.length - 50} more…

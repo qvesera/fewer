@@ -110,6 +110,28 @@ function CanvasInner() {
   // measurements are available so nodes are positioned with their real sizes.
   const hasMeasuredRef = useRef(false);
   const relayout = useGraphStore((s) => s.relayout);
+  const zoomToNode = useGraphStore((s) => s.zoomToNode);
+
+  // Watch for zoom-to-node requests from the SearchPanel.
+  // When zoomToNode changes, center the viewport on that node.
+  useEffect(() => {
+    if (!zoomToNode) return;
+    const { nodeId } = zoomToNode;
+    // Wait a tick for the node to be visible (e.g. after unhide)
+    const t = setTimeout(() => {
+      const node = useGraphStore.getState().nodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      const w = node.measured?.width ?? node.width ?? 200;
+      const h = node.measured?.height ?? node.height ?? 60;
+      fitView({
+        nodes: [{ id: nodeId }],
+        duration: 600,
+        padding: 0.3,
+        maxZoom: 1.5,
+      });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [zoomToNode, fitView]);
 
   // Reset the measured flag when a completely new graph is loaded
   useEffect(() => {
