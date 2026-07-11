@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
  * Ctrl/Cmd+C     - copy selected files
  * Ctrl/Cmd+X     - cut selected files
  * Ctrl/Cmd+V     - paste files into focused/selected folder
+ * H              - hide selected nodes
+ * Shift+H        - unhide all nodes
  * Delete         - delete selected nodes
  * F2             - rename selected node
  * Enter          - open selected file (or focus first child of folder)
@@ -43,6 +45,8 @@ export function KeyboardShortcuts() {
   const clearClipboard = useGraphStore((s) => s.clearClipboard);
   const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   const focusedNodeId = useGraphStore((s) => s.focusedNodeId);
+  const hideNodes = useGraphStore((s) => s.hideNodes);
+  const unhideAll = useGraphStore((s) => s.unhideAll);
   const { toast } = useToast();
 
   const reactFlow = useReactFlow();
@@ -154,6 +158,32 @@ export function KeyboardShortcuts() {
       }
 
       if (inEditable) return;
+
+      // H — hide selected nodes. Shift+H — unhide all.
+      if (e.key.toLowerCase() === "h" && !mod) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+H — unhide all
+          const hiddenCount = useGraphStore.getState().hiddenIds.length;
+          if (hiddenCount > 0) {
+            unhideAll();
+            toast({
+              title: "Unhid all nodes",
+              description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
+            });
+          }
+        } else {
+          // H — hide selected nodes
+          if (selectedNodeIds.length > 0) {
+            hideNodes(selectedNodeIds);
+            toast({
+              title: "Nodes hidden",
+              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden — press Shift+H to restore`,
+            });
+          }
+        }
+        return;
+      }
 
       // F2 - rename
       if (e.key === "F2") {
@@ -273,6 +303,8 @@ export function KeyboardShortcuts() {
     clearClipboard,
     setFocusedNodeId,
     focusedNodeId,
+    hideNodes,
+    unhideAll,
     reactFlow,
     toast,
   ]);
