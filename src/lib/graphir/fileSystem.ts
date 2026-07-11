@@ -1,6 +1,11 @@
 "use client";
 
 import type { TreeEntry } from "./types";
+import {
+  type ImportOptions,
+  DEFAULT_IMPORT_OPTIONS,
+  VENDORED_DIRS,
+} from "./importOptions";
 
 /**
  * Attempts to use the File System Access API to let the user pick a
@@ -8,14 +13,18 @@ import type { TreeEntry } from "./types";
  *
  * Falls back to <input webkitdirectory> for browsers without the API.
  * Detects Brave browser and provides a specific error message.
+ *
+ * @param options Controls depth, filtering, and what to include.
  */
-export async function pickDirectoryTree(): Promise<TreeEntry | null> {
+export async function pickDirectoryTree(
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS
+): Promise<TreeEntry | null> {
   const w = window as unknown as {
     showDirectoryPicker?: (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle>;
   };
   if (typeof w.showDirectoryPicker !== "function") {
     // Fallback to webkitdirectory input
-    return pickDirectoryViaInput();
+    return pickDirectoryViaInput(options);
   }
 
   // Check for Brave browser (which may disable the API by default)
@@ -24,7 +33,8 @@ export async function pickDirectoryTree(): Promise<TreeEntry | null> {
     // Try anyway — the user may have enabled the flag
     try {
       const handle = await w.showDirectoryPicker!({ mode: "read" });
-      return buildTreeFromHandle(handle);
+      setStoredRootHandle(handle);
+      return buildTreeFromHandle(handle, 0, options);
     } catch (err) {
       if (err instanceof DOMException && err.name === "SecurityError") {
         throw new Error(
@@ -38,7 +48,7 @@ export async function pickDirectoryTree(): Promise<TreeEntry | null> {
   try {
     const handle = await w.showDirectoryPicker({ mode: "readwrite" });
     setStoredRootHandle(handle);
-    return buildTreeFromHandle(handle);
+    return buildTreeFromHandle(handle, 0, options);
   } catch (err) {
     // User cancelled — return null instead of throwing
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -50,13 +60,15 @@ export async function pickDirectoryTree(): Promise<TreeEntry | null> {
 
 async function buildTreeFromHandle(
   handle: FileSystemDirectoryHandle,
-  depth = 0
+  depth: number,
+  options: ImportOptions
 ): Promise<TreeEntry> {
-  // Cap recursion to keep the graph manageable
-  const MAX_DEPTH = 6;
   const children: TreeEntry[] = [];
 
-  if (depth < MAX_DEPTH) {
+  // maxDepth of 0 means unlimited; otherwise stop when we hit the limit
+  const shouldRecurse = options.maxDepth === 0 || depth < options.maxDepth;
+
+  if (shouldRecurse) {
     // Cast to access .values() which exists at runtime but isn't in older TS lib defs
     const iterable = handle as unknown as {
       values: () => AsyncIterableIterator<
@@ -67,15 +79,35 @@ async function buildTreeFromHandle(
       >;
     };
     for await (const entry of iterable.values()) {
-      if (entry.name.startsWith(".git") || entry.name === "node_modules") continue;
+      // Skip hidden files/folders if not included
+      if (!options.includeHidden && entry.name.startsWith(".")) continue;
+
+      // Skip vendored directories if not included
+      if (!options.includeVendored && VENDORED_DIRS.has(entry.name)) continue;
+
       if (entry.kind === "directory") {
         const childTree = await buildTreeFromHandle(
           entry as FileSystemDirectoryHandle,
-          depth + 1
+          depth + 1,
+          options
         );
+        // Skip empty folders if option is set
+        if (options.skipEmptyFolders && childTree.children && childTree.children.length === 0) {
+          continue;
+        }
         childTree.fsHandle = entry as FileSystemDirectoryHandle;
         children.push(childTree);
       } else {
+        // Filter by extension if extensions list is non-empty
+        if (options.extensions.length > 0) {
+          const ext = entry.name.split(".").pop() ?? "";
+          const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
+          const allowedExts = options.caseSensitiveExtensions
+            ? options.extensions
+            : options.extensions.map((e) => e.toLowerCase());
+          if (!allowedExts.includes(extToCompare)) continue;
+        }
+
         let size: number | undefined;
         try {
           const file = await (entry as FileSystemFileHandle).getFile();
@@ -105,9 +137,11 @@ async function buildTreeFromHandle(
 /**
  * Fallback method using <input type="file" webkitdirectory>.
  * Processes the flat file list and reconstructs the directory hierarchy
- * from webkitRelativePath.
+ * from webkitRelativePath. Applies the same ImportOptions filtering.
  */
-async function pickDirectoryViaInput(): Promise<TreeEntry | null> {
+async function pickDirectoryViaInput(
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS
+): Promise<TreeEntry | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -116,21 +150,47 @@ async function pickDirectoryViaInput(): Promise<TreeEntry | null> {
     input.style.left = "-9999px";
 
     input.onchange = async () => {
-      const files = Array.from(input.files ?? []);
-      if (files.length === 0) {
+      const allFiles = Array.from(input.files ?? []);
+      if (allFiles.length === 0) {
         resolve(null);
         return;
       }
+
+      // Filter files by options
+      const filteredFiles = allFiles.filter((file) => {
+        const parts = file.webkitRelativePath.split("/");
+        // Check hidden
+        if (!options.includeHidden) {
+          if (parts.some((p) => p.startsWith("."))) return false;
+        }
+        // Check vendored
+        if (!options.includeVendored) {
+          if (parts.some((p) => VENDORED_DIRS.has(p))) return false;
+        }
+        // Check depth (parts.length - 1 = depth from root)
+        if (options.maxDepth > 0 && parts.length - 1 > options.maxDepth) return false;
+        // Check extension
+        if (options.extensions.length > 0) {
+          const ext = file.name.split(".").pop() ?? "";
+          const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
+          const allowedExts = options.caseSensitiveExtensions
+            ? options.extensions
+            : options.extensions.map((e) => e.toLowerCase());
+          if (!allowedExts.includes(extToCompare)) return false;
+        }
+        return true;
+      });
+
       // The first file's webkitRelativePath starts with the root folder name
-      const rootName = files[0].webkitRelativePath.split("/")[0] || "root";
+      const rootName = allFiles[0].webkitRelativePath.split("/")[0] || "root";
       const tree: TreeEntry = { name: rootName, type: "folder", children: [] };
 
       // Sort by path to ensure parents are processed first
-      files.sort((a, b) =>
+      filteredFiles.sort((a, b) =>
         a.webkitRelativePath.localeCompare(b.webkitRelativePath)
       );
 
-      for (const file of files) {
+      for (const file of filteredFiles) {
         const parts = file.webkitRelativePath.split("/").slice(1); // drop root
         let current = tree;
         for (let i = 0; i < parts.length; i++) {
@@ -157,6 +217,11 @@ async function pickDirectoryViaInput(): Promise<TreeEntry | null> {
         }
       }
 
+      // Remove empty folders if option is set
+      if (options.skipEmptyFolders) {
+        removeEmptyFolders(tree);
+      }
+
       // Sort children recursively
       sortTree(tree);
       input.remove();
@@ -180,6 +245,24 @@ function sortTree(entry: TreeEntry) {
     return a.name.localeCompare(b.name);
   });
   for (const c of entry.children) sortTree(c);
+}
+
+/**
+ * Recursively remove folders that have no children (empty folders).
+ * The root is never removed.
+ */
+function removeEmptyFolders(entry: TreeEntry): boolean {
+  if (!entry.children || entry.children.length === 0) {
+    return entry.type === "file"; // keep files, mark folders for removal
+  }
+  entry.children = entry.children.filter((child) => {
+    if (child.type === "folder") {
+      const keep = removeEmptyFolders(child);
+      return keep;
+    }
+    return true; // always keep files
+  });
+  return entry.children.length > 0;
 }
 
 export function isFileSystemAccessSupported(): boolean {

@@ -567,11 +567,15 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         </FolderContextMenu>
 
         {/* Body — child entries (each with file context menu) */}
-        {/* nowheel class prevents React Flow from intercepting scroll events
-            so the child list scrolls instead of zooming the canvas */}
+        {/* onWheel stopPropagation prevents React Flow from zooming the canvas
+            when scrolling inside the folder's child list. The nowheel class
+            alone isn't enough in React Flow v12. */}
         <div
           className="overflow-y-auto p-1.5 nowheel"
           style={{ maxHeight: `${childListMaxHeight}px` }}
+          onWheel={(e) => {
+            e.stopPropagation();
+          }}
         >
           {children.length === 0 ? (
             <div className="px-2 py-3 text-center text-xs text-muted-foreground">

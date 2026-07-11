@@ -313,7 +313,12 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
             size="sm"
             className="w-full gap-1.5"
             onClick={() => setAddOpen(true)}
-            disabled={nodes.length === 0 || selectedNodeIds.length === 0}
+            disabled={
+              nodes.length === 0 ||
+              selectedNodeIds.length === 0 ||
+              // Can't add children to a file node — only folders can have children
+              nodes.find((n) => n.id === selectedNodeIds[0])?.data.type === "file"
+            }
           >
             <Plus className="h-3.5 w-3.5" />
             Add child node

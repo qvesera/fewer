@@ -8,10 +8,12 @@ import { ExportPanel } from "./ExportPanel";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { GraphCanvas } from "./GraphCanvas";
 import { BreadcrumbBar } from "./BreadcrumbBar";
+import { ImportDialog } from "./ImportDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE, ADVANCED_TREE } from "@/lib/graphir/sampleData";
 import { pickDirectoryTree, isFileSystemAccessSupported } from "@/lib/graphir/fileSystem";
+import type { ImportOptions } from "@/lib/graphir/importOptions";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,8 @@ export function GraphirApp() {
 
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [fsSupported] = useState(() => isFileSystemAccessSupported());
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -48,25 +52,43 @@ export function GraphirApp() {
     setGraph(nodes, edges, false);
   }, [setGraph]);
 
-  const handleOpenDirectory = useCallback(async () => {
-    try {
-      const tree = await pickDirectoryTree();
-      if (!tree) return;
-      const { nodes, edges } = treeToGraph(tree);
-      setGraph(nodes, edges, false);
-      toast({
-        title: "Directory loaded",
-        description: `${tree.name} — ${nodes.length} entries`,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast({
-        title: "Could not open directory",
-        description: msg,
-        variant: "destructive",
-      });
-    }
-  }, [setGraph, toast]);
+  // Opening the directory picker is now a two-step flow:
+  // 1. User clicks "Import Folder" → show ImportDialog with settings
+  // 2. User configures options and confirms → actually pick + import
+  const handleOpenDirectory = useCallback(() => {
+    setImportDialogOpen(true);
+  }, []);
+
+  const handleConfirmImport = useCallback(
+    async (options: ImportOptions) => {
+      setImporting(true);
+      try {
+        const tree = await pickDirectoryTree(options);
+        if (!tree) {
+          setImporting(false);
+          setImportDialogOpen(false);
+          return;
+        }
+        const { nodes, edges } = treeToGraph(tree);
+        setGraph(nodes, edges, false);
+        setImportDialogOpen(false);
+        toast({
+          title: "Directory loaded",
+          description: `${tree.name} — ${nodes.length} entries`,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        toast({
+          title: "Could not open directory",
+          description: msg,
+          variant: "destructive",
+        });
+      } finally {
+        setImporting(false);
+      }
+    },
+    [setGraph, toast]
+  );
 
   const handleLoadSample = useCallback(() => {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" });
@@ -116,6 +138,13 @@ export function GraphirApp() {
       </div>
 
       <ExportPanel />
+
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onConfirm={handleConfirmImport}
+        importing={importing}
+      />
 
       <Dialog open={welcomeOpen} onOpenChange={setWelcomeOpen}>
         <DialogContent className="sm:max-w-lg">
