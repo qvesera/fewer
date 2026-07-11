@@ -11,6 +11,8 @@ export interface ImportOptions {
   includeVendored: boolean;
   /** Skip folders that have no children (don't create nodes for empty directories). */
   skipEmptyFolders: boolean;
+  /** Import files as nodes (not just folders). When false, only the directory structure is imported. */
+  includeFiles: boolean;
   /** Only import files matching these extensions (empty = all files). e.g. ["ts", "tsx", "js"]. */
   extensions: string[];
   /** Whether file extensions should be case-sensitive. */
@@ -22,6 +24,7 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   includeHidden: false,
   includeVendored: false,
   skipEmptyFolders: true,
+  includeFiles: true,
   extensions: [],
   caseSensitiveExtensions: false,
 };

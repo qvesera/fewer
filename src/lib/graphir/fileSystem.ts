@@ -98,6 +98,9 @@ async function buildTreeFromHandle(
         childTree.fsHandle = entry as FileSystemDirectoryHandle;
         children.push(childTree);
       } else {
+        // Skip files entirely if includeFiles is false (folders-only import)
+        if (!options.includeFiles) continue;
+
         // Filter by extension if extensions list is non-empty
         if (options.extensions.length > 0) {
           const ext = entry.name.split(".").pop() ?? "";
@@ -156,8 +159,11 @@ async function pickDirectoryViaInput(
         return;
       }
 
+      // If includeFiles is false, skip all files (folders-only import via fallback)
+      const filesToProcess = options.includeFiles ? allFiles : [];
+
       // Filter files by options
-      const filteredFiles = allFiles.filter((file) => {
+      const filteredFiles = filesToProcess.filter((file) => {
         const parts = file.webkitRelativePath.split("/");
         // Check hidden
         if (!options.includeHidden) {

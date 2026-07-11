@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { FolderOpen, Loader2, Filter, Eye, EyeOff, Package, FolderX } from "lucide-react";
+import { FolderOpen, Loader2, Filter, Eye, EyeOff, Package, FolderX, FileIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ImportOptions } from "@/lib/graphir/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/graphir/importOptions";
@@ -145,6 +145,23 @@ export function ImportDialog({
                 onCheckedChange={(v) => update({ skipEmptyFolders: v })}
               />
             </div>
+
+            {/* Include files */}
+            <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+              <div className="flex items-center gap-2">
+                <FileIcon className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <Label className="text-sm">Import files as nodes</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    When off, only the directory structure is imported (no file nodes)
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={options.includeFiles}
+                onCheckedChange={(v) => update({ includeFiles: v })}
+              />
+            </div>
           </div>
 
           {/* Extension filter */}
@@ -196,6 +213,10 @@ export function ImportDialog({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Empty folders</span>
               <span>{options.skipEmptyFolders ? "Skipped" : "Included"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Files</span>
+              <span>{options.includeFiles ? "Imported as nodes" : "Folders only"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Extension filter</span>
