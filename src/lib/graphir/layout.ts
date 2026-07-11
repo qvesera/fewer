@@ -12,13 +12,26 @@ const DEFAULT_FILE_WIDTH = 220;
 const DEFAULT_FILE_HEIGHT = 58;
 
 /**
+ * Layout spacing — generous so nodes don't feel cramped.
+ * These are the gaps BETWEEN nodes, not the node sizes themselves.
+ */
+const NODE_SEP = 60;   // horizontal gap between nodes in the same rank
+const RANK_SEP_TB = 120; // vertical gap between ranks (parent → child) for TB/BT
+const RANK_SEP_LR = 160; // horizontal gap between ranks for LR/RL
+
+/**
  * Get the best available dimensions for a node, in priority order:
- * 1. React Flow's measured dimensions (after render — most accurate)
- * 2. Node's style.width/height (set by NodeResizer or setNodeDimensions)
+ * 1. Node's style.width/height (set by setNodeDimensions or NodeResizer)
+ * 2. React Flow's measured dimensions (after render)
  * 3. Type-based defaults (folder vs file)
  */
 function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
-  // React Flow stores measured dimensions in node.measured after the first render
+  // Check style.width/height first — these are explicitly set by the user
+  // via the sidebar sliders or NodeResizer, so they take priority.
+  const styleW = node.style?.width as number | undefined;
+  const styleH = node.style?.height as number | undefined;
+
+  // React Flow stores measured dimensions in node.measured after render
   const measuredW = node.measured?.width;
   const measuredH = node.measured?.height;
 
@@ -26,20 +39,15 @@ function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
   const nodeW = node.width;
   const nodeH = node.height;
 
-  // Check style.width/height (set by our setNodeDimensions or NodeResizer)
-  const styleW = node.style?.width as number | undefined;
-  const styleH = node.style?.height as number | undefined;
-
   // Type-based defaults
   const isFolder = node.data.type === "folder" || node.type === "folder";
   const defaultW = isFolder ? DEFAULT_FOLDER_WIDTH : DEFAULT_FILE_WIDTH;
   const defaultH = isFolder ? DEFAULT_FOLDER_HEIGHT : DEFAULT_FILE_HEIGHT;
 
-  // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured
+  // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured/default
   // For file nodes: NEVER use style.height/minHeight — files always render at
-  // their natural height (~58px) regardless of the node height slider. Only
-  // use the measured or default file height.
-  const w = measuredW || nodeW || styleW || defaultW;
+  // their natural height (~58px) regardless of the node height slider.
+  const w = styleW || measuredW || nodeW || defaultW;
   const h = isFolder
     ? (styleH || measuredH || nodeH || defaultH)
     : (measuredH || nodeH || defaultH);
@@ -52,9 +60,9 @@ function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
  * Supports four layout directions and returns NEW node objects with
  * updated positions and a stashed layout direction for handle placement.
  *
- * Uses each node's MEASURED dimensions (from React Flow) when available,
- * falling back to type-based defaults. This ensures dagre positions
- * nodes with correct spacing for their actual rendered size.
+ * Uses each node's style or measured dimensions (from React Flow) when
+ * available, falling back to type-based defaults. This ensures dagre
+ * positions nodes with correct spacing for their actual rendered size.
  */
 export function layoutGraph(
   nodes: GraphirNode[],
@@ -66,11 +74,11 @@ export function layoutGraph(
   const g = new dagre.graphlib.Graph({ multigraph: false, compound: false });
   g.setGraph({
     rankdir: direction,
-    // Use larger separation for vertical layouts since folder cards are wide
-    nodesep: isHorizontal ? 40 : 30,
-    ranksep: isHorizontal ? 80 : 70,
-    marginx: 24,
-    marginy: 24,
+    // Generous spacing so nodes aren't cramped
+    nodesep: NODE_SEP,
+    ranksep: isHorizontal ? RANK_SEP_LR : RANK_SEP_TB,
+    marginx: 40,
+    marginy: 40,
     ranker: "tight-tree",
   });
   g.setDefaultEdgeLabel(() => ({}));
