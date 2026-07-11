@@ -175,13 +175,15 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     // Set initial style dimensions on every node so the React Flow wrapper
     // has the correct width/height before the first measurement.
+    // IMPORTANT: Only folder nodes get style.height — file nodes render at
+    // their natural height and must not get height/minHeight applied.
     const styledNodes = nodes.map((n) => ({
       ...n,
       style: {
         ...n.style,
         width: state.nodeWidth,
         height: n.data.type === "folder" ? state.nodeHeight : undefined,
-        minHeight: n.data.type === "file" ? state.nodeHeight : undefined,
+        minHeight: undefined,
       },
     }));
     const laid = layoutGraph(styledNodes, edges, state.direction);
@@ -221,17 +223,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const newH = Math.max(40, h);
     const { nodes } = get();
     // Apply the new dimensions to all existing nodes via inline style.
-    // Use `height` (not minHeight) so dagre gets the actual rendered height
-    // and positions nodes with correct vertical spacing.
+    // IMPORTANT: Node height only affects FOLDER nodes (controls the child
+    // list area). File nodes always render at their natural height (~58px)
+    // and must NOT get style.height/minHeight — otherwise the wrapper is
+    // taller than the card and clicks on empty space below still select
+    // the file node.
     const updatedNodes = nodes.map((n) => ({
       ...n,
       style: {
         ...n.style,
         width: newW,
-        // For folder nodes, height controls the child list area.
-        // For file nodes, height is the card height.
+        // Only folders get height — files keep their natural height
         height: n.data.type === "folder" ? newH : undefined,
-        minHeight: n.data.type === "file" ? newH : undefined,
+        minHeight: undefined,
       },
       measured: undefined, // force dagre to use style dimensions
     }));
@@ -468,8 +472,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       },
       style: {
         width: nodeWidth,
+        // Only folders get height — files render at natural height
         height: type === "folder" ? nodeHeight : undefined,
-        minHeight: type === "file" ? nodeHeight : undefined,
+        minHeight: undefined,
       },
     };
     const newEdge: GraphirEdge | null = parentId
@@ -510,8 +515,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       },
       style: {
         width: nodeWidth,
+        // Only folders get height — files render at natural height
         height: type === "folder" ? nodeHeight : undefined,
-        minHeight: type === "file" ? nodeHeight : undefined,
+        minHeight: undefined,
       },
     };
     const newNodes = [...nodes, newNode];

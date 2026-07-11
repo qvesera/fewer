@@ -29,7 +29,6 @@ function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
   // Check style.width/height (set by our setNodeDimensions or NodeResizer)
   const styleW = node.style?.width as number | undefined;
   const styleH = node.style?.height as number | undefined;
-  const styleMinH = node.style?.minHeight as number | undefined;
 
   // Type-based defaults
   const isFolder = node.data.type === "folder" || node.type === "folder";
@@ -37,11 +36,13 @@ function getNodeDimensions(node: GraphirNode): { w: number; h: number } {
   const defaultH = isFolder ? DEFAULT_FOLDER_HEIGHT : DEFAULT_FILE_HEIGHT;
 
   // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured
-  // For file nodes: use style.minHeight if set, otherwise measured
+  // For file nodes: NEVER use style.height/minHeight — files always render at
+  // their natural height (~58px) regardless of the node height slider. Only
+  // use the measured or default file height.
   const w = measuredW || nodeW || styleW || defaultW;
   const h = isFolder
     ? (styleH || measuredH || nodeH || defaultH)
-    : (measuredH || nodeH || styleH || styleMinH || defaultH);
+    : (measuredH || nodeH || defaultH);
 
   return { w, h };
 }
