@@ -144,7 +144,8 @@ function CanvasInner() {
     (changes: NodeChange<GraphirNode>[]) => {
       onNodesChange(changes);
 
-      // Check if any dimension changes came in (React Flow measuring nodes)
+      // Check if any dimension changes came in (React Flow measuring nodes
+      // OR user resizing via NodeResizer)
       const dimensionChanges = changes.filter(
         (c): c is NodeChange<GraphirNode> & { id: string; dimensions: { width: number; height: number } } =>
           c.type === "dimensions" && !!c.dimensions
@@ -164,17 +165,20 @@ function CanvasInner() {
         }));
       }
 
-      // When React Flow first measures nodes, re-run dagre with the real
-      // dimensions so nodes are positioned with correct spacing.
-      if (dimensionChanges.length > 0 && !hasMeasuredRef.current) {
-        hasMeasuredRef.current = true;
-        // Update the store's nodes with measured dimensions, then relayout
+      // Always sync dimension changes to the store (for both initial
+      // measurement AND user-initiated resizing via NodeResizer).
+      if (dimensionChanges.length > 0) {
         useGraphStore.setState((s) => ({
           nodes: s.nodes.map((n) => {
             const change = dimensionChanges.find((c) => c.id === n.id);
             if (change) {
               return {
                 ...n,
+                style: {
+                  ...n.style,
+                  width: change.dimensions.width,
+                  height: n.data.type === "folder" ? change.dimensions.height : n.style?.height,
+                },
                 measured: {
                   width: change.dimensions.width,
                   height: change.dimensions.height,
@@ -184,11 +188,15 @@ function CanvasInner() {
             return n;
           }),
         }));
-        // Re-run layout with the measured dimensions
-        setTimeout(() => {
-          relayout();
-          fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
-        }, 50);
+
+        // First-time measurement: re-run dagre with real dimensions
+        if (!hasMeasuredRef.current) {
+          hasMeasuredRef.current = true;
+          setTimeout(() => {
+            relayout();
+            fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
+          }, 50);
+        }
       }
     },
     [onNodesChange, relayout, fitView]

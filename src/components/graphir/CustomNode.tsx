@@ -514,6 +514,10 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
             minWidth={180}
             minHeight={50}
             isVisible={!!selected}
+            shouldResize={(e) => {
+              // Allow all resize directions for folders
+              return true;
+            }}
             lineClassName="!border-cyan-400/70"
             handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
           />
@@ -565,8 +569,10 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         </FolderContextMenu>
 
         {/* Body — child entries (each with file context menu) */}
+        {/* nowheel class prevents React Flow from intercepting scroll events
+            so the child list scrolls instead of zooming the canvas */}
         <div
-          className="overflow-y-auto p-1.5"
+          className="overflow-y-auto p-1.5 nowheel"
           style={{ maxHeight: `${childListMaxHeight}px` }}
         >
           {children.length === 0 ? (
@@ -625,8 +631,13 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         {selected && (
           <NodeResizer
             minWidth={180}
-            minHeight={50}
+            minHeight={58}
             isVisible={!!selected}
+            // Files can only be resized horizontally — block vertical resize
+            shouldResize={(e) => {
+              const direction = (e as unknown as { direction: string }).direction;
+              return direction === "left" || direction === "right";
+            }}
             lineClassName="!border-cyan-400/70"
             handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
           />
