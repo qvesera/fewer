@@ -472,7 +472,6 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
-  const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
 
   const children = useMemo(() => {
@@ -499,9 +498,8 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
     const childListMaxHeight = Math.max(60, nodeHeight - 72);
     return (
       <div
-        style={{ width: `${nodeWidth}px` }}
         className={cn(
-          "group relative flex flex-col rounded-xl border backdrop-blur-xl transition-shadow",
+          "group relative flex flex-col w-full rounded-xl border backdrop-blur-xl transition-shadow",
           "border-orange-400/40 bg-orange-500/10 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
@@ -617,9 +615,8 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
       onDelete={() => deleteNodes([id])}
     >
       <div
-        style={{ width: `${nodeWidth}px` }}
         className={cn(
-          "group relative flex items-center gap-3 rounded-xl border backdrop-blur-xl transition-shadow",
+          "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl transition-shadow",
           "cursor-context-menu",
           "border-purple-400/40 bg-purple-500/15 shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",

@@ -173,7 +173,18 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         future: [],
       });
     }
-    const laid = layoutGraph(nodes, edges, state.direction);
+    // Set initial style dimensions on every node so the React Flow wrapper
+    // has the correct width/height before the first measurement.
+    const styledNodes = nodes.map((n) => ({
+      ...n,
+      style: {
+        ...n.style,
+        width: state.nodeWidth,
+        height: n.data.type === "folder" ? state.nodeHeight : undefined,
+        minHeight: n.data.type === "file" ? state.nodeHeight : undefined,
+      },
+    }));
+    const laid = layoutGraph(styledNodes, edges, state.direction);
     const searched = applySearch(laid, edges, state.searchQuery);
     set({ nodes: searched, edges, hiddenIds: [] });
   },
@@ -436,7 +447,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   addNode: (parentId, label, type) => {
-    const { nodes, edges, past } = get();
+    const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const newPath = parent ? `${parent.data.path}/${label}` : label;
     const newNode: GraphirNode = {
@@ -454,6 +465,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         size: 0,
         depth: parent ? (parent.data.depth ?? 0) + 1 : 0,
         isRoot: parentId === null,
+      },
+      style: {
+        width: nodeWidth,
+        height: type === "folder" ? nodeHeight : undefined,
+        minHeight: type === "file" ? nodeHeight : undefined,
       },
     };
     const newEdge: GraphirEdge | null = parentId
@@ -476,7 +492,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   addStandaloneNode: (label, type, position) => {
-    const { nodes, edges, past } = get();
+    const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
     const newNode: GraphirNode = {
       id: `n-${uuid().slice(0, 8)}`,
@@ -491,6 +507,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         size: 0,
         depth: 0,
         isRoot: true,
+      },
+      style: {
+        width: nodeWidth,
+        height: type === "folder" ? nodeHeight : undefined,
+        minHeight: type === "file" ? nodeHeight : undefined,
       },
     };
     const newNodes = [...nodes, newNode];
