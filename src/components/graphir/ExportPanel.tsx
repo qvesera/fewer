@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +28,7 @@ import {
   FileTerminal,
   FolderTree,
   Download,
+  MousePointerClick,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { exportGraph } from "@/lib/graphir/exportUtils";
@@ -35,7 +37,8 @@ import {
   exportDirectoryTree,
 } from "@/lib/graphir/scriptExport";
 import { computeStats } from "@/lib/graphir/stats";
-import type { ExportSettings } from "@/lib/graphir/types";
+import { getDescendants } from "@/lib/graphir/validation";
+import type { ExportSettings, GraphirNode, GraphirEdge } from "@/lib/graphir/types";
 
 const FORMATS: {
   value: ExportSettings["format"];
@@ -59,20 +62,48 @@ export function ExportPanel() {
   const setSettings = useGraphStore((s) => s.setExportSettings);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const [exportSelected, setExportSelected] = useState(false);
+
+  // Compute the subgraph (selected node + all descendants) when
+  // exportSelected is enabled and at least one node is selected.
+  const { exportNodes, exportEdges } = useMemo(() => {
+    if (!exportSelected || selectedNodeIds.length === 0) {
+      return { exportNodes: nodes, exportEdges: edges };
+    }
+    // Collect all descendant IDs for each selected node
+    const subgraphIds = new Set<string>();
+    for (const selectedId of selectedNodeIds) {
+      subgraphIds.add(selectedId);
+      const descendants = getDescendants(selectedId, edges);
+      for (const d of descendants) {
+        subgraphIds.add(d);
+      }
+    }
+    const subNodes = nodes.filter((n) => subgraphIds.has(n.id));
+    const subEdges = edges.filter(
+      (e) => subgraphIds.has(e.source) && subgraphIds.has(e.target)
+    );
+    return { exportNodes: subNodes, exportEdges: subEdges };
+  }, [exportSelected, selectedNodeIds, nodes, edges]);
 
   const handleExport = () => {
+    const nodesToExport = exportNodes;
+    const edgesToExport = exportEdges;
+
     if (settings.format === "script") {
-      exportDirectoryScript(nodes, edges);
+      exportDirectoryScript(nodesToExport, edgesToExport);
     } else if (settings.format === "tree") {
-      exportDirectoryTree(nodes, edges);
+      exportDirectoryTree(nodesToExport, edgesToExport);
     } else {
-      const stats = computeStats(nodes, edges);
-      exportGraph(nodes, edges, settings, stats);
+      const stats = computeStats(nodesToExport, edgesToExport);
+      exportGraph(nodesToExport, edgesToExport, settings, stats);
     }
     setOpen(false);
   };
 
   const isRaster = settings.format === "png";
+  const canExportSelected = selectedNodeIds.length > 0;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -120,6 +151,26 @@ export function ExportPanel() {
                 );
               })}
             </div>
+          </div>
+
+          {/* Export Selected toggle */}
+          <div className="flex items-center justify-between rounded-xl border border-border/40 p-3">
+            <div className="flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <Label className="text-sm">Export selected only</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  {canExportSelected
+                    ? `Exports ${selectedNodeIds.length} selected node${selectedNodeIds.length === 1 ? "" : "s"} and all descendants`
+                    : "Select a node on the canvas first"}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={exportSelected && canExportSelected}
+              onCheckedChange={(v) => setExportSelected(v)}
+              disabled={!canExportSelected}
+            />
           </div>
 
           {isRaster && (
@@ -172,11 +223,23 @@ export function ExportPanel() {
             <div className="font-medium text-foreground">Export summary</div>
             <div className="mt-1 flex items-center justify-between">
               <span>Nodes</span>
-              <span className="tabular-nums">{nodes.length}</span>
+              <span className="tabular-nums">
+                {exportSelected && canExportSelected
+                  ? `${exportNodes.length} (of ${nodes.length})`
+                  : nodes.length}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>Edges</span>
-              <span className="tabular-nums">{edges.length}</span>
+              <span className="tabular-nums">
+                {exportSelected && canExportSelected
+                  ? `${exportEdges.length} (of ${edges.length})`
+                  : edges.length}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Scope</span>
+              <span>{exportSelected && canExportSelected ? "Selected subtree" : "Full graph"}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Format</span>
