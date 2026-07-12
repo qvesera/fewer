@@ -628,7 +628,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
 /**
  * Apply custom theme colors as inline CSS variables on document.documentElement.
- * This overrides the values from globals.css for the 12 themeable variables.
+ * These --graphir-* variables are read by CustomNode via inline styles.
  */
 function applyCustomThemeToDOM(theme: CustomTheme) {
   if (typeof document === "undefined") return;
@@ -636,12 +636,11 @@ function applyCustomThemeToDOM(theme: CustomTheme) {
   for (const meta of THEME_COLOR_META) {
     root.style.setProperty(meta.cssVar, theme[meta.key]);
   }
-  // Also set the body background directly
-  root.style.setProperty("--background", theme.background);
 }
 
 /**
  * Remove all custom theme overrides so the default light/dark palette applies.
+ * The defaults are set in globals.css under :root and .dark
  */
 function clearCustomThemeFromDOM() {
   if (typeof document === "undefined") return;
@@ -649,5 +648,4 @@ function clearCustomThemeFromDOM() {
   for (const meta of THEME_COLOR_META) {
     root.style.removeProperty(meta.cssVar);
   }
-  root.style.removeProperty("--background");
 }

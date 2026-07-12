@@ -91,7 +91,7 @@ export interface FSHandle {
 }
 
 /**
- * Custom theme — 12 CSS variable color overrides.
+ * Custom theme — CSS variable color overrides.
  * When themeMode === "custom", these values are injected as inline CSS variables
  * on document.documentElement.
  */
@@ -108,6 +108,16 @@ export interface CustomTheme {
   edge: string;
   icon: string;
   accent: string;
+  // Folder-specific colors
+  folderBg: string;
+  folderBorder: string;
+  folderHeaderBg: string;
+  folderHeaderText: string;
+  folderIcon: string;
+  // File-specific colors
+  fileBg: string;
+  fileBorder: string;
+  fileIcon: string;
 }
 
 export type ThemeMode = "light" | "dark" | "custom";
@@ -126,6 +136,16 @@ export const DEFAULT_CUSTOM_THEME: CustomTheme = {
   edge: "rgba(148, 163, 184, 0.55)",
   icon: "#a855f7",
   accent: "#a855f7",
+  // Folder colors (orange by default)
+  folderBg: "rgba(249, 115, 22, 0.1)",
+  folderBorder: "rgba(249, 115, 22, 0.4)",
+  folderHeaderBg: "rgba(249, 115, 22, 0.2)",
+  folderHeaderText: "#fdba74",
+  folderIcon: "#fb923c",
+  // File colors (purple by default)
+  fileBg: "rgba(168, 85, 247, 0.15)",
+  fileBorder: "rgba(168, 85, 247, 0.4)",
+  fileIcon: "#c084fc",
 };
 
 /**
@@ -137,16 +157,20 @@ export const THEME_COLOR_META: {
   label: string;
   cssVar: string;
 }[] = [
-  { key: "background", label: "Background", cssVar: "--background" },
-  { key: "nodeBg", label: "Node BG", cssVar: "--card" },
-  { key: "nodeBorder", label: "Node Border", cssVar: "--border" },
-  { key: "headerBg", label: "Header BG", cssVar: "--accent" },
-  { key: "headerText", label: "Header Text", cssVar: "--accent-foreground" },
-  { key: "defaultText", label: "Default Text", cssVar: "--foreground" },
-  { key: "subtleText", label: "Subtle Text", cssVar: "--muted-foreground" },
-  { key: "itemHover", label: "Item Hover", cssVar: "--muted" },
-  { key: "handle", label: "Handle", cssVar: "--ring" },
-  { key: "edge", label: "Edge", cssVar: "--sidebar-border" },
-  { key: "icon", label: "Icon", cssVar: "--sidebar-foreground" },
-  { key: "accent", label: "Accent", cssVar: "--primary" },
+  { key: "background", label: "Background", cssVar: "--graphir-background" },
+  { key: "defaultText", label: "Default Text", cssVar: "--graphir-text" },
+  { key: "subtleText", label: "Subtle Text", cssVar: "--graphir-text-subtle" },
+  { key: "itemHover", label: "Item Hover", cssVar: "--graphir-item-hover" },
+  { key: "handle", label: "Handle", cssVar: "--graphir-handle" },
+  { key: "edge", label: "Edge", cssVar: "--graphir-edge" },
+  // Folder colors
+  { key: "folderBg", label: "Folder BG", cssVar: "--graphir-folder-bg" },
+  { key: "folderBorder", label: "Folder Border", cssVar: "--graphir-folder-border" },
+  { key: "folderHeaderBg", label: "Folder Header BG", cssVar: "--graphir-folder-header-bg" },
+  { key: "folderHeaderText", label: "Folder Header Text", cssVar: "--graphir-folder-header-text" },
+  { key: "folderIcon", label: "Folder Icon", cssVar: "--graphir-folder-icon" },
+  // File colors
+  { key: "fileBg", label: "File BG", cssVar: "--graphir-file-bg" },
+  { key: "fileBorder", label: "File Border", cssVar: "--graphir-file-border" },
+  { key: "fileIcon", label: "File Icon", cssVar: "--graphir-file-icon" },
 ];

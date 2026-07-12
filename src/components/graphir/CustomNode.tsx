@@ -461,7 +461,9 @@ function ChildEntry({ child }: { child: GraphirNode }) {
           isRoot={child.data.isRoot}
           className={cn(
             "h-3.5 w-3.5 shrink-0",
-            child.data.type === "folder" ? "text-orange-300" : "text-purple-300"
+            child.data.type === "folder"
+              ? "text-[var(--graphir-folder-icon)]"
+              : "text-[var(--graphir-file-icon)]"
           )}
         />
         <span className="truncate text-foreground/90">{child.data.label}</span>
@@ -514,16 +516,18 @@ function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<Graphir
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
-    // Use the node's own height (from React Flow's measured/resized value)
-    // if available, otherwise fall back to the store's global nodeHeight.
-    // This ensures each folder card uses its individual height, not the global default.
     const actualHeight = height ?? nodeHeight;
     const childListMaxHeight = Math.max(60, actualHeight - 72);
     return (
       <div
+        style={{
+          backgroundColor: "var(--graphir-folder-bg)",
+          borderColor: "var(--graphir-folder-border)",
+          color: "var(--graphir-text)",
+        }}
         className={cn(
           "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl transition-shadow",
-          "border-orange-400/40 bg-orange-500/10 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
+          "shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
           selected && "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background",
@@ -554,12 +558,19 @@ function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<Graphir
         <FolderContextMenu nodeId={id} nodeLabel={data.label} nodePath={data.path}>
           {/* Header — folder context menu trigger */}
           <div
+            style={{
+              backgroundColor: "var(--graphir-folder-header-bg)",
+              borderBottomColor: "var(--graphir-folder-border)",
+            }}
             className={cn(
-              "flex items-center gap-2 rounded-t-xl border-b border-orange-400/30 bg-orange-500/20 px-3 py-2",
+              "flex items-center gap-2 rounded-t-xl border-b px-3 py-2",
               "cursor-context-menu"
             )}
           >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/30 text-orange-200">
+            <div
+              style={{ backgroundColor: "var(--graphir-folder-header-bg)", color: "var(--graphir-folder-icon)" }}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+            >
               <NodeIcon
                 type={data.type}
                 category={data.category}
@@ -621,7 +632,14 @@ function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<Graphir
         </div>
 
         {/* Footer */}
-        <div className="rounded-b-xl border-t border-orange-400/20 bg-orange-500/10 px-3 py-1.5 text-[10px] uppercase tracking-wider text-orange-200/80">
+        <div
+          style={{
+            backgroundColor: "var(--graphir-folder-bg)",
+            borderTopColor: "var(--graphir-folder-border)",
+            color: "var(--graphir-folder-header-text)",
+          }}
+          className="rounded-b-xl border-t px-3 py-1.5 text-[10px] uppercase tracking-wider"
+        >
           {childCount} {childCount === 1 ? "item" : "items"}
         </div>
 
@@ -643,10 +661,15 @@ function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<Graphir
       onDelete={() => deleteNodes([id])}
     >
       <div
+        style={{
+          backgroundColor: "var(--graphir-file-bg)",
+          borderColor: "var(--graphir-file-border)",
+          color: "var(--graphir-text)",
+        }}
         className={cn(
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl transition-shadow",
           "cursor-context-menu",
-          "border-purple-400/40 bg-purple-500/15 shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
+          "shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
           selected && "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background",
@@ -675,7 +698,10 @@ function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<Graphir
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-500/30 text-purple-200">
+        <div
+          style={{ color: "var(--graphir-file-icon)" }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        >
           <NodeIcon
             type={data.type}
             category={data.category}

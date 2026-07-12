@@ -76,6 +76,22 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Graphir node colors — light mode defaults */
+  --graphir-background: #ffffff;
+  --graphir-text: #1e293b;
+  --graphir-text-subtle: #64748b;
+  --graphir-item-hover: rgba(100, 116, 139, 0.12);
+  --graphir-handle: #94a3b8;
+  --graphir-edge: rgba(100, 116, 139, 0.4);
+  --graphir-folder-bg: rgba(249, 115, 22, 0.08);
+  --graphir-folder-border: rgba(249, 115, 22, 0.35);
+  --graphir-folder-header-bg: rgba(249, 115, 22, 0.15);
+  --graphir-folder-header-text: #c2410c;
+  --graphir-folder-icon: #f97316;
+  --graphir-file-bg: rgba(168, 85, 247, 0.08);
+  --graphir-file-border: rgba(168, 85, 247, 0.35);
+  --graphir-file-icon: #9333ea;
 }
 
 .dark {
@@ -110,6 +126,22 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Graphir node colors — dark mode defaults */
+  --graphir-background: #0b0b13;
+  --graphir-text: #e2e8f0;
+  --graphir-text-subtle: #94a3b8;
+  --graphir-item-hover: rgba(148, 163, 184, 0.12);
+  --graphir-handle: #475569;
+  --graphir-edge: rgba(148, 163, 184, 0.55);
+  --graphir-folder-bg: rgba(249, 115, 22, 0.1);
+  --graphir-folder-border: rgba(249, 115, 22, 0.4);
+  --graphir-folder-header-bg: rgba(249, 115, 22, 0.2);
+  --graphir-folder-header-text: #fdba74;
+  --graphir-folder-icon: #fb923c;
+  --graphir-file-bg: rgba(168, 85, 247, 0.15);
+  --graphir-file-border: rgba(168, 85, 247, 0.4);
+  --graphir-file-icon: #c084fc;
 }
 
 @layer base {
