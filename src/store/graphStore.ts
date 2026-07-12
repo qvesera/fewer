@@ -15,6 +15,7 @@ import type {
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/graphir/types";
 import { layoutGraph } from "@/lib/graphir/layout";
 import { validateConnection } from "@/lib/graphir/validation";
+import { categorizeByExtension } from "@/lib/graphir/categorize";
 
 interface GraphState {
   nodes: GraphirNode[];
@@ -442,6 +443,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
               label: trimmed,
               extension:
                 n.data.type === "file" ? trimmed.split(".").pop() ?? "" : "",
+              category:
+                n.data.type === "file"
+                  ? categorizeByExtension(trimmed.split(".").pop() ?? "")
+                  : undefined,
             },
           }
         : n
@@ -458,6 +463,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const newPath = parent ? `${parent.data.path}/${label}` : label;
+    const extension = type === "file" ? label.split(".").pop() ?? "" : "";
     const newNode: GraphirNode = {
       id: `n-new-${Date.now()}`,
       type,
@@ -468,8 +474,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         label,
         path: newPath,
         type,
-        extension: type === "file" ? label.split(".").pop() ?? "" : "",
-        category: undefined,
+        extension,
+        category: type === "file" ? categorizeByExtension(extension) : undefined,
         size: 0,
         depth: parent ? (parent.data.depth ?? 0) + 1 : 0,
         isRoot: parentId === null,
@@ -503,6 +509,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   addStandaloneNode: (label, type, position) => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
+    const extension = type === "file" ? trimmed.split(".").pop() ?? "" : "";
     const newNode: GraphirNode = {
       id: `n-${uuid().slice(0, 8)}`,
       type,
@@ -511,8 +518,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         label: trimmed,
         path: trimmed,
         type,
-        extension: type === "file" ? trimmed.split(".").pop() ?? "" : "",
-        category: undefined,
+        extension,
+        category: type === "file" ? categorizeByExtension(extension) : undefined,
         size: 0,
         depth: 0,
         isRoot: true,
