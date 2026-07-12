@@ -54,11 +54,19 @@ const CATEGORY_ICON: Record<
   text: FileType,
 };
 
-function getHandlePositions(isHorizontal?: boolean) {
-  if (isHorizontal) {
-    return { source: Position.Right, target: Position.Left };
+function getHandlePositions(layoutDirection?: string): { source: Position; target: Position } {
+  switch (layoutDirection) {
+    case "TB":
+      return { source: Position.Bottom, target: Position.Top };
+    case "BT":
+      return { source: Position.Top, target: Position.Bottom };
+    case "LR":
+      return { source: Position.Right, target: Position.Left };
+    case "RL":
+      return { source: Position.Left, target: Position.Right };
+    default:
+      return { source: Position.Bottom, target: Position.Top };
   }
-  return { source: Position.Bottom, target: Position.Top };
 }
 
 function formatSize(bytes: number): string {
@@ -473,8 +481,8 @@ function ChildEntry({ child }: { child: GraphirNode }) {
 /* -------------------------------------------------------------------------- */
 
 function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<GraphirNode>) {
-  const isHorizontal = (data.isHorizontal as boolean) ?? false;
-  const { source, target } = getHandlePositions(isHorizontal);
+  const layoutDirection = (data.layoutDirection as string) ?? "TB";
+  const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
 
   // Lookup children for folder display
