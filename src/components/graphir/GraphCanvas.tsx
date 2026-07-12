@@ -253,25 +253,49 @@ function CanvasInner() {
   );
 
   /**
-   * Drop a folder child entry onto the canvas to create a new standalone
-   * child node. The dragged payload is set in CustomNode's ChildEntry.
+   * Drop a folder child entry onto the canvas to create a new child node
+   * linked to its parent. If the folder has a FileSystemHandle, its contents
+   * are loaded from disk and added as child nodes.
    */
   const onDrop = useCallback(
-    (event: React.DragEvent) => {
+    async (event: React.DragEvent) => {
       event.preventDefault();
       const payload = event.dataTransfer.getData("application/graphir-child");
       if (!payload) return;
       try {
-        const { label, type } = JSON.parse(payload);
+        const { label, type, parentId } = JSON.parse(payload);
         const position = screenToFlowPosition({
           x: event.clientX,
           y: event.clientY,
         });
-        addStandaloneNode(label, type, position);
-        toast({
-          title: "Node created",
-          description: `"${label}" dropped onto canvas`,
-        });
+
+        // Import the dragged handle from CustomNode's module-level variable
+        const { draggedFolderHandle } = await import("./CustomNode");
+        const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
+
+        // Create a new node linked to the parent with contents from disk
+        const { expandFolderNode } = await import("@/lib/graphir/fileOps");
+        if (handle && handle.kind === "directory") {
+          // Load the folder's contents from disk and create the node + children
+          await expandFolderNode(
+            label,
+            parentId,
+            position,
+            handle,
+            useGraphStore.getState()
+          );
+          toast({
+            title: "Folder expanded",
+            description: `"${label}" and its contents loaded from disk`,
+          });
+        } else {
+          // No disk handle — just create a standalone node
+          addStandaloneNode(label, type, position);
+          toast({
+            title: "Node created",
+            description: `"${label}" dropped onto canvas`,
+          });
+        }
       } catch {
         // ignore malformed payload
       }

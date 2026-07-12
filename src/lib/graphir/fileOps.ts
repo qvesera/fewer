@@ -199,3 +199,112 @@ export async function getUniqueName(
     counter++;
   }
 }
+
+/**
+ * Expand a folder from disk: create a new node linked to its parent,
+ * then read the folder's contents from disk and create child nodes.
+ *
+ * This is used when dragging a folder from a parent's child list onto the
+ * canvas — it creates the node AND loads its contents so the user can see
+ * what's inside.
+ */
+export async function expandFolderNode(
+  label: string,
+  parentId: string,
+  position: { x: number; y: number },
+  handle: FileSystemDirectoryHandle,
+  store: {
+    nodes: import("@/lib/graphir/types").GraphirNode[];
+    edges: import("@/lib/graphir/types").GraphirEdge[];
+    nodeWidth: number;
+    nodeHeight: number;
+  }
+): Promise<void> {
+  const { v4: uuidv4 } = await import("uuid");
+  const { treeToGraph } = await import("./treeToGraph");
+  const { buildTreeFromHandle } = await import("./fileSystem");
+  const { DEFAULT_IMPORT_OPTIONS } = await import("./importOptions");
+  const { useGraphStore } = await import("@/store/graphStore");
+
+  // Read the folder's contents from disk (up to depth 3)
+  const importOpts = { ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 };
+  const tree = await buildTreeFromHandle(handle, 0, importOpts);
+  tree.name = label;
+  tree.fsHandle = handle;
+
+  // Convert to graph nodes + edges
+  const { nodes: childNodes, edges: childEdges } = treeToGraph(tree, {
+    idPrefix: "drag",
+  });
+
+  // Create the parent folder node
+  const parentNode = store.nodes.find((n) => n.id === parentId);
+  const parentPath = parentNode?.data.path ?? label;
+  const folderNodeId = `n-drag-${uuidv4().slice(0, 8)}`;
+
+  const folderNode = {
+    id: folderNodeId,
+    type: "folder" as const,
+    position,
+    data: {
+      label,
+      path: `${parentPath}/${label}`,
+      type: "folder" as const,
+      depth: (parentNode?.data.depth ?? 0) + 1,
+      isRoot: false,
+      fsHandle: handle,
+    },
+    style: {
+      width: store.nodeWidth,
+      height: store.nodeHeight,
+    },
+  };
+
+  // Offset child nodes relative to the folder node
+  const offsetChildren = childNodes.map((n) => ({
+    ...n,
+    position: {
+      x: n.position.x + position.x + 100,
+      y: n.position.y + position.y + 100,
+    },
+    data: {
+      ...n.data,
+      depth: (n.data.depth ?? 0) + (parentNode?.data.depth ?? 0) + 2,
+    },
+    style: {
+      width: store.nodeWidth,
+      height: n.data.type === "folder" ? store.nodeHeight : undefined,
+    },
+  }));
+
+  // Create edge from parent to new folder
+  const parentEdge = {
+    id: `e-${parentId}-${folderNodeId}`,
+    source: parentId,
+    target: folderNodeId,
+    type: "default" as const,
+  };
+
+  // Update edges to reference the new folder as source (instead of the
+  // temporary root from treeToGraph)
+  const updatedChildEdges = childEdges.map((e) => {
+    // The first node from treeToGraph is the root folder — replace it
+    // with our folderNodeId
+    const rootChild = childNodes[0];
+    if (rootChild && e.source === rootChild.id) {
+      return { ...e, source: folderNodeId };
+    }
+    return e;
+  });
+
+  // Add everything to the store
+  useGraphStore.setState((s) => ({
+    nodes: [...s.nodes, folderNode, ...offsetChildren],
+    edges: [...s.edges, parentEdge, ...updatedChildEdges],
+  }));
+
+  // Trigger relayout
+  setTimeout(() => {
+    useGraphStore.getState().relayout();
+  }, 50);
+}

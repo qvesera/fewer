@@ -31,6 +31,14 @@ import {
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Module-level variable holding the FileSystemHandle of the folder being
+ * dragged from a child entry. FileSystemHandle objects can't be serialized
+ * via JSON dataTransfer, so we stash it here during dragStart and retrieve
+ * it during drop.
+ */
+export let draggedFolderHandle: FileSystemHandle | null = null;
+
 const CATEGORY_ICON: Record<
   FileCategory,
   React.ComponentType<{ className?: string }>
@@ -414,23 +422,27 @@ function ChildEntry({ child }: { child: GraphirNode }) {
         )}
       >
         {/* Drag handle for folder entries — drag this to drop onto the canvas
-            and create a new standalone child node. */}
+            and create a new child node linked to this parent. */}
         {child.data.type === "folder" && (
           <span
             draggable
             onDragStart={(e) => {
+              // Store the fsHandle in a module-level variable since it can't
+              // be serialized via JSON dataTransfer
+              draggedFolderHandle = child.data.fsHandle ?? null;
               e.dataTransfer.setData(
                 "application/graphir-child",
                 JSON.stringify({
                   label: child.data.label,
                   type: child.data.type,
                   parentId: child.id,
+                  parentPath: child.data.path,
                 })
               );
               e.dataTransfer.effectAllowed = "copy";
             }}
             className="cursor-grab shrink-0 text-muted-foreground/40 hover:text-foreground active:cursor-grabbing nodrag"
-            title="Drag to canvas to create a new node"
+            title="Drag to canvas to create a linked child node"
           >
             <GripVertical className="h-3 w-3" />
           </span>
@@ -460,7 +472,7 @@ function ChildEntry({ child }: { child: GraphirNode }) {
 /*  Main CustomNode                                                           */
 /* -------------------------------------------------------------------------- */
 
-function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
+function CustomNodeImpl({ id, data, selected, width, height }: NodeProps<GraphirNode>) {
   const isHorizontal = (data.isHorizontal as boolean) ?? false;
   const { source, target } = getHandlePositions(isHorizontal);
   const isFolder = data.type === "folder";
@@ -494,12 +506,15 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
-    // Calculate the child list max height: nodeHeight minus header (~44px) and footer (~28px)
-    const childListMaxHeight = Math.max(60, nodeHeight - 72);
+    // Use the node's own height (from React Flow's measured/resized value)
+    // if available, otherwise fall back to the store's global nodeHeight.
+    // This ensures each folder card uses its individual height, not the global default.
+    const actualHeight = height ?? nodeHeight;
+    const childListMaxHeight = Math.max(60, actualHeight - 72);
     return (
       <div
         className={cn(
-          "group relative flex flex-col w-full rounded-xl border backdrop-blur-xl transition-shadow",
+          "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl transition-shadow",
           "border-orange-400/40 bg-orange-500/10 shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
@@ -569,9 +584,10 @@ function CustomNodeImpl({ id, data, selected }: NodeProps<GraphirNode>) {
         {/* Body — child entries (each with file context menu) */}
         {/* onWheel stopPropagation prevents React Flow from zooming the canvas
             when scrolling inside the folder's child list. The nowheel class
-            alone isn't enough in React Flow v12. */}
+            alone isn't enough in React Flow v12. flex-1 makes this area grow
+            to fill the available height set by the node's style.height. */}
         <div
-          className="overflow-y-auto p-1.5 nowheel"
+          className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
           style={{ maxHeight: `${childListMaxHeight}px` }}
           onWheel={(e) => {
             e.stopPropagation();

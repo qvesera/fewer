@@ -58,7 +58,7 @@ export async function pickDirectoryTree(
   }
 }
 
-async function buildTreeFromHandle(
+export async function buildTreeFromHandle(
   handle: FileSystemDirectoryHandle,
   depth: number,
   options: ImportOptions
@@ -91,11 +91,27 @@ async function buildTreeFromHandle(
           depth + 1,
           options
         );
-        // Skip empty folders if option is set
-        if (options.skipEmptyFolders && childTree.children && childTree.children.length === 0) {
-          continue;
-        }
         childTree.fsHandle = entry as FileSystemDirectoryHandle;
+        // Skip empty folders ONLY if they truly have no children on disk.
+        // When includeFiles is false, a folder with files but no subfolders
+        // will have children: [] here — but it's NOT truly empty on disk.
+        // We need to check if the folder has ANY entries (files or dirs).
+        if (options.skipEmptyFolders && childTree.children && childTree.children.length === 0) {
+          // Double-check: if we're not including files, the folder might
+          // actually have files on disk — just not imported as nodes.
+          // Only skip if the folder is TRULY empty (no entries at all).
+          if (options.includeFiles) {
+            // Files are included, so children:[] means truly empty
+            continue;
+          }
+          // Files not included — check if the dir has any entries on disk
+          const hasEntries = await directoryHasEntries(
+            entry as FileSystemDirectoryHandle
+          );
+          if (!hasEntries) continue;
+          // Folder has files on disk but we're not importing them.
+          // Keep the folder but mark it as having content (just not displayed).
+        }
         children.push(childTree);
       } else {
         // Skip files entirely if includeFiles is false (folders-only import)
@@ -251,6 +267,21 @@ function sortTree(entry: TreeEntry) {
     return a.name.localeCompare(b.name);
   });
   for (const c of entry.children) sortTree(c);
+}
+
+/**
+ * Check if a directory has ANY entries (files or subdirectories) on disk.
+ * Used when includeFiles is false to distinguish between truly empty folders
+ * and folders that contain only files (which aren't imported as nodes).
+ */
+async function directoryHasEntries(handle: FileSystemDirectoryHandle): Promise<boolean> {
+  const iterable = handle as unknown as {
+    values: () => AsyncIterableIterator<{ name: string; kind: string }>;
+  };
+  for await (const _ of iterable.values()) {
+    return true; // found at least one entry
+  }
+  return false;
 }
 
 /**
