@@ -157,19 +157,7 @@
 /*  Graphir Pro Max Ultra - glassmorphism + React Flow customizations         */
 /* -------------------------------------------------------------------------- */
 
-.gm-app-bg {
-  background:
-    radial-gradient(900px circle at 12% -10%, rgba(249, 115, 22, 0.12), transparent 45%),
-    radial-gradient(900px circle at 92% 110%, rgba(168, 85, 247, 0.16), transparent 50%),
-    radial-gradient(700px circle at 50% 50%, rgba(56, 189, 248, 0.05), transparent 60%);
-}
-
-.dark .gm-app-bg {
-  background:
-    radial-gradient(900px circle at 12% -10%, rgba(249, 115, 22, 0.18), transparent 45%),
-    radial-gradient(900px circle at 92% 110%, rgba(168, 85, 247, 0.22), transparent 50%),
-    radial-gradient(700px circle at 50% 50%, rgba(56, 189, 248, 0.06), transparent 60%);
-}
+/* Canvas background — clean, no gradients */
 
 /* React Flow: theme the controls + minimap to match our glass aesthetic */
 .react-flow__controls {

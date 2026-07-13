@@ -10,15 +10,11 @@ import {
   LayoutTemplate,
   PanelLeftClose,
   PanelLeft,
-  Sun,
-  Moon,
   Trash2,
   Bug,
   Sparkles,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { useTheme } from "next-themes";
-import { useCallback } from "react";
 
 interface ToolbarProps {
   onOpenDirectory: () => void;
@@ -40,11 +36,6 @@ export function Toolbar({
   const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const { theme, setTheme } = useTheme();
-
-  const toggleTheme = useCallback(() => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  }, [theme, setTheme]);
 
   return (
     <header className="z-20 flex items-center gap-2 border-b border-border/40 bg-card/60 px-3 py-2 backdrop-blur-xl">
@@ -150,16 +141,6 @@ export function Toolbar({
       >
         <Download className="h-4 w-4" />
         <span className="hidden md:inline">Export</span>
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={toggleTheme}
-        title="Toggle theme"
-      >
-        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
       <Button

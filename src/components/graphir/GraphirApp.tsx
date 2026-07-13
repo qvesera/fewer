@@ -113,7 +113,7 @@ export function GraphirApp() {
   );
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background gm-app-bg">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
       <Toolbar
         onOpenDirectory={handleOpenDirectory}
         onLoadSample={handleLoadSample}
