@@ -55,6 +55,7 @@ export function KeyboardShortcuts() {
   const reset = useGraphStore((s) => s.reset);
   const addNode = useGraphStore((s) => s.addNode);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
+  const duplicateNode = useGraphStore((s) => s.duplicateNode);
   const { toast } = useToast();
 
   const reactFlow = useReactFlow();
@@ -108,26 +109,11 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+N - new node (child if folder selected, otherwise standalone)
+      // Ctrl+N - open the Add Node dialog
       if (mod && !e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        if (selectedNodeIds.length === 1) {
-          const selectedNode = nodes.find((n) => n.id === selectedNodeIds[0]);
-          if (selectedNode && selectedNode.data.type === "folder") {
-            // Add child to selected folder — use default name
-            const name = selectedNode.data.type === "folder" ? "New Folder" : "new-file.txt";
-            addNode(selectedNodeIds[0], name, "folder");
-            toast({ title: "Child node added", description: `${name} added to ${selectedNode.data.label}` });
-          } else {
-            // Selected node is a file — create standalone
-            addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
-            toast({ title: "Node created", description: "New Folder" });
-          }
-        } else {
-          // Nothing selected — create standalone
-          addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
-          toast({ title: "Node created", description: "New Folder" });
-        }
+        // Trigger the add node flow via a custom event that GraphirApp listens for
+        window.dispatchEvent(new CustomEvent("graphir-add-node"));
         return;
       }
 
@@ -181,29 +167,18 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+V - paste
+      // Ctrl+V - paste / duplicate
       if (mod && e.key.toLowerCase() === "v" && !inEditable) {
         if (clipboard && clipboard.nodeIds.length > 0) {
           e.preventDefault();
-          // Determine target folder: focused node or first selected folder
-          const targetId = focusedNodeId ?? selectedNodeIds[0];
-          const targetNode = nodes.find(
-            (n) => n.id === targetId && n.data.type === "folder"
-          );
-          if (!targetNode) {
-            toast({
-              title: "Cannot paste",
-              description: "Select a folder to paste into",
-              variant: "destructive",
-            });
-            return;
+          // Duplicate each clipboard node in-place with "copy" naming
+          for (const nodeId of clipboard.nodeIds) {
+            duplicateNode(nodeId);
           }
-          // The actual file paste happens via the file ops module —
-          // this just shows a toast for now (full implementation needs
-          // async file operations which would block the keyboard handler)
+          const node = nodes.find((n) => n.id === clipboard.nodeIds[0]);
           toast({
-            title: clipboard.mode === "copy" ? "Pasting..." : "Moving...",
-            description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} → ${targetNode.data.label}`,
+            title: clipboard.mode === "copy" ? "Duplicated" : "Moved",
+            description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} duplicated${node ? ` (${node.data.label} copy)` : ""}`,
           });
           if (clipboard.mode === "cut") {
             clearClipboard();
@@ -373,6 +348,7 @@ export function KeyboardShortcuts() {
     reset,
     addNode,
     addStandaloneNode,
+    duplicateNode,
     reactFlow,
     toast,
   ]);

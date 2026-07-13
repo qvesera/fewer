@@ -142,12 +142,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
     [nodes, hiddenIds]
   );
 
-  const [addOpen, setAddOpen] = useState(false);
-  const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<"folder" | "file">("file");
-  const [standaloneName, setStandaloneName] = useState("");
-  const [standaloneType, setStandaloneType] = useState<"folder" | "file">("folder");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   return (
@@ -178,7 +172,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
               variant="outline"
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => setAddStandaloneOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent("graphir-add-node-standalone"))}
             >
               <Plus className="h-3.5 w-3.5" />
               Add Node
@@ -187,7 +181,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
               variant="outline"
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => setAddOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent("graphir-add-node"))}
               disabled={
                 nodes.length === 0 ||
                 selectedNodeIds.length === 0 ||
@@ -400,131 +394,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
         <span className="font-medium text-foreground/80">Tips:</span>{" "}
         Right-click nodes for actions · Arrow keys to navigate · H to hide · Shift+H to unhide · Ctrl+F to search · Space to fit view
       </div>
-
-      {/* ── DIALOGS ── */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add child node</DialogTitle>
-            <DialogDescription>
-              Adds a new node as a child of the currently selected folder.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="new-name">Name</Label>
-              <input
-                id="new-name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g. notes.md"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setNewType("file")}
-                  className={cn(
-                    "rounded-lg border p-3 text-sm",
-                    newType === "file" ? "border-purple-400 bg-purple-500/10" : "border-border/40"
-                  )}
-                >
-                  📄 File
-                </button>
-                <button
-                  onClick={() => setNewType("folder")}
-                  className={cn(
-                    "rounded-lg border p-3 text-sm",
-                    newType === "folder" ? "border-orange-400 bg-orange-500/10" : "border-border/40"
-                  )}
-                >
-                  📁 Folder
-                </button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!newName.trim()) return;
-                addNode(selectedNodeIds[0] ?? null, newName.trim(), newType);
-                setNewName("");
-                setNewType("file");
-                setAddOpen(false);
-              }}
-              className="bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white"
-            >
-              Add node
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={addStandaloneOpen} onOpenChange={setAddStandaloneOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add node</DialogTitle>
-            <DialogDescription>
-              Creates a new root node on the canvas. Connect it to other nodes by dragging from a handle.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="standalone-name">Name</Label>
-              <input
-                id="standalone-name"
-                value={standaloneName}
-                onChange={(e) => setStandaloneName(e.target.value)}
-                placeholder="e.g. new-folder"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setStandaloneType("folder")}
-                  className={cn(
-                    "rounded-lg border p-3 text-sm",
-                    standaloneType === "folder" ? "border-orange-400 bg-orange-500/10" : "border-border/40"
-                  )}
-                >
-                  📁 Folder
-                </button>
-                <button
-                  onClick={() => setStandaloneType("file")}
-                  className={cn(
-                    "rounded-lg border p-3 text-sm",
-                    standaloneType === "file" ? "border-purple-400 bg-purple-500/10" : "border-border/40"
-                  )}
-                >
-                  📄 File
-                </button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddStandaloneOpen(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                const name = standaloneName.trim() || (standaloneType === "folder" ? "New Folder" : "new-file.txt");
-                addStandaloneNode(name, standaloneType, { x: 1000, y: 600 });
-                setStandaloneName("");
-                setStandaloneType("folder");
-                setAddStandaloneOpen(false);
-              }}
-              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white"
-            >
-              Create node
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>

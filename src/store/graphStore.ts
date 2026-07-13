@@ -96,6 +96,7 @@ interface GraphState {
   // mutations
   deleteNodes: (ids: string[]) => void;
   renameNode: (id: string, newLabel: string) => void;
+  duplicateNode: (id: string) => void;
   addNode: (parentId: string | null, label: string, type: "folder" | "file") => void;
   /** Add a standalone root node at the given canvas position */
   addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => void;
@@ -470,6 +471,85 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       future: [],
       nodes: applySearch(newNodes, edges, get().searchQuery),
       renamingId: null,
+    });
+  },
+
+  duplicateNode: (id) => {
+    const { nodes, edges, past, nodeWidth, nodeHeight } = get();
+    const sourceNode = nodes.find((n) => n.id === id);
+    if (!sourceNode) return;
+
+    // Generate a copy name: "file.ts" → "file copy.ts", "file copy.ts" → "file copy 2.ts"
+    const origLabel = sourceNode.data.label;
+    const dot = origLabel.lastIndexOf(".");
+    const stem = dot > 0 ? origLabel.slice(0, dot) : origLabel;
+    const ext = dot > 0 ? origLabel.slice(dot) : "";
+
+    // Check siblings for existing copy names
+    const parentId = edges.find((e) => e.target === id)?.source ?? null;
+    const siblingIds = parentId
+      ? edges.filter((e) => e.source === parentId).map((e) => e.target)
+      : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
+    const siblingLabels = new Set(
+      nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label)
+    );
+
+    let copyLabel = `${stem} copy${ext}`;
+    if (siblingLabels.has(copyLabel)) {
+      let counter = 2;
+      while (siblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+        counter++;
+      }
+      copyLabel = `${stem} copy ${counter}${ext}`;
+    }
+
+    const newId = `n-dup-${uuid().slice(0, 8)}`;
+    const newPath = parentId
+      ? `${sourceNode.data.path.replace(origLabel, copyLabel)}`
+      : copyLabel;
+
+    // Create the duplicate node, offset slightly from the original
+    const newNode: GraphirNode = {
+      id: newId,
+      type: sourceNode.type,
+      position: {
+        x: sourceNode.position.x + 40,
+        y: sourceNode.position.y + 40,
+      },
+      data: {
+        ...sourceNode.data,
+        label: copyLabel,
+        path: newPath,
+        isRoot: parentId === null,
+        selected: true,
+      },
+      style: {
+        ...sourceNode.style,
+        width: nodeWidth,
+        height: sourceNode.data.type === "folder" ? nodeHeight : undefined,
+      },
+    };
+
+    // If the original has a parent, link the duplicate to the same parent
+    const newEdges: GraphirEdge[] = [];
+    if (parentId) {
+      newEdges.push({
+        id: `e-${parentId}-${newId}`,
+        source: parentId,
+        target: newId,
+        type: "default",
+      });
+    }
+
+    // Deselect the original
+    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      nodes: applySearch([...updatedNodes, newNode], [...edges, ...newEdges], get().searchQuery),
+      edges: [...edges, ...newEdges],
+      selectedNodeIds: [newId],
     });
   },
 

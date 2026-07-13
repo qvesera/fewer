@@ -13,6 +13,7 @@ import { ImportFromFileDialog } from "./ImportFromFileDialog";
 import { BugReportDialog } from "./BugReportDialog";
 import { TutorialDialog } from "./TutorialDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
+import { AddNodeDialog } from "./AddNodeDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/graphir/sampleData";
@@ -43,6 +44,8 @@ export function GraphirApp() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFromFileOpen, setImportFromFileOpen] = useState(false);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -56,6 +59,18 @@ export function GraphirApp() {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE);
     setGraph(nodes, edges, false);
   }, [setGraph]);
+
+  // Listen for Ctrl+N or sidebar button clicks to open Add Node dialogs
+  useEffect(() => {
+    const openChild = () => setAddChildOpen(true);
+    const openStandalone = () => setAddStandaloneOpen(true);
+    window.addEventListener("graphir-add-node", openChild);
+    window.addEventListener("graphir-add-node-standalone", openStandalone);
+    return () => {
+      window.removeEventListener("graphir-add-node", openChild);
+      window.removeEventListener("graphir-add-node-standalone", openStandalone);
+    };
+  }, []);
 
   // Opening the directory picker is now a two-step flow:
   // 1. User clicks "Import Folder" → show ImportDialog with settings
@@ -154,6 +169,17 @@ export function GraphirApp() {
       <TutorialDialog />
 
       <ShortcutsDialog />
+
+      <AddNodeDialog
+        open={addChildOpen}
+        onOpenChange={setAddChildOpen}
+        mode="child"
+      />
+      <AddNodeDialog
+        open={addStandaloneOpen}
+        onOpenChange={setAddStandaloneOpen}
+        mode="standalone"
+      />
 
       <ImportFromFileDialog
         open={importFromFileOpen}
