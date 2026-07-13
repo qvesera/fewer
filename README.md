@@ -235,6 +235,7 @@ MIT — see [LICENSE](LICENSE) for details.
 - [shadcn/ui](https://ui.shadcn.com/) — beautiful, accessible component library
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first CSS framework
 - [Lucide](https://lucide.dev/) — clean, consistent icon set
+- [Directory icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/directory)
 
 ---
 

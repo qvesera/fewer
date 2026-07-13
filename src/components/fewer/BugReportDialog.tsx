@@ -20,9 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bug, Download, Copy, Check, Loader2, AlertCircle } from "lucide-react";
+import { Bug, Download, Copy, Check, Loader2, AlertCircle, Mail, Github } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats } from "@/lib/fewer/stats";
+import { useToast } from "@/hooks/use-toast";
 
 type Severity = "low" | "medium" | "high" | "critical";
 type Category =
@@ -90,6 +91,8 @@ export function BugReportDialog() {
   const [category, setCategory] = useState<Category>("other");
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [submitting, setSubmitting] = useState<"idle" | "email" | "github">("idle");
+  const { toast } = useToast();
 
   // Collect diagnostics from the current app state
   const diagnostics = useMemo(() => {
@@ -190,6 +193,91 @@ export function BugReportDialog() {
     }
   };
 
+  const submitToWeb3Forms = async (report: typeof bugReport) => {
+    const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
+    if (!accessKey || accessKey === "YOUR_WEB3FORMS_KEY_HERE") {
+      throw new Error("Web3Forms access key is not configured. Please set NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY in your environment.");
+    }
+
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        access_key: accessKey,
+        subject: `[Bug Report] ${report.bug.title}`,
+        from_name: "fewer Bug Reporter",
+        message: JSON.stringify(report, null, 2),
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to submit bug report via Web3Forms.");
+    }
+  };
+
+  const submitToGitHub = async (report: typeof bugReport) => {
+    const response = await fetch("/.netlify/functions/bug-report", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ report }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Failed to create GitHub issue.");
+    }
+    return data.issueUrl as string;
+  };
+
+  const handleSubmitEmail = async () => {
+    setSubmitting("email");
+    try {
+      await submitToWeb3Forms(bugReport);
+      toast({
+        title: "Bug report sent!",
+        description: "Your report has been successfully sent via email.",
+      });
+      handleClose();
+    } catch (err: any) {
+      toast({
+        title: "Submission failed",
+        description: err.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting("idle");
+    }
+  };
+
+  const handleSubmitGitHub = async () => {
+    setSubmitting("github");
+    try {
+      const issueUrl = await submitToGitHub(bugReport);
+      toast({
+        title: "GitHub Issue created!",
+        description: "Your report has been successfully submitted to GitHub.",
+      });
+      if (issueUrl) {
+        window.open(issueUrl, "_blank", "noopener,noreferrer");
+      }
+      handleClose();
+    } catch (err: any) {
+      toast({
+        title: "Submission failed",
+        description: err.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting("idle");
+    }
+  };
+
   const handleClose = () => {
     setOpen(false);
     // Reset form after closing
@@ -199,6 +287,7 @@ export function BugReportDialog() {
       setSteps("");
       setSeverity("medium");
       setCategory("other");
+      setSubmitting("idle");
     }, 200);
   };
 
@@ -229,6 +318,7 @@ export function BugReportDialog() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Nodes overlap when switching to LR layout"
               className="text-sm"
+              disabled={submitting !== "idle"}
             />
           </div>
 
@@ -239,6 +329,7 @@ export function BugReportDialog() {
               <Select
                 value={category}
                 onValueChange={(v) => setCategory(v as Category)}
+                disabled={submitting !== "idle"}
               >
                 <SelectTrigger className="text-sm">
                   <SelectValue />
@@ -257,6 +348,7 @@ export function BugReportDialog() {
               <Select
                 value={severity}
                 onValueChange={(v) => setSeverity(v as Severity)}
+                disabled={submitting !== "idle"}
               >
                 <SelectTrigger className="text-sm">
                   <SelectValue />
@@ -281,6 +373,7 @@ export function BugReportDialog() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What happened? What did you expect to happen instead?"
               className="text-sm min-h-[80px]"
+              disabled={submitting !== "idle"}
             />
           </div>
 
@@ -295,6 +388,7 @@ export function BugReportDialog() {
                 "1. Load sample project\n2. Switch to LR layout\n3. ..."
               }
               className="text-sm min-h-[80px] font-mono text-xs"
+              disabled={submitting !== "idle"}
             />
           </div>
 
@@ -345,11 +439,20 @@ export function BugReportDialog() {
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={handleClose}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+          <Button 
+            variant="outline" 
+            onClick={handleClose}
+            disabled={submitting !== "idle"}
+          >
             Cancel
           </Button>
-          <Button variant="outline" onClick={handleCopy} className="gap-1.5">
+          <Button 
+            variant="outline" 
+            onClick={handleCopy} 
+            disabled={submitting !== "idle"}
+            className="gap-1.5"
+          >
             {copied ? (
               <>
                 <Check className="h-3.5 w-3.5 text-green-400" />
@@ -363,9 +466,10 @@ export function BugReportDialog() {
             )}
           </Button>
           <Button
+            variant="outline"
             onClick={handleDownload}
-            disabled={exporting}
-            className="gap-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600"
+            disabled={exporting || submitting !== "idle"}
+            className="gap-1.5"
           >
             {exporting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -373,6 +477,30 @@ export function BugReportDialog() {
               <Download className="h-3.5 w-3.5" />
             )}
             Download Report
+          </Button>
+          <Button
+            onClick={handleSubmitEmail}
+            disabled={submitting !== "idle" || !title.trim()}
+            className="gap-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600"
+          >
+            {submitting === "email" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Mail className="h-3.5 w-3.5" />
+            )}
+            Send Email
+          </Button>
+          <Button
+            onClick={handleSubmitGitHub}
+            disabled={submitting !== "idle" || !title.trim()}
+            className="gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
+          >
+            {submitting === "github" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Github className="h-3.5 w-3.5" />
+            )}
+            Create GitHub Issue
           </Button>
         </DialogFooter>
       </DialogContent>

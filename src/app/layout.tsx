@@ -28,6 +28,10 @@ export const metadata: Metadata = {
     "Tailwind CSS",
   ],
   authors: [{ name: "fewer Team" }],
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
