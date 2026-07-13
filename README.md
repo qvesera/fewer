@@ -134,17 +134,14 @@ Whether you're understanding a new codebase, documenting a project structure, or
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/fewer-pro-max-ultra.git
-cd fewer-pro-max-ultra
+git clone https://github.com/yourusername/fewer.git
+cd fewer
 
 # Install dependencies
-npm install   # or: bun install
-
-# Set up the database
-npx prisma db push
+npm install
 
 # Start the development server
-npm run dev   # or: bun run dev
+npm run dev
 ```
 
 Open `http://localhost:3000` in your browser.

@@ -5,7 +5,7 @@ import type { TreeEntry } from "./types";
  * so users can see the app working without granting file-system access.
  */
 export const SAMPLE_TREE: TreeEntry = {
-  name: "fewer-pro-max-ultra",
+  name: "fewer",
   type: "folder",
   children: [
     {

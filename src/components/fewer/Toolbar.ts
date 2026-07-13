@@ -14,7 +14,6 @@ import {
   Bug,
   Sparkles,
   HelpCircle,
-  Keyboard,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 
@@ -148,23 +147,14 @@ export function Toolbar({
       {onRestartTutorial && (
         <Button
           variant="ghost"
-          size="sm"
-          className="border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+          size="icon"
+          className="h-8 w-8"
           onClick={onRestartTutorial}
           title="Restart tutorial"
         >
           <HelpCircle className="h-4 w-4" />
         </Button>
       )}
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-8 w-8"
-        onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
-      >
-        <Keyboard />
-      </Button>
 
       <Button
         variant="ghost"

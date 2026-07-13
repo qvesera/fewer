@@ -47,6 +47,8 @@ interface GraphState {
   shortcutsOpen: boolean;
   /** id of the node currently being renamed inline (null = none) */
   renamingId: string | null;
+  /** tracks how the current graph was loaded (for tutorial) */
+  dataSource: string | null;
 
   // export settings
   exportSettings: ExportSettings;
@@ -165,7 +167,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   searchQuery: "",
   selectedNodeIds: [],
   hiddenIds: [],
-  themeMode: "dark",
+  themeMode: "light",
   customTheme: { ...DEFAULT_CUSTOM_THEME },
   clipboard: null,
   focusedNodeId: null,
@@ -179,6 +181,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   bugReportOpen: false,
   shortcutsOpen: false,
   renamingId: null,
+  dataSource: null,
   exportSettings: {
     format: "svg",
     quality: 90,

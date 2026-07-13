@@ -397,6 +397,16 @@ function CanvasInner() {
         onNodeDragStop={onNodeDragStop}
         onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}
+        onNodeDoubleClick={(_, node) => {
+          useGraphStore.setState((s) => ({
+            nodes: s.nodes.map((n) => ({
+              ...n,
+              selected: n.id === node.id,
+            })),
+            selectedNodeIds: [node.id],
+          }));
+          fitToSelection();
+        }}
         onDelete={({ nodes: deletedNodes }) =>
           deleteNodes(deletedNodes.map((n) => n.id))
         }
