@@ -51,6 +51,7 @@ export function KeyboardShortcuts() {
   const hideNodes = useGraphStore((s) => s.hideNodes);
   const unhideAll = useGraphStore((s) => s.unhideAll);
   const setExportOpen = useGraphStore((s) => s.setExportOpen);
+  const setShortcutsOpen = useGraphStore((s) => s.setShortcutsOpen);
   const reset = useGraphStore((s) => s.reset);
   const addNode = useGraphStore((s) => s.addNode);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
@@ -134,6 +135,13 @@ export function KeyboardShortcuts() {
       if (mod && e.key.toLowerCase() === "e") {
         e.preventDefault();
         setExportOpen(true);
+        return;
+      }
+
+      // Ctrl+I - show shortcuts dialog
+      if (mod && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setShortcutsOpen(true);
         return;
       }
 
@@ -361,6 +369,7 @@ export function KeyboardShortcuts() {
     hideNodes,
     unhideAll,
     setExportOpen,
+    setShortcutsOpen,
     reset,
     addNode,
     addStandaloneNode,

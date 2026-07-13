@@ -12,6 +12,7 @@ import { ImportDialog } from "./ImportDialog";
 import { ImportFromFileDialog } from "./ImportFromFileDialog";
 import { BugReportDialog } from "./BugReportDialog";
 import { TutorialDialog } from "./TutorialDialog";
+import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/graphir/sampleData";
@@ -151,6 +152,8 @@ export function GraphirApp() {
       <BugReportDialog />
 
       <TutorialDialog />
+
+      <ShortcutsDialog />
 
       <ImportFromFileDialog
         open={importFromFileOpen}
