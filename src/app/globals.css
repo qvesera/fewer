@@ -41,6 +41,27 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* brand */
+  --color-brand-orange: var(--brand-orange-500);
+  --color-brand-purple: var(--brand-purple-500);
+  --color-brand-cyan: var(--brand-cyan-400);
+
+  /* fewer */
+  --color-fewer-background: var(--fewer-background);
+  --color-fewer-text: var(--fewer-text);
+  --color-fewer-text-subtle: var(--fewer-text-subtle);
+  --color-fewer-item-hover: var(--fewer-item-hover);
+  --color-fewer-handle: var(--fewer-handle);
+  --color-fewer-edge: var(--fewer-edge);
+  --color-fewer-folder-bg: var(--fewer-folder-bg);
+  --color-fewer-folder-border: var(--fewer-folder-border);
+  --color-fewer-folder-header-bg: var(--fewer-folder-header-bg);
+  --color-fewer-folder-header-text: var(--fewer-folder-header-text);
+  --color-fewer-folder-icon: var(--fewer-folder-icon);
+  --color-fewer-file-bg: var(--fewer-file-bg);
+  --color-fewer-file-border: var(--fewer-file-border);
+  --color-fewer-file-icon: var(--fewer-file-icon);
 }
 
 :root {
@@ -76,6 +97,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* brand colors */
+  --brand-orange-500: #f97316;
+  --brand-purple-500: #a855f7;
+  --brand-cyan-400: #22d3ee;
 
   /* fewer node colors — light mode defaults */
   --fewer-background: #ffffff;
@@ -126,6 +152,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* brand colors (unchanged across themes) */
+  --brand-orange-500: #f97316;
+  --brand-purple-500: #a855f7;
+  --brand-cyan-400: #22d3ee;
 
   /* fewer node colors — dark mode defaults */
   --fewer-background: #0b0b13;
@@ -333,6 +364,15 @@ aside::-webkit-scrollbar-thumb:hover {
     0 0 0 1px rgba(148, 163, 184, 0.04);
 }
 
+/* ── Shadow utilities ───────────────────────────────────────────────────────── */
+
+.shadow-node-folder {
+  box-shadow: 0 8px 24px -8px rgba(249, 115, 22, 0.25);
+}
+.shadow-node-file {
+  box-shadow: 0 8px 24px -8px rgba(168, 85, 247, 0.25);
+}
+
 /* ── Node card utilities ───────────────────────────────────────────────────── */
 
 /* Selected-node animated glow ring (applied via className) */
@@ -351,4 +391,29 @@ aside::-webkit-scrollbar-thumb:hover {
     0 16px 40px -12px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(148, 163, 184, 0.08);
   filter: brightness(1.04);
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────────────── */
+
+/* Visible focus rings for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--brand-cyan-400);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .gm-pulse-glow,
+  .gm-edge-flow,
+  .gm-node-fade-in {
+    animation: none !important;
+  }
 }

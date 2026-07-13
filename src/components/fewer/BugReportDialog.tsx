@@ -20,7 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bug, Download, Copy, Check, Loader2, AlertCircle, Mail, Github } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  Bug,
+  Download,
+  Copy,
+  Check,
+  Loader2,
+  AlertCircle,
+  Mail,
+  Github,
+} from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats } from "@/lib/fewer/stats";
 import { useToast } from "@/hooks/use-toast";
@@ -42,17 +52,21 @@ type Category =
   | "other";
 
 const SEVERITIES: { value: Severity; label: string; color: string }[] = [
-  { value: "low", label: "Low — minor inconvenience", color: "text-blue-400" },
+  { value: "low", label: "Low — minor inconvenience", color: "text-blue-500" },
   {
     value: "medium",
     label: "Medium — workaround exists",
-    color: "text-yellow-400",
+    color: "text-yellow-600 dark:text-yellow-500",
   },
-  { value: "high", label: "High — feature broken", color: "text-orange-400" },
+  {
+    value: "high",
+    label: "High — feature broken",
+    color: "text-orange-600 dark:text-orange-500",
+  },
   {
     value: "critical",
     label: "Critical — app unusable",
-    color: "text-red-400",
+    color: "text-red-600 dark:text-red-500",
   },
 ];
 
@@ -91,7 +105,9 @@ export function BugReportDialog() {
   const [category, setCategory] = useState<Category>("other");
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [submitting, setSubmitting] = useState<"idle" | "email" | "github">("idle");
+  const [submitting, setSubmitting] = useState<"idle" | "email" | "github">(
+    "idle",
+  );
   const { toast } = useToast();
 
   // Collect diagnostics from the current app state
@@ -196,7 +212,9 @@ export function BugReportDialog() {
   const submitToWeb3Forms = async (report: typeof bugReport) => {
     const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
     if (!accessKey || accessKey === "YOUR_WEB3FORMS_KEY_HERE") {
-      throw new Error("Web3Forms access key is not configured. Please set NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY in your environment.");
+      throw new Error(
+        "Web3Forms access key is not configured. Please set NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY in your environment.",
+      );
     }
 
     const response = await fetch("https://api.web3forms.com/submit", {
@@ -291,15 +309,17 @@ export function BugReportDialog() {
     }, 200);
   };
 
+  const isDisabled = submitting !== "idle";
+
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
     >
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bug className="h-4 w-4 text-red-400" />
+            <Bug className="h-4 w-4 text-red-500" />
             Report a Bug
           </DialogTitle>
           <DialogDescription>
@@ -310,31 +330,40 @@ export function BugReportDialog() {
 
         <div className="space-y-4 py-2">
           {/* Title */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bug-title">Bug title</Label>
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label htmlFor="bug-title" className="text-sm">Bug title</Label>
+              <span className="text-red-500 text-sm">*</span>
+            </div>
             <Input
               id="bug-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Nodes overlap when switching to LR layout"
               className="text-sm"
-              disabled={submitting !== "idle"}
+              disabled={isDisabled}
+              aria-required="true"
             />
           </div>
 
           {/* Category + Severity */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs">Category</Label>
               <Select
                 value={category}
                 onValueChange={(v) => setCategory(v as Category)}
-                disabled={submitting !== "idle"}
+                disabled={isDisabled}
               >
                 <SelectTrigger className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  position="popper"
+                  sideOffset={4}
+                  collisionPadding={16}
+                  className="z-[100]"
+                >
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
                       {c.label}
@@ -343,17 +372,22 @@ export function BugReportDialog() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs">Severity</Label>
               <Select
                 value={severity}
                 onValueChange={(v) => setSeverity(v as Severity)}
-                disabled={submitting !== "idle"}
+                disabled={isDisabled}
               >
                 <SelectTrigger className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  position="popper"
+                  sideOffset={4}
+                  collisionPadding={16}
+                  className="z-[100]"
+                >
                   {SEVERITIES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       <span className={s.color}>{s.label}</span>
@@ -365,59 +399,59 @@ export function BugReportDialog() {
           </div>
 
           {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bug-desc">Description</Label>
+          <div className="space-y-2">
+            <Label htmlFor="bug-desc" className="text-sm">Description</Label>
             <Textarea
               id="bug-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What happened? What did you expect to happen instead?"
               className="text-sm min-h-[80px]"
-              disabled={submitting !== "idle"}
+              disabled={isDisabled}
             />
           </div>
 
           {/* Steps to reproduce */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bug-steps">Steps to reproduce</Label>
+          <div className="space-y-2">
+            <Label htmlFor="bug-steps" className="text-sm">Steps to reproduce</Label>
             <Textarea
               id="bug-steps"
               value={steps}
               onChange={(e) => setSteps(e.target.value)}
-              placeholder={
-                "1. Load sample project\n2. Switch to LR layout\n3. ..."
-              }
+              placeholder={"1. Load sample project\n2. Switch to LR layout\n3. ..."}
               className="text-sm min-h-[80px] font-mono text-xs"
-              disabled={submitting !== "idle"}
+              disabled={isDisabled}
             />
           </div>
+
+          <Separator />
 
           {/* Diagnostics preview */}
           <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
             <div className="flex items-center gap-1.5 mb-2">
-              <AlertCircle className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                 Auto-collected diagnostics
               </span>
             </div>
-            <div className="space-y-1 text-[10px] text-muted-foreground">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
                 <span>Nodes / Edges</span>
-                <span className="tabular-nums">
+                <span className="tabular-nums font-medium text-foreground/80">
                   {diagnostics.graphState.totalNodes} /{" "}
                   {diagnostics.graphState.totalEdges}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Layout / Edge style</span>
-                <span>
+                <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.layoutDirection} /{" "}
                   {diagnostics.graphState.edgeStyle}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Theme / Node size</span>
-                <span>
+                <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.themeMode} /{" "}
                   {diagnostics.graphState.nodeWidth}×
                   {diagnostics.graphState.nodeHeight}
@@ -425,83 +459,102 @@ export function BugReportDialog() {
               </div>
               <div className="flex justify-between">
                 <span>FS Access API</span>
-                <span>{diagnostics.environment.fileSystemAccess}</span>
+                <span className="font-medium text-foreground/80">
+                  {diagnostics.environment.fileSystemAccess}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Viewport</span>
-                <span>{diagnostics.environment.viewport}</span>
+                <span className="font-medium text-foreground/80">
+                  {diagnostics.environment.viewport}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Hidden nodes</span>
-                <span>{diagnostics.graphState.hiddenNodes}</span>
+                <span className="font-medium text-foreground/80">
+                  {diagnostics.graphState.hiddenNodes}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-          <Button 
-            variant="outline" 
-            onClick={handleClose}
-            disabled={submitting !== "idle"}
-          >
-            Cancel
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleCopy} 
-            disabled={submitting !== "idle"}
-            className="gap-1.5"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-green-400" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                Copy JSON
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDownload}
-            disabled={exporting || submitting !== "idle"}
-            className="gap-1.5"
-          >
-            {exporting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Download className="h-3.5 w-3.5" />
-            )}
-            Download Report
-          </Button>
-          <Button
-            onClick={handleSubmitEmail}
-            disabled={submitting !== "idle" || !title.trim()}
-            className="gap-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600"
-          >
-            {submitting === "email" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Mail className="h-3.5 w-3.5" />
-            )}
-            Send Email
-          </Button>
-          <Button
-            onClick={handleSubmitGitHub}
-            disabled={submitting !== "idle" || !title.trim()}
-            className="gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-          >
-            {submitting === "github" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Github className="h-3.5 w-3.5" />
-            )}
-            Create GitHub Issue
-          </Button>
+        <DialogFooter className="flex flex-wrap gap-2 sm:justify-between">
+          {/* Secondary actions */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+              disabled={isDisabled}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopy}
+              disabled={isDisabled}
+              className="gap-1.5 cursor-pointer"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-green-500" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              disabled={exporting || isDisabled}
+              className="gap-1.5 cursor-pointer"
+            >
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Download
+            </Button>
+          </div>
+
+          {/* Primary actions */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={handleSubmitEmail}
+              disabled={isDisabled || !title.trim()}
+              className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
+            >
+              {submitting === "email" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Mail className="h-3.5 w-3.5" />
+              )}
+              Send Email
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmitGitHub}
+              disabled={isDisabled || !title.trim()}
+              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
+            >
+              {submitting === "github" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Github className="h-3.5 w-3.5" />
+              )}
+              GitHub Issue
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

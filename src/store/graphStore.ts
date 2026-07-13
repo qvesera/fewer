@@ -219,11 +219,23 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setDirection: (direction) => {
     set({ direction });
-    // Force edge re-creation so React Flow recalculates edge paths
-    // based on the new handle positions. Without this, edges keep
-    // their old paths even though handles have moved.
+    // Force React Flow to recalculate edge paths by creating new edge objects.
+    // Just setting the same type doesn't trigger recalculation, so we
+    // regenerate IDs so React Flow treats them as brand-new edges.
+    const edgeTypeMap: Record<EdgeStyle, string> = {
+      curved: "default",
+      angled: "smoothstep",
+      straight: "straight",
+    };
+    const currentStyle = get().edgeStyle;
     set((s) => ({
-      edges: s.edges.map((e) => ({ ...e, type: e.type ?? "default" })),
+      edges: s.edges.map((e) => ({
+        ...e,
+        id: `e-${e.source}-${e.target}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+        type: edgeTypeMap[currentStyle],
+      })),
     }));
     get().relayout();
   },

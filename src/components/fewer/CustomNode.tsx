@@ -432,8 +432,8 @@ function ChildEntry({ child }: { child: FewerNode }) {
           className={cn(
             "h-3.5 w-3.5 shrink-0",
             child.data.type === "folder"
-              ? "text-[var(--fewer-folder-icon)]"
-              : "text-[var(--fewer-file-icon)]",
+              ? "text-fewer-folder-icon"
+              : "text-fewer-file-icon",
           )}
         />
         <span className="truncate text-foreground/90">{child.data.label}</span>
@@ -459,7 +459,7 @@ function CustomNodeImpl({
   width,
   height,
 }: NodeProps<FewerNode>) {
-  const layoutDirection = (data.layoutDirection as string) ?? "TB";
+  const layoutDirection = useGraphStore((s) => s.direction);
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
 
@@ -496,14 +496,9 @@ function CustomNodeImpl({
     const childListMaxHeight = Math.max(60, actualHeight - 72);
     return (
       <div
-        style={{
-          backgroundColor: "var(--fewer-folder-bg)",
-          borderColor: "var(--fewer-folder-border)",
-          color: "var(--fewer-text)",
-        }}
         className={cn(
           "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl gm-node-hover",
-          "shadow-[0_8px_24px_-8px_rgba(249,115,22,0.25)]",
+          "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-glow",
@@ -526,6 +521,7 @@ function CustomNodeImpl({
         <Handle
           type="target"
           position={target}
+          id={`target-${target}`}
           isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
@@ -537,21 +533,13 @@ function CustomNodeImpl({
         >
           {/* Header — folder context menu trigger */}
           <div
-            style={{
-              backgroundColor: "var(--fewer-folder-header-bg)",
-              borderBottomColor: "var(--fewer-folder-border)",
-            }}
             className={cn(
-              "flex items-center gap-2 rounded-t-xl border-b px-3 py-2",
-              "cursor-context-menu",
+              "flex items-center gap-2 rounded-t-xl border-b border-fewer-folder-border px-3 py-2",
+              "cursor-context-menu bg-fewer-folder-header-bg",
             )}
           >
             <div
-              style={{
-                backgroundColor: "var(--fewer-folder-header-bg)",
-                color: "var(--fewer-folder-icon)",
-              }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fewer-folder-header-bg text-fewer-folder-icon"
             >
               <NodeIcon
                 type={data.type}
@@ -624,12 +612,7 @@ function CustomNodeImpl({
 
         {/* Footer */}
         <div
-          style={{
-            backgroundColor: "var(--fewer-folder-bg)",
-            borderTopColor: "var(--fewer-folder-border)",
-            color: "var(--fewer-folder-header-text)",
-          }}
-          className="rounded-b-xl border-t px-3 py-1.5 text-[10px] uppercase tracking-wider"
+          className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
         >
           {childCount} {childCount === 1 ? "item" : "items"}
         </div>
@@ -637,6 +620,7 @@ function CustomNodeImpl({
         <Handle
           type="source"
           position={source}
+          id={`source-${source}`}
           isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
@@ -652,15 +636,10 @@ function CustomNodeImpl({
       onDelete={() => deleteNodes([id])}
     >
       <div
-        style={{
-          backgroundColor: "var(--fewer-file-bg)",
-          borderColor: "var(--fewer-file-border)",
-          color: "var(--fewer-text)",
-        }}
         className={cn(
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
-          "shadow-[0_8px_24px_-8px_rgba(168,85,247,0.25)]",
+          "bg-fewer-file-bg border-fewer-file-border text-fewer-text shadow-node-file",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-glow",
@@ -685,13 +664,13 @@ function CustomNodeImpl({
         <Handle
           type="target"
           position={target}
+          id={`target-${target}`}
           isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
         <div
-          style={{ color: "var(--fewer-file-icon)" }}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fewer-file-icon"
         >
           <NodeIcon
             type={data.type}
@@ -730,6 +709,7 @@ function CustomNodeImpl({
         <Handle
           type="source"
           position={source}
+          id={`source-${source}`}
           isConnectable
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />

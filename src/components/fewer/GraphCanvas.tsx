@@ -22,7 +22,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { useGraphStore } from "@/store/graphStore";
 import { useTheme } from "next-themes";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -148,14 +148,16 @@ function CanvasInner() {
   }, [rfNodes.length]);
 
   // Re-fit the view whenever the layout direction changes so the user
-  // actually sees the repositioned graph.
+  // actually sees the repositioned graph. The `key` prop on ReactFlow
+  // forces a full remount on direction change, which recalculates all
+  // handle positions and edge paths from scratch.
   useEffect(() => {
     if (rfNodes.length === 0) return;
     const t = setTimeout(() => {
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
-    }, 80);
+    }, 100);
     return () => clearTimeout(t);
-  }, [direction, rfNodes.length, fitView]);
+  }, [direction, fitView]);
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
@@ -389,6 +391,7 @@ function CanvasInner() {
       }}
     >
       <ReactFlow
+        key={`flow-${direction}`}
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
@@ -512,7 +515,7 @@ function CanvasInner() {
                 "gm-float flex flex-col items-center gap-3 rounded-2xl px-8 py-6 text-center",
               )}
             >
-              <div className="text-5xl">📁</div>
+              <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">No directory loaded</div>
               <div className="max-w-xs text-sm text-muted-foreground">
                 Use the sidebar to open a directory from your file system, or
@@ -556,7 +559,7 @@ function CanvasInner() {
                 fitView({ duration: 500, padding: 0.2 });
                 setCanvasMenu(null);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
             >
               Fit View
             </button>
@@ -565,7 +568,7 @@ function CanvasInner() {
                 selectAll();
                 setCanvasMenu(null);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
             >
               Select All
             </button>
@@ -574,7 +577,7 @@ function CanvasInner() {
                 zoomIn({ duration: 250 });
                 setCanvasMenu(null);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
             >
               Zoom In
             </button>
@@ -583,7 +586,7 @@ function CanvasInner() {
                 zoomOut({ duration: 250 });
                 setCanvasMenu(null);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
             >
               Zoom Out
             </button>
@@ -598,7 +601,7 @@ function CanvasInner() {
                 setCanvasMenu(null);
               }}
               disabled={hiddenCount === 0}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:hover:bg-transparent"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
               Unhide All Nodes
             </button>
