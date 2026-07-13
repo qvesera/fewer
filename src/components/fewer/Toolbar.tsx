@@ -42,7 +42,7 @@ export function Toolbar({
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
 
   return (
-    <header className="z-20 flex items-center gap-2 border-b border-border/40 bg-card/60 px-3 py-2 backdrop-blur-xl">
+    <header className="gm-float z-20 mx-3 mt-3 flex items-center gap-2 rounded-2xl px-3 py-2">
       <div className="flex items-center gap-2 pr-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-purple-600 shadow-lg shadow-purple-500/30">
           <LayoutTemplate className="h-4 w-4 text-white" />

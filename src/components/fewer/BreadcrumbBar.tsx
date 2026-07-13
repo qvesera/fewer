@@ -40,7 +40,7 @@ export function BreadcrumbBar() {
   if (breadcrumbs.length === 0) return null;
 
   return (
-    <div className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-xl border border-border/40 bg-card/80 px-3 py-1.5 text-xs shadow-xl backdrop-blur-md">
+    <div className="gm-float absolute left-3 top-3 z-20 flex items-center gap-1 rounded-full px-4 py-1.5 text-xs">
       <Home className="h-3 w-3 text-muted-foreground" />
       {breadcrumbs.map((crumb, i) => (
         <div key={crumb.id} className="flex items-center gap-1">

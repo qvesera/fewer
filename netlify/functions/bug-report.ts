@@ -28,7 +28,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
     };
   }
 
-  const repo = GITHUB_REPO || "qvesera/fewer";
+  const repo = GITHUB_REPO;
 
   try {
     const body = JSON.parse(event.body || "{}");

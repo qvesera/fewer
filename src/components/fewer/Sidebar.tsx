@@ -144,7 +144,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   return (
-    <aside className="flex h-full w-full flex-col gap-1 overflow-y-auto border-r border-border/40 bg-card/40 p-3 backdrop-blur-xl">
+    <aside className="gm-glass flex h-full w-full flex-col gap-1 overflow-y-auto border-r border-border/30 p-3">
       {/* ── FILE ── Primary actions, always visible */}
       <CollapsibleSection title="File" icon={HardDrive} defaultOpen>
         <div className="space-y-2">

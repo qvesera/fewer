@@ -465,7 +465,7 @@ function CanvasInner() {
         />
 
         <Panel position="bottom-center">
-          <div className="flex items-center gap-1 rounded-xl border border-border/40 bg-card/80 p-1 shadow-xl backdrop-blur-md">
+          <div className="gm-float flex items-center gap-1 rounded-2xl p-1">
             <Button
               variant="ghost"
               size="icon"
@@ -509,7 +509,7 @@ function CanvasInner() {
           <Panel position="top-center" className="!top-1/3">
             <div
               className={cn(
-                "flex flex-col items-center gap-3 rounded-2xl border border-border/40 bg-card/80 px-8 py-6 text-center shadow-2xl backdrop-blur-xl",
+                "gm-float flex flex-col items-center gap-3 rounded-2xl px-8 py-6 text-center",
               )}
             >
               <div className="text-5xl">📁</div>
@@ -524,7 +524,7 @@ function CanvasInner() {
 
         {hiddenCount > 0 && (
           <Panel position="top-right">
-            <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200 shadow-lg backdrop-blur-md">
+            <div className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200">
               {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
             </div>
           </Panel>
@@ -544,7 +544,7 @@ function CanvasInner() {
             }}
           />
           <div
-            className="fixed z-50 min-w-[200px] rounded-xl border border-border/40 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl"
+            className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5"
             style={{ left: canvasMenu.x, top: canvasMenu.y }}
           >
             <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">

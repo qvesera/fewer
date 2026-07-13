@@ -154,23 +154,67 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/*  fewer - glassmorphism + React Flow customizations         */
+/*  fewer - glassmorphism + React Flow customizations (Pro Max)                */
 /* -------------------------------------------------------------------------- */
 
-/* Canvas background — clean, no gradients */
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
 
-/* React Flow: theme the controls + minimap to match our glass aesthetic */
+/* Breathing glow ring for selected nodes */
+@keyframes gm-pulse-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 8px 2px rgba(34, 211, 238, 0.35),
+      0 0 20px 4px rgba(34, 211, 238, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 14px 4px rgba(34, 211, 238, 0.55),
+      0 0 32px 8px rgba(34, 211, 238, 0.2);
+  }
+}
+
+/* Flowing dashes along edge paths (direction-aware data flow) */
+@keyframes gm-edge-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+/* Subtle entrance animation for nodes.
+   ⚠ DO NOT animate `transform` on `.react-flow__node` — React Flow uses
+   `transform: translate(x,y)` to position each node. Animating transform
+   here will override React Flow's positioning and stack all nodes at (0,0).
+   We animate opacity + filter on the INNER div only. */
+@keyframes gm-node-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* ── React Flow Controls + Minimap ─────────────────────────────────────────── */
+
 .react-flow__controls {
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 12px 30px -10px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(148, 163, 184, 0.08);
+  border-radius: 16px !important;
+  overflow: hidden;
 }
 .react-flow__controls-button {
   background: transparent !important;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.15) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
   color: var(--foreground) !important;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
 .react-flow__controls-button:hover {
   background: rgba(148, 163, 184, 0.12) !important;
+  color: rgb(34, 211, 238) !important;
 }
 .react-flow__controls-button svg {
   fill: currentColor;
@@ -178,41 +222,71 @@
 
 .react-flow__minimap {
   overflow: hidden;
+  border-radius: 16px !important;
 }
 .react-flow__attribution {
   display: none !important;
 }
 
-/* Smooth edge rendering + selection ring */
+/* ── Edge Styling — animated flowing dashes ────────────────────────────────── */
+
 .react-flow__edge-path {
   transition:
-    stroke 0.2s ease,
-    stroke-width 0.2s ease;
+    stroke 0.25s ease,
+    stroke-width 0.25s ease,
+    opacity 0.25s ease;
+  stroke-dasharray: 8 4;
+  animation: gm-edge-flow 1.2s linear infinite;
 }
+
+/* Selected / focused edges glow brighter + thicker + faster */
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:focus .react-flow__edge-path,
 .react-flow__edge:focus-visible .react-flow__edge-path {
   stroke: rgb(34, 211, 238) !important;
   stroke-width: 2.5px !important;
+  stroke-dasharray: 6 3;
+  animation: gm-edge-flow 0.6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
 }
 
-/* Node selection ring */
+/* ── Node Styling ──────────────────────────────────────────────────────────── */
+
 .react-flow__node {
   cursor: grab;
 }
 .react-flow__node:active {
   cursor: grabbing;
 }
+/* Remove default selection outline — we use gm-pulse-glow instead */
 .react-flow__node.selected {
   outline: none;
 }
+.react-flow__node > div {
+  animation: gm-node-fade-in 0.3s ease-out both;
+}
 
-/* Custom scrollbar for sidebars / panels */
+/* ── Handle Micro-interactions ─────────────────────────────────────────────── */
+
+.react-flow__handle {
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.react-flow__handle:hover {
+  transform: scale(1.5);
+  background: rgb(34, 211, 238) !important;
+  box-shadow: 0 0 8px 2px rgba(34, 211, 238, 0.4);
+}
+
+/* ── Scrollbar (sidebars / panels) ─────────────────────────────────────────── */
+
 .gm-scroll::-webkit-scrollbar,
 aside::-webkit-scrollbar,
 .react-flow__panel::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 .gm-scroll::-webkit-scrollbar-track,
 aside::-webkit-scrollbar-track {
@@ -220,7 +294,7 @@ aside::-webkit-scrollbar-track {
 }
 .gm-scroll::-webkit-scrollbar-thumb,
 aside::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.2);
   border-radius: 999px;
 }
 .gm-scroll::-webkit-scrollbar-thumb:hover,
@@ -228,40 +302,53 @@ aside::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
 
-/* Subtle entrance animation for nodes.
-   ⚠ DO NOT animate `transform` on `.react-flow__node` — React Flow uses
-   `transform: translate(x,y)` to position each node. Animating transform
-   here will override React Flow's positioning and stack all nodes at (0,0).
-   We animate opacity on the INNER div only. */
-@keyframes gm-node-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.react-flow__node > div {
-  animation: gm-node-fade-in 0.22s ease-out both;
-}
+/* ── Glass Utilities ───────────────────────────────────────────────────────── */
 
-/* Spring micro-interaction for handle hover */
-.react-flow__handle {
-  transition:
-    transform 0.15s ease,
-    background 0.15s ease;
-}
-.react-flow__handle:hover {
-  transform: scale(1.4);
-  background: rgb(34, 211, 238) !important;
-}
-
-/* Glass utility */
 .gm-glass {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
 }
 .dark .gm-glass {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(148, 163, 184, 0.08);
+}
+
+/* Floating panel — for toolbar, breadcrumbs, search, bottom bar */
+.gm-float {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  box-shadow:
+    0 8px 32px -8px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(148, 163, 184, 0.06);
+}
+.dark .gm-float {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(148, 163, 184, 0.1);
+  box-shadow:
+    0 8px 32px -8px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(148, 163, 184, 0.04);
+}
+
+/* ── Node card utilities ───────────────────────────────────────────────────── */
+
+/* Selected-node animated glow ring (applied via className) */
+.gm-selected-glow {
+  animation: gm-pulse-glow 2.4s ease-in-out infinite;
+}
+
+/* Hover lift for node cards — subtle vertical translation + deeper shadow */
+.gm-node-hover {
+  transition:
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    filter 0.3s ease;
+}
+.gm-node-hover:hover {
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(148, 163, 184, 0.08);
+  filter: brightness(1.04);
 }

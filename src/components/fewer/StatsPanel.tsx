@@ -25,17 +25,18 @@ const CATEGORY_META: Record<
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     color: string;
+    barColor: string;
   }
 > = {
-  code: { label: "Code", icon: FileCode, color: "text-emerald-400" },
-  config: { label: "Config", icon: FileJson, color: "text-amber-400" },
-  image: { label: "Images", icon: FileImage, color: "text-pink-400" },
-  document: { label: "Docs", icon: FileText, color: "text-sky-400" },
-  archive: { label: "Archives", icon: FileArchive, color: "text-yellow-400" },
-  data: { label: "Data", icon: FileSpreadsheet, color: "text-cyan-400" },
-  media: { label: "Media", icon: FileVideo, color: "text-rose-400" },
-  binary: { label: "Binary", icon: FileIcon, color: "text-slate-400" },
-  text: { label: "Text", icon: FileType, color: "text-violet-400" },
+  code: { label: "Code", icon: FileCode, color: "text-emerald-400", barColor: "bg-emerald-500" },
+  config: { label: "Config", icon: FileJson, color: "text-amber-400", barColor: "bg-amber-500" },
+  image: { label: "Images", icon: FileImage, color: "text-pink-400", barColor: "bg-pink-500" },
+  document: { label: "Docs", icon: FileText, color: "text-sky-400", barColor: "bg-sky-500" },
+  archive: { label: "Archives", icon: FileArchive, color: "text-yellow-400", barColor: "bg-yellow-500" },
+  data: { label: "Data", icon: FileSpreadsheet, color: "text-cyan-400", barColor: "bg-cyan-500" },
+  media: { label: "Media", icon: FileVideo, color: "text-rose-400", barColor: "bg-rose-500" },
+  binary: { label: "Binary", icon: FileIcon, color: "text-slate-400", barColor: "bg-slate-500" },
+  text: { label: "Text", icon: FileType, color: "text-violet-400", barColor: "bg-violet-500" },
 };
 
 export function StatsPanel() {
@@ -111,7 +112,7 @@ export function StatsPanel() {
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-orange-400 to-purple-500"
+                      className={cn("h-full rounded-full transition-all duration-500", meta.barColor)}
                       style={{ width: `${pct}%` }}
                     />
                   </div>

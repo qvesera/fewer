@@ -396,8 +396,8 @@ function ChildEntry({ child }: { child: FewerNode }) {
     >
       <div
         className={cn(
-          "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors nodrag",
-          "hover:bg-foreground/10",
+          "flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
+          "hover:bg-foreground/8 hover:pl-3",
           isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
           isDimmed && "opacity-40",
         )}
@@ -502,13 +502,11 @@ function CustomNodeImpl({
           color: "var(--fewer-text)",
         }}
         className={cn(
-          "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl transition-shadow",
-          "shadow-[0_8px_24px_-8px_rgba(249,115,22,0.4)]",
+          "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl gm-node-hover",
+          "shadow-[0_8px_24px_-8px_rgba(249,115,22,0.25)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected &&
-            "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background",
-          "hover:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]",
+          selected && "gm-selected-glow",
         )}
       >
         {selected && (
@@ -660,14 +658,12 @@ function CustomNodeImpl({
           color: "var(--fewer-text)",
         }}
         className={cn(
-          "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl transition-shadow",
+          "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
-          "shadow-[0_8px_24px_-8px_rgba(168,85,247,0.4)]",
+          "shadow-[0_8px_24px_-8px_rgba(168,85,247,0.25)]",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected &&
-            "ring-2 ring-cyan-400 ring-offset-2 ring-offset-background",
-          "hover:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]",
+          selected && "gm-selected-glow",
         )}
       >
         {selected && (

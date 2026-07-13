@@ -78,7 +78,7 @@ export function SearchPanel() {
   };
 
   return (
-    <div className="absolute right-3 top-3 z-30 w-[min(360px,calc(100vw-1.5rem))] rounded-2xl border border-border/40 bg-card/90 p-3 shadow-2xl backdrop-blur-xl">
+    <div className="gm-float absolute right-3 top-3 z-30 w-[min(360px,calc(100vw-1.5rem))] rounded-2xl p-3">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
