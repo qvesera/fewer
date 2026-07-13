@@ -43,6 +43,7 @@ interface GraphState {
   exportOpen: boolean;
   sidebarOpen: boolean;
   advancedOpen: boolean;
+  bugReportOpen: boolean;
   /** id of the node currently being renamed inline (null = none) */
   renamingId: string | null;
 
@@ -56,6 +57,7 @@ interface GraphState {
   setCornerRadius: (radius: number) => void;
   setNodeDimensions: (w: number, h: number) => void;
   setAdvancedOpen: (open: boolean) => void;
+  setBugReportOpen: (open: boolean) => void;
   relayout: () => void;
   setSearchQuery: (query: string) => void;
   setSearchOpen: (open: boolean) => void;
@@ -159,6 +161,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   exportOpen: false,
   sidebarOpen: true,
   advancedOpen: false,
+  bugReportOpen: false,
   renamingId: null,
   exportSettings: {
     format: "svg",
@@ -252,6 +255,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
+  setBugReportOpen: (open) => set({ bugReportOpen: open }),
 
   setCustomTheme: (partial) => {
     set((s) => ({ customTheme: { ...s.customTheme, ...partial } }));

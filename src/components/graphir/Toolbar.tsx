@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   Trash2,
+  Bug,
   Sparkles,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
@@ -38,6 +39,7 @@ export function Toolbar({
   const setExportOpen = useGraphStore((s) => s.setExportOpen);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
+  const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const { theme, setTheme } = useTheme();
@@ -164,6 +166,16 @@ export function Toolbar({
         title="Toggle theme"
       >
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => setBugReportOpen(true)}
+        title="Report a bug"
+      >
+        <Bug className="h-4 w-4 text-red-400" />
       </Button>
     </header>
   );
