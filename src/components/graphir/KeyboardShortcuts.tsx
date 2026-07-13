@@ -232,6 +232,14 @@ export function KeyboardShortcuts() {
         if (nextId) {
           setFocusedNodeId(nextId);
           setSelectedNodeIds([nextId]);
+          // Mark the node as selected in the store so the canvas shows
+          // the selection ring + transform (resize) controls
+          useGraphStore.setState((s) => ({
+            nodes: s.nodes.map((n) => ({
+              ...n,
+              selected: n.id === nextId,
+            })),
+          }));
           // Center the focused node in the viewport
           const nextNode = nodes.find((n) => n.id === nextId);
           if (nextNode) {
