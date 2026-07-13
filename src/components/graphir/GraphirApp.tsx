@@ -9,6 +9,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { GraphCanvas } from "./GraphCanvas";
 import { BreadcrumbBar } from "./BreadcrumbBar";
 import { ImportDialog } from "./ImportDialog";
+import { ImportFromFileDialog } from "./ImportFromFileDialog";
 import { BugReportDialog } from "./BugReportDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
@@ -39,6 +40,7 @@ export function GraphirApp() {
   const [fsSupported] = useState(() => isFileSystemAccessSupported());
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importFromFileOpen, setImportFromFileOpen] = useState(false);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -97,6 +99,18 @@ export function GraphirApp() {
     toast({ title: "Sample project loaded", description: "graphir-pro-max-ultra" });
   }, [setGraph, toast]);
 
+  const handleImportFromFile = useCallback(
+    (tree: import("@/lib/graphir/types").TreeEntry) => {
+      const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
+      setGraph(nodes, edges, false);
+      toast({
+        title: "Graph built from file",
+        description: `${tree.name} — ${nodes.length} entries`,
+      });
+    },
+    [setGraph, toast]
+  );
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background gm-app-bg">
       <Toolbar
@@ -107,7 +121,7 @@ export function GraphirApp() {
       <div className="flex min-h-0 flex-1">
         {sidebarOpen && (
           <div className="hidden sm:block w-[280px] shrink-0 min-h-0">
-            <Sidebar onOpenDirectory={handleOpenDirectory} />
+            <Sidebar onOpenDirectory={handleOpenDirectory} onImportFromFile={() => setImportFromFileOpen(true)} />
           </div>
         )}
         {/* Mobile sidebar overlay */}
@@ -118,7 +132,7 @@ export function GraphirApp() {
               onClick={() => useGraphStore.getState().setSidebarOpen(false)}
             />
             <div className="relative w-[280px] h-full">
-              <Sidebar onOpenDirectory={handleOpenDirectory} />
+              <Sidebar onOpenDirectory={handleOpenDirectory} onImportFromFile={() => setImportFromFileOpen(true)} />
             </div>
           </div>
         )}
@@ -134,6 +148,12 @@ export function GraphirApp() {
       <ExportPanel />
 
       <BugReportDialog />
+
+      <ImportFromFileDialog
+        open={importFromFileOpen}
+        onOpenChange={setImportFromFileOpen}
+        onImport={handleImportFromFile}
+      />
 
       <ImportDialog
         open={importDialogOpen}

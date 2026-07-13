@@ -13,6 +13,7 @@ import {
   RefreshCw,
   FolderOpen,
   FolderPlus,
+  Upload,
   Trash2,
   Layers,
   Plus,
@@ -68,9 +69,10 @@ const EDGE_STYLES: { value: EdgeStyle; label: string }[] = [
 
 interface SidebarProps {
   onOpenDirectory: () => void;
+  onImportFromFile: () => void;
 }
 
-export function Sidebar({ onOpenDirectory }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -288,6 +290,15 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
           >
             <FolderOpen className="h-3.5 w-3.5" />
             Import Folder
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1.5"
+            onClick={onImportFromFile}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import from File
           </Button>
           {/* Update Directory — hidden for now, will re-enable with Tauri desktop app */}
           {/* <Button
