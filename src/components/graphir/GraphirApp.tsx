@@ -11,6 +11,7 @@ import { BreadcrumbBar } from "./BreadcrumbBar";
 import { ImportDialog } from "./ImportDialog";
 import { ImportFromFileDialog } from "./ImportFromFileDialog";
 import { BugReportDialog } from "./BugReportDialog";
+import { TutorialDialog } from "./TutorialDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/graphir/sampleData";
@@ -148,6 +149,8 @@ export function GraphirApp() {
       <ExportPanel />
 
       <BugReportDialog />
+
+      <TutorialDialog />
 
       <ImportFromFileDialog
         open={importFromFileOpen}
