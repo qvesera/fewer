@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: process.env.NETLIFY ? undefined : "standalone",
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
