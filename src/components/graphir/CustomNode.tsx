@@ -161,8 +161,9 @@ function FolderContextMenu({
   const hideNode = useGraphStore((s) => s.hideNode);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
+  const addNode = useGraphStore((s) => s.addNode);
+  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
   const { toast } = useToast();
 
   return (
@@ -180,6 +181,16 @@ function FolderContextMenu({
           Rename
         </ContextMenuItem>
         <ContextMenuItem
+          onSelect={() => {
+            addNode(nodeId, "New Folder", "folder");
+            setSelectedNodeIds([]);
+            toast({ title: "Child node added", description: "New Folder added to " + nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Add Child Node
+        </ContextMenuItem>
+        <ContextMenuItem
           onSelect={async () => {
             try {
               await navigator.clipboard.writeText(nodePath);
@@ -195,53 +206,6 @@ function FolderContextMenu({
           className="cursor-pointer"
         >
           Copy Path
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={async () => {
-            const node = nodes.find((n) => n.id === nodeId);
-            if (!node) return;
-            const data = JSON.stringify(
-              { id: node.id, label: node.data.label, path: node.data.path, type: node.data.type },
-              null,
-              2
-            );
-            try {
-              await navigator.clipboard.writeText(data);
-              toast({ title: "Node data copied", description: "JSON copied to clipboard" });
-            } catch {
-              toast({ title: "Copy failed", variant: "destructive" });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Copy Node Data
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={async () => {
-            // Export subtree as a tree TXT
-            const { exportDirectoryTree } = await import("@/lib/graphir/scriptExport");
-            // Find descendants and build a subgraph
-            const descendants = new Set<string>([nodeId]);
-            const queue = [nodeId];
-            while (queue.length) {
-              const cur = queue.shift()!;
-              for (const e of edges) {
-                if (e.source === cur && !descendants.has(e.target)) {
-                  descendants.add(e.target);
-                  queue.push(e.target);
-                }
-              }
-            }
-            const subNodes = nodes.filter((n) => descendants.has(n.id));
-            const subEdges = edges.filter(
-              (e) => descendants.has(e.source) && descendants.has(e.target)
-            );
-            exportDirectoryTree(subNodes, subEdges);
-            toast({ title: "Subtree exported", description: `${subNodes.length} nodes` });
-          }}
-          className="cursor-pointer"
-        >
-          Export Subtree
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem

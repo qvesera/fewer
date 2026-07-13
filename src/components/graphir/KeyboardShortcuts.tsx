@@ -15,6 +15,9 @@ import { useToast } from "@/hooks/use-toast";
  * Ctrl/Cmd+A     - select all
  * Ctrl/Cmd+F     - open search
  * Ctrl/Cmd+L     - cycle layout direction
+ * Ctrl/Cmd+N     - new node (child of selected folder, or standalone)
+ * Ctrl/Cmd+Shift+N - clear canvas
+ * Ctrl/Cmd+E     - open export panel
  * Ctrl/Cmd+C     - copy selected files
  * Ctrl/Cmd+X     - cut selected files
  * Ctrl/Cmd+V     - paste files into focused/selected folder
@@ -47,6 +50,10 @@ export function KeyboardShortcuts() {
   const focusedNodeId = useGraphStore((s) => s.focusedNodeId);
   const hideNodes = useGraphStore((s) => s.hideNodes);
   const unhideAll = useGraphStore((s) => s.unhideAll);
+  const setExportOpen = useGraphStore((s) => s.setExportOpen);
+  const reset = useGraphStore((s) => s.reset);
+  const addNode = useGraphStore((s) => s.addNode);
+  const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const { toast } = useToast();
 
   const reactFlow = useReactFlow();
@@ -87,6 +94,46 @@ export function KeyboardShortcuts() {
         const order: ("TB" | "LR" | "BT" | "RL")[] = ["TB", "LR", "BT", "RL"];
         const next = order[(order.indexOf(direction) + 1) % order.length];
         setDirection(next);
+        return;
+      }
+
+      // Ctrl+Shift+N - clear canvas
+      if (mod && e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        if (nodes.length > 0) {
+          reset();
+          toast({ title: "Canvas cleared" });
+        }
+        return;
+      }
+
+      // Ctrl+N - new node (child if folder selected, otherwise standalone)
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        if (selectedNodeIds.length === 1) {
+          const selectedNode = nodes.find((n) => n.id === selectedNodeIds[0]);
+          if (selectedNode && selectedNode.data.type === "folder") {
+            // Add child to selected folder — use default name
+            const name = selectedNode.data.type === "folder" ? "New Folder" : "new-file.txt";
+            addNode(selectedNodeIds[0], name, "folder");
+            toast({ title: "Child node added", description: `${name} added to ${selectedNode.data.label}` });
+          } else {
+            // Selected node is a file — create standalone
+            addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
+            toast({ title: "Node created", description: "New Folder" });
+          }
+        } else {
+          // Nothing selected — create standalone
+          addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
+          toast({ title: "Node created", description: "New Folder" });
+        }
+        return;
+      }
+
+      // Ctrl+E - open export panel
+      if (mod && e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        setExportOpen(true);
         return;
       }
 
@@ -313,6 +360,10 @@ export function KeyboardShortcuts() {
     focusedNodeId,
     hideNodes,
     unhideAll,
+    setExportOpen,
+    reset,
+    addNode,
+    addStandaloneNode,
     reactFlow,
     toast,
   ]);
