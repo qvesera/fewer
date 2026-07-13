@@ -393,14 +393,11 @@ function ChildEntry({ child }: { child: GraphirNode }) {
           isDimmed && "opacity-40"
         )}
       >
-        {/* Drag handle for folder entries — drag this to drop onto the canvas
-            and create a new child node linked to this parent. */}
-        {child.data.type === "folder" && (
+        {/* Drag handle for folder entries — disabled for now, will re-enable later */}
+        {/* {child.data.type === "folder" && (
           <span
             draggable
             onDragStart={(e) => {
-              // Store the fsHandle in a module-level variable since it can't
-              // be serialized via JSON dataTransfer
               draggedFolderHandle = child.data.fsHandle ?? null;
               e.dataTransfer.setData(
                 "application/graphir-child",
@@ -418,7 +415,7 @@ function ChildEntry({ child }: { child: GraphirNode }) {
           >
             <GripVertical className="h-3 w-3" />
           </span>
-        )}
+        )} */}
         <NodeIcon
           type={child.data.type}
           category={child.data.category}
