@@ -289,7 +289,8 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
             <FolderOpen className="h-3.5 w-3.5" />
             Import Folder
           </Button>
-          <Button
+          {/* Update Directory — hidden for now, will re-enable with Tauri desktop app */}
+          {/* <Button
             variant="outline"
             size="sm"
             className="w-full gap-1.5"
@@ -298,7 +299,7 @@ export function Sidebar({ onOpenDirectory }: SidebarProps) {
           >
             <FolderPlus className="h-3.5 w-3.5" />
             Update Directory
-          </Button>
+          </Button> */}
           <Button
             variant="outline"
             size="sm"
