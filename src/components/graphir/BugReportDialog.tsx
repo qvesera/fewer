@@ -270,7 +270,7 @@ export function BugReportDialog() {
               id="bug-steps"
               value={steps}
               onChange={(e) => setSteps(e.target.value)}
-              placeholder={"1. Load monorepo demo\n2. Switch to LR layout\n3. ..."}
+              placeholder={"1. Load sample project\n2. Switch to LR layout\n3. ..."}
               className="text-sm min-h-[80px] font-mono text-xs"
             />
           </div>

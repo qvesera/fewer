@@ -23,13 +23,11 @@ import { useCallback } from "react";
 interface ToolbarProps {
   onOpenDirectory: () => void;
   onLoadSample: () => void;
-  onLoadAdvanced: () => void;
 }
 
 export function Toolbar({
   onOpenDirectory,
   onLoadSample,
-  onLoadAdvanced,
 }: ToolbarProps) {
   const undo = useGraphStore((s) => s.undo);
   const redo = useGraphStore((s) => s.redo);
@@ -92,10 +90,6 @@ export function Toolbar({
       <Button variant="outline" size="sm" className="gap-1.5" onClick={onLoadSample}>
         <Sparkles className="h-4 w-4" />
         <span className="hidden lg:inline">Sample</span>
-      </Button>
-      <Button variant="outline" size="sm" className="gap-1.5" onClick={onLoadAdvanced}>
-        <Sparkles className="h-4 w-4" />
-        <span className="hidden lg:inline">Monorepo</span>
       </Button>
 
       <div className="flex-1" />

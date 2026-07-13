@@ -12,7 +12,7 @@ import { ImportDialog } from "./ImportDialog";
 import { BugReportDialog } from "./BugReportDialog";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/graphir/treeToGraph";
-import { SAMPLE_TREE, ADVANCED_TREE } from "@/lib/graphir/sampleData";
+import { SAMPLE_TREE } from "@/lib/graphir/sampleData";
 import { pickDirectoryTree, isFileSystemAccessSupported } from "@/lib/graphir/fileSystem";
 import type { ImportOptions } from "@/lib/graphir/importOptions";
 import { useToast } from "@/hooks/use-toast";
@@ -97,18 +97,11 @@ export function GraphirApp() {
     toast({ title: "Sample project loaded", description: "graphir-pro-max-ultra" });
   }, [setGraph, toast]);
 
-  const handleLoadAdvanced = useCallback(() => {
-    const { nodes, edges } = treeToGraph(ADVANCED_TREE, { idPrefix: "mono" });
-    setGraph(nodes, edges, false);
-    toast({ title: "Monorepo loaded", description: "monorepo-root" });
-  }, [setGraph, toast]);
-
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background gm-app-bg">
       <Toolbar
         onOpenDirectory={handleOpenDirectory}
         onLoadSample={handleLoadSample}
-        onLoadAdvanced={handleLoadAdvanced}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -204,12 +197,12 @@ export function GraphirApp() {
             <Button
               variant="outline"
               onClick={() => {
-                handleLoadAdvanced();
+                handleLoadSample();
                 setWelcomeOpen(false);
               }}
             >
               <Sparkles className="mr-2 h-4 w-4" />
-              Load monorepo demo
+              Load sample project
             </Button>
             <Button
               onClick={() => {
