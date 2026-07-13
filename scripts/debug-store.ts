@@ -1,2 +1,2 @@
-// Add this to window in GraphirApp to debug
+// Add this to window in FewerApp to debug
 console.log("Debug script loaded");

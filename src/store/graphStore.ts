@@ -4,22 +4,22 @@ import { create } from "zustand";
 import type { NodeChange, Connection, EdgeChange } from "@xyflow/react";
 import { v4 as uuid } from "uuid";
 import type {
-  GraphirNode,
-  GraphirEdge,
+  FewerNode,
+  FewerEdge,
   LayoutDirection,
   EdgeStyle,
   ExportSettings,
   CustomTheme,
   ThemeMode,
-} from "@/lib/graphir/types";
-import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/graphir/types";
-import { layoutGraph } from "@/lib/graphir/layout";
-import { validateConnection } from "@/lib/graphir/validation";
-import { categorizeByExtension } from "@/lib/graphir/categorize";
+} from "@/lib/fewer/types";
+import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
+import { layoutGraph } from "@/lib/fewer/layout";
+import { validateConnection } from "@/lib/fewer/validation";
+import { categorizeByExtension } from "@/lib/fewer/categorize";
 
 interface GraphState {
-  nodes: GraphirNode[];
-  edges: GraphirEdge[];
+  nodes: FewerNode[];
+  edges: FewerEdge[];
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   cornerRadius: number;
@@ -35,8 +35,8 @@ interface GraphState {
   customTheme: CustomTheme;
 
   // history
-  past: { nodes: GraphirNode[]; edges: GraphirEdge[] }[];
-  future: { nodes: GraphirNode[]; edges: GraphirEdge[] }[];
+  past: { nodes: FewerNode[]; edges: FewerEdge[] }[];
+  future: { nodes: FewerNode[]; edges: FewerEdge[] }[];
 
   // ui
   searchOpen: boolean;
@@ -52,7 +52,11 @@ interface GraphState {
   exportSettings: ExportSettings;
 
   // actions
-  setGraph: (nodes: GraphirNode[], edges: GraphirEdge[], pushHistory?: boolean) => void;
+  setGraph: (
+    nodes: FewerNode[],
+    edges: FewerEdge[],
+    pushHistory?: boolean,
+  ) => void;
   setDirection: (direction: LayoutDirection) => void;
   setEdgeStyle: (style: EdgeStyle) => void;
   setCornerRadius: (radius: number) => void;
@@ -97,9 +101,17 @@ interface GraphState {
   deleteNodes: (ids: string[]) => void;
   renameNode: (id: string, newLabel: string) => void;
   duplicateNode: (id: string) => void;
-  addNode: (parentId: string | null, label: string, type: "folder" | "file") => void;
+  addNode: (
+    parentId: string | null,
+    label: string,
+    type: "folder" | "file",
+  ) => void;
   /** Add a standalone root node at the given canvas position */
-  addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => void;
+  addStandaloneNode: (
+    label: string,
+    type: "folder" | "file",
+    position: { x: number; y: number },
+  ) => void;
   /** Validate + create an edge between two existing nodes */
   connectNodes: (connection: Connection) => { ok: boolean; reason?: string };
   hideNode: (id: string) => void;
@@ -119,10 +131,10 @@ interface GraphState {
 const MAX_HISTORY = 50;
 
 function applySearch(
-  nodes: GraphirNode[],
-  edges: GraphirEdge[],
-  query: string
-): GraphirNode[] {
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  query: string,
+): FewerNode[] {
   if (!query.trim()) {
     return nodes.map((n) => ({
       ...n,
@@ -178,10 +190,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
       set({
-        past: [
-          ...state.past,
-          { nodes: state.nodes, edges: state.edges },
-        ].slice(-MAX_HISTORY),
+        past: [...state.past, { nodes: state.nodes, edges: state.edges }].slice(
+          -MAX_HISTORY,
+        ),
         future: [],
       });
     }
@@ -217,7 +228,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setEdgeStyle: (style) => {
     set({ edgeStyle: style });
     // Update ALL existing edges with the new type so the change is visible
-    const edgeType = (style === "curved" ? "default" : style === "angled" ? "smoothstep" : "straight") as GraphirEdge["type"];
+    const edgeType = (
+      style === "curved"
+        ? "default"
+        : style === "angled"
+          ? "smoothstep"
+          : "straight"
+    ) as FewerEdge["type"];
     set((s) => ({
       edges: s.edges.map((e) => ({ ...e, type: edgeType })),
     }));
@@ -339,12 +356,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
           nodes = nodes.map((n) =>
             n.id === change.id
               ? { ...n, position: change.position!, dragging: change.dragging }
-              : n
+              : n,
           );
           needsRebuild = true;
         } else if (change.type === "select") {
           nodes = nodes.map((n) =>
-            n.id === change.id ? { ...n, selected: change.selected } : n
+            n.id === change.id ? { ...n, selected: change.selected } : n,
           );
           needsRebuild = true;
           if (change.selected) {
@@ -360,8 +377,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         } else if (change.type === "dimensions" && change.dimensions) {
           nodes = nodes.map((n) =>
             n.id === change.id
-              ? { ...n, width: change.dimensions!.width, height: change.dimensions!.height }
-              : n
+              ? {
+                  ...n,
+                  width: change.dimensions!.width,
+                  height: change.dimensions!.height,
+                }
+              : n,
           );
           needsRebuild = true;
         }
@@ -384,7 +405,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     for (const change of changes) {
       if (change.type === "select") {
         edges = edges.map((e) =>
-          e.id === change.id ? { ...e, selected: change.selected } : e
+          e.id === change.id ? { ...e, selected: change.selected } : e,
         );
         needsRebuild = true;
       } else if (change.type === "remove") {
@@ -434,7 +455,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const newNodes = nodes.filter((n) => !toRemove.has(n.id));
     const newEdges = edges.filter(
-      (e) => !toRemove.has(e.source) && !toRemove.has(e.target)
+      (e) => !toRemove.has(e.source) && !toRemove.has(e.target),
     );
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
@@ -457,14 +478,14 @@ export const useGraphStore = create<GraphState>((set, get) => ({
               ...n.data,
               label: trimmed,
               extension:
-                n.data.type === "file" ? trimmed.split(".").pop() ?? "" : "",
+                n.data.type === "file" ? (trimmed.split(".").pop() ?? "") : "",
               category:
                 n.data.type === "file"
                   ? categorizeByExtension(trimmed.split(".").pop() ?? "")
                   : undefined,
             },
           }
-        : n
+        : n,
     );
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
@@ -489,9 +510,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const parentId = edges.find((e) => e.target === id)?.source ?? null;
     const siblingIds = parentId
       ? edges.filter((e) => e.source === parentId).map((e) => e.target)
-      : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
+      : nodes
+          .filter((n) => !edges.some((e) => e.target === n.id))
+          .map((n) => n.id);
     const siblingLabels = new Set(
-      nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label)
+      nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label),
     );
 
     let copyLabel = `${stem} copy${ext}`;
@@ -509,7 +532,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       : copyLabel;
 
     // Create the duplicate node, offset slightly from the original
-    const newNode: GraphirNode = {
+    const newNode: FewerNode = {
       id: newId,
       type: sourceNode.type,
       position: {
@@ -531,7 +554,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     };
 
     // If the original has a parent, link the duplicate to the same parent
-    const newEdges: GraphirEdge[] = [];
+    const newEdges: FewerEdge[] = [];
     if (parentId) {
       newEdges.push({
         id: `e-${parentId}-${newId}`,
@@ -547,7 +570,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch([...updatedNodes, newNode], [...edges, ...newEdges], get().searchQuery),
+      nodes: applySearch(
+        [...updatedNodes, newNode],
+        [...edges, ...newEdges],
+        get().searchQuery,
+      ),
       edges: [...edges, ...newEdges],
       selectedNodeIds: [newId],
     });
@@ -557,8 +584,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const newPath = parent ? `${parent.data.path}/${label}` : label;
-    const extension = type === "file" ? label.split(".").pop() ?? "" : "";
-    const newNode: GraphirNode = {
+    const extension = type === "file" ? (label.split(".").pop() ?? "") : "";
+    const newNode: FewerNode = {
       id: `n-new-${Date.now()}`,
       type,
       position: parent
@@ -569,7 +596,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         path: newPath,
         type,
         extension,
-        category: type === "file" ? categorizeByExtension(extension) : undefined,
+        category:
+          type === "file" ? categorizeByExtension(extension) : undefined,
         size: 0,
         depth: parent ? (parent.data.depth ?? 0) + 1 : 0,
         isRoot: parentId === null,
@@ -581,7 +609,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         minHeight: undefined,
       },
     };
-    const newEdge: GraphirEdge | null = parentId
+    const newEdge: FewerEdge | null = parentId
       ? {
           id: `e-${parentId}-${newNode.id}`,
           source: parentId,
@@ -602,9 +630,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   addStandaloneNode: (label, type, position) => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
-    const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
-    const extension = type === "file" ? trimmed.split(".").pop() ?? "" : "";
-    const newNode: GraphirNode = {
+    const trimmed =
+      label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
+    const extension = type === "file" ? (trimmed.split(".").pop() ?? "") : "";
+    const newNode: FewerNode = {
       id: `n-${uuid().slice(0, 8)}`,
       type,
       position,
@@ -613,7 +642,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         path: trimmed,
         type,
         extension,
-        category: type === "file" ? categorizeByExtension(extension) : undefined,
+        category:
+          type === "file" ? categorizeByExtension(extension) : undefined,
         size: 0,
         depth: 0,
         isRoot: true,
@@ -638,10 +668,15 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (!connection.source || !connection.target) {
       return { ok: false, reason: "Missing source or target." };
     }
-    const result = validateConnection(connection.source, connection.target, nodes, edges);
+    const result = validateConnection(
+      connection.source,
+      connection.target,
+      nodes,
+      edges,
+    );
     if (!result.ok) return result;
 
-    const newEdge: GraphirEdge = {
+    const newEdge: FewerEdge = {
       id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`,
       source: connection.source,
       target: connection.target,
@@ -722,7 +757,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
 /**
  * Apply custom theme colors as inline CSS variables on document.documentElement.
- * These --graphir-* variables are read by CustomNode via inline styles.
+ * These --fewer-* variables are read by CustomNode via inline styles.
  */
 function applyCustomThemeToDOM(theme: CustomTheme) {
   if (typeof document === "undefined") return;

@@ -1,7 +1,7 @@
 "use client";
 
-import { GraphirApp } from "@/components/graphir/GraphirApp";
+import { FewerApp } from "@/components/fewer";
 
 export default function Home() {
-  return <GraphirApp />;
+  return <FewerApp />;
 }

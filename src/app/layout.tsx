@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/graphir/ThemeProvider";
+import { ThemeProvider } from "@/components/fewer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Graphir Pro Max Ultra — Directory Visualization",
+  title: "fewer — Directory Visualization",
   description:
     "Transform your file system navigation into an art form. React Flow + Dagre + multi-format export + dark mode + glassmorphism UI.",
   keywords: [
-    "Graphir",
+    "fewer",
     "directory visualization",
     "React Flow",
     "Dagre",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     "Next.js",
     "Tailwind CSS",
   ],
-  authors: [{ name: "Graphir Team" }],
+  authors: [{ name: "fewer Team" }],
 };
 
 export default function RootLayout({
