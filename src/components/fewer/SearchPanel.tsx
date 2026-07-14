@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Search, X, Folder, FileIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ export function SearchPanel() {
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const resultsRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -25,6 +27,11 @@ export function SearchPanel() {
       return () => clearTimeout(t);
     }
   }, [open]);
+
+  // Reset active index when query changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [query]);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -90,6 +97,19 @@ export function SearchPanel() {
             className="h-9 pl-8 pr-8"
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveIndex((prev) => Math.min(prev + 1, matches.slice(0, 50).length - 1));
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex((prev) => Math.max(prev - 1, 0));
+              }
+              if (e.key === "Enter" && activeIndex >= 0) {
+                e.preventDefault();
+                const item = matches.slice(0, 50)[activeIndex];
+                if (item) handleResultClick(item.id);
+              }
             }}
           />
           {query && (
@@ -123,16 +143,19 @@ export function SearchPanel() {
             </div>
           ) : (
             <ul className="pb-1">
-              {matches.slice(0, 50).map((n) => {
+              {matches.slice(0, 50).map((n, idx) => {
+                const isActive = idx === activeIndex;
                 const isHidden = hiddenIds.includes(n.id);
                 const Icon = n.data.type === "folder" ? Folder : FileIcon;
                 return (
                   <li
                     key={n.id}
                     onClick={() => handleResultClick(n.id)}
+                    role="option"
+                    aria-selected={isActive}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer rounded-md mx-1 transition-colors",
-                      "hover:bg-muted/60",
+                      isActive ? "bg-muted/80" : "hover:bg-muted/60",
                       n.data.type === "folder"
                         ? "text-orange-300"
                         : "text-purple-300",

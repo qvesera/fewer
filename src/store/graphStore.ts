@@ -121,6 +121,10 @@ interface GraphState {
   unhideAll: () => void;
   unhideNode: (id: string) => void;
 
+  // loading state for directory import
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+
   // history
   undo: () => void;
   redo: () => void;
@@ -298,6 +302,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
   setBugReportOpen: (open) => set({ bugReportOpen: open }),
+  setLoading: (loading) => set({ loading }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
 
   setCustomTheme: (partial) => {

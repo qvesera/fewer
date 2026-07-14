@@ -365,7 +365,7 @@ export function BugReportDialog() {
     >
       <DialogContent className="sm:max-w-2xl w-full">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-balance">
             <Bug className="h-4 w-4 text-red-500" />
             Report a Bug
           </DialogTitle>
@@ -394,7 +394,7 @@ export function BugReportDialog() {
           </div>
 
           {/* Category + Severity */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-xs">Category</Label>
               <Select
@@ -481,7 +481,7 @@ export function BugReportDialog() {
                 Auto-collected diagnostics
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
                 <span>Nodes / Edges</span>
                 <span className="tabular-nums font-medium text-foreground/80">
@@ -526,7 +526,7 @@ export function BugReportDialog() {
           </div>
         </div>
 
-        <DialogFooter className="flex flex-wrap gap-2 sm:justify-between">
+        <DialogFooter className="flex-col sm:flex-row flex-wrap gap-2 sm:justify-between">
           {/* Secondary actions */}
           <div className="flex flex-wrap gap-2">
             <Button

@@ -497,7 +497,7 @@ function CustomNodeImpl({
     return (
       <div
         className={cn(
-          "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl gm-node-hover",
+          "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",

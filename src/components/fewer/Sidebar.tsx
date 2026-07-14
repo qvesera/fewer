@@ -94,7 +94,7 @@ function CollapsibleSection({
     <section>
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        className="flex w-full items-center gap-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring rounded-sm outline-none"
       >
         {open ? (
           <ChevronDown className="h-3 w-3 shrink-0" />
@@ -109,7 +109,15 @@ function CollapsibleSection({
           </span>
         )}
       </button>
-      {open && <div className="mt-2 space-y-2">{children}</div>}
+      <div
+        className={cn(
+          "mt-2 space-y-2 overflow-hidden transition-[grid-template-rows] duration-300 ease-out",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+        style={{ display: "grid" }}
+      >
+        <div className="min-h-0">{children}</div>
+      </div>
     </section>
   );
 }
@@ -224,7 +232,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 key={l.value}
                 onClick={() => setDirection(l.value)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2.5 transition-all",
+                  "flex flex-col items-center gap-1 rounded-lg border p-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "border-orange-400 bg-orange-500/10 text-orange-300 shadow-sm shadow-orange-500/20"
                     : "border-border/40 hover:border-border hover:bg-muted/40",
@@ -257,12 +265,12 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 <button
                   key={s.value}
                   onClick={() => setEdgeStyle(s.value)}
-                  className={cn(
-                    "rounded-md border px-2 py-1 text-[10px] font-medium transition-all",
-                    edgeStyle === s.value
-                      ? "border-purple-400 bg-purple-500/10 text-purple-300"
-                      : "border-border/40 hover:bg-muted/40",
-                  )}
+                className={cn(
+                  "rounded-md border px-2 py-1 text-[10px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  edgeStyle === s.value
+                    ? "border-purple-400 bg-purple-500/10 text-purple-300"
+                    : "border-border/40 hover:bg-muted/40",
+                )}
                 >
                   {s.label}
                 </button>
@@ -341,7 +349,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 key={mode}
                 onClick={() => setThemeMode(mode)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all",
+                  "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "border-purple-400 bg-purple-500/10 text-purple-300"
                     : "border-border/40 hover:bg-muted/40",

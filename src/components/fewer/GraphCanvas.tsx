@@ -62,6 +62,7 @@ function CanvasInner() {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const commitHistory = useGraphStore((s) => s.commitHistory);
   const connectNodes = useGraphStore((s) => s.connectNodes);
+  const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const { toast } = useToast();
   const { theme } = useTheme();
@@ -508,16 +509,25 @@ function CanvasInner() {
           </div>
         </Panel>
 
-        {rfNodes.length === 0 && (
-          <Panel position="top-center" className="!top-1/3">
+        {loading && (
+          <Panel position="top-center" className="!top-[15%]">
+            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
+              <div className="h-12 w-12 animate-pulse rounded-full bg-muted" />
+              <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+            </div>
+          </Panel>
+        )}
+        {!loading && rfNodes.length === 0 && (
+          <Panel position="top-center" className="!top-[15%]">
             <div
               className={cn(
-                "gm-float flex flex-col items-center gap-3 rounded-2xl px-8 py-6 text-center",
+                "gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto",
               )}
             >
               <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">No directory loaded</div>
-              <div className="max-w-xs text-sm text-muted-foreground">
+              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
                 Use the sidebar to open a directory from your file system, or
                 load one of the sample datasets to explore the visualization.
               </div>

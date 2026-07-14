@@ -123,7 +123,7 @@ export function ExportPanel() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2 text-balance">
             <Download className="h-4 w-4" />
             Export graph
           </SheetTitle>
@@ -144,7 +144,7 @@ export function ExportPanel() {
                   <button
                     key={f.value}
                     onClick={() => setSettings({ format: f.value })}
-                    className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${
+                    className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
                         ? "border-purple-400 bg-purple-500/10 shadow-md shadow-purple-500/20"
                         : "border-border/40 hover:border-border hover:bg-muted/40"

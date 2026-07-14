@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -147,30 +148,44 @@ export function FewerApp() {
       />
 
       <div className="flex min-h-0 flex-1">
-        {sidebarOpen && (
-          <div className="hidden sm:block w-[280px] shrink-0 min-h-0">
+        <div
+          className={cn(
+            "hidden sm:block shrink-0 min-h-0 overflow-hidden transition-[width] duration-300 ease-out",
+            sidebarOpen ? "w-[280px]" : "w-0",
+          )}
+        >
+          <Sidebar
+            onOpenDirectory={handleOpenDirectory}
+            onImportFromFile={() => setImportFromFileOpen(true)}
+          />
+        </div>
+        {/* Mobile sidebar overlay */}
+        <div
+          className={cn(
+            "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
+            sidebarOpen ? "visible opacity-100" : "invisible opacity-0",
+          )}
+        >
+          <div
+            className={cn(
+              "absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300 ease-out",
+              sidebarOpen ? "opacity-100" : "opacity-0",
+            )}
+            onClick={() => useGraphStore.getState().setSidebarOpen(false)}
+          />
+          <div
+            className={cn(
+              "relative w-[280px] h-full transition-[transform] duration-300 ease-out",
+              sidebarOpen ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
             <Sidebar
               onOpenDirectory={handleOpenDirectory}
               onImportFromFile={() => setImportFromFileOpen(true)}
             />
           </div>
-        )}
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div className="sm:hidden fixed inset-0 z-40 flex">
-            <div
-              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-              onClick={() => useGraphStore.getState().setSidebarOpen(false)}
-            />
-            <div className="relative w-[280px] h-full">
-              <Sidebar
-                onOpenDirectory={handleOpenDirectory}
-                onImportFromFile={() => setImportFromFileOpen(true)}
-              />
-            </div>
-          </div>
-        )}
-        <main className="relative min-w-0 flex-1 min-h-0">
+        </div>
+        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
             <GraphCanvas />
           </ErrorBoundary>
