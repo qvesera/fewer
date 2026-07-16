@@ -164,9 +164,11 @@ function FolderContextMenu({
   const hideNode = useGraphStore((s) => s.hideNode);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
+  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
 
   return (
@@ -243,6 +245,7 @@ function FolderContextMenu({
             const node = nodes.find((n) => n.id === nodeId);
             if (node) {
               setClipboard("cut", [nodeId]);
+              useGraphStore.getState().moveNode(nodeId);
               toast({ title: "Cut", description: nodeLabel });
             }
           }}
@@ -250,6 +253,35 @@ function FolderContextMenu({
         >
           Cut
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => {
+            duplicateNodeUnderParent(nodeId);
+            toast({ title: "Duplicated", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Duplicate
+        </ContextMenuItem>
+        {clipboard && clipboard.nodeIds.length > 0 && (
+          <ContextMenuItem
+            onSelect={() => {
+              const selected = useGraphStore.getState().selectedNodeIds;
+              const nodes = useGraphStore.getState().nodes;
+              const parentId = selected.length === 1
+                ? nodes.find((n) => n.id === selected[0] && n.data.type === "folder")?.id
+                : undefined;
+              useGraphStore.getState().pasteFromClipboard(parentId);
+              toast({
+                title: "Pasted",
+                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Paste
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => hideNode(nodeId)}
@@ -281,7 +313,9 @@ function FileEntryContextMenu({
 }) {
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const nodes = useGraphStore((s) => s.nodes);
+  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
 
   return (
@@ -351,12 +385,42 @@ function FileEntryContextMenu({
         <ContextMenuItem
           onSelect={() => {
             setClipboard("cut", [nodeId]);
+            useGraphStore.getState().moveNode(nodeId);
             toast({ title: "Cut", description: nodeLabel });
           }}
           className="cursor-pointer"
         >
           Cut
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => {
+            duplicateNodeUnderParent(nodeId);
+            toast({ title: "Duplicated", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Duplicate
+        </ContextMenuItem>
+        {clipboard && clipboard.nodeIds.length > 0 && (
+          <ContextMenuItem
+            onSelect={() => {
+              const selected = useGraphStore.getState().selectedNodeIds;
+              const nodes = useGraphStore.getState().nodes;
+              const parentId = selected.length === 1
+                ? nodes.find((n) => n.id === selected[0] && n.data.type === "folder")?.id
+                : undefined;
+              useGraphStore.getState().pasteFromClipboard(parentId);
+              toast({
+                title: "Pasted",
+                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Paste
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={onDelete}
@@ -376,17 +440,14 @@ function FileEntryContextMenu({
 function ChildEntry({ child }: { child: FewerNode }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
-  // For folder children, compute their visible child count from edges.
+  // For folder children, compute their child count (all children, including hidden)
   const folderChildCount = useMemo(() => {
     if (child.data.type !== "folder") return 0;
-    const hidden = new Set(hiddenIds);
-    return edges.filter((e) => e.source === child.id && !hidden.has(e.target))
-      .length;
-  }, [child.data.type, child.id, edges, hiddenIds]);
+    return edges.filter((e) => e.source === child.id).length;
+  }, [child.data.type, child.id, edges]);
 
   return (
     <FileEntryContextMenu
@@ -467,7 +528,6 @@ function CustomNodeImpl({
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
   const renamingId = useGraphStore((s) => s.renamingId);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -475,18 +535,18 @@ function CustomNodeImpl({
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    const hidden = new Set(hiddenIds);
+    // Show ALL children in folder view - files hidden via includeFiles still show here
     return allNodes
-      .filter((n) => childIds.includes(n.id) && !hidden.has(n.id))
+      .filter((n) => childIds.includes(n.id))
       .slice(0, 20); // cap higher so taller nodes can show more
-  }, [edges, allNodes, id, isFolder, hiddenIds]);
+  }, [edges, allNodes, id, isFolder]);
 
   const childCount = useMemo(() => {
     if (!isFolder) return 0;
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    const hidden = new Set(hiddenIds);
-    return childIds.filter((cid) => !hidden.has(cid)).length;
-  }, [edges, id, isFolder, hiddenIds]);
+    // Count ALL children including hidden file nodes
+    return childIds.length;
+  }, [edges, id, isFolder]);
 
   const isRenaming = renamingId === id;
 
@@ -523,6 +583,11 @@ function CustomNodeImpl({
           position={target}
           id={`target-${target}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "target");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -622,6 +687,11 @@ function CustomNodeImpl({
           position={source}
           id={`source-${source}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "source");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>
@@ -666,6 +736,11 @@ function CustomNodeImpl({
           position={target}
           id={`target-${target}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "target");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -711,6 +786,11 @@ function CustomNodeImpl({
           position={source}
           id={`source-${source}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "source");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>

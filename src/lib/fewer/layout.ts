@@ -64,10 +64,16 @@ function getNodeDimensions(node: FewerNode): { w: number; h: number } {
  * available, falling back to type-based defaults. This ensures dagre
  * positions nodes with correct spacing for their actual rendered size.
  */
+export interface LayoutOptions {
+  /** Set of node IDs to exclude from layout (will stay at x=0, y=0 or existing position) */
+  excludeFromLayout?: Set<string>;
+}
+
 export function layoutGraph(
   nodes: FewerNode[],
   edges: FewerEdge[],
-  direction: LayoutDirection = "TB"
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
 ): FewerNode[] {
   const isHorizontal = direction === "LR" || direction === "RL";
 
@@ -85,13 +91,21 @@ export function layoutGraph(
 
   // Track dimensions per node so we can center positions correctly
   const dims = new Map<string, { w: number; h: number }>();
+  const excludeSet = options?.excludeFromLayout ?? new Set();
 
   for (const node of nodes) {
+    // Skip excluded nodes - they keep their current position
+    if (excludeSet.has(node.id)) {
+      dims.set(node.id, { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT });
+      continue;
+    }
     const { w, h } = getNodeDimensions(node);
     g.setNode(node.id, { width: w, height: h });
     dims.set(node.id, { w, h });
   }
   for (const edge of edges) {
+    // Skip edges where BOTH ends are excluded
+    if (excludeSet.has(edge.source) && excludeSet.has(edge.target)) continue;
     if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
       g.setEdge(edge.source, edge.target);
     }
@@ -100,6 +114,10 @@ export function layoutGraph(
   dagre.layout(g);
 
   const positioned = nodes.map((node) => {
+    // Excluded nodes keep existing position (or origin)
+    if (excludeSet.has(node.id)) {
+      return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
+    }
     const pos = g.node(node.id);
     if (!pos) return node;
     const d = dims.get(node.id) ?? { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT };

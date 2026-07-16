@@ -23,7 +23,7 @@ import {
   pickDirectoryTree,
   isFileSystemAccessSupported,
 } from "@/lib/fewer/fileSystem";
-import type { ImportOptions } from "@/lib/fewer/importOptions";
+import type { ImportOptions, ThemeMode } from "@/lib/fewer/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,14 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
+  // Initialize theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("fewer-theme") as ThemeMode | null;
+    if (savedTheme) {
+      useGraphStore.getState().setThemeMode(savedTheme);
+    }
+  }, []);
+
 
   // Listen for Ctrl+N or sidebar button clicks to open Add Node dialogs
   useEffect(() => {
@@ -94,9 +102,10 @@ export function FewerApp() {
           setImportDialogOpen(false);
           return;
         }
-        const { nodes, edges } = treeToGraph(tree);
-        setGraph(nodes, edges, false);
-        useGraphStore.setState({ dataSource: "directory" });
+        const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: options.includeFiles });
+        // Pass hiddenFileIds to setGraph so layout excludes those nodes
+        setGraph(nodes, edges, false, hiddenFileIds);
+        useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles });
         setImportDialogOpen(false);
         toast({
           title: "Directory loaded",

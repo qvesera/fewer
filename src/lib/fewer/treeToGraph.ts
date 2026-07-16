@@ -5,6 +5,8 @@ import { categorizeByExtension, getFileExtension } from "./categorize";
 interface BuildOptions {
   /** Bump this when you need to regenerate IDs without remounting. */
   idPrefix?: string;
+  /** When true, files are rendered as nodes on canvas. When false, files are hidden nodes but still children of folders. */
+  includeFiles?: boolean;
 }
 
 /**
@@ -24,6 +26,12 @@ export function treeToGraph(
     const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
     const extension = entry.type === "file" ? getFileExtension(entry.name) : "";
     const category = entry.type === "file" ? categorizeByExtension(extension) : undefined;
+
+    // When includeFiles is false, add file IDs to hiddenIds for proper hiding
+    // without breaking layout
+    if (entry.type === "file" && options.includeFiles === false) {
+      hiddenFileIds.push(id);
+    }
 
     nodes.push({
       id,
@@ -58,6 +66,7 @@ export function treeToGraph(
     }
   }
 
+  const hiddenFileIds: string[] = [];
   walk(root, null, 0, "");
-  return { nodes, edges };
+  return { nodes, edges, hiddenFileIds };
 }

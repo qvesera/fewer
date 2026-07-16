@@ -21,7 +21,6 @@ import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
 import { useGraphStore } from "@/store/graphStore";
-import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -65,11 +64,12 @@ function CanvasInner() {
   const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const { toast } = useToast();
-  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
+  const themeMode = useGraphStore((s) => s.themeMode);
+  const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
 
-  // Derive visible nodes/edges (filter out hidden)
+  // Derive visible nodes/edges (filter out hidden nodes)
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
     const hidden = new Set(hiddenIds);
@@ -77,11 +77,10 @@ function CanvasInner() {
   }, [allNodes, hiddenIds]);
 
   const visibleEdges = useMemo(() => {
+    // Hide edges only if the source AND target are BOTH manually hidden.
+    // Edges to hidden files (includeFiles=false) must stay for folder child display.
     if (hiddenIds.length === 0) return allEdges;
-    const hidden = new Set(hiddenIds);
-    return allEdges.filter(
-      (e) => !hidden.has(e.source) && !hidden.has(e.target),
-    );
+    return allEdges;
   }, [allEdges, hiddenIds]);
 
   const hiddenCount = hiddenIds.length;
@@ -363,8 +362,6 @@ function CanvasInner() {
     }));
   }, []);
 
-  const isDark = theme === "dark";
-
   const minimapStyle = useMemo(
     () => ({
       backgroundColor: isDark
@@ -421,6 +418,10 @@ function CanvasInner() {
             "nodes:",
             instance.getNodes().length,
           );
+        }}
+        onMouseMove={(e) => {
+          const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+          useGraphStore.getState().setMousePosition({ x: point.x, y: point.y });
         }}
         nodesDraggable
         nodesConnectable
@@ -614,6 +615,26 @@ function CanvasInner() {
               className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
               Unhide All Nodes
+            </button>
+            <div className="my-1 h-px bg-border/40" />
+            <button
+              onClick={() => {
+                const clipboard = useGraphStore.getState().clipboard;
+                if (clipboard && clipboard.nodeIds.length > 0) {
+                  const mousePos = useGraphStore.getState().mousePosition;
+                  useGraphStore.getState().setPastePosition(mousePos);
+                  useGraphStore.getState().pasteFromClipboard();
+                  toast({
+                    title: "Pasted",
+                    description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted`,
+                  });
+                }
+                setCanvasMenu(null);
+              }}
+              disabled={!useGraphStore.getState().clipboard}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              Paste
             </button>
           </div>
         </>

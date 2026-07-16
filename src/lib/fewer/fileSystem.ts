@@ -114,25 +114,23 @@ export async function buildTreeFromHandle(
         }
         children.push(childTree);
       } else {
-        // Skip files entirely if includeFiles is false (folders-only import)
-        if (!options.includeFiles) continue;
-
-        // Filter by extension if extensions list is non-empty
-        if (options.extensions.length > 0) {
-          const ext = entry.name.split(".").pop() ?? "";
-          const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
-          const allowedExts = options.caseSensitiveExtensions
-            ? options.extensions
-            : options.extensions.map((e) => e.toLowerCase());
-          if (!allowedExts.includes(extToCompare)) continue;
-        }
-
+        // Include all files when includeFiles: false so we can discover folder children
+        // treeToGraph will mark them hidden based on includeFiles option
         let size: number | undefined;
         try {
           const file = await (entry as FileSystemFileHandle).getFile();
           size = file.size;
         } catch {
           size = 0;
+        }
+        // Filter by extension if extensions list is non-empty AND includeFiles is true
+        if (options.includeFiles && options.extensions.length > 0) {
+          const ext = entry.name.split(".").pop() ?? "";
+          const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
+          const allowedExts = options.caseSensitiveExtensions
+            ? options.extensions
+            : options.extensions.map((e) => e.toLowerCase());
+          if (!allowedExts.includes(extToCompare)) continue;
         }
         children.push({
           name: entry.name,
@@ -175,10 +173,11 @@ async function pickDirectoryViaInput(
         return;
       }
 
-      // If includeFiles is false, skip all files (folders-only import via fallback)
-      const filesToProcess = options.includeFiles ? allFiles : [];
+      // When includeFiles is false, still process files to discover folder structure
+      // but don't create file nodes (folders-only import)
+      const filesToProcess = allFiles;
 
-      // Filter files by options
+      // Filter files by options (always filter hidden/vendored/depth)
       const filteredFiles = filesToProcess.filter((file) => {
         const parts = file.webkitRelativePath.split("/");
         // Check hidden
@@ -191,8 +190,8 @@ async function pickDirectoryViaInput(
         }
         // Check depth (parts.length - 1 = depth from root)
         if (options.maxDepth > 0 && parts.length - 1 > options.maxDepth) return false;
-        // Check extension
-        if (options.extensions.length > 0) {
+        // Check extension (only when includeFiles is true)
+        if (options.includeFiles && options.extensions.length > 0) {
           const ext = file.name.split(".").pop() ?? "";
           const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
           const allowedExts = options.caseSensitiveExtensions
@@ -219,6 +218,8 @@ async function pickDirectoryViaInput(
           const part = parts[i];
           const isLast = i === parts.length - 1;
           if (isLast) {
+            // Always add file entries to tree so they become nodes with edges
+            // treeToGraph will mark them hidden when includeFiles: false
             current.children = current.children ?? [];
             current.children.push({
               name: part,
@@ -240,7 +241,9 @@ async function pickDirectoryViaInput(
       }
 
       // Remove empty folders if option is set
-      if (options.skipEmptyFolders) {
+      // When includeFiles is false, we can't tell if a folder had files
+      // (webkitdirectory only gives us file paths), so skip this check
+      if (options.skipEmptyFolders && options.includeFiles) {
         removeEmptyFolders(tree);
       }
 

@@ -55,7 +55,9 @@ export function KeyboardShortcuts() {
   const reset = useGraphStore((s) => s.reset);
   const addNode = useGraphStore((s) => s.addNode);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
-  const duplicateNode = useGraphStore((s) => s.duplicateNode);
+  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
+  const pasteFromClipboard = useGraphStore((s) => s.pasteFromClipboard);
+  const moveNode = useGraphStore((s) => s.moveNode);
   const { toast } = useToast();
 
   const reactFlow = useReactFlow();
@@ -154,35 +156,57 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+X - cut
+      // Ctrl+X - cut (copy to clipboard, then immediately remove original)
       if (mod && e.key.toLowerCase() === "x" && !inEditable) {
         if (selectedNodeIds.length > 0) {
           e.preventDefault();
           setClipboard("cut", selectedNodeIds);
+          // Remove original subtree immediately
+          for (const nodeId of selectedNodeIds) {
+            moveNode(nodeId);
+          }
           toast({
             title: "Cut",
-            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut`,
+            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut — paste to place`,
           });
         }
         return;
       }
 
-      // Ctrl+V - paste / duplicate
+      // Ctrl+V - paste (if a folder is selected, paste as child; otherwise standalone)
       if (mod && e.key.toLowerCase() === "v" && !inEditable) {
         if (clipboard && clipboard.nodeIds.length > 0) {
           e.preventDefault();
-          // Duplicate each clipboard node in-place with "copy" naming
-          for (const nodeId of clipboard.nodeIds) {
-            duplicateNode(nodeId);
-          }
-          const node = nodes.find((n) => n.id === clipboard.nodeIds[0]);
+          // Set paste position to mouse position before pasting
+          const mousePos = useGraphStore.getState().mousePosition;
+          useGraphStore.getState().setPastePosition(mousePos);
+          // Find the selected folder to use as parent
+          const selectedFolderId = selectedNodeIds.length === 1
+            ? nodes.find((n) => n.id === selectedNodeIds[0] && n.data.type === "folder")?.id
+            : undefined;
+          pasteFromClipboard(selectedFolderId);
           toast({
-            title: clipboard.mode === "copy" ? "Duplicated" : "Moved",
-            description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} duplicated${node ? ` (${node.data.label} copy)` : ""}`,
+            title: "Pasted",
+            description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${selectedFolderId ? " into folder" : " as standalone"}`,
           });
           if (clipboard.mode === "cut") {
             clearClipboard();
           }
+        }
+        return;
+      }
+
+      // Ctrl+D - duplicate under same parent
+      if (mod && e.key.toLowerCase() === "d" && !inEditable) {
+        if (selectedNodeIds.length > 0) {
+          e.preventDefault();
+          for (const nodeId of selectedNodeIds) {
+            duplicateNodeUnderParent(nodeId);
+          }
+          toast({
+            title: "Duplicated",
+            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} duplicated under same parent`,
+          });
         }
         return;
       }
@@ -351,7 +375,9 @@ export function KeyboardShortcuts() {
     reset,
     addNode,
     addStandaloneNode,
-    duplicateNode,
+    duplicateNodeUnderParent,
+    pasteFromClipboard,
+    moveNode,
     reactFlow,
     toast,
   ]);
