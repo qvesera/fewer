@@ -50,6 +50,11 @@ interface GraphState {
   /** tracks how the current graph was loaded (for tutorial) */
   dataSource: string | null;
 
+  // power user mode
+  advancedModeEnabled: boolean;
+  setAdvancedMode: (enabled: boolean) => void;
+  includeFiles: boolean;
+
   // export settings
   exportSettings: ExportSettings;
 
@@ -217,11 +222,21 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   shortcutsOpen: false,
   renamingId: null,
   dataSource: null,
+  advancedModeEnabled: false,
+  includeFiles: true,
+  loading: false,
   exportSettings: {
     format: "svg",
     quality: 90,
     transparentBackground: false,
     includeStats: true,
+  },
+
+  setAdvancedMode: (enabled) => {
+    set({ advancedModeEnabled: enabled });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fewer-advanced-mode", String(enabled));
+    }
   },
 
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds?: string[]) => {

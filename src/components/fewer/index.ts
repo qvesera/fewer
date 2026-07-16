@@ -17,3 +17,4 @@ export { StatsPanel } from "./StatsPanel";
 export { ThemeProvider } from "./ThemeProvider";
 export { Toolbar } from "./Toolbar";
 export { TutorialDialog } from "./TutorialDialog";
+export { PowerUserToggle } from "./PowerUserToggle";

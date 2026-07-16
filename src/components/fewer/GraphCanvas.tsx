@@ -32,7 +32,6 @@ const nodeTypes: NodeTypes = {
   file: CustomNode,
 };
 
-/** Map our edge style enum to React Flow edge type strings. */
 function edgeTypeFor(style: EdgeStyle): string {
   switch (style) {
     case "curved":
@@ -50,7 +49,6 @@ interface CanvasMenuPosition {
 }
 
 function CanvasInner() {
-  // Select raw arrays + hiddenIds from our Zustand store
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -63,13 +61,13 @@ function CanvasInner() {
   const connectNodes = useGraphStore((s) => s.connectNodes);
   const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const themeMode = useGraphStore((s) => s.themeMode);
   const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
 
-  // Derive visible nodes/edges (filter out hidden nodes)
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
     const hidden = new Set(hiddenIds);
@@ -77,20 +75,15 @@ function CanvasInner() {
   }, [allNodes, hiddenIds]);
 
   const visibleEdges = useMemo(() => {
-    // Hide edges only if the source AND target are BOTH manually hidden.
-    // Edges to hidden files (includeFiles=false) must stay for folder child display.
     if (hiddenIds.length === 0) return allEdges;
     return allEdges;
   }, [allEdges, hiddenIds]);
 
   const hiddenCount = hiddenIds.length;
 
-  // Use React Flow's built-in state hooks for local rendering.
-  // Sync from the Zustand store whenever the store's visible data changes.
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
 
-  // Sync store -> React Flow state when store changes (new graph loaded, relayout, etc.)
   useEffect(() => {
     setRfNodes(visibleNodes);
   }, [visibleNodes, setRfNodes]);
@@ -99,7 +92,6 @@ function CanvasInner() {
     setRfEdges(visibleEdges);
   }, [visibleEdges, setRfEdges]);
 
-  // Debug
   useEffect(() => {
     console.log(
       "[GraphCanvas] rfNodes:",
@@ -112,19 +104,13 @@ function CanvasInner() {
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } =
     useReactFlow();
 
-  // Track whether nodes have been measured yet. React Flow fires dimension
-  // changes after the first render — we need to re-run dagre once those
-  // measurements are available so nodes are positioned with their real sizes.
   const hasMeasuredRef = useRef(false);
   const relayout = useGraphStore((s) => s.relayout);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
 
-  // Watch for zoom-to-node requests from the SearchPanel.
-  // When zoomToNode changes, center the viewport on that node.
   useEffect(() => {
     if (!zoomToNode) return;
     const { nodeId } = zoomToNode;
-    // Wait a tick for the node to be visible (e.g. after unhide)
     const t = setTimeout(() => {
       const node = useGraphStore.getState().nodes.find((n) => n.id === nodeId);
       if (!node) return;
@@ -140,17 +126,12 @@ function CanvasInner() {
     return () => clearTimeout(t);
   }, [zoomToNode, fitView]);
 
-  // Reset the measured flag when a completely new graph is loaded
   useEffect(() => {
     if (rfNodes.length > 0) {
       hasMeasuredRef.current = false;
     }
   }, [rfNodes.length]);
 
-  // Re-fit the view whenever the layout direction changes so the user
-  // actually sees the repositioned graph. The `key` prop on ReactFlow
-  // forces a full remount on direction change, which recalculates all
-  // handle positions and edge paths from scratch.
   useEffect(() => {
     if (rfNodes.length === 0) return;
     const t = setTimeout(() => {
@@ -166,31 +147,19 @@ function CanvasInner() {
     [setSelectedNodeIds],
   );
 
-  /**
-   * Handle node changes from React Flow. Use the built-in handler from
-   * useNodesState (which updates rfNodes), then sync position changes back
-   * to our Zustand store for undo/redo.
-   */
   const handleNodesChange = useCallback(
     (changes: NodeChange<FewerNode>[]) => {
       onNodesChange(changes);
 
-      // Check if any dimension changes came in (React Flow measuring nodes
-      // OR user resizing via NodeResizer)
       const dimensionChanges = changes.filter(
-        (
-          c,
-        ): c is NodeChange<FewerNode> & {
+        (c): c is NodeChange<FewerNode> & {
           id: string;
           dimensions: { width: number; height: number };
         } => c.type === "dimensions" && !!c.dimensions,
       );
 
-      // Sync position changes back to store (for undo/redo persistence)
       const positionChanges = changes.filter(
-        (
-          c,
-        ): c is NodeChange<FewerNode> & {
+        (c): c is NodeChange<FewerNode> & {
           id: string;
           position: { x: number; y: number };
         } => c.type === "position" && !!c.position,
@@ -204,8 +173,6 @@ function CanvasInner() {
         }));
       }
 
-      // Always sync dimension changes to the store (for both initial
-      // measurement AND user-initiated resizing via NodeResizer).
       if (dimensionChanges.length > 0) {
         useGraphStore.setState((s) => ({
           nodes: s.nodes.map((n) => {
@@ -231,7 +198,6 @@ function CanvasInner() {
           }),
         }));
 
-        // First-time measurement: re-run dagre with real dimensions
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
           setTimeout(() => {
@@ -244,9 +210,6 @@ function CanvasInner() {
     [onNodesChange, relayout, fitView],
   );
 
-  /**
-   * Validate + create an edge when the user drag-connects two handles.
-   */
   const onConnect = useCallback(
     (connection: Connection) => {
       const result = connectNodes(connection);
@@ -257,7 +220,6 @@ function CanvasInner() {
           variant: "destructive",
         });
       } else {
-        // Also add to React Flow's local edge state
         if (connection.source && connection.target) {
           const newEdge = {
             id: `e-${connection.source}-${connection.target}-${Date.now()}`,
@@ -272,11 +234,6 @@ function CanvasInner() {
     [connectNodes, toast, setRfEdges],
   );
 
-  /**
-   * Drop a folder child entry onto the canvas to create a new child node
-   * linked to its parent. If the folder has a FileSystemHandle, its contents
-   * are loaded from disk and added as child nodes.
-   */
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
@@ -289,14 +246,11 @@ function CanvasInner() {
           y: event.clientY,
         });
 
-        // Import the dragged handle from CustomNode's module-level variable
         const { draggedFolderHandle } = await import("./CustomNode");
         const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
 
-        // Create a new node linked to the parent with contents from disk
         const { expandFolderNode } = await import("@/lib/fewer/fileOps");
         if (handle && handle.kind === "directory") {
-          // Load the folder's contents from disk and create the node + children
           await expandFolderNode(
             label,
             parentId,
@@ -309,7 +263,6 @@ function CanvasInner() {
             description: `"${label}" and its contents loaded from disk`,
           });
         } else {
-          // No disk handle — just create a standalone node
           addStandaloneNode(label, type, position);
           toast({
             title: "Node created",
@@ -328,16 +281,10 @@ function CanvasInner() {
     event.dataTransfer.dropEffect = "copy";
   }, []);
 
-  /**
-   * When a drag finishes, take a single snapshot for undo/redo.
-   */
   const onNodeDragStop = useCallback(() => {
     commitHistory();
   }, [commitHistory]);
 
-  /**
-   * When a multi-select drag finishes, also commit.
-   */
   const onSelectionDragStop = useCallback(() => {
     commitHistory();
   }, [commitHistory]);
@@ -380,8 +327,6 @@ function CanvasInner() {
       onDrop={onDrop}
       onDragOver={onDragOver}
       onContextMenu={(e) => {
-        // Only show the custom canvas menu when right-clicking on empty canvas
-        // (not on nodes — nodes have their own context menus).
         const target = e.target as HTMLElement;
         if (target.closest(".react-flow__node")) return;
         e.preventDefault();
@@ -548,7 +493,6 @@ function CanvasInner() {
       {/* Canvas context menu (custom, positioned at cursor) */}
       {canvasMenu && (
         <>
-          {/* Click-away overlay */}
           <div
             className="fixed inset-0 z-40"
             onClick={() => setCanvasMenu(null)}
@@ -601,41 +545,45 @@ function CanvasInner() {
             >
               Zoom Out
             </button>
-            <div className="my-1 h-px bg-border/40" />
-            <button
-              onClick={() => {
-                useGraphStore.getState().unhideAll();
-                toast({
-                  title: "Unhid all nodes",
-                  description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
-                });
-                setCanvasMenu(null);
-              }}
-              disabled={hiddenCount === 0}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-            >
-              Unhide All Nodes
-            </button>
-            <div className="my-1 h-px bg-border/40" />
-            <button
-              onClick={() => {
-                const clipboard = useGraphStore.getState().clipboard;
-                if (clipboard && clipboard.nodeIds.length > 0) {
-                  const mousePos = useGraphStore.getState().mousePosition;
-                  useGraphStore.getState().setPastePosition(mousePos);
-                  useGraphStore.getState().pasteFromClipboard();
-                  toast({
-                    title: "Pasted",
-                    description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted`,
-                  });
-                }
-                setCanvasMenu(null);
-              }}
-              disabled={!useGraphStore.getState().clipboard}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-            >
-              Paste
-            </button>
+            {advancedModeEnabled && (
+              <>
+                <div className="my-1 h-px bg-border/40" />
+                <button
+                  onClick={() => {
+                    useGraphStore.getState().unhideAll();
+                    toast({
+                      title: "Unhid all nodes",
+                      description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
+                    });
+                    setCanvasMenu(null);
+                  }}
+                  disabled={hiddenCount === 0}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  Unhide All Nodes
+                </button>
+                <div className="my-1 h-px bg-border/40" />
+                <button
+                  onClick={() => {
+                    const clipboard = useGraphStore.getState().clipboard;
+                    if (clipboard && clipboard.nodeIds.length > 0) {
+                      const mousePos = useGraphStore.getState().mousePosition;
+                      useGraphStore.getState().setPastePosition(mousePos);
+                      useGraphStore.getState().pasteFromClipboard();
+                      toast({
+                        title: "Pasted",
+                        description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted`,
+                      });
+                    }
+                    setCanvasMenu(null);
+                  }}
+                  disabled={!useGraphStore.getState().clipboard}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  Paste
+                </button>
+              </>
+            )}
           </div>
         </>
       )}

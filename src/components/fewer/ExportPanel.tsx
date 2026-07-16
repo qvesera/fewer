@@ -13,13 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   FileImage,
   FileJson,
   FileText,
@@ -38,20 +31,30 @@ import {
 } from "@/lib/fewer/scriptExport";
 import { computeStats } from "@/lib/fewer/stats";
 import { getDescendants } from "@/lib/fewer/validation";
-import type {
-  ExportSettings,
-  FewerNode,
-  FewerEdge,
-} from "@/lib/fewer/types";
+import type { ExportSettings } from "@/lib/fewer/types";
 
-const FORMATS: {
+const BASIC_FORMATS: {
+  value: ExportSettings["format"];
+  label: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { value: "png", label: "PNG", desc: "Raster · transparent", icon: FileImage },
+  {
+    value: "tree",
+    label: "Dir Tree",
+    desc: "Unicode ASCII tree .txt",
+    icon: FolderTree,
+  },
+];
+
+const ADVANCED_FORMATS: {
   value: ExportSettings["format"];
   label: string;
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector · scalable", icon: FileCode },
-  { value: "png", label: "PNG", desc: "Raster · transparent", icon: FileImage },
   { value: "json", label: "JSON", desc: "Graph state", icon: FileJson },
   { value: "csv", label: "CSV", desc: "Tabular data", icon: FileSpreadsheet },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText },
@@ -60,12 +63,6 @@ const FORMATS: {
     label: "Dir Script",
     desc: "mkdir .sh / .bat",
     icon: FileTerminal,
-  },
-  {
-    value: "tree",
-    label: "Dir Tree",
-    desc: "Unicode ASCII tree .txt",
-    icon: FolderTree,
   },
 ];
 
@@ -77,15 +74,17 @@ export function ExportPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const [exportSelected, setExportSelected] = useState(false);
 
-  // Compute the subgraph (selected node + all descendants) when
-  // exportSelected is enabled and at least one node is selected.
+  const formats = advancedModeEnabled
+    ? [...BASIC_FORMATS, ...ADVANCED_FORMATS]
+    : BASIC_FORMATS;
+
   const { exportNodes, exportEdges } = useMemo(() => {
     if (!exportSelected || selectedNodeIds.length === 0) {
       return { exportNodes: nodes, exportEdges: edges };
     }
-    // Collect all descendant IDs for each selected node
     const subgraphIds = new Set<string>();
     for (const selectedId of selectedNodeIds) {
       subgraphIds.add(selectedId);
@@ -137,7 +136,7 @@ export function ExportPanel() {
           <div className="space-y-2">
             <Label>Format</Label>
             <div className="grid grid-cols-1 gap-2">
-              {FORMATS.map((f) => {
+              {formats.map((f) => {
                 const Icon = f.icon;
                 const active = settings.format === f.value;
                 return (
@@ -171,7 +170,6 @@ export function ExportPanel() {
             </div>
           </div>
 
-          {/* Export Selected toggle */}
           <div className="flex items-center justify-between rounded-xl border border-border/40 p-3">
             <div className="flex items-center gap-2">
               <MousePointerClick className="h-4 w-4 text-muted-foreground" />

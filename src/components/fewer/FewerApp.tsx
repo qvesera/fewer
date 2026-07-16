@@ -23,10 +23,13 @@ import {
   pickDirectoryTree,
   isFileSystemAccessSupported,
 } from "@/lib/fewer/fileSystem";
-import type { ImportOptions, ThemeMode } from "@/lib/fewer/types";
+import type { ImportOptions } from "@/lib/fewer/importOptions";
+import type { ThemeMode } from "@/lib/fewer/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +45,7 @@ export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
+  const setAdvancedMode = useGraphStore((s) => s.setAdvancedMode);
   const { toast } = useToast();
   const device = useDevice();
 
@@ -53,6 +57,8 @@ export function FewerApp() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
+  const [advancedMode, setAdvancedModeLocal] = useState(false);
+
   const handleRestartTutorial = useCallback(() => {
     setTutorialRestartKey((k) => k + 1);
   }, []);
@@ -64,11 +70,16 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
-  // Initialize theme from localStorage on mount
+  // Initialize theme and advanced mode from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("fewer-theme") as ThemeMode | null;
     if (savedTheme) {
       useGraphStore.getState().setThemeMode(savedTheme);
+    }
+    const savedAdvanced = localStorage.getItem("fewer-advanced-mode");
+    if (savedAdvanced === "true") {
+      setAdvancedMode(true);
+      setAdvancedModeLocal(true);
     }
   }, []);
 
@@ -85,9 +96,6 @@ export function FewerApp() {
     };
   }, []);
 
-  // Opening the directory picker is now a two-step flow:
-  // 1. User clicks "Import Folder" → show ImportDialog with settings
-  // 2. User configures options and confirms → actually pick + import
   const handleOpenDirectory = useCallback(() => {
     setImportDialogOpen(true);
   }, []);
@@ -103,7 +111,6 @@ export function FewerApp() {
           return;
         }
         const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: options.includeFiles });
-        // Pass hiddenFileIds to setGraph so layout excludes those nodes
         setGraph(nodes, edges, false, hiddenFileIds);
         useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles });
         setImportDialogOpen(false);
@@ -148,6 +155,11 @@ export function FewerApp() {
     [setGraph, toast],
   );
 
+  const handlePowerModeChange = (enabled: boolean) => {
+    setAdvancedMode(enabled);
+    setAdvancedModeLocal(enabled);
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
       <Toolbar
@@ -168,7 +180,6 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
           />
         </div>
-        {/* Mobile sidebar overlay */}
         <div
           className={cn(
             "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
@@ -285,6 +296,24 @@ export function FewerApp() {
               </div>
             </div>
           )}
+
+          <div className="mt-4 pt-3 border-t border-border/40">
+            <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+              <div className="flex items-center gap-2">
+                <div>
+                  <Label className="text-sm font-medium">Power User Mode</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Enable advanced features and settings
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={advancedMode}
+                onCheckedChange={handlePowerModeChange}
+                aria-label="Toggle advanced mode"
+              />
+            </div>
+          </div>
 
           <DialogFooter className="gap-2">
             <Button

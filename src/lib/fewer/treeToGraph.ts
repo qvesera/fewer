@@ -16,7 +16,7 @@ interface BuildOptions {
 export function treeToGraph(
   root: TreeEntry,
   options: BuildOptions = {}
-): { nodes: FewerNode[]; edges: FewerEdge[] } {
+): { nodes: FewerNode[]; edges: FewerEdge[]; hiddenFileIds: string[] } {
   const nodes: FewerNode[] = [];
   const edges: FewerEdge[] = [];
   const prefix = options.idPrefix ?? "n";
