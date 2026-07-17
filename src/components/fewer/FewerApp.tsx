@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/dialog";
 import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GlobalNavbar } from "./GlobalNavbar";
+import { CanvasToolbar } from "./CanvasToolbar";
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -162,11 +164,8 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <Toolbar
-        onOpenDirectory={handleOpenDirectory}
-        onLoadSample={handleLoadSample}
-        onRestartTutorial={handleRestartTutorial}
-      />
+      <GlobalNavbar onRestartTutorial={handleRestartTutorial} />
+      <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
         <div

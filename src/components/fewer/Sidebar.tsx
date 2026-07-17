@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,19 +26,11 @@ import {
   Settings2,
   HardDrive,
   SlidersHorizontal,
+  Maximize2,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, ThemeMode } from "@/lib/fewer/types";
 import { StatsPanel, CustomThemeEditor, PowerUserToggle } from ".";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,24 +60,11 @@ const ADVANCED_LAYOUTS: {
   { value: "RL", label: "Right → Left", icon: ArrowLeftToLine },
 ];
 
-const ADVANCED_EDGE_STYLES: { value: EdgeStyle; label: string }[] = [
-  { value: "angled", label: "Angled" },
-];
-
-const BASIC_EDGE_STYLES: { value: EdgeStyle; label: string }[] = [
-  { value: "curved", label: "Curved" },
-  { value: "straight", label: "Straight" },
-];
-
 interface SidebarProps {
   onOpenDirectory: () => void;
   onImportFromFile: () => void;
 }
 
-/**
- * Collapsible section wrapper — keeps the sidebar compact and lets users
- * focus on the section they're working with.
- */
 function CollapsibleSection({
   title,
   icon: Icon,
@@ -101,32 +80,36 @@ function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section>
+    <section className="rounded-xl border border-border/40 bg-card/10 p-3 transition-all duration-200 hover:border-border/85">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring rounded-sm outline-none"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground/90 transition-colors focus-visible:ring-2 focus-visible:ring-ring rounded-md outline-none"
       >
-        {open ? (
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        ) : (
-          <ChevronRight className="h-3 w-3 shrink-0" />
-        )}
-        <Icon className="h-3 w-3 shrink-0" />
-        <span className="font-medium">{title}</span>
+        <span className="text-muted-foreground/70 transition-transform duration-200">
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+        </span>
+        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+        <span>{title}</span>
         {badge && (
-          <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold text-foreground/60">
+          <span className="ml-auto rounded bg-secondary px-1.5 py-0.5 text-[9px] font-medium text-secondary-foreground">
             {badge}
           </span>
         )}
       </button>
       <div
         className={cn(
-          "mt-2 space-y-2 overflow-hidden transition-[grid-template-rows] duration-300 ease-out",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          "grid transition-all duration-300 ease-in-out",
+          open ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 pointer-events-none"
         )}
-        style={{ display: "grid" }}
       >
-        <div className="min-h-0">{children}</div>
+        <div className="overflow-hidden">
+          <div className="space-y-4 pb-1">{children}</div>
+        </div>
       </div>
     </section>
   );
@@ -146,8 +129,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const reset = useGraphStore((s) => s.reset);
   const nodes = useGraphStore((s) => s.nodes);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const addNode = useGraphStore((s) => s.addNode);
-  const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const unhideAll = useGraphStore((s) => s.unhideAll);
   const unhideNode = useGraphStore((s) => s.unhideNode);
@@ -162,195 +143,193 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
+  // Sanitization side-effect when switching from advanced to basic view
+  useEffect(() => {
+    if (!advancedModeEnabled) {
+      // 1. Reset edge style to fallback if it's set to "angled"
+      if (edgeStyle === "angled") {
+        setEdgeStyle("curved");
+      }
+      
+      // 2. Reset direction to fallback if set to BT or RL
+      if (direction === "BT" || direction === "RL") {
+        setDirection("TB");
+      }
+
+      // 3. Reset layout theme mode if set to "custom"
+      if (themeMode === "custom") {
+        setThemeMode("dark");
+      }
+    }
+  }, [advancedModeEnabled, edgeStyle, direction, themeMode, setEdgeStyle, setDirection, setThemeMode]);
+
+  const availableEdgeStyles = useMemo(() => {
+    const base = [
+      { value: "curved" as EdgeStyle, label: "Curved" },
+      { value: "straight" as EdgeStyle, label: "Straight" },
+    ];
+    if (advancedModeEnabled) {
+      base.push({ value: "angled" as EdgeStyle, label: "Angled" });
+    }
+    return base;
+  }, [advancedModeEnabled]);
+
   return (
-    <aside className="gm-glass flex h-full w-full flex-col gap-1 overflow-y-auto border-r border-border/30 p-3">
-      {/* ── FILE ── Primary actions, always visible */}
-      <CollapsibleSection title="File" icon={HardDrive} defaultOpen>
-        <div className="space-y-2">
-          <Button
-            variant="default"
-            size="sm"
-            className="w-full gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600"
-            onClick={onOpenDirectory}
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
-            Import Folder
-          </Button>
-          {advancedModeEnabled && (
+    <aside className="gm-glass flex h-full w-full flex-col justify-between overflow-hidden border-r border-border/30 p-4">
+      <div className="flex-1 space-y-4 overflow-y-auto pr-1 gm-scroll">
+        
+        {/* ── FILE & CANVAS MANAGEMENT ── */}
+        <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
+          <div className="space-y-3">
             <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-1.5"
-              onClick={onImportFromFile}
+              variant="default"
+              size="default"
+              className="w-full gap-2 text-sm font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all"
+              onClick={onOpenDirectory}
             >
-              <Upload className="h-3.5 w-3.5" />
-              Import from File
+              <FolderOpen className="h-4 w-4" />
+              Import Folder
             </Button>
-          )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 gap-1.5"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("fewer-add-node-standalone"),
-                )
-              }
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Node
-            </Button>
+            
             {advancedModeEnabled && (
               <Button
                 variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={() =>
-                  window.dispatchEvent(new CustomEvent("fewer-add-node"))
-                }
-                disabled={
-                  nodes.length === 0 ||
-                  selectedNodeIds.length === 0 ||
-                  nodes.find((n) => n.id === selectedNodeIds[0])?.data.type ===
-                    "file"
-                }
+                size="default"
+                className="w-full gap-2 border-border/80 hover:bg-muted/50 text-xs font-normal text-foreground"
+                onClick={onImportFromFile}
               >
-                <Plus className="h-3.5 w-3.5" />
-                Add Child
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                Import from File
               </Button>
             )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full gap-1.5 text-destructive hover:bg-destructive/10"
-            onClick={() => setResetConfirmOpen(true)}
-            disabled={nodes.length === 0}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Clear Canvas
-          </Button>
-        </div>
-      </CollapsibleSection>
-
-      <div className="h-px bg-border/40 my-1" />
-
-      {/* ── POWER USER MODE ── Toggle for advanced features */}
-      <CollapsibleSection title="Settings" icon={Settings2} defaultOpen>
-        <PowerUserToggle />
-      </CollapsibleSection>
-
-      <div className="h-px bg-border/40 my-1" />
-
-      {/* ── LAYOUT ── Direction + Beautify + Advanced edge/size settings */}
-      <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
-        <div className="grid grid-cols-2 gap-2">
-          {BASIC_LAYOUTS.map((l) => {
-            const Icon = l.icon;
-            const active = direction === l.value;
-            return (
-              <button
-                key={l.value}
-                onClick={() => setDirection(l.value)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-orange-400 bg-orange-500/10 text-orange-300 shadow-sm shadow-orange-500/20"
-                    : "border-border/40 hover:border-border hover:bg-muted/40",
-                )}
+            
+            <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-2" : "grid-cols-1")}>
+              <Button
+                variant="outline"
+                size="default"
+                className="w-full gap-1.5 text-xs font-normal text-foreground"
+                onClick={() => window.dispatchEvent(new CustomEvent("fewer-add-node-standalone"))}
               >
-                <Icon className="h-4 w-4" />
-                <span className="text-[9px] font-medium">{l.label}</span>
-              </button>
-            );
-          })}
-          {advancedModeEnabled && ADVANCED_LAYOUTS.map((l) => {
-            const Icon = l.icon;
-            const active = direction === l.value;
-            return (
-              <button
-                key={l.value}
-                onClick={() => setDirection(l.value)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-orange-400 bg-orange-500/10 text-orange-300 shadow-sm shadow-orange-500/20"
-                    : "border-border/40 hover:border-border hover:bg-muted/40",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="text-[9px] font-medium">{l.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5"
-          onClick={() => relayout()}
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Beautify Layout
-        </Button>
-
-        {/* Basic edge styles (curved, straight) */}
-        <div className="space-y-1.5">
-          <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">
-            Edge style
-          </Label>
-          <div className="grid grid-cols-2 gap-1">
-            {BASIC_EDGE_STYLES.map((s) => {
-              const active = edgeStyle === s.value;
-              return (
-                <button
-                  key={s.value}
-                  onClick={() => setEdgeStyle(s.value)}
-                  className={cn(
-                    "rounded-md border px-2 py-1 text-[10px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active
-                      ? "border-purple-400 bg-purple-500/10 text-purple-300"
-                      : "border-border/40 hover:bg-muted/40",
-                  )}
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                Node
+              </Button>
+              {advancedModeEnabled && (
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="w-full gap-1.5 text-xs font-normal text-foreground"
+                  onClick={() => window.dispatchEvent(new CustomEvent("fewer-add-node"))}
+                  disabled={
+                    nodes.length === 0 ||
+                    selectedNodeIds.length === 0 ||
+                    nodes.find((n) => n.id === selectedNodeIds[0])?.data.type === "file"
+                  }
                 >
-                  {s.label}
-                </button>
-              );
-            })}
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                  Child
+                </Button>
+              )}
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="default"
+              className="w-full justify-center items-center gap-2 text-xs font-normal text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              onClick={() => setResetConfirmOpen(true)}
+              disabled={nodes.length === 0}
+            >
+              <Trash2 className="h-4 w-4 shrink-0" />
+              <span>Clear Canvas</span>
+            </Button>
           </div>
-        </div>
+        </CollapsibleSection>
 
-        {/* Advanced edge styles (angled) + node size - advanced only */}
-        {advancedModeEnabled && (
-          <div className="space-y-3 rounded-lg border border-border/40 bg-card/40 p-3">
-              <div className="grid grid-cols-1 gap-1">
-                {ADVANCED_EDGE_STYLES.map((s) => {
+        {/* ── DESIGN & LAYOUT CONFIGURATION ── */}
+        <CollapsibleSection title="Layout & Edges" icon={SlidersHorizontal} defaultOpen>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              {BASIC_LAYOUTS.map((l) => {
+                const Icon = l.icon;
+                const active = direction === l.value;
+                return (
+                  <button
+                    key={l.value}
+                    onClick={() => setDirection(l.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border p-2.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      active
+                        ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 opacity-80" />
+                    <span className="text-xs font-normal">{l.label}</span>
+                  </button>
+                );
+              })}
+              {advancedModeEnabled && ADVANCED_LAYOUTS.map((l) => {
+                const Icon = l.icon;
+                const active = direction === l.value;
+                return (
+                  <button
+                    key={l.value}
+                    onClick={() => setDirection(l.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border p-2.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      active
+                        ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 opacity-80" />
+                    <span className="text-xs font-normal">{l.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="default"
+              className="w-full gap-2 border-border/80 hover:bg-muted/40 text-xs font-normal text-foreground"
+              onClick={() => relayout()}
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+              Beautify Arrangement
+            </Button>
+
+            <div className="space-y-2 pt-1">
+              <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+                Edge Flow Style
+              </Label>
+              <div className={cn(
+                "grid gap-2",
+                availableEdgeStyles.length === 3 ? "grid-cols-3" : "grid-cols-2"
+              )}>
+                {availableEdgeStyles.map((s) => {
                   const active = edgeStyle === s.value;
                   return (
                     <button
                       key={s.value}
                       onClick={() => setEdgeStyle(s.value)}
                       className={cn(
-                        "rounded-md border px-2 py-1 text-[10px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "rounded-lg border px-2 py-1.5 text-xs font-normal text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         active
-                          ? "border-purple-400 bg-purple-500/10 text-purple-300"
-                          : "border-border/40 hover:bg-muted/40",
+                          ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300"
+                          : "border-border/60 hover:bg-muted/40 text-foreground",
                       )}
                     >
                       {s.label}
                     </button>
                   );
                 })}
-              {edgeStyle === "angled" && (
-                <div className="space-y-1.5">
+              </div>
+
+              {advancedModeEnabled && edgeStyle === "angled" && (
+                <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3 mt-2 transition-all">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                      Corner radius
-                    </Label>
-                    <span className="text-[9px] text-muted-foreground">
-                      {cornerRadius}px
-                    </span>
+                    <Label className="text-xs text-muted-foreground font-normal">Corner radius</Label>
+                    <span className="text-xs font-mono font-normal text-foreground/80">{cornerRadius}px</span>
                   </div>
                   <Slider
                     value={[cornerRadius]}
@@ -362,15 +341,17 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 </div>
               )}
             </div>
-            <div className="space-y-2">
-              <div className="space-y-1.5">
+          </div>
+        </CollapsibleSection>
+
+        {/* ── POWER USER MODE ONLY: NODE DIMENSIONS DATA ── */}
+        {advancedModeEnabled && (
+          <CollapsibleSection title="Node Metrics" icon={Maximize2}>
+            <div className="space-y-4 pt-1">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Node width
-                  </Label>
-                  <span className="text-[9px] text-muted-foreground">
-                    {nodeWidth}px
-                  </span>
+                  <Label className="text-xs text-muted-foreground font-normal">Node Width</Label>
+                  <span className="text-xs font-mono font-normal text-foreground/80">{nodeWidth}px</span>
                 </div>
                 <Slider
                   value={[nodeWidth]}
@@ -380,14 +361,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                   step={10}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[9px] uppercase tracking-wider text-muted-foreground">
-                    Node height (folders)
-                  </Label>
-                  <span className="text-[9px] text-muted-foreground">
-                    {nodeHeight}px
-                  </span>
+                  <Label className="text-xs text-muted-foreground font-normal">Node Height</Label>
+                  <span className="text-xs font-mono font-normal text-foreground/80">{nodeHeight}px</span>
                 </div>
                 <Slider
                   value={[nodeHeight]}
@@ -398,73 +375,60 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 />
               </div>
             </div>
-          </div>
+          </CollapsibleSection>
         )}
-      </CollapsibleSection>
 
-      <div className="h-px bg-border/40 my-1" />
+        {/* ── VISUAL STYLES & SKIN ── */}
+        <CollapsibleSection title="Appearance" icon={Palette}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
+                const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
+                const active = themeMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setThemeMode(mode)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
+                      active
+                        ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300"
+                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5 opacity-80" />
+                    <span className="text-xs font-normal capitalize">{mode}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {advancedModeEnabled && themeMode === "custom" && <CustomThemeEditor />}
+          </div>
+        </CollapsibleSection>
 
-      {/* ── APPEARANCE ── Theme + Custom colors */}
-      <CollapsibleSection title="Appearance" icon={Palette}>
-        <div className="grid grid-cols-3 gap-2">
-          {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
-            const Icon =
-              mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
-            const active = themeMode === mode;
-            return (
-              <button
-                key={mode}
-                onClick={() => setThemeMode(mode)}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-purple-400 bg-purple-500/10 text-purple-300"
-                    : "border-border/40 hover:bg-muted/40",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="text-[9px] font-medium capitalize">
-                  {mode}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {advancedModeEnabled && themeMode === "custom" && <CustomThemeEditor />}
-      </CollapsibleSection>
-
-      {/* ── HIDDEN NODES ── Only shows when there are hidden nodes */}
-      {hiddenIds.length > 0 && (
-        <>
-          <div className="h-px bg-border/40 my-1" />
-          <CollapsibleSection
-            title="Hidden"
-            icon={EyeOff}
-            badge={String(hiddenIds.length)}
-          >
-            <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border border-border/40 bg-card/40 p-1.5">
+        {/* ── RECOVER HIDDEN ELEMENTS ── */}
+        {hiddenIds.length > 0 && (
+          <CollapsibleSection title="Hidden Layers" icon={EyeOff} badge={String(hiddenIds.length)}>
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
               {hiddenNodes.map((n) => (
                 <div
                   key={n.id}
-                  className="flex items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-muted/40"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted/50"
                 >
                   <span
                     className={cn(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      n.data.type === "folder"
-                        ? "bg-orange-400"
-                        : "bg-purple-400",
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      n.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
                     )}
                   />
-                  <span className="truncate text-foreground/80">
-                    {n.data.label}
-                  </span>
+                  <span className="truncate text-foreground/90 font-normal text-xs">{n.data.label}</span>
                   <button
                     onClick={() => unhideNode(n.id)}
-                    className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                    title="Unhide"
+                    className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
+                    title="Unhide Asset"
+                    aria-label="Unhide node"
                   >
-                    <Eye className="h-3 w-3" />
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
@@ -472,41 +436,45 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             <Button
               variant="outline"
               size="sm"
-              className="w-full gap-1.5"
+              className="w-full gap-1.5 text-xs mt-2 font-normal text-foreground"
               onClick={() => unhideAll()}
             >
-              <Eye className="h-3.5 w-3.5" />
-              Unhide All
+              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+              Unhide All Objects
             </Button>
           </CollapsibleSection>
-        </>
-      )}
+        )}
 
-      <div className="h-px bg-border/40 my-1" />
+        {/* ── SYSTEM DATA METRICS ── */}
+        {advancedModeEnabled && (
+          <CollapsibleSection
+            title="Graph Analytics"
+            icon={Layers}
+            badge={nodes.length > 0 ? String(nodes.length) : undefined}
+          >
+            <StatsPanel />
+          </CollapsibleSection>
+        )}
 
-      {/* ── STATISTICS ── Power user only */}
-      {advancedModeEnabled && (
-        <CollapsibleSection
-          title="Statistics"
-          icon={Layers}
-          badge={nodes.length > 0 ? String(nodes.length) : undefined}
-        >
-          <StatsPanel />
+        {/* ── PREFERENCES & SWITCHES ── */}
+        <CollapsibleSection title="Configuration" icon={Settings2}>
+          <PowerUserToggle />
         </CollapsibleSection>
-      )}
+      </div>
 
-      {/* Tips at the bottom, minimal */}
-      <div className="mt-auto rounded-xl border border-border/40 bg-muted/30 p-2.5 text-[9px] leading-relaxed text-muted-foreground">
-        <span className="font-medium text-foreground/80">Tips:</span>{" "}
-        Right-click nodes for actions · Arrow keys to navigate · H to hide ·
-        Shift+H to unhide · Ctrl+F to search · Space to fit view
+      {/* Persistent Info Footer Deck */}
+      <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
+        <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
+          Right-click nodes for parameters • Arrow keys to shift • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit zoom
+        </div>
       </div>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear the entire canvas?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-sm font-medium">Clear the entire canvas?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs font-normal">
               This will remove all {nodes.length} node
               {nodes.length === 1 ? "" : "s"} and{" "}
               {useGraphStore.getState().edges.length} edge
@@ -515,13 +483,13 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="text-xs font-normal">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 reset();
                 setResetConfirmOpen(false);
               }}
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90 text-xs font-normal"
             >
               Clear canvas
             </AlertDialogAction>

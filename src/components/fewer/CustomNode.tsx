@@ -145,7 +145,7 @@ function FolderContextMenu({
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const hideNode = useGraphStore((s) => s.hideNode);
+  const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -224,10 +224,10 @@ function FolderContextMenu({
         )}
         <ContextMenuSeparator />
         <ContextMenuItem
-          onSelect={() => hideNode(nodeId)}
+          onSelect={() => deleteNode([nodeId])}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
-          Hide Node
+          Delete
         </ContextMenuItem>
         {advancedModeEnabled && (
           <>

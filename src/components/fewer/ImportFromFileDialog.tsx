@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGraphStore } from "@/store/graphStore";
 import type { TreeEntry } from "@/lib/fewer/types";
 
 interface ImportFromFileDialogProps {
@@ -30,7 +31,7 @@ interface ImportFromFileDialogProps {
 
 type Format = "json" | "tree" | "script";
 
-const FORMATS: {
+const ALL_FORMATS: {
   value: Format;
   label: string;
   desc: string;
@@ -38,23 +39,23 @@ const FORMATS: {
   accept: string;
 }[] = [
   {
-    value: "json",
-    label: "JSON Graph",
-    desc: "Previously exported JSON graph state",
-    icon: FileJson,
-    accept: ".json",
-  },
-  {
     value: "tree",
-    label: "ASCII Tree",
-    desc: "Unicode tree (├── └── │) from Dir Tree export",
+    label: "ASCII Tree Format",
+    desc: "Paste formatted directory structural unicode text",
     icon: FolderTree,
     accept: ".txt",
   },
   {
+    value: "json",
+    label: "JSON Graph Payload",
+    desc: "Import exported graph node & edge snapshots",
+    icon: FileJson,
+    accept: ".json",
+  },
+  {
     value: "script",
-    label: "Shell / Batch Script",
-    desc: "mkdir commands from Dir Script export",
+    label: "Shell Creation Script",
+    desc: "Batch generate trees from sequence creation statements",
     icon: FileTerminal,
     accept: ".sh,.bat",
   },
@@ -62,7 +63,7 @@ const FORMATS: {
 
 const PLACEHOLDERS: Record<Format, string> = {
   json: `{\n  "nodes": [...],\n  "edges": [...]\n}`,
-  tree: `root/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
+  tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
   script: `mkdir -p "src/components"\nmkdir -p "src/hooks"\nmkdir -p "public"`,
 };
 
@@ -76,6 +77,7 @@ export function ImportFromFileDialog({
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
   const reset = () => {
     setContent("");
@@ -88,6 +90,16 @@ export function ImportFromFileDialog({
     setTimeout(reset, 200);
   };
 
+  useEffect(() => {
+    if (!advancedModeEnabled && format !== "tree") {
+      setFormat("tree");
+    }
+  }, [advancedModeEnabled, format]);
+
+  const activeFormats = advancedModeEnabled 
+    ? ALL_FORMATS 
+    : ALL_FORMATS.filter((f) => f.value === "tree");
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -97,19 +109,22 @@ export function ImportFromFileDialog({
       const text = ev.target?.result as string;
       setContent(text);
 
-      // Auto-detect format from file extension
       const ext = file.name.split(".").pop()?.toLowerCase();
-      if (ext === "json") setFormat("json");
-      else if (ext === "sh" || ext === "bat") setFormat("script");
-      else setFormat("tree");
+      if (advancedModeEnabled && ext === "json") {
+        setFormat("json");
+      } else if (advancedModeEnabled && (ext === "sh" || ext === "bat")) {
+        setFormat("script");
+      } else {
+        setFormat("tree");
+      }
     };
-    reader.onerror = () => setError("Failed to read file");
+    reader.onerror = () => setError("Failed to parse file");
     reader.readAsText(file);
   };
 
   const handleImport = async () => {
     if (!content.trim()) {
-      setError("Please paste content or upload a file");
+      setError("Provide structural script commands or load file first.");
       return;
     }
 
@@ -122,7 +137,7 @@ export function ImportFromFileDialog({
       onImport(tree);
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to parse content");
+      setError(err instanceof Error ? err.message : "Failed parsing file payload structural rules.");
     } finally {
       setImporting(false);
     }
@@ -133,75 +148,84 @@ export function ImportFromFileDialog({
       open={open}
       onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Import from File
+      <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-md border border-border/40 shadow-xl max-h-[90vh] flex flex-col p-6">
+        <DialogHeader className="pb-3 border-b border-border/20">
+          <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
+            <Upload className="h-5 w-5 text-muted-foreground/80" />
+            Static Data Ingest
           </DialogTitle>
-          <DialogDescription>
-            Upload or paste a JSON graph, ASCII tree, or shell/batch script to
-            build the graph without importing a directory.
+          <DialogDescription className="text-xs text-muted-foreground leading-normal font-normal mt-1">
+            Build graph canvases directly by loading saved JSON configurations, pasting shell scripts, or drawing custom ascii hierarchy structures.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="flex-1 space-y-5 overflow-y-auto pr-1 gm-scroll py-4">
           {/* Format selector */}
-          <div className="grid grid-cols-3 gap-2">
-            {FORMATS.map((f) => {
-              const Icon = f.icon;
-              const active = format === f.value;
-              return (
-                <button
-                  key={f.value}
-                  onClick={() => setFormat(f.value)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg border p-3 transition-all",
-                    active
-                      ? "border-orange-400 bg-orange-500/10 text-orange-300"
-                      : "border-border/40 hover:bg-muted/40",
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium text-center">
-                    {f.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Active Document Specification</Label>
+            
+            {/* FIXED: Added inner container padding (p-1 -m-1) to ensure the active blue focus ring does not get clipped */}
+            <div className="p-1 -m-1">
+              <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-3" : "grid-cols-1")}>
+                  {activeFormats.map((f) => {
+                    const Icon = f.icon;
+                    const active = format === f.value;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setFormat(f.value)}
+                        className={cn(
+                          "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          active
+                            ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                            : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                        )}
+                      >
+                        <Icon className="h-4.5 w-4.5 opacity-85" />
+                        <span className="text-xs font-semibold text-center leading-tight">
+                          {f.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
 
-          {/* File upload */}
-          <div>
+          {/* File upload panel */}
+          <div className="pt-0.5">
             <input
               ref={fileInputRef}
               type="file"
-              accept={FORMATS.find((f) => f.value === format)?.accept}
+              accept={ALL_FORMATS.find((f) => f.value === format)?.accept}
               onChange={handleFileSelect}
               className="hidden"
             />
             <Button
               variant="outline"
               size="sm"
-              className="w-full gap-1.5"
+              className="w-full gap-2 border-border/80 text-foreground hover:bg-muted/40 font-semibold text-xs h-10"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="h-3.5 w-3.5" />
-              Choose File
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              Upload Source Code Document
             </Button>
           </div>
 
-          {/* Paste area */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">
-              Or paste{" "}
-              {format === "json"
-                ? "JSON"
-                : format === "tree"
-                  ? "tree text"
-                  : "script"}{" "}
-              here
-            </Label>
+          {/* Paste area configuration */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Or write raw{" "}
+                {format === "json"
+                  ? "JSON array schema"
+                  : format === "tree"
+                    ? "ASCII text layers"
+                    : "shell tokens"}{" "}
+                directly below
+              </Label>
+            </div>
             <Textarea
               value={content}
               onChange={(e) => {
@@ -209,33 +233,41 @@ export function ImportFromFileDialog({
                 setError(null);
               }}
               placeholder={PLACEHOLDERS[format]}
-              className="text-xs font-mono min-h-[160px] max-h-[300px]"
+              className="text-xs font-mono font-medium min-h-[160px] max-h-[260px] bg-muted/20 border-border/50 focus-visible:ring-1 focus-visible:ring-ring gm-scroll leading-relaxed p-3.5"
             />
           </div>
 
-          {/* Error */}
+          {/* Error notice banner */}
           {error && (
-            <div className="rounded-lg border border-red-400/40 bg-red-500/10 p-2 text-xs text-red-300">
+            <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-xs text-red-400 dark:text-red-300 leading-normal font-semibold">
               {error}
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={importing}>
+        {/* FIXED: Explicit flexbox configuration and gap parameters prevents touching buttons */}
+        <DialogFooter className="pt-4 border-t border-border/20 mt-2 flex flex-row items-center justify-end gap-3 w-full">
+          <Button 
+            variant="outline" 
+            size="default"
+            onClick={handleClose} 
+            disabled={importing}
+            className="text-xs border-border/80 text-foreground font-semibold hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
+          >
             Cancel
-          </Button>
+          </Button> 
           <Button
+            size="default"
             onClick={handleImport}
             disabled={importing || !content.trim()}
-            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+            className="text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Upload className="h-3.5 w-3.5" />
+              <Upload className="h-4 w-4" />
             )}
-            Build Graph
+            Build Workspace Graph
           </Button>
         </DialogFooter>
       </DialogContent>
