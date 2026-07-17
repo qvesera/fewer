@@ -15,8 +15,8 @@ import { useToast } from "@/hooks/use-toast";
  * Ctrl/Cmd+A     - select all
  * Ctrl/Cmd+F     - open search
  * Ctrl/Cmd+L     - cycle layout direction
- * Ctrl/Cmd+N     - new node (child of selected folder, or standalone)
- * Ctrl/Cmd+Shift+N - clear canvas
+ * Alt+N          - new node (child of selected folder, or standalone)
+ * Alt+Shift+N    - clear canvas
  * Ctrl/Cmd+E     - open export panel
  * Ctrl/Cmd+C     - copy selected files
  * Ctrl/Cmd+X     - cut selected files
@@ -30,6 +30,10 @@ import { useToast } from "@/hooks/use-toast";
  * Space          - fit view
  * +/- / 0        - zoom in / out / reset
  * Arrow keys     - navigate between nodes (tree-style)
+ * Alt+R          - re-layout graph
+ * Alt+F          - zoom to selection
+ * Alt+O          - open/import folder
+ * Alt+U          - import from file
  */
 export function KeyboardShortcuts() {
   const undo = useGraphStore((s) => s.undo);
@@ -101,8 +105,8 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+Shift+N - clear canvas
-      if (mod && e.shiftKey && e.key.toLowerCase() === "n") {
+      // Alt+Shift+N - clear canvas
+      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         if (nodes.length > 0) {
           reset();
@@ -111,11 +115,50 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+N - open the Add Node dialog
-      if (mod && !e.shiftKey && e.key.toLowerCase() === "n") {
+      // Alt+N - open the Add Node dialog
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         // Trigger the add node flow via a custom event that FewerApp listens for
         window.dispatchEvent(new CustomEvent("fewer-add-node"));
+        return;
+      }
+
+      // Alt+R - relayout
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        const relayout = useGraphStore.getState().relayout;
+        relayout();
+        toast({ title: "Graph relayouted" });
+        return;
+      }
+
+      // Alt+F - zoom to selection
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "f" && !inEditable) {
+        e.preventDefault();
+        const selected = nodes.filter((n) => selectedNodeIds.includes(n.id));
+        if (selected.length > 0) {
+          reactFlow.fitView({
+            nodes: selected.map((n) => ({ id: n.id })),
+            duration: 600,
+            padding: 0.3,
+          });
+        } else {
+          reactFlow.fitView({ duration: 600, padding: 0.2 });
+        }
+        return;
+      }
+
+      // Alt+O - open import folder dialog
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "o" && !inEditable) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("fewer-import-folder"));
+        return;
+      }
+
+      // Alt+U - open import from file dialog
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "u" && !inEditable) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("fewer-import-file"));
         return;
       }
 

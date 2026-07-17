@@ -423,9 +423,11 @@ function FileEntryContextMenu({
   );
 }
 
-function ChildEntry({ child }: { child: FewerNode }) {
+function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
@@ -442,11 +444,15 @@ function ChildEntry({ child }: { child: FewerNode }) {
     >
       <div
         className={cn(
-          "flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
+          "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
           "hover:bg-foreground/8 hover:pl-3",
           isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
           isDimmed && "opacity-40",
         )}
+        onDoubleClick={() => {
+          const isHidden = hiddenIds.includes(child.id);
+          setZoomToNode(isHidden ? parentId : child.id);
+        }}
       >
         <NodeIcon
           type={child.data.type}
@@ -492,9 +498,7 @@ function CustomNodeImpl({
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    return allNodes
-      .filter((n) => childIds.includes(n.id))
-      .slice(0, 20);
+    return allNodes.filter((n) => childIds.includes(n.id));
   }, [edges, allNodes, id, isFolder]);
 
   const childCount = useMemo(() => {
@@ -600,20 +604,9 @@ function CustomNodeImpl({
             </div>
           ) : (
             <div className="space-y-0.5">
-              {children
-                .slice(0, Math.max(3, Math.floor(childListMaxHeight / 22)))
-                .map((child) => (
-                  <ChildEntry key={child.id} child={child} />
-                ))}
-              {childCount >
-                Math.max(3, Math.floor(childListMaxHeight / 22)) && (
-                <div className="px-2 py-1 text-center text-[10px] text-muted-foreground">
-                  +{" "}
-                  {childCount -
-                    Math.max(3, Math.floor(childListMaxHeight / 22))}{" "}
-                  more
-                </div>
-              )}
+              {children.map((child) => (
+                <ChildEntry key={child.id} child={child} parentId={id} />
+              ))}
             </div>
           )}
         </div>

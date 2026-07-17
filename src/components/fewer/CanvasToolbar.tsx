@@ -32,7 +32,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-          <span className="text-xs font-semibold">Sidebar</span>
+          <span className="text-s font-medium">Sidebar</span>
         </Button>
       </div>
 
@@ -78,7 +78,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1.5 font-semibold text-xs text-muted-foreground hover:text-foreground shrink-0"
+          className="h-8 gap-1.5 font-medium text-s text-muted-foreground hover:text-foreground shrink-0"
           onClick={onLoadSample}
           data-tutorial="sample-button"
         >
@@ -89,7 +89,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
         <Button
           variant="default"
           size="sm"
-          className="h-8 gap-1.5 font-semibold text-xs bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shrink-0"
+          className="h-8 gap-1.5 font-medium text-s bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shrink-0"
           onClick={() => setExportOpen(true)}
         >
           <Download className="h-3.5 w-3.5" />

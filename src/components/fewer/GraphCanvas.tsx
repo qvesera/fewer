@@ -76,7 +76,8 @@ function CanvasInner() {
 
   const visibleEdges = useMemo(() => {
     if (hiddenIds.length === 0) return allEdges;
-    return allEdges;
+    const hidden = new Set(hiddenIds);
+    return allEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target));
   }, [allEdges, hiddenIds]);
 
   const hiddenCount = hiddenIds.length;

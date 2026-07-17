@@ -24,7 +24,6 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
-  onOpenDirectory,
   onLoadSample,
   onRestartTutorial,
 }: ToolbarProps) {

@@ -86,15 +86,21 @@ export function FewerApp() {
   }, []);
 
 
-  // Listen for Ctrl+N or sidebar button clicks to open Add Node dialogs
+  // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
+    const openImportFolder = () => setImportDialogOpen(true);
+    const openImportFile = () => setImportFromFileOpen(true);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
+    window.addEventListener("fewer-import-folder", openImportFolder);
+    window.addEventListener("fewer-import-file", openImportFile);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
+      window.removeEventListener("fewer-import-folder", openImportFolder);
+      window.removeEventListener("fewer-import-file", openImportFile);
     };
   }, []);
 
@@ -314,7 +320,7 @@ export function FewerApp() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-18">
             <Button
               variant="outline"
               onClick={() => {

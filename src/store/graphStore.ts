@@ -100,10 +100,11 @@ interface GraphState {
   focusedNodeId: string | null;
   setFocusedNodeId: (id: string | null) => void;
 
-  // zoom-to-node trigger (set by SearchPanel, watched by GraphCanvas)
-  zoomToNode: { nodeId: string; timestamp: number } | null;
+   // zoom-to-node trigger (set by SearchPanel or ChildEntry double-click, watched by GraphCanvas)
+   zoomToNode: { nodeId: string; timestamp: number } | null;
+   setZoomToNode: (nodeId: string | null) => void;
 
-  /** Position to paste at (set before calling pasteFromClipboard). null = auto-position. */
+   /** Position to paste at (set before calling pasteFromClipboard). null = auto-position. */
   /** Last known mouse position in flow coordinates */
   mousePosition: { x: number; y: number } | null;
   setMousePosition: (pos: { x: number; y: number } | null) => void;
@@ -411,6 +412,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setMousePosition: (pos) => set({ mousePosition: pos }),
   setPastePosition: (pos) => set({ pastePosition: pos }),
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
+  setZoomToNode: (nodeId) =>
+    set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery, hiddenIds } = get();
@@ -1157,21 +1160,48 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   },
 
   hideNode: (id) => {
-    const { hiddenIds, selectedNodeIds } = get();
+    const { hiddenIds, edges, selectedNodeIds } = get();
     if (hiddenIds.includes(id)) return;
+    // Collect all descendants via BFS
+    const toHide = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === nid && !toHide.has(e.target)) {
+          toHide.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
     set({
-      hiddenIds: [...hiddenIds, id],
-      selectedNodeIds: selectedNodeIds.filter((sid) => sid !== id),
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
     });
   },
 
   hideNodes: (ids) => {
-    const { hiddenIds, selectedNodeIds } = get();
-    const newHidden = [...new Set([...hiddenIds, ...ids])];
+    const { hiddenIds, edges, selectedNodeIds } = get();
+    // Collect all descendants for each node
+    const toHide = new Set(ids);
+    for (const id of ids) {
+      const queue = [id];
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of edges) {
+          if (e.source === nid && !toHide.has(e.target)) {
+            toHide.add(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+    }
     set({
-      hiddenIds: newHidden,
-      selectedNodeIds: selectedNodeIds.filter((sid) => !ids.includes(sid)),
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
     });
+    // Trigger re-layout after hiding
+    setTimeout(() => get().relayout(), 50);
   },
 
   unhideNode: (id) => {
