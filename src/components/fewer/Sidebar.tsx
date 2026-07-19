@@ -28,7 +28,7 @@ import {
   SlidersHorizontal,
   Maximize2,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, ThemeMode } from "@/lib/fewer/types";
+import type { LayoutDirection, EdgeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
 import { StatsPanel, CustomThemeEditor, PowerUserToggle } from ".";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +41,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { FewerEdge } from "@/lib/fewer/types";
 
 const BASIC_LAYOUTS: {
   value: LayoutDirection;
@@ -115,6 +122,82 @@ function CollapsibleSection({
   );
 }
 
+interface HiddenNodeGroup {
+  parentNode: FewerNode;
+  childNodes: FewerNode[];
+}
+
+interface HiddenLayerData {
+  groups: HiddenNodeGroup[];
+  orphans: FewerNode[];
+}
+
+function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenLayerData {
+  const hiddenNodeMap = new Map<string, FewerNode>();
+  const idSet = new Set(hiddenIds);
+  
+  for (const id of hiddenIds) {
+    const node = nodes.find((n) => n.id === id);
+    if (node) hiddenNodeMap.set(id, node);
+  }
+
+  // Build parent lookup: childId -> parentId
+  const parentMap = new Map<string, string>();
+  for (const e of edges) {
+    parentMap.set(e.target, e.source);
+  }
+
+  const groups: HiddenNodeGroup[] = [];
+  const orphans: FewerNode[] = [];
+  const processed = new Set<string>();
+
+  // For each hidden node, find the top-most hidden ancestor
+  for (const id of hiddenIds) {
+    if (processed.has(id)) continue;
+
+    let currentId = id;
+    while (true) {
+      const parentId = parentMap.get(currentId);
+      if (!parentId || !idSet.has(parentId)) break;
+      currentId = parentId;
+    }
+
+    // currentId is now the top-most hidden ancestor (root of this group)
+    const rootNode = hiddenNodeMap.get(currentId);
+    if (!rootNode) continue;
+
+    // Collect all descendants of this root
+    const groupChildren: FewerNode[] = [];
+    const queue = [currentId];
+    
+    while (queue.length) {
+      const nodeId = queue.shift()!;
+      if (processed.has(nodeId)) continue;
+      processed.add(nodeId);
+      
+      const node = hiddenNodeMap.get(nodeId);
+      if (node && nodeId !== currentId) {
+        groupChildren.push(node);
+      }
+      
+      const children = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+      for (const cid of children) {
+        if (idSet.has(cid) && !processed.has(cid)) {
+          queue.push(cid);
+        }
+      }
+    }
+
+    if (groupChildren.length > 0) {
+      groups.push({ parentNode: rootNode, childNodes: groupChildren });
+    } else {
+      orphans.push(rootNode);
+    }
+  }
+
+  return { groups, orphans };
+}
+
 export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
@@ -128,17 +211,20 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const unhideAll = useGraphStore((s) => s.unhideAll);
   const unhideNode = useGraphStore((s) => s.unhideNode);
+  const unhideAncestors = useGraphStore((s) => s.unhideAncestors);
+  const unhideSubtree = useGraphStore((s) => s.unhideSubtree);
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
-  const hiddenNodes = useMemo(
-    () => nodes.filter((n) => hiddenIds.includes(n.id)),
-    [nodes, hiddenIds],
+  const { groups: hiddenNodeGroups, orphans: hiddenOrphans } = useMemo(
+    () => getHiddenLayerData(nodes, edges, hiddenIds),
+    [nodes, edges, hiddenIds],
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -204,15 +290,33 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             )}
             
             <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-2" : "grid-cols-1")}>
-              <Button
-                variant="outline"
-                size="default"
-                className="w-full gap-1.5 text-xs font-normal text-foreground"
-                onClick={() => window.dispatchEvent(new CustomEvent("fewer-add-node-standalone"))}
-              >
-                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                Node
-              </Button>
+              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "file")) && (
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="w-full gap-1.5 text-xs font-normal text-foreground"
+                  onClick={() => {
+                    const id = `n-${Date.now()}`;
+                    useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                  Show File
+                </Button>
+              )}
+              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "folder")) && (
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="w-full gap-1.5 text-xs font-normal text-foreground"
+                  onClick={() => {
+                    useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                  Show Folder
+                </Button>
+              )}
               {advancedModeEnabled && (
                 <Button
                   variant="outline"
@@ -406,42 +510,103 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
           </div>
         </CollapsibleSection>
 
-        {/* ── RECOVER HIDDEN ELEMENTS ── */}
+        {/* ── RECOVER HIDDEN ELEMENTS (Grouped) ── */}
         {hiddenIds.length > 0 && (
           <CollapsibleSection title="Hidden Layers" icon={EyeOff} badge={String(hiddenIds.length)}>
-            <div className="max-h-36 space-y-1 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
-              {hiddenNodes.map((n) => (
-                <div
-                  key={n.id}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted/50"
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full",
-                      n.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
-                    )}
-                  />
-                  <span className="truncate text-foreground/90 font-normal text-xs">{n.data.label}</span>
-                  <button
-                    onClick={() => unhideNode(n.id)}
-                    className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
-                    title="Unhide Asset"
-                    aria-label="Unhide node"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </button>
+            <div className="max-h-60 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
+              {hiddenNodeGroups.length > 0 && (
+                <Accordion type="multiple" className="space-y-1">
+                  {hiddenNodeGroups.map((group) => (
+                    <AccordionItem key={group.parentNode.id} value={group.parentNode.id}>
+                      <AccordionTrigger className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs hover:no-underline hover:bg-muted/30 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-orange" />
+                          <span className="truncate font-normal text-foreground/90">
+                            {group.parentNode.data.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-muted-foreground">
+                            {group.childNodes.length + 1} item{group.childNodes.length !== 0 ? "s" : ""}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              unhideSubtree(group.parentNode.id);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.stopPropagation();
+                                unhideSubtree(group.parentNode.id);
+                              }
+                            }}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer"
+                            title="Unhide folder and children"
+                            aria-label="Unhide subtree"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-0">
+                        <div className="ml-3 pl-3 border-l border-border/30 space-y-1 mt-1">
+                          {group.childNodes.map((child) => (
+                            <div
+                              key={child.id}
+                              className="flex items-center gap-2 px-2 py-1 text-xs rounded-md hover:bg-muted/30"
+                            >
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  child.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
+                                )}
+                              />
+                              <span className="truncate text-foreground/70">{child.data.label}</span>
+                                <button
+                                  onClick={() => unhideAncestors(child.id)}
+                                  className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
+                                  title="Unhide item"
+                                  aria-label="Unhide node"
+                                >
+                                <Eye className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+              {hiddenOrphans.length > 0 && (
+                <div className={cn(hiddenNodeGroups.length > 0 && "mt-2 border-t border-border/20 pt-2")}>
+                  {hiddenOrphans.map((node) => (
+                    <div
+                      key={node.id}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted/50"
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 shrink-0 rounded-full",
+                          node.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
+                        )}
+                      />
+                      <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
+                      <button
+                        onClick={() => unhideNode(node.id)}
+                        className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
+                        title="Unhide item"
+                        aria-label="Unhide node"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-1.5 text-xs mt-2 font-normal text-foreground"
-              onClick={() => unhideAll()}
-            >
-              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-              Unhide All Objects
-            </Button>
           </CollapsibleSection>
         )}
 

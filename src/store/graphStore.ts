@@ -171,6 +171,22 @@ interface GraphState {
 
 const MAX_HISTORY = 50;
 
+function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  return [...edges].sort((a, b) => {
+    const aNode = nodeMap.get(a.target);
+    const bNode = nodeMap.get(b.target);
+    const aType = aNode?.data.type ?? "file";
+    const bType = bNode?.data.type ?? "file";
+    // Fully descending: files first, then folders
+    const typeDiff = (aType === "folder" ? 1 : 0) - (bType === "folder" ? 1 : 0);
+    if (typeDiff !== 0) return typeDiff;
+    const aLabel = aNode?.data.label ?? "";
+    const bLabel = bNode?.data.label ?? "";
+    return bLabel.localeCompare(aLabel);
+  });
+}
+
 function applySearch(
   nodes: FewerNode[],
   edges: FewerEdge[],
@@ -269,7 +285,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const searched = applySearch(laid, edges, state.searchQuery);
     // Set hiddenIds to hide file nodes from canvas view
     const idsToHide = hiddenFileIds ?? [];
-    set({ nodes: searched, edges, hiddenIds: idsToHide });
+    const sortedEdges = sortEdges(edges, styledNodes);
+    set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide });
   },
 
   setDirection: (direction) => {
@@ -436,7 +453,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setExportSettings: (settings) =>
     set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
-  setRenamingId: (id) => set({ renamingId: id }),
+setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null }),
 
   /**
    * Apply React Flow's node change events (drag, select, remove) directly
@@ -772,11 +789,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (!newRoot) return;
 
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch([...updatedNodes, ...newNodes], [...edges, ...newEdges], get().searchQuery),
-      edges: [...edges, ...newEdges],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
       selectedNodeIds: [newRoot.id],
     });
   },
@@ -799,11 +817,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (!newRoot) return;
 
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch([...updatedNodes, ...newNodes], [...edges, ...newEdges], get().searchQuery),
-      edges: [...edges, ...newEdges],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
       selectedNodeIds: [newRoot.id],
     });
   },
@@ -1002,11 +1021,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
 
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch([...updatedNodes, ...newNodes], [...edges, ...newEdges], get().searchQuery),
-      edges: [...edges, ...newEdges],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
       selectedNodeIds: selectId ? [selectId] : [],
     });
   },
@@ -1086,13 +1106,14 @@ export const useGraphStore = create<GraphState>((set, get) => ({
           type: "default",
         }
       : null;
-    const newEdges = newEdge ? [...edges, newEdge] : edges;
+    const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
+    const sorted = sortEdges(newEdgesUnordered, newNodes);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch(newNodes, newEdges, get().searchQuery),
-      edges: newEdges,
+      nodes: applySearch(newNodes, sorted, get().searchQuery),
+      edges: sorted,
     });
     get().relayout();
   },
@@ -1151,10 +1172,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       target: connection.target,
       type: "default",
     };
+    const nextEdges = sortEdges([...edges, newEdge], [...nodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      edges: [...edges, newEdge],
+      edges: nextEdges,
     });
     return { ok: true };
   },
@@ -1207,6 +1229,44 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   unhideNode: (id) => {
     const { hiddenIds } = get();
     set({ hiddenIds: hiddenIds.filter((h) => h !== id) });
+    get().relayout();
+  },
+
+  /** Unhide a node and all its hidden ancestors (walk up the tree). */
+  unhideAncestors: (id) => {
+    const { hiddenIds, edges } = get();
+    if (!hiddenIds.includes(id)) return;
+    const hiddenSet = new Set(hiddenIds);
+    const parentMap = new Map<string, string>();
+    for (const e of edges) {
+      parentMap.set(e.target, e.source);
+    }
+    const toUnhide = new Set<string>([id]);
+    let currentId: string | undefined = parentMap.get(id);
+    while (currentId && hiddenSet.has(currentId)) {
+      toUnhide.add(currentId);
+      currentId = parentMap.get(currentId);
+    }
+    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) });
+    get().relayout();
+  },
+
+  unhideSubtree: (id) => {
+    const { hiddenIds, edges } = get();
+    // Collect all descendants via BFS
+    const toUnhide = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === nid && hiddenIds.includes(e.target)) {
+          toUnhide.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
+    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) });
+    get().relayout();
   },
 
   removeEdgesFromHandle: (nodeId, handleType) => {

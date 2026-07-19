@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bug, HelpCircle, Keyboard, LayoutTemplate } from "lucide-react";
+import { Search, Bug, HelpCircle, Keyboard, LayoutTemplate, Globe, Github } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useEffect, useRef } from "react";
 
@@ -18,7 +18,6 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto focus input when shortcut triggers open
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
@@ -31,9 +30,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm">
           <LayoutTemplate className="h-4 w-4" />
         </div>
-        <div className="flex flex-col leading-none">
-          <span className="text-sm font-bold tracking-tight">fewer</span>
-        </div>
+        <span className="text-sm font-bold tracking-tight">fewer</span>
       </div>
 
       {/* Global Search Center Input Box */}
@@ -101,6 +98,26 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
           title="Report a bug"
         >
           <Bug className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={() => window.open("https://github.com/qvesera/fewer", "_blank", "noreferrer")}
+          title="GitHub"
+        >
+          <Github className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          onClick={() => window.open("https://qvesera.github.io", "_blank", "noreferrer")}
+          title="Website"
+        >
+          <Globe className="h-4 w-4" />
         </Button>
       </div>
     </div>

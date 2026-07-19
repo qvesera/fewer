@@ -60,7 +60,8 @@ export function treeToGraph(
     }
 
     if (entry.children) {
-      for (const child of entry.children) {
+      const sorted = [...entry.children].sort((a, b) => a.name.localeCompare(b.name));
+      for (const child of sorted) {
         walk(child, id, depth + 1, fullPath);
       }
     }

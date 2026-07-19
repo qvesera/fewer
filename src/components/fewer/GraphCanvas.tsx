@@ -62,6 +62,7 @@ function CanvasInner() {
   const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const themeMode = useGraphStore((s) => s.themeMode);
@@ -341,6 +342,7 @@ function CanvasInner() {
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
         onConnect={onConnect}
+        onPaneClick={() => setRenamingId(null)}
         onNodeDragStop={onNodeDragStop}
         onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}

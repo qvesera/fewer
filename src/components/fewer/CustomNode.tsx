@@ -118,6 +118,10 @@ function RenameInput({
       onChange={(e) => setValue(e.target.value)}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        (e.target as HTMLInputElement).select();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -284,11 +288,13 @@ function FileEntryContextMenu({
   nodeId,
   nodeLabel,
   onDelete,
+  showOpenFile,
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   onDelete: () => void;
+  showOpenFile?: boolean;
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -376,6 +382,7 @@ function FileEntryContextMenu({
         {advancedModeEnabled && (
           <>
             <ContextMenuSeparator />
+            {showOpenFile !== false && (
             <ContextMenuItem
               onSelect={async () => {
                 const node = nodes.find((n) => n.id === nodeId);
@@ -399,6 +406,7 @@ function FileEntryContextMenu({
             >
               Open File
             </ContextMenuItem>
+              )}
             <ContextMenuItem
               onSelect={async () => {
                 try {
@@ -441,6 +449,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
+      showOpenFile={child.data.type === "file"}
     >
       <div
         className={cn(
@@ -498,7 +507,14 @@ function CustomNodeImpl({
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    return allNodes.filter((n) => childIds.includes(n.id));
+    const list = allNodes.filter((n) => childIds.includes(n.id));
+    list.sort((a, b) => {
+      if (a.data.type !== b.data.type) {
+        return a.data.type === "folder" ? -1 : 1;
+      }
+      return a.data.label.localeCompare(b.data.label);
+    });
+    return list;
   }, [edges, allNodes, id, isFolder]);
 
   const childCount = useMemo(() => {
@@ -639,6 +655,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
+      showOpenFile={true}
     >
       <div
         className={cn(
