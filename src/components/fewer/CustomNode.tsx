@@ -16,7 +16,6 @@ import {
   File as FileIcon,
   FileType,
   ChevronRight,
-  GripVertical,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
@@ -31,12 +30,6 @@ import {
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 
-/**
- * Module-level variable holding the FileSystemHandle of the folder being
- * dragged from a child entry. FileSystemHandle objects can't be serialized
- * via JSON dataTransfer, so we stash it here during dragStart and retrieve
- * it during drop.
- */
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
 const CATEGORY_ICON: Record<
@@ -79,7 +72,6 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** Renders the correct Lucide icon for a node based on its type + category. */
 function NodeIcon({
   type,
   category,
@@ -99,10 +91,6 @@ function NodeIcon({
   return <IconComp className={className} />;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Inline rename input                                                       */
-/* -------------------------------------------------------------------------- */
-
 function RenameInput({
   initialValue,
   onCommit,
@@ -116,7 +104,6 @@ function RenameInput({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // focus + select filename without extension
     const input = inputRef.current;
     if (!input) return;
     input.focus();
@@ -131,6 +118,10 @@ function RenameInput({
       onChange={(e) => setValue(e.target.value)}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        (e.target as HTMLInputElement).select();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -146,10 +137,6 @@ function RenameInput({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Folder context menu                                                       */
-/* -------------------------------------------------------------------------- */
-
 function FolderContextMenu({
   nodeId,
   nodeLabel,
@@ -161,12 +148,15 @@ function FolderContextMenu({
   nodePath: string;
   children: React.ReactNode;
 }) {
-  const hideNode = useGraphStore((s) => s.hideNode);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
+  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
 
   return (
@@ -185,49 +175,6 @@ function FolderContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            addNode(nodeId, "New Folder", "folder");
-            setSelectedNodeIds([]);
-            toast({
-              title: "Child node added",
-              description: "New Folder added to " + nodeLabel,
-            });
-          }}
-          className="cursor-pointer"
-        >
-          Add Child Node
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={async () => {
-            try {
-              await navigator.clipboard.writeText(nodePath);
-              toast({ title: "Path copied", description: nodePath });
-            } catch {
-              toast({
-                title: "Copy failed",
-                description: "Clipboard not available",
-                variant: "destructive",
-              });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Copy Path
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onSelect={() =>
-            toast({
-              title: "Refreshed from disk",
-              description: `${nodeLabel} re-scanned`,
-            })
-          }
-          className="cursor-pointer"
-        >
-          Refresh from Disk
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onSelect={() => {
             const node = nodes.find((n) => n.id === nodeId);
             if (node) {
               setClipboard("copy", [nodeId]);
@@ -243,6 +190,7 @@ function FolderContextMenu({
             const node = nodes.find((n) => n.id === nodeId);
             if (node) {
               setClipboard("cut", [nodeId]);
+              useGraphStore.getState().moveNode(nodeId);
               toast({ title: "Cut", description: nodeLabel });
             }
           }}
@@ -250,38 +198,111 @@ function FolderContextMenu({
         >
           Cut
         </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            duplicateNodeUnderParent(nodeId);
+            toast({ title: "Duplicated", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Duplicate
+        </ContextMenuItem>
+        {clipboard && clipboard.nodeIds.length > 0 && (
+          <ContextMenuItem
+            onSelect={() => {
+              const selected = useGraphStore.getState().selectedNodeIds;
+              const ns = useGraphStore.getState().nodes;
+              const parentId = selected.length === 1
+                ? ns.find((n) => n.id === selected[0] && n.data.type === "folder")?.id
+                : undefined;
+              useGraphStore.getState().pasteFromClipboard(parentId);
+              toast({
+                title: "Pasted",
+                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Paste
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
-          onSelect={() => hideNode(nodeId)}
+          onSelect={() => deleteNode([nodeId])}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
-          Hide Node
+          Delete
         </ContextMenuItem>
+        {advancedModeEnabled && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => {
+                addNode(nodeId, "New Folder", "folder");
+                setSelectedNodeIds([]);
+                toast({
+                  title: "Child node added",
+                  description: "New Folder added to " + nodeLabel,
+                });
+              }}
+              className="cursor-pointer"
+            >
+              Add Child Node
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={async () => {
+                try {
+                  await navigator.clipboard.writeText(nodePath);
+                  toast({ title: "Path copied", description: nodePath });
+                } catch {
+                  toast({
+                    title: "Copy failed",
+                    description: "Clipboard not available",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="cursor-pointer"
+            >
+              Copy Path
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() =>
+                toast({
+                  title: "Refreshed from disk",
+                  description: `${nodeLabel} re-scanned`,
+                })
+              }
+              className="cursor-pointer"
+            >
+              Refresh from Disk
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  File entry context menu                                                   */
-/*  Used both for child entries inside a folder card AND standalone file      */
-/*  nodes — both get the same Rename / Copy Name / Delete Item menu.          */
-/* -------------------------------------------------------------------------- */
-
 function FileEntryContextMenu({
   nodeId,
   nodeLabel,
   onDelete,
+  showOpenFile,
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   onDelete: () => void;
+  showOpenFile?: boolean;
   children: React.ReactNode;
 }) {
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const nodes = useGraphStore((s) => s.nodes);
+  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
 
   return (
@@ -299,50 +320,12 @@ function FileEntryContextMenu({
           Rename
         </ContextMenuItem>
         <ContextMenuItem
-          onSelect={async () => {
-            const node = nodes.find((n) => n.id === nodeId);
-            if (node?.data.fsHandle) {
-              try {
-                const { openFile } = await import("@/lib/fewer/fileOps");
-                await openFile(node.data.fsHandle as FileSystemFileHandle);
-                toast({ title: "Opening file", description: nodeLabel });
-              } catch {
-                toast({ title: "Cannot open file", variant: "destructive" });
-              }
-            } else {
-              toast({
-                title: "No file handle",
-                description: "File not loaded from disk",
-                variant: "destructive",
-              });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Open File
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={async () => {
-            try {
-              await navigator.clipboard.writeText(nodeLabel);
-              toast({ title: "Name copied", description: nodeLabel });
-            } catch {
-              toast({
-                title: "Copy failed",
-                description: "Clipboard not available",
-                variant: "destructive",
-              });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Copy Name
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
           onSelect={() => {
-            setClipboard("copy", [nodeId]);
-            toast({ title: "Copied", description: nodeLabel });
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setClipboard("copy", [nodeId]);
+              toast({ title: "Copied", description: nodeLabel });
+            }
           }}
           className="cursor-pointer"
         >
@@ -350,13 +333,45 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            setClipboard("cut", [nodeId]);
-            toast({ title: "Cut", description: nodeLabel });
+            const node = nodes.find((n) => n.id === nodeId);
+            if (node) {
+              setClipboard("cut", [nodeId]);
+              useGraphStore.getState().moveNode(nodeId);
+              toast({ title: "Cut", description: nodeLabel });
+            }
           }}
           className="cursor-pointer"
         >
           Cut
         </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            duplicateNodeUnderParent(nodeId);
+            toast({ title: "Duplicated", description: nodeLabel });
+          }}
+          className="cursor-pointer"
+        >
+          Duplicate
+        </ContextMenuItem>
+        {clipboard && clipboard.nodeIds.length > 0 && (
+          <ContextMenuItem
+            onSelect={() => {
+              const selected = useGraphStore.getState().selectedNodeIds;
+              const ns = useGraphStore.getState().nodes;
+              const parentId = selected.length === 1
+                ? ns.find((n) => n.id === selected[0] && n.data.type === "folder")?.id
+                : undefined;
+              useGraphStore.getState().pasteFromClipboard(parentId);
+              toast({
+                title: "Pasted",
+                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Paste
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={onDelete}
@@ -364,67 +379,91 @@ function FileEntryContextMenu({
         >
           Delete Item
         </ContextMenuItem>
+        {advancedModeEnabled && (
+          <>
+            <ContextMenuSeparator />
+            {showOpenFile !== false && (
+            <ContextMenuItem
+              onSelect={async () => {
+                const node = nodes.find((n) => n.id === nodeId);
+                if (node?.data.fsHandle) {
+                  try {
+                    const { openFile } = await import("@/lib/fewer/fileOps");
+                    await openFile(node.data.fsHandle as FileSystemFileHandle);
+                    toast({ title: "Opening file", description: nodeLabel });
+                  } catch {
+                    toast({ title: "Cannot open file", variant: "destructive" });
+                  }
+                } else {
+                  toast({
+                    title: "No file handle",
+                    description: "File not loaded from disk",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="cursor-pointer"
+            >
+              Open File
+            </ContextMenuItem>
+              )}
+            <ContextMenuItem
+              onSelect={async () => {
+                try {
+                  await navigator.clipboard.writeText(nodeLabel);
+                  toast({ title: "Name copied", description: nodeLabel });
+                } catch {
+                  toast({
+                    title: "Copy failed",
+                    description: "Clipboard not available",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="cursor-pointer"
+            >
+              Copy Name
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Child entry row (inside a folder card)                                    */
-/* -------------------------------------------------------------------------- */
-
-function ChildEntry({ child }: { child: FewerNode }) {
+function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
-  // For folder children, compute their visible child count from edges.
   const folderChildCount = useMemo(() => {
     if (child.data.type !== "folder") return 0;
-    const hidden = new Set(hiddenIds);
-    return edges.filter((e) => e.source === child.id && !hidden.has(e.target))
-      .length;
-  }, [child.data.type, child.id, edges, hiddenIds]);
+    return edges.filter((e) => e.source === child.id).length;
+  }, [child.data.type, child.id, edges]);
 
   return (
     <FileEntryContextMenu
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
+      showOpenFile={child.data.type === "file" && dataSource === "directory"}
     >
       <div
         className={cn(
-          "flex cursor-default items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
+          "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
           "hover:bg-foreground/8 hover:pl-3",
           isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
           isDimmed && "opacity-40",
         )}
+        onDoubleClick={() => {
+          const isHidden = hiddenIds.includes(child.id);
+          setZoomToNode(isHidden ? parentId : child.id);
+        }}
       >
-        {/* Drag handle for folder entries — disabled for now, will re-enable later */}
-        {/* {child.data.type === "folder" && (
-          <span
-            draggable
-            onDragStart={(e) => {
-              draggedFolderHandle = child.data.fsHandle ?? null;
-              e.dataTransfer.setData(
-                "application/fewer-child",
-                JSON.stringify({
-                  label: child.data.label,
-                  type: child.data.type,
-                  parentId: child.id,
-                  parentPath: child.data.path,
-                })
-              );
-              e.dataTransfer.effectAllowed = "copy";
-            }}
-            className="cursor-grab shrink-0 text-muted-foreground/40 hover:text-foreground active:cursor-grabbing nodrag"
-            title="Drag to canvas to create a linked child node"
-          >
-            <GripVertical className="h-3 w-3" />
-          </span>
-        )} */}
         <NodeIcon
           type={child.data.type}
           category={child.data.category}
@@ -448,10 +487,6 @@ function ChildEntry({ child }: { child: FewerNode }) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Main CustomNode                                                           */
-/* -------------------------------------------------------------------------- */
-
 function CustomNodeImpl({
   id,
   data,
@@ -463,11 +498,10 @@ function CustomNodeImpl({
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
 
-  // Lookup children for folder display
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
   const renamingId = useGraphStore((s) => s.renamingId);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -475,18 +509,21 @@ function CustomNodeImpl({
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    const hidden = new Set(hiddenIds);
-    return allNodes
-      .filter((n) => childIds.includes(n.id) && !hidden.has(n.id))
-      .slice(0, 20); // cap higher so taller nodes can show more
-  }, [edges, allNodes, id, isFolder, hiddenIds]);
+    const list = allNodes.filter((n) => childIds.includes(n.id));
+    list.sort((a, b) => {
+      if (a.data.type !== b.data.type) {
+        return a.data.type === "folder" ? -1 : 1;
+      }
+      return a.data.label.localeCompare(b.data.label);
+    });
+    return list;
+  }, [edges, allNodes, id, isFolder]);
 
   const childCount = useMemo(() => {
     if (!isFolder) return 0;
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    const hidden = new Set(hiddenIds);
-    return childIds.filter((cid) => !hidden.has(cid)).length;
-  }, [edges, id, isFolder, hiddenIds]);
+    return childIds.length;
+  }, [edges, id, isFolder]);
 
   const isRenaming = renamingId === id;
 
@@ -497,7 +534,7 @@ function CustomNodeImpl({
     return (
       <div
         className={cn(
-          "group relative flex flex-col w-full h-full rounded-xl border backdrop-blur-xl gm-node-hover",
+          "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
@@ -509,10 +546,7 @@ function CustomNodeImpl({
             minWidth={180}
             minHeight={50}
             isVisible={!!selected}
-            shouldResize={(e) => {
-              // Allow all resize directions for folders
-              return true;
-            }}
+            shouldResize={() => true}
             lineClassName="!border-cyan-400/70"
             handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
           />
@@ -523,6 +557,11 @@ function CustomNodeImpl({
           position={target}
           id={`target-${target}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "target");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -531,7 +570,6 @@ function CustomNodeImpl({
           nodeLabel={data.label}
           nodePath={data.path}
         >
-          {/* Header — folder context menu trigger */}
           <div
             className={cn(
               "flex items-center gap-2 rounded-t-xl border-b border-fewer-folder-border px-3 py-2",
@@ -573,17 +611,10 @@ function CustomNodeImpl({
           </div>
         </FolderContextMenu>
 
-        {/* Body — child entries (each with file context menu) */}
-        {/* onWheel stopPropagation prevents React Flow from zooming the canvas
-            when scrolling inside the folder's child list. The nowheel class
-            alone isn't enough in React Flow v12. flex-1 makes this area grow
-            to fill the available height set by the node's style.height. */}
         <div
           className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
           style={{ maxHeight: `${childListMaxHeight}px` }}
-          onWheel={(e) => {
-            e.stopPropagation();
-          }}
+          onWheel={(e) => { e.stopPropagation(); }}
         >
           {children.length === 0 ? (
             <div className="px-2 py-3 text-center text-xs text-muted-foreground">
@@ -591,26 +622,13 @@ function CustomNodeImpl({
             </div>
           ) : (
             <div className="space-y-0.5">
-              {/* Show more items when the node is taller */}
-              {children
-                .slice(0, Math.max(3, Math.floor(childListMaxHeight / 22)))
-                .map((child) => (
-                  <ChildEntry key={child.id} child={child} />
-                ))}
-              {childCount >
-                Math.max(3, Math.floor(childListMaxHeight / 22)) && (
-                <div className="px-2 py-1 text-center text-[10px] text-muted-foreground">
-                  +{" "}
-                  {childCount -
-                    Math.max(3, Math.floor(childListMaxHeight / 22))}{" "}
-                  more
-                </div>
-              )}
+              {children.map((child) => (
+                <ChildEntry key={child.id} child={child} parentId={id} />
+              ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div
           className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
         >
@@ -622,18 +640,24 @@ function CustomNodeImpl({
           position={source}
           id={`source-${source}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "source");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>
     );
   }
 
-  // ---------- FILE CARD (standalone file node) ----------
+  // ---------- FILE CARD ----------
   return (
     <FileEntryContextMenu
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
+      showOpenFile={dataSource === "directory"}
     >
       <div
         className={cn(
@@ -645,27 +669,30 @@ function CustomNodeImpl({
           selected && "gm-selected-glow",
         )}
       >
-        {selected && (
-          <NodeResizer
-            minWidth={180}
-            minHeight={58}
-            isVisible={!!selected}
-            // Files can only be resized horizontally — block vertical resize
-            shouldResize={(e) => {
-              const direction = (e as unknown as { direction: string })
-                .direction;
-              return direction === "left" || direction === "right";
-            }}
-            lineClassName="!border-cyan-400/70"
-            handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
-          />
-        )}
+      {selected && (
+        <NodeResizer
+          minWidth={180}
+          minHeight={58}
+          isVisible={!!selected}
+          shouldResize={(e) => {
+            const direction = (e as unknown as { direction: string }).direction;
+            return direction === "left" || direction === "right";
+          }}
+          lineClassName="!border-cyan-400/70"
+          handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
+        />
+      )}
 
         <Handle
           type="target"
           position={target}
           id={`target-${target}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "target");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
 
@@ -711,6 +738,11 @@ function CustomNodeImpl({
           position={source}
           id={`source-${source}`}
           isConnectable
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              useGraphStore.getState().removeEdgesFromHandle(id, "source");
+            }
+          }}
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>

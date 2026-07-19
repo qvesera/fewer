@@ -304,10 +304,23 @@ export async function expandFolderNode(
     return e;
   });
 
+  const allNewNodes = [folderNode, ...offsetChildren];
+  const nodeMap = new Map(allNewNodes.map((n) => [n.id, n]));
+  const merged = [...updatedChildEdges, parentEdge].sort((a, b) => {
+    const aNode = nodeMap.get(a.target);
+    const bNode = nodeMap.get(b.target);
+    const aType = aNode?.data.type ?? "file";
+    const bType = bNode?.data.type ?? "file";
+    // Fully descending: files first, then folders, labels z-a
+    const typeDiff = (aType === "folder" ? 1 : 0) - (bType === "folder" ? 1 : 0);
+    if (typeDiff !== 0) return typeDiff;
+    return (bNode?.data.label ?? "").localeCompare(aNode?.data.label ?? "");
+  });
+
   // Add everything to the store
   useGraphStore.setState((s) => ({
-    nodes: [...s.nodes, folderNode, ...offsetChildren],
-    edges: [...s.edges, parentEdge, ...updatedChildEdges],
+    nodes: [...s.nodes, ...allNewNodes],
+    edges: [...s.edges, ...merged],
   }));
 
   // Trigger relayout

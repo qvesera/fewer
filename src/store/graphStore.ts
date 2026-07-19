@@ -50,14 +50,29 @@ interface GraphState {
   /** tracks how the current graph was loaded (for tutorial) */
   dataSource: string | null;
 
+  // minimap
+  showMiniMap: boolean;
+  miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  miniMapSize: number;
+
+  // power user mode
+  advancedModeEnabled: boolean;
+  setAdvancedMode: (enabled: boolean) => void;
+  includeFiles: boolean;
+
   // export settings
   exportSettings: ExportSettings;
+
+  setShowMiniMap: (show: boolean) => void;
+  setMiniMapPosition: (position: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
+  setMiniMapSize: (size: number) => void;
 
   // actions
   setGraph: (
     nodes: FewerNode[],
     edges: FewerEdge[],
     pushHistory?: boolean,
+    hiddenFileIds?: string[],
   ) => void;
   setDirection: (direction: LayoutDirection) => void;
   setEdgeStyle: (style: EdgeStyle) => void;
@@ -78,10 +93,14 @@ interface GraphState {
   resetCustomTheme: () => void;
   setThemeMode: (mode: ThemeMode) => void;
 
-  // clipboard (copy/cut file handles for paste)
+  // clipboard (stores subtree data so paste works after cut removes originals)
   clipboard: {
     mode: "copy" | "cut";
     nodeIds: string[];
+    /** Snapshot of the subtree nodes at the time of copy/cut */
+    subtreeNodes: FewerNode[];
+    /** Snapshot of the subtree edges at the time of copy/cut */
+    subtreeEdges: FewerEdge[];
   } | null;
   setClipboard: (mode: "copy" | "cut", nodeIds: string[]) => void;
   clearClipboard: () => void;
@@ -90,14 +109,40 @@ interface GraphState {
   focusedNodeId: string | null;
   setFocusedNodeId: (id: string | null) => void;
 
-  // zoom-to-node trigger (set by SearchPanel, watched by GraphCanvas)
-  zoomToNode: { nodeId: string; timestamp: number } | null;
+   // zoom-to-node trigger (set by SearchPanel or ChildEntry double-click, watched by GraphCanvas)
+   zoomToNode: { nodeId: string; timestamp: number } | null;
+   setZoomToNode: (nodeId: string | null) => void;
+
+   /** Position to paste at (set before calling pasteFromClipboard). null = auto-position. */
+  /** Last known mouse position in flow coordinates */
+  mousePosition: { x: number; y: number } | null;
+  setMousePosition: (pos: { x: number; y: number } | null) => void;
+
+  /** Position to paste at (mirrors mousePosition at paste time) */
+  pastePosition: { x: number; y: number } | null;
+  setPastePosition: (pos: { x: number; y: number } | null) => void;
 
   // react-flow change handling (drag/select/remove)
   applyNodeChanges: (changes: NodeChange[]) => void;
   applyEdgeChanges: (changes: EdgeChange[]) => void;
   /** Snapshot current nodes/edges into the undo stack */
   commitHistory: () => void;
+
+  /** Helper: create a copy of a node with a "copy" label suffix. */
+  _makeCopyNode: (sourceNode: FewerNode, parentId: string | null) => { newNode: FewerNode; newId: string };
+  /** Duplicate a node + all descendants (full subtree). */
+  _duplicateSubtree: (id: string, parentId: string | null) => { newRoot: FewerNode | null; newNodes: FewerNode[]; newEdges: FewerEdge[] };
+  /** Duplicate a node under the same parent (Ctrl+D / context menu "Duplicate"). */
+  duplicateNodeUnderParent: (id: string) => void;
+  /** Paste a copied node. If parentId is a folder, paste as child; otherwise standalone. */
+  pasteNode: (id: string, parentId?: string | null) => void;
+  /** Paste from clipboard stored data (works after cut removes originals). */
+  pasteFromClipboard: (parentId?: string | null) => void;
+  /** Move a cut node: remove original, create standalone copy. */
+  moveNode: (id: string) => void;
+
+  // internal helpers (not part of public API but used by store methods)
+  _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
 
   // mutations
   deleteNodes: (ids: string[]) => void;
@@ -116,10 +161,18 @@ interface GraphState {
   ) => void;
   /** Validate + create an edge between two existing nodes */
   connectNodes: (connection: Connection) => { ok: boolean; reason?: string };
+  /** Remove edges from a specific handle (source or target) on Ctrl+click. */
+  removeEdgesFromHandle: (nodeId: string, handleType: "source" | "target") => void;
   hideNode: (id: string) => void;
   hideNodes: (ids: string[]) => void;
   unhideAll: () => void;
   unhideNode: (id: string) => void;
+  unhideAncestors: (id: string) => void;
+  unhideSubtree: (id: string) => void;
+
+  // loading state for directory import
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
 
   // history
   undo: () => void;
@@ -131,6 +184,22 @@ interface GraphState {
 }
 
 const MAX_HISTORY = 50;
+
+function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  return [...edges].sort((a, b) => {
+    const aNode = nodeMap.get(a.target);
+    const bNode = nodeMap.get(b.target);
+    const aType = aNode?.data.type ?? "file";
+    const bType = bNode?.data.type ?? "file";
+    // Fully descending: files first, then folders
+    const typeDiff = (aType === "folder" ? 1 : 0) - (bType === "folder" ? 1 : 0);
+    if (typeDiff !== 0) return typeDiff;
+    const aLabel = aNode?.data.label ?? "";
+    const bLabel = bNode?.data.label ?? "";
+    return bLabel.localeCompare(aLabel);
+  });
+}
 
 function applySearch(
   nodes: FewerNode[],
@@ -167,11 +236,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   searchQuery: "",
   selectedNodeIds: [],
   hiddenIds: [],
-  themeMode: "light",
+  themeMode: "dark",
   customTheme: { ...DEFAULT_CUSTOM_THEME },
   clipboard: null,
   focusedNodeId: null,
   zoomToNode: null,
+  mousePosition: null,
+  pastePosition: null,
   past: [],
   future: [],
   searchOpen: false,
@@ -182,14 +253,27 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   shortcutsOpen: false,
   renamingId: null,
   dataSource: null,
+  advancedModeEnabled: false,
+  includeFiles: true,
+  loading: false,
   exportSettings: {
     format: "svg",
     quality: 90,
     transparentBackground: false,
     includeStats: true,
   },
+  showMiniMap: true,
+  miniMapPosition: "bottom-right",
+  miniMapSize: 160,
 
-  setGraph: (nodes, edges, pushHistory = true) => {
+  setAdvancedMode: (enabled) => {
+    set({ advancedModeEnabled: enabled });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fewer-advanced-mode", String(enabled));
+    }
+  },
+
+  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds?: string[]) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
       set({
@@ -212,9 +296,14 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         minHeight: undefined,
       },
     }));
-    const laid = layoutGraph(styledNodes, edges, state.direction);
+    // Exclude hidden file nodes from layout
+    const excludeFromLayout = hiddenFileIds && hiddenFileIds.length > 0 ? new Set(hiddenFileIds) : undefined;
+    const laid = layoutGraph(styledNodes, edges, state.direction, { excludeFromLayout });
     const searched = applySearch(laid, edges, state.searchQuery);
-    set({ nodes: searched, edges, hiddenIds: [] });
+    // Set hiddenIds to hide file nodes from canvas view
+    const idsToHide = hiddenFileIds ?? [];
+    const sortedEdges = sortEdges(edges, styledNodes);
+    set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide });
   },
 
   setDirection: (direction) => {
@@ -234,7 +323,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         id: `e-${e.source}-${e.target}-${Date.now()}-${Math.random()
           .toString(36)
           .slice(2, 7)}`,
-        type: edgeTypeMap[currentStyle],
+        type: edgeTypeMap[currentStyle] as FewerEdge["type"],
       })),
     }));
     get().relayout();
@@ -298,7 +387,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
   setBugReportOpen: (open) => set({ bugReportOpen: open }),
+  setLoading: (loading) => set({ loading }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+
+  setShowMiniMap: (show) => set({ showMiniMap: show }),
+  setMiniMapPosition: (position) => set({ miniMapPosition: position }),
+  setMiniMapSize: (size) => set({ miniMapSize: size }),
 
   setCustomTheme: (partial) => {
     set((s) => ({ customTheme: { ...s.customTheme, ...partial } }));
@@ -313,11 +407,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setThemeMode: (mode) => {
     set({ themeMode: mode });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fewer-theme", mode);
+    }
     if (mode === "custom") {
       applyCustomThemeToDOM(get().customTheme);
     } else {
       clearCustomThemeFromDOM();
-      // Sync with next-themes by setting the class on <html>
       if (typeof document !== "undefined") {
         document.documentElement.classList.remove("light", "dark");
         document.documentElement.classList.add(mode);
@@ -326,17 +422,42 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
   },
 
-  setClipboard: (mode, nodeIds) =>
-    set({ clipboard: { mode, nodeIds: [...nodeIds] } }),
+  setClipboard: (mode, nodeIds) => {
+    const { nodes, edges } = get();
+    // Snapshot the subtree for each node ID
+    const allIds = new Set<string>();
+    for (const id of nodeIds) {
+      allIds.add(id);
+      const queue = [id];
+      while (queue.length) {
+        const qid = queue.shift()!;
+        for (const e of edges) {
+          if (e.source === qid && !allIds.has(e.target)) {
+            allIds.add(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+    }
+    const subtreeNodes = nodes.filter((n) => allIds.has(n.id));
+    const subtreeEdges = edges.filter(
+      (e) => allIds.has(e.source) && allIds.has(e.target),
+    );
+    set({ clipboard: { mode, nodeIds: [...nodeIds], subtreeNodes, subtreeEdges } });
+  },
 
   clearClipboard: () => set({ clipboard: null }),
-
+  setMousePosition: (pos) => set({ mousePosition: pos }),
+  setPastePosition: (pos) => set({ pastePosition: pos }),
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
+  setZoomToNode: (nodeId) =>
+    set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery } = get();
+    const { nodes, edges, direction, searchQuery, hiddenIds } = get();
     if (nodes.length === 0) return;
-    const laid = layoutGraph(nodes, edges, direction);
+    const excludeFromLayout = hiddenIds.length > 0 ? new Set(hiddenIds) : undefined;
+    const laid = layoutGraph(nodes, edges, direction, { excludeFromLayout });
     const searched = applySearch(laid, edges, searchQuery);
     set({ nodes: searched });
   },
@@ -353,7 +474,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setExportSettings: (settings) =>
     set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
-  setRenamingId: (id) => set({ renamingId: id }),
+setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null }),
 
   /**
    * Apply React Flow's node change events (drag, select, remove) directly
@@ -510,19 +631,15 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     });
   },
 
-  duplicateNode: (id) => {
-    const { nodes, edges, past, nodeWidth, nodeHeight } = get();
-    const sourceNode = nodes.find((n) => n.id === id);
-    if (!sourceNode) return;
-
-    // Generate a copy name: "file.ts" → "file copy.ts", "file copy.ts" → "file copy 2.ts"
+  /** Helper: create a copy of a node with a "copy" label suffix. */
+  _makeCopyNode: (sourceNode: FewerNode, parentId: string | null) => {
+    const { nodes, edges, nodeWidth, nodeHeight } = get();
     const origLabel = sourceNode.data.label;
     const dot = origLabel.lastIndexOf(".");
     const stem = dot > 0 ? origLabel.slice(0, dot) : origLabel;
     const ext = dot > 0 ? origLabel.slice(dot) : "";
 
     // Check siblings for existing copy names
-    const parentId = edges.find((e) => e.target === id)?.source ?? null;
     const siblingIds = parentId
       ? edges.filter((e) => e.source === parentId).map((e) => e.target)
       : nodes
@@ -546,52 +663,430 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       ? `${sourceNode.data.path.replace(origLabel, copyLabel)}`
       : copyLabel;
 
-    // Create the duplicate node, offset slightly from the original
-    const newNode: FewerNode = {
-      id: newId,
-      type: sourceNode.type,
-      position: {
-        x: sourceNode.position.x + 40,
-        y: sourceNode.position.y + 40,
-      },
-      data: {
-        ...sourceNode.data,
-        label: copyLabel,
-        path: newPath,
-        isRoot: parentId === null,
-        selected: true,
-      },
-      style: {
-        ...sourceNode.style,
-        width: nodeWidth,
-        height: sourceNode.data.type === "folder" ? nodeHeight : undefined,
-      },
+    return {
+      newNode: {
+        id: newId,
+        type: sourceNode.type,
+        position: {
+          x: sourceNode.position.x + 40,
+          y: sourceNode.position.y + 40,
+        },
+        data: {
+          ...sourceNode.data,
+          label: copyLabel,
+          path: newPath,
+          isRoot: parentId === null,
+          selected: true,
+        },
+        style: {
+          ...sourceNode.style,
+          width: nodeWidth,
+          height: sourceNode.data.type === "folder" ? nodeHeight : undefined,
+        },
+      } as FewerNode,
+      newId,
     };
+  },
 
-    // If the original has a parent, link the duplicate to the same parent
+  /**
+   * Duplicate a node AND all its descendants (full subtree).
+   * Returns the new root node, all new child nodes, and all new edges.
+   */
+  _duplicateSubtree: (id: string, parentId: string | null) => {
+    const { nodes, edges } = get();
+    const sourceNode = nodes.find((n) => n.id === id);
+    if (!sourceNode) return { newRoot: null as FewerNode | null, newNodes: [] as FewerNode[], newEdges: [] as FewerEdge[] };
+
+    // Collect all descendant IDs via BFS
+    const allIds = new Set<string>([id]);
+    const queue = [id];
+    while (queue.length) {
+      const qid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === qid && !allIds.has(e.target)) {
+          allIds.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
+
+    // Build oldId → newId mapping
+    const idMap = new Map<string, string>();
+    for (const oid of allIds) {
+      idMap.set(oid, `n-dup-${uuid().slice(0, 8)}`);
+    }
+
+    const newRootId = idMap.get(id)!;
+    const origLabel = sourceNode.data.label;
+    const dot = origLabel.lastIndexOf(".");
+    const stem = dot > 0 ? origLabel.slice(0, dot) : origLabel;
+    const ext = dot > 0 ? origLabel.slice(dot) : "";
+
+    // Check siblings for existing copy names
+    const siblingIds = parentId
+      ? edges.filter((e) => e.source === parentId).map((e) => e.target)
+      : nodes
+          .filter((n) => !edges.some((e) => e.target === n.id))
+          .map((n) => n.id);
+    const siblingLabels = new Set(
+      nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label),
+    );
+
+    let copyLabel = `${stem} copy${ext}`;
+    if (siblingLabels.has(copyLabel)) {
+      let counter = 2;
+      while (siblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+        counter++;
+      }
+      copyLabel = `${stem} copy ${counter}${ext}`;
+    }
+
+    const { nodeWidth, nodeHeight } = get();
+
+    // Create new nodes
+    const newNodes: FewerNode[] = [];
+    for (const oid of allIds) {
+      const orig = nodes.find((n) => n.id === oid)!;
+      const nid = idMap.get(oid)!;
+      const isRoot = oid === id;
+      const newPath = isRoot
+        ? (parentId ? `${sourceNode.data.path.replace(origLabel, copyLabel)}` : copyLabel)
+        : orig.data.path; // children keep their relative path
+      newNodes.push({
+        ...orig,
+        id: nid,
+        position: isRoot
+          ? { x: orig.position.x + 40, y: orig.position.y + 40 }
+          : { ...orig.position },
+        data: {
+          ...orig.data,
+          label: isRoot ? copyLabel : orig.data.label,
+          path: newPath,
+          isRoot: isRoot && parentId === null,
+          selected: isRoot,
+        },
+        style: {
+          ...orig.style,
+          width: nodeWidth,
+          height: orig.data.type === "folder" ? nodeHeight : undefined,
+        },
+        selected: isRoot,
+      });
+    }
+
+    // Create new edges (internal subtree edges + parent link)
     const newEdges: FewerEdge[] = [];
+    for (const e of edges) {
+      if (allIds.has(e.source) && allIds.has(e.target)) {
+        newEdges.push({
+          ...e,
+          id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`,
+          source: idMap.get(e.source)!,
+          target: idMap.get(e.target)!,
+        });
+      }
+    }
     if (parentId) {
       newEdges.push({
-        id: `e-${parentId}-${newId}`,
+        id: `e-${parentId}-${newRootId}`,
         source: parentId,
-        target: newId,
+        target: newRootId,
         type: "default",
       });
     }
 
-    // Deselect the original
-    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    return {
+      newRoot: newNodes.find((n) => n.id === newRootId)!,
+      newNodes,
+      newEdges,
+    };
+  },
 
+  /** Duplicate a node + its children under the same parent (Ctrl+D / context menu "Duplicate"). */
+  duplicateNodeUnderParent: (id) => {
+    const { nodes, edges, past } = get();
+    const parentId = edges.find((e) => e.target === id)?.source ?? null;
+    const { newRoot, newNodes, newEdges } = get()._duplicateSubtree(id, parentId);
+    if (!newRoot) return;
+
+    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch(
-        [...updatedNodes, newNode],
-        [...edges, ...newEdges],
-        get().searchQuery,
-      ),
-      edges: [...edges, ...newEdges],
-      selectedNodeIds: [newId],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
+      selectedNodeIds: [newRoot.id],
+    });
+  },
+
+  /**
+   * Paste a copied node + its children.
+   * If parentFolderId is provided and is a folder node, paste as child.
+   * Otherwise paste as standalone (no parent).
+   */
+  pasteNode: (id, parentFolderId?: string | null) => {
+    const { nodes, edges, past } = get();
+    let effectiveParentId: string | null = null;
+    if (parentFolderId) {
+      const parent = nodes.find((n) => n.id === parentFolderId);
+      if (parent && parent.data.type === "folder") {
+        effectiveParentId = parentFolderId;
+      }
+    }
+    const { newRoot, newNodes, newEdges } = get()._duplicateSubtree(id, effectiveParentId);
+    if (!newRoot) return;
+
+    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
+      selectedNodeIds: [newRoot.id],
+    });
+  },
+
+  /**
+   * Paste from clipboard stored subtree data.
+   * Uses the snapshot stored in clipboard so it works even after cut removes originals.
+   */
+  /** Find a position that doesn't overlap existing nodes. */
+  _findFreePosition: (baseX: number, baseY: number, nodeWidth: number, nodeHeight: number) => {
+    const { nodes } = get();
+    const PADDING = 40;
+    let x = baseX;
+    let y = baseY;
+    let attempts = 0;
+    const maxAttempts = 50;
+    while (attempts < maxAttempts) {
+      const overlapping = nodes.some(
+        (n) =>
+          Math.abs(n.position.x - x) < nodeWidth + PADDING &&
+          Math.abs(n.position.y - y) < nodeHeight + PADDING,
+      );
+      if (!overlapping) break;
+      // Shift diagonally in a grid pattern
+      x += nodeWidth + PADDING;
+      if (x > baseX + nodeWidth * 3) {
+        x = baseX;
+        y += nodeHeight + PADDING;
+      }
+      attempts++;
+    }
+    return { x, y };
+  },
+
+  /** Find a free position for a bounding box (subtree) instead of a single node. */
+  _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => {
+    const { nodes, nodeWidth, nodeHeight } = get();
+    const PADDING = 40;
+    let x = baseX;
+    let y = baseY;
+    let attempts = 0;
+    const maxAttempts = 50;
+    while (attempts < maxAttempts) {
+      const overlapping = nodes.some((n) => {
+        const nw = n.style?.width ?? nodeWidth;
+        const nh = n.data.type === "folder" ? (n.style?.height ?? nodeHeight) : 60;
+        // Rectangle intersection test
+        return !(
+          x + boundsWidth + PADDING < n.position.x ||
+          x > n.position.x + Number(nw) + PADDING ||
+          y + boundsHeight + PADDING < n.position.y ||
+          y > n.position.y + Number(nh) + PADDING
+        );
+      });
+      if (!overlapping) break;
+      // Shift diagonally in a grid pattern
+      x += boundsWidth + PADDING;
+      if (x > baseX + boundsWidth * 3) {
+        x = baseX;
+        y += boundsHeight + PADDING;
+      }
+      attempts++;
+    }
+    return { x, y };
+  },
+
+  pasteFromClipboard: (parentFolderId?: string | null) => {
+    const clip = get().clipboard;
+    if (!clip || clip.nodeIds.length === 0) return;
+
+    // If no explicit pastePosition was set, fall back to the tracked mouse position
+    const { pastePosition: explicitPastePos, mousePosition } = get();
+    const effectivePastePos = explicitPastePos ?? mousePosition;
+
+    let effectiveParentId: string | null = null;
+    if (parentFolderId) {
+      const parent = get().nodes.find((n) => n.id === parentFolderId);
+      if (parent && parent.data.type === "folder") {
+        effectiveParentId = parentFolderId;
+      }
+    }
+
+    const { past, nodes, edges, nodeWidth, nodeHeight } = get();
+    const { subtreeNodes, subtreeEdges } = clip;
+
+    // Find the root node(s) from the stored subtree
+    const allIds = new Set(subtreeNodes.map((n) => n.id));
+    const rootIds = clip.nodeIds.filter((id) => allIds.has(id));
+
+    // Build oldId → newId mapping
+    const idMap = new Map<string, string>();
+    for (const oid of allIds) {
+      idMap.set(oid, `n-paste-${uuid().slice(0, 8)}`);
+    }
+
+    const newNodes: FewerNode[] = [];
+
+    // Compute subtree bounding box and find a free position for the whole block.
+    // This prevents the root AND its children from overlapping with existing nodes.
+    const rootOrig = subtreeNodes.find((n) => rootIds.includes(n.id));
+    const minX = Math.min(...subtreeNodes.map((n) => n.position.x));
+    const minY = Math.min(...subtreeNodes.map((n) => n.position.y));
+    const maxX = Math.max(...subtreeNodes.map((n) => n.position.x + Number(n.style?.width ?? nodeWidth)));
+    const maxY = Math.max(...subtreeNodes.map((n) => n.position.y + Number(n.style?.height ?? 60)));
+    const boundsW = maxX - minX;
+    const boundsH = maxY - minY;
+
+    const defaultBase = rootOrig
+      ? { x: rootOrig.position.x + 40, y: rootOrig.position.y + 40 }
+      : { x: 0, y: 0 };
+    const tryBase = effectivePastePos ? effectivePastePos : defaultBase;
+    const rootBase = rootOrig
+      ? get()._findFreePositionForBounds(tryBase.x, tryBase.y, boundsW, boundsH)
+      : { x: 0, y: 0 };
+    const rootDelta = rootOrig
+      ? { x: rootBase.x - rootOrig.position.x, y: rootBase.y - rootOrig.position.y }
+      : { x: 0, y: 0 };
+
+    for (const orig of subtreeNodes) {
+      const nid = idMap.get(orig.id)!;
+      const isRoot = rootIds.includes(orig.id);
+      // Compute label for each root node
+      let copyLabel = orig.data.label;
+      if (isRoot) {
+        const dot = orig.data.label.lastIndexOf(".");
+        const stem = dot > 0 ? orig.data.label.slice(0, dot) : orig.data.label;
+        const ext = dot > 0 ? orig.data.label.slice(dot) : "";
+        const parentSiblingIds = effectiveParentId
+          ? edges.filter((e) => e.source === effectiveParentId).map((e) => e.target)
+          : nodes
+              .filter((n) => !edges.some((e) => e.target === n.id))
+              .map((n) => n.id);
+        const parentSiblingLabels = new Set(
+          nodes.filter((n) => parentSiblingIds.includes(n.id)).map((n) => n.data.label),
+        );
+        // Preserve original name unless there's a conflict at the paste destination
+        if (parentSiblingLabels.has(orig.data.label)) {
+          let cl = `${stem} copy${ext}`;
+          if (parentSiblingLabels.has(cl)) {
+            let counter = 2;
+            while (parentSiblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+              counter++;
+            }
+            cl = `${stem} copy ${counter}${ext}`;
+          }
+          copyLabel = cl;
+        }
+        // else no conflict → keep original name
+      }
+      // Shift root to rootBase; shift children by rootDelta so the subtree layout is preserved
+      const pos = isRoot
+        ? rootBase
+        : { x: orig.position.x + rootDelta.x, y: orig.position.y + rootDelta.y };
+      newNodes.push({
+        ...orig,
+        id: nid,
+        position: pos,
+        data: {
+          ...orig.data,
+          label: copyLabel,
+          path: isRoot ? copyLabel : orig.data.path,
+          isRoot: isRoot && effectiveParentId === null,
+          selected: isRoot,
+        },
+        style: {
+          ...orig.style,
+          width: nodeWidth,
+          height: orig.data.type === "folder" ? nodeHeight : undefined,
+        },
+        selected: isRoot,
+      });
+    }
+
+    const newEdges: FewerEdge[] = [];
+    for (const e of subtreeEdges) {
+      if (allIds.has(e.source) && allIds.has(e.target)) {
+        newEdges.push({
+          ...e,
+          id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`,
+          source: idMap.get(e.source)!,
+          target: idMap.get(e.target)!,
+        });
+      }
+    }
+    if (effectiveParentId) {
+      const firstRootId = idMap.get(rootIds[0])!;
+      newEdges.push({
+        id: `e-${effectiveParentId}-${firstRootId}`,
+        source: effectiveParentId,
+        target: firstRootId,
+        type: "default",
+      });
+    }
+
+    const firstRoot = newNodes.find((n) => rootIds.includes(clip.nodeIds[0]) || n.selected);
+    const selectId = firstRoot?.id ?? newNodes[0]?.id;
+
+    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
+    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      nodes: applySearch([...updatedNodes, ...newNodes], mergedEdges, get().searchQuery),
+      edges: mergedEdges,
+      selectedNodeIds: selectId ? [selectId] : [],
+    });
+  },
+
+  /** Alias for backward compat: duplicateNode → duplicateNodeUnderParent. */
+  duplicateNode: (id) => { get().duplicateNodeUnderParent(id); },
+
+  /**
+   * Cut: removes the node + its subtree immediately, stores info in clipboard
+   * so the caller can later paste the subtree elsewhere.
+   * Cut mode means: delete original, and on paste the user gets a fresh copy.
+   * (No "move" on paste — the original is already removed.)
+   */
+  moveNode: (id) => {
+    const { nodes, edges, past } = get();
+    // Remove original subtree immediately
+    const toRemove = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const qid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === qid && !toRemove.has(e.target)) {
+          toRemove.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
+    const filteredNodes = nodes.filter((n) => !toRemove.has(n.id));
+    const filteredEdges = edges.filter(
+      (e) => !toRemove.has(e.source) && !toRemove.has(e.target),
+    );
+
+    const updatedNodes = filteredNodes.map((n) => ({ ...n, selected: false }));
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      nodes: applySearch(updatedNodes, filteredEdges, get().searchQuery),
+      edges: filteredEdges,
+      selectedNodeIds: [],
     });
   },
 
@@ -632,13 +1127,14 @@ export const useGraphStore = create<GraphState>((set, get) => ({
           type: "default",
         }
       : null;
-    const newEdges = newEdge ? [...edges, newEdge] : edges;
+    const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
+    const sorted = sortEdges(newEdgesUnordered, newNodes);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      nodes: applySearch(newNodes, newEdges, get().searchQuery),
-      edges: newEdges,
+      nodes: applySearch(newNodes, sorted, get().searchQuery),
+      edges: sorted,
     });
     get().relayout();
   },
@@ -697,35 +1193,116 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       target: connection.target,
       type: "default",
     };
+    const nextEdges = sortEdges([...edges, newEdge], [...nodes]);
     set({
       past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
       future: [],
-      edges: [...edges, newEdge],
+      edges: nextEdges,
     });
     return { ok: true };
   },
 
   hideNode: (id) => {
-    const { hiddenIds, selectedNodeIds } = get();
+    const { hiddenIds, edges, selectedNodeIds } = get();
     if (hiddenIds.includes(id)) return;
+    // Collect all descendants via BFS
+    const toHide = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === nid && !toHide.has(e.target)) {
+          toHide.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
     set({
-      hiddenIds: [...hiddenIds, id],
-      selectedNodeIds: selectedNodeIds.filter((sid) => sid !== id),
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
     });
   },
 
   hideNodes: (ids) => {
-    const { hiddenIds, selectedNodeIds } = get();
-    const newHidden = [...new Set([...hiddenIds, ...ids])];
+    const { hiddenIds, edges, selectedNodeIds } = get();
+    // Collect all descendants for each node
+    const toHide = new Set(ids);
+    for (const id of ids) {
+      const queue = [id];
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of edges) {
+          if (e.source === nid && !toHide.has(e.target)) {
+            toHide.add(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+    }
     set({
-      hiddenIds: newHidden,
-      selectedNodeIds: selectedNodeIds.filter((sid) => !ids.includes(sid)),
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
     });
+    // Trigger re-layout after hiding
+    setTimeout(() => get().relayout(), 50);
   },
 
   unhideNode: (id) => {
     const { hiddenIds } = get();
     set({ hiddenIds: hiddenIds.filter((h) => h !== id) });
+    get().relayout();
+  },
+
+  /** Unhide a node and all its hidden ancestors (walk up the tree). */
+  unhideAncestors: (id) => {
+    const { hiddenIds, edges } = get();
+    if (!hiddenIds.includes(id)) return;
+    const hiddenSet = new Set(hiddenIds);
+    const parentMap = new Map<string, string>();
+    for (const e of edges) {
+      parentMap.set(e.target, e.source);
+    }
+    const toUnhide = new Set<string>([id]);
+    let currentId: string | undefined = parentMap.get(id);
+    while (currentId && hiddenSet.has(currentId)) {
+      toUnhide.add(currentId);
+      currentId = parentMap.get(currentId);
+    }
+    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) });
+    get().relayout();
+  },
+
+  unhideSubtree: (id) => {
+    const { hiddenIds, edges } = get();
+    // Collect all descendants via BFS
+    const toUnhide = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source === nid && hiddenIds.includes(e.target)) {
+          toUnhide.add(e.target);
+          queue.push(e.target);
+        }
+      }
+    }
+    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) });
+    get().relayout();
+  },
+
+  removeEdgesFromHandle: (nodeId, handleType) => {
+    const { nodes, edges, past } = get();
+    const filteredEdges = edges.filter((e) => {
+      if (handleType === "source") return e.source !== nodeId;
+      if (handleType === "target") return e.target !== nodeId;
+      return true;
+    });
+    if (filteredEdges.length === edges.length) return;
+    set({
+      past: [...past, { nodes, edges }].slice(-MAX_HISTORY),
+      future: [],
+      edges: filteredEdges,
+    });
   },
 
   unhideAll: () => set({ hiddenIds: [] }),

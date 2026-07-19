@@ -24,9 +24,12 @@ import {
   isFileSystemAccessSupported,
 } from "@/lib/fewer/fileSystem";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
+import type { ThemeMode } from "@/lib/fewer/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +39,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { GlobalNavbar } from "./GlobalNavbar";
+import { CanvasToolbar } from "./CanvasToolbar";
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
+  const setAdvancedMode = useGraphStore((s) => s.setAdvancedMode);
   const { toast } = useToast();
   const device = useDevice();
 
@@ -52,6 +59,8 @@ export function FewerApp() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
+  const [advancedMode, setAdvancedModeLocal] = useState(false);
+
   const handleRestartTutorial = useCallback(() => {
     setTutorialRestartKey((k) => k + 1);
   }, []);
@@ -63,22 +72,38 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
+  // Initialize theme and advanced mode from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("fewer-theme") as ThemeMode | null;
+    if (savedTheme) {
+      useGraphStore.getState().setThemeMode(savedTheme);
+    }
+    const savedAdvanced = localStorage.getItem("fewer-advanced-mode");
+    if (savedAdvanced === "true") {
+      setAdvancedMode(true);
+      setAdvancedModeLocal(true);
+    }
+  }, []);
 
-  // Listen for Ctrl+N or sidebar button clicks to open Add Node dialogs
+
+  // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
+    const openImportFolder = () => setImportDialogOpen(true);
+    const openImportFile = () => setImportFromFileOpen(true);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
+    window.addEventListener("fewer-import-folder", openImportFolder);
+    window.addEventListener("fewer-import-file", openImportFile);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
+      window.removeEventListener("fewer-import-folder", openImportFolder);
+      window.removeEventListener("fewer-import-file", openImportFile);
     };
   }, []);
 
-  // Opening the directory picker is now a two-step flow:
-  // 1. User clicks "Import Folder" → show ImportDialog with settings
-  // 2. User configures options and confirms → actually pick + import
   const handleOpenDirectory = useCallback(() => {
     setImportDialogOpen(true);
   }, []);
@@ -93,9 +118,9 @@ export function FewerApp() {
           setImportDialogOpen(false);
           return;
         }
-        const { nodes, edges } = treeToGraph(tree);
-        setGraph(nodes, edges, false);
-        useGraphStore.setState({ dataSource: "directory" });
+        const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: options.includeFiles });
+        setGraph(nodes, edges, false, hiddenFileIds);
+        useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles });
         setImportDialogOpen(false);
         toast({
           title: "Directory loaded",
@@ -138,39 +163,54 @@ export function FewerApp() {
     [setGraph, toast],
   );
 
+  const handlePowerModeChange = (enabled: boolean) => {
+    setAdvancedMode(enabled);
+    setAdvancedModeLocal(enabled);
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <Toolbar
-        onOpenDirectory={handleOpenDirectory}
-        onLoadSample={handleLoadSample}
-        onRestartTutorial={handleRestartTutorial}
-      />
+      <GlobalNavbar onRestartTutorial={handleRestartTutorial} />
+      <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
-        {sidebarOpen && (
-          <div className="hidden sm:block w-[280px] shrink-0 min-h-0">
+        <div
+          className={cn(
+            "hidden sm:block shrink-0 min-h-0 overflow-hidden transition-[width] duration-300 ease-out",
+            sidebarOpen ? "w-[280px]" : "w-0",
+          )}
+        >
+          <Sidebar
+            onOpenDirectory={handleOpenDirectory}
+            onImportFromFile={() => setImportFromFileOpen(true)}
+          />
+        </div>
+        <div
+          className={cn(
+            "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
+            sidebarOpen ? "visible opacity-100" : "invisible opacity-0",
+          )}
+        >
+          <div
+            className={cn(
+              "absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-300 ease-out",
+              sidebarOpen ? "opacity-100" : "opacity-0",
+            )}
+            onClick={() => useGraphStore.getState().setSidebarOpen(false)}
+          />
+          <div
+            className={cn(
+              "relative w-[280px] h-full transition-[transform] duration-300 ease-out",
+              sidebarOpen ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
             <Sidebar
               onOpenDirectory={handleOpenDirectory}
               onImportFromFile={() => setImportFromFileOpen(true)}
             />
           </div>
-        )}
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div className="sm:hidden fixed inset-0 z-40 flex">
-            <div
-              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-              onClick={() => useGraphStore.getState().setSidebarOpen(false)}
-            />
-            <div className="relative w-[280px] h-full">
-              <Sidebar
-                onOpenDirectory={handleOpenDirectory}
-                onImportFromFile={() => setImportFromFileOpen(true)}
-              />
-            </div>
-          </div>
-        )}
-        <main className="relative min-w-0 flex-1 min-h-0">
+        </div>
+        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
             <GraphCanvas />
           </ErrorBoundary>
@@ -262,7 +302,25 @@ export function FewerApp() {
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <div className="mt-4 pt-3 border-t border-border/40">
+            <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+              <div className="flex items-center gap-2">
+                <div>
+                  <Label className="text-sm font-medium">Power User Mode</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Enable advanced features and settings
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={advancedMode}
+                onCheckedChange={handlePowerModeChange}
+                aria-label="Toggle advanced mode"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-18">
             <Button
               variant="outline"
               onClick={() => {

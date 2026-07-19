@@ -5,6 +5,8 @@ import { categorizeByExtension, getFileExtension } from "./categorize";
 interface BuildOptions {
   /** Bump this when you need to regenerate IDs without remounting. */
   idPrefix?: string;
+  /** When true, files are rendered as nodes on canvas. When false, files are hidden nodes but still children of folders. */
+  includeFiles?: boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface BuildOptions {
 export function treeToGraph(
   root: TreeEntry,
   options: BuildOptions = {}
-): { nodes: FewerNode[]; edges: FewerEdge[] } {
+): { nodes: FewerNode[]; edges: FewerEdge[]; hiddenFileIds: string[] } {
   const nodes: FewerNode[] = [];
   const edges: FewerEdge[] = [];
   const prefix = options.idPrefix ?? "n";
@@ -24,6 +26,12 @@ export function treeToGraph(
     const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
     const extension = entry.type === "file" ? getFileExtension(entry.name) : "";
     const category = entry.type === "file" ? categorizeByExtension(extension) : undefined;
+
+    // When includeFiles is false, add file IDs to hiddenIds for proper hiding
+    // without breaking layout
+    if (entry.type === "file" && options.includeFiles === false) {
+      hiddenFileIds.push(id);
+    }
 
     nodes.push({
       id,
@@ -52,12 +60,14 @@ export function treeToGraph(
     }
 
     if (entry.children) {
-      for (const child of entry.children) {
+      const sorted = [...entry.children].sort((a, b) => a.name.localeCompare(b.name));
+      for (const child of sorted) {
         walk(child, id, depth + 1, fullPath);
       }
     }
   }
 
+  const hiddenFileIds: string[] = [];
   walk(root, null, 0, "");
-  return { nodes, edges };
+  return { nodes, edges, hiddenFileIds };
 }

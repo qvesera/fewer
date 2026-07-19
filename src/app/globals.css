@@ -43,9 +43,19 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   /* brand */
-  --color-brand-orange: var(--brand-orange-500);
+  --color-brand-fuchsia: var(--brand-fuchsia-500);
   --color-brand-purple: var(--brand-purple-500);
   --color-brand-cyan: var(--brand-cyan-400);
+  --color-brand-amber: var(--brand-amber-500);
+  --color-brand-orange: var(--brand-orange-500);
+  --color-brand-cool-start: var(--brand-fuchsia-500);
+  --color-brand-cool-mid: var(--brand-cyan-400);
+  --color-brand-cool-end: var(--brand-purple-500);
+  --color-brand-warm-start: var(--brand-amber-500);
+  --color-brand-warm-end: var(--brand-orange-500);
+  --color-gradient-cool: linear-gradient(135deg, var(--brand-fuchsia-500), var(--brand-cyan-400), var(--brand-purple-500));
+  --color-gradient-warm: linear-gradient(135deg, var(--brand-amber-500), var(--brand-orange-500));
+  --color-gradient-premium: linear-gradient(135deg, var(--brand-purple-500), var(--brand-amber-500));
 
   /* fewer */
   --color-fewer-background: var(--fewer-background);
@@ -99,9 +109,11 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   /* brand colors */
-  --brand-orange-500: #f97316;
+  --brand-fuchsia-500: #ff00ff;
   --brand-purple-500: #a855f7;
   --brand-cyan-400: #22d3ee;
+  --brand-amber-500: #ffbf00;
+  --brand-orange-500: #ff8c00;
 
   /* fewer node colors — light mode defaults */
   --fewer-background: #ffffff;
@@ -154,9 +166,11 @@
   --sidebar-ring: oklch(0.556 0 0);
 
   /* brand colors (unchanged across themes) */
-  --brand-orange-500: #f97316;
+  --brand-fuchsia-500: #ff00ff;
   --brand-purple-500: #a855f7;
   --brand-cyan-400: #22d3ee;
+  --brand-amber-500: #ffbf00;
+  --brand-orange-500: #ff8c00;
 
   /* fewer node colors — dark mode defaults */
   --fewer-background: #0b0b13;
@@ -416,4 +430,54 @@ aside::-webkit-scrollbar-thumb:hover {
   .gm-node-fade-in {
     animation: none !important;
   }
+}
+
+/* ── Gradient Utility Classes ───────────────────────────────────────────────── */
+
+.bg-gradient-cool {
+  background: linear-gradient(135deg, #ff00ff, #22d3ee, #a855f7);
+}
+.bg-gradient-warm {
+  background: linear-gradient(135deg, #ffbf00, #ff8c00);
+}
+.bg-gradient-premium {
+  background: linear-gradient(135deg, #a855f7, #ffbf00);
+}
+
+/* Gradient text utilities */
+.text-gradient-cool {
+  background: linear-gradient(135deg, #ff00ff, #22d3ee, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-warm {
+  background: linear-gradient(135deg, #ffbf00, #ff8c00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Glass with cool gradient overlay */
+.gm-glass-cool {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.1), rgba(34, 211, 238, 0.05), rgba(168, 85, 247, 0.1));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 0, 255, 0.15);
+}
+.dark .gm-glass-cool {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.15), rgba(34, 211, 238, 0.08), rgba(168, 85, 247, 0.15));
+  border-color: rgba(255, 0, 255, 0.12);
+}
+
+/* Glass with warm gradient overlay */
+.gm-glass-warm {
+  background: linear-gradient(135deg, rgba(255, 191, 0, 0.15), rgba(255, 140, 0, 0.1));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 191, 0, 0.2);
+}
+.dark .gm-glass-warm {
+  background: linear-gradient(135deg, rgba(255, 191, 0, 0.2), rgba(255, 140, 0, 0.15));
+  border-color: rgba(255, 191, 0, 0.15);
 }

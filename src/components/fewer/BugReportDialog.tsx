@@ -105,9 +105,8 @@ export function BugReportDialog() {
   const [category, setCategory] = useState<Category>("other");
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [submitting, setSubmitting] = useState<"idle" | "email" | "github">(
-    "idle",
-  );
+  const [submitting, setSubmitting] = useState(false);
+  const [githubFailed, setGithubFailed] = useState(false);
   const { toast } = useToast();
 
   // Collect diagnostics from the current app state
@@ -237,29 +236,102 @@ export function BugReportDialog() {
     }
   };
 
-  const submitToGitHub = async (report: typeof bugReport) => {
-    const response = await fetch("/.netlify/functions/bug-report", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ report }),
-    });
+  const buildGitHubIssueUrl = (report: typeof bugReport) => {
+    const repo = "qvesera/fewer";
+    const { environment, graphState, app } = report;
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || "Failed to create GitHub issue.");
+    // Build body manually with explicit \r\n for GitHub compatibility
+    const e = (s: string) => encodeURIComponent(s);
+    let body = "";
+
+    body += `### Description\n`;
+    body += `\n`;
+    body += `${report.bug.description !== "(no description provided)" ? report.bug.description : "_No description provided._"}\n`;
+    body += `\n`;
+    body += `### Steps to Reproduce\n`;
+    body += `\n`;
+    body += "```\n";
+    body += `${report.bug.stepsToReproduce !== "(no steps provided)" ? report.bug.stepsToReproduce : "No steps provided."}\n`;
+    body += "```\n";
+    body += `\n`;
+    body += `### Details\n`;
+    body += `\n`;
+    body += `- **Severity**: \`${report.bug.severity}\`\n`;
+    body += `- **Category**: \`${report.bug.category}\`\n`;
+    body += `- **App Version**: ${app?.version || "1.0.0"}\n`;
+    body += `\n`;
+    body += "<details>\n";
+    body += "<summary><b>System Diagnostics</b></summary>\n";
+    body += `\n`;
+    body += `| Metric | Value |\n`;
+    body += `| --- | --- |\n`;
+    body += `| App Name | ${app?.name || "fewer"} |\n`;
+    body += `| App Version | ${app?.version || "1.0.0"} |\n`;
+    body += `| Timestamp | ${app?.timestamp || new Date().toISOString()} |\n`;
+    body += `| Browser | ${environment?.browser || "unknown"} |\n`;
+    body += `| FS Access | ${environment?.fileSystemAccess || "unknown"} |\n`;
+    body += `| Iframe | ${environment?.iframeContext ? "Yes" : "No"} |\n`;
+    body += `| Viewport | ${environment?.viewport || "unknown"} |\n`;
+    body += `| Online | ${environment?.online ? "Yes" : "No"} |\n`;
+    body += `\n`;
+    body += "</details>\n";
+    body += `\n`;
+    body += "<details>\n";
+    body += "<summary><b>Graph State</b></summary>\n";
+    body += `\n`;
+    body += `| Metric | Value |\n`;
+    body += `| --- | --- |\n`;
+    body += `| Nodes | ${graphState?.totalNodes ?? 0} |\n`;
+    body += `| Edges | ${graphState?.totalEdges ?? 0} |\n`;
+    body += `| Files | ${graphState?.totalFiles ?? 0} |\n`;
+    body += `| Folders | ${graphState?.totalFolders ?? 0} |\n`;
+    body += `| Size (Bytes) | ${graphState?.totalSize ?? 0} |\n`;
+    body += `| Hidden | ${graphState?.hiddenNodes ?? 0} |\n`;
+    body += `| Layout | ${graphState?.layoutDirection || "unknown"} |\n`;
+    body += `| Edge Style | ${graphState?.edgeStyle || "unknown"} |\n`;
+    body += `| Theme | ${graphState?.themeMode || "unknown"} |\n`;
+    body += `\n`;
+    body += "</details>\n";
+    body += `\n`;
+    body += "<details>\n";
+    body += "<summary><b>Raw JSON Payload</b></summary>\n";
+    body += `\n`;
+    body += "```json\n";
+    body += `${JSON.stringify(report, null, 2)}\n`;
+    body += "```\n";
+    body += `\n`;
+    body += "</details>\n";
+
+    const title = `[Bug] ${report.bug.title}`;
+    const url = `https://github.com/${repo}/issues/new?title=${e(title)}&body=${e(body)}`;
+    return url;
+  };
+
+  const handleSubmit = () => {
+    const url = buildGitHubIssueUrl(bugReport);
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      setGithubFailed(true);
+      toast({
+        title: "GitHub blocked",
+        description: "Popup was blocked. Use email as alternative.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "GitHub pre-filled!",
+        description: "Review and submit the issue on GitHub.",
+      });
     }
-    return data.issueUrl as string;
   };
 
   const handleSubmitEmail = async () => {
-    setSubmitting("email");
+    setSubmitting(true);
     try {
       await submitToWeb3Forms(bugReport);
       toast({
         title: "Bug report sent!",
-        description: "Your report has been successfully sent via email.",
+        description: "Submitted via email.",
       });
       handleClose();
     } catch (err: any) {
@@ -269,30 +341,7 @@ export function BugReportDialog() {
         variant: "destructive",
       });
     } finally {
-      setSubmitting("idle");
-    }
-  };
-
-  const handleSubmitGitHub = async () => {
-    setSubmitting("github");
-    try {
-      const issueUrl = await submitToGitHub(bugReport);
-      toast({
-        title: "GitHub Issue created!",
-        description: "Your report has been successfully submitted to GitHub.",
-      });
-      if (issueUrl) {
-        window.open(issueUrl, "_blank", "noopener,noreferrer");
-      }
-      handleClose();
-    } catch (err: any) {
-      toast({
-        title: "Submission failed",
-        description: err.message || "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting("idle");
+      setSubmitting(false);
     }
   };
 
@@ -305,11 +354,12 @@ export function BugReportDialog() {
       setSteps("");
       setSeverity("medium");
       setCategory("other");
-      setSubmitting("idle");
+      setSubmitting(false);
+      setGithubFailed(false);
     }, 200);
   };
 
-  const isDisabled = submitting !== "idle";
+  const isDisabled = submitting;
 
   return (
     <Dialog
@@ -318,7 +368,7 @@ export function BugReportDialog() {
     >
       <DialogContent className="sm:max-w-2xl w-full">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-balance">
             <Bug className="h-4 w-4 text-red-500" />
             Report a Bug
           </DialogTitle>
@@ -347,7 +397,7 @@ export function BugReportDialog() {
           </div>
 
           {/* Category + Severity */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-xs">Category</Label>
               <Select
@@ -434,7 +484,7 @@ export function BugReportDialog() {
                 Auto-collected diagnostics
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
                 <span>Nodes / Edges</span>
                 <span className="tabular-nums font-medium text-foreground/80">
@@ -479,7 +529,7 @@ export function BugReportDialog() {
           </div>
         </div>
 
-        <DialogFooter className="flex flex-wrap gap-2 sm:justify-between">
+        <DialogFooter className="flex-col sm:flex-row flex-wrap gap-2 sm:justify-between">
           {/* Secondary actions */}
           <div className="flex flex-wrap gap-2">
             <Button
@@ -528,32 +578,31 @@ export function BugReportDialog() {
 
           {/* Primary actions */}
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              onClick={handleSubmitEmail}
-              disabled={isDisabled || !title.trim()}
-              className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
-            >
-              {submitting === "email" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Mail className="h-3.5 w-3.5" />
-              )}
-              Send Email
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSubmitGitHub}
-              disabled={isDisabled || !title.trim()}
-              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
-            >
-              {submitting === "github" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
+            {githubFailed ? (
+              <Button
+                size="sm"
+                onClick={handleSubmitEmail}
+                disabled={isDisabled || !title.trim()}
+                className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
+              >
+                {submitting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                Send via Email
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={isDisabled || !title.trim()}
+                className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
+              >
                 <Github className="h-3.5 w-3.5" />
-              )}
-              GitHub Issue
-            </Button>
+                Submit to GitHub
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>
