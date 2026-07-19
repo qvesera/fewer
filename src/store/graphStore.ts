@@ -141,6 +141,9 @@ interface GraphState {
   /** Move a cut node: remove original, create standalone copy. */
   moveNode: (id: string) => void;
 
+  // internal helpers (not part of public API but used by store methods)
+  _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
+
   // mutations
   deleteNodes: (ids: string[]) => void;
   renameNode: (id: string, newLabel: string) => void;
@@ -164,6 +167,8 @@ interface GraphState {
   hideNodes: (ids: string[]) => void;
   unhideAll: () => void;
   unhideNode: (id: string) => void;
+  unhideAncestors: (id: string) => void;
+  unhideSubtree: (id: string) => void;
 
   // loading state for directory import
   loading: boolean;
@@ -318,7 +323,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         id: `e-${e.source}-${e.target}-${Date.now()}-${Math.random()
           .toString(36)
           .slice(2, 7)}`,
-        type: edgeTypeMap[currentStyle],
+        type: edgeTypeMap[currentStyle] as FewerEdge["type"],
       })),
     }));
     get().relayout();

@@ -579,7 +579,16 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── RECOVER HIDDEN ELEMENTS (Grouped) ── */}
         {hiddenIds.length > 0 && (
-          <CollapsibleSection title="Hidden Layers" icon={EyeOff} badge={String(hiddenIds.length)}>
+          <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 border-border/80 hover:bg-muted/40 text-xs font-normal text-foreground mb-2"
+              onClick={() => unhideAll()}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Unhide All
+            </Button>
             <div className="max-h-60 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
               {hiddenNodeGroups.length > 0 && (
                 <Accordion type="multiple" className="space-y-1">

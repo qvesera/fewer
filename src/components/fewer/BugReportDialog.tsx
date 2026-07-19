@@ -101,14 +101,12 @@ export function BugReportDialog() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState("");
-  const [githubUsername, setGithubUsername] = useState("");
   const [severity, setSeverity] = useState<Severity>("medium");
   const [category, setCategory] = useState<Category>("other");
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [submitting, setSubmitting] = useState<"idle" | "email">(
-    "idle",
-  );
+  const [submitting, setSubmitting] = useState(false);
+  const [githubFailed, setGithubFailed] = useState(false);
   const { toast } = useToast();
 
   // Collect diagnostics from the current app state
@@ -177,9 +175,8 @@ export function BugReportDialog() {
         severity,
         category,
       },
-      githubUsername: githubUsername.trim() || undefined,
     }),
-    [diagnostics, title, description, steps, severity, category, githubUsername],
+    [diagnostics, title, description, steps, severity, category],
   );
 
   const handleCopy = async () => {
@@ -262,9 +259,6 @@ export function BugReportDialog() {
     body += `- **Severity**: \`${report.bug.severity}\`\n`;
     body += `- **Category**: \`${report.bug.category}\`\n`;
     body += `- **App Version**: ${app?.version || "1.0.0"}\n`;
-    if (report.githubUsername) {
-      body += `- **Reported by**: ${report.githubUsername}\n`;
-    }
     body += `\n`;
     body += "<details>\n";
     body += "<summary><b>System Diagnostics</b></summary>\n";
@@ -313,13 +307,31 @@ export function BugReportDialog() {
     return url;
   };
 
+  const handleSubmit = () => {
+    const url = buildGitHubIssueUrl(bugReport);
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      setGithubFailed(true);
+      toast({
+        title: "GitHub blocked",
+        description: "Popup was blocked. Use email as alternative.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "GitHub pre-filled!",
+        description: "Review and submit the issue on GitHub.",
+      });
+    }
+  };
+
   const handleSubmitEmail = async () => {
-    setSubmitting("email");
+    setSubmitting(true);
     try {
       await submitToWeb3Forms(bugReport);
       toast({
         title: "Bug report sent!",
-        description: "Your report has been successfully sent via email.",
+        description: "Submitted via email.",
       });
       handleClose();
     } catch (err: any) {
@@ -329,17 +341,8 @@ export function BugReportDialog() {
         variant: "destructive",
       });
     } finally {
-      setSubmitting("idle");
+      setSubmitting(false);
     }
-  };
-
-  const handleOpenGitHub = () => {
-    const url = buildGitHubIssueUrl(bugReport);
-    window.open(url, "_blank", "noopener,noreferrer");
-    toast({
-      title: "GitHub pre-filled!",
-      description: "Review and submit the issue on GitHub.",
-    });
   };
 
   const handleClose = () => {
@@ -349,14 +352,14 @@ export function BugReportDialog() {
       setTitle("");
       setDescription("");
       setSteps("");
-      setGithubUsername("");
       setSeverity("medium");
       setCategory("other");
-      setSubmitting("idle");
+      setSubmitting(false);
+      setGithubFailed(false);
     }, 200);
   };
 
-  const isDisabled = submitting !== "idle";
+  const isDisabled = submitting;
 
   return (
     <Dialog
@@ -575,28 +578,31 @@ export function BugReportDialog() {
 
           {/* Primary actions */}
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              onClick={handleSubmitEmail}
-              disabled={isDisabled || !title.trim()}
-              className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
-            >
-              {submitting === "email" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Mail className="h-3.5 w-3.5" />
-              )}
-              Send Email
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleOpenGitHub}
-              disabled={!title.trim()}
-              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
-            >
-              <Github className="h-3.5 w-3.5" />
-              Open GitHub Issue
-            </Button>
+            {githubFailed ? (
+              <Button
+                size="sm"
+                onClick={handleSubmitEmail}
+                disabled={isDisabled || !title.trim()}
+                className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
+              >
+                {submitting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Mail className="h-3.5 w-3.5" />
+                )}
+                Send via Email
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleSubmit}
+                disabled={isDisabled || !title.trim()}
+                className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
+              >
+                <Github className="h-3.5 w-3.5" />
+                Submit to GitHub
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>
