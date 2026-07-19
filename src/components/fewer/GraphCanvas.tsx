@@ -311,15 +311,21 @@ function CanvasInner() {
     }));
   }, []);
 
+  const showMiniMap = useGraphStore((s) => s.showMiniMap);
+  const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
+  const miniMapSize = useGraphStore((s) => s.miniMapSize);
+
   const minimapStyle = useMemo(
     () => ({
+      width: miniMapSize,
+      height: miniMapSize,
       backgroundColor: isDark
         ? "rgba(15, 23, 42, 0.6)"
         : "rgba(255, 255, 255, 0.6)",
       borderRadius: "12px",
       border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
     }),
-    [isDark],
+    [isDark, miniMapSize],
   );
 
   return (
@@ -404,18 +410,21 @@ function CanvasInner() {
           className="!rounded-xl !border !border-border/40 !bg-card/80 !shadow-xl backdrop-blur-md"
           showInteractive={false}
         />
-        <MiniMap
-          style={minimapStyle}
-          pannable
-          zoomable
-          nodeColor={(n) =>
-            n.data?.type === "folder"
-              ? "rgba(249, 115, 22, 0.7)"
-              : "rgba(168, 85, 247, 0.7)"
-          }
-          nodeStrokeWidth={2}
-          ariaLabel="Mini map"
-        />
+        {showMiniMap && (
+          <MiniMap
+            position={miniMapPosition}
+            style={minimapStyle}
+            pannable
+            zoomable
+            nodeColor={(n) =>
+              n.data?.type === "folder"
+                ? "rgba(249, 115, 22, 0.7)"
+                : "rgba(168, 85, 247, 0.7)"
+            }
+            nodeStrokeWidth={2}
+            ariaLabel="Mini map"
+          />
+        )}
 
         <Panel position="bottom-center">
           <div className="gm-float flex items-center gap-1 rounded-2xl p-1">

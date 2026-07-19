@@ -436,6 +436,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
@@ -449,7 +450,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={child.data.type === "file"}
+      showOpenFile={child.data.type === "file" && dataSource === "directory"}
     >
       <div
         className={cn(
@@ -500,6 +501,7 @@ function CustomNodeImpl({
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
   const renamingId = useGraphStore((s) => s.renamingId);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -655,7 +657,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={true}
+      showOpenFile={dataSource === "directory"}
     >
       <div
         className={cn(

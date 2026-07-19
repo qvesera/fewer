@@ -19,6 +19,25 @@ export function SearchPanel() {
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
 
+  const handleResultClick = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    if (hiddenIds.includes(nodeId)) {
+      useGraphStore.getState().unhideNode(nodeId);
+    }
+
+    setSelectedNodeIds([nodeId]);
+    setFocusedNodeId(nodeId);
+
+    useGraphStore.setState((s) => ({
+      nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+      zoomToNode: { nodeId, timestamp: Date.now() },
+    }));
+
+    setOpen(false);
+  };
+
   const matches = useMemo(() => {
     if (!query) return [];
     return nodes.filter(
@@ -65,25 +84,6 @@ export function SearchPanel() {
   }, [open, setQuery]);
 
   if (!open) return null;
-
-  const handleResultClick = (nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().unhideNode(nodeId);
-    }
-
-    setSelectedNodeIds([nodeId]);
-    setFocusedNodeId(nodeId);
-
-    useGraphStore.setState((s) => ({
-      nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
-      zoomToNode: { nodeId, timestamp: Date.now() },
-    }));
-
-    setOpen(false);
-  };
 
   return (
     <>

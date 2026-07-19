@@ -24,9 +24,9 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
 
 
   return (
-    <div className="w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
+    <div className="relative w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
       {/* Brand Group */}
-      <div className="flex items-center gap-2">
+      <div className="z-10 flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm">
           <LayoutTemplate className="h-4 w-4" />
         </div>
@@ -34,7 +34,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
       </div>
 
       {/* Global Search Center Input Box */}
-     <div className="flex-1 max-w-md relative hidden sm:block">
+      <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-md hidden sm:block z-20">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
         <input
           ref={inputRef}
@@ -57,7 +57,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
       </div>
       
       {/* System Actions Utility Cluster */}
-      <div className="flex items-center gap-1">
+      <div className="z-10 flex items-center gap-1">
        <Button
            variant="ghost"
            size="icon"

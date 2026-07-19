@@ -27,6 +27,7 @@ import {
   HardDrive,
   SlidersHorizontal,
   Maximize2,
+  Map as MinimapIcon,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
 import { StatsPanel, CustomThemeEditor, PowerUserToggle } from ".";
@@ -132,19 +133,16 @@ interface HiddenLayerData {
   orphans: FewerNode[];
 }
 
-function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenLayerData {
-  const hiddenNodeMap = new Map<string, FewerNode>();
+  function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenLayerData {
+  const hiddenNodeMap: Record<string, FewerNode> = {};
   const idSet = new Set(hiddenIds);
-  
   for (const id of hiddenIds) {
     const node = nodes.find((n) => n.id === id);
-    if (node) hiddenNodeMap.set(id, node);
+    if (node) hiddenNodeMap[id] = node;
   }
-
-  // Build parent lookup: childId -> parentId
-  const parentMap = new Map<string, string>();
+  const parentMap: Record<string, string> = {};
   for (const e of edges) {
-    parentMap.set(e.target, e.source);
+    parentMap[e.target] = e.source;
   }
 
   const groups: HiddenNodeGroup[] = [];
@@ -157,13 +155,13 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
 
     let currentId = id;
     while (true) {
-      const parentId = parentMap.get(currentId);
+      const parentId = parentMap[currentId];
       if (!parentId || !idSet.has(parentId)) break;
       currentId = parentId;
     }
 
     // currentId is now the top-most hidden ancestor (root of this group)
-    const rootNode = hiddenNodeMap.get(currentId);
+    const rootNode = hiddenNodeMap[currentId];
     if (!rootNode) continue;
 
     // Collect all descendants of this root
@@ -175,7 +173,7 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
       if (processed.has(nodeId)) continue;
       processed.add(nodeId);
       
-      const node = hiddenNodeMap.get(nodeId);
+      const node = hiddenNodeMap[nodeId];
       if (node && nodeId !== currentId) {
         groupChildren.push(node);
       }
@@ -196,6 +194,75 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
   }
 
   return { groups, orphans };
+}
+
+function MinimapControls() {
+  const showMiniMap = useGraphStore((s) => s.showMiniMap);
+  const setShowMiniMap = useGraphStore((s) => s.setShowMiniMap);
+  const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
+  const setMiniMapPosition = useGraphStore((s) => s.setMiniMapPosition);
+  const miniMapSize = useGraphStore((s) => s.miniMapSize);
+  const setMiniMapSize = useGraphStore((s) => s.setMiniMapSize);
+
+  const positions = [
+    { value: "top-left", label: "Top Left" },
+    { value: "top-right", label: "Top Right" },
+    { value: "bottom-left", label: "Bottom Left" },
+    { value: "bottom-right", label: "Bottom Right" },
+  ] as const;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-foreground/90">Show minimap</Label>
+        <Button
+          variant={showMiniMap ? "default" : "outline"}
+          size="sm"
+          className="h-7 px-3 text-[11px]"
+          onClick={() => setShowMiniMap(!showMiniMap)}
+        >
+          {showMiniMap ? "Visible" : "Hidden"}
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs text-foreground/90">Position</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {positions.map((pos) => {
+            const active = miniMapPosition === pos.value;
+            return (
+              <button
+                key={pos.value}
+                onClick={() => setMiniMapPosition(pos.value)}
+                className={cn(
+                  "rounded-lg border px-2 py-1.5 text-[11px] text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active
+                    ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300"
+                    : "border-border/60 hover:bg-muted/40 text-foreground",
+                )}
+              >
+                {pos.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-foreground/90">Size</Label>
+          <span className="text-[11px] font-mono text-foreground/80">{miniMapSize}px</span>
+        </div>
+        <Slider
+          value={[miniMapSize]}
+          onValueChange={([v]) => setMiniMapSize(v)}
+          min={80}
+          max={300}
+          step={10}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
@@ -615,9 +682,14 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
           <CollapsibleSection
             title="Graph Analytics"
             icon={Layers}
-            badge={nodes.length > 0 ? String(nodes.length) : undefined}
           >
             <StatsPanel />
+          </CollapsibleSection>
+        )}
+
+        {advancedModeEnabled && (
+          <CollapsibleSection title="Minimap" icon={MinimapIcon}>
+            <MinimapControls />
           </CollapsibleSection>
         )}
 

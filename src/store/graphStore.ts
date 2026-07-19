@@ -50,6 +50,11 @@ interface GraphState {
   /** tracks how the current graph was loaded (for tutorial) */
   dataSource: string | null;
 
+  // minimap
+  showMiniMap: boolean;
+  miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  miniMapSize: number;
+
   // power user mode
   advancedModeEnabled: boolean;
   setAdvancedMode: (enabled: boolean) => void;
@@ -57,6 +62,10 @@ interface GraphState {
 
   // export settings
   exportSettings: ExportSettings;
+
+  setShowMiniMap: (show: boolean) => void;
+  setMiniMapPosition: (position: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
+  setMiniMapSize: (size: number) => void;
 
   // actions
   setGraph: (
@@ -248,6 +257,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     transparentBackground: false,
     includeStats: true,
   },
+  showMiniMap: true,
+  miniMapPosition: "bottom-right",
+  miniMapSize: 160,
 
   setAdvancedMode: (enabled) => {
     set({ advancedModeEnabled: enabled });
@@ -372,6 +384,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setBugReportOpen: (open) => set({ bugReportOpen: open }),
   setLoading: (loading) => set({ loading }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+
+  setShowMiniMap: (show) => set({ showMiniMap: show }),
+  setMiniMapPosition: (position) => set({ miniMapPosition: position }),
+  setMiniMapSize: (size) => set({ miniMapSize: size }),
 
   setCustomTheme: (partial) => {
     set((s) => ({ customTheme: { ...s.customTheme, ...partial } }));
@@ -872,9 +888,9 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
         // Rectangle intersection test
         return !(
           x + boundsWidth + PADDING < n.position.x ||
-          x > n.position.x + nw + PADDING ||
+          x > n.position.x + Number(nw) + PADDING ||
           y + boundsHeight + PADDING < n.position.y ||
-          y > n.position.y + nh + PADDING
+          y > n.position.y + Number(nh) + PADDING
         );
       });
       if (!overlapping) break;
@@ -925,8 +941,8 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
     const rootOrig = subtreeNodes.find((n) => rootIds.includes(n.id));
     const minX = Math.min(...subtreeNodes.map((n) => n.position.x));
     const minY = Math.min(...subtreeNodes.map((n) => n.position.y));
-    const maxX = Math.max(...subtreeNodes.map((n) => n.position.x + (n.style?.width ?? nodeWidth)));
-    const maxY = Math.max(...subtreeNodes.map((n) => n.position.y + (n.style?.height ?? 60)));
+    const maxX = Math.max(...subtreeNodes.map((n) => n.position.x + Number(n.style?.width ?? nodeWidth)));
+    const maxY = Math.max(...subtreeNodes.map((n) => n.position.y + Number(n.style?.height ?? 60)));
     const boundsW = maxX - minX;
     const boundsH = maxY - minY;
 
