@@ -15,7 +15,7 @@ import type {
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
 import { layoutGraph } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
-import { categorizeByExtension } from "@/lib/fewer/categorize";
+import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
 
 interface GraphState {
   nodes: FewerNode[];
@@ -45,6 +45,7 @@ interface GraphState {
   advancedOpen: boolean;
   bugReportOpen: boolean;
   shortcutsOpen: boolean;
+  shareOpen: boolean;
   /** id of the node currently being renamed inline (null = none) */
   renamingId: string | null;
   /** tracks how the current graph was loaded (for tutorial) */
@@ -81,6 +82,7 @@ interface GraphState {
   setAdvancedOpen: (open: boolean) => void;
   setBugReportOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
+  setShareOpen: (open: boolean) => void;
   relayout: () => void;
   setSearchQuery: (query: string) => void;
   setSearchOpen: (open: boolean) => void;
@@ -152,13 +154,13 @@ interface GraphState {
     parentId: string | null,
     label: string,
     type: "folder" | "file",
-  ) => void;
+  ) => string;
   /** Add a standalone root node at the given canvas position */
   addStandaloneNode: (
     label: string,
     type: "folder" | "file",
     position: { x: number; y: number },
-  ) => void;
+  ) => string;
   /** Validate + create an edge between two existing nodes */
   connectNodes: (connection: Connection) => { ok: boolean; reason?: string };
   /** Remove edges from a specific handle (source or target) on Ctrl+click. */
@@ -179,6 +181,13 @@ interface GraphState {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+
+  /** Incremented on every setGraph / relayout — GraphCanvas watches this to fitView */
+  graphVersion: number;
+
+  /** Counter bumped to trigger "Hidden Nodes" section auto-expand in sidebar */
+  hiddenPanelExpandTrigger: number;
+  triggerHiddenPanelExpand: () => void;
 
   reset: () => void;
 }
@@ -251,6 +260,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   advancedOpen: false,
   bugReportOpen: false,
   shortcutsOpen: false,
+  shareOpen: false,
   renamingId: null,
   dataSource: null,
   advancedModeEnabled: false,
@@ -265,6 +275,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   showMiniMap: true,
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
+  graphVersion: 0,
+  hiddenPanelExpandTrigger: 0,
+
+  triggerHiddenPanelExpand: () => {
+    set((s) => ({ hiddenPanelExpandTrigger: s.hiddenPanelExpandTrigger + 1 }));
+  },
 
   setAdvancedMode: (enabled) => {
     set({ advancedModeEnabled: enabled });
@@ -303,7 +319,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     // Set hiddenIds to hide file nodes from canvas view
     const idsToHide = hiddenFileIds ?? [];
     const sortedEdges = sortEdges(edges, styledNodes);
-    set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide });
+    set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1 });
   },
 
   setDirection: (direction) => {
@@ -389,6 +405,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setBugReportOpen: (open) => set({ bugReportOpen: open }),
   setLoading: (loading) => set({ loading }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+  setShareOpen: (open) => set({ shareOpen: open }),
 
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   setMiniMapPosition: (position) => set({ miniMapPosition: position }),
@@ -454,12 +471,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, hiddenIds } = get();
+    const { nodes, edges, direction, searchQuery, hiddenIds, graphVersion } = get();
     if (nodes.length === 0) return;
     const excludeFromLayout = hiddenIds.length > 0 ? new Set(hiddenIds) : undefined;
     const laid = layoutGraph(nodes, edges, direction, { excludeFromLayout });
     const searched = applySearch(laid, edges, searchQuery);
-    set({ nodes: searched });
+    set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
 
   setSearchQuery: (query) => {
@@ -474,7 +491,20 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setExportSettings: (settings) =>
     set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
-setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null }),
+setRenamingId: (id) => {
+    // If the renamed node is hidden, zoom to its parent instead
+    if (id) {
+      const { hiddenIds, edges } = get();
+      if (hiddenIds.includes(id)) {
+        const parentEdge = edges.find((e) => e.target === id);
+        if (parentEdge) {
+          set({ renamingId: id, zoomToNode: { nodeId: parentEdge.source, timestamp: Date.now() } });
+          return;
+        }
+      }
+    }
+    set({ renamingId: id, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null });
+  },
 
   /**
    * Apply React Flow's node change events (drag, select, remove) directly
@@ -608,19 +638,19 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
     if (!trimmed) return;
     const newNodes = nodes.map((n) =>
       n.id === id
-        ? {
-            ...n,
-            data: {
-              ...n.data,
-              label: trimmed,
-              extension:
-                n.data.type === "file" ? (trimmed.split(".").pop() ?? "") : "",
-              category:
-                n.data.type === "file"
-                  ? categorizeByExtension(trimmed.split(".").pop() ?? "")
-                  : undefined,
-            },
-          }
+        ? (() => {
+            const ext = n.data.type === "file" ? getFileExtension(trimmed) : "";
+            const label = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                label,
+                extension: ext,
+                category: ext ? categorizeByExtension(ext) : undefined,
+              },
+            };
+          })()
         : n,
     );
     set({
@@ -635,9 +665,8 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
   _makeCopyNode: (sourceNode: FewerNode, parentId: string | null) => {
     const { nodes, edges, nodeWidth, nodeHeight } = get();
     const origLabel = sourceNode.data.label;
-    const dot = origLabel.lastIndexOf(".");
-    const stem = dot > 0 ? origLabel.slice(0, dot) : origLabel;
-    const ext = dot > 0 ? origLabel.slice(dot) : "";
+    const origExt = sourceNode.data.extension || "";
+    const stem = origLabel;
 
     // Check siblings for existing copy names
     const siblingIds = parentId
@@ -649,13 +678,13 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
       nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label),
     );
 
-    let copyLabel = `${stem} copy${ext}`;
+    let copyLabel = `${stem} copy`;
     if (siblingLabels.has(copyLabel)) {
       let counter = 2;
-      while (siblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+      while (siblingLabels.has(`${stem} copy ${counter}`)) {
         counter++;
       }
-      copyLabel = `${stem} copy ${counter}${ext}`;
+      copyLabel = `${stem} copy ${counter}`;
     }
 
     const newId = `n-dup-${uuid().slice(0, 8)}`;
@@ -674,6 +703,7 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
         data: {
           ...sourceNode.data,
           label: copyLabel,
+          extension: origExt,
           path: newPath,
           isRoot: parentId === null,
           selected: true,
@@ -718,9 +748,8 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
 
     const newRootId = idMap.get(id)!;
     const origLabel = sourceNode.data.label;
-    const dot = origLabel.lastIndexOf(".");
-    const stem = dot > 0 ? origLabel.slice(0, dot) : origLabel;
-    const ext = dot > 0 ? origLabel.slice(dot) : "";
+    const origExt = sourceNode.data.extension || "";
+    const stem = origLabel;
 
     // Check siblings for existing copy names
     const siblingIds = parentId
@@ -732,13 +761,13 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
       nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label),
     );
 
-    let copyLabel = `${stem} copy${ext}`;
+    let copyLabel = `${stem} copy`;
     if (siblingLabels.has(copyLabel)) {
       let counter = 2;
-      while (siblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+      while (siblingLabels.has(`${stem} copy ${counter}`)) {
         counter++;
       }
-      copyLabel = `${stem} copy ${counter}${ext}`;
+      copyLabel = `${stem} copy ${counter}`;
     }
 
     const { nodeWidth, nodeHeight } = get();
@@ -968,9 +997,8 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
       // Compute label for each root node
       let copyLabel = orig.data.label;
       if (isRoot) {
-        const dot = orig.data.label.lastIndexOf(".");
-        const stem = dot > 0 ? orig.data.label.slice(0, dot) : orig.data.label;
-        const ext = dot > 0 ? orig.data.label.slice(dot) : "";
+        const stem = orig.data.label;
+        const ext = orig.data.extension || "";
         const parentSiblingIds = effectiveParentId
           ? edges.filter((e) => e.source === effectiveParentId).map((e) => e.target)
           : nodes
@@ -981,13 +1009,13 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
         );
         // Preserve original name unless there's a conflict at the paste destination
         if (parentSiblingLabels.has(orig.data.label)) {
-          let cl = `${stem} copy${ext}`;
+          let cl = `${stem} copy`;
           if (parentSiblingLabels.has(cl)) {
             let counter = 2;
-            while (parentSiblingLabels.has(`${stem} copy ${counter}${ext}`)) {
+            while (parentSiblingLabels.has(`${stem} copy ${counter}`)) {
               counter++;
             }
-            cl = `${stem} copy ${counter}${ext}`;
+            cl = `${stem} copy ${counter}`;
           }
           copyLabel = cl;
         }
@@ -1090,11 +1118,12 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
     });
   },
 
-  addNode: (parentId, label, type) => {
+  addNode: (parentId, label, type): string => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const newPath = parent ? `${parent.data.path}/${label}` : label;
-    const extension = type === "file" ? (label.split(".").pop() ?? "") : "";
+    const ext = type === "file" ? getFileExtension(label) : "";
+    const displayLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
     const newNode: FewerNode = {
       id: `n-new-${Date.now()}`,
       type,
@@ -1102,12 +1131,11 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
         ? { x: parent.position.x + 30, y: parent.position.y + 80 }
         : { x: 0, y: 0 },
       data: {
-        label,
+        label: displayLabel,
         path: newPath,
         type,
-        extension,
-        category:
-          type === "file" ? categorizeByExtension(extension) : undefined,
+        extension: ext,
+        category: type === "file" ? categorizeByExtension(ext) : undefined,
         size: 0,
         depth: parent ? (parent.data.depth ?? 0) + 1 : 0,
         isRoot: parentId === null,
@@ -1137,24 +1165,25 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
       edges: sorted,
     });
     get().relayout();
+    return newNode.id;
   },
 
-  addStandaloneNode: (label, type, position) => {
+  addStandaloneNode: (label, type, position): string => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const trimmed =
       label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
-    const extension = type === "file" ? (trimmed.split(".").pop() ?? "") : "";
+    const ext = type === "file" ? getFileExtension(trimmed) : "";
+    const displayLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
     const newNode: FewerNode = {
       id: `n-${uuid().slice(0, 8)}`,
       type,
       position,
       data: {
-        label: trimmed,
+        label: displayLabel,
         path: trimmed,
         type,
-        extension,
-        category:
-          type === "file" ? categorizeByExtension(extension) : undefined,
+        extension: ext,
+        category: type === "file" ? categorizeByExtension(ext) : undefined,
         size: 0,
         depth: 0,
         isRoot: true,
@@ -1172,6 +1201,7 @@ setRenamingId: (id) => set({ renamingId: id, zoomToNode: id ? { nodeId: id, time
       future: [],
       nodes: applySearch(newNodes, edges, get().searchQuery),
     });
+    return newNode.id;
   },
 
   connectNodes: (connection) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -30,7 +30,7 @@ import {
   Map as MinimapIcon,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
-import { StatsPanel, CustomThemeEditor, PowerUserToggle } from ".";
+import { StatsPanel, CustomThemeEditor, PowerUserToggle, RenameInput } from ".";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -78,17 +78,45 @@ function CollapsibleSection({
   icon: Icon,
   defaultOpen = false,
   badge,
+  forceOpen,
   children,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultOpen?: boolean;
   badge?: string;
+  forceOpen?: number;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (forceOpen !== undefined && forceOpen > 0) {
+      setOpen(true);
+    }
+  }, [forceOpen]);
+
+  useEffect(() => {
+    if (open && sectionRef.current) {
+      const el = sectionRef.current;
+      const t = setTimeout(() => {
+        const parent = el.closest(".gm-scroll");
+        if (parent) {
+          const sectionBottom = el.getBoundingClientRect().bottom;
+          const parentBottom = parent.getBoundingClientRect().bottom;
+          const overflow = sectionBottom - parentBottom;
+          if (overflow > 0) {
+            parent.scrollBy({ top: overflow + 16, behavior: "smooth" });
+          }
+        }
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
   return (
-    <section className="rounded-xl border border-border/40 bg-card/10 p-3 transition-all duration-200 hover:border-border/85">
+    <section ref={sectionRef} className="rounded-xl border border-border/40 bg-card/10 p-3 transition-all duration-200 hover:border-border/85">
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
@@ -289,6 +317,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
+  const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
+  const renamingId = useGraphStore((s) => s.renamingId);
+  const renameNode = useGraphStore((s) => s.renameNode);
+
   const { groups: hiddenNodeGroups, orphans: hiddenOrphans } = useMemo(
     () => getHiddenLayerData(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
@@ -357,49 +389,40 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             )}
             
             <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-2" : "grid-cols-1")}>
-              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "file")) && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => {
-                    const id = `n-${Date.now()}`;
-                    useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Show File
-                </Button>
-              )}
-              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "folder")) && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => {
-                    useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Show Folder
-                </Button>
-              )}
-              {advancedModeEnabled && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => window.dispatchEvent(new CustomEvent("fewer-add-node"))}
-                  disabled={
-                    nodes.length === 0 ||
-                    selectedNodeIds.length === 0 ||
-                    nodes.find((n) => n.id === selectedNodeIds[0])?.data.type === "file"
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Child
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="default"
+                className="w-full gap-1.5 text-xs font-normal text-foreground"
+                onClick={() => {
+                  const selectedFolderId = selectedNodeIds.length === 1
+                    ? nodes.find((n) => n.id === selectedNodeIds[0] && n.data.type === "folder")?.id
+                    : undefined;
+                  const newId = selectedFolderId
+                    ? useGraphStore.getState().addNode(selectedFolderId, "new-file.txt", "file")
+                    : useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
+                  useGraphStore.getState().setRenamingId(newId);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                Add File
+              </Button>
+              <Button
+                variant="outline"
+                size="default"
+                className="w-full gap-1.5 text-xs font-normal text-foreground"
+                onClick={() => {
+                  const selectedFolderId = selectedNodeIds.length === 1
+                    ? nodes.find((n) => n.id === selectedNodeIds[0] && n.data.type === "folder")?.id
+                    : undefined;
+                  const newId = selectedFolderId
+                    ? useGraphStore.getState().addNode(selectedFolderId, "New Folder", "folder")
+                    : useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
+                  useGraphStore.getState().setRenamingId(newId);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                Add Folder
+              </Button>
             </div>
             
             <Button
@@ -579,7 +602,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── RECOVER HIDDEN ELEMENTS (Grouped) ── */}
         {hiddenIds.length > 0 && (
-          <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)}>
+          <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)} forceOpen={hiddenPanelExpandTrigger}>
             <Button
               variant="outline"
               size="sm"
@@ -639,7 +662,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                                   child.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
                                 )}
                               />
-                              <span className="truncate text-foreground/70">{child.data.label}</span>
+                              {renamingId === child.id ? (
+                                <RenameInput
+                                  initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
+                                  onCommit={(v) => renameNode(child.id, v)}
+                                  onCancel={() => useGraphStore.getState().setRenamingId(null)}
+                                />
+                              ) : (
+                                <span className="truncate text-foreground/70">{child.data.label}</span>
+                              )}
                                 <button
                                   onClick={() => unhideAncestors(child.id)}
                                   className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
@@ -669,7 +700,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                           node.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
                         )}
                       />
-                      <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
+                      {renamingId === node.id ? (
+                        <RenameInput
+                          initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
+                          onCommit={(v) => renameNode(node.id, v)}
+                          onCancel={() => useGraphStore.getState().setRenamingId(null)}
+                        />
+                      ) : (
+                        <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
+                      )}
                       <button
                         onClick={() => unhideNode(node.id)}
                         className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
@@ -712,7 +751,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
       <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
         <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
-          Right-click nodes for parameters • Arrow keys to shift • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit zoom
+          Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit zoom
         </div>
       </div>
 

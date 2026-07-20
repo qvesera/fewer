@@ -272,10 +272,24 @@ export function KeyboardShortcuts() {
         } else {
           // H — hide selected nodes
           if (selectedNodeIds.length > 0) {
+            // Count subnodes (descendants) that will also be hidden
+            const toHide = new Set(selectedNodeIds);
+            const queue = [...selectedNodeIds];
+            let subCount = 0;
+            while (queue.length) {
+              const id = queue.shift()!;
+              for (const e of edges) {
+                if (e.source === id && !toHide.has(e.target)) {
+                  toHide.add(e.target);
+                  queue.push(e.target);
+                  subCount++;
+                }
+              }
+            }
             hideNodes(selectedNodeIds);
             toast({
               title: "Nodes hidden",
-              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden — press Shift+H to restore`,
+              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden${subCount > 0 ? ` (${subCount} subnode${subCount === 1 ? "" : "s"})` : ""} — press Shift+H to restore`,
             });
           }
         }

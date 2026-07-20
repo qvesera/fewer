@@ -1,7 +1,7 @@
 export { AddNodeDialog } from "./AddNodeDialog";
 export { BreadcrumbBar } from "./BreadcrumbBar";
 export { BugReportDialog } from "./BugReportDialog";
-export { draggedFolderHandle, CustomNode } from "./CustomNode";
+export { draggedFolderHandle, CustomNode, RenameInput } from "./CustomNode";
 export { CustomThemeEditor } from "./CustomThemeEditor";
 export { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
 export { ExportPanel } from "./ExportPanel";
@@ -11,6 +11,7 @@ export { ImportDialog } from "./ImportDialog";
 export { ImportFromFileDialog } from "./ImportFromFileDialog";
 export { KeyboardShortcuts } from "./KeyboardShortcuts";
 export { SearchPanel } from "./SearchPanel";
+export { ShareDialog } from "./ShareDialog";
 export { ShortcutsDialog } from "./ShortcutsDialog";
 export { Sidebar } from "./Sidebar";
 export { StatsPanel } from "./StatsPanel";

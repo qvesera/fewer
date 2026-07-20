@@ -134,13 +134,15 @@ function CanvasInner() {
     }
   }, [rfNodes.length]);
 
+  const graphVersion = useGraphStore((s) => s.graphVersion);
+
   useEffect(() => {
     if (rfNodes.length === 0) return;
     const t = setTimeout(() => {
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
     }, 100);
     return () => clearTimeout(t);
-  }, [direction, fitView]);
+  }, [direction, graphVersion, fitView]);
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
@@ -495,9 +497,16 @@ function CanvasInner() {
 
         {hiddenCount > 0 && (
           <Panel position="top-right">
-            <div className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200">
+            <button
+              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200 cursor-pointer hover:bg-amber-500/20 transition-colors"
+              onClick={() => {
+                useGraphStore.getState().setSidebarOpen(true);
+                useGraphStore.getState().triggerHiddenPanelExpand();
+              }}
+            >
               {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
-            </div>
+
+            </button>
           </Panel>
         )}
       </ReactFlow>

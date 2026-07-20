@@ -14,6 +14,7 @@ import {
   BugReportDialog,
   TutorialDialog,
   ShortcutsDialog,
+  ShareDialog,
   AddNodeDialog,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
@@ -60,6 +61,7 @@ export function FewerApp() {
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [advancedMode, setAdvancedModeLocal] = useState(false);
+  const [hashLoaded, setHashLoaded] = useState(false);
 
   const handleRestartTutorial = useCallback(() => {
     setTutorialRestartKey((k) => k + 1);
@@ -84,6 +86,40 @@ export function FewerApp() {
       setAdvancedModeLocal(true);
     }
   }, []);
+
+  // Load shared graph from URL hash
+  useEffect(() => {
+    if (hashLoaded) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return;
+    import("@/lib/fewer/share").then(({ decodeShareData }) => {
+      const data = decodeShareData(hash);
+      if (!data) {
+        toast({
+          title: "Invalid share link",
+          description: "Could not decode the graph from the URL.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Restore graph state
+      useGraphStore.getState().setGraph(data.nodes, data.edges, false);
+      useGraphStore.getState().setDirection(data.direction);
+      useGraphStore.getState().setEdgeStyle(data.edgeStyle);
+      useGraphStore.getState().setThemeMode(data.themeMode as ThemeMode);
+      useGraphStore.getState().setCornerRadius(data.cornerRadius);
+      useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
+      useGraphStore.setState({ dataSource: "shared" });
+      setHashLoaded(true);
+      setWelcomeOpen(false);
+      // Clear hash from address bar
+      window.history.replaceState(null, "", window.location.pathname);
+      toast({
+        title: "Shared graph loaded",
+        description: `${data.nodes.length} node${data.nodes.length === 1 ? "" : "s"} from share link`,
+      });
+    });
+  }, [hashLoaded, toast]);
 
 
   // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
@@ -226,6 +262,8 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
 
       <ShortcutsDialog />
+
+      <ShareDialog />
 
       <AddNodeDialog
         open={addChildOpen}

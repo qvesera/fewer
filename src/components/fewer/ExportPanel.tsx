@@ -2,6 +2,11 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -22,7 +27,17 @@ import {
   FolderTree,
   Download,
   MousePointerClick,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  Link,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
@@ -39,13 +54,15 @@ const BASIC_FORMATS: {
   label: string;
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
+  info: string;
 }[] = [
-  { value: "png", label: "PNG Image", desc: "Raster graphics format with transparency support", icon: FileImage },
+  { value: "png", label: "PNG", desc: "Image", icon: FileImage, info: "Best for sharing graphs in presentations, docs, or social media." },
   {
     value: "tree",
     label: "Directory Tree",
-    desc: "Generate a Unicode ASCII directory tree (.txt)",
+    desc: "ASCII tree (.txt)",
     icon: FolderTree,
+    info: "Great for quick terminal output or embedding in code comments.",
   },
 ];
 
@@ -54,16 +71,18 @@ const ADVANCED_FORMATS: {
   label: string;
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
+  info: string;
 }[] = [
-  { value: "svg", label: "SVG Vector", desc: "Scalable vector graphics formatting", icon: FileCode },
-  { value: "json", label: "JSON Graph State", desc: "Export raw graph nodes and edges array", icon: FileJson },
-  { value: "csv", label: "CSV Tabular", desc: "Spreadsheet friendly node and relationship data", icon: FileSpreadsheet },
-  { value: "dot", label: "Graphviz DOT", desc: "Compatible format for Graphviz software engines", icon: FileText },
+  { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
+  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Use for programmatic processing or importing into other tools." },
+  { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
+  { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
     value: "script",
-    label: "Shell Creation Script",
-    desc: "Generate active mkdir commands (.sh / .bat)",
+    label: "Shell Script",
+    desc: "mkdir commands (.sh)",
     icon: FileTerminal,
+    info: "Recreate your folder structure anywhere with a single script.",
   },
 ];
 
@@ -77,6 +96,7 @@ export function ExportPanel() {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const [exportSelected, setExportSelected] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const formats = advancedModeEnabled
     ? [...BASIC_FORMATS, ...ADVANCED_FORMATS]
@@ -136,16 +156,16 @@ export function ExportPanel() {
         <SheetHeader className="space-y-2">
           <SheetTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
             <Download className="h-5 w-5 text-muted-foreground/85" />
-            Export Graph Canvas
+            Export
           </SheetTitle>
           <SheetDescription className="text-xs text-muted-foreground leading-relaxed font-normal">
-            Select your preferred export format and options below. The generated file directly captures current workspace layouts, visual overrides, and asset visibility changes.
+            Choose format and download.
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           <div className="space-y-2.5">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Format Engine</Label>
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Format</Label>
             <div className="grid grid-cols-1 gap-2">
               {formats.map((f) => {
                 const Icon = f.icon;
@@ -176,21 +196,52 @@ export function ExportPanel() {
                         {f.desc}
                       </div>
                     </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="flex items-center justify-center rounded-full hover:bg-muted/80 p-1 transition-colors focus-visible:outline-none shrink-0 self-center">
+                            <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[220px] text-xs leading-normal">
+                          {f.info}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </button>
                 );
               })}
             </div>
           </div>
 
+          <Button
+            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.99] transition-all h-11"
+            onClick={handleExport}
+            disabled={nodes.length === 0}
+          >
+            <Download className="h-4.5 w-4.5" />
+            Download
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full gap-2 border-border/80 hover:bg-muted/40 text-sm font-semibold h-11"
+            onClick={() => useGraphStore.getState().setShareOpen(true)}
+            disabled={nodes.length === 0}
+          >
+            <Link className="h-4.5 w-4.5" />
+            Generate Share Link
+          </Button>
+
           <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
             <div className="flex items-center gap-3 min-w-0">
               <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />
               <div className="min-w-0">
-                <Label className="text-xs font-semibold">Export Selection Only</Label>
+                <Label className="text-xs font-semibold">Export Selected</Label>
                 <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
                   {canExportSelected
-                    ? `Bounding ${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} & subtrees`
-                    : "Select canvas nodes first to isolate"}
+                    ? `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} + descendants`
+                    : "Select nodes first"}
                 </p>
               </div>
             </div>
@@ -204,7 +255,7 @@ export function ExportPanel() {
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-all">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground">Export Resolution Quality</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">Quality</Label>
                 <span className="text-xs font-mono font-semibold text-foreground/80">{settings.quality}%</span>
               </div>
               <Slider
@@ -220,9 +271,9 @@ export function ExportPanel() {
           {(settings.format === "png" || settings.format === "svg") && (
             <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
               <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Transparent Canvas Background</Label>
+                <Label className="text-xs font-semibold">Transparent Background</Label>
                 <p className="text-xs text-muted-foreground">
-                  Strips default workspace thematic backdrop fills.
+                  Remove background fill.
                 </p>
               </div>
               <Switch
@@ -237,9 +288,9 @@ export function ExportPanel() {
           {settings.format === "json" && (
             <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
               <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Include Structural Metrics</Label>
+                <Label className="text-xs font-semibold">Include Stats</Label>
                 <p className="text-xs text-muted-foreground">
-                  Appends layout and file analyzer calculations into the JSON.
+                  Include stats in JSON.
                 </p>
               </div>
               <Switch
@@ -249,10 +300,17 @@ export function ExportPanel() {
             </div>
           )}
 
+          <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
           <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
-            <span className="font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">Export Config Snapshot</span>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">
+                {summaryOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                Summary
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2">
             <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Target Assets</span>
+              <span>Nodes</span>
               <span className="font-mono text-foreground/90 font-semibold">
                 {exportSelected && canExportSelected
                   ? `${exportNodes.length} nodes`
@@ -260,7 +318,7 @@ export function ExportPanel() {
               </span>
             </div>
             <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Interconnections</span>
+              <span>Edges</span>
               <span className="font-mono text-foreground/90 font-semibold">
                 {exportSelected && canExportSelected
                   ? `${exportEdges.length} edges`
@@ -268,25 +326,19 @@ export function ExportPanel() {
               </span>
             </div>
             <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Scope Boundary</span>
+              <span>Scope</span>
               <span className="text-foreground/90 font-medium">
-                {exportSelected && canExportSelected ? "Isolated Selected Subtree" : "Full Workspace Canvas"}
+                {exportSelected && canExportSelected ? "Selection" : "Full Canvas"}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Selected Format</span>
+              <span>Format</span>
               <span className="uppercase font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[10px]">{settings.format}</span>
             </div>
+            </CollapsibleContent>
           </div>
+          </Collapsible>
 
-          <Button
-            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.99] transition-all h-11"
-            onClick={handleExport}
-            disabled={nodes.length === 0}
-          >
-            <Download className="h-4.5 w-4.5" />
-            Download {settings.format.toUpperCase()} File
-          </Button>
         </div>
       </SheetContent>
     </Sheet>

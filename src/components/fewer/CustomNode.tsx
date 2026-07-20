@@ -437,6 +437,8 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const renamingId = useGraphStore((s) => s.renamingId);
+  const renameNode = useGraphStore((s) => s.renameNode);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
@@ -475,7 +477,15 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
               : "text-fewer-file-icon",
           )}
         />
-        <span className="truncate text-foreground/90">{child.data.label}</span>
+        {renamingId === child.id ? (
+          <RenameInput
+            initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
+            onCommit={(v) => renameNode(child.id, v)}
+            onCancel={() => useGraphStore.getState().setRenamingId(null)}
+          />
+        ) : (
+          <span className="truncate text-foreground/90">{child.data.label}</span>
+        )}
         <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground">
           {child.data.type === "folder"
             ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
@@ -589,7 +599,7 @@ function CustomNodeImpl({
             <div className="flex min-w-0 flex-1 flex-col">
               {isRenaming ? (
                 <RenameInput
-                  initialValue={data.label}
+                  initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
                   onCommit={(v) => renameNode(id, v)}
                   onCancel={() => useGraphStore.getState().setRenamingId(null)}
                 />
@@ -710,7 +720,7 @@ function CustomNodeImpl({
         <div className="flex min-w-0 flex-1 flex-col">
           {isRenaming ? (
             <RenameInput
-              initialValue={data.label}
+              initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
               onCommit={(v) => renameNode(id, v)}
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
@@ -751,3 +761,4 @@ function CustomNodeImpl({
 }
 
 export const CustomNode = memo(CustomNodeImpl);
+export { RenameInput };

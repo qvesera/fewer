@@ -30,6 +30,7 @@ import {
   AlertCircle,
   Mail,
   Github,
+  ExternalLink,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats } from "@/lib/fewer/stats";
@@ -104,9 +105,10 @@ export function BugReportDialog() {
   const [severity, setSeverity] = useState<Severity>("medium");
   const [category, setCategory] = useState<Category>("other");
   const [copied, setCopied] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [githubFailed, setGithubFailed] = useState(false);
+  const [githubClicked, setGithubClicked] = useState(false);
   const { toast } = useToast();
 
   // Collect diagnostics from the current app state
@@ -308,19 +310,30 @@ export function BugReportDialog() {
   };
 
   const handleSubmit = () => {
+    setGithubClicked(true);
     const url = buildGitHubIssueUrl(bugReport);
-    const win = window.open(url, "_blank", "noopener,noreferrer");
-    if (!win || win.closed || typeof win.closed === "undefined") {
-      setGithubFailed(true);
+    window.open(url, "_blank");
+    toast({
+      title: "GitHub pre-filled!",
+      description: "Review and submit the issue on GitHub.",
+    });
+  };
+
+  const handleCopyUrl = async () => {
+    const url = buildGitHubIssueUrl(bugReport);
+    try {
+      await navigator.clipboard.writeText(url);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
       toast({
-        title: "GitHub blocked",
-        description: "Popup was blocked. Use email as alternative.",
-        variant: "destructive",
+        title: "GitHub URL copied",
+        description: "Paste it in your browser to file the issue.",
       });
-    } else {
+    } catch {
       toast({
-        title: "GitHub pre-filled!",
-        description: "Review and submit the issue on GitHub.",
+        title: "Could not copy",
+        description: "Try the Submit button instead.",
+        variant: "destructive",
       });
     }
   };
@@ -355,7 +368,7 @@ export function BugReportDialog() {
       setSeverity("medium");
       setCategory("other");
       setSubmitting(false);
-      setGithubFailed(false);
+      setGithubClicked(false);
     }, 200);
   };
 
@@ -578,7 +591,35 @@ export function BugReportDialog() {
 
           {/* Primary actions */}
           <div className="flex flex-wrap gap-2">
-            {githubFailed ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyUrl}
+              disabled={isDisabled || !title.trim()}
+              className="gap-1.5 cursor-pointer"
+            >
+              {urlCopied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-green-500" />
+                  URL Copied
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Copy URL
+                </>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={isDisabled || !title.trim()}
+              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
+            >
+              <Github className="h-3.5 w-3.5" />
+              Submit to GitHub
+            </Button>
+            {githubClicked && (
               <Button
                 size="sm"
                 onClick={handleSubmitEmail}
@@ -591,16 +632,6 @@ export function BugReportDialog() {
                   <Mail className="h-3.5 w-3.5" />
                 )}
                 Send via Email
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={handleSubmit}
-                disabled={isDisabled || !title.trim()}
-                className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
-              >
-                <Github className="h-3.5 w-3.5" />
-                Submit to GitHub
               </Button>
             )}
           </div>
