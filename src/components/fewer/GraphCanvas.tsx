@@ -114,10 +114,6 @@ function CanvasInner() {
     if (!zoomToNode) return;
     const { nodeId } = zoomToNode;
     const t = setTimeout(() => {
-      const node = useGraphStore.getState().nodes.find((n) => n.id === nodeId);
-      if (!node) return;
-      const w = node.measured?.width ?? node.width ?? 200;
-      const h = node.measured?.height ?? node.height ?? 60;
       fitView({
         nodes: [{ id: nodeId }],
         duration: 600,
@@ -139,8 +135,9 @@ function CanvasInner() {
   useEffect(() => {
     if (rfNodes.length === 0) return;
     const t = setTimeout(() => {
+      if (useGraphStore.getState().zoomToNode) return;
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
-    }, 100);
+    }, 200);
     return () => clearTimeout(t);
   }, [direction, graphVersion, fitView]);
 
@@ -294,17 +291,17 @@ function CanvasInner() {
   }, [commitHistory]);
 
   const fitToSelection = useCallback(() => {
-    const selected = getNodes().filter((n) => n.selected);
+    const selected = useGraphStore.getState().selectedNodeIds;
     if (selected.length === 0) {
       fitView({ duration: 600, padding: 0.2 });
       return;
     }
     fitView({
-      nodes: selected.map((n) => ({ id: n.id })),
+      nodes: selected.map((id) => ({ id })),
       duration: 600,
       padding: 0.3,
     });
-  }, [fitView, getNodes]);
+  }, [fitView]);
 
   const selectAll = useCallback(() => {
     useGraphStore.setState((s) => ({
@@ -341,6 +338,7 @@ function CanvasInner() {
         if (target.closest(".react-flow__node")) return;
         e.preventDefault();
         setCanvasMenu({ x: e.clientX, y: e.clientY });
+        useGraphStore.getState().setRightClickDetected();
       }}
     >
       <ReactFlow

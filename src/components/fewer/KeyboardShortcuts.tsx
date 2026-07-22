@@ -115,11 +115,12 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Alt+N - open the Add Node dialog
+      // Alt+N - open Add Node dialog (child mode if folder selected, otherwise standalone)
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
-        // Trigger the add node flow via a custom event that FewerApp listens for
-        window.dispatchEvent(new CustomEvent("fewer-add-node"));
+        const hasFolderSelected = useGraphStore.getState().selectedNodeIds.length === 1 &&
+          useGraphStore.getState().nodes.some((n) => n.id === useGraphStore.getState().selectedNodeIds[0] && n.data.type === "folder");
+        window.dispatchEvent(new CustomEvent(hasFolderSelected ? "fewer-add-node" : "fewer-add-node-standalone"));
         return;
       }
 
@@ -300,7 +301,7 @@ export function KeyboardShortcuts() {
       if (e.key === "F2") {
         if (selectedNodeIds.length === 1) {
           e.preventDefault();
-          setRenamingId(selectedNodeIds[0]);
+          setRenamingId(selectedNodeIds[0], "canvas");
         }
         return;
       }

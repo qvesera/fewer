@@ -385,10 +385,6 @@ export function BugReportDialog() {
             <Bug className="h-4 w-4 text-red-500" />
             Report a Bug
           </DialogTitle>
-          <DialogDescription>
-            Describe the issue you encountered. Diagnostics are collected
-            automatically and included in the report.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

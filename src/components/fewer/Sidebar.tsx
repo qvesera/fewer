@@ -401,6 +401,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                     ? useGraphStore.getState().addNode(selectedFolderId, "new-file.txt", "file")
                     : useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
                   useGraphStore.getState().setRenamingId(newId);
+                  useGraphStore.getState().setZoomToNode(newId);
                 }}
               >
                 <Plus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -418,6 +419,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                     ? useGraphStore.getState().addNode(selectedFolderId, "New Folder", "folder")
                     : useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
                   useGraphStore.getState().setRenamingId(newId);
+                  useGraphStore.getState().setZoomToNode(newId);
                 }}
               >
                 <Plus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -751,7 +753,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
       <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
         <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
-          Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit zoom
+          Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit graph to view
         </div>
       </div>
 

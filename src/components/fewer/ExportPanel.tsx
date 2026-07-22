@@ -199,9 +199,9 @@ export function ExportPanel() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button type="button" className="flex items-center justify-center rounded-full hover:bg-muted/80 p-1 transition-colors focus-visible:outline-none shrink-0 self-center">
+                          <span className="flex items-center justify-center rounded-full hover:bg-muted/80 p-1 transition-colors cursor-pointer shrink-0 self-center">
                             <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground" />
-                          </button>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[220px] text-xs leading-normal">
                           {f.info}

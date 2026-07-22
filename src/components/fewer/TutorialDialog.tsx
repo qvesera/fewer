@@ -1,569 +1,372 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  X,
-  SkipForward,
+  Sparkles,
+  Layers,
   MousePointerClick,
-  FolderOpen,
   Search,
   Download,
-  Palette,
-  Layers,
-  GripVertical,
-  Keyboard,
-  Sparkles,
-  Plus,
+  Check,
+  X,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
+import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
+import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
+import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
 
 /* -------------------------------------------------------------------------- */
-/*  Types                                                                     */
+/*  Demo stage - animated node preview                                        */
 /* -------------------------------------------------------------------------- */
 
-type ActionType = "click" | "keypress" | "none";
-
-interface TutorialStep {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  /** CSS selector for the element to highlight. null = no highlight. */
-  targetSelector?: string | null;
-  /** Action the user must complete to proceed. */
-  actionType: ActionType;
-  /** Instructions for the required action. */
-  actionHint?: string;
-  /** Key to press for "keypress" action. */
-  actionKey?: string;
-  /** Store state to watch for completion (e.g. "searchOpen" → true). */
-  watchState?: { key: string; value: unknown } | null;
-  /** Tooltip position. Default: center if no targetSelector, bottom-right if targetSelector. */
-  position?: "center" | "top" | "bottom-right";
-  /** Show dim overlay even without targetSelector. */
-  showOverlay?: boolean;
-  /** Optional tips. */
-  tips?: string[];
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Steps                                                                     */
-/* -------------------------------------------------------------------------- */
-
-const STEPS: TutorialStep[] = [
-  {
-    icon: Sparkles,
-    title: "Welcome to fewer",
-    description:
-      "This walkthrough will guide you through the key features. Let's start!",
-    targetSelector: null,
-    actionType: "none",
-    position: "center",
-    showOverlay: true,
-    tips: [
-      "Click 'Next' to begin the walkthrough",
-      "You can skip anytime — the tutorial won't show again",
-    ],
-  },
-  {
-    icon: Plus,
-    title: "Load a Sample Project",
-    description:
-      "Let's load a demo project so you have something to explore. Click the 'Sample' button in the toolbar above.",
-    targetSelector: '[data-tutorial="sample-button"]',
-    actionType: "click",
-    actionHint: "Click the 'Sample' button in the toolbar",
-    watchState: { key: "dataSource", value: "sample" },
-    position: "top",
-    tips: [
-      "This loads a pre-built project tree so you can explore immediately",
-    ],
-  },
-  {
-    icon: Layers,
-    title: "Explore Folder & File Nodes",
-    description:
-      "The graph shows folder cards (orange) with their children listed inside, and file cards (purple) showing filename and size. Click any node on the canvas to select it.",
-    targetSelector: null,
-    actionType: "none",
-    actionHint: "Click any node on the canvas to select it",
-    watchState: { key: "selectedNodeIds", value: null },
-    position: "bottom-right",
-    tips: [
-      "Scroll inside folder cards to see more children",
-      "Right-click any node for a context menu with actions",
-    ],
-  },
-  {
-    icon: MousePointerClick,
-    title: "Right-Click for Context Menus",
-    description:
-      "Right-click on any folder node to see actions like Rename, Add Child Node, Copy Path, and Hide Node. Try right-clicking a node now.",
-    targetSelector: null,
-    actionType: "none",
-    actionHint: "Right-click any node to open its context menu",
-    position: "bottom-right",
-    tips: [
-      "Folders: Rename, Add Child, Copy Path, Refresh, Copy, Cut, Hide",
-      "Files: Rename, Open File, Copy Name, Copy, Cut, Delete",
-    ],
-  },
-  {
-    icon: GripVertical,
-    title: "Resize & Drag Nodes",
-    description:
-      "Select a node to see cyan resize handles. Folders resize in all directions, files only horizontally. Try dragging a resize handle on a selected node.",
-    targetSelector: null,
-    actionType: "none",
-    actionHint: "Select a node and drag the cyan resize handles",
-    position: "bottom-right",
-    tips: ["You can also drag nodes anywhere on the canvas to reposition them"],
-  },
-  {
-    icon: Search,
-    title: "Search the Graph",
-    description:
-      "Press Ctrl+F to open the search panel. Try it now — type a filename and click a result to zoom to that node.",
-    targetSelector: null,
-    actionType: "keypress",
-    actionKey: "f",
-    actionHint: "Press Ctrl+F to open search",
-    watchState: { key: "searchOpen", value: true },
-    tips: [
-      "Search matches filenames, paths, and extensions",
-      "Click any result to zoom to that node",
-    ],
-  },
-  {
-    icon: Keyboard,
-    title: "Keyboard Navigation",
-    description:
-      "Use arrow keys to navigate the tree: ↑ for parent, ↓ for first child, ← → for siblings. Press H to hide a node, Shift+H to unhide. Try pressing an arrow key now.",
-    targetSelector: null,
-    actionType: "none",
-    actionHint: "Press any arrow key to navigate between nodes",
-    watchState: { key: "focusedNodeId", value: null },
-    position: "bottom-right",
-    tips: [
-      "F2 renames · Enter opens files · Delete removes · H hides · Shift+H unhides",
-    ],
-  },
-  {
-    icon: Palette,
-    title: "Layout & Appearance",
-    description:
-      "The sidebar has layout direction buttons (TB/LR/BT/RL), edge styles, node size sliders, and theme controls. Open the Layout section in the sidebar to explore.",
-    targetSelector: "aside",
-    actionType: "none",
-    actionHint: "Explore the Layout and Appearance sections in the sidebar",
-    tips: [
-      "Click 'Beautify Layout' to auto-arrange nodes",
-      "Switch to Custom theme to control folder and file colors independently",
-    ],
-  },
-  {
-    icon: Download,
-    title: "Export Your Graph",
-    description:
-      "Export to SVG, PNG, JSON, CSV, DOT, Directory Script, or Directory Tree. Press Ctrl+E to open the export panel.",
-    targetSelector: null,
-    actionType: "keypress",
-    actionKey: "e",
-    actionHint: "Press Ctrl+E to open the export panel",
-    watchState: { key: "exportOpen", value: true },
-    tips: [
-      "Toggle 'Export selected only' to export just a subtree",
-      "JSON exports can be re-imported via 'Import from File'",
-    ],
-  },
-  {
-    icon: Keyboard,
-    title: "View All Shortcuts Anytime",
-    description:
-      "Press Ctrl+I anytime to see all keyboard shortcuts. You're all set — happy exploring!",
-    targetSelector: null,
-    actionType: "none",
-    actionHint: "Remember: Ctrl+I shows all shortcuts",
-    tips: ["Click 'Done' to finish the tutorial"],
-  },
-];
-
-/* -------------------------------------------------------------------------- */
-/*  Spotlight overlay                                                         */
-/* -------------------------------------------------------------------------- */
-
-function SpotlightOverlay({
-  targetSelector,
-  onDismiss,
-}: {
-  targetSelector: string | null | undefined;
-  onDismiss: () => void;
-}) {
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!targetSelector) {
-      Promise.resolve().then(() => setRect(null));
-      return;
-    }
-
-    const update = () => {
-      try {
-        const el = document.querySelector(targetSelector);
-        if (el) {
-          setRect(el.getBoundingClientRect());
-        } else {
-          setRect(null);
-        }
-      } catch {
-        setRect(null);
-      }
-    };
-
-    update();
-    const interval = setInterval(update, 200);
-
-    return () => {
-      clearInterval(interval);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [targetSelector]);
-
-  if (!rect) {
-    return null;
-  }
-
-  const padding = 8;
-  const top = Math.max(0, rect.top - padding);
-  const left = Math.max(0, rect.left - padding);
-  const width = rect.width + padding * 2;
-  const height = rect.height + padding * 2;
+function DemoStage({ step }: { step: number }) {
+  const nodes = [
+    { label: "src", type: "folder", delay: "0ms", x: 0 },
+    { label: "components", type: "folder", delay: "150ms", x: 120 },
+    { label: "App.tsx", type: "file", delay: "300ms", x: 240 },
+    { label: "index.ts", type: "file", delay: "450ms", x: 240 },
+    { label: "styles", type: "folder", delay: "150ms", x: -120 },
+    { label: "globals.css", type: "file", delay: "300ms", x: -120 },
+  ];
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] pointer-events-none"
-      style={{
-        boxShadow: `0 0 0 9999px rgba(0, 0, 0, 0.55)`,
-        borderRadius: "12px",
-        top: `${top}px`,
-        left: `${left}px`,
-        width: `${width}px`,
-        height: `${height}px`,
-        border: "2px solid rgb(34, 211, 238)",
-        transition: "all 300ms ease",
-      }}
-    >
+    <div className="relative h-20 w-full overflow-hidden rounded-lg bg-muted/30 border border-border/40">
+      <div className="absolute inset-0 flex items-center justify-center gap-2">
+        {nodes.slice(0, step).map((n, i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-medium shadow-sm border",
+              "animate-[tutorial-bounce-in_0.5s_ease-out_both]",
+              n.type === "folder"
+                ? "border-orange-400/40 bg-orange-500/10 text-orange-300"
+                : "border-purple-400/40 bg-purple-500/10 text-purple-300",
+            )}
+            style={{
+              animationDelay: n.delay,
+              transform: `translateX(${n.x}px)`,
+            }}
+          >
+            <div
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                n.type === "folder" ? "bg-orange-400" : "bg-purple-400",
+              )}
+            />
+            {n.label}
+          </div>
+        ))}
+      </div>
       <div
-        className="absolute inset-0 rounded-xl animate-pulse"
-        style={{
-          boxShadow: "0 0 20px 4px rgba(34, 211, 238, 0.4)",
-        }}
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent bg-[length:200%_100%] animate-[tutorial-shimmer_3s_ease-in-out_infinite]"
+        style={{ pointerEvents: "none" }}
       />
     </div>
   );
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Checklist item                                                            */
+/* -------------------------------------------------------------------------- */
+
+function ChecklistItem({
+  item,
+  done,
+  onToggle,
+}: {
+  item: import("@/lib/fewer/tutorial").TutorialChecklistItem;
+  done: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+        done
+          ? "border-green-400/30 bg-green-500/5"
+          : "border-border/40 bg-card/50",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+          done
+            ? "border-green-400/30 bg-green-500/10"
+            : "border-border/40 bg-muted/30",
+        )}
+      >
+        {done ? (
+          <Check className="h-4 w-4 text-green-400" />
+        ) : (
+          <Icon className="h-4 w-4 text-orange-400" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className={cn("text-xs font-medium", done && "text-green-300 line-through")}>
+          {item.label}
+        </div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          {item.description}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Portal wrapper — renders children to document.body                        */
+/* -------------------------------------------------------------------------- */
+
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Main Tutorial Dialog                                                      */
 /* -------------------------------------------------------------------------- */
 
-const STORAGE_KEY = "fewer-tutorial-completed";
-
 export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(0);
-  const [actionCompleted, setActionCompleted] = useState(false);
   const store = useGraphStore();
+  const [open, setOpen] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(true);
 
-  const [welcomeWasOpen, setWelcomeWasOpen] = useState(true);
+  const {
+    tutorialBeginnerDone,
+    tutorialDismissed,
+    tutorialDemoStep,
+    setTutorialDemoStep,
+    resetTutorial,
+  } = store;
 
-  // Restart tutorial when restartKey changes
+  const beginnerItems = getBeginnerChecklist();
+
+  // Restart when restartKey changes
   useEffect(() => {
     if (restartKey > 0) {
-      setStep(0);
-      setActionCompleted(false);
+      resetTutorial();
       setOpen(true);
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore
-      }
+      setShowWelcome(true);
     }
-  }, [restartKey]);
+  }, [restartKey, resetTutorial]);
 
-  // Watch the DOM for the welcome dialog closing
+  // Auto-detect beginner steps
   useEffect(() => {
-    const checkWelcome = () => {
-      const welcomeButtons = Array.from(
-        document.querySelectorAll("button"),
-      ).filter(
-        (b) =>
-          b.textContent?.includes("Load sample") ||
-          b.textContent?.includes("Open my directory") ||
-          b.textContent?.includes("Start exploring"),
-      );
-
-      if (welcomeWasOpen && welcomeButtons.length === 0) {
-        setWelcomeWasOpen(false);
-        try {
-          const completed = localStorage.getItem(STORAGE_KEY);
-          if (!completed) {
-            const t = setTimeout(() => setOpen(true), 800);
-            return () => clearTimeout(t);
-          }
-        } catch {
-          // ignore
-        }
-      }
-    };
-
-    const interval = setInterval(checkWelcome, 500);
-    return () => clearInterval(interval);
-  }, [welcomeWasOpen]);
-
-  // Watch store state for action completion — auto-advances when condition met
-  useEffect(() => {
-    if (!open) return;
-    const current = STEPS[step];
-    if (!current.watchState) {
-      Promise.resolve().then(() =>
-        setActionCompleted(current.actionType === "none"),
-      );
-      return;
-    }
-
     const unsubscribe = useGraphStore.subscribe((state) => {
-      const { key, value } = current.watchState!;
-      const stateValue = (state as unknown as Record<string, unknown>)[key];
-      let completed = false;
-      if (value === null) {
-        if (
-          key === "selectedNodeIds" &&
-          Array.isArray(stateValue) &&
-          stateValue.length > 0
-        ) {
-          completed = true;
-        } else if (key === "focusedNodeId" && stateValue !== null) {
-          completed = true;
-        } else if (key === "searchOpen" && stateValue === true) {
-          completed = true;
-        } else if (key === "exportOpen" && stateValue === true) {
-          completed = true;
-        }
-      } else if (stateValue === value) {
-        completed = true;
-      }
-      if (completed) {
-        setActionCompleted(true);
-        // Auto-advance for click/keypress steps after brief delay
-        if (current.actionType !== "none") {
-          setTimeout(() => {
-            const nextStep = step + 1;
-            if (nextStep < STEPS.length) {
-              setStep(nextStep);
-              setActionCompleted(false);
-            } else {
-              setOpen(false);
-              try {
-                localStorage.setItem(STORAGE_KEY, "true");
-              } catch {
-                // ignore
-              }
-            }
-          }, 400);
+      for (const item of beginnerItems) {
+        if (state.tutorialBeginnerDone.includes(item.id)) continue;
+        if (!item.watchState) continue;
+        const { key, value } = item.watchState;
+        const stateValue = (state as unknown as Record<string, unknown>)[key];
+        if (value === null) {
+          if (key === "selectedNodeIds" && Array.isArray(stateValue) && stateValue.length > 0) {
+            useGraphStore.getState().markTutorialBeginnerStep(item.id);
+          }
+        } else if (stateValue === value) {
+          useGraphStore.getState().markTutorialBeginnerStep(item.id);
         }
       }
     });
-
     return () => unsubscribe();
-  }, [open, step]);
+  }, [beginnerItems]);
 
-  const handleClose = () => {
+  // Auto-advance demo step when sample loads (once per mount)
+  const demoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (store.dataSource === "sample" && tutorialDemoStep === 0 && !demoPlayedRef.current) {
+      demoPlayedRef.current = true;
+      const interval = setInterval(() => {
+        const next = useGraphStore.getState().tutorialDemoStep + 1;
+        if (next >= 6) { clearInterval(interval); setTutorialDemoStep(6); }
+        else setTutorialDemoStep(next);
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [store.dataSource, tutorialDemoStep, setTutorialDemoStep]);
+
+  const handleDismiss = () => {
+    useGraphStore.getState().setTutorialDismissed();
     setOpen(false);
-    try {
-      localStorage.setItem(STORAGE_KEY, "true");
-    } catch {
-      // ignore
-    }
   };
 
-  const handleNext = () => {
-    if (step < STEPS.length - 1) {
-      setStep(step + 1);
-      setActionCompleted(false);
-    } else {
-      handleClose();
-    }
+  const handleStart = () => {
+    setShowWelcome(false);
   };
 
-  const handlePrev = () => {
-    if (step > 0) {
-      setStep(step - 1);
-      setActionCompleted(false);
-    }
+  const handleResetTutorial = () => {
+    resetTutorial();
+    setOpen(true);
+    setShowWelcome(true);
   };
 
-  if (!open) return null;
+  const handleMarkDone = (id: string) => {
+    store.markTutorialBeginnerStep(id);
+  };
 
-  const current = STEPS[step];
-  const Icon = current.icon;
-  const isLast = step === STEPS.length - 1;
-  const canProceed = current.actionType === "none" || actionCompleted;
+  const allDone = tutorialBeginnerDone.length >= beginnerItems.length && beginnerItems.length > 0;
 
-  const tooltipPosition = current.position ?? (current.targetSelector ? "bottom-right" : "center");
+  // If dismissed or local closed, show nothing
+  if (!open || (useGraphStore.getState().tutorialDismissed && restartKey === 0)) {
+    return null;
+  }
+
+  /* ── Welcome screen ── */
+  if (showWelcome) {
+    return (
+      <Portal>
+        <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+  <div className="w-full max-w-[380px] overflow-hidden rounded-3xl border border-white/10 bg-card/90 p-6 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in zoom-in-95 duration-200">
+    
+    {/* Header & Logo */}
+    <div className="flex items-center gap-3.5 mb-4">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/20">
+        <Sparkles className="h-5.5 w-5.5" />
+      </div>
+      <div className="flex flex-col">
+        <h2 className="text-base font-bold tracking-tight">
+          <span className="bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 bg-clip-text text-transparent">
+            fewer
+          </span>
+        </h2>
+        <p className="text-xs font-medium text-muted-foreground/80">
+          Directory visualization reimagined
+        </p>
+      </div>
+    </div>
+
+    {/* Body Text */}
+    <p className="text-xs leading-relaxed text-muted-foreground mb-6">
+      Transform complex file systems into clear, interactive graphs. Explore, search, customize, and export with ease.
+    </p>
+
+    {/* Actions */}
+    <div className="space-y-2.5">
+      <Button
+        type="button"
+        onClick={handleStart}
+        size="sm"
+        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-orange-500 to-amber-500 font-medium text-white shadow-md shadow-orange-500/15 hover:from-orange-600 hover:to-amber-600 active:scale-[0.98] transition-all"
+      >
+        <BookOpen className="h-4 w-4" />
+        Start Tutorial
+      </Button>
+
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="w-full py-1 text-xs text-muted-foreground/70 hover:text-foreground font-medium transition-colors text-center"
+      >
+        Explore on my own
+      </button>
+    </div>
+
+  </div>
+</div>
+      </Portal>
+    );
+  }
+
+  /* ── Checklist overlay ── */
+  const items = beginnerItems;
+  const doneList = tutorialBeginnerDone;
+  const progress = items.length > 0 ? (doneList.length / items.length) * 100 : 0;
 
   return (
-    <>
-      {/* Spotlight overlay or full dim for step 1 */}
-      {current.showOverlay ? (
-        <div className="fixed inset-0 z-[9999] bg-black/50 pointer-events-none" />
-      ) : (
-        <SpotlightOverlay
-          targetSelector={current.targetSelector}
-          onDismiss={() => {}}
-        />
-      )}
+    <Portal>
+      <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
 
-      {/* Tooltip / instructions */}
       <div
-        className={cn(
-          "fixed z-[9999] w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border/40 bg-card/95 p-5 shadow-2xl backdrop-blur-xl",
-          tooltipPosition === "center"
-            ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            : tooltipPosition === "top"
-              ? "top-[60px] left-1/2 -translate-x-1/2"
-              : "bottom-4 right-4",
-        )}
+        className="fixed w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border/40 bg-card/95 p-4 shadow-2xl backdrop-blur-xl animate-[tutorial-fade-in_0.3s_ease-out] bottom-4 right-4"
+        style={{ zIndex: 2147483647, pointerEvents: "auto" }}
       >
-        {/* Progress bar */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            {STEPS.map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-1.5 rounded-full transition-all",
-                  i === step
-                    ? "w-6 bg-orange-500"
-                    : i < step
-                      ? "w-1.5 bg-orange-400/50"
-                      : "w-1.5 bg-muted-foreground/30",
-                )}
-              />
-            ))}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10">
+              <BookOpen className="h-3.5 w-3.5 text-orange-400" />
+            </div>
+            <span className="text-xs font-bold">Tutorial</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="rounded p-1 text-muted-foreground/50 hover:text-muted-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-orange-500 to-amber-500"
+              style={{ width: `${progress}%` }}
+            />
           </div>
           <span className="text-[10px] tabular-nums text-muted-foreground">
-            {step + 1} / {STEPS.length}
+            {doneList.length}/{items.length}
           </span>
         </div>
 
-        {/* Skip button */}
-        <button
-          onClick={handleClose}
-          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Close tutorial"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-
-        {/* Content */}
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/20 to-purple-500/20 border border-border/40">
-            <Icon className="h-5 w-5 text-orange-400" />
-          </div>
-          <div className="flex-1 min-w-0 pr-4">
-            <h3 className="text-sm font-bold">{current.title}</h3>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {current.description}
-            </p>
-          </div>
+        <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+          {items.map((item) => (
+            <ChecklistItem
+              key={item.id}
+              item={item}
+              done={doneList.includes(item.id)}
+              onToggle={() => handleMarkDone(item.id)}
+            />
+          ))}
         </div>
 
-        {/* Action hint */}
-        {current.actionType !== "none" && current.actionHint && (
-          <div
-            className={cn(
-              "mt-3 flex items-center gap-2 rounded-lg border p-2.5 text-xs transition-colors",
-              actionCompleted
-                ? "border-green-400/40 bg-green-500/10 text-green-300"
-                : "border-cyan-400/40 bg-cyan-500/10 text-cyan-300",
-            )}
-          >
-            {actionCompleted ? (
-              <Check className="h-3.5 w-3.5 shrink-0" />
-            ) : (
-              <MousePointerClick className="h-3.5 w-3.5 shrink-0 animate-pulse" />
-            )}
-            <span>
-              {actionCompleted ? "Done! " : ""}
-              {current.actionHint}
-            </span>
-          </div>
-        )}
-
-        {/* Tips */}
-        {current.tips && current.tips.length > 0 && (
-          <div className="mt-3 space-y-1">
-            {current.tips.map((tip, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-1.5 text-[11px] text-muted-foreground/80"
+        {allDone && (
+          <div className="mt-3 rounded-lg border border-green-400/30 bg-green-500/5 p-3 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Check className="h-4 w-4 text-green-400" />
+              <span className="text-xs font-bold text-green-300">All done!</span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="flex-1 text-[10px]"
+                onClick={handleResetTutorial}
               >
-                <span className="mt-0.5 text-orange-400">›</span>
-                <span>{tip}</span>
-              </div>
-            ))}
+                Restart
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                onClick={handleDismiss}
+              >
+                <Check className="h-3 w-3 mr-1" />
+                Done
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-4 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-            className="text-[10px] text-muted-foreground"
+        {!allDone && (
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="mt-2 w-full text-center text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            <SkipForward className="h-3 w-3" />
-            Skip
-          </Button>
-          <div className="flex-1" />
-          {step > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrev}
-              className="gap-1 text-xs"
-            >
-              <ChevronLeft className="h-3 w-3" />
-              Back
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={handleNext}
-            disabled={!canProceed}
-            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 text-xs"
-          >
-            {isLast ? (
-              <>
-                <Check className="h-3 w-3" />
-                Done!
-              </>
-            ) : (
-              <>
-                Next
-                <ChevronRight className="h-3 w-3" />
-              </>
-            )}
-          </Button>
-        </div>
+            Skip tutorial
+          </button>
+        )}
       </div>
-    </>
+    </Portal>
   );
 }

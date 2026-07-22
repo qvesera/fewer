@@ -152,10 +152,10 @@ export function ImportFromFileDialog({
         <DialogHeader className="pb-3 border-b border-border/20">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
             <Upload className="h-5 w-5 text-muted-foreground/80" />
-            Static Data Ingest
+            Import from File
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-normal font-normal mt-1">
-            Build graph canvases directly by loading saved JSON configurations, pasting shell scripts, or drawing custom ascii hierarchy structures.
+            fewer does not store or upload any data. All data is processed locally.
           </DialogDescription>
         </DialogHeader>
 
@@ -183,7 +183,7 @@ export function ImportFromFileDialog({
                         )}
                       >
                         <Icon className="h-4.5 w-4.5 opacity-85" />
-                        <span className="text-xs font-semibold text-center leading-tight">
+                        <span className="text-xs font-medium text-center leading-tight">
                           {f.label}
                         </span>
                       </button>
@@ -205,7 +205,7 @@ export function ImportFromFileDialog({
             <Button
               variant="outline"
               size="sm"
-              className="w-full gap-2 border-border/80 text-foreground hover:bg-muted/40 font-semibold text-xs h-10"
+              className="w-full gap-2 border-border/80 text-foreground hover:bg-muted/40 font-medium text-xs h-10"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="h-4 w-4 text-muted-foreground" />
@@ -216,7 +216,7 @@ export function ImportFromFileDialog({
           {/* Paste area configuration */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground font-semibold">
+              <Label className="text-xs text-muted-foreground font-medium">
                 Or write raw{" "}
                 {format === "json"
                   ? "JSON array schema"
@@ -239,7 +239,7 @@ export function ImportFromFileDialog({
 
           {/* Error notice banner */}
           {error && (
-            <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-xs text-red-400 dark:text-red-300 leading-normal font-semibold">
+            <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-xs text-red-400 dark:text-red-300 leading-normal font-medium">
               {error}
             </div>
           )}
@@ -252,7 +252,7 @@ export function ImportFromFileDialog({
             size="default"
             onClick={handleClose} 
             disabled={importing}
-            className="text-xs border-border/80 text-foreground font-semibold hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs border-border/80 text-foreground font-medium hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
           >
             Cancel
           </Button> 
@@ -260,7 +260,7 @@ export function ImportFromFileDialog({
             size="default"
             onClick={handleImport}
             disabled={importing || !content.trim()}
-            className="text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
               <Loader2 className="h-4 w-4 animate-spin" />

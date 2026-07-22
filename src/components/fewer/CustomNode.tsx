@@ -289,12 +289,14 @@ function FileEntryContextMenu({
   nodeLabel,
   onDelete,
   showOpenFile,
+  renameSource: menuRenameSource = "canvas",
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   onDelete: () => void;
   showOpenFile?: boolean;
+  renameSource?: "canvas" | "folder";
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -438,6 +440,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
   const renamingId = useGraphStore((s) => s.renamingId);
+  const renameSource = useGraphStore((s) => s.renameSource);
   const renameNode = useGraphStore((s) => s.renameNode);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
@@ -477,7 +480,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
               : "text-fewer-file-icon",
           )}
         />
-        {renamingId === child.id ? (
+        {renamingId === child.id && renameSource === "folder" ? (
           <RenameInput
             initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
             onCommit={(v) => renameNode(child.id, v)}
@@ -511,6 +514,7 @@ function CustomNodeImpl({
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
   const renamingId = useGraphStore((s) => s.renamingId);
+  const renameSource = useGraphStore((s) => s.renameSource);
   const dataSource = useGraphStore((s) => s.dataSource);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
@@ -597,7 +601,7 @@ function CustomNodeImpl({
               />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              {isRenaming ? (
+              {isRenaming && renameSource === "canvas" ? (
                 <RenameInput
                   initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
                   onCommit={(v) => renameNode(id, v)}
@@ -718,7 +722,7 @@ function CustomNodeImpl({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {isRenaming ? (
+          {isRenaming && renameSource === "canvas" ? (
             <RenameInput
               initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
               onCommit={(v) => renameNode(id, v)}

@@ -84,7 +84,7 @@ export function ImportDialog({
     <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-all">
       <div className="flex items-center justify-between">
         <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Max Scan Depth</Label>
-        <span className="text-xs font-mono font-semibold text-foreground/80">
+        <span className="text-xs font-mono font-medium text-foreground/80">
           {options.maxDepth === 0 ? "Unlimited" : `${options.maxDepth} levels`}
         </span>
       </div>
@@ -113,7 +113,7 @@ export function ImportDialog({
             <EyeOff className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           )}
           <div className="space-y-0.5">
-            <Label htmlFor="include-hidden" className="text-xs font-semibold cursor-pointer">
+            <Label htmlFor="include-hidden" className="text-xs font-medium cursor-pointer">
               Include Hidden Files
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -132,7 +132,7 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <Package className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="include-vendored" className="text-xs font-semibold cursor-pointer">
+            <Label htmlFor="include-vendored" className="text-xs font-medium cursor-pointer">
               Include node_modules
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -151,7 +151,7 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <FolderX className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="skip-empty-folders" className="text-xs font-semibold cursor-pointer">
+            <Label htmlFor="skip-empty-folders" className="text-xs font-medium cursor-pointer">
               Skip Empty Folders
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -170,7 +170,7 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <FileIcon className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="include-files" className="text-xs font-semibold cursor-pointer">
+            <Label htmlFor="include-files" className="text-xs font-medium cursor-pointer">
               Show Files on Canvas
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -186,7 +186,7 @@ export function ImportDialog({
       </div>
 
       <div className="space-y-2.5 rounded-xl border border-border/40 p-4 bg-card/10">
-        <Label className="text-xs font-semibold text-muted-foreground">File Extensions</Label>
+        <Label className="text-xs font-medium text-muted-foreground">File Extensions</Label>
         <p className="text-xs text-muted-foreground">
           Only scan these extensions. Comma-separated.
         </p>
@@ -231,7 +231,7 @@ export function ImportDialog({
         <CollapsibleContent className="space-y-2">
       <div className="flex justify-between border-b border-border/10 pb-1.5">
         <span>Depth</span>
-        <span className="font-mono font-semibold text-foreground/80">
+        <span className="font-mono font-medium text-foreground/80">
           {options.maxDepth === 0 ? "No Limit" : `${options.maxDepth} levels`}
         </span>
       </div>
@@ -240,25 +240,25 @@ export function ImportDialog({
         <>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
             <span>Hidden Files</span>
-            <span className="font-semibold text-foreground/85">{options.includeHidden ? "Yes" : "No"}</span>
+            <span className="font-medium text-foreground/85">{options.includeHidden ? "Yes" : "No"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
             <span>node_modules</span>
-            <span className="font-semibold text-foreground/85">{options.includeVendored ? "Yes" : "No"}</span>
+            <span className="font-medium text-foreground/85">{options.includeVendored ? "Yes" : "No"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
             <span>Empty Folders</span>
-            <span className="font-semibold text-foreground/85">{options.skipEmptyFolders ? "Skip" : "Show"}</span>
+            <span className="font-medium text-foreground/85">{options.skipEmptyFolders ? "Skip" : "Show"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
             <span>Show Files</span>
-            <span className="font-semibold text-foreground/85">
+            <span className="font-medium text-foreground/85">
               {options.includeFiles ? "Yes" : "No"}
             </span>
           </div>
           <div className="flex justify-between">
             <span>Extensions</span>
-            <span className="font-mono bg-secondary font-semibold text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
+            <span className="font-mono bg-secondary font-medium text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
               {options.extensions.length > 0
                 ? `${options.extensions.length} ext`
                 : "All (*)"}
@@ -280,14 +280,14 @@ export function ImportDialog({
             Import Settings
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-normal font-normal mt-1">
-            Choose how to scan your folder.
+            fewer does not store or upload any data. All data is processed locally.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto pr-1 gm-scroll py-4">
           {basicOptions}
           {advancedModeEnabled && advancedOptions}
-          {summary}
+          {advancedModeEnabled && summary}
         </div>
 
         {/* FIXED: Explicitly defined spacing and layout rules prevents overlapping buttons */}
@@ -297,7 +297,7 @@ export function ImportDialog({
             size="default"
             onClick={() => onOpenChange(false)}
             disabled={importing}
-            className="text-xs border-border/80 text-foreground font-semibold hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs border-border/80 text-foreground font-medium hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
           >
             Cancel
           </Button>
@@ -305,7 +305,7 @@ export function ImportDialog({
             size="default"
             onClick={() => onConfirm(options)}
             disabled={importing}
-            className="text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
               <>
