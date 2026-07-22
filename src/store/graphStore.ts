@@ -672,16 +672,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const newPath = parent ? `${parent.data.path}/${label}` : label;
     const ext = type === "file" ? getFileExtension(label) : "";
     const displayLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
-    // Find unique name under parent by appending (N) counter
+    // Check for duplicate names under the same parent
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : [];
     const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    let finalLabel = displayLabel;
-    let counter = 1;
-    while (siblingLabels.has(finalLabel)) {
-      finalLabel = `${displayLabel}(${counter})`;
-      counter++;
-    }
-    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: finalLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    if (siblingLabels.has(displayLabel)) return "";
+    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: displayLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: "default" as const } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
@@ -696,15 +691,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
     const ext = type === "file" ? getFileExtension(trimmed) : "";
     const displayLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
-    // Find unique name among root-level nodes by appending (N) counter
+    // Check for duplicate names at root level
     const rootNodeLabels = new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.data.label));
-    let finalLabel = displayLabel;
-    let counter = 1;
-    while (rootNodeLabels.has(finalLabel)) {
-      finalLabel = `${displayLabel}(${counter})`;
-      counter++;
-    }
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: finalLabel, path: trimmed, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    if (rootNodeLabels.has(displayLabel)) return "";
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: trimmed, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(newNodes, edges, get().searchQuery) });
     return newNode.id;

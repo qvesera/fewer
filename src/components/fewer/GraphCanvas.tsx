@@ -69,7 +69,6 @@ function CanvasInner() {
   const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
   const lastClickedEdgeIdRef = useRef<string | null>(null);
-  const selectionOrderRef = useRef<string[]>([]);
 
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
@@ -145,27 +144,9 @@ function CanvasInner() {
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
-      const selectedIds = selected.map((n) => n.id);
-      // Preserve click order: reorder to match selectionOrderRef (last clicked = last)
-      const ordered = selectionOrderRef.current.filter((id) => selectedIds.includes(id));
-      // Add any new selections not yet tracked
-      for (const id of selectedIds) {
-        if (!ordered.includes(id)) ordered.push(id);
-      }
-      selectionOrderRef.current = ordered;
-      setSelectedNodeIds(ordered);
+      setSelectedNodeIds(selected.map((n) => n.id));
     },
     [setSelectedNodeIds],
-  );
-
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: { id: string }) => {
-      // Track click order for "last selected = parent" logic
-      const order = selectionOrderRef.current.filter((id) => id !== node.id);
-      order.push(node.id);
-      selectionOrderRef.current = order;
-    },
-    [],
   );
 
   const handleNodesChange = useCallback(
@@ -371,7 +352,6 @@ function CanvasInner() {
         edges={rfEdges}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
-        onNodeClick={onNodeClick}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
         onNodeDragStop={onNodeDragStop}
@@ -389,10 +369,7 @@ function CanvasInner() {
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
           if (deletedNodes.length > 0) deleteNodes(deletedNodes.map((n) => n.id));
-          // Delete connections: unparent child node for each deleted edge
-          for (const edge of deletedEdges) {
-            useGraphStore.getState().removeEdgesFromHandle(edge.target, "target");
-          }
+          if (deletedEdges.length > 0) useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
         }}
         onInit={(instance) => {
           console.log(
@@ -597,70 +574,68 @@ function CanvasInner() {
             >
               Zoom Out
             </button>
-            {/* Delete Connection — visible when right-clicked on an edge */}
+            {/* Delete Edge — visible when right-clicked on an edge */}
             {(() => {
               const edgeId = lastClickedEdgeIdRef.current;
               if (edgeId) {
-                const edge = rfEdges.find((e) => e.id === edgeId);
-                const childId = edge?.target;
-                if (childId) {
-                  return (
-                    <>
-                      <div className="my-1 h-px bg-border/40" />
-                      <button
-                        onClick={() => {
-                          useGraphStore.getState().removeEdgesFromHandle(childId, "target");
-                          toast({ title: "Connection deleted" });
-                          setCanvasMenu(null);
-                        }}
-                        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
-                      >
-                        Delete Connection
-                      </button>
-                    </>
-                  );
-                }
-              }
-              return null;
-            })()}
-
-            {/* Set as Parent — visible when ≥2 nodes selected, last is a folder, and no child already has a parent */}
-            {(() => {
-              const state = useGraphStore.getState();
-              const ids = state.selectedNodeIds;
-              if (ids.length >= 2) {
-                const lastNode = state.nodes.find((n) => n.id === ids[ids.length - 1]);
-                if (!lastNode || lastNode.data.type !== "folder") return null;
-                const childIds = ids.slice(0, -1);
-                // Skip if any child already has a parent
-                const anyHasParent = childIds.some((cid) => state.edges.some((e) => e.target === cid));
-                if (anyHasParent) return null;
+                const selectedEdgeIds = [edgeId];
                 return (
                   <>
                     <div className="my-1 h-px bg-border/40" />
                     <button
                       onClick={() => {
-                        const parentId = ids[ids.length - 1];
-                        const childIds = ids.slice(0, -1);
-                        let okCount = 0;
-                        let failCount = 0;
-                        for (const childId of childIds) {
-                          const result = state.connectNodes({ source: parentId, target: childId } as Connection);
-                          if (result.ok) okCount++;
-                          else failCount++;
-                        }
+                        useGraphStore.getState().deleteEdges(selectedEdgeIds);
                         toast({
-                          title: "Nodes parented",
-                          description: `${okCount} node${okCount !== 1 ? "s" : ""} parented under "${lastNode.data.label}"${failCount > 0 ? `, ${failCount} skipped` : ""}`,
+                          title: "Edge deleted",
+                          description: `${selectedEdgeIds.length} edge${selectedEdgeIds.length === 1 ? "" : "s"} removed`,
                         });
                         setCanvasMenu(null);
                       }}
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]"
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
                     >
-                      Set as Parent 
+                      Delete Edge
                     </button>
                   </>
                 );
+              }
+              return null;
+            })()}
+
+            {/* Set as Parent — visible when ≥2 nodes selected and last is a folder */}
+            {(() => {
+              const ids = useGraphStore.getState().selectedNodeIds;
+              if (ids.length >= 2) {
+                const lastNode = useGraphStore.getState().nodes.find((n) => n.id === ids[ids.length - 1]);
+                const canParent = lastNode?.data.type === "folder";
+                if (canParent) {
+                  return (
+                    <>
+                      <div className="my-1 h-px bg-border/40" />
+                      <button
+                        onClick={() => {
+                          const state = useGraphStore.getState();
+                          const parentId = ids[ids.length - 1];
+                          const childIds = ids.slice(0, -1);
+                          let okCount = 0;
+                          let failCount = 0;
+                          for (const childId of childIds) {
+                            const result = state.connectNodes({ source: parentId, target: childId } as Connection);
+                            if (result.ok) okCount++;
+                            else failCount++;
+                          }
+                          toast({
+                            title: "Nodes parented",
+                            description: `${okCount} node${okCount !== 1 ? "s" : ""} parented under "${lastNode.data.label}"${failCount > 0 ? `, ${failCount} skipped` : ""}`,
+                          });
+                          setCanvasMenu(null);
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]"
+                      >
+                        Set as Parent 
+                      </button>
+                    </>
+                  );
+                }
               }
               return null;
             })()}

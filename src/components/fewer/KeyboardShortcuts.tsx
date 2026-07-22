@@ -167,20 +167,14 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+P - parent: last selected node is parent, rest are children
-      // Skips children that already have a parent
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "p" && !inEditable) {
         e.preventDefault();
-        const state = useGraphStore.getState();
-        const ids = state.selectedNodeIds;
+        const ids = useGraphStore.getState().selectedNodeIds;
         if (ids.length >= 2) {
-          const lastNode = state.nodes.find((n) => n.id === ids[ids.length - 1]);
+          const lastNode = useGraphStore.getState().nodes.find((n) => n.id === ids[ids.length - 1]);
           if (lastNode?.data.type === "folder") {
             const parentId = ids[ids.length - 1];
-            const childIds = ids.slice(0, -1).filter((cid) => !state.edges.some((e) => e.target === cid));
-            if (childIds.length === 0) {
-              toast({ title: "Cannot parent", description: "Selected children already have parents" });
-              return;
-            }
+            const childIds = ids.slice(0, -1);
             let okCount = 0;
             let failCount = 0;
             for (const childId of childIds) {
@@ -431,17 +425,13 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Delete/Backspace — delete selected nodes + selected connections (unparent)
+      // Delete/Backspace — delete selected nodes + edges
       if (e.key === "Delete" || e.key === "Backspace") {
         const rfEdges = reactFlow.getEdges();
-        const selectedEdges = rfEdges.filter((ed) => ed.selected);
-        if (selectedNodeIds.length > 0 || selectedEdges.length > 0) {
+        const selectedEdgeIds = rfEdges.filter((ed) => ed.selected).map((ed) => ed.id);
+        if (selectedNodeIds.length > 0 || selectedEdgeIds.length > 0) {
           e.preventDefault();
-          // Delete selected connections: unparent the child node (deletes the edge via target handle)
-          for (const edge of selectedEdges) {
-            removeEdgesFromHandle(edge.target, "target");
-          }
-          // Delete selected nodes
+          if (selectedEdgeIds.length > 0) deleteEdges(selectedEdgeIds);
           if (selectedNodeIds.length > 0) deleteNodes(selectedNodeIds);
         }
         return;
