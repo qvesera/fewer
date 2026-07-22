@@ -31,6 +31,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
@@ -81,7 +82,7 @@ export function ImportDialog({
   }, [advancedModeEnabled]);
 
   const basicOptions = (
-    <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-all">
+    <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-colors">
       <div className="flex items-center justify-between">
         <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Max Scan Depth</Label>
         <span className="text-xs font-mono font-medium text-foreground/80">
@@ -224,11 +225,11 @@ export function ImportDialog({
       <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
         <CollapsibleTrigger asChild>
           <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">
-            {summaryOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
             Summary
           </button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-2">
+        <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
       <div className="flex justify-between border-b border-border/10 pb-1.5">
         <span>Depth</span>
         <span className="font-mono font-medium text-foreground/80">
@@ -305,7 +306,7 @@ export function ImportDialog({
             size="default"
             onClick={() => onConfirm(options)}
             disabled={importing}
-            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.96] transition-[colors,transform] gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
               <>

@@ -172,7 +172,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                   type="button"
                   onClick={() => setType("folder")}
                   className={cn(
-                    "rounded-lg border p-3 text-sm transition-all",
+                    "rounded-lg border p-3 text-sm transition-colors",
                     type === "folder"
                       ? "border-orange-400 bg-orange-500/10 text-orange-300 ring-2 ring-orange-400/40"
                       : "border-border/40 hover:bg-muted/40"
@@ -184,7 +184,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                   type="button"
                   onClick={() => setType("file")}
                   className={cn(
-                    "rounded-lg border p-3 text-sm transition-all",
+                    "rounded-lg border p-3 text-sm transition-colors",
                     type === "file"
                       ? "border-purple-400 bg-purple-500/10 text-purple-300 ring-2 ring-purple-400/40"
                       : "border-border/40 hover:bg-muted/40"

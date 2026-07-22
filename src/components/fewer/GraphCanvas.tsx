@@ -25,7 +25,7 @@ import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStyle, FewerNode } from "@/lib/fewer/types";
+import type { EdgeStyle, EdgeStrokeStyle, FewerNode } from "@/lib/fewer/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -54,6 +54,9 @@ function CanvasInner() {
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const direction = useGraphStore((s) => s.direction);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const edgeWidth = useGraphStore((s) => s.edgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
@@ -69,6 +72,16 @@ function CanvasInner() {
   const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
   const lastClickedEdgeIdRef = useRef<string | null>(null);
+
+  const dashArray = useMemo(() => {
+    switch (edgeStrokeStyle) {
+      case "dashed": return "6 6";
+      case "dotted": return "2 6";
+      case "solid":
+      default:
+        return undefined;
+    }
+  }, [edgeStrokeStyle]);
 
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
@@ -396,12 +409,13 @@ function CanvasInner() {
         maxZoom={3}
         defaultEdgeOptions={{
           type: edgeTypeFor(edgeStyle),
-          animated: true,
+          animated: edgeAnimated,
           style: {
             stroke: isDark
               ? "rgba(148, 163, 184, 0.55)"
               : "rgba(71, 85, 105, 0.6)",
-            strokeWidth: 2,
+            strokeWidth: edgeWidth,
+            ...(dashArray ? { strokeDasharray: dashArray } : {}),
           },
         }}
         proOptions={{ hideAttribution: true }}
@@ -441,7 +455,7 @@ function CanvasInner() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-hit"
               onClick={() => zoomIn({ duration: 250 })}
               title="Zoom in (+)"
             >
@@ -450,7 +464,7 @@ function CanvasInner() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-hit"
               onClick={() => zoomOut({ duration: 250 })}
               title="Zoom out (-)"
             >
@@ -459,7 +473,7 @@ function CanvasInner() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-hit"
               onClick={() => fitView({ duration: 600, padding: 0.2 })}
               title="Fit view (Space)"
             >
@@ -468,7 +482,7 @@ function CanvasInner() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 min-hit"
               onClick={fitToSelection}
               title="Zoom to selection"
             >
@@ -506,7 +520,7 @@ function CanvasInner() {
         {hiddenCount > 0 && (
           <Panel position="top-right">
             <button
-              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200 cursor-pointer hover:bg-amber-500/20 transition-colors"
+              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200 cursor-pointer hover:bg-amber-500/20 transition-colors animate-in fade-in slide-in-from-right-2 duration-200"
               onClick={() => {
                 useGraphStore.getState().setSidebarOpen(true);
                 useGraphStore.getState().triggerHiddenPanelExpand();
@@ -531,7 +545,7 @@ function CanvasInner() {
             }}
           />
           <div
-            className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5"
+            className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150"
             style={{ left: canvasMenu.x, top: canvasMenu.y }}
           >
             <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -543,7 +557,7 @@ function CanvasInner() {
                 fitView({ duration: 500, padding: 0.2 });
                 setCanvasMenu(null);
               }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
             >
               Fit View
             </button>
@@ -552,7 +566,7 @@ function CanvasInner() {
                 selectAll();
                 setCanvasMenu(null);
               }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
             >
               Select All
             </button>
@@ -561,7 +575,7 @@ function CanvasInner() {
                 zoomIn({ duration: 250 });
                 setCanvasMenu(null);
               }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
             >
               Zoom In
             </button>

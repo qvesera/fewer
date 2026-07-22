@@ -610,7 +610,7 @@ export function BugReportDialog() {
               size="sm"
               onClick={handleSubmit}
               disabled={isDisabled || !title.trim()}
-              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-all hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-95"
+              className="gap-1.5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 text-white transition-[colors,transform,box-shadow] hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg hover:shadow-purple-500/20 active:scale-[0.96]"
             >
               <Github className="h-3.5 w-3.5" />
               Submit to GitHub
@@ -620,7 +620,7 @@ export function BugReportDialog() {
                 size="sm"
                 onClick={handleSubmitEmail}
                 disabled={isDisabled || !title.trim()}
-                className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-all hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
+                className="gap-1.5 cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 text-white transition-[colors,transform,box-shadow] hover:from-blue-600 hover:to-cyan-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.96]"
               >
                 {submitting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

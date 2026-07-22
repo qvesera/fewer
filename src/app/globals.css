@@ -198,6 +198,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+  p, li, figcaption {
+    text-wrap: pretty;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,8 +227,10 @@
   }
 }
 
-/* Flowing dashes along edge paths (direction-aware data flow) */
 @keyframes gm-edge-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
   to {
     stroke-dashoffset: -24;
   }
@@ -244,6 +252,28 @@
   }
 }
 
+/* ── Collapsible animations ────────────────────────────────────────────────── */
+@keyframes collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
 /* ── React Flow Controls + Minimap ─────────────────────────────────────────── */
 
 .react-flow__controls {
@@ -257,7 +287,7 @@
   background: transparent !important;
   border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
   color: var(--foreground) !important;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 .react-flow__controls-button:hover {
   background: rgba(148, 163, 184, 0.12) !important;
@@ -275,26 +305,30 @@
   display: none !important;
 }
 
-/* ── Edge Styling — animated flowing dashes ────────────────────────────────── */
+/* ── Edge Styling ──────────────────────────────────────────────────────────── */
 
 .react-flow__edge-path {
   transition:
     stroke 0.25s ease,
     stroke-width 0.25s ease,
     opacity 0.25s ease;
-  stroke-dasharray: 8 4;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
   animation: gm-edge-flow 1.2s linear infinite;
 }
 
-/* Selected / focused edges glow brighter + thicker + faster */
+/* Selected / focused edges glow brighter + thicker */
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:focus .react-flow__edge-path,
 .react-flow__edge:focus-visible .react-flow__edge-path {
   stroke: rgb(34, 211, 238) !important;
   stroke-width: 2.5px !important;
-  stroke-dasharray: 6 3;
-  animation: gm-edge-flow 0.6s linear infinite;
   filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
+}
+
+.react-flow__edge.selected.animated .react-flow__edge-path {
+  animation: gm-edge-flow 0.6s linear infinite;
 }
 
 /* ── Node Styling ──────────────────────────────────────────────────────────── */
@@ -347,6 +381,25 @@ aside::-webkit-scrollbar-thumb {
 .gm-scroll::-webkit-scrollbar-thumb:hover,
 aside::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
+}
+
+/* ── Minimum hit area (40×40px) for small interactive elements ──────────── */
+.min-hit {
+  position: relative;
+}
+.min-hit::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+}
+
+/* ── Image outline ──────────────────────────────────────────────────────── */
+.img-outline {
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+}
+.dark .img-outline {
+  outline: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* ── Glass Utilities ───────────────────────────────────────────────────────── */

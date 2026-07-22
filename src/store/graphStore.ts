@@ -8,6 +8,7 @@ import type {
   FewerEdge,
   LayoutDirection,
   EdgeStyle,
+  EdgeStrokeStyle,
   ExportSettings,
   CustomTheme,
   ThemeMode,
@@ -23,6 +24,9 @@ interface GraphState {
   edges: FewerEdge[];
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
+  edgeAnimated: boolean;
+  edgeStrokeStyle: EdgeStrokeStyle;
+  edgeWidth: number;
   cornerRadius: number;
   nodeWidth: number;
   nodeHeight: number;
@@ -79,6 +83,9 @@ interface GraphState {
   ) => void;
   setDirection: (direction: LayoutDirection) => void;
   setEdgeStyle: (style: EdgeStyle) => void;
+  setEdgeAnimated: (animated: boolean) => void;
+  setEdgeStrokeStyle: (strokeStyle: EdgeStrokeStyle) => void;
+  setEdgeWidth: (width: number) => void;
   setCornerRadius: (radius: number) => void;
   setNodeDimensions: (w: number, h: number) => void;
   setAdvancedOpen: (open: boolean) => void;
@@ -240,6 +247,9 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   edges: [],
   direction: "TB",
   edgeStyle: "curved",
+  edgeAnimated: false,
+  edgeStrokeStyle: "solid",
+  edgeWidth: 2,
   cornerRadius: 8,
   nodeWidth: 240,
   nodeHeight: 200,
@@ -378,6 +388,21 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       : "straight"
     ) as FewerEdge["type"];
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, type: edgeType })) }));
+  },
+
+  setEdgeAnimated: (animated) => {
+    if (animated && get().edgeStrokeStyle === "solid") {
+      set({ edgeAnimated: animated, edgeStrokeStyle: "dashed" });
+    } else {
+      set({ edgeAnimated: animated });
+    }
+  },
+
+  setEdgeStrokeStyle: (strokeStyle) => set({ edgeStrokeStyle: strokeStyle }),
+
+  setEdgeWidth: (width) => {
+    const clamped = Math.max(0.5, Math.min(6, width));
+    set({ edgeWidth: clamped });
   },
 
   setCornerRadius: (radius) => {

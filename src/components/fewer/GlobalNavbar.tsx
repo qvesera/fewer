@@ -58,21 +58,21 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
       
       {/* System Actions Utility Cluster */}
       <div className="z-10 flex items-center gap-1">
-       <Button
-           variant="ghost"
-           size="icon"
-           className="h-8 w-8 sm:hidden text-muted-foreground"
-           onClick={() => setSearchOpen(true)}
-           aria-label="Open search"
-         >
-           <Search className="h-4 w-4" />
-         </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 sm:hidden text-muted-foreground min-hit"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Open search"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
 
         {onRestartTutorial && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-orange-400 hover:bg-orange-500/10 hover:text-orange-500"
+            className="h-8 w-8 text-orange-400 hover:bg-orange-500/10 hover:text-orange-500 min-hit"
             onClick={onRestartTutorial}
             title="Restart tutorial"
           >
@@ -83,7 +83,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
           onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
           title="Keyboard shortcuts"
         >
@@ -93,7 +93,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/5"
+          className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/5 min-hit"
           onClick={() => setBugReportOpen(true)}
           title="Report a bug"
         >
@@ -103,7 +103,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
           onClick={() => window.open("https://github.com/qvesera/fewer", "_blank", "noreferrer")}
           title="GitHub"
         >
@@ -113,7 +113,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
           onClick={() => window.open("https://qvesera.github.io", "_blank", "noreferrer")}
           title="Website"
         >

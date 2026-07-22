@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Undo2, Redo2, Trash2, Sparkles, Download, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { cn } from "@/lib/utils";
 
 interface CanvasToolbarProps {
   onLoadSample: () => void;
@@ -37,12 +38,19 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
       </div>
 
       {/* Middle Area: Core Node Mutations / Canvas Toolkits */}
-      {advancedModeEnabled && (
-        <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5 border border-border/40">
+      <div
+        className={cn(
+          "flex items-center transition-[max-width,opacity,transform,margin] duration-300 ease-in-out overflow-hidden",
+          advancedModeEnabled
+            ? "max-w-[200px] opacity-100 scale-x-100 mr-2"
+            : "max-w-0 opacity-0 scale-x-95 mr-0 pointer-events-none"
+        )}
+      >
+        <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5 border border-border/40 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30 min-hit"
             onClick={undo}
             disabled={!canUndo}
             title="Undo"
@@ -52,7 +60,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30 min-hit"
             onClick={redo}
             disabled={!canRedo}
             title="Redo"
@@ -63,7 +71,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-red-400 disabled:opacity-30"
+            className="h-7 w-7 text-muted-foreground hover:text-red-400 disabled:opacity-30 min-hit"
             onClick={() => selectedNodeIds.length && deleteNodes(selectedNodeIds)}
             disabled={selectedNodeIds.length === 0}
             title="Delete selection"
@@ -71,7 +79,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-      )}
+      </div>
 
       {/* Right Area: Ingest & Transaction Controls */}
       <div className="flex items-center gap-2">

@@ -176,7 +176,7 @@ export function ExportPanel() {
                     type="button"
                     onClick={() => setSettings({ format: f.value })}
                     className={cn(
-                      "flex items-center gap-3.5 rounded-xl border p-3.5 text-left transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex items-center gap-3.5 rounded-xl border p-3.5 text-left transition-[colors,transform] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
                         ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300 shadow-sm shadow-purple-500/5"
                         : "border-border/50 hover:border-border hover:bg-muted/30 text-foreground"
@@ -215,7 +215,7 @@ export function ExportPanel() {
           </div>
 
           <Button
-            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.99] transition-all h-11"
+            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.96] transition-[colors,transform,box-shadow] h-11"
             onClick={handleExport}
             disabled={nodes.length === 0}
           >
@@ -253,7 +253,7 @@ export function ExportPanel() {
           </div>
 
           {isRaster && (
-            <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-all">
+            <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-muted-foreground">Quality</Label>
                 <span className="text-xs font-mono font-semibold text-foreground/80">{settings.quality}%</span>
@@ -304,11 +304,11 @@ export function ExportPanel() {
           <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
             <CollapsibleTrigger asChild>
               <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">
-                {summaryOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
                 Summary
               </button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
+            <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
             <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
               <span>Nodes</span>
               <span className="font-mono text-foreground/90 font-semibold">

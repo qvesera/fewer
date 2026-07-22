@@ -88,7 +88,7 @@ function ChecklistItem({
       type="button"
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
       className={cn(
-        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+        "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
         done
           ? "border-green-400/30 bg-green-500/5"
           : "border-border/40 bg-card/50",
@@ -255,7 +255,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
         type="button"
         onClick={handleStart}
         size="sm"
-        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-orange-500 to-amber-500 font-medium text-white shadow-md shadow-orange-500/15 hover:from-orange-600 hover:to-amber-600 active:scale-[0.98] transition-all"
+        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-orange-500 to-amber-500 font-medium text-white shadow-md shadow-orange-500/15 hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] transition-[colors,transform]"
       >
         <BookOpen className="h-4 w-4" />
         Start Tutorial
@@ -308,7 +308,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
         <div className="mb-3 flex items-center gap-2">
           <div className="flex-1 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-orange-500 to-amber-500"
+              className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-orange-500 to-amber-500"
               style={{ width: `${progress}%` }}
             />
           </div>
