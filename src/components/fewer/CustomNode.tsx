@@ -156,8 +156,10 @@ function FolderContextMenu({
   const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
+  const hasParent = edges.some((e) => e.target === nodeId);
 
   return (
     <ContextMenu>
@@ -227,6 +229,17 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        {hasParent && (
+          <ContextMenuItem
+            onSelect={() => {
+              useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+              toast({ title: "Unparented", description: nodeLabel });
+            }}
+            className="cursor-pointer"
+          >
+            Unparent
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => deleteNode([nodeId])}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
@@ -304,8 +317,10 @@ function FileEntryContextMenu({
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
+  const hasParent = edges.some((e) => e.target === nodeId);
 
   return (
     <ContextMenu>
@@ -375,6 +390,17 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        {hasParent && (
+          <ContextMenuItem
+            onSelect={() => {
+              useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+              toast({ title: "Unparented", description: nodeLabel });
+            }}
+            className="cursor-pointer"
+          >
+            Unparent
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={onDelete}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"

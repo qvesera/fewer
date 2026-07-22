@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
-import { useReactFlow } from "@xyflow/react";
+import { useReactFlow, type Connection } from "@xyflow/react";
 import { navigate } from "@/lib/fewer/navigation";
 import { openFile } from "@/lib/fewer/fileOps";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +62,9 @@ export function KeyboardShortcuts() {
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const pasteFromClipboard = useGraphStore((s) => s.pasteFromClipboard);
   const moveNode = useGraphStore((s) => s.moveNode);
+  const connectNodes = useGraphStore((s) => s.connectNodes);
+  const removeEdgesFromHandle = useGraphStore((s) => s.removeEdgesFromHandle);
+  const deleteEdges = useGraphStore((s) => s.deleteEdges);
   const { toast } = useToast();
 
   const reactFlow = useReactFlow();
@@ -160,6 +163,53 @@ export function KeyboardShortcuts() {
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "u" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-file"));
+        return;
+      }
+
+      // Alt+P - parent: last selected node is parent, rest are children
+      // Skips children that already have a parent
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "p" && !inEditable) {
+        e.preventDefault();
+        const state = useGraphStore.getState();
+        const ids = state.selectedNodeIds;
+        if (ids.length >= 2) {
+          const lastNode = state.nodes.find((n) => n.id === ids[ids.length - 1]);
+          if (lastNode?.data.type === "folder") {
+            const parentId = ids[ids.length - 1];
+            const childIds = ids.slice(0, -1).filter((cid) => !state.edges.some((e) => e.target === cid));
+            if (childIds.length === 0) {
+              toast({ title: "Cannot parent", description: "Selected children already have parents" });
+              return;
+            }
+            let okCount = 0;
+            let failCount = 0;
+            for (const childId of childIds) {
+              const result = connectNodes({ source: parentId, target: childId } as Connection);
+              if (result.ok) okCount++;
+              else failCount++;
+            }
+            toast({
+              title: "Nodes parented",
+              description: `${okCount} node${okCount !== 1 ? "s" : ""} parented${failCount > 0 ? `, ${failCount} skipped` : ""}`,
+            });
+          }
+        }
+        return;
+      }
+
+      // Alt+Shift+P - unparent all selected nodes
+      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "p" && !inEditable) {
+        e.preventDefault();
+        const ids = useGraphStore.getState().selectedNodeIds;
+        if (ids.length > 0) {
+          for (const nodeId of ids) {
+            removeEdgesFromHandle(nodeId, "target");
+          }
+          toast({
+            title: "Unparented",
+            description: `${ids.length} node${ids.length !== 1 ? "s" : ""} unparented`,
+          });
+        }
         return;
       }
 
@@ -323,10 +373,10 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Arrow key navigation
+      // Arrow key navigation (Shift+Arrow adds to selection)
       if (e.key.startsWith("Arrow")) {
         e.preventDefault();
-        const currentId = focusedNodeId ?? selectedNodeIds[0];
+        const currentId = focusedNodeId ?? selectedNodeIds[selectedNodeIds.length - 1];
         if (!currentId) {
           // Focus the first node
           if (nodes.length > 0) {
@@ -346,15 +396,28 @@ export function KeyboardShortcuts() {
         const nextId = navigate(currentId, dir, nodes, edges);
         if (nextId) {
           setFocusedNodeId(nextId);
-          setSelectedNodeIds([nextId]);
-          // Mark the node as selected in the store so the canvas shows
-          // the selection ring + transform (resize) controls
-          useGraphStore.setState((s) => ({
-            nodes: s.nodes.map((n) => ({
-              ...n,
-              selected: n.id === nextId,
-            })),
-          }));
+          if (e.shiftKey) {
+            // Shift+Arrow: add to selection (avoid duplicates)
+            const updated = selectedNodeIds.includes(nextId)
+              ? selectedNodeIds
+              : [...selectedNodeIds, nextId];
+            setSelectedNodeIds(updated);
+            useGraphStore.setState((s) => ({
+              nodes: s.nodes.map((n) => ({
+                ...n,
+                selected: updated.includes(n.id),
+              })),
+            }));
+          } else {
+            // Plain Arrow: replace selection
+            setSelectedNodeIds([nextId]);
+            useGraphStore.setState((s) => ({
+              nodes: s.nodes.map((n) => ({
+                ...n,
+                selected: n.id === nextId,
+              })),
+            }));
+          }
           // Center the focused node in the viewport
           const nextNode = nodes.find((n) => n.id === nextId);
           if (nextNode) {
@@ -368,11 +431,18 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Delete
+      // Delete/Backspace — delete selected nodes + selected connections (unparent)
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedNodeIds.length > 0) {
+        const rfEdges = reactFlow.getEdges();
+        const selectedEdges = rfEdges.filter((ed) => ed.selected);
+        if (selectedNodeIds.length > 0 || selectedEdges.length > 0) {
           e.preventDefault();
-          deleteNodes(selectedNodeIds);
+          // Delete selected connections: unparent the child node (deletes the edge via target handle)
+          for (const edge of selectedEdges) {
+            removeEdgesFromHandle(edge.target, "target");
+          }
+          // Delete selected nodes
+          if (selectedNodeIds.length > 0) deleteNodes(selectedNodeIds);
         }
         return;
       }
@@ -436,6 +506,9 @@ export function KeyboardShortcuts() {
     duplicateNodeUnderParent,
     pasteFromClipboard,
     moveNode,
+    connectNodes,
+    removeEdgesFromHandle,
+    deleteEdges,
     reactFlow,
     toast,
   ]);

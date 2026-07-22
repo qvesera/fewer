@@ -68,6 +68,8 @@ function CanvasInner() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
+  const lastClickedEdgeIdRef = useRef<string | null>(null);
+  const selectionOrderRef = useRef<string[]>([]);
 
   const visibleNodes = useMemo(() => {
     if (hiddenIds.length === 0) return allNodes;
@@ -143,9 +145,27 @@ function CanvasInner() {
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
-      setSelectedNodeIds(selected.map((n) => n.id));
+      const selectedIds = selected.map((n) => n.id);
+      // Preserve click order: reorder to match selectionOrderRef (last clicked = last)
+      const ordered = selectionOrderRef.current.filter((id) => selectedIds.includes(id));
+      // Add any new selections not yet tracked
+      for (const id of selectedIds) {
+        if (!ordered.includes(id)) ordered.push(id);
+      }
+      selectionOrderRef.current = ordered;
+      setSelectedNodeIds(ordered);
     },
     [setSelectedNodeIds],
+  );
+
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: { id: string }) => {
+      // Track click order for "last selected = parent" logic
+      const order = selectionOrderRef.current.filter((id) => id !== node.id);
+      order.push(node.id);
+      selectionOrderRef.current = order;
+    },
+    [],
   );
 
   const handleNodesChange = useCallback(
@@ -334,11 +354,15 @@ function CanvasInner() {
       onDrop={onDrop}
       onDragOver={onDragOver}
       onContextMenu={(e) => {
-        const target = e.target as HTMLElement;
-        if (target.closest(".react-flow__node")) return;
         e.preventDefault();
+        // Use the last clicked edge (tracked via onEdgeClick) since ReactFlow
+        // deselects edges before this handler fires
+        const edgeId = lastClickedEdgeIdRef.current;
+        const ids = edgeId ? [edgeId] : [];
         setCanvasMenu({ x: e.clientX, y: e.clientY });
         useGraphStore.getState().setRightClickDetected();
+        // Store edge IDs in a data attribute so the menu render can read them
+        (e.currentTarget as HTMLElement).dataset.edgeIds = JSON.stringify(ids);
       }}
     >
       <ReactFlow
@@ -347,6 +371,7 @@ function CanvasInner() {
         edges={rfEdges}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
+        onNodeClick={onNodeClick}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
         onNodeDragStop={onNodeDragStop}
@@ -362,9 +387,13 @@ function CanvasInner() {
           }));
           fitToSelection();
         }}
-        onDelete={({ nodes: deletedNodes }) =>
-          deleteNodes(deletedNodes.map((n) => n.id))
-        }
+        onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
+          if (deletedNodes.length > 0) deleteNodes(deletedNodes.map((n) => n.id));
+          // Delete connections: unparent child node for each deleted edge
+          for (const edge of deletedEdges) {
+            useGraphStore.getState().removeEdgesFromHandle(edge.target, "target");
+          }
+        }}
         onInit={(instance) => {
           console.log(
             "[ReactFlow] onInit - edges:",
@@ -372,6 +401,9 @@ function CanvasInner() {
             "nodes:",
             instance.getNodes().length,
           );
+        }}
+        onEdgeContextMenu={(_, edge) => {
+          lastClickedEdgeIdRef.current = edge.id;
         }}
         onMouseMove={(e) => {
           const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -387,6 +419,7 @@ function CanvasInner() {
         maxZoom={3}
         defaultEdgeOptions={{
           type: edgeTypeFor(edgeStyle),
+          animated: true,
           style: {
             stroke: isDark
               ? "rgba(148, 163, 184, 0.55)"
@@ -564,6 +597,74 @@ function CanvasInner() {
             >
               Zoom Out
             </button>
+            {/* Delete Connection — visible when right-clicked on an edge */}
+            {(() => {
+              const edgeId = lastClickedEdgeIdRef.current;
+              if (edgeId) {
+                const edge = rfEdges.find((e) => e.id === edgeId);
+                const childId = edge?.target;
+                if (childId) {
+                  return (
+                    <>
+                      <div className="my-1 h-px bg-border/40" />
+                      <button
+                        onClick={() => {
+                          useGraphStore.getState().removeEdgesFromHandle(childId, "target");
+                          toast({ title: "Connection deleted" });
+                          setCanvasMenu(null);
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
+                      >
+                        Delete Connection
+                      </button>
+                    </>
+                  );
+                }
+              }
+              return null;
+            })()}
+
+            {/* Set as Parent — visible when ≥2 nodes selected, last is a folder, and no child already has a parent */}
+            {(() => {
+              const state = useGraphStore.getState();
+              const ids = state.selectedNodeIds;
+              if (ids.length >= 2) {
+                const lastNode = state.nodes.find((n) => n.id === ids[ids.length - 1]);
+                if (!lastNode || lastNode.data.type !== "folder") return null;
+                const childIds = ids.slice(0, -1);
+                // Skip if any child already has a parent
+                const anyHasParent = childIds.some((cid) => state.edges.some((e) => e.target === cid));
+                if (anyHasParent) return null;
+                return (
+                  <>
+                    <div className="my-1 h-px bg-border/40" />
+                    <button
+                      onClick={() => {
+                        const parentId = ids[ids.length - 1];
+                        const childIds = ids.slice(0, -1);
+                        let okCount = 0;
+                        let failCount = 0;
+                        for (const childId of childIds) {
+                          const result = state.connectNodes({ source: parentId, target: childId } as Connection);
+                          if (result.ok) okCount++;
+                          else failCount++;
+                        }
+                        toast({
+                          title: "Nodes parented",
+                          description: `${okCount} node${okCount !== 1 ? "s" : ""} parented under "${lastNode.data.label}"${failCount > 0 ? `, ${failCount} skipped` : ""}`,
+                        });
+                        setCanvasMenu(null);
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]"
+                    >
+                      Set as Parent 
+                    </button>
+                  </>
+                );
+              }
+              return null;
+            })()}
+
             {advancedModeEnabled && (
               <>
                 <div className="my-1 h-px bg-border/40" />
