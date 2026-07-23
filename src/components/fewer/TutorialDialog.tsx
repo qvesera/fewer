@@ -238,15 +238,12 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
             fewer
           </span>
         </h2>
-        <p className="text-xs font-medium text-muted-foreground/80">
-          Directory visualization reimagined
-        </p>
       </div>
     </div>
 
     {/* Body Text */}
-    <p className="text-xs leading-relaxed text-muted-foreground mb-6">
-      Transform complex file systems into clear, interactive graphs. Explore, search, customize, and export with ease.
+    <p className="text-xs leading-relaxed text-black-foreground mb-6">
+      Transform complex file systems into clear, interactive graphs. Explore, search, customize, and export with ease. No data is ever uploaded, you are always in control!
     </p>
 
     {/* Actions */}

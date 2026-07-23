@@ -40,6 +40,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Shift", "H"], action: "Unhide all nodes" },
       { keys: ["Alt", "N"], action: "Open add node dialog" },
       { keys: ["Alt", "Shift", "N"], action: "Clear canvas" },
+      { keys: ["Alt", "P"], action: "Parent selected nodes" },
+      { keys: ["Alt", "Shift", "P"], action: "Unparent selected nodes" },
     ],
   },
   {

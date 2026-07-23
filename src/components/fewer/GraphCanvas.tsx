@@ -157,7 +157,15 @@ function CanvasInner() {
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
-      setSelectedNodeIds(selected.map((n) => n.id));
+      const selectedIds = new Set(selected.map((n) => n.id));
+      const prevIds = useGraphStore.getState().selectedNodeIds;
+      // Preserve click order: keep previous IDs that are still selected,
+      // then append any newly selected IDs at the end
+      const kept = prevIds.filter((id) => selectedIds.has(id));
+      const added = selected
+        .filter((n) => !prevIds.includes(n.id))
+        .map((n) => n.id);
+      setSelectedNodeIds([...kept, ...added]);
     },
     [setSelectedNodeIds],
   );
