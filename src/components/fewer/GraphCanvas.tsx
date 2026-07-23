@@ -240,7 +240,7 @@ function CanvasInner() {
             id: `e-${connection.source}-${connection.target}-${Date.now()}`,
             source: connection.source,
             target: connection.target,
-            type: "default" as const,
+            type: edgeTypeFor(edgeStyle),
           };
           setRfEdges((eds) => [...eds, newEdge]);
         }

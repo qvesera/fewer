@@ -140,7 +140,7 @@ function CollapsibleSection({
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-4 pb-1">{children}</div>
+          <div className="flex flex-col gap-4 pb-1">{children}</div>
         </div>
       </div>
     </section>
@@ -156,15 +156,38 @@ function AnimatedConditional({
   delay?: number;
   children: React.ReactNode;
 }) {
+  const [shouldRender, setShouldRender] = useState(show);
+  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (show) {
+      setShouldRender(true);
+      const frame = requestAnimationFrame(() => {
+        setIsAnimatingIn(true);
+      });
+      return () => cancelAnimationFrame(frame);
+    } else {
+      setIsAnimatingIn(false);
+      timer = setTimeout(() => setShouldRender(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [show]);
+
+  if (!shouldRender) return null;
+
+  const active = show && isAnimatingIn;
+
   return (
     <div
       className={cn(
         "grid transition-[grid-template-rows,opacity,transform] duration-300 ease-in-out",
-        show
+        active
           ? "grid-rows-[1fr] opacity-100 scale-y-100"
           : "grid-rows-[0fr] opacity-0 scale-y-95 pointer-events-none"
       )}
-      style={{ transitionDelay: show ? `${delay}ms` : "0ms" }}
+      style={{ transitionDelay: active ? `${delay}ms` : "0ms" }}
     >
       <div className="overflow-hidden">{children}</div>
     </div>
@@ -260,7 +283,7 @@ function MinimapControls() {
   ] as const;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-foreground/90">Show minimap</Label>
         <Button
@@ -389,7 +412,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
   return (
     <aside className="gm-glass flex h-full w-full flex-col justify-between overflow-hidden border-r border-border/30 p-4">
-      <div className="flex-1 space-y-4 overflow-y-auto pr-1 gm-scroll">
+      <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 gm-scroll">
         
         {/* ── FILE & CANVAS MANAGEMENT ── */}
         <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
@@ -470,7 +493,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── DESIGN & LAYOUT CONFIGURATION ── */}
         <CollapsibleSection title="Layout & Edges" icon={SlidersHorizontal} defaultOpen>
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 {BASIC_LAYOUTS.map((l) => {
@@ -653,7 +676,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
         {/* ── POWER USER MODE ONLY: NODE DIMENSIONS DATA ── */}
         <AnimatedConditional show={advancedModeEnabled} delay={150}>
           <CollapsibleSection title="Node Metrics" icon={Maximize2}>
-            <div className="space-y-4 pt-1">
+            <div className="flex flex-col gap-4 pt-1">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground font-normal">Node Width</Label>
@@ -686,7 +709,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── VISUAL STYLES & SKIN ── */}
         <CollapsibleSection title="Appearance" icon={Palette}>
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="grid grid-cols-3 gap-2">
               {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
                 const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;

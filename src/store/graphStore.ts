@@ -19,6 +19,14 @@ import { validateConnection } from "@/lib/fewer/validation";
 import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 
+function edgeTypeFromStyle(style: EdgeStyle): FewerEdge["type"] {
+  switch (style) {
+    case "curved": return "default";
+    case "angled": return "smoothstep";
+    case "straight": return "straight";
+  }
+}
+
 interface GraphState {
   nodes: FewerNode[];
   edges: FewerEdge[];
@@ -592,7 +600,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const newEdges: FewerEdge[] = [];
     for (const e of edges) { if (allIds.has(e.source) && allIds.has(e.target)) { newEdges.push({ ...e, id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`, source: idMap.get(e.source)!, target: idMap.get(e.target)! }); } }
-    if (parentId) newEdges.push({ id: `e-${parentId}-${idMap.get(id)}`, source: parentId, target: idMap.get(id)!, type: "default" });
+    if (parentId) newEdges.push({ id: `e-${parentId}-${idMap.get(id)}`, source: parentId, target: idMap.get(id)!, type: edgeTypeFromStyle(get().edgeStyle) });
     return { newRoot: newNodes.find((n) => n.id === idMap.get(id))!, newNodes, newEdges };
   },
 
@@ -671,7 +679,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const newEdges: FewerEdge[] = [];
     for (const e of subtreeEdges) { if (allIds.has(e.source) && allIds.has(e.target)) { newEdges.push({ ...e, id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`, source: idMap.get(e.source)!, target: idMap.get(e.target)! }); } }
-    if (effectiveParentId) newEdges.push({ id: `e-${effectiveParentId}-${idMap.get(rootIds[0])}`, source: effectiveParentId, target: idMap.get(rootIds[0])!, type: "default" });
+    if (effectiveParentId) newEdges.push({ id: `e-${effectiveParentId}-${idMap.get(rootIds[0])}`, source: effectiveParentId, target: idMap.get(rootIds[0])!, type: edgeTypeFromStyle(get().edgeStyle) });
     const firstRoot = newNodes.find((n) => rootIds.includes((clip.nodeIds[0])) || n.selected);
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
@@ -702,7 +710,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
     if (siblingLabels.has(displayLabel)) return "";
     const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: displayLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
-    const newEdge = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: "default" as const } : null;
+    const newEdge = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) as const } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
     const sorted = sortEdges(newEdgesUnordered, newNodes);
@@ -730,7 +738,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     if (!connection.source || !connection.target) return { ok: false, reason: "Missing source or target." };
     const result = validateConnection(connection.source, connection.target, nodes, edges);
     if (!result.ok) return result;
-    const newEdge: FewerEdge = { id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`, source: connection.source, target: connection.target, type: "default" };
+    const newEdge: FewerEdge = { id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`, source: connection.source, target: connection.target, type: edgeTypeFromStyle(get().edgeStyle) };
     const nextEdges = sortEdges([...edges, newEdge], [...nodes]);
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], edges: nextEdges });
     return { ok: true };
