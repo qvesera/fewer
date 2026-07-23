@@ -71,7 +71,7 @@ function CanvasInner() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const isDark = themeMode === "dark";
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
-  const lastClickedEdgeIdRef = useRef<string | null>(null);
+  const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
 
   const dashArray = useMemo(() => {
     switch (edgeStrokeStyle) {
@@ -359,7 +359,7 @@ function CanvasInner() {
         e.preventDefault();
         // Use the last clicked edge (tracked via onEdgeClick) since ReactFlow
         // deselects edges before this handler fires
-        const edgeId = lastClickedEdgeIdRef.current;
+        const edgeId = lastClickedEdgeId;
         const ids = edgeId ? [edgeId] : [];
         setCanvasMenu({ x: e.clientX, y: e.clientY });
         useGraphStore.getState().setRightClickDetected();
@@ -401,7 +401,7 @@ function CanvasInner() {
           );
         }}
         onEdgeContextMenu={(_, edge) => {
-          lastClickedEdgeIdRef.current = edge.id;
+          setLastClickedEdgeId(edge.id);
         }}
         onMouseMove={(e) => {
           const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -598,7 +598,7 @@ function CanvasInner() {
             </button>
             {/* Delete Edge — visible when right-clicked on an edge */}
             {(() => {
-              const edgeId = lastClickedEdgeIdRef.current;
+              const edgeId = lastClickedEdgeId;
               if (edgeId) {
                 const selectedEdgeIds = [edgeId];
                 return (
