@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -29,8 +29,8 @@ import {
   Maximize2,
   Map as MinimapIcon,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
-import { StatsPanel, CustomThemeEditor, PowerUserToggle } from ".";
+import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
+import { StatsPanel, CustomThemeEditor, PowerUserToggle, RenameInput } from ".";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -78,28 +78,52 @@ function CollapsibleSection({
   icon: Icon,
   defaultOpen = false,
   badge,
+  forceOpen,
   children,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultOpen?: boolean;
   badge?: string;
+  forceOpen?: number;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (forceOpen !== undefined && forceOpen > 0) {
+      setOpen(true);
+    }
+  }, [forceOpen]);
+
+  useEffect(() => {
+    if (open && sectionRef.current) {
+      const el = sectionRef.current;
+      const t = setTimeout(() => {
+        const parent = el.closest(".gm-scroll");
+        if (parent) {
+          const sectionBottom = el.getBoundingClientRect().bottom;
+          const parentBottom = parent.getBoundingClientRect().bottom;
+          const overflow = sectionBottom - parentBottom;
+          if (overflow > 0) {
+            parent.scrollBy({ top: overflow + 16, behavior: "smooth" });
+          }
+        }
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+
   return (
-    <section className="rounded-xl border border-border/40 bg-card/10 p-3 transition-all duration-200 hover:border-border/85">
+    <section ref={sectionRef} className="rounded-xl border border-border/40 bg-card/10 p-3 transition-[border-color,background-color] duration-200 hover:border-border/85">
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="flex w-full items-center gap-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground/90 transition-colors focus-visible:ring-2 focus-visible:ring-ring rounded-md outline-none"
       >
         <span className="text-muted-foreground/70 transition-transform duration-200">
-          {open ? (
-            <ChevronDown className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5" />
-          )}
+          <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-90")} />
         </span>
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
         <span>{title}</span>
@@ -111,15 +135,62 @@ function CollapsibleSection({
       </button>
       <div
         className={cn(
-          "grid transition-all duration-300 ease-in-out",
-          open ? "grid-rows-[1fr] opacity-100 mt-3" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+          "grid transition-[grid-template-rows,opacity,transform] duration-300 ease-in-out",
+          open ? "grid-rows-[1fr] opacity-100 mt-3 scale-y-100" : "grid-rows-[0fr] opacity-0 pointer-events-none scale-y-95"
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-4 pb-1">{children}</div>
+          <div className="flex flex-col gap-4 pb-1">{children}</div>
         </div>
       </div>
     </section>
+  );
+}
+
+function AnimatedConditional({
+  show,
+  delay = 0,
+  children,
+}: {
+  show: boolean;
+  delay?: number;
+  children: React.ReactNode;
+}) {
+  const [shouldRender, setShouldRender] = useState(show);
+  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (show) {
+      setShouldRender(true);
+      const frame = requestAnimationFrame(() => {
+        setIsAnimatingIn(true);
+      });
+      return () => cancelAnimationFrame(frame);
+    } else {
+      setIsAnimatingIn(false);
+      timer = setTimeout(() => setShouldRender(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [show]);
+
+  if (!shouldRender) return null;
+
+  const active = show && isAnimatingIn;
+
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows,opacity,transform] duration-300 ease-in-out",
+        active
+          ? "grid-rows-[1fr] opacity-100 scale-y-100"
+          : "grid-rows-[0fr] opacity-0 scale-y-95 pointer-events-none"
+      )}
+      style={{ transitionDelay: active ? `${delay}ms` : "0ms" }}
+    >
+      <div className="overflow-hidden">{children}</div>
+    </div>
   );
 }
 
@@ -212,7 +283,7 @@ function MinimapControls() {
   ] as const;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Label className="text-xs text-foreground/90">Show minimap</Label>
         <Button
@@ -251,7 +322,7 @@ function MinimapControls() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-foreground/90">Size</Label>
-          <span className="text-[11px] font-mono text-foreground/80">{miniMapSize}px</span>
+          <span className="text-[11px] font-mono tabular-nums text-foreground/80">{miniMapSize}px</span>
         </div>
         <Slider
           value={[miniMapSize]}
@@ -270,6 +341,12 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
+  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
+  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
+  const edgeWidth = useGraphStore((s) => s.edgeWidth);
+  const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
@@ -289,6 +366,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
+  const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
+  const renamingId = useGraphStore((s) => s.renamingId);
+  const renameNode = useGraphStore((s) => s.renameNode);
+
   const { groups: hiddenNodeGroups, orphans: hiddenOrphans } = useMemo(
     () => getHiddenLayerData(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
@@ -299,37 +380,39 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   // Sanitization side-effect when switching from advanced to basic view
   useEffect(() => {
     if (!advancedModeEnabled) {
-      // 1. Reset edge style to fallback if it's set to "angled"
-      if (edgeStyle === "angled") {
-        setEdgeStyle("curved");
-      }
-      
-      // 2. Reset direction to fallback if set to BT or RL
+      // 1. Reset direction to fallback if set to BT or RL
       if (direction === "BT" || direction === "RL") {
         setDirection("TB");
       }
 
-      // 3. Reset layout theme mode if set to "custom"
+      // 2. Reset layout theme mode if set to "custom"
       if (themeMode === "custom") {
         setThemeMode("dark");
       }
     }
-  }, [advancedModeEnabled, edgeStyle, direction, themeMode, setEdgeStyle, setDirection, setThemeMode]);
+  }, [advancedModeEnabled, direction, themeMode, setDirection, setThemeMode]);
 
   const availableEdgeStyles = useMemo(() => {
-    const base = [
+    return [
       { value: "curved" as EdgeStyle, label: "Curved" },
       { value: "straight" as EdgeStyle, label: "Straight" },
+      { value: "angled" as EdgeStyle, label: "Angled" },
     ];
-    if (advancedModeEnabled) {
-      base.push({ value: "angled" as EdgeStyle, label: "Angled" });
+  }, []);
+
+  const availableStrokeStyles = useMemo(() => {
+    const list: { value: EdgeStrokeStyle; label: string }[] = [];
+    if (!edgeAnimated) {
+      list.push({ value: "solid", label: "Lines" });
     }
-    return base;
-  }, [advancedModeEnabled]);
+    list.push({ value: "dashed", label: "Dashed" });
+    list.push({ value: "dotted", label: "Dotted" });
+    return list;
+  }, [edgeAnimated]);
 
   return (
     <aside className="gm-glass flex h-full w-full flex-col justify-between overflow-hidden border-r border-border/30 p-4">
-      <div className="flex-1 space-y-4 overflow-y-auto pr-1 gm-scroll">
+      <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 gm-scroll">
         
         {/* ── FILE & CANVAS MANAGEMENT ── */}
         <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
@@ -337,14 +420,14 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             <Button
               variant="default"
               size="default"
-              className="w-full gap-2 text-sm font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all"
+              className="w-full gap-2 text-sm font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.96] transition-[transform]"
               onClick={onOpenDirectory}
             >
               <FolderOpen className="h-4 w-4" />
               Import Folder
             </Button>
             
-            {advancedModeEnabled && (
+            <AnimatedConditional show={advancedModeEnabled} delay={0}>
               <Button
                 variant="outline"
                 size="default"
@@ -354,52 +437,45 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 <Upload className="h-4 w-4 text-muted-foreground" />
                 Import from File
               </Button>
-            )}
+            </AnimatedConditional>
             
             <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-2" : "grid-cols-1")}>
-              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "file")) && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => {
-                    const id = `n-${Date.now()}`;
-                    useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Show File
-                </Button>
-              )}
-              {(nodes.length === 0 || !nodes.some((n) => n.data.type === "folder")) && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => {
-                    useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Show Folder
-                </Button>
-              )}
-              {advancedModeEnabled && (
-                <Button
-                  variant="outline"
-                  size="default"
-                  className="w-full gap-1.5 text-xs font-normal text-foreground"
-                  onClick={() => window.dispatchEvent(new CustomEvent("fewer-add-node"))}
-                  disabled={
-                    nodes.length === 0 ||
-                    selectedNodeIds.length === 0 ||
-                    nodes.find((n) => n.id === selectedNodeIds[0])?.data.type === "file"
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  Child
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="default"
+                className="w-full gap-1.5 text-xs font-normal text-foreground"
+                onClick={() => {
+                  const selectedFolderId = selectedNodeIds.length === 1
+                    ? nodes.find((n) => n.id === selectedNodeIds[0] && n.data.type === "folder")?.id
+                    : undefined;
+                  const newId = selectedFolderId
+                    ? useGraphStore.getState().addNode(selectedFolderId, "new-file.txt", "file")
+                    : useGraphStore.getState().addStandaloneNode("new-file.txt", "file", { x: 1000, y: 600 });
+                  useGraphStore.getState().setRenamingId(newId);
+                  useGraphStore.getState().setZoomToNode(newId);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                Add File
+              </Button>
+              <Button
+                variant="outline"
+                size="default"
+                className="w-full gap-1.5 text-xs font-normal text-foreground"
+                onClick={() => {
+                  const selectedFolderId = selectedNodeIds.length === 1
+                    ? nodes.find((n) => n.id === selectedNodeIds[0] && n.data.type === "folder")?.id
+                    : undefined;
+                  const newId = selectedFolderId
+                    ? useGraphStore.getState().addNode(selectedFolderId, "New Folder", "folder")
+                    : useGraphStore.getState().addStandaloneNode("New Folder", "folder", { x: 1000, y: 600 });
+                  useGraphStore.getState().setRenamingId(newId);
+                  useGraphStore.getState().setZoomToNode(newId);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                Add Folder
+              </Button>
             </div>
             
             <Button
@@ -417,46 +493,53 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── DESIGN & LAYOUT CONFIGURATION ── */}
         <CollapsibleSection title="Layout & Edges" icon={SlidersHorizontal} defaultOpen>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              {BASIC_LAYOUTS.map((l) => {
-                const Icon = l.icon;
-                const active = direction === l.value;
-                return (
-                  <button
-                    key={l.value}
-                    onClick={() => setDirection(l.value)}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-xl border p-2.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active
-                        ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
-                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 opacity-80" />
-                    <span className="text-xs font-normal">{l.label}</span>
-                  </button>
-                );
-              })}
-              {advancedModeEnabled && ADVANCED_LAYOUTS.map((l) => {
-                const Icon = l.icon;
-                const active = direction === l.value;
-                return (
-                  <button
-                    key={l.value}
-                    onClick={() => setDirection(l.value)}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 rounded-xl border p-2.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active
-                        ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
-                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 opacity-80" />
-                    <span className="text-xs font-normal">{l.label}</span>
-                  </button>
-                );
-              })}
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                {BASIC_LAYOUTS.map((l) => {
+                  const Icon = l.icon;
+                  const active = direction === l.value;
+                  return (
+                    <button
+                      key={l.value}
+                      onClick={() => setDirection(l.value)}
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-[border-color,background-color,transform] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active
+                          ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                          : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 opacity-80" />
+                      <span className="text-xs font-normal">{l.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <AnimatedConditional show={advancedModeEnabled} delay={50}>
+                <div className="grid grid-cols-2 gap-2">
+                  {ADVANCED_LAYOUTS.map((l) => {
+                    const Icon = l.icon;
+                    const active = direction === l.value;
+                    return (
+                      <button
+                        key={l.value}
+                        onClick={() => setDirection(l.value)}
+                        className={cn(
+                          "flex flex-col items-center justify-center gap-1.5 rounded-xl border p-2.5 transition-[border-color,background-color,transform] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          active
+                            ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                            : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                        )}
+                      >
+                        <Icon className="h-4 w-4 opacity-80" />
+                        <span className="text-xs font-normal">{l.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </AnimatedConditional>
             </div>
 
             <Button
@@ -500,7 +583,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                 <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3 mt-2 transition-all">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground font-normal">Corner radius</Label>
-                    <span className="text-xs font-mono font-normal text-foreground/80">{cornerRadius}px</span>
+                    <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{cornerRadius}px</span>
                   </div>
                   <Slider
                     value={[cornerRadius]}
@@ -511,18 +594,93 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                   />
                 </div>
               )}
+
+              <AnimatedConditional show={advancedModeEnabled} delay={100}>
+                <div className="space-y-3 pt-3 border-t border-border/30 mt-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+                      Edge Motion
+                    </Label>
+                    <div className="grid grid-cols-2 gap-1 rounded-lg border border-border/50 p-0.5 bg-muted/20">
+                      <button
+                        onClick={() => setEdgeAnimated(false)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-[11px] font-medium transition-all",
+                          !edgeAnimated
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Static
+                      </button>
+                      <button
+                        onClick={() => setEdgeAnimated(true)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-[11px] font-medium transition-all",
+                          edgeAnimated
+                            ? "bg-purple-500/10 border-purple-500 text-purple-600 dark:text-purple-300 shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Animated
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+                      Stroke Pattern
+                    </Label>
+                    <div className={cn("grid gap-2", availableStrokeStyles.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+                      {availableStrokeStyles.map((s) => {
+                        const active = edgeStrokeStyle === s.value;
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => setEdgeStrokeStyle(s.value)}
+                            className={cn(
+                              "rounded-lg border px-2 py-1.5 text-xs font-normal text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              active
+                                ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300"
+                                : "border-border/60 hover:bg-muted/40 text-foreground",
+                            )}
+                          >
+                            {s.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
+                        Line Weight
+                      </Label>
+                      <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{edgeWidth}px</span>
+                    </div>
+                    <Slider
+                      value={[edgeWidth]}
+                      onValueChange={([v]) => setEdgeWidth(v)}
+                      min={0.5}
+                      max={6}
+                      step={0.25}
+                    />
+                  </div>
+                </div>
+              </AnimatedConditional>
             </div>
           </div>
         </CollapsibleSection>
 
         {/* ── POWER USER MODE ONLY: NODE DIMENSIONS DATA ── */}
-        {advancedModeEnabled && (
+        <AnimatedConditional show={advancedModeEnabled} delay={150}>
           <CollapsibleSection title="Node Metrics" icon={Maximize2}>
-            <div className="space-y-4 pt-1">
+            <div className="flex flex-col gap-4 pt-1">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground font-normal">Node Width</Label>
-                  <span className="text-xs font-mono font-normal text-foreground/80">{nodeWidth}px</span>
+                  <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeWidth}px</span>
                 </div>
                 <Slider
                   value={[nodeWidth]}
@@ -535,7 +693,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground font-normal">Node Height</Label>
-                  <span className="text-xs font-mono font-normal text-foreground/80">{nodeHeight}px</span>
+                  <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeHeight}px</span>
                 </div>
                 <Slider
                   value={[nodeHeight]}
@@ -547,11 +705,11 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
               </div>
             </div>
           </CollapsibleSection>
-        )}
+        </AnimatedConditional>
 
         {/* ── VISUAL STYLES & SKIN ── */}
         <CollapsibleSection title="Appearance" icon={Palette}>
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="grid grid-cols-3 gap-2">
               {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
                 const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
@@ -579,7 +737,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
         {/* ── RECOVER HIDDEN ELEMENTS (Grouped) ── */}
         {hiddenIds.length > 0 && (
-          <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)}>
+          <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)} forceOpen={hiddenPanelExpandTrigger}>
             <Button
               variant="outline"
               size="sm"
@@ -639,7 +797,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                                   child.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
                                 )}
                               />
-                              <span className="truncate text-foreground/70">{child.data.label}</span>
+                              {renamingId === child.id ? (
+                                <RenameInput
+                                  initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
+                                  onCommit={(v) => renameNode(child.id, v)}
+                                  onCancel={() => useGraphStore.getState().setRenamingId(null)}
+                                />
+                              ) : (
+                                <span className="truncate text-foreground/70">{child.data.label}</span>
+                              )}
                                 <button
                                   onClick={() => unhideAncestors(child.id)}
                                   className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
@@ -669,7 +835,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                           node.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
                         )}
                       />
-                      <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
+                      {renamingId === node.id ? (
+                        <RenameInput
+                          initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
+                          onCommit={(v) => renameNode(node.id, v)}
+                          onCancel={() => useGraphStore.getState().setRenamingId(null)}
+                        />
+                      ) : (
+                        <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
+                      )}
                       <button
                         onClick={() => unhideNode(node.id)}
                         className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
@@ -687,20 +861,20 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
         )}
 
         {/* ── SYSTEM DATA METRICS ── */}
-        {advancedModeEnabled && (
+        <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={200}>
           <CollapsibleSection
             title="Graph Analytics"
             icon={Layers}
           >
             <StatsPanel />
           </CollapsibleSection>
-        )}
+        </AnimatedConditional>
 
-        {advancedModeEnabled && (
+        <AnimatedConditional show={advancedModeEnabled} delay={250}>
           <CollapsibleSection title="Minimap" icon={MinimapIcon}>
             <MinimapControls />
           </CollapsibleSection>
-        )}
+        </AnimatedConditional>
 
         {/* ── PREFERENCES & SWITCHES ── */}
         <CollapsibleSection title="Configuration" icon={Settings2}>
@@ -712,7 +886,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
       <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
         <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
           <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
-          Right-click nodes for parameters • Arrow keys to shift • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit zoom
+          Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit graph to view
         </div>
       </div>
 

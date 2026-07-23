@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,7 +28,10 @@ import {
   Package,
   FolderX,
   FileIcon,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
@@ -42,6 +50,7 @@ export function ImportDialog({
   importing = false,
 }: ImportDialogProps) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [options, setOptions] = useState<ImportOptions>({
     ...DEFAULT_IMPORT_OPTIONS,
   });
@@ -73,11 +82,11 @@ export function ImportDialog({
   }, [advancedModeEnabled]);
 
   const basicOptions = (
-    <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-all">
+    <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-colors">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Maximum Graph Scan Depth</Label>
-        <span className="text-xs font-mono font-semibold text-foreground/80">
-          {options.maxDepth === 0 ? "Unlimited traversal" : `${options.maxDepth} levels`}
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">Max Scan Depth</Label>
+        <span className="text-xs font-mono font-medium text-foreground/80">
+          {options.maxDepth === 0 ? "Unlimited" : `${options.maxDepth} levels`}
         </span>
       </div>
       <Slider
@@ -88,14 +97,14 @@ export function ImportDialog({
         step={1}
       />
       <p className="text-xs text-muted-foreground leading-normal">
-        Controls recursion structural boundary limits during filesystem tree lookup. Depth of 0 sweeps without limit.
+        How deep to scan. 0 = no limit.
       </p>
     </div>
   );
 
   const advancedOptions = (
     <div className="space-y-3">
-      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/85 block mt-2">Exclusion and Parser Rules</Label>
+      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/85 block mt-2">Advanced Options</Label>
       
       <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
         <div className="flex items-center gap-3">
@@ -105,11 +114,11 @@ export function ImportDialog({
             <EyeOff className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           )}
           <div className="space-y-0.5">
-            <Label htmlFor="include-hidden" className="text-xs font-semibold cursor-pointer">
-              Parse Dotfiles and Hidden Files
+            <Label htmlFor="include-hidden" className="text-xs font-medium cursor-pointer">
+              Include Hidden Files
             </Label>
             <p className="text-xs text-muted-foreground">
-              Indexes hidden entities like <code className="font-mono text-[10px] bg-muted px-1 rounded">.gitignore</code> or environment configuration templates.
+              Scan hidden files (<code className="font-mono text-[10px] bg-muted px-1 rounded">.gitignore</code>, <code className="font-mono text-[10px] bg-muted px-1 rounded">.env</code>, etc.)
             </p>
           </div>
         </div>
@@ -124,11 +133,11 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <Package className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="include-vendored" className="text-xs font-semibold cursor-pointer">
-              Include Package Vendor Modules
+            <Label htmlFor="include-vendored" className="text-xs font-medium cursor-pointer">
+              Include node_modules
             </Label>
             <p className="text-xs text-muted-foreground">
-              Processes heavy system directories like <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code>, caches, and dependency assets.
+              Scan <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code> and dependency folders.
             </p>
           </div>
         </div>
@@ -143,11 +152,11 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <FolderX className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="skip-empty-folders" className="text-xs font-semibold cursor-pointer">
-              Skip Empty Structural Folders
+            <Label htmlFor="skip-empty-folders" className="text-xs font-medium cursor-pointer">
+              Skip Empty Folders
             </Label>
             <p className="text-xs text-muted-foreground">
-              Excludes nodes for directories containing zero valid file system children.
+              Hide folders with no files inside.
             </p>
           </div>
         </div>
@@ -162,11 +171,11 @@ export function ImportDialog({
         <div className="flex items-center gap-3">
           <FileIcon className="h-4 w-4 text-muted-foreground/80 shrink-0" />
           <div className="space-y-0.5">
-            <Label htmlFor="include-files" className="text-xs font-semibold cursor-pointer">
-              Instantiate Files as Canvas Nodes
+            <Label htmlFor="include-files" className="text-xs font-medium cursor-pointer">
+              Show Files on Canvas
             </Label>
             <p className="text-xs text-muted-foreground">
-              Maps structural files. If turned off, maps directory tree configurations exclusively.
+              Show file nodes. Off = directories only.
             </p>
           </div>
         </div>
@@ -178,9 +187,9 @@ export function ImportDialog({
       </div>
 
       <div className="space-y-2.5 rounded-xl border border-border/40 p-4 bg-card/10">
-        <Label className="text-xs font-semibold text-muted-foreground">File Extension Whitelist</Label>
+        <Label className="text-xs font-medium text-muted-foreground">File Extensions</Label>
         <p className="text-xs text-muted-foreground">
-          Index specific extension types. Comma-separated without dots.
+          Only scan these extensions. Comma-separated.
         </p>
         <Input
           value={options.extensions.join(", ")}
@@ -204,7 +213,7 @@ export function ImportDialog({
             htmlFor="case-sensitive"
             className="text-xs text-muted-foreground cursor-pointer font-medium"
           >
-            Enforce Case-Sensitive Extensions Matching
+            Case-Sensitive Match
           </Label>
         </div>
       </div>
@@ -212,46 +221,55 @@ export function ImportDialog({
   );
 
   const summary = (
-    <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
-      <span className="font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">Active Target Ingest Profile</span>
+    <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
+      <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
+        <CollapsibleTrigger asChild>
+          <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">
+            <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
+            Summary
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
       <div className="flex justify-between border-b border-border/10 pb-1.5">
-        <span>Recursion Range</span>
-        <span className="font-mono font-semibold text-foreground/80">
-          {options.maxDepth === 0 ? "Infinite Bounds" : `${options.maxDepth} levels`}
+        <span>Depth</span>
+        <span className="font-mono font-medium text-foreground/80">
+          {options.maxDepth === 0 ? "No Limit" : `${options.maxDepth} levels`}
         </span>
       </div>
       
       {advancedModeEnabled && (
         <>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
-            <span>Hidden files parsing</span>
-            <span className="font-semibold text-foreground/85">{options.includeHidden ? "Allowed" : "Ignored"}</span>
+            <span>Hidden Files</span>
+            <span className="font-medium text-foreground/85">{options.includeHidden ? "Yes" : "No"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
-            <span>Vendor dependencies</span>
-            <span className="font-semibold text-foreground/85">{options.includeVendored ? "Indexed" : "Skipped"}</span>
+            <span>node_modules</span>
+            <span className="font-medium text-foreground/85">{options.includeVendored ? "Yes" : "No"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
-            <span>Null branches filter</span>
-            <span className="font-semibold text-foreground/85">{options.skipEmptyFolders ? "Skipped" : "Rendered"}</span>
+            <span>Empty Folders</span>
+            <span className="font-medium text-foreground/85">{options.skipEmptyFolders ? "Skip" : "Show"}</span>
           </div>
           <div className="flex justify-between border-b border-border/10 pb-1.5">
-            <span>Graph asset representation</span>
-            <span className="font-semibold text-foreground/85">
-              {options.includeFiles ? "Render files & directories" : "Structure directories only"}
+            <span>Show Files</span>
+            <span className="font-medium text-foreground/85">
+              {options.includeFiles ? "Yes" : "No"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Filtering patterns</span>
-            <span className="font-mono bg-secondary font-semibold text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
+            <span>Extensions</span>
+            <span className="font-mono bg-secondary font-medium text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
               {options.extensions.length > 0
-                ? `${options.extensions.length} extensions specified`
-                : "Universal selection (*)"}
+                ? `${options.extensions.length} ext`
+                : "All (*)"}
             </span>
           </div>
         </>
       )}
-    </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 
   return (
@@ -260,17 +278,17 @@ export function ImportDialog({
         <DialogHeader className="pb-3 border-b border-border/20">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
             <Filter className="h-5 w-5 text-muted-foreground/80" />
-            Ingest Configuration Rules
+            Import Settings
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-normal font-normal mt-1">
-            Configure parser metrics and tree exploration patterns below before starting files directory scans.
+            fewer does not store or upload any data. All data is processed locally.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto pr-1 gm-scroll py-4">
           {basicOptions}
           {advancedModeEnabled && advancedOptions}
-          {summary}
+          {advancedModeEnabled && summary}
         </div>
 
         {/* FIXED: Explicitly defined spacing and layout rules prevents overlapping buttons */}
@@ -280,7 +298,7 @@ export function ImportDialog({
             size="default"
             onClick={() => onOpenChange(false)}
             disabled={importing}
-            className="text-xs border-border/80 text-foreground font-semibold hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs border-border/80 text-foreground font-medium hover:bg-muted/50 h-10 px-4 flex-1 sm:flex-initial"
           >
             Cancel
           </Button>
@@ -288,17 +306,17 @@ export function ImportDialog({
             size="default"
             onClick={() => onConfirm(options)}
             disabled={importing}
-            className="text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.96] transition-[colors,transform] gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Parsing...
+                Scanning...
               </>
             ) : (
               <>
                 <FolderOpen className="h-4 w-4" />
-                Index Selected Directory
+                Import Folder
               </>
             )}
           </Button>

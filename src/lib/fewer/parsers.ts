@@ -75,23 +75,24 @@ export function parseASCIITree(text: string): TreeEntry {
 
   if (lines.length === 0) throw new Error("Empty tree text");
 
-  // The first line should be the root
-  const firstLine = lines[0].replace(/\/\s*$/, "").trim();
-  const root: TreeEntry = {
-    name: firstLine,
-    type: "folder",
-    children: [],
-  };
+  // First pass: parse raw entries with name, depth, and whether name ends with /
+  interface RawEntry {
+    name: string;
+    depth: number;
+    hasSlash: boolean;
+  }
 
-  // Stack to track the current path: [{ entry, depth }]
-  const stack: { entry: TreeEntry; depth: number }[] = [{ entry: root, depth: 0 }];
+  const entries: RawEntry[] = [];
+
+  // The first line is the root
+  const firstLine = lines[0].replace(/\/\s*$/, "").trim();
+  entries.push({ name: firstLine, depth: 0, hasSlash: lines[0].includes("/") });
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
 
     // Calculate depth by counting tree characters
-    // Each level is typically 4 characters: "│   " or "    "
     const treePart = line.match(/^[\s│├└─]+/);
     let depth = 0;
     let name = line.trim();
@@ -104,6 +105,7 @@ export function parseASCIITree(text: string): TreeEntry {
     }
 
     // Remove trailing slash for folders, trailing size annotations
+    const hasSlash = name.endsWith("/");
     name = name.replace(/\/\s*$/, "").trim();
     // Remove trailing annotations like " (1.2 KB)" or "·1.2 KB"
     name = name.replace(/\s*[·(].*$/, "").trim();
@@ -112,14 +114,51 @@ export function parseASCIITree(text: string): TreeEntry {
 
     if (!name) continue;
 
-    const isFolder = !name.includes(".") || name.endsWith("/");
+    entries.push({ name, depth, hasSlash });
+  }
+
+  // Second pass: determine if each entry is a folder.
+  // An entry is a folder if:
+  //   1. Name ends with "/", OR
+  //   2. A subsequent entry at a deeper depth exists (has children)
+  const isFolder = new Array(entries.length).fill(false);
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].hasSlash) {
+      isFolder[i] = true;
+      continue;
+    }
+    // Look ahead for any entry at a strictly greater depth
+    for (let j = i + 1; j < entries.length; j++) {
+      if (entries[j].depth > entries[i].depth) {
+        isFolder[i] = true;
+        break;
+      }
+      if (entries[j].depth <= entries[i].depth) {
+        // A sibling or ancestor was reached — no deeper children found
+        break;
+      }
+    }
+  }
+
+  // Build the tree from entries
+  const root: TreeEntry = {
+    name: entries[0].name,
+    type: isFolder[0] ? "folder" : "file",
+    children: isFolder[0] ? [] : undefined,
+  };
+
+  const stack: { entry: TreeEntry; depth: number }[] = [{ entry: root, depth: 0 }];
+
+  for (let i = 1; i < entries.length; i++) {
+    const { name, depth } = entries[i];
+    const folder = isFolder[i];
     const entry: TreeEntry = {
       name,
-      type: isFolder ? "folder" : "file",
-      children: isFolder ? [] : undefined,
+      type: folder ? "folder" : "file",
+      children: folder ? [] : undefined,
     };
 
-    // Find the parent by walking up the stack
+    // Walk up stack to find parent
     while (stack.length > 1 && stack[stack.length - 1].depth >= depth) {
       stack.pop();
     }
@@ -128,7 +167,7 @@ export function parseASCIITree(text: string): TreeEntry {
     parent.children = parent.children ?? [];
     parent.children.push(entry);
 
-    if (isFolder) {
+    if (folder) {
       stack.push({ entry, depth });
     }
   }

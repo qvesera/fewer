@@ -225,6 +225,7 @@ export async function expandFolderNode(
     edges: import("@/lib/fewer/types").FewerEdge[];
     nodeWidth: number;
     nodeHeight: number;
+    edgeStyle: import("@/lib/fewer/types").EdgeStyle;
   },
 ): Promise<void> {
   const { v4: uuidv4 } = await import("uuid");
@@ -285,11 +286,12 @@ export async function expandFolderNode(
   }));
 
   // Create edge from parent to new folder
+  const edgeType = store.edgeStyle === "curved" ? "default" : store.edgeStyle === "angled" ? "smoothstep" : "straight";
   const parentEdge = {
     id: `e-${parentId}-${folderNodeId}`,
     source: parentId,
     target: folderNodeId,
-    type: "default" as const,
+    type: edgeType as const,
   };
 
   // Update edges to reference the new folder as source (instead of the

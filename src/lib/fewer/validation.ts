@@ -23,6 +23,12 @@ export function validateConnection(
     return { ok: false, reason: "A node cannot be its own parent." };
   }
 
+  // File nodes cannot have children
+  const parentNode = nodes.find((n) => n.id === parentNodeId);
+  if (parentNode && parentNode.data.type === "file") {
+    return { ok: false, reason: "File nodes cannot have children." };
+  }
+
   // Does child already have a parent?
   const existingParent = edges.find((e) => e.target === childNodeId);
   if (existingParent && existingParent.source !== parentNodeId) {

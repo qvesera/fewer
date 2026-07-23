@@ -68,7 +68,7 @@ export function Toolbar({
       <div className="flex-1 max-w-md hidden md:block">
         <button
           onClick={() => setSearchOpen(true)}
-          className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 hover:border-border/80 transition-all group"
+          className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 hover:border-border/80 transition-[background-color,border-color] group"
         >
           <div className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5 group-hover:text-foreground transition-colors" />

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Toolbar,
   Sidebar,
   SearchPanel,
   ExportPanel,
@@ -14,6 +13,7 @@ import {
   BugReportDialog,
   TutorialDialog,
   ShortcutsDialog,
+  ShareDialog,
   AddNodeDialog,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
@@ -24,21 +24,8 @@ import {
   isFileSystemAccessSupported,
 } from "@/lib/fewer/fileSystem";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ThemeMode } from "@/lib/fewer/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AlertTriangle, FolderOpen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -47,19 +34,16 @@ export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
-  const setAdvancedMode = useGraphStore((s) => s.setAdvancedMode);
   const { toast } = useToast();
   const device = useDevice();
 
-  const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [fsSupported] = useState(() => isFileSystemAccessSupported());
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFromFileOpen, setImportFromFileOpen] = useState(false);
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
-  const [advancedMode, setAdvancedModeLocal] = useState(false);
+  const [hashLoaded, setHashLoaded] = useState(false);
 
   const handleRestartTutorial = useCallback(() => {
     setTutorialRestartKey((k) => k + 1);
@@ -72,19 +56,46 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
-  // Initialize theme and advanced mode from localStorage on mount
+  // Initialize theme from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("fewer-theme") as ThemeMode | null;
+    const savedTheme = localStorage.getItem("fewer-theme") as string | null;
     if (savedTheme) {
-      useGraphStore.getState().setThemeMode(savedTheme);
-    }
-    const savedAdvanced = localStorage.getItem("fewer-advanced-mode");
-    if (savedAdvanced === "true") {
-      setAdvancedMode(true);
-      setAdvancedModeLocal(true);
+      useGraphStore.getState().setThemeMode(savedTheme as any);
     }
   }, []);
 
+  // Load shared graph from URL hash
+  useEffect(() => {
+    if (hashLoaded) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash) return;
+    import("@/lib/fewer/share").then(({ decodeShareData }) => {
+      const data = decodeShareData(hash);
+      if (!data) {
+        toast({
+          title: "Invalid share link",
+          description: "Could not decode the graph from the URL.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Restore graph state
+      useGraphStore.getState().setGraph(data.nodes, data.edges, false);
+      useGraphStore.getState().setDirection(data.direction);
+      useGraphStore.getState().setEdgeStyle(data.edgeStyle);
+      useGraphStore.getState().setThemeMode(data.themeMode as any);
+      useGraphStore.getState().setCornerRadius(data.cornerRadius);
+      useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
+      useGraphStore.setState({ dataSource: "shared" });
+      setHashLoaded(true);
+      // Clear hash from address bar
+      window.history.replaceState(null, "", window.location.pathname);
+      toast({
+        title: "Shared graph loaded",
+        description: `${data.nodes.length} node${data.nodes.length === 1 ? "" : "s"} from share link`,
+      });
+    });
+  }, [hashLoaded, toast]);
 
   // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
   useEffect(() => {
@@ -163,11 +174,6 @@ export function FewerApp() {
     [setGraph, toast],
   );
 
-  const handlePowerModeChange = (enabled: boolean) => {
-    setAdvancedMode(enabled);
-    setAdvancedModeLocal(enabled);
-  };
-
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
       <GlobalNavbar onRestartTutorial={handleRestartTutorial} />
@@ -220,12 +226,10 @@ export function FewerApp() {
       </div>
 
       <ExportPanel />
-
       <BugReportDialog />
-
       <TutorialDialog restartKey={tutorialRestartKey} />
-
       <ShortcutsDialog />
+      <ShareDialog />
 
       <AddNodeDialog
         open={addChildOpen}
@@ -250,100 +254,6 @@ export function FewerApp() {
         onConfirm={handleConfirmImport}
         importing={importing}
       />
-
-      <Dialog open={welcomeOpen} onOpenChange={setWelcomeOpen}>
-        <DialogContent className="sm:max-w-lg" data-testid="welcome-dialog">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <span className="bg-gradient-to-br from-orange-500 to-purple-600 bg-clip-text text-transparent">
-                fewer
-              </span>
-            </DialogTitle>
-            <DialogDescription>
-              The ultimate directory visualization application. Transform your
-              file system navigation into an art form with React Flow, dynamic
-              layouts, multi-format exports, and more.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-2 gap-3 py-2 text-sm">
-            <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Loaded
-              </div>
-              <div className="font-semibold">Sample project tree</div>
-              <div className="text-xs text-muted-foreground">
-                Try Open Directory for your own files.
-              </div>
-            </div>
-            <div className="rounded-lg border border-border/40 bg-muted/30 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                File System API
-              </div>
-              <div className="font-semibold">
-                {fsSupported ? "Available" : "Unavailable"}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {fsSupported
-                  ? "You can open real directories."
-                  : "Use Chrome/Edge for native FS access."}
-              </div>
-            </div>
-          </div>
-
-          {!fsSupported && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                Your browser doesn't support the File System Access API.
-                You can still explore the sample datasets and use all the export
-                / search / layout features.
-              </div>
-            </div>
-          )}
-
-          <div className="mt-4 pt-3 border-t border-border/40">
-            <div className="flex items-center justify-between rounded-lg border border-border/40 p-3">
-              <div className="flex items-center gap-2">
-                <div>
-                  <Label className="text-sm font-medium">Power User Mode</Label>
-                  <p className="text-[10px] text-muted-foreground">
-                    Enable advanced features and settings
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={advancedMode}
-                onCheckedChange={handlePowerModeChange}
-                aria-label="Toggle advanced mode"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-18">
-            <Button
-              variant="outline"
-              onClick={() => {
-                handleLoadSample();
-                setWelcomeOpen(false);
-              }}
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Load sample project
-            </Button>
-            <Button
-              onClick={() => {
-                if (fsSupported) handleOpenDirectory();
-                setWelcomeOpen(false);
-              }}
-              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white"
-            >
-              <FolderOpen className="mr-2 h-4 w-4" />
-              {fsSupported ? "Open my directory" : "Start exploring"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

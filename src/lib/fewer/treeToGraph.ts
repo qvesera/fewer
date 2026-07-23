@@ -25,6 +25,7 @@ export function treeToGraph(
     const id = `${prefix}-${uuid().slice(0, 8)}`;
     const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
     const extension = entry.type === "file" ? getFileExtension(entry.name) : "";
+    const label = extension ? entry.name.slice(0, -(extension.length + 1)) : entry.name;
     const category = entry.type === "file" ? categorizeByExtension(extension) : undefined;
 
     // When includeFiles is false, add file IDs to hiddenIds for proper hiding
@@ -38,7 +39,7 @@ export function treeToGraph(
       type: entry.type,
       position: { x: 0, y: 0 }, // layout fills these in
       data: {
-        label: entry.name,
+        label,
         path: fullPath,
         type: entry.type,
         extension,

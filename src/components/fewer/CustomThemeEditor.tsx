@@ -30,7 +30,7 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
           type="color"
           value={value.startsWith("#") ? value : "#000000"}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-7 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+          className="h-7 w-7 cursor-pointer rounded-md border border-border bg-transparent p-0.5 min-hit"
         />
       </div>
     </div>

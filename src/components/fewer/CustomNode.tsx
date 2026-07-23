@@ -156,8 +156,10 @@ function FolderContextMenu({
   const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
+  const hasParent = edges.some((e) => e.target === nodeId);
 
   return (
     <ContextMenu>
@@ -227,6 +229,17 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        {hasParent && (
+          <ContextMenuItem
+            onSelect={() => {
+              useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+              toast({ title: "Unparented", description: nodeLabel });
+            }}
+            className="cursor-pointer"
+          >
+            Unparent
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => deleteNode([nodeId])}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
@@ -289,12 +302,14 @@ function FileEntryContextMenu({
   nodeLabel,
   onDelete,
   showOpenFile,
+  renameSource: menuRenameSource = "canvas",
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   onDelete: () => void;
   showOpenFile?: boolean;
+  renameSource?: "canvas" | "folder";
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -302,8 +317,10 @@ function FileEntryContextMenu({
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
   const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
+  const hasParent = edges.some((e) => e.target === nodeId);
 
   return (
     <ContextMenu>
@@ -373,6 +390,17 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
+        {hasParent && (
+          <ContextMenuItem
+            onSelect={() => {
+              useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+              toast({ title: "Unparented", description: nodeLabel });
+            }}
+            className="cursor-pointer"
+          >
+            Unparent
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={onDelete}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
@@ -437,6 +465,9 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const renamingId = useGraphStore((s) => s.renamingId);
+  const renameSource = useGraphStore((s) => s.renameSource);
+  const renameNode = useGraphStore((s) => s.renameNode);
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
 
@@ -475,7 +506,15 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
               : "text-fewer-file-icon",
           )}
         />
-        <span className="truncate text-foreground/90">{child.data.label}</span>
+        {renamingId === child.id && renameSource === "folder" ? (
+          <RenameInput
+            initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
+            onCommit={(v) => renameNode(child.id, v)}
+            onCancel={() => useGraphStore.getState().setRenamingId(null)}
+          />
+        ) : (
+          <span className="truncate text-foreground/90">{child.data.label}</span>
+        )}
         <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground">
           {child.data.type === "folder"
             ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
@@ -501,6 +540,7 @@ function CustomNodeImpl({
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
   const renamingId = useGraphStore((s) => s.renamingId);
+  const renameSource = useGraphStore((s) => s.renameSource);
   const dataSource = useGraphStore((s) => s.dataSource);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
@@ -587,9 +627,9 @@ function CustomNodeImpl({
               />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              {isRenaming ? (
+              {isRenaming && renameSource === "canvas" ? (
                 <RenameInput
-                  initialValue={data.label}
+                  initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
                   onCommit={(v) => renameNode(id, v)}
                   onCancel={() => useGraphStore.getState().setRenamingId(null)}
                 />
@@ -708,9 +748,9 @@ function CustomNodeImpl({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {isRenaming ? (
+          {isRenaming && renameSource === "canvas" ? (
             <RenameInput
-              initialValue={data.label}
+              initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
               onCommit={(v) => renameNode(id, v)}
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
@@ -751,3 +791,4 @@ function CustomNodeImpl({
 }
 
 export const CustomNode = memo(CustomNodeImpl);
+export { RenameInput };

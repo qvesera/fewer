@@ -52,6 +52,7 @@ export type FewerEdge = Edge<{ label?: string }, "default">;
 export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 
 export type EdgeStyle = "curved" | "angled" | "straight";
+export type EdgeStrokeStyle = "solid" | "dashed" | "dotted";
 
 export interface GraphSnapshot {
   nodes: FewerNode[];

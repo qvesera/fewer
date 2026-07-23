@@ -112,7 +112,7 @@ export function StatsPanel() {
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
                     <div
-                      className={cn("h-full rounded-full transition-all duration-500", meta.barColor)}
+                      className={cn("h-full rounded-full transition-[width] duration-500", meta.barColor)}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
