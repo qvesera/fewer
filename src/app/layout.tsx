@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "fewer — Interactive Directory Graph Visualizer",
+  title: "fewer | Interactive Directory Graph Visualizer",
   description:
     "Transform your file system navigation into an art form. Interactive graph-based directory visualization with React Flow, Dagre auto-layout, 7 export formats, keyboard-first navigation, custom themes, and real file system integration.",
   keywords: [
