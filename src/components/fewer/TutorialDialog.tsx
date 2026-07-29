@@ -209,7 +209,11 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   };
 
   const handleMarkDone = (id: string) => {
-    store.markTutorialBeginnerStep(id);
+    if (tutorialBeginnerDone.includes(id)) {
+      store.unmarkTutorialBeginnerStep(id);
+    } else {
+      store.markTutorialBeginnerStep(id);
+    }
   };
 
   const allDone = tutorialBeginnerDone.length >= beginnerItems.length && beginnerItems.length > 0;

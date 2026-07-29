@@ -39,7 +39,7 @@ export function getBeginnerChecklist(): TutorialChecklistItem[] {
     {
       id: "load-sample",
       label: "Load a sample project",
-      description: "Click 'Load Sample' in the canvas toolbar to explore a pre-built directory tree",
+      description: "Click 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree",
       icon: Sparkles,
       watchState: { key: "dataSource", value: "sample" },
       targetSelector: '[data-tutorial="sample-button"]',

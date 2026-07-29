@@ -201,6 +201,7 @@ interface GraphState {
   tutorialDemoStep: number;
   rightClickDetected: boolean;
   markTutorialBeginnerStep: (id: string) => void;
+  unmarkTutorialBeginnerStep: (id: string) => void;
   setTutorialDismissed: () => void;
   setTutorialDemoStep: (step: number) => void;
   setRightClickDetected: () => void;
@@ -819,6 +820,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const done = get().tutorialBeginnerDone;
     if (done.includes(id)) return;
     const next = [...done, id];
+    set({ tutorialBeginnerDone: next });
+    if (typeof window !== "undefined") { try { localStorage.setItem(TUTORIAL_BEGINNER_DONE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
+  },
+  unmarkTutorialBeginnerStep: (id) => {
+    const done = get().tutorialBeginnerDone;
+    if (!done.includes(id)) return;
+    const next = done.filter((d) => d !== id);
     set({ tutorialBeginnerDone: next });
     if (typeof window !== "undefined") { try { localStorage.setItem(TUTORIAL_BEGINNER_DONE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
   },
