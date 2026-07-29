@@ -10,6 +10,7 @@ export { FewerApp } from "./FewerApp";
 export { ImportDialog } from "./ImportDialog";
 export { ImportFromFileDialog } from "./ImportFromFileDialog";
 export { KeyboardShortcuts } from "./KeyboardShortcuts";
+export { Logo } from "./Logo";
 export { SearchPanel } from "./SearchPanel";
 export { ShareDialog } from "./ShareDialog";
 export { ShortcutsDialog } from "./ShortcutsDialog";

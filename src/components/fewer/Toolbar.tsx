@@ -6,7 +6,6 @@ import {
   Redo2,
   Search,
   Download,
-  LayoutTemplate,
   PanelLeftClose,
   PanelLeft,
   Trash2,
@@ -16,6 +15,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { Logo } from "./Logo";
 
 interface ToolbarProps {
   onOpenDirectory: () => void;
@@ -46,10 +46,7 @@ export function Toolbar({
       {/* SECTION 1: IDENTITY & LAYOUT CONTROL */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 border-r border-border/40 pr-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-orange-500 to-amber-500 text-white">
-            <LayoutTemplate className="h-4 w-4" />
-          </div>
-          <span className="text-sm font-bold tracking-tight">fewer</span>
+          <Logo showText />
         </div>
         
         <Button

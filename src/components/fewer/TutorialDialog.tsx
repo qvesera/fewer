@@ -18,6 +18,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
 import { useDevice } from "@/hooks/use-device";
+import { Logo } from "./Logo";
 
 /* -------------------------------------------------------------------------- */
 /*  Demo stage - animated node preview                                        */
@@ -234,9 +235,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     
     {/* Header & Logo */}
     <div className="flex items-center gap-3.5 mb-4">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/20">
-        <Sparkles className="h-5.5 w-5.5" />
-      </div>
+      <Logo size={44} className="[&>img]:shadow-lg [&>img]:shadow-orange-500/20" />
       <div className="flex flex-col">
         <h2 className="text-base font-bold tracking-tight">
           <span className="bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 bg-clip-text text-transparent">
