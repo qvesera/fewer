@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
-import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
+import { useDevice } from "@/hooks/use-device";
 
 /* -------------------------------------------------------------------------- */
 /*  Demo stage - animated node preview                                        */
@@ -148,7 +148,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     resetTutorial,
   } = store;
 
-  const beginnerItems = getBeginnerChecklist();
+  const { isTouch } = useDevice();
+  const beginnerItems = getBeginnerChecklist(isTouch);
 
   // Restart when restartKey changes
   useEffect(() => {

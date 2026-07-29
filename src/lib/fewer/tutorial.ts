@@ -34,12 +34,14 @@ import {
   Download,
 } from "lucide-react";
 
-export function getBeginnerChecklist(): TutorialChecklistItem[] {
+export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
   return [
     {
       id: "load-sample",
       label: "Load a sample project",
-      description: "Click 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree",
+      description: isTouch
+        ? "Tap 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree"
+        : "Click 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree",
       icon: Sparkles,
       watchState: { key: "dataSource", value: "sample" },
       targetSelector: '[data-tutorial="sample-button"]',
@@ -47,15 +49,19 @@ export function getBeginnerChecklist(): TutorialChecklistItem[] {
     {
       id: "explore-nodes",
       label: "Explore folder & file nodes",
-      description: "Click any node to select it. Folders show children inside.",
+      description: isTouch
+        ? "Tap any node to select it. Folders show children inside."
+        : "Click any node to select it. Folders show children inside.",
       icon: Layers,
       watchState: { key: "selectedNodeIds", value: null },
       targetSelector: null,
     },
     {
       id: "right-click",
-      label: "Right-click for actions",
-      description: "Right-click for context menu. Explore file, folder and canvas actions",
+      label: isTouch ? "Long-press for actions" : "Right-click for actions",
+      description: isTouch
+        ? "Long-press a node for context menu. Explore file, folder and canvas actions"
+        : "Right-click for context menu. Explore file, folder and canvas actions",
       icon: MousePointerClick,
       watchState: { key: "rightClickDetected", value: true },
       targetSelector: null,
@@ -63,7 +69,9 @@ export function getBeginnerChecklist(): TutorialChecklistItem[] {
     {
       id: "search",
       label: "Search the graph",
-      description: "Press Ctrl+F to find nodes by name or path",
+      description: isTouch
+        ? "Tap the search icon to find nodes by name or path"
+        : "Press Ctrl+F to find nodes by name or path",
       icon: Search,
       watchState: { key: "searchOpen", value: true },
       targetSelector: null,
@@ -71,7 +79,9 @@ export function getBeginnerChecklist(): TutorialChecklistItem[] {
     {
       id: "export",
       label: "Export your graph",
-      description: "Press Ctrl+E to export as PNG & ASCII tree",
+      description: isTouch
+        ? "Tap the export icon to export as PNG & ASCII tree"
+        : "Press Ctrl+E to export as PNG & ASCII tree",
       icon: Download,
       watchState: { key: "exportOpen", value: true },
       targetSelector: null,
