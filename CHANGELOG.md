@@ -5,7 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-07
+## [0.3.2] - 2026-07
+
+### Added
+
+- **Ancestor path highlighting** — selecting a node highlights all edges from that node up to the root parent with the accent color (amber/orange `#fb923c` in light mode, purple `#a855f7` in dark mode)
+- **Theme-aware edge colors** — edge highlight colors update immediately when switching between light/dark/custom themes
+- **ELK (elkjs) layout engine** — replaces dagre with ELK's layered algorithm for more compact, balanced tree layouts. Async layout for initial import, sync fallback for relayout
+- `parentId` and `collapsed` fields on `FewerNodeData` for tree navigation
+- `fsHandleStore` — separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
+
+### Changed
+
+- **Split monolithic 1018-line `graphStore` into 6 focused Zustand slices**: graph, history, ui, layout, theme
+- **Operation-based undo/redo** — stores diffs instead of full snapshots (critical for 10K+ node graphs)
+- **`graphVersion` sync** — every mutation that changes `nodes`, `edges`, or `hiddenIds` now increments `graphVersion`, ensuring the React Flow canvas syncs immediately
+- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full arrays — cuts history memory from O(50×n) to O(50×k)
+- **Memory optimization:** `FileSystemHandle` objects moved out of `FewerNodeData` into `fsHandleStore`
+- **Memory optimization:** React Flow viewport culling via `onlyRenderVisibleElements=true` (minimap uses custom component independent of viewport)
+- **Highlighted edges render on top** — sorted to end of array so they're never covered by grey edges
+- **Show All button** now also calls `setShowFiles(true)` to restore file visibility
+- Dagre layout parameters adjusted for tighter spacing (network-simplex ranker, reduced ranksep)
+
+### Fixed
+
+- Pre-existing `const` assertion errors in `fileOps.ts` and `graphSlice.ts`
+- `Set<unknown>` type errors in `KeyboardShortcuts.tsx` and `graphSlice.ts`
+- Infinite re-render loop in GraphCanvas (unconditional `useEffect` syncs)
+- `descendantIds` scope bug in `connectNodes` (variable shadowed inside if-block)
+- Duplicate `removeEdgesFromHandle` and `deleteEdges` function definitions
+- URL import not rendering until "Beautify Layout" clicked (async `setGraph` → sync `layoutGraphSync`)
+- Edge styles not updating when switching themes (added `useEffect` watching `themeMode`)
+
+## [0.3.1] - 2026-07
 
 ### Added
 

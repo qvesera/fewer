@@ -6,7 +6,7 @@
 - [ ] **Theme editor** — only folder and file color options work; other options have no effect
 - [ ] **Folder header text** — changing folder header text color also changes footer color
 - [ ] **Dark mode polish** — default dark theme looks bad; needs visual overhaul
-- [ ] **Layout weirdness** — graph auto-layout sometimes produces odd spacing/overlaps
+- [x] **Layout weirdness** — graph auto-layout sometimes produces odd spacing/overlaps
 
 ## 🎨 Theme
 
@@ -31,11 +31,12 @@
 - [ ] **Login system** — authenticate with cloud providers, link cloud data
 - [ ] **Multi-directory visualization** — view and compare multiple directories from cloud storage on the same graph
 - [ ] **Public link support** — import from public cloud drive links
+- [ ] **Indexed directory support** — add support for visualizing indexed directories on the internet
 
 ## ⚡ Architecture & Performance
 
-- [ ] **Client-side virtualization** — only render visible nodes for large graphs (1000+ nodes)
-- [ ] **SOLID principles refactor** — clean up store and component architecture
+- [x] **Client-side virtualization** — only render visible nodes for large graphs (1000+ nodes)
+- [x] **SOLID principles refactor** — clean up store and component architecture
 - [ ] **Tauri desktop app** — port to Tauri for native file watching, system tray, global hotkeys, better compute
 - [ ] **Symlink handling** — detect and display symlink nodes without infinite recursion
 - [ ] **Link compression** — shorten share URLs (e.g., compressed graph state)
