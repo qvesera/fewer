@@ -116,7 +116,6 @@ function CanvasInner() {
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } =
     useReactFlow();
 
-  const hasMeasuredRef = useRef(false);
   const relayout = useGraphStore((s) => s.relayout);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
@@ -156,12 +155,6 @@ function CanvasInner() {
       return () => clearTimeout(t);
     }
   }, [zoomToNodeIds]);
-
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      hasMeasuredRef.current = false;
-    }
-  }, [rfNodes.length]);
 
   useEffect(() => {
     if (rfNodes.length === 0) return;
@@ -237,17 +230,9 @@ function CanvasInner() {
             return n;
           }),
         }));
-
-        if (!hasMeasuredRef.current) {
-          hasMeasuredRef.current = true;
-          setTimeout(() => {
-            relayout();
-            fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
-          }, 50);
-        }
       }
     },
-    [onNodesChange, relayout, fitView],
+    [onNodesChange],
   );
 
   const onConnect = useCallback(
