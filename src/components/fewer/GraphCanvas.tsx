@@ -140,7 +140,10 @@ function CanvasInner() {
   }, [zoomToNode, fitView]);
 
   const zoomToNodeIdsRef = useRef(zoomToNodeIds);
-  zoomToNodeIdsRef.current = zoomToNodeIds;
+
+  useEffect(() => {
+    zoomToNodeIdsRef.current = zoomToNodeIds;
+  }, [zoomToNodeIds]);
 
   useEffect(() => {
     const ids = zoomToNodeIdsRef.current;
