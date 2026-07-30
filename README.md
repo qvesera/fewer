@@ -7,7 +7,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
 ![React Flow](https://img.shields.io/badge/React_Flow-12-blueviolet)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![License](https://img.shields.io/badge/License-AGPLv3-blue)
 
 [Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Keyboard](#keyboard-shortcuts) • [Export](#export) • [Browser Support](#browser-support) • [FAQ](#faq)
 
@@ -100,12 +100,12 @@ docker run -p 3000:3000 fewer
 
 ## Quick Start
 
-| Step | Action |
-|------|--------|
-| **1** | Click **Load sample project** in the welcome dialog |
-| **2** | Use **arrow keys** (↑↓←→) to navigate the tree |
-| **3** | **Right-click** any node for context menu |
-| **4** | Press **Ctrl+I** to see all keyboard shortcuts |
+| Step  | Action                                                                      |
+| ----- | --------------------------------------------------------------------------- |
+| **1** | Click **Load sample project** in the welcome dialog                         |
+| **2** | Use **arrow keys** (↑↓←→) to navigate the tree                              |
+| **3** | **Right-click** any node for context menu                                   |
+| **4** | Press **Ctrl+I** to see all keyboard shortcuts                              |
 | **5** | Click **Export** to save the graph (SVG, PNG, JSON, CSV, DOT, script, tree) |
 
 ### Import a real directory
@@ -142,20 +142,20 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Keyboard Navigation</b></summary>
 
-| Key | Action |
-|-----|--------|
-| **↑↓←→** | Tree navigation (parent/child/sibling) |
-| **Ctrl+N** | New node |
-| **Ctrl+F** | Search (fuzzy, click-to-zoom) |
-| **Ctrl+E** | Export panel |
-| **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo |
-| **Ctrl+A** | Select all |
-| **Ctrl+L** | Cycle layout direction |
-| **Ctrl+I** | Shortcuts reference |
-| **F2** | Rename |
-| **Delete** | Remove (cascading) |
-| **Space** | Fit view |
-| **+ / - / 0** | Zoom in/out/reset |
+| Key                       | Action                                 |
+| ------------------------- | -------------------------------------- |
+| **↑↓←→**                  | Tree navigation (parent/child/sibling) |
+| **Ctrl+N**                | New node                               |
+| **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
+| **Ctrl+E**                | Export panel                           |
+| **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
+| **Ctrl+A**                | Select all                             |
+| **Ctrl+L**                | Cycle layout direction                 |
+| **Ctrl+I**                | Shortcuts reference                    |
+| **F2**                    | Rename                                 |
+| **Delete**                | Remove (cascading)                     |
+| **Space**                 | Fit view                               |
+| **+ / - / 0**             | Zoom in/out/reset                      |
 
 </details>
 
@@ -172,11 +172,11 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Context Menus</b></summary>
 
-| Target | Actions |
-|--------|---------|
+| Target     | Actions                                                          |
+| ---------- | ---------------------------------------------------------------- |
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
-| **File** | Rename, Open File, Copy Name, Copy, Cut, Delete |
-| **Canvas** | Fit View, Select All, Zoom In/Out, Show All |
+| **File**   | Rename, Open File, Copy Name, Copy, Cut, Delete                  |
+| **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
 
 </details>
 
@@ -226,15 +226,15 @@ docker run -p 3000:3000 fewer
 
 ## Export
 
-| Format | Description | Use Case |
-|--------|-------------|----------|
-| **SVG** | Vector with theme background | Documentation, presentations |
-| **PNG** | Raster, adjustable quality, transparent bg | Slides, social media |
-| **JSON** | Full graph state | Re-import, programmatic use |
-| **CSV** | Tabular nodes + edges | Spreadsheets, data analysis |
-| **DOT** | Graphviz format | `dot` rendering pipeline |
-| **Script** | `mkdir -p` shell/batch script | Reproduce directory structure |
-| **Tree** | Unicode ASCII tree (├── └── │) | Code comments, READMEs |
+| Format     | Description                                | Use Case                      |
+| ---------- | ------------------------------------------ | ----------------------------- |
+| **SVG**    | Vector with theme background               | Documentation, presentations  |
+| **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
+| **JSON**   | Full graph state                           | Re-import, programmatic use   |
+| **CSV**    | Tabular nodes + edges                      | Spreadsheets, data analysis   |
+| **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
+| **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
+| **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
 
@@ -307,30 +307,30 @@ src/
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| UI | React 19, Tailwind CSS 4, shadcn/ui (New York) |
-| Graph | React Flow v12 (@xyflow/react), Dagre |
-| State | Zustand |
-| Language | TypeScript 5 (strict) |
-| Database | Prisma ORM + SQLite |
-| Icons | Lucide React |
-| Fonts | Geist Sans / Geist Mono |
+| Layer     | Technology                                     |
+| --------- | ---------------------------------------------- |
+| Framework | Next.js 16 (App Router, Turbopack)             |
+| UI        | React 19, Tailwind CSS 4, shadcn/ui (New York) |
+| Graph     | React Flow v12 (@xyflow/react), Dagre          |
+| State     | Zustand                                        |
+| Language  | TypeScript 5 (strict)                          |
+| Database  | Prisma ORM + SQLite                            |
+| Icons     | Lucide React                                   |
+| Fonts     | Geist Sans / Geist Mono                        |
 
 ---
 
 ## Browser Support
 
-| Feature | Chrome/Edge | Firefox | Safari |
-|---------|:-----------:|:-------:|:------:|
-| Graph visualization | ✅ | ✅ | ✅ |
-| Import directory (FS Access API) | ✅ | ❌ | ❌ |
-| Import directory (webkitdirectory) | ✅ | ✅ | ✅ |
-| Open files from disk | ✅ | ❌ | ❌ |
-| Export (all formats) | ✅ | ✅ | ✅ |
-| Keyboard shortcuts | ✅ | ✅ | ✅ |
-| Custom theme | ✅ | ✅ | ✅ |
+| Feature                            | Chrome/Edge | Firefox | Safari |
+| ---------------------------------- | :---------: | :-----: | :----: |
+| Graph visualization                |     ✅      |   ✅    |   ✅   |
+| Import directory (FS Access API)   |     ✅      |   ❌    |   ❌   |
+| Import directory (webkitdirectory) |     ✅      |   ✅    |   ✅   |
+| Open files from disk               |     ✅      |   ❌    |   ❌   |
+| Export (all formats)               |     ✅      |   ✅    |   ✅   |
+| Keyboard shortcuts                 |     ✅      |   ✅    |   ✅   |
+| Custom theme                       |     ✅      |   ✅    |   ✅   |
 
 ---
 
@@ -340,7 +340,7 @@ src/
 A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
-A: Yes — the standalone version is available at [fewer.dev](https://fewer.dev) (planned). The self-hosted version requires `npm install && npm run dev`.
+A: Yes — the standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `npm install && npm run dev`.
 
 **Q: Why does directory import not work in Firefox/Safari?**
 A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback — works for import, but can't write back to disk.
@@ -368,7 +368,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. By participating, you agr
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+AGPLv3 — see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
