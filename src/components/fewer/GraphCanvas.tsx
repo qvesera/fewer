@@ -457,7 +457,7 @@ function CanvasInner() {
         nodesDraggable
         nodesConnectable
         elementsSelectable
-        onlyRenderVisibleElements={false}
+        onlyRenderVisibleElements={true}
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15}
