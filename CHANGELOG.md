@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ImportProgress` component for large directory imports
 - Typed store hooks with shallow comparison selectors (`useGraphData`, `useLayoutConfig`, `useUiState`)
 - History operation types (`HistoryOp`) and `applyOp`/`undoOp` functions
+- `fsHandleStore` — separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
+- `parentId` and `collapsed` fields on `FewerNodeData` for tree navigation
 
 ### Changed
 
@@ -22,11 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rewrote `graphStore.ts` as a thin re-export wrapper for backward compatibility
 - `applySearch` now only recomputes when `searchQuery` changes, not on every mutation
 - GraphCanvas now uses `as OnNodesChange` cast for React Flow v12 compatibility
+- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full `nodes`/`edges` arrays — cuts history memory from O(50×n) to O(50×k) where k << n
+- **Memory optimization:** `FileSystemHandle` objects moved out of `FewerNodeData` into `fsHandleStore` — reduces per-node memory by removing heavy browser API objects from serialized data
+- **Memory optimization:** React Flow viewport culling enabled (`onlyRenderVisibleElements=true`) — previously all nodes were rendered regardless of viewport
 
 ### Fixed
 
 - Pre-existing `const` assertion errors in `fileOps.ts` and `graphSlice.ts`
 - `Set<unknown>` type errors in `KeyboardShortcuts.tsx` and `graphSlice.ts`
+- `descendantIds` scope bug in `connectNodes` (variable was shadowed inside if-block)
+- Duplicate `removeEdgesFromHandle` and `deleteEdges` function definitions in graphSlice
 
 ## [0.3.0] - 2026-07
 

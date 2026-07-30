@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
+import { fsHandleStore } from "./types";
 import { categorizeByExtension, getFileExtension } from "./categorize";
 import type { ImportOptions } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
@@ -36,6 +37,11 @@ export function treeToGraph(
       hiddenFileIds.push(id);
     }
 
+    // Store fsHandle in separate store to avoid bloat on serialized node objects
+    if (entry.fsHandle) {
+      fsHandleStore.set(id, entry.fsHandle);
+    }
+
     nodes.push({
       id,
       type: entry.type,
@@ -49,7 +55,6 @@ export function treeToGraph(
         size: entry.size ?? 0,
         depth,
         isRoot: parentId === null,
-        fsHandle: entry.fsHandle ?? null,
       },
     });
 
@@ -128,11 +133,15 @@ export async function chunkTreeToGraph(
       hiddenFileIds.push(id);
     }
 
+    if (entry.fsHandle) {
+      fsHandleStore.set(id, entry.fsHandle);
+    }
+
     nodes.push({
       id,
       type: entry.type,
       position: { x: 0, y: 0 },
-      data: { label, path: fullPath, type: entry.type, extension, category, size: entry.size ?? 0, depth, isRoot: parentId === null, fsHandle: entry.fsHandle ?? null },
+      data: { label, path: fullPath, type: entry.type, extension, category, size: entry.size ?? 0, depth, isRoot: parentId === null },
     });
 
     if (parentId) {

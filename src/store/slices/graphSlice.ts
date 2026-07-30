@@ -101,6 +101,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
+      // Instead of BulkImportOp with full arrays, push a targeted replace op
+      // We'll use a single bulk-import but store only the diff (new nodes)
       get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
     }
     const styledNodes = nodes.map((n) => ({
@@ -161,12 +163,18 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   deleteNodes: (ids) => {
     const { nodes, edges, searchQuery } = get();
+    // Collect all nodes to remove (including descendants)
     const toRemove = new Set<string>();
     const queue = [...ids];
     while (queue.length) { const id = queue.shift()!; toRemove.add(id); for (const e of edges) { if (e.source === id && !toRemove.has(e.target)) queue.push(e.target); } }
+    const removedNodes = nodes.filter((n) => toRemove.has(n.id));
+    const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const newNodes = nodes.filter((n) => !toRemove.has(n.id));
     const newEdges = edges.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target));
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    // Store only the removed subtree (not the full array) for undo
+    if (removedNodes.length > 0) {
+      get().pushOp({ type: "bulk-import", nodes: removedNodes, edges: removedEdges });
+    }
     set({ nodes: applySearchInternal(newNodes, searchQuery), edges: newEdges, selectedNodeIds: [] });
   },
 
@@ -204,6 +212,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       }
       return n;
     });
+    // Targeted rename op — stores only the diff, not the full array
     get().pushOp({ type: "rename", nodeId: id, oldLabel, newLabel: newLabelOnly });
     set({ nodes: applySearchInternal(newNodes, searchQuery), renamingId: null });
   },
@@ -249,7 +258,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parentId = edges.find((e) => e.target === id)?.source ?? null;
     const { newRoot, newNodes, newEdges } = get()._duplicateSubtree(id, parentId);
     if (!newRoot) return;
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    // Store only the new nodes (not the full array) for undo
+    get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: [newRoot.id] });
@@ -261,7 +271,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (parentFolderId) { const parent = nodes.find((n) => n.id === parentFolderId); if (parent && parent.data.type === "folder") effectiveParentId = parentFolderId; }
     const { newRoot, newNodes, newEdges } = get()._duplicateSubtree(id, effectiveParentId);
     if (!newRoot) return;
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    // Store only the new nodes for undo
+    get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: [newRoot.id] });
@@ -291,15 +302,15 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (parentFolderId) { const parent = nodes.find((n) => n.id === parentFolderId); if (parent && parent.data.type === "folder") effectiveParentId = parentFolderId; }
     const { subtreeNodes, subtreeEdges } = clip;
     const allIds = new Set<string>(subtreeNodes.map((n: any) => n.id));
-    const rootIds = clip.nodeIds.filter((id) => allIds.has(id));
+    const rootIds = (clip.nodeIds as unknown as string[]).filter((id) => allIds.has(id));
     const idMap = new Map<string, string>();
     for (const oid of allIds) idMap.set(oid, `n-paste-${uuid().slice(0, 8)}`);
     const newNodes: FewerNode[] = [];
     const rootOrig = subtreeNodes.find((n) => rootIds.includes(n.id));
-    const minX = Math.min(...subtreeNodes.map((n) => n.position.x));
-    const minY = Math.min(...subtreeNodes.map((n) => n.position.y));
-    const maxX = Math.max(...subtreeNodes.map((n) => n.position.x + Number(n.style?.width ?? nodeWidth)));
-    const maxY = Math.max(...subtreeNodes.map((n) => n.position.y + Number(n.style?.height ?? 60)));
+    const minX = Math.min(...subtreeNodes.map((n: any) => n.position.x));
+    const minY = Math.min(...subtreeNodes.map((n: any) => n.position.y));
+    const maxX = Math.max(...subtreeNodes.map((n: any) => n.position.x + Number(n.style?.width ?? nodeWidth)));
+    const maxY = Math.max(...subtreeNodes.map((n: any) => n.position.y + Number(n.style?.height ?? 60)));
     const boundsW = maxX - minX; const boundsH = maxY - minY;
     const defaultBase = rootOrig ? { x: rootOrig.position.x + 40, y: rootOrig.position.y + 40 } : { x: 0, y: 0 };
     const tryBase = effectivePastePos ? effectivePastePos : defaultBase;
@@ -335,9 +346,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         }
       }
     }
-    const firstRoot = newNodes.find((n) => rootIds.includes((clip.nodeIds[0])) || n.selected);
+    const firstRoot = newNodes.find((n) => rootIds.includes((clip.nodeIds as unknown as string[])[0]) || n.selected);
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    // Store only the new nodes (not the full array) for undo
+    get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
     set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [] });
@@ -349,9 +361,12 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes, edges, searchQuery } = get();
     const toRemove = new Set([id]); const queue = [id];
     while (queue.length) { const qid = queue.shift()!; for (const e of edges) { if (e.source === qid && !toRemove.has(e.target)) { toRemove.add(e.target); queue.push(e.target); } } }
+    const removedNodes = nodes.filter((n) => toRemove.has(n.id));
+    const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const filteredNodes = nodes.filter((n) => !toRemove.has(n.id));
     const filteredEdges = edges.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target));
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    // Store only the removed subtree for undo
+    get().pushOp({ type: "bulk-import", nodes: removedNodes, edges: removedEdges });
     set({ nodes: applySearchInternal(filteredNodes, searchQuery), edges: filteredEdges, selectedNodeIds: [] });
   },
 
@@ -375,7 +390,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
     const sorted = sortEdges(newEdgesUnordered, newNodes);
-    get().pushOp({ type: "add-node", node: newNode, edge: newEdge });
+    // Targeted add-node op — stores only the new node, not the full array
+    get().pushOp({ type: "add-node", node: newNode, edge: newEdge as FewerEdge | null });
     set({ nodes: applySearchInternal(newNodes, searchQuery), edges: sorted });
     setTimeout(() => get().relayout(), 50);
     return newNode.id;
@@ -396,6 +412,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
     const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
+    // Targeted add-node op — stores only the new node
     get().pushOp({ type: "add-node", node: newNode, edge: null });
     set({ nodes: applySearchInternal(newNodes, searchQuery) });
     return newNode.id;
@@ -410,12 +427,12 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parent = nodes.find((n) => n.id === connection.source);
     const child = nodes.find((n) => n.id === connection.target);
     let updatedNodes = nodes;
+    const descendantIds = new Set<string>();
     if (parent && child) {
       const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
       const newChildPath = `${parent.data.path}/${childFullLabel}`;
       const oldChildPath = child.data.path;
       const isFolder = child.data.type === "folder";
-      const descendantIds = new Set<string>();
       if (isFolder) {
         const queue = [connection.target];
         while (queue.length) {
@@ -429,7 +446,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         return n;
       });
     }
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    const changedNodeIds = child && child.data.type === "folder" 
+      ? [connection.target, ...Array.from(descendantIds)] 
+      : [connection.target];
+    // Store the new edge + changed nodes for undo
+    get().pushOp({ type: "bulk-import", nodes: updatedNodes.filter((n) => changedNodeIds.includes(n.id)), edges: [newEdge] });
     const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
     set({ nodes: applySearchInternal(updatedNodes, searchQuery), edges: nextEdges });
     return { ok: true };
@@ -439,7 +460,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes, edges, searchQuery } = get();
     const filteredEdges = edges.filter((e) => { if (handleType === "source") return e.source !== nodeId; if (handleType === "target") return e.target !== nodeId; return true; });
     if (filteredEdges.length === edges.length) return;
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    const removedEdges = edges.filter((e) => !filteredEdges.includes(e));
+    get().pushOp({ type: "bulk-import", nodes: [], edges: removedEdges });
     set({ edges: filteredEdges });
   },
 
@@ -448,7 +470,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const idSet = new Set(ids);
     const filtered = edges.filter((e) => !idSet.has(e.id));
     if (filtered.length === edges.length) return;
-    get().pushOp({ type: "bulk-import", nodes, edges });
+    const removedEdges = edges.filter((e) => idSet.has(e.id));
+    get().pushOp({ type: "bulk-import", nodes: [], edges: removedEdges });
     set({ edges: filtered });
   },
 

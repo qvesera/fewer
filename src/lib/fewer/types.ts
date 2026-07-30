@@ -41,8 +41,11 @@ export interface FewerNodeData {
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
-  /** File System Access API handle for this node (if loaded from disk) */
-  fsHandle?: FileSystemHandle | null;
+  /** Whether folder is collapsed */
+  collapsed?: boolean;
+  /** Parent node id (for tree navigation) */
+  parentId?: string | null;
+  /** Allow arbitrary extra fields (required by React Flow Node type) */
   [key: string]: unknown;
 }
 
@@ -150,10 +153,6 @@ export const DEFAULT_CUSTOM_THEME: CustomTheme = {
 };
 
 /**
- * Metadata for each color in the custom theme editor.
- * Maps theme keys to labels and CSS variable names.
- */
-/**
  * Operation-based history: each undo/redo step stores a diff instead of
  * cloning the full nodes/edges arrays. This is critical for 10K+ node graphs.
  */
@@ -239,3 +238,10 @@ export const THEME_COLOR_META: {
   { key: "fileBorder", label: "File Border", cssVar: "--fewer-file-border" },
   { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon" },
 ];
+
+/**
+ * Separate store for FileSystem handles — these are live browser API objects
+ * that are not serializable and bloat memory when stored on every node.
+ * Using a WeakMap-like Map keyed by nodeId keeps them out of the main store.
+ */
+export const fsHandleStore = new Map<string, FileSystemHandle | null>();
