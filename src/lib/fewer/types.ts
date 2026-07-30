@@ -47,7 +47,7 @@ export interface FewerNodeData {
 }
 
 export type FewerNode = Node<FewerNodeData, "folder" | "file">;
-export type FewerEdge = Edge<{ label?: string }, "default">;
+export type FewerEdge = Edge<{ label?: string }, "default" | "smoothstep" | "straight">;
 
 export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 

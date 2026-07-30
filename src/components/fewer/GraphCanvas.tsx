@@ -25,14 +25,14 @@ import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStyle, EdgeStrokeStyle, FewerNode } from "@/lib/fewer/types";
+import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
   file: CustomNode,
 };
 
-function edgeTypeFor(style: EdgeStyle): string {
+function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   switch (style) {
     case "curved":
       return "default";

@@ -35,26 +35,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`, click **Load sample project**, and:
+Open `http://localhost:3000`, click **Load sample project**, and explore the graph:
 
-```
-┌─────────────────────────────────────────────────────┐
-│  src/                                     [folder]  │
-│  ├── app/                                          │
-│  │   ├── layout.tsx                                │
-│  │   ├── page.tsx                                  │
-│  │   └── api/                                      │
-│  │       ├── route.ts                              │
-│  │       └── github-tree/route.ts                  │
-│  ├── components/fewer/                             │
-│  │   ├── FewerApp.tsx                              │
-│  │   ├── GraphCanvas.tsx       ← click to focus    │
-│  │   ├── CustomNode.tsx        ← folder/file card  │
-│  │   └── ...                                       │
-│  └── store/                                        │
-│       └── graphStore.ts       ← Zustand store      │
-└─────────────────────────────────────────────────────┘
-```
+![fewer demo](public/demo.png)
 
 Use arrow keys to navigate the tree. Right-click any node for actions. Press **Ctrl+I** for all shortcuts.
 
@@ -352,13 +335,7 @@ A: Delete the repo folder. That's it — no background processes, no config file
 
 ## Roadmap
 
-- [ ] **Tauri desktop app** — native file watching, system tray, global hotkeys
-- [ ] **Dual-pane view** — two graphs side by side with drag between panes
-- [ ] **Command palette** (Cmd+K) — fuzzy search all actions
-- [ ] **File preview** — image thumbnails, text quick-view, syntax highlighting
-- [ ] **Batch operations** — multi-select rename/delete/move with glob patterns
-- [ ] **Disk usage visualization** — sunburst/treemap overlay
-- [ ] **Plugin system** — user-defined commands and node types
+See [ROADMAP.md](ROADMAP.md) for the full roadmap — short-term, medium-term, and long-term plans.
 
 ---
 
