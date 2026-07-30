@@ -287,11 +287,11 @@ export async function expandFolderNode(
 
   // Create edge from parent to new folder
   const edgeType = store.edgeStyle === "curved" ? "default" : store.edgeStyle === "angled" ? "smoothstep" : "straight";
-  const parentEdge = {
+  const parentEdge: { id: string; source: string; target: string; type: string } = {
     id: `e-${parentId}-${folderNodeId}`,
     source: parentId,
     target: folderNodeId,
-    type: edgeType as const,
+    type: edgeType,
   };
 
   // Update edges to reference the new folder as source (instead of the

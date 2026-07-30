@@ -153,6 +153,58 @@ export const DEFAULT_CUSTOM_THEME: CustomTheme = {
  * Metadata for each color in the custom theme editor.
  * Maps theme keys to labels and CSS variable names.
  */
+/**
+ * Operation-based history: each undo/redo step stores a diff instead of
+ * cloning the full nodes/edges arrays. This is critical for 10K+ node graphs.
+ */
+export interface AddNodeOp {
+  type: "add-node";
+  node: FewerNode;
+  edge: FewerEdge | null;
+}
+
+export interface RemoveNodeOp {
+  type: "remove-node";
+  node: FewerNode;
+  edge: FewerEdge | null;
+  children: FewerNode[];
+  childEdges: FewerEdge[];
+}
+
+export interface MoveNodeOp {
+  type: "move-node";
+  nodeId: string;
+  from: { parentId: string | null; x: number; y: number };
+  to: { parentId: string | null; x: number; y: number };
+}
+
+export interface RenameOp {
+  type: "rename";
+  nodeId: string;
+  oldLabel: string;
+  newLabel: string;
+}
+
+export interface BulkImportOp {
+  type: "bulk-import";
+  nodes: FewerNode[];
+  edges: FewerEdge[];
+}
+
+export interface ToggleCollapseOp {
+  type: "toggle-collapse";
+  nodeId: string;
+  wasCollapsed: boolean;
+}
+
+export type HistoryOp =
+  | AddNodeOp
+  | RemoveNodeOp
+  | MoveNodeOp
+  | RenameOp
+  | BulkImportOp
+  | ToggleCollapseOp;
+
 export const THEME_COLOR_META: {
   key: keyof CustomTheme;
   label: string;

@@ -302,7 +302,7 @@ function CanvasInner() {
             parentId,
             position,
             handle,
-            useGraphStore.getState(),
+            useGraphStore.getState() as any,
           );
           toast({
             title: "Folder expanded",
@@ -403,7 +403,7 @@ function CanvasInner() {
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
-        onNodesChange={handleNodesChange}
+        onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
         onNodeDragStop={onNodeDragStop}
