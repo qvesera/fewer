@@ -6,8 +6,6 @@
 - [ ] **Theme editor** — only folder and file color options work; other options have no effect
 - [ ] **Folder header text** — changing folder header text color also changes footer color
 - [ ] **Dark mode polish** — default dark theme looks bad; needs visual overhaul
-- [ ] **Copy/paste multiple nodes** — when pasting multiple nodes under a parent, only the first gets parented
-- [ ] **Search scope** — search searches the full file path instead of just the file/folder name
 - [ ] **Layout weirdness** — graph auto-layout sometimes produces odd spacing/overlaps
 
 ## 🎨 Theme

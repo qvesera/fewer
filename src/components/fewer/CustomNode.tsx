@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useRef, useState, useEffect } from "react";
+import { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps, NodeResizer } from "@xyflow/react";
 import {
   Folder,
@@ -102,14 +102,21 @@ function RenameInput({
 }) {
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
+  const committedRef = useRef(false);
 
+  // Re-focus on every render (handles canvas re-renders losing focus)
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
     input.focus();
-    const dot = initialValue.lastIndexOf(".");
-    input.setSelectionRange(0, dot > 0 ? dot : initialValue.length);
-  }, [initialValue]);
+  });
+
+  // Select text only on initial mount (not on every keystroke re-render)
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.select();
+  }, []);
 
   return (
     <input
@@ -125,13 +132,17 @@ function RenameInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          committedRef.current = true;
           onCommit(value);
         } else if (e.key === "Escape") {
           e.preventDefault();
+          committedRef.current = true;
           onCancel();
         }
       }}
-      onBlur={() => onCommit(value)}
+      onBlur={() => {
+        if (committedRef.current) return;
+      }}
       className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
     />
   );

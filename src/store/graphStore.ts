@@ -248,7 +248,6 @@ function applySearch(
   return nodes.map((n) => {
     const matches =
       n.data.label.toLowerCase().includes(q) ||
-      n.data.path.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
     return {
       ...n,
@@ -626,7 +625,43 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past } = get();
     const trimmed = newLabel.trim();
     if (!trimmed) return;
-    const newNodes = nodes.map((n) => n.id === id ? (() => { const ext = n.data.type === "file" ? getFileExtension(trimmed) : ""; const label = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed; return { ...n, data: { ...n.data, label, extension: ext, category: ext ? categorizeByExtension(ext) : undefined } }; })() : n);
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return;
+    const newExt = node.data.type === "file" ? getFileExtension(trimmed) : "";
+    const newLabelOnly = newExt ? trimmed.slice(0, -(newExt.length + 1)) : trimmed;
+    const oldFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+    const newFullLabel = newExt ? `${newLabelOnly}.${newExt}` : newLabelOnly;
+    // Find parent
+    const parentEdge = edges.find((e) => e.target === id);
+    const parent = parentEdge ? nodes.find((n) => n.id === parentEdge.source) : null;
+    const parentPath = parent ? parent.data.path : "";
+    // Compute old and new path prefixes
+    const oldPathPrefix = parent ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
+    const newPathPrefix = parent ? `${parentPath}/${newFullLabel}` : newFullLabel;
+    const isFolder = node.data.type === "folder";
+    // Find all descendants (if folder)
+    const descendantIds = new Set<string>();
+    if (isFolder) {
+      const queue = [id];
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of edges) {
+          if (e.source === nid && e.target !== id) {
+            descendantIds.add(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+    }
+    const newNodes = nodes.map((n) => {
+      if (n.id === id) {
+        return { ...n, data: { ...n.data, label: newLabelOnly, path: newPathPrefix, extension: newExt, category: newExt ? categorizeByExtension(newExt) : undefined } };
+      }
+      if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldPathPrefix)) {
+        return { ...n, data: { ...n.data, path: n.data.path.replace(oldPathPrefix, newPathPrefix) } };
+      }
+      return n;
+    });
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(newNodes, edges, get().searchQuery), renamingId: null });
   },
 
@@ -741,7 +776,22 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const newEdges: FewerEdge[] = [];
     for (const e of subtreeEdges) { if (allIds.has(e.source) && allIds.has(e.target)) { newEdges.push({ ...e, id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`, source: idMap.get(e.source)!, target: idMap.get(e.target)! }); } }
-    if (effectiveParentId) newEdges.push({ id: `e-${effectiveParentId}-${idMap.get(rootIds[0])}`, source: effectiveParentId, target: idMap.get(rootIds[0])!, type: edgeTypeFromStyle(get().edgeStyle) });
+    if (effectiveParentId) {
+      const parentNode = nodes.find((n) => n.id === effectiveParentId);
+      const parentPath = parentNode?.data.path ?? "";
+      for (const rootId of rootIds) {
+        const newId = idMap.get(rootId);
+        if (!newId) continue;
+        newEdges.push({ id: `e-${effectiveParentId}-${newId}`, source: effectiveParentId, target: newId, type: edgeTypeFromStyle(get().edgeStyle) });
+        // Update path for the pasted root node to reflect new parent
+        const pastedNode = newNodes.find((n) => n.id === newId);
+        if (pastedNode) {
+          const fullLabel = pastedNode.data.extension ? `${pastedNode.data.label}.${pastedNode.data.extension}` : pastedNode.data.label;
+          pastedNode.data.path = `${parentPath}/${fullLabel}`;
+          pastedNode.data.isRoot = false;
+        }
+      }
+    }
     const firstRoot = newNodes.find((n) => rootIds.includes((clip.nodeIds[0])) || n.selected);
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
@@ -764,13 +814,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   addNode: (parentId, label, type) => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
-    const newPath = parent ? `${parent.data.path}/${label}` : label;
     const ext = type === "file" ? getFileExtension(label) : "";
-    const displayLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
+    const baseLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
     // Check for duplicate names under the same parent
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : [];
     const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    if (siblingLabels.has(displayLabel)) return "";
+    let displayLabel = baseLabel;
+    if (siblingLabels.has(displayLabel)) {
+      let counter = 1;
+      while (siblingLabels.has(`${baseLabel} (${counter})`)) counter++;
+      displayLabel = `${baseLabel} (${counter})`;
+    }
+    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
+    const newPath = parent ? `${parent.data.path}/${finalLabel}` : finalLabel;
     const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: displayLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) as const } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
@@ -785,11 +841,17 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
     const ext = type === "file" ? getFileExtension(trimmed) : "";
-    const displayLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
+    const baseLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
     // Check for duplicate names at root level
     const rootNodeLabels = new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.data.label));
-    if (rootNodeLabels.has(displayLabel)) return "";
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: trimmed, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    let displayLabel = baseLabel;
+    if (rootNodeLabels.has(displayLabel)) {
+      let counter = 1;
+      while (rootNodeLabels.has(`${baseLabel} (${counter})`)) counter++;
+      displayLabel = `${baseLabel} (${counter})`;
+    }
+    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(newNodes, edges, get().searchQuery) });
     return newNode.id;
@@ -801,8 +863,41 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const result = validateConnection(connection.source, connection.target, nodes, edges);
     if (!result.ok) return result;
     const newEdge: FewerEdge = { id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`, source: connection.source, target: connection.target, type: edgeTypeFromStyle(get().edgeStyle) };
-    const nextEdges = sortEdges([...edges, newEdge], [...nodes]);
-    set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], edges: nextEdges });
+    // Update child path to reflect new parent
+    const parent = nodes.find((n) => n.id === connection.source);
+    const child = nodes.find((n) => n.id === connection.target);
+    let updatedNodes = nodes;
+    if (parent && child) {
+      const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
+      const newChildPath = `${parent.data.path}/${childFullLabel}`;
+      const oldChildPath = child.data.path;
+      const isFolder = child.data.type === "folder";
+      // Find all descendants (if folder)
+      const descendantIds = new Set<string>();
+      if (isFolder) {
+        const queue = [connection.target];
+        while (queue.length) {
+          const nid = queue.shift()!;
+          for (const e of edges) {
+            if (e.source === nid && e.target !== connection.target) {
+              descendantIds.add(e.target);
+              queue.push(e.target);
+            }
+          }
+        }
+      }
+      updatedNodes = nodes.map((n) => {
+        if (n.id === connection.target) {
+          return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+        }
+        if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) {
+          return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+        }
+        return n;
+      });
+    }
+    const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
+    set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(updatedNodes, nextEdges, get().searchQuery), edges: nextEdges });
     return { ok: true };
   },
 
