@@ -53,7 +53,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   setEdgeStyle: (style) => {
     set({ edgeStyle: style });
     const edgeType = style === "curved" ? "default" : style === "angled" ? "smoothstep" : "straight";
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, type: edgeType as any })) }));
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, type: edgeType as any })), graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeAnimated: (animated) => {
@@ -62,7 +62,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     } else {
       set({ edgeAnimated: animated });
     }
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })) }));
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })), graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {
@@ -73,19 +73,20 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
         ...e,
         style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
       })),
+      graphVersion: s.graphVersion + 1,
     }));
   },
 
   setEdgeWidth: (width) => {
     const clamped = Math.max(0.5, Math.min(6, width));
     set({ edgeWidth: clamped });
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, style: { ...e.style, strokeWidth: clamped } })) }));
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, style: { ...e.style, strokeWidth: clamped } })), graphVersion: s.graphVersion + 1 }));
   },
 
   setCornerRadius: (radius) => {
     const clamped = Math.max(0, Math.min(20, radius));
     set({ cornerRadius: clamped });
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, pathOptions: { borderRadius: clamped } })) }));
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, pathOptions: { borderRadius: clamped } })), graphVersion: s.graphVersion + 1 }));
   },
 
   setNodeDimensions: (w, h) => {
@@ -97,7 +98,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
       style: { ...n.style, width: newW, height: n.data.type === "folder" ? newH : undefined, minHeight: undefined },
       measured: undefined,
     }));
-    set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes });
+    set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes, graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
 });

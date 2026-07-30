@@ -137,7 +137,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   },
 
   hideSelected: () => {
-    const { selectedNodeIds, edges } = get();
+    const { selectedNodeIds, edges, graphVersion } = get();
     if (selectedNodeIds.length === 0) return;
     const toHide = new Set(selectedNodeIds);
     for (const id of selectedNodeIds) {
@@ -147,7 +147,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
         for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } }
       }
     }
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], selectedNodeIds: [] }));
+    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], selectedNodeIds: [], graphVersion: graphVersion + 1 }));
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -171,12 +171,12 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   },
 
   setShowFiles: (show) => {
-    const { nodes } = get();
+    const { nodes, graphVersion } = get();
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
-      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !fileIds.includes(id)) }));
+      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !fileIds.includes(id)), graphVersion: graphVersion + 1 }));
     } else {
-      set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])] }));
+      set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }
     setTimeout(() => get().relayout(), 50);
   },

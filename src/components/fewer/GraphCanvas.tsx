@@ -100,23 +100,18 @@ function CanvasInner() {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
 
-  // Sync store → React Flow when store changes externally (import, layout, undo/redo).
-  // We use rfNodes.length as a proxy: if the store has a different count, update.
-  // This avoids the infinite loop caused by syncing on every reference change.
-  const prevNodeCount = useRef(visibleNodes.length);
-  const prevEdgeCount = useRef(visibleEdges.length);
+  // Sync store → React Flow when graphVersion changes (layout, import, undo/redo, edge style).
+  // graphVersion is incremented on every graph-changing operation but NOT on dimension
+  // measurement changes, so this avoids the infinite re-render loop.
+  const graphVersion = useGraphStore((s) => s.graphVersion);
+  const prevGraphVersion = useRef(graphVersion);
   useEffect(() => {
-    if (visibleNodes.length !== prevNodeCount.current) {
+    if (graphVersion !== prevGraphVersion.current) {
       setRfNodes(visibleNodes);
-      prevNodeCount.current = visibleNodes.length;
-    }
-  }, [visibleNodes, setRfNodes]);
-  useEffect(() => {
-    if (visibleEdges.length !== prevEdgeCount.current) {
       setRfEdges(visibleEdges);
-      prevEdgeCount.current = visibleEdges.length;
+      prevGraphVersion.current = graphVersion;
     }
-  }, [visibleEdges, setRfEdges]);
+  }, [graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } =
     useReactFlow();
@@ -167,8 +162,6 @@ function CanvasInner() {
       hasMeasuredRef.current = false;
     }
   }, [rfNodes.length]);
-
-  const graphVersion = useGraphStore((s) => s.graphVersion);
 
   useEffect(() => {
     if (rfNodes.length === 0) return;
