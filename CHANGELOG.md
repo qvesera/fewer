@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial OSS documentation pack (CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, CHANGELOG, AGENTS, issue/PR templates)
 
 ## [0.2.0] - 2025
 
 ### Added
+
 - Breadcrumb navigation bar showing selected node's full path
 - Custom theme editor with 15 CSS color variables and live color pickers
 - Import from File dialog (JSON, ASCII tree, shell/batch scripts)
@@ -28,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo/redo history (50 steps) with drag-aware commit
 - Drag-connect nodes with cycle/parenting validation
 - Copy/cut/paste (duplicate) with "copy" naming convention
-- Hide/unhide nodes with cascading shortcut support
+- Hide/show nodes with cascading shortcut support
 - Node resize (folders multi-direction, files horizontal)
 - Filename extension and category auto-update on rename
 - Brave browser detection with workaround instructions
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export selected subtree only toggle
 
 ### Changed
+
 - Upgraded to Next.js 16 with Turbopack
 - Upgraded to React 19
 - Upgraded to Tailwind CSS 4
@@ -45,12 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced Dagre layout with type-aware node dimensions
 
 ### Fixed
+
 - Various edge cases in connection validation
 - Drag undo committing per-frame (now one undo step per drag)
 
 ## [0.1.0] - 2025
 
 ### Added
+
 - Initial release
 - Interactive node-based graph canvas with React Flow
 - Folder and file card components with scrollable children

@@ -25,7 +25,7 @@ export function SearchPanel() {
     if (!node) return;
 
     if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().unhideNode(nodeId);
+      useGraphStore.getState().showNode(nodeId);
     }
 
     setSelectedNodeIds([nodeId]);

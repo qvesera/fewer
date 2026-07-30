@@ -41,7 +41,7 @@ Whether you're understanding a new codebase, documenting a project structure, or
 - **Rename** inline via F2 or context menu (with extension + category auto-update)
 - **Duplicate** via Ctrl+C → Ctrl+V with "copy" naming convention (e.g., `App.tsx` → `App copy.tsx`)
 - **Delete** with cascading descendant removal (BFS traversal)
-- **Hide/Unhide** nodes via H / Shift+H shortcuts
+- **Hide/Show** nodes via H / Shift+H shortcuts
 - **Resize** — folders in all directions, files horizontally only
 - **Drag** nodes freely on the canvas
 - **Drag-connect** nodes with validation (no self-parenting, single parent, no cycles, no duplicates)
@@ -65,14 +65,14 @@ Whether you're understanding a new codebase, documenting a project structure, or
 
 - **Fuzzy search** across all nodes (filenames, paths, extensions)
 - **Click any result** to instantly zoom to that node on the canvas
-- **Hidden nodes** appear in results with a badge — click to unhide & zoom
+- **Hidden nodes** appear in results with a badge — click to show & zoom
 - **Highlight/dim** matched and unmatched nodes on the canvas
 
 ### Context Menus
 
 - **Folder right-click**: Rename, Add Child Node, Copy Path, Refresh from Disk, Copy, Cut, Hide Node
 - **File right-click**: Rename, Open File, Copy Name, Copy, Cut, Delete Item
-- **Canvas right-click**: Fit View, Select All, Zoom In/Out, Unhide All
+- **Canvas right-click**: Fit View, Select All, Zoom In/Out, Show All
 
 ### Export System (7 formats)
 

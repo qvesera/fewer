@@ -1,6 +1,8 @@
 import { v4 as uuid } from "uuid";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 import { categorizeByExtension, getFileExtension } from "./categorize";
+import type { ImportOptions } from "./importOptions";
+import { VENDORED_DIRS } from "./importOptions";
 
 interface BuildOptions {
   /** Bump this when you need to regenerate IDs without remounting. */
@@ -71,4 +73,53 @@ export function treeToGraph(
   const hiddenFileIds: string[] = [];
   walk(root, null, 0, "");
   return { nodes, edges, hiddenFileIds };
+}
+
+/**
+ * Check if a file name matches the extension filter.
+ */
+function matchesExtension(name: string, extensions: string[], caseSensitive: boolean): boolean {
+  if (extensions.length === 0) return true;
+  const ext = name.includes(".") ? name.split(".").pop() || "" : "";
+  if (caseSensitive) return extensions.includes(ext);
+  return extensions.some((e) => e.toLowerCase() === ext.toLowerCase());
+}
+
+/**
+ * Filter a TreeEntry based on ImportOptions.
+ * Returns null if the entry should be excluded entirely.
+ * Returns a copy with filtered children.
+ */
+export function filterTree(
+  entry: TreeEntry,
+  options: ImportOptions,
+  currentDepth = 0,
+): TreeEntry | null {
+  const name = entry.name;
+
+  // Filter hidden files
+  if (!options.includeHidden && name.startsWith(".")) return null;
+
+  // Filter vendored directories
+  if (!options.includeVendored && entry.type === "folder" && VENDORED_DIRS.has(name)) return null;
+
+  // Depth limit (0 = unlimited)
+  if (options.maxDepth > 0 && currentDepth >= options.maxDepth && entry.type === "folder") return null;
+
+  // Filter by extension (files only)
+  if (entry.type === "file" && !matchesExtension(name, options.extensions, options.caseSensitiveExtensions)) return null;
+
+  // Recursively filter children
+  if (entry.children) {
+    const filteredChildren = entry.children
+      .map((child) => filterTree(child, options, currentDepth + 1))
+      .filter((c): c is TreeEntry => c !== null);
+
+    // If this is a folder and all children were filtered out
+    if (entry.type === "folder" && options.skipEmptyFolders && filteredChildren.length === 0) return null;
+
+    return { ...entry, children: filteredChildren.length > 0 ? filteredChildren : undefined };
+  }
+
+  return entry;
 }

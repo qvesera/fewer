@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
  * Ctrl/Cmd+X     - cut selected files
  * Ctrl/Cmd+V     - paste files into focused/selected folder
  * H              - hide selected nodes
- * Shift+H        - unhide all nodes
+ * Shift+H        - show all nodes
  * Delete         - delete selected nodes
  * F2             - rename selected node
  * Enter          - open selected file (or focus first child of folder)
@@ -32,8 +32,10 @@ import { useToast } from "@/hooks/use-toast";
  * Arrow keys     - navigate between nodes (tree-style)
  * Alt+R          - re-layout graph
  * Alt+F          - zoom to selection
- * Alt+O          - open/import folder
+ * Alt+I          - import folder
  * Alt+U          - import from file
+ * Alt+L          - import from URL
+ * Alt+O          - open in file explorer
  */
 export function KeyboardShortcuts() {
   const undo = useGraphStore((s) => s.undo);
@@ -53,7 +55,8 @@ export function KeyboardShortcuts() {
   const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   const focusedNodeId = useGraphStore((s) => s.focusedNodeId);
   const hideNodes = useGraphStore((s) => s.hideNodes);
-  const unhideAll = useGraphStore((s) => s.unhideAll);
+  const showAll = useGraphStore((s) => s.showAll);
+  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const setExportOpen = useGraphStore((s) => s.setExportOpen);
   const setShortcutsOpen = useGraphStore((s) => s.setShortcutsOpen);
   const reset = useGraphStore((s) => s.reset);
@@ -152,8 +155,8 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Alt+O - open import folder dialog
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "o" && !inEditable) {
+      // Alt+I - open import folder dialog
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "i" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-folder"));
         return;
@@ -163,6 +166,29 @@ export function KeyboardShortcuts() {
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "u" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-file"));
+        return;
+      }
+
+      // Alt+L - open import from URL dialog
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "l" && !inEditable) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("fewer-import-url"));
+        return;
+      }
+
+      // Alt+O - open selected folder in file explorer
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "o" && !inEditable) {
+        e.preventDefault();
+        const selected = useGraphStore.getState().selectedNodeIds;
+        if (selected.length === 1) {
+          const node = useGraphStore.getState().nodes.find((n) => n.id === selected[0]);
+          if (node && node.data.type === "folder" && useGraphStore.getState().dataSource === "directory") {
+            // Import and call openFolderInExplorer dynamically
+            import("./CustomNode").then(({ openFolderInExplorer }) => {
+              openFolderInExplorer(node.data.path);
+            });
+          }
+        }
         return;
       }
 
@@ -301,18 +327,21 @@ export function KeyboardShortcuts() {
 
       if (inEditable) return;
 
-      // H — hide selected nodes. Shift+H — unhide all.
+      // H — hide selected nodes. Shift+H — show all.
       if (e.key.toLowerCase() === "h" && !mod) {
         e.preventDefault();
         if (e.shiftKey) {
-          // Shift+H — unhide all
+          // Shift+H — show all and show files
           const hiddenCount = useGraphStore.getState().hiddenIds.length;
           if (hiddenCount > 0) {
-            unhideAll();
+            showAll();
+            setShowFiles(true);
             toast({
               title: "Unhid all nodes",
               description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
             });
+          } else {
+            setShowFiles(true);
           }
         } else {
           // H — hide selected nodes
@@ -387,7 +416,8 @@ export function KeyboardShortcuts() {
               : e.key === "ArrowLeft"
                 ? "left"
                 : "right";
-        const nextId = navigate(currentId, dir, nodes, edges);
+        const hiddenIdsSet = new Set(useGraphStore.getState().hiddenIds);
+        const nextId = navigate(currentId, dir, nodes, edges, hiddenIdsSet);
         if (nextId) {
           setFocusedNodeId(nextId);
           if (e.shiftKey) {
@@ -487,7 +517,7 @@ export function KeyboardShortcuts() {
     setFocusedNodeId,
     focusedNodeId,
     hideNodes,
-    unhideAll,
+    showAll,
     setExportOpen,
     setShortcutsOpen,
     reset,

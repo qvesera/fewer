@@ -123,6 +123,7 @@ function CanvasInner() {
   const hasMeasuredRef = useRef(false);
   const relayout = useGraphStore((s) => s.relayout);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
+  const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
 
   useEffect(() => {
     if (!zoomToNode) return;
@@ -137,6 +138,25 @@ function CanvasInner() {
     }, 150);
     return () => clearTimeout(t);
   }, [zoomToNode, fitView]);
+
+  const zoomToNodeIdsRef = useRef(zoomToNodeIds);
+  zoomToNodeIdsRef.current = zoomToNodeIds;
+
+  useEffect(() => {
+    const ids = zoomToNodeIdsRef.current;
+    if (ids && ids.length > 0) {
+      const t = setTimeout(() => {
+        fitView({
+          nodes: ids.map((id) => ({ id })),
+          duration: 600,
+          padding: 0.3,
+          maxZoom: 1.5,
+        });
+        useGraphStore.getState().setZoomToNodeIds(null);
+      }, 150);
+      return () => clearTimeout(t);
+    }
+  }, [zoomToNodeIds]);
 
   useEffect(() => {
     if (rfNodes.length > 0) {
@@ -356,15 +376,7 @@ function CanvasInner() {
       onDrop={onDrop}
       onDragOver={onDragOver}
       onContextMenu={(e) => {
-        e.preventDefault();
-        // Use the last clicked edge (tracked via onEdgeClick) since ReactFlow
-        // deselects edges before this handler fires
-        const edgeId = lastClickedEdgeId;
-        const ids = edgeId ? [edgeId] : [];
-        setCanvasMenu({ x: e.clientX, y: e.clientY });
-        useGraphStore.getState().setRightClickDetected();
-        // Store edge IDs in a data attribute so the menu render can read them
-        (e.currentTarget as HTMLElement).dataset.edgeIds = JSON.stringify(ids);
+        e.preventDefault(); // Suppress browser default context menu
       }}
     >
       <ReactFlow
@@ -400,8 +412,24 @@ function CanvasInner() {
             instance.getNodes().length,
           );
         }}
-        onEdgeContextMenu={(_, edge) => {
+        onNodeContextMenu={(event) => {
+          event.preventDefault(); // Suppress browser default context menu on nodes
+        }}
+        onEdgeContextMenu={(event, edge) => {
+          event.preventDefault(); // Suppress browser default context menu on edges
           setLastClickedEdgeId(edge.id);
+          // Show canvas menu for edge right-click (with Delete Edge option)
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (rect) {
+            setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+          }
+        }}
+        onPaneContextMenu={(e) => {
+          e.preventDefault(); // Suppress browser default context menu on pane
+          // Right-click on empty canvas — show canvas menu
+          const mouseEvent = e as unknown as MouseEvent;
+          setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY });
+          useGraphStore.getState().setRightClickDetected();
         }}
         onMouseMove={(e) => {
           const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -528,7 +556,7 @@ function CanvasInner() {
         {hiddenCount > 0 && (
           <Panel position="top-right">
             <button
-              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-200 cursor-pointer hover:bg-amber-500/20 transition-colors animate-in fade-in slide-in-from-right-2 duration-200"
+              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-600 dark:text-amber-300 cursor-pointer hover:bg-amber-500/20 transition-colors animate-in fade-in slide-in-from-right-2 duration-200"
               onClick={() => {
                 useGraphStore.getState().setSidebarOpen(true);
                 useGraphStore.getState().triggerHiddenPanelExpand();
@@ -667,7 +695,7 @@ function CanvasInner() {
                 <div className="my-1 h-px bg-border/40" />
                 <button
                   onClick={() => {
-                    useGraphStore.getState().unhideAll();
+                    useGraphStore.getState().showAll();
                     toast({
                       title: "Unhid all nodes",
                       description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
@@ -677,7 +705,7 @@ function CanvasInner() {
                   disabled={hiddenCount === 0}
                   className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                 >
-                  Unhide All Nodes
+                  Show All Nodes
                 </button>
                 <div className="my-1 h-px bg-border/40" />
                 <button

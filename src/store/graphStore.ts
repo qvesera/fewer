@@ -74,6 +74,9 @@ interface GraphState {
   advancedModeEnabled: boolean;
   setAdvancedMode: (enabled: boolean) => void;
   includeFiles: boolean;
+  /** Runtime toggle to show/hide file nodes on the canvas */
+  showFiles: boolean;
+  setShowFiles: (show: boolean) => void;
 
   // export settings
   exportSettings: ExportSettings;
@@ -131,6 +134,9 @@ interface GraphState {
    // zoom-to-node trigger (set by SearchPanel or ChildEntry double-click, watched by GraphCanvas)
    zoomToNode: { nodeId: string; timestamp: number } | null;
    setZoomToNode: (nodeId: string | null) => void;
+   /** Zoom to fit multiple nodes (set by "Show Children" context menu) */
+   zoomToNodeIds: string[] | null;
+   setZoomToNodeIds: (ids: string[] | null) => void;
 
    /** Position to paste at (set before calling pasteFromClipboard). null = auto-position. */
   /** Last known mouse position in flow coordinates */
@@ -175,10 +181,10 @@ interface GraphState {
   deleteEdges: (ids: string[]) => void;
   hideNode: (id: string) => void;
   hideNodes: (ids: string[]) => void;
-  unhideAll: () => void;
-  unhideNode: (id: string) => void;
-  unhideAncestors: (id: string) => void;
-  unhideSubtree: (id: string) => void;
+  showAll: () => void;
+  showNode: (id: string) => void;
+  showAncestors: (id: string) => void;
+  showSubtree: (id: string) => void;
 
   // loading state for directory import
   loading: boolean;
@@ -270,6 +276,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   clipboard: null,
   focusedNodeId: null,
   zoomToNode: null,
+  zoomToNodeIds: null,
   mousePosition: null,
   pastePosition: null,
   past: [],
@@ -286,6 +293,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   dataSource: null,
   advancedModeEnabled: false,
   includeFiles: true,
+  showFiles: true,
   loading: false,
   exportSettings: {
     format: "svg",
@@ -346,6 +354,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
   },
 
+  setShowFiles: (show) => {
+    const { nodes } = get();
+    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+    if (show) {
+      // Remove file IDs from hiddenIds
+      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !fileIds.includes(id)) }));
+    } else {
+      // Add file IDs to hiddenIds (avoid duplicates)
+      set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])] }));
+    }
+    setTimeout(() => get().relayout(), 50);
+  },
+
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds?: string[]) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
@@ -366,8 +387,30 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const excludeFromLayout = hiddenFileIds && hiddenFileIds.length > 0 ? new Set(hiddenFileIds) : undefined;
     const laid = layoutGraph(styledNodes, edges, state.direction, { excludeFromLayout });
     const searched = applySearch(laid, edges, state.searchQuery);
-    const idsToHide = hiddenFileIds ?? [];
-    const sortedEdges = sortEdges(edges, styledNodes);
+    let idsToHide = hiddenFileIds ?? [];
+    // If the sidebar "Show Files on Canvas" toggle is off, hide all file nodes
+    if (!state.showFiles) {
+      const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+      idsToHide = [...new Set([...idsToHide, ...fileIds])];
+    }
+    // Apply the currently selected edge flow style to imported edges
+    const edgeType = (
+      state.edgeStyle === "curved" ? "default"
+      : state.edgeStyle === "angled" ? "smoothstep"
+      : "straight"
+    ) as FewerEdge["type"];
+    const strokeDasharray = state.edgeStrokeStyle === "dashed" ? "8 4" : state.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
+    const styledEdges = edges.map((e) => ({
+      ...e,
+      type: edgeType,
+      animated: state.edgeAnimated,
+      style: {
+        ...e.style,
+        strokeWidth: state.edgeWidth,
+        ...(strokeDasharray ? { strokeDasharray } : {}),
+      },
+    }));
+    const sortedEdges = sortEdges(styledEdges, styledNodes);
     set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1 });
   },
 
@@ -405,13 +448,30 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     } else {
       set({ edgeAnimated: animated });
     }
+    // Update all existing edges
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })) }));
   },
 
-  setEdgeStrokeStyle: (strokeStyle) => set({ edgeStrokeStyle: strokeStyle }),
+  setEdgeStrokeStyle: (strokeStyle) => {
+    set({ edgeStrokeStyle: strokeStyle });
+    const strokeDasharray = strokeStyle === "dashed" ? "8 4" : strokeStyle === "dotted" ? "2 4" : undefined;
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
+      })),
+    }));
+  },
 
   setEdgeWidth: (width) => {
     const clamped = Math.max(0.5, Math.min(6, width));
     set({ edgeWidth: clamped });
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        style: { ...e.style, strokeWidth: clamped },
+      })),
+    }));
   },
 
   setCornerRadius: (radius) => {
@@ -494,6 +554,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setPastePosition: (pos) => set({ pastePosition: pos }),
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
   setZoomToNode: (nodeId) => set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
+  setZoomToNodeIds: (ids) => set({ zoomToNodeIds: ids }),
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery, hiddenIds, graphVersion } = get();
@@ -761,24 +822,24 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     setTimeout(() => get().relayout(), 50);
   },
 
-  unhideNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
+  showNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
 
-  unhideAncestors: (id) => {
+  showAncestors: (id) => {
     const { hiddenIds, edges } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const parentMap = new Map<string, string>();
     for (const e of edges) parentMap.set(e.target, e.source);
-    const toUnhide = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
-    while (currentId && hiddenSet.has(currentId)) { toUnhide.add(currentId); currentId = parentMap.get(currentId); }
-    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) }); get().relayout();
+    const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
+    while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
-  unhideSubtree: (id) => {
+  showSubtree: (id) => {
     const { hiddenIds, edges } = get();
-    const toUnhide = new Set([id]); const queue = [id];
-    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toUnhide.add(e.target); queue.push(e.target); } } }
-    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) }); get().relayout();
+    const toShow = new Set([id]); const queue = [id];
+    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
   removeEdgesFromHandle: (nodeId, handleType) => {
@@ -796,7 +857,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], edges: filtered });
   },
 
-  unhideAll: () => set({ hiddenIds: [] }),
+  showAll: () => set({ hiddenIds: [] }),
 
   undo: () => {
     const { past, future, nodes, edges } = get();

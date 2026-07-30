@@ -15,6 +15,7 @@ import {
   ShortcutsDialog,
   ShareDialog,
   AddNodeDialog,
+  ImportUrlDialog,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
@@ -43,6 +44,7 @@ export function FewerApp() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
+  const [importUrlOpen, setImportUrlOpen] = useState(false);
   const [hashLoaded, setHashLoaded] = useState(false);
 
   const handleRestartTutorial = useCallback(() => {
@@ -103,15 +105,18 @@ export function FewerApp() {
     const openStandalone = () => setAddStandaloneOpen(true);
     const openImportFolder = () => setImportDialogOpen(true);
     const openImportFile = () => setImportFromFileOpen(true);
+    const openImportUrl = () => setImportUrlOpen(true);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
     window.addEventListener("fewer-import-file", openImportFile);
+    window.addEventListener("fewer-import-url", openImportUrl);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
       window.removeEventListener("fewer-import-folder", openImportFolder);
       window.removeEventListener("fewer-import-file", openImportFile);
+      window.removeEventListener("fewer-import-url", openImportUrl);
     };
   }, []);
 
@@ -161,6 +166,10 @@ export function FewerApp() {
     });
   }, [setGraph, toast]);
 
+  const handleImportFromUrl = useCallback(() => {
+    setImportUrlOpen(true);
+  }, []);
+
   const handleImportFromFile = useCallback(
     (tree: import("@/lib/fewer/types").TreeEntry) => {
       const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
@@ -189,6 +198,7 @@ export function FewerApp() {
           <Sidebar
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
+            onImportFromUrl={handleImportFromUrl}
           />
         </div>
         <div
@@ -210,10 +220,11 @@ export function FewerApp() {
               sidebarOpen ? "translate-x-0" : "-translate-x-full",
             )}
           >
-            <Sidebar
-              onOpenDirectory={handleOpenDirectory}
-              onImportFromFile={() => setImportFromFileOpen(true)}
-            />
+          <Sidebar
+            onOpenDirectory={handleOpenDirectory}
+            onImportFromFile={() => setImportFromFileOpen(true)}
+            onImportFromUrl={handleImportFromUrl}
+          />
           </div>
         </div>
         <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
@@ -230,6 +241,7 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
       <ShareDialog />
+      <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
 
       <AddNodeDialog
         open={addChildOpen}

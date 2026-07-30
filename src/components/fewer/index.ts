@@ -9,6 +9,8 @@ export { GraphCanvas } from "./GraphCanvas";
 export { FewerApp } from "./FewerApp";
 export { ImportDialog } from "./ImportDialog";
 export { ImportFromFileDialog } from "./ImportFromFileDialog";
+export { ImportOptionsPanel } from "./ImportOptionsPanel";
+export { ImportUrlDialog } from "./ImportUrlDialog";
 export { KeyboardShortcuts } from "./KeyboardShortcuts";
 export { Logo } from "./Logo";
 export { SearchPanel } from "./SearchPanel";
