@@ -372,6 +372,22 @@ function CanvasInner() {
     [isDark, miniMapSize],
   );
 
+  const nodeColor = useCallback(
+    (n: FewerNode) =>
+      n.data?.type === "folder"
+        ? "rgba(249, 115, 22, 0.7)"
+        : "rgba(168, 85, 247, 0.7)",
+    [],
+  );
+
+  const nodeStrokeColor = useCallback(
+    (n: FewerNode) =>
+      n.data?.type === "folder"
+        ? "rgba(249, 115, 22, 0.9)"
+        : "rgba(168, 85, 247, 0.9)",
+    [],
+  );
+
   return (
     <div
       ref={containerRef}
@@ -479,12 +495,10 @@ function CanvasInner() {
             style={minimapStyle}
             pannable
             zoomable
-            nodeColor={(n) =>
-              n.data?.type === "folder"
-                ? "rgba(249, 115, 22, 0.7)"
-                : "rgba(168, 85, 247, 0.7)"
-            }
+            nodeColor={nodeColor}
+            nodeStrokeColor={nodeStrokeColor}
             nodeStrokeWidth={2}
+            nodeBorderRadius={4}
             ariaLabel="Mini map"
           />
         )}

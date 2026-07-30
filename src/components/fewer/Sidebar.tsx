@@ -932,7 +932,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               {nodes.length === 1 ? "" : "s"} and{" "}
               {useGraphStore.getState().edges.length} edge
               {useGraphStore.getState().edges.length === 1 ? "" : "s"} from the
-              canvas. This action can be undone with Ctrl+Z.
+              canvas. This action cannot be undone with Ctrl+Z.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
