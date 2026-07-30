@@ -134,6 +134,28 @@ export function layoutGraph(
   return positioned;
 }
 
+/**
+ * Run layout asynchronously via requestIdleCallback.
+ * Falls back to sync layout if requestIdleCallback is not available.
+ * For large graphs, this prevents blocking the main thread.
+ */
+export function runLayoutAsync(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): Promise<FewerNode[]> {
+  return new Promise((resolve) => {
+    const task = () => resolve(layoutGraph(nodes, edges, direction, options));
+    if (typeof requestIdleCallback !== "undefined") {
+      requestIdleCallback(task, { timeout: 300 });
+    } else {
+      // Fallback: defer to next macro task
+      setTimeout(task, 0);
+    }
+  });
+}
+
 export const LAYOUT_DIMENSIONS = {
   width: DEFAULT_FILE_WIDTH,
   height: DEFAULT_FILE_HEIGHT,

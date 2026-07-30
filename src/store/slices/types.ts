@@ -1,7 +1,6 @@
 // GraphState is a loose type — the actual shape is inferred from the
 // combined Zustand store. Each slice file defines its own state shape
 // via StateCreator, and createStore.ts merges them all.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type GraphState = Record<string, any>;
 
 export interface HistoryEntry {

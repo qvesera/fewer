@@ -84,9 +84,10 @@ npm run build          # Must succeed
 **MANDATORY WORKFLOW:**
 
 1. **Run quality gates** — `npm run lint && npm run build`
-2. **Commit changes** — Meaningful commit message (conventional commits)
-3. **PUSH TO REMOTE** — This is MANDATORY
-4. **Verify** — All changes committed AND pushed
+2. **Update CHANGELOG.md** — Add entry for meaningful changes (new features, fixes, breaking changes), following existing format. The changelog must be updated before committing.
+3. **Commit changes** — Meaningful commit message (conventional commits)
+4. **PUSH TO REMOTE** — This is MANDATORY
+5. **Verify** — All changes committed AND pushed
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds

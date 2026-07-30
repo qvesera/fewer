@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07
+
+### Added
+
+- Operation-based undo/redo history (stores diffs instead of full snapshots, critical for 10K+ node graphs)
+- Chunked tree-to-graph import with progress callback (`chunkTreeToGraph`)
+- Async layout support via `requestIdleCallback` (`runLayoutAsync`)
+- `ImportProgress` component for large directory imports
+- Typed store hooks with shallow comparison selectors (`useGraphData`, `useLayoutConfig`, `useUiState`)
+- History operation types (`HistoryOp`) and `applyOp`/`undoOp` functions
+
+### Changed
+
+- Split monolithic 1018-line `graphStore` into 6 focused Zustand slices: graph, history, ui, layout, theme
+- Rewrote `graphStore.ts` as a thin re-export wrapper for backward compatibility
+- `applySearch` now only recomputes when `searchQuery` changes, not on every mutation
+- GraphCanvas now uses `as OnNodesChange` cast for React Flow v12 compatibility
+
+### Fixed
+
+- Pre-existing `const` assertion errors in `fileOps.ts` and `graphSlice.ts`
+- `Set<unknown>` type errors in `KeyboardShortcuts.tsx` and `graphSlice.ts`
+
 ## [0.3.0] - 2026-07
 
 ### Added
