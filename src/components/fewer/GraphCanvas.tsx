@@ -100,22 +100,23 @@ function CanvasInner() {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
 
+  // Sync store → React Flow when store changes externally (import, layout, undo/redo).
+  // We use rfNodes.length as a proxy: if the store has a different count, update.
+  // This avoids the infinite loop caused by syncing on every reference change.
+  const prevNodeCount = useRef(visibleNodes.length);
+  const prevEdgeCount = useRef(visibleEdges.length);
   useEffect(() => {
-    setRfNodes(visibleNodes);
+    if (visibleNodes.length !== prevNodeCount.current) {
+      setRfNodes(visibleNodes);
+      prevNodeCount.current = visibleNodes.length;
+    }
   }, [visibleNodes, setRfNodes]);
-
   useEffect(() => {
-    setRfEdges(visibleEdges);
+    if (visibleEdges.length !== prevEdgeCount.current) {
+      setRfEdges(visibleEdges);
+      prevEdgeCount.current = visibleEdges.length;
+    }
   }, [visibleEdges, setRfEdges]);
-
-  useEffect(() => {
-    console.log(
-      "[GraphCanvas] rfNodes:",
-      rfNodes.length,
-      "rfEdges:",
-      rfEdges.length,
-    );
-  }, [rfNodes.length, rfEdges.length]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } =
     useReactFlow();
