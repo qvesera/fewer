@@ -2,6 +2,7 @@ export { AddNodeDialog } from "./AddNodeDialog";
 export { BreadcrumbBar } from "./BreadcrumbBar";
 export { BugReportDialog } from "./BugReportDialog";
 export { draggedFolderHandle, CustomNode, RenameInput } from "./CustomNode";
+export { CustomMiniMap } from "./CustomMiniMap";
 export { CustomThemeEditor } from "./CustomThemeEditor";
 export { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
 export { ExportPanel } from "./ExportPanel";

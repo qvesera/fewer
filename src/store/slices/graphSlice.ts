@@ -3,7 +3,7 @@ import type { GraphState } from "./types";
 import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
-import { layoutGraph } from "@/lib/fewer/layout";
+import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
 
 function edgeTypeFromStyle(style: string): FewerEdge["type"] {
@@ -101,8 +101,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
-      // Instead of BulkImportOp with full arrays, push a targeted replace op
-      // We'll use a single bulk-import but store only the diff (new nodes)
       get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
     }
     const styledNodes = nodes.map((n) => ({
@@ -110,7 +108,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
     }));
     const excludeFromLayout = hiddenFileIds && hiddenFileIds.length > 0 ? new Set(hiddenFileIds) : undefined;
-    const laid = layoutGraph(styledNodes, edges, state.direction, { excludeFromLayout });
+    const laid = layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout });
     const searched = applySearchInternal(laid, state.searchQuery);
     let idsToHide = hiddenFileIds ?? [];
     if (!state.showFiles) {
@@ -133,7 +131,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes, edges, direction, searchQuery, hiddenIds, graphVersion } = get();
     if (nodes.length === 0) return;
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraph(nodes, edges, direction, { excludeFromLayout });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
     const searched = applySearchInternal(laid, searchQuery);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },

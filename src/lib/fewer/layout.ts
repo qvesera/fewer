@@ -1,4 +1,4 @@
-import dagre from "@dagrejs/dagre";
+import ELK from "elkjs";
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
 
 /**
@@ -11,133 +11,231 @@ const DEFAULT_FOLDER_HEIGHT = 200;
 const DEFAULT_FILE_WIDTH = 220;
 const DEFAULT_FILE_HEIGHT = 58;
 
-/**
- * Layout spacing — generous so nodes don't feel cramped.
- * These are the gaps BETWEEN nodes, not the node sizes themselves.
- */
-const NODE_SEP = 60;   // horizontal gap between nodes in the same rank
-const RANK_SEP_TB = 120; // vertical gap between ranks (parent → child) for TB/BT
-const RANK_SEP_LR = 160; // horizontal gap between ranks for LR/RL
-
-/**
- * Get the best available dimensions for a node, in priority order:
- * 1. Node's style.width/height (set by setNodeDimensions or NodeResizer)
- * 2. React Flow's measured dimensions (after render)
- * 3. Type-based defaults (folder vs file)
- */
 function getNodeDimensions(node: FewerNode): { w: number; h: number } {
-  // Check style.width/height first — these are explicitly set by the user
-  // via the sidebar sliders or NodeResizer, so they take priority.
   const styleW = node.style?.width as number | undefined;
   const styleH = node.style?.height as number | undefined;
-
-  // React Flow stores measured dimensions in node.measured after render
   const measuredW = node.measured?.width;
   const measuredH = node.measured?.height;
-
-  // Also check node.width/height (set by React Flow or resizer)
   const nodeW = node.width;
   const nodeH = node.height;
-
-  // Type-based defaults
   const isFolder = node.data.type === "folder" || node.type === "folder";
   const defaultW = isFolder ? DEFAULT_FOLDER_WIDTH : DEFAULT_FILE_WIDTH;
   const defaultH = isFolder ? DEFAULT_FOLDER_HEIGHT : DEFAULT_FILE_HEIGHT;
-
-  // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured/default
-  // For file nodes: NEVER use style.height/minHeight — files always render at
-  // their natural height (~58px) regardless of the node height slider.
   const w = styleW || measuredW || nodeW || defaultW;
   const h = isFolder
     ? (styleH || measuredH || nodeH || defaultH)
     : (measuredH || nodeH || defaultH);
-
   return { w, h };
 }
 
-/**
- * Run a dagre layout pass over the supplied nodes/edges.
- * Supports four layout directions and returns NEW node objects with
- * updated positions and a stashed layout direction for handle placement.
- *
- * Uses each node's style or measured dimensions (from React Flow) when
- * available, falling back to type-based defaults. This ensures dagre
- * positions nodes with correct spacing for their actual rendered size.
- */
+function elkDirection(dir: LayoutDirection): string {
+  switch (dir) {
+    case "TB": return "DOWN";
+    case "BT": return "UP";
+    case "LR": return "RIGHT";
+    case "RL": return "LEFT";
+  }
+}
+
 export interface LayoutOptions {
-  /** Set of node IDs to exclude from layout (will stay at x=0, y=0 or existing position) */
   excludeFromLayout?: Set<string>;
 }
 
-export function layoutGraph(
+const elk = new ELK();
+
+/**
+ * Run an ELK layout pass configured to pack wide leaf branches into
+ * compact multi-row grids under each parent folder.
+ */
+export async function layoutGraph(
   nodes: FewerNode[],
   edges: FewerEdge[],
   direction: LayoutDirection = "TB",
   options?: LayoutOptions
-): FewerNode[] {
-  const isHorizontal = direction === "LR" || direction === "RL";
-
-  const g = new dagre.graphlib.Graph({ multigraph: false, compound: false });
-  g.setGraph({
-    rankdir: direction,
-    // Generous spacing so nodes aren't cramped
-    nodesep: NODE_SEP,
-    ranksep: isHorizontal ? RANK_SEP_LR : RANK_SEP_TB,
-    marginx: 40,
-    marginy: 40,
-    ranker: "tight-tree",
-  });
-  g.setDefaultEdgeLabel(() => ({}));
-
-  // Track dimensions per node so we can center positions correctly
-  const dims = new Map<string, { w: number; h: number }>();
+): Promise<FewerNode[]> {
   const excludeSet = options?.excludeFromLayout ?? new Set();
 
+  const elkNodes: any[] = [];
+  const elkEdges: any[] = [];
+  const dims = new Map<string, { w: number; h: number }>();
+
   for (const node of nodes) {
-    // Skip excluded nodes - they keep their current position
     if (excludeSet.has(node.id)) {
       dims.set(node.id, { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT });
       continue;
     }
     const { w, h } = getNodeDimensions(node);
-    g.setNode(node.id, { width: w, height: h });
+    elkNodes.push({
+      id: node.id,
+      width: w,
+      height: h,
+    });
     dims.set(node.id, { w, h });
   }
+
+  const nodeIds = new Set(elkNodes.map((n) => n.id));
   for (const edge of edges) {
-    // Skip edges where BOTH ends are excluded
     if (excludeSet.has(edge.source) && excludeSet.has(edge.target)) continue;
-    if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
-      g.setEdge(edge.source, edge.target);
+    if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+      elkEdges.push({
+        id: edge.id,
+        sources: [edge.source],
+        targets: [edge.target],
+      });
     }
   }
 
-  dagre.layout(g);
+  const isHorizontal = direction === "LR" || direction === "RL";
 
-  const positioned = nodes.map((node) => {
-    // Excluded nodes keep existing position (or origin)
+  const elkGraph = {
+    id: "root",
+    layoutOptions: {
+      "elk.algorithm": "layered",
+      "elk.direction": elkDirection(direction),
+      
+      // Tight spacing between items
+      "elk.spacing.nodeNode": "30",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "60",
+      
+      // Target aspect ratio (approx 1.2 square-ish bounding box for the graph)
+      "elk.aspectRatio": "1.2",
+      
+      // Center parents strictly above child branches
+      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      "elk.layered.nodePlacement.favorStraightEdges": "true",
+      
+      // Wrapping strategy: allow nodes in the same rank to wrap across multiple rows
+      "elk.layered.wrapping.strategy": "SINGLE_EDGE",
+      "elk.layered.wrapping.correctionFactor": "1.0",
+      
+      // Post-compaction scans horizontally and vertically to pull subtrees together
+      "elk.layered.compaction.postCompaction.strategy": "SCANLINE",
+      
+      // Prevents high-out-degree nodes (e.g. folder with 10 files) from staying in one line
+      "elk.layered.highDegreeNodes.treatment": "true",
+      "elk.layered.highDegreeNodes.threshold": "3",
+    },
+    children: elkNodes,
+    edges: elkEdges,
+  };
+
+  const result = await elk.layout(elkGraph);
+
+  const elkPositions = new Map<string, { x: number; y: number }>();
+  if (result.children) {
+    for (const child of result.children) {
+      if (child.x !== undefined && child.y !== undefined) {
+        elkPositions.set(child.id, { x: child.x, y: child.y });
+      }
+    }
+  }
+
+  return nodes.map((node) => {
     if (excludeSet.has(node.id)) {
       return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
     }
-    const pos = g.node(node.id);
-    if (!pos) return node;
-    const d = dims.get(node.id) ?? { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT };
+    const pos = elkPositions.get(node.id);
+    if (!pos) return node as FewerNode;
     return {
       ...node,
       position: {
-        x: pos.x - d.w / 2,
-        y: pos.y - d.h / 2,
+        x: pos.x,
+        y: pos.y,
       },
       data: { ...node.data, layoutDirection: direction, isHorizontal },
     } as FewerNode;
   });
-
-  return positioned;
 }
 
 /**
- * Run layout asynchronously via requestIdleCallback.
- * Falls back to sync layout if requestIdleCallback is not available.
- * For large graphs, this prevents blocking the main thread.
+ * Synchronous Fallback Tree Layout
+ */
+export function layoutGraphSync(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): FewerNode[] {
+  const excludeSet = options?.excludeFromLayout ?? new Set();
+  const isHorizontal = direction === "LR" || direction === "RL";
+  const gap = 25;
+  const levelGap = 80;
+
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+
+  for (const edge of edges) {
+    if (excludeSet.has(edge.source) || excludeSet.has(edge.target)) continue;
+    if (!childrenMap.has(edge.source)) childrenMap.set(edge.source, []);
+    childrenMap.get(edge.source)!.push(edge.target);
+    parentMap.set(edge.target, edge.source);
+  }
+
+  const roots = nodes.filter(
+    (n) => !excludeSet.has(n.id) && !parentMap.has(n.id)
+  );
+
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const positions = new Map<string, { x: number; y: number }>();
+
+  function layoutSubtree(nodeId: string, depth: number, offset: number): number {
+    const node = nodeMap.get(nodeId);
+    if (!node) return offset;
+
+    const { w, h } = getNodeDimensions(node);
+    const children = childrenMap.get(nodeId) ?? [];
+
+    if (children.length === 0) {
+      if (isHorizontal) {
+        positions.set(nodeId, { x: depth * (240 + levelGap), y: offset });
+      } else {
+        positions.set(nodeId, { x: offset, y: depth * (DEFAULT_FOLDER_HEIGHT + levelGap) });
+      }
+      return offset + (isHorizontal ? h : w) + gap;
+    }
+
+    let currentOffset = offset;
+    const childCenters: number[] = [];
+
+    for (const childId of children) {
+      const childStart = currentOffset;
+      currentOffset = layoutSubtree(childId, depth + 1, currentOffset);
+      const childEnd = currentOffset - gap;
+      childCenters.push((childStart + childEnd) / 2);
+    }
+
+    const subtreeCenter = (childCenters[0] + childCenters[childCenters.length - 1]) / 2;
+    const parentPos = subtreeCenter - (isHorizontal ? h : w) / 2;
+
+    if (isHorizontal) {
+      positions.set(nodeId, { x: depth * (240 + levelGap), y: parentPos });
+    } else {
+      positions.set(nodeId, { x: parentPos, y: depth * (DEFAULT_FOLDER_HEIGHT + levelGap) });
+    }
+
+    return Math.max(currentOffset, parentPos + (isHorizontal ? h : w) + gap);
+  }
+
+  let currentOffset = 0;
+  for (const root of roots) {
+    currentOffset = layoutSubtree(root.id, 0, currentOffset) + 40;
+  }
+
+  return nodes.map((node) => {
+    if (excludeSet.has(node.id)) {
+      return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
+    }
+    const pos = positions.get(node.id) ?? { x: 0, y: 0 };
+    return {
+      ...node,
+      position: pos,
+      data: { ...node.data, layoutDirection: direction, isHorizontal },
+    } as FewerNode;
+  });
+}
+
+/**
+ * Run layout asynchronously via ELK.
  */
 export function runLayoutAsync(
   nodes: FewerNode[],
@@ -145,15 +243,7 @@ export function runLayoutAsync(
   direction: LayoutDirection = "TB",
   options?: LayoutOptions
 ): Promise<FewerNode[]> {
-  return new Promise((resolve) => {
-    const task = () => resolve(layoutGraph(nodes, edges, direction, options));
-    if (typeof requestIdleCallback !== "undefined") {
-      requestIdleCallback(task, { timeout: 300 });
-    } else {
-      // Fallback: defer to next macro task
-      setTimeout(task, 0);
-    }
-  });
+  return layoutGraph(nodes, edges, direction, options);
 }
 
 export const LAYOUT_DIMENSIONS = {

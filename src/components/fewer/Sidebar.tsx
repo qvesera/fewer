@@ -775,7 +775,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               variant="outline"
               size="sm"
               className="w-full gap-2 border-border/80 hover:bg-muted/40 text-xs font-normal text-foreground mb-2"
-              onClick={() => showAll()}
+              onClick={() => { showAll(); setShowFiles(true); }}
             >
               <Eye className="h-3.5 w-3.5" />
               Show All

@@ -117,6 +117,7 @@ function CanvasInner() {
     useReactFlow();
 
   const relayout = useGraphStore((s) => s.relayout);
+  const hasMeasuredRef = useRef(false);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
 
@@ -156,8 +157,15 @@ function CanvasInner() {
     }
   }, [zoomToNodeIds]);
 
+  // Fit view when layout changes (direction, undo/redo, relayout).
+  // Skip the first render — ReactFlow's built-in fitView prop handles the initial fit.
+  const didInitialFit = useRef(false);
   useEffect(() => {
     if (rfNodes.length === 0) return;
+    if (!didInitialFit.current) {
+      didInitialFit.current = true;
+      return;
+    }
     const t = setTimeout(() => {
       if (useGraphStore.getState().zoomToNode) return;
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
@@ -230,9 +238,18 @@ function CanvasInner() {
             return n;
           }),
         }));
+
+        // Re-layout once after the first measurement to use actual dimensions
+        if (!hasMeasuredRef.current) {
+          hasMeasuredRef.current = true;
+          setTimeout(() => {
+            relayout();
+            fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
+          }, 50);
+        }
       }
     },
-    [onNodesChange],
+    [onNodesChange, relayout, fitView],
   );
 
   const onConnect = useCallback(
@@ -436,7 +453,7 @@ function CanvasInner() {
         nodesDraggable
         nodesConnectable
         elementsSelectable
-        onlyRenderVisibleElements={true}
+        onlyRenderVisibleElements
         fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15}
