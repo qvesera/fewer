@@ -41,12 +41,28 @@ export function SearchPanel() {
 
   const matches = useMemo(() => {
     if (!query) return [];
-    return nodes.filter(
+    const q = query.toLowerCase();
+    const filtered = nodes.filter(
       (n) =>
         fuzzyMatch(query, n.data.label) ||
         fuzzyMatch(query, n.data.path) ||
-        (n.data.extension ?? "").toLowerCase().includes(query.toLowerCase()),
+        (n.data.extension ?? "").toLowerCase().includes(q),
     );
+    return filtered.sort((a, b) => {
+      const aLabel = a.data.label.toLowerCase();
+      const bLabel = b.data.label.toLowerCase();
+
+      // Priority by label match quality
+      const aMatch = aLabel === q ? 0 : aLabel.startsWith(q) ? 1 : fuzzyMatch(query, a.data.label) ? 2 : 3;
+      const bMatch = bLabel === q ? 0 : bLabel.startsWith(q) ? 1 : fuzzyMatch(query, b.data.label) ? 2 : 3;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+
+      // Files before folders
+      if (a.data.type !== b.data.type) return a.data.type === "file" ? -1 : 1;
+
+      // Alphabetical
+      return aLabel.localeCompare(bLabel);
+    });
   }, [query, nodes]);
 
   // Keyboard navigation window listener while panel is open
@@ -92,7 +108,7 @@ export function SearchPanel() {
       <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
 
       {/* CLEAN OVERLAY PANEL: Placed below top center omnibar */}
-      <div className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5">
+      <div className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5 max-h-[calc(100vh-140px)] overflow-hidden">
         {/* Search Input — only on mobile, desktop has search bar in navbar */}
         <div className="relative sm:hidden">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
@@ -118,7 +134,7 @@ export function SearchPanel() {
         {/* Match Tracker & View Container */}
         <div 
           ref={resultsContainerRef}
-          className="max-h-64 overflow-y-auto rounded-lg bg-muted/10 flex flex-col min-h-[40px] justify-center"
+          className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
           {!query ? (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
@@ -129,7 +145,7 @@ export function SearchPanel() {
               No canvas matches found
             </div>
           ) : (
-            <ul className="p-1 space-y-0.5" role="listbox" aria-label="Search results">
+            <ul className="p-1.5 space-y-0.5 min-w-0" role="listbox" aria-label="Search results">
               {matches.slice(0, 50).map((n, idx) => {
                 const isActive = idx === activeIndex;
                 const isHidden = hiddenIds.includes(n.id);
@@ -155,15 +171,15 @@ export function SearchPanel() {
                       isHidden && "opacity-60",
                     )}
                   >
-                    <Icon className={cn("h-3.5 w-3.5 shrink-0", n.data.type === "folder" ? "text-orange-400" : "text-amber-500")} />
+                    <Icon className={cn("h-3.5 w-3.5 shrink-0", n.data.type === "folder" ? "text-orange-400" : "text-purple-500")} />
                     
-                    <div className="flex flex-col min-w-0 flex-1 leading-normal">
+                    <div className="flex flex-col min-w-0 flex-1 leading-snug">
                       <span className="truncate font-semibold">{n.data.label}</span>
                       <span className="truncate text-[10px] text-muted-foreground/75 font-mono">{n.data.path}</span>
                     </div>
 
                     {isHidden && (
-                      <span className="shrink-0 flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-400 border border-amber-500/20">
+                      <span className="shrink-0 flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-300 border border-amber-500/20">
                         <EyeOff className="h-2.5 w-2.5" /> hidden
                       </span>
                     )}

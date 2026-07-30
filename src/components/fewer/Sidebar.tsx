@@ -323,7 +323,7 @@ function MinimapControls() {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 pb-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-foreground/90">Size</Label>
           <span className="text-[11px] font-mono tabular-nums text-foreground/80">{miniMapSize}px</span>
@@ -598,7 +598,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               </div>
 
               {advancedModeEnabled && edgeStyle === "angled" && (
-                <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3 mt-2 transition-all">
+                <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3 mt-2 transition-all pb-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground font-normal">Corner radius</Label>
                     <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{cornerRadius}px</span>
@@ -670,7 +670,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                     </div>
                   </div>
 
-                  <div className="space-y-2 pt-1">
+                  <div className="space-y-2 pt-1 pb-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/80">
                         Line Weight
@@ -695,7 +695,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
         <AnimatedConditional show={advancedModeEnabled} delay={150}>
           <CollapsibleSection title="Node Metrics" icon={Maximize2}>
             <div className="flex flex-col gap-4 pt-1">
-              <div className="space-y-2">
+              <div className="space-y-2 pb-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground font-normal">Node Width</Label>
                   <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeWidth}px</span>
@@ -708,7 +708,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                   step={10}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 pb-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground font-normal">Node Height</Label>
                   <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeHeight}px</span>
