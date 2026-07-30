@@ -165,7 +165,7 @@ export function Toolbar({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:inline-flex"
             onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
             title="Keyboard hotkeys map"
           >

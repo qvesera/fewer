@@ -14,7 +14,7 @@ const STORAGE_KEY = "fewer-theme";
 const SCRIPT = `
 (function() {
   try {
-    var theme = localStorage.getItem('${STORAGE_KEY}') || 'dark';
+    var theme = localStorage.getItem('${STORAGE_KEY}') || 'light';
     document.documentElement.classList.toggle('dark', theme === 'dark');
     document.documentElement.style.colorScheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Re-apply the stored theme on mount (hydration)
-    const stored = localStorage.getItem(STORAGE_KEY) || "dark";
+    const stored = localStorage.getItem(STORAGE_KEY) || "light";
     document.documentElement.classList.toggle("dark", stored === "dark");
     document.documentElement.style.colorScheme = stored;
     document.documentElement.setAttribute("data-theme", stored);

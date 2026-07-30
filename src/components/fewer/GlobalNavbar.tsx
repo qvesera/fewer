@@ -81,7 +81,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:inline-flex min-hit"
           onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
           title="Keyboard shortcuts"
         >

@@ -884,7 +884,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
       {/* Persistent Info Footer Deck */}
       <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
-        <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
+        <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground hidden sm:block">
           <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
           Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit graph to view
         </div>
