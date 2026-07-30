@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useRef, useState, useEffect } from "react";
+import { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps, NodeResizer } from "@xyflow/react";
 import {
   Folder,
@@ -102,14 +102,21 @@ function RenameInput({
 }) {
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
+  const committedRef = useRef(false);
 
+  // Re-focus on every render (handles canvas re-renders losing focus)
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
     input.focus();
-    const dot = initialValue.lastIndexOf(".");
-    input.setSelectionRange(0, dot > 0 ? dot : initialValue.length);
-  }, [initialValue]);
+  });
+
+  // Select text only on initial mount (not on every keystroke re-render)
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.select();
+  }, []);
 
   return (
     <input
@@ -125,17 +132,38 @@ function RenameInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          committedRef.current = true;
           onCommit(value);
         } else if (e.key === "Escape") {
           e.preventDefault();
+          committedRef.current = true;
           onCancel();
         }
       }}
-      onBlur={() => onCommit(value)}
+      onBlur={() => {
+        if (committedRef.current) return;
+      }}
       className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
     />
   );
 }
+
+const openFolderInExplorer = async (path: string) => {
+  try {
+    const res = await fetch("/api/open-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to open folder");
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("Open folder error:", msg);
+  }
+};
 
 function FolderContextMenu({
   nodeId,
@@ -149,6 +177,7 @@ function FolderContextMenu({
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
@@ -248,20 +277,76 @@ function FolderContextMenu({
         </ContextMenuItem>
         {advancedModeEnabled && (
           <>
-            <ContextMenuSeparator />
+          <ContextMenuSeparator />
+          {(() => {
+            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+            const hiddenIds = useGraphStore.getState().hiddenIds;
+            const hasHidden = childIds.some((id) => hiddenIds.includes(id));
+            if (hasHidden) {
+              return (
+                <ContextMenuItem
+                  onSelect={() => {
+                    const toShow = childIds.filter((id) => hiddenIds.includes(id));
+                    if (toShow.length > 0) {
+                      useGraphStore.setState((s) => ({
+                        hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
+                      }));
+                      useGraphStore.getState().relayout();
+                    }
+                    useGraphStore.getState().setZoomToNodeIds(childIds);
+                  }}
+                  className="cursor-pointer"
+                >
+                  Show Children
+                </ContextMenuItem>
+              );
+            }
+            return null;
+          })()}
+          {(() => {
+            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+            const hiddenIds = useGraphStore.getState().hiddenIds;
+            const visibleChildren = childIds.filter((id) => !hiddenIds.includes(id));
+            if (visibleChildren.length > 0) {
+              return (
+                <ContextMenuItem
+                  onSelect={() => {
+                    const hiddenSet = new Set(hiddenIds);
+                    for (const id of visibleChildren) {
+                      hiddenSet.add(id);
+                    }
+                    useGraphStore.setState({ hiddenIds: [...hiddenSet] });
+                    useGraphStore.getState().relayout();
+                  }}
+                  className="cursor-pointer"
+                >
+                  Hide Children
+                </ContextMenuItem>
+              );
+            }
+            return null;
+          })()}
+          <ContextMenuItem
+            onSelect={() => {
+              addNode(nodeId, "New Folder", "folder");
+              setSelectedNodeIds([]);
+              toast({
+                title: "Child node added",
+                description: "New Folder added to " + nodeLabel,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Add Child Node
+          </ContextMenuItem>
+          {dataSource === "directory" && (
             <ContextMenuItem
-              onSelect={() => {
-                addNode(nodeId, "New Folder", "folder");
-                setSelectedNodeIds([]);
-                toast({
-                  title: "Child node added",
-                  description: "New Folder added to " + nodeLabel,
-                });
-              }}
+              onSelect={() => openFolderInExplorer(nodePath)}
               className="cursor-pointer"
             >
-              Add Child Node
+              Open in File Explorer
             </ContextMenuItem>
+          )}
             <ContextMenuItem
               onSelect={async () => {
                 try {
@@ -279,17 +364,19 @@ function FolderContextMenu({
             >
               Copy Path
             </ContextMenuItem>
-            <ContextMenuItem
-              onSelect={() =>
-                toast({
-                  title: "Refreshed from disk",
-                  description: `${nodeLabel} re-scanned`,
-                })
-              }
-              className="cursor-pointer"
-            >
-              Refresh from Disk
-            </ContextMenuItem>
+            {dataSource === "directory" && (
+              <ContextMenuItem
+                onSelect={() =>
+                  toast({
+                    title: "Refreshed from disk",
+                    description: `${nodeLabel} re-scanned`,
+                  })
+                }
+                className="cursor-pointer"
+              >
+                Refresh from Disk
+              </ContextMenuItem>
+            )}
           </>
         )}
       </ContextMenuContent>
@@ -476,52 +563,68 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
     return edges.filter((e) => e.source === child.id).length;
   }, [child.data.type, child.id, edges]);
 
+  const childContent = (
+    <div
+      className={cn(
+        "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
+        "hover:bg-foreground/8 hover:pl-3",
+        isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
+        isDimmed && "opacity-40",
+      )}
+      onDoubleClick={() => {
+        const isHidden = hiddenIds.includes(child.id);
+        setZoomToNode(isHidden ? parentId : child.id);
+      }}
+    >
+      <NodeIcon
+        type={child.data.type}
+        category={child.data.category}
+        isRoot={child.data.isRoot}
+        className={cn(
+          "h-3.5 w-3.5 shrink-0",
+          child.data.type === "folder"
+            ? "text-fewer-folder-icon"
+            : "text-fewer-file-icon",
+        )}
+      />
+      {renamingId === child.id && renameSource === "folder" ? (
+        <RenameInput
+          initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
+          onCommit={(v) => renameNode(child.id, v)}
+          onCancel={() => useGraphStore.getState().setRenamingId(null)}
+        />
+      ) : (
+        <span className="truncate text-foreground/90">{child.data.label}</span>
+      )}
+      <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground">
+        {child.data.type === "folder"
+          ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
+          : formatSize(child.data.size ?? 0)}
+      </span>
+      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+    </div>
+  );
+
+  if (child.data.type === "folder") {
+    return (
+      <FolderContextMenu
+        nodeId={child.id}
+        nodeLabel={child.data.label}
+        nodePath={child.data.path}
+      >
+        {childContent}
+      </FolderContextMenu>
+    );
+  }
+
   return (
     <FileEntryContextMenu
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={child.data.type === "file" && dataSource === "directory"}
+      showOpenFile={dataSource === "directory"}
     >
-      <div
-        className={cn(
-          "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
-          "hover:bg-foreground/8 hover:pl-3",
-          isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
-          isDimmed && "opacity-40",
-        )}
-        onDoubleClick={() => {
-          const isHidden = hiddenIds.includes(child.id);
-          setZoomToNode(isHidden ? parentId : child.id);
-        }}
-      >
-        <NodeIcon
-          type={child.data.type}
-          category={child.data.category}
-          isRoot={child.data.isRoot}
-          className={cn(
-            "h-3.5 w-3.5 shrink-0",
-            child.data.type === "folder"
-              ? "text-fewer-folder-icon"
-              : "text-fewer-file-icon",
-          )}
-        />
-        {renamingId === child.id && renameSource === "folder" ? (
-          <RenameInput
-            initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
-            onCommit={(v) => renameNode(child.id, v)}
-            onCancel={() => useGraphStore.getState().setRenamingId(null)}
-          />
-        ) : (
-          <span className="truncate text-foreground/90">{child.data.label}</span>
-        )}
-        <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground">
-          {child.data.type === "folder"
-            ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
-            : formatSize(child.data.size ?? 0)}
-        </span>
-        <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-      </div>
+      {childContent}
     </FileEntryContextMenu>
   );
 }
@@ -610,70 +713,77 @@ function CustomNodeImpl({
           nodeLabel={data.label}
           nodePath={data.path}
         >
-          <div
-            className={cn(
-              "flex items-center gap-2 rounded-t-xl border-b border-fewer-folder-border px-3 py-2",
-              "cursor-context-menu bg-fewer-folder-header-bg",
-            )}
-          >
+          {/*
+           * Wrap the entire card body in the folder context menu so right-clicking
+           * anywhere on the folder (header, child list, or footer) opens it.
+           * Child entries have their own nested context menus which take precedence.
+           */}
+          <div className="flex flex-col flex-1 min-h-0">
             <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fewer-folder-header-bg text-fewer-folder-icon"
-            >
-              <NodeIcon
-                type={data.type}
-                category={data.category}
-                isRoot={data.isRoot}
-                className="h-4 w-4"
-              />
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-              {isRenaming && renameSource === "canvas" ? (
-                <RenameInput
-                  initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
-                  onCommit={(v) => renameNode(id, v)}
-                  onCancel={() => useGraphStore.getState().setRenamingId(null)}
-                />
-              ) : (
-                <span
-                  className="truncate text-sm font-semibold text-foreground"
-                  title={data.label}
-                >
-                  {data.label}
-                </span>
+              className={cn(
+                "flex items-center gap-2 rounded-t-xl border-b border-fewer-folder-border px-3 py-2",
+                "bg-fewer-folder-header-bg",
               )}
-              <span
-                className="truncate text-[10px] text-muted-foreground"
-                title={data.path}
+            >
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fewer-folder-header-bg text-fewer-folder-icon"
               >
-                {data.path}
-              </span>
+                <NodeIcon
+                  type={data.type}
+                  category={data.category}
+                  isRoot={data.isRoot}
+                  className="h-4 w-4"
+                />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                {isRenaming && renameSource === "canvas" ? (
+                  <RenameInput
+                    initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
+                    onCommit={(v) => renameNode(id, v)}
+                    onCancel={() => useGraphStore.getState().setRenamingId(null)}
+                  />
+                ) : (
+                  <span
+                    className="truncate text-sm font-semibold text-foreground"
+                    title={data.label}
+                  >
+                    {data.label}
+                  </span>
+                )}
+                <span
+                  className="truncate text-[10px] text-muted-foreground"
+                  title={data.path}
+                >
+                  {data.path}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
+              style={{ maxHeight: `${childListMaxHeight}px` }}
+              onWheel={(e) => { e.stopPropagation(); }}
+            >
+              {children.length === 0 ? (
+                <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  Empty folder
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {children.map((child) => (
+                    <ChildEntry key={child.id} child={child} parentId={id} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div
+              className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
+            >
+              {childCount} {childCount === 1 ? "item" : "items"}
             </div>
           </div>
         </FolderContextMenu>
-
-        <div
-          className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
-          style={{ maxHeight: `${childListMaxHeight}px` }}
-          onWheel={(e) => { e.stopPropagation(); }}
-        >
-          {children.length === 0 ? (
-            <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-              Empty folder
-            </div>
-          ) : (
-            <div className="space-y-0.5">
-              {children.map((child) => (
-                <ChildEntry key={child.id} child={child} parentId={id} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div
-          className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
-        >
-          {childCount} {childCount === 1 ? "item" : "items"}
-        </div>
 
         <Handle
           type="source"
@@ -792,3 +902,4 @@ function CustomNodeImpl({
 
 export const CustomNode = memo(CustomNodeImpl);
 export { RenameInput };
+export { openFolderInExplorer };

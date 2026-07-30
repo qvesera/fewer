@@ -74,6 +74,9 @@ interface GraphState {
   advancedModeEnabled: boolean;
   setAdvancedMode: (enabled: boolean) => void;
   includeFiles: boolean;
+  /** Runtime toggle to show/hide file nodes on the canvas */
+  showFiles: boolean;
+  setShowFiles: (show: boolean) => void;
 
   // export settings
   exportSettings: ExportSettings;
@@ -131,6 +134,9 @@ interface GraphState {
    // zoom-to-node trigger (set by SearchPanel or ChildEntry double-click, watched by GraphCanvas)
    zoomToNode: { nodeId: string; timestamp: number } | null;
    setZoomToNode: (nodeId: string | null) => void;
+   /** Zoom to fit multiple nodes (set by "Show Children" context menu) */
+   zoomToNodeIds: string[] | null;
+   setZoomToNodeIds: (ids: string[] | null) => void;
 
    /** Position to paste at (set before calling pasteFromClipboard). null = auto-position. */
   /** Last known mouse position in flow coordinates */
@@ -175,10 +181,10 @@ interface GraphState {
   deleteEdges: (ids: string[]) => void;
   hideNode: (id: string) => void;
   hideNodes: (ids: string[]) => void;
-  unhideAll: () => void;
-  unhideNode: (id: string) => void;
-  unhideAncestors: (id: string) => void;
-  unhideSubtree: (id: string) => void;
+  showAll: () => void;
+  showNode: (id: string) => void;
+  showAncestors: (id: string) => void;
+  showSubtree: (id: string) => void;
 
   // loading state for directory import
   loading: boolean;
@@ -201,6 +207,7 @@ interface GraphState {
   tutorialDemoStep: number;
   rightClickDetected: boolean;
   markTutorialBeginnerStep: (id: string) => void;
+  unmarkTutorialBeginnerStep: (id: string) => void;
   setTutorialDismissed: () => void;
   setTutorialDemoStep: (step: number) => void;
   setRightClickDetected: () => void;
@@ -241,7 +248,6 @@ function applySearch(
   return nodes.map((n) => {
     const matches =
       n.data.label.toLowerCase().includes(q) ||
-      n.data.path.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
     return {
       ...n,
@@ -269,6 +275,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   clipboard: null,
   focusedNodeId: null,
   zoomToNode: null,
+  zoomToNodeIds: null,
   mousePosition: null,
   pastePosition: null,
   past: [],
@@ -285,6 +292,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   dataSource: null,
   advancedModeEnabled: false,
   includeFiles: true,
+  showFiles: true,
   loading: false,
   exportSettings: {
     format: "svg",
@@ -345,6 +353,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
   },
 
+  setShowFiles: (show) => {
+    const { nodes } = get();
+    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+    if (show) {
+      // Remove file IDs from hiddenIds
+      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !fileIds.includes(id)) }));
+    } else {
+      // Add file IDs to hiddenIds (avoid duplicates)
+      set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])] }));
+    }
+    setTimeout(() => get().relayout(), 50);
+  },
+
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds?: string[]) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
@@ -365,8 +386,30 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const excludeFromLayout = hiddenFileIds && hiddenFileIds.length > 0 ? new Set(hiddenFileIds) : undefined;
     const laid = layoutGraph(styledNodes, edges, state.direction, { excludeFromLayout });
     const searched = applySearch(laid, edges, state.searchQuery);
-    const idsToHide = hiddenFileIds ?? [];
-    const sortedEdges = sortEdges(edges, styledNodes);
+    let idsToHide = hiddenFileIds ?? [];
+    // If the sidebar "Show Files on Canvas" toggle is off, hide all file nodes
+    if (!state.showFiles) {
+      const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+      idsToHide = [...new Set([...idsToHide, ...fileIds])];
+    }
+    // Apply the currently selected edge flow style to imported edges
+    const edgeType = (
+      state.edgeStyle === "curved" ? "default"
+      : state.edgeStyle === "angled" ? "smoothstep"
+      : "straight"
+    ) as FewerEdge["type"];
+    const strokeDasharray = state.edgeStrokeStyle === "dashed" ? "8 4" : state.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
+    const styledEdges = edges.map((e) => ({
+      ...e,
+      type: edgeType,
+      animated: state.edgeAnimated,
+      style: {
+        ...e.style,
+        strokeWidth: state.edgeWidth,
+        ...(strokeDasharray ? { strokeDasharray } : {}),
+      },
+    }));
+    const sortedEdges = sortEdges(styledEdges, styledNodes);
     set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1 });
   },
 
@@ -404,13 +447,30 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     } else {
       set({ edgeAnimated: animated });
     }
+    // Update all existing edges
+    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })) }));
   },
 
-  setEdgeStrokeStyle: (strokeStyle) => set({ edgeStrokeStyle: strokeStyle }),
+  setEdgeStrokeStyle: (strokeStyle) => {
+    set({ edgeStrokeStyle: strokeStyle });
+    const strokeDasharray = strokeStyle === "dashed" ? "8 4" : strokeStyle === "dotted" ? "2 4" : undefined;
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
+      })),
+    }));
+  },
 
   setEdgeWidth: (width) => {
     const clamped = Math.max(0.5, Math.min(6, width));
     set({ edgeWidth: clamped });
+    set((s) => ({
+      edges: s.edges.map((e) => ({
+        ...e,
+        style: { ...e.style, strokeWidth: clamped },
+      })),
+    }));
   },
 
   setCornerRadius: (radius) => {
@@ -493,6 +553,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setPastePosition: (pos) => set({ pastePosition: pos }),
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
   setZoomToNode: (nodeId) => set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
+  setZoomToNodeIds: (ids) => set({ zoomToNodeIds: ids }),
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery, hiddenIds, graphVersion } = get();
@@ -564,7 +625,43 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past } = get();
     const trimmed = newLabel.trim();
     if (!trimmed) return;
-    const newNodes = nodes.map((n) => n.id === id ? (() => { const ext = n.data.type === "file" ? getFileExtension(trimmed) : ""; const label = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed; return { ...n, data: { ...n.data, label, extension: ext, category: ext ? categorizeByExtension(ext) : undefined } }; })() : n);
+    const node = nodes.find((n) => n.id === id);
+    if (!node) return;
+    const newExt = node.data.type === "file" ? getFileExtension(trimmed) : "";
+    const newLabelOnly = newExt ? trimmed.slice(0, -(newExt.length + 1)) : trimmed;
+    const oldFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+    const newFullLabel = newExt ? `${newLabelOnly}.${newExt}` : newLabelOnly;
+    // Find parent
+    const parentEdge = edges.find((e) => e.target === id);
+    const parent = parentEdge ? nodes.find((n) => n.id === parentEdge.source) : null;
+    const parentPath = parent ? parent.data.path : "";
+    // Compute old and new path prefixes
+    const oldPathPrefix = parent ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
+    const newPathPrefix = parent ? `${parentPath}/${newFullLabel}` : newFullLabel;
+    const isFolder = node.data.type === "folder";
+    // Find all descendants (if folder)
+    const descendantIds = new Set<string>();
+    if (isFolder) {
+      const queue = [id];
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of edges) {
+          if (e.source === nid && e.target !== id) {
+            descendantIds.add(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+    }
+    const newNodes = nodes.map((n) => {
+      if (n.id === id) {
+        return { ...n, data: { ...n.data, label: newLabelOnly, path: newPathPrefix, extension: newExt, category: newExt ? categorizeByExtension(newExt) : undefined } };
+      }
+      if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldPathPrefix)) {
+        return { ...n, data: { ...n.data, path: n.data.path.replace(oldPathPrefix, newPathPrefix) } };
+      }
+      return n;
+    });
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(newNodes, edges, get().searchQuery), renamingId: null });
   },
 
@@ -679,7 +776,22 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     }
     const newEdges: FewerEdge[] = [];
     for (const e of subtreeEdges) { if (allIds.has(e.source) && allIds.has(e.target)) { newEdges.push({ ...e, id: `e-${idMap.get(e.source)}-${idMap.get(e.target)}-${uuid().slice(0, 6)}`, source: idMap.get(e.source)!, target: idMap.get(e.target)! }); } }
-    if (effectiveParentId) newEdges.push({ id: `e-${effectiveParentId}-${idMap.get(rootIds[0])}`, source: effectiveParentId, target: idMap.get(rootIds[0])!, type: edgeTypeFromStyle(get().edgeStyle) });
+    if (effectiveParentId) {
+      const parentNode = nodes.find((n) => n.id === effectiveParentId);
+      const parentPath = parentNode?.data.path ?? "";
+      for (const rootId of rootIds) {
+        const newId = idMap.get(rootId);
+        if (!newId) continue;
+        newEdges.push({ id: `e-${effectiveParentId}-${newId}`, source: effectiveParentId, target: newId, type: edgeTypeFromStyle(get().edgeStyle) });
+        // Update path for the pasted root node to reflect new parent
+        const pastedNode = newNodes.find((n) => n.id === newId);
+        if (pastedNode) {
+          const fullLabel = pastedNode.data.extension ? `${pastedNode.data.label}.${pastedNode.data.extension}` : pastedNode.data.label;
+          pastedNode.data.path = `${parentPath}/${fullLabel}`;
+          pastedNode.data.isRoot = false;
+        }
+      }
+    }
     const firstRoot = newNodes.find((n) => rootIds.includes((clip.nodeIds[0])) || n.selected);
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
@@ -702,13 +814,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   addNode: (parentId, label, type) => {
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const parent = nodes.find((n) => n.id === parentId);
-    const newPath = parent ? `${parent.data.path}/${label}` : label;
     const ext = type === "file" ? getFileExtension(label) : "";
-    const displayLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
+    const baseLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
     // Check for duplicate names under the same parent
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : [];
     const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    if (siblingLabels.has(displayLabel)) return "";
+    let displayLabel = baseLabel;
+    if (siblingLabels.has(displayLabel)) {
+      let counter = 1;
+      while (siblingLabels.has(`${baseLabel} (${counter})`)) counter++;
+      displayLabel = `${baseLabel} (${counter})`;
+    }
+    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
+    const newPath = parent ? `${parent.data.path}/${finalLabel}` : finalLabel;
     const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: displayLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) as const } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
@@ -723,11 +841,17 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const { nodes, edges, past, nodeWidth, nodeHeight } = get();
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
     const ext = type === "file" ? getFileExtension(trimmed) : "";
-    const displayLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
+    const baseLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
     // Check for duplicate names at root level
     const rootNodeLabels = new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.data.label));
-    if (rootNodeLabels.has(displayLabel)) return "";
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: trimmed, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    let displayLabel = baseLabel;
+    if (rootNodeLabels.has(displayLabel)) {
+      let counter = 1;
+      while (rootNodeLabels.has(`${baseLabel} (${counter})`)) counter++;
+      displayLabel = `${baseLabel} (${counter})`;
+    }
+    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(newNodes, edges, get().searchQuery) });
     return newNode.id;
@@ -739,8 +863,41 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const result = validateConnection(connection.source, connection.target, nodes, edges);
     if (!result.ok) return result;
     const newEdge: FewerEdge = { id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`, source: connection.source, target: connection.target, type: edgeTypeFromStyle(get().edgeStyle) };
-    const nextEdges = sortEdges([...edges, newEdge], [...nodes]);
-    set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], edges: nextEdges });
+    // Update child path to reflect new parent
+    const parent = nodes.find((n) => n.id === connection.source);
+    const child = nodes.find((n) => n.id === connection.target);
+    let updatedNodes = nodes;
+    if (parent && child) {
+      const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
+      const newChildPath = `${parent.data.path}/${childFullLabel}`;
+      const oldChildPath = child.data.path;
+      const isFolder = child.data.type === "folder";
+      // Find all descendants (if folder)
+      const descendantIds = new Set<string>();
+      if (isFolder) {
+        const queue = [connection.target];
+        while (queue.length) {
+          const nid = queue.shift()!;
+          for (const e of edges) {
+            if (e.source === nid && e.target !== connection.target) {
+              descendantIds.add(e.target);
+              queue.push(e.target);
+            }
+          }
+        }
+      }
+      updatedNodes = nodes.map((n) => {
+        if (n.id === connection.target) {
+          return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+        }
+        if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) {
+          return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+        }
+        return n;
+      });
+    }
+    const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
+    set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], nodes: applySearch(updatedNodes, nextEdges, get().searchQuery), edges: nextEdges });
     return { ok: true };
   },
 
@@ -760,24 +917,24 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     setTimeout(() => get().relayout(), 50);
   },
 
-  unhideNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
+  showNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
 
-  unhideAncestors: (id) => {
+  showAncestors: (id) => {
     const { hiddenIds, edges } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const parentMap = new Map<string, string>();
     for (const e of edges) parentMap.set(e.target, e.source);
-    const toUnhide = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
-    while (currentId && hiddenSet.has(currentId)) { toUnhide.add(currentId); currentId = parentMap.get(currentId); }
-    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) }); get().relayout();
+    const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
+    while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
-  unhideSubtree: (id) => {
+  showSubtree: (id) => {
     const { hiddenIds, edges } = get();
-    const toUnhide = new Set([id]); const queue = [id];
-    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toUnhide.add(e.target); queue.push(e.target); } } }
-    set({ hiddenIds: hiddenIds.filter((h) => !toUnhide.has(h)) }); get().relayout();
+    const toShow = new Set([id]); const queue = [id];
+    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
   removeEdgesFromHandle: (nodeId, handleType) => {
@@ -795,7 +952,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ past: [...past, { nodes, edges }].slice(-MAX_HISTORY), future: [], edges: filtered });
   },
 
-  unhideAll: () => set({ hiddenIds: [] }),
+  showAll: () => set({ hiddenIds: [] }),
 
   undo: () => {
     const { past, future, nodes, edges } = get();
@@ -819,6 +976,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const done = get().tutorialBeginnerDone;
     if (done.includes(id)) return;
     const next = [...done, id];
+    set({ tutorialBeginnerDone: next });
+    if (typeof window !== "undefined") { try { localStorage.setItem(TUTORIAL_BEGINNER_DONE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
+  },
+  unmarkTutorialBeginnerStep: (id) => {
+    const done = get().tutorialBeginnerDone;
+    if (!done.includes(id)) return;
+    const next = done.filter((d) => d !== id);
     set({ tutorialBeginnerDone: next });
     if (typeof window !== "undefined") { try { localStorage.setItem(TUTORIAL_BEGINNER_DONE_KEY, JSON.stringify(next)); } catch { /* ignore */ } }
   },

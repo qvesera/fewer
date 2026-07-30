@@ -1,9 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bug, HelpCircle, Keyboard, LayoutTemplate, Globe, Github } from "lucide-react";
+import { Search, Bug, HelpCircle, Keyboard, Globe, Github } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useEffect, useRef } from "react";
+import { Logo } from "./Logo";
 
 interface GlobalNavbarProps {
   onRestartTutorial?: () => void;
@@ -27,10 +28,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
     <div className="relative w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
       {/* Brand Group */}
       <div className="z-10 flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm">
-          <LayoutTemplate className="h-4 w-4" />
-        </div>
-        <span className="text-sm font-bold tracking-tight">fewer</span>
+        <Logo showText />
       </div>
 
       {/* Global Search Center Input Box */}
@@ -83,7 +81,7 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:inline-flex min-hit"
           onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
           title="Keyboard shortcuts"
         >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Folder, FileIcon, EyeOff } from "lucide-react";
+import { Folder, FileIcon, EyeOff, Search, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import { fuzzyMatch } from "@/lib/fewer/stats";
@@ -16,6 +16,7 @@ export function SearchPanel() {
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   
+  const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
 
@@ -24,7 +25,7 @@ export function SearchPanel() {
     if (!node) return;
 
     if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().unhideNode(nodeId);
+      useGraphStore.getState().showNode(nodeId);
     }
 
     setSelectedNodeIds([nodeId]);
@@ -92,6 +93,28 @@ export function SearchPanel() {
 
       {/* CLEAN OVERLAY PANEL: Placed below top center omnibar */}
       <div className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5">
+        {/* Search Input — only on mobile, desktop has search bar in navbar */}
+        <div className="relative sm:hidden">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search files & directories..."
+            className="w-full rounded-lg border border-border/50 bg-muted/30 pl-9 pr-9 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/60 focus:bg-background transition-all"
+            autoFocus
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
         {/* Match Tracker & View Container */}
         <div 
           ref={resultsContainerRef}

@@ -22,51 +22,57 @@ export function getParent(
 
 /**
  * Find all children of a node, sorted by their Y position (top to bottom).
+ * Skips hidden nodes if hiddenIds is provided.
  */
 export function getChildren(
   nodeId: string,
   nodes: FewerNode[],
-  edges: FewerEdge[]
+  edges: FewerEdge[],
+  hiddenIds?: Set<string>
 ): FewerNode[] {
   const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
   return nodes
-    .filter((n) => childIds.includes(n.id))
+    .filter((n) => childIds.includes(n.id) && !hiddenIds?.has(n.id))
     .sort((a, b) => a.position.y - b.position.y);
 }
 
 /**
  * Find all siblings (same parent) of a node, sorted by Y position.
+ * Skips hidden nodes if hiddenIds is provided.
  */
 export function getSiblings(
   nodeId: string,
   nodes: FewerNode[],
-  edges: FewerEdge[]
+  edges: FewerEdge[],
+  hiddenIds?: Set<string>
 ): FewerNode[] {
   const parentId = getParent(nodeId, edges);
   if (parentId === null) {
     // Root nodes are siblings of each other
     const hasParent = new Set(edges.map((e) => e.target));
     return nodes
-      .filter((n) => !hasParent.has(n.id))
+      .filter((n) => !hasParent.has(n.id) && !hiddenIds?.has(n.id))
       .sort((a, b) => a.position.y - b.position.y);
   }
-  return getChildren(parentId, nodes, edges);
+  return getChildren(parentId, nodes, edges, hiddenIds);
 }
 
 /**
  * Navigate from the current node in the given direction.
  * Returns the target node ID, or null if there's nowhere to go.
+ * Skips hidden nodes (IDs in hiddenIds set).
  */
 export function navigate(
   currentId: string,
   direction: "up" | "down" | "left" | "right",
   nodes: FewerNode[],
-  edges: FewerEdge[]
+  edges: FewerEdge[],
+  hiddenIds?: Set<string>
 ): string | null {
   const current = nodes.find((n) => n.id === currentId);
   if (!current) return null;
 
-  const siblings = getSiblings(currentId, nodes, edges);
+  const siblings = getSiblings(currentId, nodes, edges, hiddenIds);
   const currentIdx = siblings.findIndex((s) => s.id === currentId);
 
   switch (direction) {
@@ -81,14 +87,14 @@ export function navigate(
 
     case "down": {
       // Go to first child
-      const children = getChildren(currentId, nodes, edges);
+      const children = getChildren(currentId, nodes, edges, hiddenIds);
       if (children.length > 0) return children[0].id;
       // No children — go to next sibling
       if (currentIdx < siblings.length - 1) return siblings[currentIdx + 1].id;
       // No next sibling — go to parent's next sibling (aunt/uncle)
       const parentId = getParent(currentId, edges);
       if (parentId) {
-        const parentSiblings = getSiblings(parentId, nodes, edges);
+        const parentSiblings = getSiblings(parentId, nodes, edges, hiddenIds);
         const parentIdx = parentSiblings.findIndex((s) => s.id === parentId);
         if (parentIdx < parentSiblings.length - 1) {
           return parentSiblings[parentIdx + 1].id;
@@ -109,7 +115,7 @@ export function navigate(
       // Next sibling
       if (currentIdx < siblings.length - 1) return siblings[currentIdx + 1].id;
       // No next sibling — go to first child
-      const children = getChildren(currentId, nodes, edges);
+      const children = getChildren(currentId, nodes, edges, hiddenIds);
       if (children.length > 0) return children[0].id;
       return null;
     }

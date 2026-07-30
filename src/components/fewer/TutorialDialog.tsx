@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
-import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
+import { useDevice } from "@/hooks/use-device";
+import { Logo } from "./Logo";
 
 /* -------------------------------------------------------------------------- */
 /*  Demo stage - animated node preview                                        */
@@ -139,6 +140,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   const store = useGraphStore();
   const [open, setOpen] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [mobileStep, setMobileStep] = useState(0);
 
   const {
     tutorialBeginnerDone,
@@ -148,7 +150,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     resetTutorial,
   } = store;
 
-  const beginnerItems = getBeginnerChecklist();
+  const { isTouch } = useDevice();
+  const beginnerItems = getBeginnerChecklist(isTouch);
 
   // Restart when restartKey changes
   useEffect(() => {
@@ -209,7 +212,11 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   };
 
   const handleMarkDone = (id: string) => {
-    store.markTutorialBeginnerStep(id);
+    if (tutorialBeginnerDone.includes(id)) {
+      store.unmarkTutorialBeginnerStep(id);
+    } else {
+      store.markTutorialBeginnerStep(id);
+    }
   };
 
   const allDone = tutorialBeginnerDone.length >= beginnerItems.length && beginnerItems.length > 0;
@@ -229,16 +236,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     
     {/* Header & Logo */}
     <div className="flex items-center gap-3.5 mb-4">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 ring-1 ring-white/20">
-        <Sparkles className="h-5.5 w-5.5" />
-      </div>
-      <div className="flex flex-col">
-        <h2 className="text-base font-bold tracking-tight">
-          <span className="bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 bg-clip-text text-transparent">
-            fewer
-          </span>
-        </h2>
-      </div>
+      <Logo size={44} showText className="[&>img]:shadow-lg [&>img]:shadow-orange-500/20" />
     </div>
 
     {/* Body Text */}
@@ -283,7 +281,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
 
       <div
-        className="fixed w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border/40 bg-card/95 p-4 shadow-2xl backdrop-blur-xl animate-[tutorial-fade-in_0.3s_ease-out] bottom-4 right-4"
+        className="fixed w-[calc(100vw-2rem)] sm:w-[340px] rounded-2xl border border-border/40 bg-card/95 p-4 shadow-2xl backdrop-blur-xl animate-[tutorial-fade-in_0.3s_ease-out] bottom-4 right-4"
         style={{ zIndex: 2147483647, pointerEvents: "auto" }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -306,62 +304,115 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
           <div className="flex-1 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
             <div
               className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-orange-500 to-amber-500"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${isTouch ? ((mobileStep + 1) / items.length) * 100 : progress}%` }}
             />
           </div>
           <span className="text-[10px] tabular-nums text-muted-foreground">
-            {doneList.length}/{items.length}
+            {isTouch ? `${mobileStep + 1}/${items.length}` : `${doneList.length}/${items.length}`}
           </span>
         </div>
 
-        <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
-          {items.map((item) => (
+        {isTouch ? (
+          /* Mobile: step-through wizard */
+          <div className="space-y-3">
             <ChecklistItem
-              key={item.id}
-              item={item}
-              done={doneList.includes(item.id)}
-              onToggle={() => handleMarkDone(item.id)}
+              item={items[mobileStep]}
+              done={doneList.includes(items[mobileStep].id)}
+              onToggle={() => handleMarkDone(items[mobileStep].id)}
             />
-          ))}
-        </div>
-
-        {allDone && (
-          <div className="mt-3 rounded-lg border border-green-400/30 bg-green-500/5 p-3 text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Check className="h-4 w-4 text-green-400" />
-              <span className="text-xs font-bold text-green-300">All done!</span>
-            </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
-                size="sm"
                 variant="outline"
-                className="flex-1 text-[10px]"
-                onClick={handleResetTutorial}
-              >
-                Restart
-              </Button>
-              <Button
-                type="button"
                 size="sm"
-                className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
-                onClick={handleDismiss}
+                className="flex-1 text-[10px]"
+                disabled={mobileStep === 0}
+                onClick={() => setMobileStep((s) => Math.max(0, s - 1))}
               >
-                <Check className="h-3 w-3 mr-1" />
-                Done
+                ← Back
               </Button>
+              {mobileStep < items.length - 1 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                  onClick={() => setMobileStep((s) => Math.min(items.length - 1, s + 1))}
+                >
+                  Next →
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                  onClick={handleDismiss}
+                >
+                  <Check className="h-3 w-3 mr-1" />
+                  Done
+                </Button>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="w-full text-center text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            >
+              Skip tutorial
+            </button>
           </div>
-        )}
+        ) : (
+          /* Desktop: flat checklist */
+          <>
+            <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+              {items.map((item) => (
+                <ChecklistItem
+                  key={item.id}
+                  item={item}
+                  done={doneList.includes(item.id)}
+                  onToggle={() => handleMarkDone(item.id)}
+                />
+              ))}
+            </div>
 
-        {!allDone && (
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="mt-2 w-full text-center text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          >
-            Skip tutorial
-          </button>
+            {allDone && (
+              <div className="mt-3 rounded-lg border border-green-400/30 bg-green-500/5 p-3 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Check className="h-4 w-4 text-green-400" />
+                  <span className="text-xs font-bold text-green-300">All done!</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-[10px]"
+                    onClick={handleResetTutorial}
+                  >
+                    Restart
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                    onClick={handleDismiss}
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    Done
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!allDone && (
+              <button
+                type="button"
+                onClick={handleDismiss}
+                className="mt-2 w-full text-center text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              >
+                Skip tutorial
+              </button>
+            )}
+          </>
         )}
       </div>
     </Portal>

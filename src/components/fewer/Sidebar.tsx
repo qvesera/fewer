@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
   ArrowRightFromLine,
@@ -28,6 +29,8 @@ import {
   SlidersHorizontal,
   Maximize2,
   Map as MinimapIcon,
+  Globe,
+  FileIcon,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
 import { StatsPanel, CustomThemeEditor, PowerUserToggle, RenameInput } from ".";
@@ -71,6 +74,7 @@ const ADVANCED_LAYOUTS: {
 interface SidebarProps {
   onOpenDirectory: () => void;
   onImportFromFile: () => void;
+  onImportFromUrl: () => void;
 }
 
 function CollapsibleSection({
@@ -336,7 +340,8 @@ function MinimapControls() {
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: SidebarProps) {
+
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -358,12 +363,14 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const unhideAll = useGraphStore((s) => s.unhideAll);
-  const unhideNode = useGraphStore((s) => s.unhideNode);
-  const unhideAncestors = useGraphStore((s) => s.unhideAncestors);
-  const unhideSubtree = useGraphStore((s) => s.unhideSubtree);
+  const showAll = useGraphStore((s) => s.showAll);
+  const showNode = useGraphStore((s) => s.showNode);
+  const showAncestors = useGraphStore((s) => s.showAncestors);
+  const showSubtree = useGraphStore((s) => s.showSubtree);
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
+  const showFiles = useGraphStore((s) => s.showFiles);
+  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
@@ -428,15 +435,26 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
             </Button>
             
             <AnimatedConditional show={advancedModeEnabled} delay={0}>
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="w-full gap-2 border-border/80 hover:bg-muted/50 text-xs font-normal text-foreground"
+                  onClick={onImportFromFile}
+                >
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  Import from File
+                </Button>
               <Button
                 variant="outline"
                 size="default"
                 className="w-full gap-2 border-border/80 hover:bg-muted/50 text-xs font-normal text-foreground"
-                onClick={onImportFromFile}
+                onClick={onImportFromUrl}
               >
-                <Upload className="h-4 w-4 text-muted-foreground" />
-                Import from File
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Import from URL
               </Button>
+              </div>
             </AnimatedConditional>
             
             <div className={cn("grid gap-2", advancedModeEnabled ? "grid-cols-2" : "grid-cols-1")}>
@@ -710,6 +728,21 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
         {/* ── VISUAL STYLES & SKIN ── */}
         <CollapsibleSection title="Appearance" icon={Palette}>
           <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
+              <div className="flex items-center gap-3">
+                <FileIcon className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+                <div className="space-y-0.5">
+                  <Label htmlFor="show-files" className="text-xs font-medium cursor-pointer">
+                    Show files
+                  </Label>
+                </div>
+              </div>
+              <Switch
+                id="show-files"
+                checked={showFiles}
+                onCheckedChange={setShowFiles}
+              />
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
                 const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
@@ -742,10 +775,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
               variant="outline"
               size="sm"
               className="w-full gap-2 border-border/80 hover:bg-muted/40 text-xs font-normal text-foreground mb-2"
-              onClick={() => unhideAll()}
+              onClick={() => showAll()}
             >
               <Eye className="h-3.5 w-3.5" />
-              Unhide All
+              Show All
             </Button>
             <div className="max-h-60 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
               {hiddenNodeGroups.length > 0 && (
@@ -768,17 +801,17 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                             tabIndex={0}
                             onClick={(e) => {
                               e.stopPropagation();
-                              unhideSubtree(group.parentNode.id);
+                              showSubtree(group.parentNode.id);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.stopPropagation();
-                                unhideSubtree(group.parentNode.id);
+                                showSubtree(group.parentNode.id);
                               }
                             }}
                             className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer"
-                            title="Unhide folder and children"
-                            aria-label="Unhide subtree"
+                            title="Show folder and children"
+                            aria-label="Show subtree"
                           >
                             <Eye className="h-3 w-3" />
                           </span>
@@ -807,10 +840,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                                 <span className="truncate text-foreground/70">{child.data.label}</span>
                               )}
                                 <button
-                                  onClick={() => unhideAncestors(child.id)}
+                                  onClick={() => showAncestors(child.id)}
                                   className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
-                                  title="Unhide item"
-                                  aria-label="Unhide node"
+                                  title="Show item"
+                                  aria-label="Show node"
                                 >
                                 <Eye className="h-3 w-3" />
                               </button>
@@ -845,10 +878,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
                         <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
                       )}
                       <button
-                        onClick={() => unhideNode(node.id)}
+                        onClick={() => showNode(node.id)}
                         className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
-                        title="Unhide item"
-                        aria-label="Unhide node"
+                        title="Show item"
+                        aria-label="Show node"
                       >
                         <Eye className="h-3.5 w-3.5" />
                       </button>
@@ -884,7 +917,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile }: SidebarProps) {
 
       {/* Persistent Info Footer Deck */}
       <div className="mt-4 pt-4 border-t border-border/30 space-y-3">
-        <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground">
+        <div className="rounded-xl border border-border/40 bg-muted/25 p-3 text-xs leading-relaxed text-muted-foreground hidden sm:block">
           <span className="font-semibold text-foreground/90 tracking-widest text-[10px] uppercase block mb-1">Canvas Shortcuts</span>{" "}
           Ctrl + I for more shortcuts • Arrow keys to change selection • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">H</kbd> to hide • <kbd className="px-1.5 py-0.5 bg-muted border border-border/80 rounded font-mono text-[9px] text-foreground/80 font-normal">Space</kbd> to fit graph to view
         </div>
