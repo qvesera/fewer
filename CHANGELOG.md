@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - License badge and section: MIT → AGPLv3 (matches LICENSE)
 - Pre-existing lint error: ref mutation during render in `GraphCanvas.tsx` (moved to `useEffect`)
+- Duplicate rename commit on folder rename; descendant paths now update correctly on rename
 
 ## [0.2.0] - 2025
 

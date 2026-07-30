@@ -39,6 +39,7 @@ export function Toolbar({
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const hasNodes = useGraphStore((s) => s.nodes.length > 0);
   
   return (
     <header className="z-20 mx-4 mt-4 flex items-center justify-between gap-4 rounded-xl border border-border/40 bg-background/80 backdrop-blur-md px-4 py-2.5 shadow-sm">
@@ -131,6 +132,7 @@ export function Toolbar({
             size="sm"
             className="h-8 gap-1.5 font-medium text-xs border-border/60 hover:bg-muted/40"
             onClick={onLoadSample}
+            disabled={hasNodes}
             data-tutorial="sample-button"
           >
             <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />

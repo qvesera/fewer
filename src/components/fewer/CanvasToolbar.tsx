@@ -20,6 +20,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const hasNodes = useGraphStore((s) => s.nodes.length > 0);
 
   return (
     <div className="w-full flex items-center justify-between gap-2 border-b border-border/30 bg-background/50 backdrop-blur-sm px-4 py-1.5 overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:h-0">
@@ -88,6 +89,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           size="sm"
           className="h-8 gap-1.5 font-medium text-s text-muted-foreground hover:text-foreground shrink-0"
           onClick={onLoadSample}
+          disabled={hasNodes}
           data-tutorial="sample-button"
         >
           <Sparkles className="h-3.5 w-3.5 text-amber-500" />

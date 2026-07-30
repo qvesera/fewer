@@ -93,14 +93,14 @@ docker run -p 3000:3000 fewer
 
 ### Import a real directory
 
-1. Click **Import from disk** (or **Ctrl+O**)
+1. Click **Import from disk** (or **Alt+I**)
 2. Select a folder — configurable depth, hidden files, extension filters
 3. The graph builds instantly with Dagre auto-layout
 
 ### Edit the graph
 
 - **Rename** a node — **F2** or right-click
-- **Add** a node — **Ctrl+N**
+- **Add** a node — **Alt+N**
 - **Delete** — **Delete** key (cascading children)
 - **Copy/Paste** — **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo** — **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
@@ -128,7 +128,7 @@ docker run -p 3000:3000 fewer
 | Key                       | Action                                 |
 | ------------------------- | -------------------------------------- |
 | **↑↓←→**                  | Tree navigation (parent/child/sibling) |
-| **Ctrl+N**                | New node                               |
+| **Alt+N**                 | New node                               |
 | **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
 | **Ctrl+E**                | Export panel                           |
 | **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
@@ -136,7 +136,7 @@ docker run -p 3000:3000 fewer
 | **Ctrl+L**                | Cycle layout direction                 |
 | **Ctrl+I**                | Shortcuts reference                    |
 | **F2**                    | Rename                                 |
-| **Delete**                | Remove (cascading)                     |
+| **Delete/Backspace**      | Remove (cascading)                     |
 | **Space**                 | Fit view                               |
 | **+ / - / 0**             | Zoom in/out/reset                      |
 
@@ -187,7 +187,6 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>File System Integration</b></summary>
 
-- **File System Access API** — read/write real directories
 - **File operations** — copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
 - **Import settings** — depth limit, hidden files, vendored dirs, extension filter, file/folder toggles

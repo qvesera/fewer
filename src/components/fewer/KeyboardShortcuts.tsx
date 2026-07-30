@@ -248,7 +248,7 @@ export function KeyboardShortcuts() {
       }
 
       // Ctrl+A
-      if (mod && e.key.toLowerCase() === "a") {
+      if (mod && e.key.toLowerCase() === "a" && !inEditable) {
         e.preventDefault();
         setSelectedNodeIds(nodes.map((n) => n.id));
         useGraphStore.setState((s) => ({
