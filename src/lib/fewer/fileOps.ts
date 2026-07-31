@@ -1,5 +1,7 @@
 "use client";
 
+import { fsHandleStore } from "./types";
+
 /**
  * Real file system operations using the File System Access API.
  * These functions actually modify files on disk — not just the graph.
@@ -260,13 +262,14 @@ export async function expandFolderNode(
       type: "folder" as const,
       depth: (parentNode?.data.depth ?? 0) + 1,
       isRoot: false,
-      fsHandle: handle,
     },
     style: {
       width: store.nodeWidth,
       height: store.nodeHeight,
     },
   };
+  // Store fsHandle separately to avoid live browser API objects on node data
+  fsHandleStore.set(folderNodeId, handle);
 
   // Offset child nodes relative to the folder node
   const offsetChildren = childNodes.map((n) => ({

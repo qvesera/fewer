@@ -5,6 +5,7 @@ import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
+import { fsHandleStore } from "@/lib/fewer/types";
 
 function edgeTypeFromStyle(style: string): FewerEdge["type"] {
   switch (style) {
@@ -549,11 +550,14 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (selectedNodeIds.length > 0) get().deleteNodes(selectedNodeIds);
   },
 
-  reset: () => set({
-    nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
-    searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
-    graphVersion: 0,
-  }),
+  reset: () => {
+    fsHandleStore.clear();
+    set({
+      nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
+      searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
+      graphVersion: 0,
+    });
+  },
 });
 
 function applySearchInternal(

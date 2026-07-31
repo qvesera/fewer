@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import { fsHandleStore } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -500,11 +501,11 @@ function FileEntryContextMenu({
             {showOpenFile !== false && (
             <ContextMenuItem
               onSelect={async () => {
-                const node = nodes.find((n) => n.id === nodeId);
-                if (node?.data.fsHandle) {
+                const handle = fsHandleStore.get(nodeId);
+                if (handle && handle.kind === "file") {
                   try {
                     const { openFile } = await import("@/lib/fewer/fileOps");
-                    await openFile(node.data.fsHandle as FileSystemFileHandle);
+                    await openFile(handle as FileSystemFileHandle);
                     toast({ title: "Opening file", description: nodeLabel });
                   } catch {
                     toast({ title: "Cannot open file", variant: "destructive" });
@@ -544,6 +545,38 @@ function FileEntryContextMenu({
       </ContextMenuContent>
     </ContextMenu>
   );
+}
+
+const ITEM_HEIGHT = 28;
+const OVERSCAN = 5;
+
+function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, totalItems: number) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerHeight(entry.contentRect.height);
+    });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    ro.observe(el);
+    setContainerHeight(el.clientHeight);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [containerRef]);
+
+  const totalHeight = totalItems * ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN);
+  const visibleCount = endIndex - startIndex;
+  const offsetY = startIndex * ITEM_HEIGHT;
+
+  return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
 
 function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
@@ -669,6 +702,8 @@ function CustomNodeImpl({
   }, [edges, id, isFolder]);
 
   const isRenaming = renamingId === id;
+  const childListRef = useRef<HTMLDivElement>(null);
+  const virtual = useVirtualScroll(childListRef, children.length);
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
@@ -760,6 +795,7 @@ function CustomNodeImpl({
             </div>
 
             <div
+              ref={childListRef}
               className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
               style={{ maxHeight: `${childListMaxHeight}px` }}
               onWheel={(e) => { e.stopPropagation(); }}
@@ -769,10 +805,16 @@ function CustomNodeImpl({
                   Empty folder
                 </div>
               ) : (
-                <div className="space-y-0.5">
-                  {children.map((child) => (
-                    <ChildEntry key={child.id} child={child} parentId={id} />
-                  ))}
+                <div
+                  style={{ height: `${virtual.totalHeight}px`, position: "relative" }}
+                >
+                  <div
+                    style={{ transform: `translateY(${virtual.offsetY}px)` }}
+                  >
+                    {children.slice(virtual.startIndex, virtual.endIndex).map((child) => (
+                      <ChildEntry key={child.id} child={child} parentId={id} />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
