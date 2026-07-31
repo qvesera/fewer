@@ -1,11 +1,6 @@
 import ELK from "elkjs";
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
 
-/**
- * Default dimensions per node type.
- * Folder cards are taller because they contain a child list + header + footer.
- * File cards are single-row.
- */
 const DEFAULT_FOLDER_WIDTH = 240;
 const DEFAULT_FOLDER_HEIGHT = 200;
 const DEFAULT_FILE_WIDTH = 220;
@@ -28,129 +23,20 @@ function getNodeDimensions(node: FewerNode): { w: number; h: number } {
   return { w, h };
 }
 
-function elkDirection(dir: LayoutDirection): string {
-  switch (dir) {
-    case "TB": return "DOWN";
-    case "BT": return "UP";
-    case "LR": return "RIGHT";
-    case "RL": return "LEFT";
-  }
-}
-
 export interface LayoutOptions {
   excludeFromLayout?: Set<string>;
 }
 
-const elk = new ELK();
-
-/**
- * Run an ELK layout pass configured to pack wide leaf branches into
- * compact multi-row grids under each parent folder.
- */
-export async function layoutGraph(
-  nodes: FewerNode[],
-  edges: FewerEdge[],
-  direction: LayoutDirection = "TB",
-  options?: LayoutOptions
-): Promise<FewerNode[]> {
-  const excludeSet = options?.excludeFromLayout ?? new Set();
-
-  const elkNodes: any[] = [];
-  const elkEdges: any[] = [];
-  const dims = new Map<string, { w: number; h: number }>();
-
-  for (const node of nodes) {
-    if (excludeSet.has(node.id)) {
-      dims.set(node.id, { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT });
-      continue;
-    }
-    const { w, h } = getNodeDimensions(node);
-    elkNodes.push({
-      id: node.id,
-      width: w,
-      height: h,
-    });
-    dims.set(node.id, { w, h });
-  }
-
-  const nodeIds = new Set(elkNodes.map((n) => n.id));
-  for (const edge of edges) {
-    if (excludeSet.has(edge.source) && excludeSet.has(edge.target)) continue;
-    if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
-      elkEdges.push({
-        id: edge.id,
-        sources: [edge.source],
-        targets: [edge.target],
-      });
-    }
-  }
-
-  const isHorizontal = direction === "LR" || direction === "RL";
-
-  const elkGraph = {
-    id: "root",
-    layoutOptions: {
-      "elk.algorithm": "layered",
-      "elk.direction": elkDirection(direction),
-      
-      // Tight spacing between items
-      "elk.spacing.nodeNode": "30",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      
-      // Target aspect ratio (approx 1.2 square-ish bounding box for the graph)
-      "elk.aspectRatio": "1.2",
-      
-      // Center parents strictly above child branches
-      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
-      "elk.layered.nodePlacement.favorStraightEdges": "true",
-      
-      // Wrapping strategy: allow nodes in the same rank to wrap across multiple rows
-      "elk.layered.wrapping.strategy": "SINGLE_EDGE",
-      "elk.layered.wrapping.correctionFactor": "1.0",
-      
-      // Post-compaction scans horizontally and vertically to pull subtrees together
-      "elk.layered.compaction.postCompaction.strategy": "SCANLINE",
-      
-      // Prevents high-out-degree nodes (e.g. folder with 10 files) from staying in one line
-      "elk.layered.highDegreeNodes.treatment": "true",
-      "elk.layered.highDegreeNodes.threshold": "3",
-    },
-    children: elkNodes,
-    edges: elkEdges,
-  };
-
-  const result = await elk.layout(elkGraph);
-
-  const elkPositions = new Map<string, { x: number; y: number }>();
-  if (result.children) {
-    for (const child of result.children) {
-      if (child.x !== undefined && child.y !== undefined) {
-        elkPositions.set(child.id, { x: child.x, y: child.y });
-      }
-    }
-  }
-
-  return nodes.map((node) => {
-    if (excludeSet.has(node.id)) {
-      return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
-    }
-    const pos = elkPositions.get(node.id);
-    if (!pos) return node as FewerNode;
-    return {
-      ...node,
-      position: {
-        x: pos.x,
-        y: pos.y,
-      },
-      data: { ...node.data, layoutDirection: direction, isHorizontal },
-    } as FewerNode;
-  });
+interface TreeContour {
+  left: number[];  // min relative position for each depth level below this node
+  right: number[]; // max relative position for each depth level below this node
 }
 
 /**
- * Synchronous Fallback Tree Layout
+ * Strict Reingold-Tilford Tree Layout with Contour Matching.
+ * Guarantees parents stay centered over children while preventing cross-level collisions.
  */
-export function layoutGraphSync(
+export function layoutGraphContour(
   nodes: FewerNode[],
   edges: FewerEdge[],
   direction: LayoutDirection = "TB",
@@ -158,8 +44,8 @@ export function layoutGraphSync(
 ): FewerNode[] {
   const excludeSet = options?.excludeFromLayout ?? new Set();
   const isHorizontal = direction === "LR" || direction === "RL";
-  const gap = 25;
-  const levelGap = 80;
+  const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
+  const layerGap = 70; // Spacing between tree depths
 
   const childrenMap = new Map<string, string[]>();
   const parentMap = new Map<string, string>();
@@ -176,67 +62,209 @@ export function layoutGraphSync(
   );
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const positions = new Map<string, { x: number; y: number }>();
 
-  function layoutSubtree(nodeId: string, depth: number, offset: number): number {
+  // 1. Calculate depth level for every node
+  const nodeDepths = new Map<string, number>();
+  function calculateDepths(nodeId: string, currentDepth: number) {
+    nodeDepths.set(nodeId, currentDepth);
+    const children = childrenMap.get(nodeId) ?? [];
+    for (const childId of children) {
+      calculateDepths(childId, currentDepth + 1);
+    }
+  }
+  for (const root of roots) {
+    calculateDepths(root.id, 0);
+  }
+
+  // 2. Compute dynamic depth layer positions (Y in TB/BT, X in LR/RL)
+  const depthMaxBreadth: number[] = [];
+  nodeDepths.forEach((depth, nodeId) => {
     const node = nodeMap.get(nodeId);
-    if (!node) return offset;
-
+    if (!node) return;
     const { w, h } = getNodeDimensions(node);
+    const b = isHorizontal ? w : h;
+    depthMaxBreadth[depth] = Math.max(depthMaxBreadth[depth] ?? 0, b);
+  });
+
+  const effectiveLayerGap = isHorizontal ? layerGap + 60 : layerGap + 30; // Extra clearance between layers for folders
+
+  const depthPositions: number[] = [0];
+  for (let d = 0; d < depthMaxBreadth.length; d++) {
+    depthPositions[d + 1] = depthPositions[d] + depthMaxBreadth[d] + effectiveLayerGap;
+  }
+
+  // Store relative offsets from parent center
+  const relativeXMap = new Map<string, number>();
+
+  // 3. Bottom-up subtree layout with exact contour matching
+  function layoutSubtree(nodeId: string): TreeContour {
+    const node = nodeMap.get(nodeId)!;
+    const { w, h } = getNodeDimensions(node);
+    const nodeSize = isHorizontal ? h : w;
     const children = childrenMap.get(nodeId) ?? [];
 
     if (children.length === 0) {
-      if (isHorizontal) {
-        positions.set(nodeId, { x: depth * (240 + levelGap), y: offset });
+      relativeXMap.set(nodeId, 0);
+      return {
+        left: [-nodeSize / 2],
+        right: [nodeSize / 2],
+      };
+    }
+
+    const childContours: TreeContour[] = [];
+    const childOffsets: number[] = [];
+
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      const contour = layoutSubtree(childId);
+      childContours.push(contour);
+
+      if (i === 0) {
+        childOffsets.push(0);
       } else {
-        positions.set(nodeId, { x: offset, y: depth * (DEFAULT_FOLDER_HEIGHT + levelGap) });
+        let maxOverlapShift = 0;
+        const currentGap = isHorizontal ? 50 : nodeGap;
+
+        // Compare against ALL previously placed siblings to prevent cross-subtree overlap
+        for (let j = 0; j < i; j++) {
+          const prevContour = childContours[j];
+          const compareDepth = Math.min(prevContour.right.length, contour.left.length);
+
+          for (let d = 0; d < compareDepth; d++) {
+            const prevRight = childOffsets[j] + prevContour.right[d];
+            const currLeft = contour.left[d];
+            const requiredShift = prevRight - currLeft + currentGap;
+            if (requiredShift > maxOverlapShift) {
+              maxOverlapShift = requiredShift;
+            }
+          }
+        }
+        childOffsets.push(maxOverlapShift);
       }
-      return offset + (isHorizontal ? h : w) + gap;
     }
 
-    let currentOffset = offset;
-    const childCenters: number[] = [];
+    // Center parent over children group
+    const firstChildOffset = childOffsets[0];
+    const lastChildOffset = childOffsets[childOffsets.length - 1];
+    const childrenCenter = (firstChildOffset + lastChildOffset) / 2;
 
+    const mergedLeft: number[] = [-nodeSize / 2];
+    const mergedRight: number[] = [nodeSize / 2];
+
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      // Final relative position from parent
+      const relX = childOffsets[i] - childrenCenter;
+      relativeXMap.set(childId, relX);
+
+      const c = childContours[i];
+      for (let d = 0; d < c.left.length; d++) {
+        const targetDepth = d + 1;
+        const cLeft = c.left[d] + relX;
+        const cRight = c.right[d] + relX;
+
+        if (mergedLeft[targetDepth] === undefined) {
+          mergedLeft[targetDepth] = cLeft;
+          mergedRight[targetDepth] = cRight;
+        } else {
+          mergedLeft[targetDepth] = Math.min(mergedLeft[targetDepth], cLeft);
+          mergedRight[targetDepth] = Math.max(mergedRight[targetDepth], cRight);
+        }
+      }
+    }
+
+    relativeXMap.set(nodeId, 0);
+    return { left: mergedLeft, right: mergedRight };
+  }
+
+  // 4. Top-down position assignment
+  const finalXMap = new Map<string, number>();
+
+  function assignPositions(nodeId: string, currentAbsoluteX: number) {
+    finalXMap.set(nodeId, currentAbsoluteX);
+
+    const children = childrenMap.get(nodeId) ?? [];
     for (const childId of children) {
-      const childStart = currentOffset;
-      currentOffset = layoutSubtree(childId, depth + 1, currentOffset);
-      const childEnd = currentOffset - gap;
-      childCenters.push((childStart + childEnd) / 2);
+      const relX = relativeXMap.get(childId) ?? 0;
+      assignPositions(childId, currentAbsoluteX + relX);
     }
-
-    const subtreeCenter = (childCenters[0] + childCenters[childCenters.length - 1]) / 2;
-    const parentPos = subtreeCenter - (isHorizontal ? h : w) / 2;
-
-    if (isHorizontal) {
-      positions.set(nodeId, { x: depth * (240 + levelGap), y: parentPos });
-    } else {
-      positions.set(nodeId, { x: parentPos, y: depth * (DEFAULT_FOLDER_HEIGHT + levelGap) });
-    }
-
-    return Math.max(currentOffset, parentPos + (isHorizontal ? h : w) + gap);
   }
 
-  let currentOffset = 0;
+  let rootXOffset = 0;
   for (const root of roots) {
-    currentOffset = layoutSubtree(root.id, 0, currentOffset) + 40;
+    const contour = layoutSubtree(root.id);
+    const minL = Math.min(...contour.left);
+    const maxR = Math.max(...contour.right);
+
+    assignPositions(root.id, rootXOffset - minL);
+    rootXOffset += (maxR - minL) + 120;
   }
+
+  // 5. Build output node positions with direction inversions (TB, LR, BT, RL)
+  const maxDepthPos = depthPositions[depthPositions.length - 1] ?? 0;
 
   return nodes.map((node) => {
     if (excludeSet.has(node.id)) {
       return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
     }
-    const pos = positions.get(node.id) ?? { x: 0, y: 0 };
+
+    const { w, h } = getNodeDimensions(node);
+    const depth = nodeDepths.get(node.id) ?? 0;
+    const depthPos = depthPositions[depth];
+    const xPos = finalXMap.get(node.id) ?? 0;
+
+    let finalX = 0;
+    let finalY = 0;
+
+    switch (direction) {
+      case "LR":
+        finalX = depthPos;
+        finalY = xPos - h / 2;
+        break;
+      case "RL":
+        finalX = maxDepthPos - depthPos - w;
+        finalY = xPos - h / 2;
+        break;
+      case "BT":
+        finalX = xPos - w / 2;
+        finalY = maxDepthPos - depthPos - h;
+        break;
+      case "TB":
+      default:
+        finalX = xPos - w / 2;
+        finalY = depthPos;
+        break;
+    }
+
     return {
       ...node,
-      position: pos,
+      position: { x: finalX, y: finalY },
       data: { ...node.data, layoutDirection: direction, isHorizontal },
     } as FewerNode;
   });
 }
 
 /**
- * Run layout asynchronously via ELK.
+ * Main Layout Entrypoints
  */
+export async function layoutGraph(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): Promise<FewerNode[]> {
+  return layoutGraphContour(nodes, edges, direction, options);
+}
+
+export function layoutGraphSync(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): FewerNode[] {
+  return layoutGraphContour(nodes, edges, direction, options);
+}
+
 export function runLayoutAsync(
   nodes: FewerNode[],
   edges: FewerEdge[],
