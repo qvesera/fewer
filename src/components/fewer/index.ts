@@ -16,6 +16,7 @@ export { KeyboardShortcuts } from "./KeyboardShortcuts";
 export { Logo } from "./Logo";
 export { NotificationPanel } from "./NotificationPanel";
 export { SearchPanel } from "./SearchPanel";
+export { SettingsDialog } from "./SettingsDialog";
 export { ShareDialog } from "./ShareDialog";
 export { ShortcutsDialog } from "./ShortcutsDialog";
 export { Sidebar } from "./Sidebar";

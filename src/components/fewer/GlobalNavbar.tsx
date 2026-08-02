@@ -1,21 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bug, HelpCircle, Keyboard, Globe, Github, Bell } from "lucide-react";
+import { Search, Bell, Settings } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
 
 interface GlobalNavbarProps {
-  onRestartTutorial?: () => void;
   onToggleNotifications?: () => void;
 }
 
-export function GlobalNavbar({ onRestartTutorial, onToggleNotifications }: GlobalNavbarProps) {
+export function GlobalNavbar({ onToggleNotifications }: GlobalNavbarProps) {
   const { history, unreadCount, clearUnread } = useToast();
   const setSearchOpen = useGraphStore((s) => s.setSearchOpen);
-  const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
+  const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
   const query = useGraphStore((s) => s.searchQuery);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const searchOpen = useGraphStore((s) => s.searchOpen);
@@ -69,28 +68,6 @@ export function GlobalNavbar({ onRestartTutorial, onToggleNotifications }: Globa
             <Search className="h-4 w-4" />
           </Button>
 
-        {onRestartTutorial && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-orange-400 hover:bg-orange-500/10 hover:text-orange-500 min-hit"
-            onClick={onRestartTutorial}
-            title="Restart tutorial"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </Button>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:inline-flex min-hit"
-          onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
-          title="Keyboard shortcuts"
-        >
-          <Keyboard className="h-4 w-4" />
-        </Button>
-
         {onToggleNotifications && (
           <Button
             variant="ghost"
@@ -112,32 +89,14 @@ export function GlobalNavbar({ onRestartTutorial, onToggleNotifications }: Globa
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/5 min-hit"
-          onClick={() => setBugReportOpen(true)}
-          title="Report a bug"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+          onClick={() => setSettingsOpen(true)}
+          title="Settings"
+          aria-label="Open settings"
         >
-          <Bug className="h-4 w-4" />
+          <Settings className="h-4 w-4" />
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
-          onClick={() => window.open("https://github.com/qvesera/fewer", "_blank", "noreferrer")}
-          title="GitHub"
-        >
-          <Github className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
-          onClick={() => window.open("https://qvesera.github.io", "_blank", "noreferrer")}
-          title="Website"
-        >
-          <Globe className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

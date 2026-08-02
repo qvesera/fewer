@@ -18,22 +18,16 @@ import {
   Plus,
   EyeOff,
   Eye,
-  ChevronDown,
   ChevronRight,
-  Sun,
-  Moon,
   Palette,
   Layers,
-  Settings2,
   HardDrive,
   SlidersHorizontal,
-  Maximize2,
-  Map as MinimapIcon,
   Globe,
   FileIcon,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, ThemeMode, FewerNode } from "@/lib/fewer/types";
-import { StatsPanel, CustomThemeEditor, PowerUserToggle, RenameInput } from ".";
+import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode } from "@/lib/fewer/types";
+import { StatsPanel, RenameInput } from ".";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -309,75 +303,6 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-function MinimapControls() {
-  const showMiniMap = useGraphStore((s) => s.showMiniMap);
-  const setShowMiniMap = useGraphStore((s) => s.setShowMiniMap);
-  const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
-  const setMiniMapPosition = useGraphStore((s) => s.setMiniMapPosition);
-  const miniMapSize = useGraphStore((s) => s.miniMapSize);
-  const setMiniMapSize = useGraphStore((s) => s.setMiniMapSize);
-
-  const positions = [
-    { value: "top-left", label: "Top Left" },
-    { value: "top-right", label: "Top Right" },
-    { value: "bottom-left", label: "Bottom Left" },
-    { value: "bottom-right", label: "Bottom Right" },
-  ] as const;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs text-foreground/90">Show minimap</Label>
-        <Button
-          variant={showMiniMap ? "default" : "outline"}
-          size="sm"
-          className="h-7 px-3 text-[11px]"
-          onClick={() => setShowMiniMap(!showMiniMap)}
-        >
-          {showMiniMap ? "Visible" : "Hidden"}
-        </Button>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs text-foreground/90">Position</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {positions.map((pos) => {
-            const active = miniMapPosition === pos.value;
-            return (
-              <button
-                key={pos.value}
-                onClick={() => setMiniMapPosition(pos.value)}
-                className={cn(
-                  "rounded-lg border px-2 py-1.5 text-[11px] text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300"
-                    : "border-border/60 hover:bg-muted/40 text-foreground",
-                )}
-              >
-                {pos.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-2 pb-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs text-foreground/90">Size</Label>
-          <span className="text-[11px] font-mono tabular-nums text-foreground/80">{miniMapSize}px</span>
-        </div>
-        <Slider
-          value={[miniMapSize]}
-          onValueChange={([v]) => setMiniMapSize(v)}
-          min={80}
-          max={300}
-          step={10}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: SidebarProps) {
 
   const direction = useGraphStore((s) => s.direction);
@@ -392,9 +317,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
-  const nodeWidth = useGraphStore((s) => s.nodeWidth);
-  const nodeHeight = useGraphStore((s) => s.nodeHeight);
-  const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
@@ -403,14 +325,11 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const showNode = useGraphStore((s) => s.showNode);
   const showAncestors = useGraphStore((s) => s.showAncestors);
   const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
   const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
   const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
   const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
-  const themeMode = useGraphStore((s) => s.themeMode);
-  const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -429,17 +348,12 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   // Sanitization side-effect when switching from advanced to basic view
   useEffect(() => {
     if (!advancedModeEnabled) {
-      // 1. Reset direction to fallback if set to BT or RL
+      // Reset direction to fallback if set to BT or RL
       if (direction === "BT" || direction === "RL") {
         setDirection("TB");
       }
-
-      // 2. Reset layout theme mode if set to "custom"
-      if (themeMode === "custom") {
-        setThemeMode("dark");
-      }
     }
-  }, [advancedModeEnabled, direction, themeMode, setDirection, setThemeMode]);
+  }, [advancedModeEnabled, direction, setDirection]);
 
   const availableEdgeStyles = useMemo(() => {
     return [
@@ -778,40 +692,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
           </div>
         </CollapsibleSection>
 
-        {/* ── POWER USER MODE ONLY: NODE DIMENSIONS DATA ── */}
-        <AnimatedConditional show={advancedModeEnabled} delay={150}>
-          <CollapsibleSection title="Node Metrics" icon={Maximize2}>
-            <div className="flex flex-col gap-4 pt-1">
-              <div className="space-y-2 pb-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground font-normal">Node Width</Label>
-                  <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeWidth}px</span>
-                </div>
-                <Slider
-                  value={[nodeWidth]}
-                  onValueChange={([v]) => setNodeDimensions(v, nodeHeight)}
-                  min={120}
-                  max={400}
-                  step={10}
-                />
-              </div>
-              <div className="space-y-2 pb-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground font-normal">Node Height</Label>
-                  <span className="text-xs font-mono tabular-nums font-normal text-foreground/80">{nodeHeight}px</span>
-                </div>
-                <Slider
-                  value={[nodeHeight]}
-                  onValueChange={([v]) => setNodeDimensions(nodeWidth, v)}
-                  min={40}
-                  max={300}
-                  step={5}
-                />
-              </div>
-            </div>
-          </CollapsibleSection>
-        </AnimatedConditional>
-
         {/* ── VISUAL STYLES & SKIN ── */}
         <CollapsibleSection title="Appearance" icon={Palette}>
           <div className="flex flex-col gap-4">
@@ -830,28 +710,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                 onCheckedChange={setShowFiles}
               />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
-                const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
-                const active = themeMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => setThemeMode(mode)}
-                    className={cn(
-                      "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring",
-                      active
-                        ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300"
-                        : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5 opacity-80" />
-                    <span className="text-xs font-normal capitalize">{mode}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {advancedModeEnabled && themeMode === "custom" && <CustomThemeEditor />}
           </div>
         </CollapsibleSection>
 
@@ -885,16 +743,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
           </CollapsibleSection>
         </AnimatedConditional>
 
-        <AnimatedConditional show={advancedModeEnabled} delay={250}>
-          <CollapsibleSection title="Minimap" icon={MinimapIcon}>
-            <MinimapControls />
-          </CollapsibleSection>
-        </AnimatedConditional>
-
-        {/* ── PREFERENCES & SWITCHES ── */}
-        <CollapsibleSection title="Configuration" icon={Settings2}>
-          <PowerUserToggle />
-        </CollapsibleSection>
       </div>
 
       {/* Persistent Info Footer Deck */}

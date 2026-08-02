@@ -13,6 +13,7 @@ import {
   BugReportDialog,
   TutorialDialog,
   ShortcutsDialog,
+  SettingsDialog,
   ShareDialog,
   AddNodeDialog,
   ImportUrlDialog,
@@ -51,10 +52,6 @@ export function FewerApp() {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
   const resizingRef = useRef(false);
-
-  const handleRestartTutorial = useCallback(() => {
-    setTutorialRestartKey((k) => k + 1);
-  }, []);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -137,17 +134,20 @@ export function FewerApp() {
     const openImportFolder = () => setImportDialogOpen(true);
     const openImportFile = () => setImportFromFileOpen(true);
     const openImportUrl = () => setImportUrlOpen(true);
+    const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
     window.addEventListener("fewer-import-file", openImportFile);
     window.addEventListener("fewer-import-url", openImportUrl);
+    window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
       window.removeEventListener("fewer-import-folder", openImportFolder);
       window.removeEventListener("fewer-import-file", openImportFile);
       window.removeEventListener("fewer-import-url", openImportUrl);
+      window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, []);
 
@@ -225,10 +225,7 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar
-        onRestartTutorial={handleRestartTutorial}
-        onToggleNotifications={() => setNotifOpen((o) => !o)}
-      />
+      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -290,6 +287,7 @@ export function FewerApp() {
       <BugReportDialog />
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
+      <SettingsDialog />
       <ShareDialog />
       <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
 

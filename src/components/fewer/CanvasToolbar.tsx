@@ -105,6 +105,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           <Download className="h-3.5 w-3.5" />
           <span>Export</span>
         </Button>
+
       </div>
     </div>
   );

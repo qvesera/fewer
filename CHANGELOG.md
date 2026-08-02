@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Settings Dialog** — unified tabbed settings dialog (About, Appearance, Advanced, Help) opened via gear icon in the top navbar (right of notifications). Consolidates previously scattered utility controls.
+- **About tab** — app version, description, GitHub/website links, credits.
+- **Appearance tab** — theme mode selector (light/dark/custom), custom theme editor, and Show files toggle moved from the sidebar.
+- **Advanced tab** — Power User toggle, minimap controls (visibility/position/size), and node dimension sliders moved from the sidebar.
+- **Help tab** — buttons to open the Keyboard Shortcuts dialog, Bug Report dialog, restart the tutorial, and links to GitHub issues/website.
+
+### Changed
+
+- **Sidebar decluttered** — removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
+- **GlobalNavbar simplified** — removed Keyboard/Bug/GitHub/Globe buttons; now Logo + Search + Notifications + Settings gear.
+- **Minimap controls** and **node dimension sliders** moved from sidebar to Settings → Advanced tab.
+- **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.
+- **Tutorial restart** now accessible via Settings → Help tab (uses `fewer-restart-tutorial` window event).
+
 ## [0.3.3] - 2026-08
 
 ### Added
