@@ -271,7 +271,10 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuItem
-          onSelect={() => deleteNode([nodeId])}
+          onSelect={() => {
+            deleteNode([nodeId]);
+            toast({ title: "Folder deleted", description: nodeLabel });
+          }}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete
@@ -490,7 +493,10 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuItem
-          onSelect={onDelete}
+          onSelect={() => {
+            onDelete();
+            toast({ title: "Item deleted", description: nodeLabel });
+          }}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete Item
@@ -682,6 +688,8 @@ function CustomNodeImpl({
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
 
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
@@ -700,6 +708,13 @@ function CustomNodeImpl({
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
     return childIds.length;
   }, [edges, id, isFolder]);
+
+  const hiddenChildCount = useMemo(() => {
+    if (!isFolder) return 0;
+    const hiddenSet = new Set(hiddenIds);
+    const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
+    return childIds.filter((cid) => hiddenSet.has(cid)).length;
+  }, [edges, id, isFolder, hiddenIds]);
 
   const isRenaming = renamingId === id;
   const childListRef = useRef<HTMLDivElement>(null);
@@ -820,9 +835,16 @@ function CustomNodeImpl({
             </div>
 
             <div
-              className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
+              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
             >
-              {childCount} {childCount === 1 ? "item" : "items"}
+              <span>
+                {childCount} {childCount === 1 ? "item" : "items"}
+              </span>
+              {hiddenChildCount > 0 && (
+                <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] text-amber-500">
+                  {hiddenChildCount} hidden
+                </span>
+              )}
             </div>
           </div>
         </FolderContextMenu>
@@ -935,7 +957,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "source");
             }
           }}
-          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!hidden !h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>
     </FileEntryContextMenu>

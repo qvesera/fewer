@@ -32,8 +32,8 @@ export function useGitHubImport() {
         : data.tree;
       if (!tree) return true; // everything filtered out, still "success"
       const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { idPrefix: "github", includeFiles: opts.includeFiles });
+      useGraphStore.setState({ dataSource: `github:${data.repo}`, maxDisplayDepth: opts.displayMaxDepth });
       useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
-      useGraphStore.setState({ dataSource: `github:${data.repo}` });
       // Apply the currently selected edge flow style to the imported edges
       useGraphStore.getState().setEdgeStyle(useGraphStore.getState().edgeStyle);
       return true;

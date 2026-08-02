@@ -358,8 +358,14 @@ function CanvasInner() {
           fitToSelection();
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
-          if (deletedNodes.length > 0) deleteNodes(deletedNodes.map((n) => n.id));
-          if (deletedEdges.length > 0) useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
+          if (deletedNodes.length > 0) {
+            deleteNodes(deletedNodes.map((n) => n.id));
+            toast({ title: "Deleted", description: `${deletedNodes.length} item${deletedNodes.length === 1 ? "" : "s"} removed` });
+          }
+          if (deletedEdges.length > 0) {
+            useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
+            toast({ title: "Deleted", description: `${deletedEdges.length} edge${deletedEdges.length === 1 ? "" : "s"} removed` });
+          }
         }}
         onInit={(instance) => { console.log("[ReactFlow] onInit - edges:", instance.getEdges().length, "nodes:", instance.getNodes().length); }}
         onNodeContextMenu={(event) => event.preventDefault()}

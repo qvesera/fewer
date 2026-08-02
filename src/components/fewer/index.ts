@@ -14,6 +14,7 @@ export { ImportOptionsPanel } from "./ImportOptionsPanel";
 export { ImportUrlDialog } from "./ImportUrlDialog";
 export { KeyboardShortcuts } from "./KeyboardShortcuts";
 export { Logo } from "./Logo";
+export { NotificationPanel } from "./NotificationPanel";
 export { SearchPanel } from "./SearchPanel";
 export { ShareDialog } from "./ShareDialog";
 export { ShortcutsDialog } from "./ShortcutsDialog";

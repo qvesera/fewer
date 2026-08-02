@@ -328,6 +328,11 @@ export async function expandFolderNode(
     edges: [...s.edges, ...merged],
   }));
 
+  // Re-apply auto-hide: if the dragged folder has >10 children, hide them
+  setTimeout(() => {
+    useGraphStore.getState().autoHideLargeFolders();
+  }, 0);
+
   // Trigger relayout
   setTimeout(() => {
     useGraphStore.getState().relayout();

@@ -1,16 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bug, HelpCircle, Keyboard, Globe, Github } from "lucide-react";
+import { Search, Bug, HelpCircle, Keyboard, Globe, Github, Bell } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
 
 interface GlobalNavbarProps {
   onRestartTutorial?: () => void;
+  onToggleNotifications?: () => void;
 }
 
-export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
+export function GlobalNavbar({ onRestartTutorial, onToggleNotifications }: GlobalNavbarProps) {
+  const { history, unreadCount, clearUnread } = useToast();
   const setSearchOpen = useGraphStore((s) => s.setSearchOpen);
   const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
   const query = useGraphStore((s) => s.searchQuery);
@@ -87,6 +90,24 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
         >
           <Keyboard className="h-4 w-4" />
         </Button>
+
+        {onToggleNotifications && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+            onClick={() => { clearUnread(); onToggleNotifications(); }}
+            title="Notifications"
+            aria-label="Toggle notification history"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-orange-500 px-1 text-[8px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Button>
+        )}
 
         <Button
           variant="ghost"

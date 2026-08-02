@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.3] - 2026-07
+## [0.3.3] - 2026-08
+
+### Added
+
+- **Auto-hide large folder children** — folders with >10 children hide their children on import (threshold adjustable in sidebar, 2-100). Hidden children appear in the sidebar Hidden Nodes section grouped by folder.
+- **Recursive Hidden Nodes tree** — hidden nodes shown as nested expandable tree, any depth. Eye button on a folder reveals its subtree; large grandchildren stay hidden via re-applied auto-hide.
+- **Max Display Depth** — configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to Hidden Nodes.
+- **Sidebar drag-resize** — drag the right edge of the sidebar to resize it (200-560px).
+- **File nodes hide output handle** — files can't have children, so their source handle is hidden.
 
 ### Changed
 
@@ -13,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Memory leak fixes:** `fsHandle` removed from `expandFolderNode` node data — uses `fsHandleStore` instead of storing live `FileSystemDirectoryHandle` on every node
 - **Memory optimization:** Virtualized child list in folder cards — only renders visible children (+5 overscan) instead of all children as DOM nodes
 - **`FileEntryContextMenu` "Open File"** now reads from `fsHandleStore` instead of `node.data.fsHandle`
+- **Auto-hide toast on import** — shows how many items were auto-hidden (folders with >10 children), directory, URL, and library imports.
+- **Revealed roots protected from re-hiding** — explicitly shown folders stay visible even when their parent still has >10 children.
+- **Toast notifications for all major actions** — delete, copy, cut, duplicate, paste, unparent, connect, relayout, show/hide nodes, open file, refresh from disk, and more.
+- **Toast stacking** — up to 5 simultaneous toasts with right-side viewport and proper spacing (`gap-2`, `items-end`).
+- **Notification history panel** — click the bell icon in the navbar to view past notifications; badge shows unread count and clears on open.
+- **Auto-hide threshold slider** — adjustable threshold (2-100) in the sidebar Layout section controls when folder children get auto-hidden.
 
 ## [0.3.2] - 2026-07
 

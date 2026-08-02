@@ -45,13 +45,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
 import { FewerEdge } from "@/lib/fewer/types";
+import { useToast } from "@/hooks/use-toast";
 
 const BASIC_LAYOUTS: {
   value: LayoutDirection;
@@ -198,77 +193,120 @@ function AnimatedConditional({
   );
 }
 
-interface HiddenNodeGroup {
-  parentNode: FewerNode;
-  childNodes: FewerNode[];
+interface HiddenTreeNode {
+  node: FewerNode;
+  children: HiddenTreeNode[];
 }
 
-interface HiddenLayerData {
-  groups: HiddenNodeGroup[];
-  orphans: FewerNode[];
-}
-
-  function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenLayerData {
-  const hiddenNodeMap: Record<string, FewerNode> = {};
+/**
+ * Build a recursive tree of hidden nodes. Each root is a hidden node whose
+ * parent is not hidden; descendants are hidden children of that node.
+ */
+function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
   const idSet = new Set(hiddenIds);
-  for (const id of hiddenIds) {
-    const node = nodes.find((n) => n.id === id);
-    if (node) hiddenNodeMap[id] = node;
-  }
-  const parentMap: Record<string, string> = {};
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const parentMap = new Map<string, string>();
+  const childrenMap = new Map<string, string[]>();
   for (const e of edges) {
-    parentMap[e.target] = e.source;
+    parentMap.set(e.target, e.source);
+    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
+    childrenMap.get(e.source)!.push(e.target);
   }
 
-  const groups: HiddenNodeGroup[] = [];
-  const orphans: FewerNode[] = [];
+  const roots: HiddenTreeNode[] = [];
   const processed = new Set<string>();
 
-  // For each hidden node, find the top-most hidden ancestor
-  for (const id of hiddenIds) {
-    if (processed.has(id)) continue;
-
-    let currentId = id;
-    while (true) {
-      const parentId = parentMap[currentId];
-      if (!parentId || !idSet.has(parentId)) break;
-      currentId = parentId;
-    }
-
-    // currentId is now the top-most hidden ancestor (root of this group)
-    const rootNode = hiddenNodeMap[currentId];
-    if (!rootNode) continue;
-
-    // Collect all descendants of this root
-    const groupChildren: FewerNode[] = [];
-    const queue = [currentId];
-    
-    while (queue.length) {
-      const nodeId = queue.shift()!;
-      if (processed.has(nodeId)) continue;
-      processed.add(nodeId);
-      
-      const node = hiddenNodeMap[nodeId];
-      if (node && nodeId !== currentId) {
-        groupChildren.push(node);
-      }
-      
-      const children = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-      for (const cid of children) {
-        if (idSet.has(cid) && !processed.has(cid)) {
-          queue.push(cid);
-        }
-      }
-    }
-
-    if (groupChildren.length > 0) {
-      groups.push({ parentNode: rootNode, childNodes: groupChildren });
-    } else {
-      orphans.push(rootNode);
-    }
+  function build(id: string): HiddenTreeNode {
+    processed.add(id);
+    const node = nodeMap.get(id)!;
+    const children = (childrenMap.get(id) ?? [])
+      .filter((cid) => idSet.has(cid))
+      .map((cid) => build(cid));
+    return { node, children };
   }
 
-  return { groups, orphans };
+  for (const id of hiddenIds) {
+    if (processed.has(id)) continue;
+    const parentId = parentMap.get(id);
+    if (parentId && idSet.has(parentId)) continue; // handled by its parent
+    roots.push(build(id));
+  }
+
+  return roots;
+}
+
+/**
+ * Recursive row for the Hidden Nodes section. Folders with hidden children
+ * expand to reveal the full nested tree.
+ */
+function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
+  const renamingId = useGraphStore((s) => s.renamingId);
+  const renameNode = useGraphStore((s) => s.renameNode);
+  const showAncestors = useGraphStore((s) => s.showAncestors);
+  const { toast } = useToast();
+  const [open, setOpen] = useState(depth === 0);
+  const isFolder = tree.node.data.type === "folder";
+  const unreveal = (id: string) => {
+    if (isFolder) {
+      // Reveal subtree but protect the revealed root from being re-hidden by cascade
+      useGraphStore.getState().revealSubtree(id);
+      toast({ title: "Subtree shown", description: tree.node.data.label });
+    } else {
+      showAncestors(id);
+      toast({ title: "Node shown", description: tree.node.data.label });
+    }
+  };
+  const node = tree.node;
+  const hasChildren = tree.children.length > 0;
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted/50">
+        {hasChildren ? (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer"
+            title={open ? "Collapse" : "Expand"}
+            aria-label={open ? "Collapse" : "Expand"}
+          >
+            <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", open && "rotate-90")} />
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+        <span
+          className={cn(
+            "h-1.5 w-1.5 shrink-0 rounded-full",
+            node.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
+          )}
+        />
+        {renamingId === node.id ? (
+          <RenameInput
+            initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
+            onCommit={(v) => renameNode(node.id, v)}
+            onCancel={() => useGraphStore.getState().setRenamingId(null)}
+          />
+        ) : (
+          <span className="truncate text-foreground/90">{node.data.label}</span>
+        )}
+        <button
+          onClick={() => unreveal(node.id)}
+          className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer"
+          title={isFolder ? "Show folder and its children" : "Show this item"}
+          aria-label={isFolder ? "Show subtree" : "Show item"}
+        >
+          <Eye className="h-3 w-3" />
+        </button>
+      </div>
+      {open && hasChildren && (
+        <div className="ml-3 pl-3 border-l border-border/30 space-y-0.5">
+          {tree.children.map((child) => (
+            <HiddenNodeRow key={child.node.id} tree={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MinimapControls() {
@@ -359,6 +397,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
+  const { toast } = useToast();
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
@@ -366,7 +405,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   const showAll = useGraphStore((s) => s.showAll);
   const showNode = useGraphStore((s) => s.showNode);
   const showAncestors = useGraphStore((s) => s.showAncestors);
-  const showSubtree = useGraphStore((s) => s.showSubtree);
+  const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
+  const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
+  const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
+  const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const showFiles = useGraphStore((s) => s.showFiles);
@@ -377,7 +419,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameNode = useGraphStore((s) => s.renameNode);
 
-  const { groups: hiddenNodeGroups, orphans: hiddenOrphans } = useMemo(
+  const hiddenTree = useMemo(
     () => getHiddenLayerData(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
   );
@@ -560,11 +602,56 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               </AnimatedConditional>
             </div>
 
+            <div className="space-y-2 rounded-xl border border-border/40 bg-muted/25 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                  Max Display Depth
+                </Label>
+                <span className="text-xs font-mono font-medium text-foreground/80">
+                  {maxDisplayDepth === 0 ? "Unlimited" : `${maxDisplayDepth} levels`}
+                </span>
+              </div>
+              <Slider
+                value={[maxDisplayDepth]}
+                onValueChange={([v]) => setMaxDisplayDepth(v)}
+                min={1}
+                max={10}
+                step={1}
+              />
+              <p className="text-xs text-muted-foreground leading-normal">
+                Hide nodes deeper than this level. Folders beyond it appear in Hidden Nodes.
+              </p>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border/40 bg-muted/25 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+                  Auto-hide children
+                </Label>
+                <span className="text-xs font-mono font-medium text-foreground/80">
+                 {autoHideThreshold}
+                </span>
+              </div>
+              <Slider
+                value={[autoHideThreshold]}
+                onValueChange={([v]) => setAutoHideThreshold(v)}
+                min={2}
+                max={100}
+                step={1}
+              />
+              <p className="text-xs text-muted-foreground leading-normal">
+                Hide children of folders with more than this many items.
+              </p>
+            </div>
+
             <Button
               variant="outline"
               size="default"
               className="w-full gap-2 border-border/80 hover:bg-muted/40 text-xs font-normal text-foreground"
-              onClick={() => relayout()}
+              onClick={() => {
+                relayout();
+                toast({ title: "Graph rearranged" });
+              }}
             >
               <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
               Beautify Arrangement
@@ -768,7 +855,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
           </div>
         </CollapsibleSection>
 
-        {/* ── RECOVER HIDDEN ELEMENTS (Grouped) ── */}
+        {/* ── RECOVER HIDDEN ELEMENTS (Recursive tree) ── */}
         {hiddenIds.length > 0 && (
           <CollapsibleSection title="Hidden Nodes" icon={EyeOff} badge={String(hiddenIds.length)} forceOpen={hiddenPanelExpandTrigger}>
             <Button
@@ -781,114 +868,9 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               Show All
             </Button>
             <div className="max-h-60 overflow-y-auto rounded-xl border border-border/30 bg-muted/20 p-2 gm-scroll">
-              {hiddenNodeGroups.length > 0 && (
-                <Accordion type="multiple" className="space-y-1">
-                  {hiddenNodeGroups.map((group) => (
-                    <AccordionItem key={group.parentNode.id} value={group.parentNode.id}>
-                      <AccordionTrigger className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs hover:no-underline hover:bg-muted/30 rounded-md">
-                        <div className="flex items-center gap-2">
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-orange" />
-                          <span className="truncate font-normal text-foreground/90">
-                            {group.parentNode.data.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-muted-foreground">
-                            {group.childNodes.length + 1} item{group.childNodes.length !== 0 ? "s" : ""}
-                          </span>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showSubtree(group.parentNode.id);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.stopPropagation();
-                                showSubtree(group.parentNode.id);
-                              }
-                            }}
-                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer"
-                            title="Show folder and children"
-                            aria-label="Show subtree"
-                          >
-                            <Eye className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-0">
-                        <div className="ml-3 pl-3 border-l border-border/30 space-y-1 mt-1">
-                          {group.childNodes.map((child) => (
-                            <div
-                              key={child.id}
-                              className="flex items-center gap-2 px-2 py-1 text-xs rounded-md hover:bg-muted/30"
-                            >
-                              <span
-                                className={cn(
-                                  "h-1.5 w-1.5 rounded-full",
-                                  child.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
-                                )}
-                              />
-                              {renamingId === child.id ? (
-                                <RenameInput
-                                  initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
-                                  onCommit={(v) => renameNode(child.id, v)}
-                                  onCancel={() => useGraphStore.getState().setRenamingId(null)}
-                                />
-                              ) : (
-                                <span className="truncate text-foreground/70">{child.data.label}</span>
-                              )}
-                                <button
-                                  onClick={() => showAncestors(child.id)}
-                                  className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
-                                  title="Show item"
-                                  aria-label="Show node"
-                                >
-                                <Eye className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              )}
-              {hiddenOrphans.length > 0 && (
-                <div className={cn(hiddenNodeGroups.length > 0 && "mt-2 border-t border-border/20 pt-2")}>
-                  {hiddenOrphans.map((node) => (
-                    <div
-                      key={node.id}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted/50"
-                    >
-                      <span
-                        className={cn(
-                          "h-1.5 w-1.5 shrink-0 rounded-full",
-                          node.data.type === "folder" ? "bg-brand-orange" : "bg-brand-purple",
-                        )}
-                      />
-                      {renamingId === node.id ? (
-                        <RenameInput
-                          initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
-                          onCommit={(v) => renameNode(node.id, v)}
-                          onCancel={() => useGraphStore.getState().setRenamingId(null)}
-                        />
-                      ) : (
-                        <span className="truncate text-foreground/90 font-normal text-xs">{node.data.label}</span>
-                      )}
-                      <button
-                        onClick={() => showNode(node.id)}
-                        className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-foreground/15 hover:text-foreground"
-                        title="Show item"
-                        aria-label="Show node"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {hiddenTree.map((root) => (
+                <HiddenNodeRow key={root.node.id} tree={root} />
+              ))}
             </div>
           </CollapsibleSection>
         )}

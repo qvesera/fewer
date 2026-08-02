@@ -7,6 +7,48 @@ import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
 import { fsHandleStore } from "@/lib/fewer/types";
 
+const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
+
+/**
+ * Pure helper: ids of nodes deeper than `maxDepth`.
+ */
+function computeDisplayDepthHiddenIds(nodes: FewerNode[], maxDepth: number): string[] {
+  return nodes
+    .filter((n) => (n.data.depth ?? 0) > maxDepth)
+    .map((n) => n.id);
+}
+
+function computeLargeFolderHiddenIds(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  threshold: number,
+  revealedSet?: Set<string>,
+): string[] {
+  const childrenMap = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
+    childrenMap.get(e.source)!.push(e.target);
+  }
+  const toHide = new Set<string>();
+  const revealed = revealedSet ?? new Set<string>();
+  for (const node of nodes) {
+    if (node.data.type !== "folder") continue;
+    const directChildren = childrenMap.get(node.id) ?? [];
+    // Skip already-hidden or explicitly-revealed children
+    const visibleChildren = directChildren.filter((cid) => !toHide.has(cid) && !revealed.has(cid));
+    if (visibleChildren.length > threshold) {
+      const queue = [...visibleChildren];
+      while (queue.length) {
+        const cid = queue.shift()!;
+        if (toHide.has(cid) || revealed.has(cid)) continue;
+        toHide.add(cid);
+        for (const gc of childrenMap.get(cid) ?? []) queue.push(gc);
+      }
+    }
+  }
+  return [...toHide];
+}
+
 function edgeTypeFromStyle(style: string): FewerEdge["type"] {
   switch (style) {
     case "curved": return "default";
@@ -80,6 +122,14 @@ export type GraphSliceCreator = StateCreator<
     showNode: (id: string) => void;
     showAncestors: (id: string) => void;
     showSubtree: (id: string) => void;
+    autoHideLargeFolders: (threshold?: number) => void;
+    maxDisplayDepth: number;
+    setMaxDisplayDepth: (depth: number) => void;
+    autoHideCount: number;
+    revealedRootIds: string[];
+    revealSubtree: (id: string) => void;
+    autoHideThreshold: number;
+    setAutoHideThreshold: (threshold: number) => void;
   }
 >;
 
@@ -91,6 +141,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   graphVersion: 0,
   hiddenPanelExpandTrigger: 0,
   clipboard: null,
+  maxDisplayDepth: 6,
+  autoHideCount: 0,
+  revealedRootIds: [],
+  autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
   setIncludeFiles: (v) => set({ includeFiles: v }),
   setDataSource: (v) => set({ dataSource: v }),
@@ -108,9 +162,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       ...n,
       style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
     }));
-    const excludeFromLayout = hiddenFileIds && hiddenFileIds.length > 0 ? new Set(hiddenFileIds) : undefined;
-    const laid = layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout });
-    const searched = applySearchInternal(laid, state.searchQuery);
     let idsToHide = hiddenFileIds ?? [];
     if (!state.showFiles) {
       const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
@@ -124,8 +175,20 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       animated: state.edgeAnimated,
       style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
     }));
-    const sortedEdges = sortEdges(styledEdges, styledNodes);
-    set({ nodes: searched, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1 });
+    // Fresh import resets reveal memory
+    // Auto-hide children of folders with many children so big graphs stay fast
+    const autoHideIds = computeLargeFolderHiddenIds(nodes, edges, state.autoHideThreshold, new Set());
+    // Hide nodes beyond the max display depth
+    const displayDepthIds = computeDisplayDepthHiddenIds(nodes, state.maxDisplayDepth);
+    idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...displayDepthIds])];
+    const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
+    const laidFinal = layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal });
+    const searchedFinal = applySearchInternal(laidFinal, state.searchQuery);
+    const sortedEdges = sortEdges(styledEdges, searchedFinal);
+    // Count auto-hidden large-folder children (not from file hiding or depth)
+    const baseHidden = new Set(hiddenFileIds ?? []);
+    const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
+    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [] });
   },
 
   relayout: () => {
@@ -475,18 +538,27 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   hideNode: (id) => {
-    const { hiddenIds, edges, selectedNodeIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
     if (hiddenIds.includes(id)) return;
     const toHide = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } }
-    set({ hiddenIds: [...hiddenIds, ...toHide], selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)), graphVersion: get().graphVersion + 1 });
+    set({
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
+      revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
+      graphVersion: get().graphVersion + 1,
+    });
   },
 
   hideNodes: (ids) => {
-    const { hiddenIds, edges, selectedNodeIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
     const toHide = new Set(ids);
     for (const id of ids) { const queue = [id]; while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } } }
-    set({ hiddenIds: [...hiddenIds, ...toHide], selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)) });
+    set({
+      hiddenIds: [...hiddenIds, ...toHide],
+      selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
+      revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
+    });
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -510,7 +582,56 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
-  showAll: () => set((s) => ({ hiddenIds: [], graphVersion: s.graphVersion + 1 })),
+  showAll: () => set((s) => ({ hiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 })),
+
+  revealSubtree: (id) => {
+    const { revealedRootIds } = get();
+    get().showSubtree(id);
+    set({ revealedRootIds: [...new Set([...revealedRootIds, id])] });
+    // Re-apply auto-hide so folders with >10 children underneath stay hidden,
+    // while the explicitly-revealed root is protected from being re-hidden.
+    get().autoHideLargeFolders();
+  },
+
+  setMaxDisplayDepth: (maxDepth) => {
+    const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion } = get();
+    // Recompute from scratch so raising the limit reveals previously hidden nodes
+    const depthHidden = new Set(computeDisplayDepthHiddenIds(nodes, maxDepth));
+    // Keep only existing hidden ids that are within the new depth (manual/auto hides)
+    const kept = hiddenIds.filter((id) => !depthHidden.has(id) && (nodes.find((n) => n.id === id)?.data.depth ?? 0) <= maxDepth);
+    // Re-apply large-folder auto-hide since visibility changed
+    const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
+    const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
+    const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
+    const searched = applySearchInternal(laid, searchQuery);
+    set({
+      maxDisplayDepth: maxDepth,
+      hiddenIds: mergedIds,
+      nodes: searched,
+      graphVersion: graphVersion + 1,
+    });
+  },
+
+  autoHideLargeFolders: (threshold?) => {
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHideThreshold } = get();
+    const thresholdValue = threshold ?? autoHideThreshold;
+    const hiddenSet = new Set(hiddenIds);
+    const toHide = computeLargeFolderHiddenIds(
+      nodes.filter((n) => !hiddenSet.has(n.id)),
+      edges,
+      thresholdValue,
+      new Set(revealedRootIds),
+    );
+    const newIds = toHide.filter((id) => !hiddenSet.has(id));
+    if (newIds.length === 0) return;
+    get().hideNodes(newIds);
+  },
+
+  setAutoHideThreshold: (threshold) => {
+    set({ autoHideThreshold: threshold });
+    get().autoHideLargeFolders(threshold);
+  },
 
   connect: (source, target) => {
     get().connectNodes({ source, target });
@@ -555,7 +676,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
-      graphVersion: 0,
+      graphVersion: 0, revealedRootIds: [],
     });
   },
 });
