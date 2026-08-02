@@ -345,6 +345,9 @@ function CanvasInner() {
   return (
     <div ref={containerRef} className="relative h-full w-full" onDrop={onDrop} onDragOver={onDragOver}
       onContextMenu={(e) => e.preventDefault()}>
+      {/* Aurora Haze — ambient canvas atmosphere (dark mode only, pointer-events-none) */}
+      <div className="gm-canvas-aurora" aria-hidden="true" />
+      <div className="gm-canvas-aurora-3" aria-hidden="true" />
       <ReactFlow
         key={`flow-${direction}`}
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}

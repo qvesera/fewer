@@ -36,6 +36,8 @@ import type { ThemeMode } from "@/lib/fewer/types";
 import { PowerUserToggle, CustomThemeEditor, Logo } from ".";
 import { cn } from "@/lib/utils";
 
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
+
 /* -------------------------------------------------------------------------- */
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -53,7 +55,7 @@ function AboutTab() {
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold tracking-tight text-foreground">fewer</h3>
               <span className="rounded-full bg-accent/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground border border-border/40">
-                v0.2.0
+                v{APP_VERSION}
               </span>
             </div>
             <p className="text-xs text-muted-foreground/80 mt-0.5">Interactive File & System Graph Visualizer</p>
@@ -91,7 +93,7 @@ function AboutTab() {
       </div>
 
       <p className="text-[11px] text-center text-muted-foreground/50 pt-2">
-        Built with Next.js, React Flow & shadcn/ui • Released under MIT License
+        Built with Next.js, React Flow & shadcn/ui • Released under AGPLv3 License
       </p>
     </div>
   );

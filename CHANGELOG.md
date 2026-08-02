@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Aurora Haze dark mode** — ethereal glow system with soft 60–120px radial blurs behind active nodes. Warm aurora (orange/amber) on folders, cool aurora (purple/cyan) on files, brand aurora (fuchsia) on root nodes. Selected nodes get breathing animation. Ambient canvas atmosphere via 3 large fixed radial gradients (cyan/purple/fuchsia) for "infinite workspace" depth. Dark mode only; respects `prefers-reduced-motion`.
+- **Motion tokens** — `--ease-aurora: cubic-bezier(0.4, 0, 0.2, 1)` and `--dur-aurora: 200ms` for consistent Aurora Haze transitions.
 - **Settings Dialog** — unified tabbed settings dialog (About, Appearance, Advanced, Help) opened via gear icon in the top navbar (right of notifications). Consolidates previously scattered utility controls.
 - **About tab** — app version, description, GitHub/website links, credits.
 - **Appearance tab** — theme mode selector (light/dark/custom), custom theme editor, and Show files toggle moved from the sidebar.

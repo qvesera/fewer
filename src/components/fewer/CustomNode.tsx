@@ -729,9 +729,11 @@ function CustomNodeImpl({
         className={cn(
           "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
+          "gm-aurora gm-aurora-warm",
+          data.isRoot && "gm-aurora-brand",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow",
+          selected && "gm-selected-glow is-active gm-aurora-breath",
         )}
       >
         {selected && (
@@ -878,9 +880,10 @@ function CustomNodeImpl({
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
           "bg-fewer-file-bg border-fewer-file-border text-fewer-text shadow-node-file",
+          "gm-aurora gm-aurora-cool",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow",
+          selected && "gm-selected-glow is-active gm-aurora-breath",
         )}
       >
       {selected && (
