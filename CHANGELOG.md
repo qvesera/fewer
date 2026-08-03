@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Aurora Haze dark mode** — ethereal glow system with soft 60–120px radial blurs behind active nodes. Warm aurora (orange/amber) on folders, cool aurora (purple/cyan) on files, brand aurora (fuchsia) on root nodes. Selected nodes get breathing animation. Ambient canvas atmosphere via 3 large fixed radial gradients (cyan/purple/fuchsia) for "infinite workspace" depth. Dark mode only; respects `prefers-reduced-motion`.
+- **Sidebar Aurora Haze integration** — sidebar container now uses `gm-aurora gm-aurora-warm` for subtle warm atmospheric tint. Section cards refined: subtler borders (`border-border/20`), lighter backgrounds (`bg-card/5`), cleaner hover states. Footer redesigned from text blob to structured shortcut-hint grid with `<kbd>` chips. Icon sizes standardized to `h-3.5 w-3.5` for all secondary actions.
+- **Reusable SlidingToggle component** — extracted from Edge Motion into generic multi-option toggle with sliding indicator + glow animation. Now used for Edge Style, Edge Motion, and Stroke Pattern.
+- **Sidebar layout cleanup** — split dense "Layout & Edges" section into focused "Layout" (direction, depth, auto-hide, beautify) and "Edges" (style, motion, stroke, weight) sections. "Edges" collapsed by default to reduce initial clutter. Max Display Depth and Auto-hide threshold sliders now only visible in advanced mode.
 - **Motion tokens** — `--ease-aurora: cubic-bezier(0.4, 0, 0.2, 1)` and `--dur-aurora: 200ms` for consistent Aurora Haze transitions.
 - **Settings Dialog** — unified tabbed settings dialog (About, Appearance, Advanced, Help) opened via gear icon in the top navbar (right of notifications). Consolidates previously scattered utility controls.
 - **About tab** — app version, description, GitHub/website links, credits.
