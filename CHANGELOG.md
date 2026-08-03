@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.4]
 
 ### Added
 
-- **Aurora Haze dark mode** — ethereal glow system with soft 60–120px radial blurs behind active nodes. Warm aurora (orange/amber) on folders, cool aurora (purple/cyan) on files, brand aurora (fuchsia) on root nodes. Selected nodes get breathing animation. Ambient canvas atmosphere via 3 large fixed radial gradients (cyan/purple/fuchsia) for "infinite workspace" depth. Dark mode only; respects `prefers-reduced-motion`.
+- **Sponsor / Ko-fi button** in Settings → About tab linking to GitHub Sponsors.
+- **GitHub Sponsors funding entry** added to `package.json` so GitHub shows a sponsor button on the repo.
 - **Sidebar Aurora Haze integration** — sidebar container now uses `gm-aurora gm-aurora-warm` for subtle warm atmospheric tint. Section cards refined: subtler borders (`border-border/20`), lighter backgrounds (`bg-card/5`), cleaner hover states. Footer redesigned from text blob to structured shortcut-hint grid with `<kbd>` chips. Icon sizes standardized to `h-3.5 w-3.5` for all secondary actions.
 - **Reusable SlidingToggle component** — extracted from Edge Motion into generic multi-option toggle with sliding indicator + glow animation. Now used for Edge Style, Edge Motion, and Stroke Pattern.
 - **Sidebar layout cleanup** — split dense "Layout & Edges" section into focused "Layout" (direction, depth, auto-hide, beautify) and "Edges" (style, motion, stroke, weight) sections. "Edges" collapsed by default to reduce initial clutter. Max Display Depth and Auto-hide threshold sliders now only visible in advanced mode.
@@ -22,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Sidebar decluttered** — removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
+- Sidebar decluttered — removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
 
 ### Fixed
 

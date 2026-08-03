@@ -31,6 +31,7 @@ import {
   BookOpen,
   ExternalLink,
   ChevronRight,
+  Heart,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { PowerUserToggle, CustomThemeEditor, Logo } from ".";
@@ -88,6 +89,16 @@ function AboutTab() {
         >
           <Globe className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
           <span>Website</span>
+          <ExternalLink className="h-3 w-3 text-muted-foreground/40 ml-auto opacity-0 transition-opacity group-hover:opacity-100" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="col-span-2 group h-10 gap-2 rounded-xl border-border/60 bg-card/40 hover:bg-accent/50 text-xs font-medium text-foreground transition-[colors,transform,box-shadow] hover:border-border active:scale-[0.96]"
+          onClick={() => window.open("https://github.com/sponsors/qvesera", "_blank", "noreferrer")}
+        >
+          <Heart className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+          <span>Sponsor this project!</span>
           <ExternalLink className="h-3 w-3 text-muted-foreground/40 ml-auto opacity-0 transition-opacity group-hover:opacity-100" />
         </Button>
       </div>
@@ -350,7 +361,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="w-[520px] max-w-[calc(100%-2rem)] h-[580px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">

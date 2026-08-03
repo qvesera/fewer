@@ -354,3 +354,5 @@ AGPLv3 — see [LICENSE](LICENSE) for details.
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first CSS framework
 - [Lucide](https://lucide.dev/) — icon set
 - [Directory icons by Freepik - Flaticon](https://www.flaticon.com/free-icons/directory)
+
+**This project stands with Palestine 🇵🇸**
