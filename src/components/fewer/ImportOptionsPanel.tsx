@@ -62,6 +62,28 @@ export function ImportOptionsPanel({
         </p>
       </div>
 
+      {/* Display Depth */}
+      <div className="space-y-3 rounded-xl border border-border/40 bg-muted/25 p-4 transition-colors">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+            Max Display Depth
+          </Label>
+          <span className="text-xs font-mono font-medium text-foreground/80">
+            {options.displayMaxDepth === 0 ? "Unlimited" : `${options.displayMaxDepth} levels`}
+          </span>
+        </div>
+        <Slider
+          value={[options.displayMaxDepth]}
+          onValueChange={([v]) => update({ displayMaxDepth: v })}
+          min={1}
+          max={10}
+          step={1}
+        />
+        <p className="text-xs text-muted-foreground leading-normal">
+          How deep to display after import. Deeper nodes go to Hidden Nodes.
+        </p>
+      </div>
+
       {/* Advanced Options */}
       {advancedModeEnabled && (
         <>

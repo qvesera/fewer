@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -67,6 +68,13 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('fewer-theme')||'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          }}
+        />
         <ThemeProvider>{children}<Toaster /></ThemeProvider>
       </body>
     </html>

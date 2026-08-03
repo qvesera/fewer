@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
+import { fsHandleStore } from "./types";
 import { categorizeByExtension, getFileExtension } from "./categorize";
 import type { ImportOptions } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
@@ -36,6 +37,11 @@ export function treeToGraph(
       hiddenFileIds.push(id);
     }
 
+    // Store fsHandle in separate store to avoid bloat on serialized node objects
+    if (entry.fsHandle) {
+      fsHandleStore.set(id, entry.fsHandle);
+    }
+
     nodes.push({
       id,
       type: entry.type,
@@ -49,7 +55,6 @@ export function treeToGraph(
         size: entry.size ?? 0,
         depth,
         isRoot: parentId === null,
-        fsHandle: entry.fsHandle ?? null,
       },
     });
 
@@ -90,6 +95,77 @@ function matchesExtension(name: string, extensions: string[], caseSensitive: boo
  * Returns null if the entry should be excluded entirely.
  * Returns a copy with filtered children.
  */
+/**
+ * Chunked tree-to-graph conversion with progress callback.
+ * Yields nodes in batches to keep the UI responsive during large imports.
+ * For 10K+ node trees, this prevents blocking the main thread.
+ */
+export async function chunkTreeToGraph(
+  root: TreeEntry,
+  options: BuildOptions = {},
+  onProgress?: (progress: { processed: number; total: number; phase: string }) => void,
+): Promise<{ nodes: FewerNode[]; edges: FewerEdge[]; hiddenFileIds: string[] }> {
+  const nodes: FewerNode[] = [];
+  const edges: FewerEdge[] = [];
+  const prefix = options.idPrefix ?? "n";
+  const hiddenFileIds: string[] = [];
+
+  // First pass: count total entries
+  let total = 0;
+  function count(entry: TreeEntry) {
+    total++;
+    if (entry.children) for (const child of entry.children) count(child);
+  }
+  count(root);
+
+  onProgress?.({ processed: 0, total, phase: "building-tree" });
+  const batchSize = 500;
+  let processed = 0;
+
+  function walk(entry: TreeEntry, parentId: string | null, depth: number, pathPrefix: string) {
+    const id = `${prefix}-${uuid().slice(0, 8)}`;
+    const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
+    const extension = entry.type === "file" ? getFileExtension(entry.name) : "";
+    const label = extension ? entry.name.slice(0, -(extension.length + 1)) : entry.name;
+    const category = entry.type === "file" ? categorizeByExtension(extension) : undefined;
+
+    if (entry.type === "file" && options.includeFiles === false) {
+      hiddenFileIds.push(id);
+    }
+
+    if (entry.fsHandle) {
+      fsHandleStore.set(id, entry.fsHandle);
+    }
+
+    nodes.push({
+      id,
+      type: entry.type,
+      position: { x: 0, y: 0 },
+      data: { label, path: fullPath, type: entry.type, extension, category, size: entry.size ?? 0, depth, isRoot: parentId === null },
+    });
+
+    if (parentId) {
+      edges.push({ id: `e-${parentId}-${id}`, source: parentId, target: id, type: "default" });
+    }
+
+    processed++;
+    if (processed % batchSize === 0) {
+      onProgress?.({ processed, total, phase: "building-tree" });
+    }
+
+    if (entry.children) {
+      const sorted = [...entry.children].sort((a, b) => a.name.localeCompare(b.name));
+      for (const child of sorted) {
+        walk(child, id, depth + 1, fullPath);
+      }
+    }
+  }
+
+  walk(root, null, 0, "");
+  onProgress?.({ processed: total, total, phase: "building-tree" });
+  return { nodes, edges, hiddenFileIds };
+}
+
 export function filterTree(
   entry: TreeEntry,
   options: ImportOptions,

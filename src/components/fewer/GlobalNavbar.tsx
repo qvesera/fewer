@@ -1,18 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bug, HelpCircle, Keyboard, Globe, Github } from "lucide-react";
+import { Search, Bell, Settings } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
 
 interface GlobalNavbarProps {
-  onRestartTutorial?: () => void;
+  onToggleNotifications?: () => void;
 }
 
-export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
+export function GlobalNavbar({ onToggleNotifications }: GlobalNavbarProps) {
+  const { history, unreadCount, clearUnread } = useToast();
   const setSearchOpen = useGraphStore((s) => s.setSearchOpen);
-  const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
+  const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
   const query = useGraphStore((s) => s.searchQuery);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const searchOpen = useGraphStore((s) => s.searchOpen);
@@ -66,57 +68,35 @@ export function GlobalNavbar({ onRestartTutorial }: GlobalNavbarProps) {
             <Search className="h-4 w-4" />
           </Button>
 
-        {onRestartTutorial && (
+        {onToggleNotifications && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-orange-400 hover:bg-orange-500/10 hover:text-orange-500 min-hit"
-            onClick={onRestartTutorial}
-            title="Restart tutorial"
+            className="relative h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+            onClick={() => { clearUnread(); onToggleNotifications(); }}
+            title="Notifications"
+            aria-label="Toggle notification history"
           >
-            <HelpCircle className="h-4 w-4" />
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-orange-500 px-1 text-[8px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </Button>
         )}
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:inline-flex min-hit"
-          onClick={() => useGraphStore.getState().setShortcutsOpen(true)}
-          title="Keyboard shortcuts"
-        >
-          <Keyboard className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-red-400 hover:bg-red-500/5 min-hit"
-          onClick={() => setBugReportOpen(true)}
-          title="Report a bug"
-        >
-          <Bug className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
-          onClick={() => window.open("https://github.com/qvesera/fewer", "_blank", "noreferrer")}
-          title="GitHub"
+          onClick={() => setSettingsOpen(true)}
+          title="Settings"
+          aria-label="Open settings"
         >
-          <Github className="h-4 w-4" />
+          <Settings className="h-4 w-4" />
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
-          onClick={() => window.open("https://qvesera.github.io", "_blank", "noreferrer")}
-          title="Website"
-        >
-          <Globe className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

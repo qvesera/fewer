@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
   const [options, setOptions] = useState<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
   const { loading, error, setError, importUrl } = useGitHubImport();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const { toast } = useToast();
 
   const reset = () => {
     setUrl("");
@@ -43,7 +45,23 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
   const handleImport = async () => {
     if (!url.trim() || loading) return;
     const ok = await importUrl(url, options);
-    if (ok) handleClose();
+    if (ok) {
+      const nodeCount = useGraphStore.getState().nodes.length;
+      toast({
+        title: "Repository imported",
+        description: `${nodeCount} node${nodeCount === 1 ? "" : "s"} loaded.`,
+      });
+      await new Promise((r) => setTimeout(r, 20));
+      const autoHidden = useGraphStore.getState().autoHideCount;
+      if (autoHidden > 0) {
+        const threshold = useGraphStore.getState().autoHideThreshold;
+        toast({
+          title: "Large folders collapsed",
+          description: `${autoHidden} item${autoHidden === 1 ? " was" : "s were"} auto-hidden (folders with more than ${threshold} children). Use Hidden Nodes in the sidebar to reveal them.`,
+        });
+      }
+      handleClose();
+    }
   };
 
   return (

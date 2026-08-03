@@ -482,7 +482,8 @@ aside::-webkit-scrollbar-thumb:hover {
   }
   .gm-pulse-glow,
   .gm-edge-flow,
-  .gm-node-fade-in {
+  .gm-node-fade-in,
+  .gm-aurora-breath {
     animation: none !important;
   }
 }
@@ -541,4 +542,110 @@ aside::-webkit-scrollbar-thumb:hover {
 .dark .gm-glass-warm {
   background: linear-gradient(135deg, rgba(255, 191, 0, 0.2), rgba(255, 140, 0, 0.15));
   border-color: rgba(255, 191, 0, 0.15);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Aurora Haze — ethereal glow system                                         */
+/*  Soft radial blurs behind active elements. Dark mode only.                  */
+/*  ::before pseudo never affects layout or React Flow's transform.            */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --ease-aurora: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-aurora: 200ms;
+}
+
+.gm-aurora {
+  position: relative;
+}
+.gm-aurora::before {
+  content: '';
+  position: absolute;
+  inset: -25% -12%;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--dur-aurora) var(--ease-aurora);
+}
+.dark .gm-aurora::before {
+  opacity: 0.45;
+}
+
+/* Warm aurora — folders (orange/amber) */
+.dark .gm-aurora-warm::before {
+  background: radial-gradient(ellipse at 50% 40%, rgba(249, 115, 22, 0.28), rgba(255, 191, 0, 0.1) 50%, transparent 72%);
+  filter: blur(60px);
+}
+
+/* Cool aurora — files (purple/cyan) */
+.dark .gm-aurora-cool::before {
+  background: radial-gradient(ellipse at 50% 40%, rgba(168, 85, 247, 0.24), rgba(34, 211, 238, 0.08) 50%, transparent 72%);
+  filter: blur(60px);
+}
+
+/* Brand aurora — root/selected/brand moments (fuchsia) */
+.dark .gm-aurora-brand::before {
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 0, 255, 0.22), rgba(168, 85, 247, 0.12) 50%, transparent 72%);
+  filter: blur(80px);
+}
+
+/* Intensify on hover/active */
+.dark .gm-aurora:hover::before,
+.dark .gm-aurora.is-active::before {
+  opacity: 0.85;
+}
+
+/* Breathing animation for selected nodes */
+@keyframes gm-aurora-breath {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.7; }
+}
+.dark .gm-aurora-breath::before {
+  animation: gm-aurora-breath 7s ease-in-out infinite;
+}
+
+/* Ambient canvas aurora — large fixed radial gradients for atmosphere */
+.gm-canvas-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.gm-canvas-aurora::before,
+.gm-canvas-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+.dark .gm-canvas-aurora::before {
+  top: -10%;
+  left: -5%;
+  width: 40%;
+  height: 50%;
+  opacity: 0.06;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.7), transparent 70%);
+}
+.dark .gm-canvas-aurora::after {
+  bottom: -10%;
+  right: -5%;
+  width: 45%;
+  height: 55%;
+  opacity: 0.05;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.6), transparent 70%);
+}
+.gm-canvas-aurora-3 {
+  position: absolute;
+  top: 25%;
+  right: 12%;
+  width: 30%;
+  height: 40%;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.04;
+  background: radial-gradient(circle, rgba(255, 0, 255, 0.5), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }

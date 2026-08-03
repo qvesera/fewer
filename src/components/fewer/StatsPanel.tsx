@@ -133,7 +133,7 @@ export function StatsPanel() {
           <span className="tabular-nums font-medium">{selectedCount}</span>
         </div>
         {hiddenCount > 0 && (
-          <div className="flex items-center justify-between text-amber-300">
+          <div className="flex items-center justify-between text-amber-600 dark:text-amber-300">
             <span>Hidden</span>
             <span className="tabular-nums font-medium">{hiddenCount}</span>
           </div>

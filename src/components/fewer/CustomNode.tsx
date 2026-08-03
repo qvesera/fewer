@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import { fsHandleStore } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -270,7 +271,10 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuItem
-          onSelect={() => deleteNode([nodeId])}
+          onSelect={() => {
+            deleteNode([nodeId]);
+            toast({ title: "Folder deleted", description: nodeLabel });
+          }}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete
@@ -489,7 +493,10 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuItem
-          onSelect={onDelete}
+          onSelect={() => {
+            onDelete();
+            toast({ title: "Item deleted", description: nodeLabel });
+          }}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete Item
@@ -500,11 +507,11 @@ function FileEntryContextMenu({
             {showOpenFile !== false && (
             <ContextMenuItem
               onSelect={async () => {
-                const node = nodes.find((n) => n.id === nodeId);
-                if (node?.data.fsHandle) {
+                const handle = fsHandleStore.get(nodeId);
+                if (handle && handle.kind === "file") {
                   try {
                     const { openFile } = await import("@/lib/fewer/fileOps");
-                    await openFile(node.data.fsHandle as FileSystemFileHandle);
+                    await openFile(handle as FileSystemFileHandle);
                     toast({ title: "Opening file", description: nodeLabel });
                   } catch {
                     toast({ title: "Cannot open file", variant: "destructive" });
@@ -544,6 +551,38 @@ function FileEntryContextMenu({
       </ContextMenuContent>
     </ContextMenu>
   );
+}
+
+const ITEM_HEIGHT = 28;
+const OVERSCAN = 5;
+
+function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, totalItems: number) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollTop(el.scrollTop);
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerHeight(entry.contentRect.height);
+    });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    ro.observe(el);
+    setContainerHeight(el.clientHeight);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [containerRef]);
+
+  const totalHeight = totalItems * ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN);
+  const visibleCount = endIndex - startIndex;
+  const offsetY = startIndex * ITEM_HEIGHT;
+
+  return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
 
 function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
@@ -649,6 +688,8 @@ function CustomNodeImpl({
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
 
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+
   const children = useMemo(() => {
     if (!isFolder) return [];
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
@@ -668,7 +709,16 @@ function CustomNodeImpl({
     return childIds.length;
   }, [edges, id, isFolder]);
 
+  const hiddenChildCount = useMemo(() => {
+    if (!isFolder) return 0;
+    const hiddenSet = new Set(hiddenIds);
+    const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
+    return childIds.filter((cid) => hiddenSet.has(cid)).length;
+  }, [edges, id, isFolder, hiddenIds]);
+
   const isRenaming = renamingId === id;
+  const childListRef = useRef<HTMLDivElement>(null);
+  const virtual = useVirtualScroll(childListRef, children.length);
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
@@ -679,9 +729,11 @@ function CustomNodeImpl({
         className={cn(
           "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
+          "gm-aurora gm-aurora-warm",
+          data.isRoot && "gm-aurora-brand",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow",
+          selected && "gm-selected-glow is-active gm-aurora-breath",
         )}
       >
         {selected && (
@@ -760,6 +812,7 @@ function CustomNodeImpl({
             </div>
 
             <div
+              ref={childListRef}
               className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
               style={{ maxHeight: `${childListMaxHeight}px` }}
               onWheel={(e) => { e.stopPropagation(); }}
@@ -769,18 +822,31 @@ function CustomNodeImpl({
                   Empty folder
                 </div>
               ) : (
-                <div className="space-y-0.5">
-                  {children.map((child) => (
-                    <ChildEntry key={child.id} child={child} parentId={id} />
-                  ))}
+                <div
+                  style={{ height: `${virtual.totalHeight}px`, position: "relative" }}
+                >
+                  <div
+                    style={{ transform: `translateY(${virtual.offsetY}px)` }}
+                  >
+                    {children.slice(virtual.startIndex, virtual.endIndex).map((child) => (
+                      <ChildEntry key={child.id} child={child} parentId={id} />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
             <div
-              className="rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
+              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
             >
-              {childCount} {childCount === 1 ? "item" : "items"}
+              <span>
+                {childCount} {childCount === 1 ? "item" : "items"}
+              </span>
+              {hiddenChildCount > 0 && (
+                <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] text-amber-500">
+                  {hiddenChildCount} hidden
+                </span>
+              )}
             </div>
           </div>
         </FolderContextMenu>
@@ -814,9 +880,10 @@ function CustomNodeImpl({
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
           "bg-fewer-file-bg border-fewer-file-border text-fewer-text shadow-node-file",
+          "gm-aurora gm-aurora-cool",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow",
+          selected && "gm-selected-glow is-active gm-aurora-breath",
         )}
       >
       {selected && (
@@ -893,7 +960,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "source");
             }
           }}
-          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!hidden !h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
         />
       </div>
     </FileEntryContextMenu>

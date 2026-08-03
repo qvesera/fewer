@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Sidebar,
   SearchPanel,
@@ -13,9 +13,11 @@ import {
   BugReportDialog,
   TutorialDialog,
   ShortcutsDialog,
+  SettingsDialog,
   ShareDialog,
   AddNodeDialog,
   ImportUrlDialog,
+  NotificationPanel,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
@@ -25,6 +27,7 @@ import {
   isFileSystemAccessSupported,
 } from "@/lib/fewer/fileSystem";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
+import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { cn } from "@/lib/utils";
@@ -46,10 +49,9 @@ export function FewerApp() {
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [importUrlOpen, setImportUrlOpen] = useState(false);
   const [hashLoaded, setHashLoaded] = useState(false);
-
-  const handleRestartTutorial = useCallback(() => {
-    setTutorialRestartKey((k) => k + 1);
-  }, []);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const resizingRef = useRef(false);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -64,6 +66,32 @@ export function FewerApp() {
     if (savedTheme) {
       useGraphStore.getState().setThemeMode(savedTheme as any);
     }
+  }, []);
+
+  // Sidebar drag-resize handler
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const w = Math.min(560, Math.max(200, e.clientX));
+      setSidebarWidth(w);
+    };
+    const onUp = () => {
+      resizingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  const startResize = useCallback(() => {
+    resizingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   }, []);
 
   // Load shared graph from URL hash
@@ -106,17 +134,20 @@ export function FewerApp() {
     const openImportFolder = () => setImportDialogOpen(true);
     const openImportFile = () => setImportFromFileOpen(true);
     const openImportUrl = () => setImportUrlOpen(true);
+    const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
     window.addEventListener("fewer-import-file", openImportFile);
     window.addEventListener("fewer-import-url", openImportUrl);
+    window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
       window.removeEventListener("fewer-import-folder", openImportFolder);
       window.removeEventListener("fewer-import-file", openImportFile);
       window.removeEventListener("fewer-import-url", openImportUrl);
+      window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, []);
 
@@ -135,13 +166,22 @@ export function FewerApp() {
           return;
         }
         const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: options.includeFiles });
+        useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles, maxDisplayDepth: options.displayMaxDepth });
         setGraph(nodes, edges, false, hiddenFileIds);
-        useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles });
         setImportDialogOpen(false);
         toast({
           title: "Directory loaded",
           description: `${tree.name} — ${nodes.length} entries`,
         });
+        await new Promise((r) => setTimeout(r, 20));
+        const autoHidden = useGraphStore.getState().autoHideCount;
+        if (autoHidden > 0) {
+          const threshold = useGraphStore.getState().autoHideThreshold;
+          toast({
+            title: "Large folders collapsed",
+            description: `${autoHidden} item${autoHidden === 1 ? " was" : "s were"} auto-hidden (folders with more than ${threshold} children). Use Hidden Nodes in the sidebar to reveal them.`,
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         toast({
@@ -158,8 +198,8 @@ export function FewerApp() {
 
   const handleLoadSample = useCallback(() => {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" });
+    useGraphStore.setState({ dataSource: "sample", maxDisplayDepth: 6 });
     setGraph(nodes, edges, false);
-    useGraphStore.setState({ dataSource: "sample" });
     toast({
       title: "Sample project loaded",
       description: "fewer",
@@ -173,8 +213,8 @@ export function FewerApp() {
   const handleImportFromFile = useCallback(
     (tree: import("@/lib/fewer/types").TreeEntry) => {
       const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
+      useGraphStore.setState({ dataSource: "file", maxDisplayDepth: DEFAULT_IMPORT_OPTIONS.displayMaxDepth });
       setGraph(nodes, edges, false);
-      useGraphStore.setState({ dataSource: "file" });
       toast({
         title: "Graph built from file",
         description: `${tree.name} — ${nodes.length} entries`,
@@ -185,21 +225,27 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onRestartTutorial={handleRestartTutorial} />
+      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
         <div
-          className={cn(
-            "hidden sm:block shrink-0 min-h-0 overflow-hidden transition-[width] duration-300 ease-out",
-            sidebarOpen ? "w-[280px]" : "w-0",
-          )}
+          className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
+          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
         >
           <Sidebar
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
           />
+          {sidebarOpen && (
+            <div
+              onMouseDown={startResize}
+              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors"
+              title="Drag to resize"
+              aria-label="Resize sidebar"
+            />
+          )}
         </div>
         <div
           className={cn(
@@ -237,9 +283,11 @@ export function FewerApp() {
       </div>
 
       <ExportPanel />
+      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <BugReportDialog />
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
+      <SettingsDialog />
       <ShareDialog />
       <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
 

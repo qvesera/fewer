@@ -1,88 +1,126 @@
 # Implementation Plan
 
-## Overview
+[Overview]
+Consolidate scattered utility controls (bug report, keyboard shortcuts, power user toggle, about, theme, minimap) into a single tabbed Settings Dialog accessible via a gear icon on the top-right of the CanvasToolbar, decluttering the Sidebar and GlobalNavbar.
 
-Implement the design system from `design-system/fewer/MASTER.md` across the fewer app, updating colors, fonts, spacing, shadows, and component styles to match the luxury/premium Quantum cyan + interference purple brand specification. Uses Google Fonts alternatives (Inter for headings, DM Sans for body) since Satoshi is commercial.
+The Sidebar currently has 8 collapsible sections — too crowded. The GlobalNavbar has 6 icon buttons crammed into the right cluster. This plan creates a unified `SettingsDialog` with tabbed sections (About, Appearance, Advanced, Help) that absorbs the Configuration section from the Sidebar and the utility buttons from GlobalNavbar/Toolbar. The Settings button lives on the far right of `CanvasToolbar`, following the universal gear-icon convention. Existing dialogs (`BugReportDialog`, `ShortcutsDialog`) remain as standalone components but are triggered from within the Settings dialog's Help tab. The `PowerUserToggle` component is embedded directly in the Advanced tab. Theme controls (light/dark/custom) move from the Sidebar's Appearance section into the Settings dialog's Appearance tab. Minimap controls move from Sidebar to Settings → Advanced tab. This reduces the Sidebar to 4-5 core sections (File & Actions, Layout & Edges, Hidden Nodes, Graph Analytics) and reduces GlobalNavbar to just search + notifications + settings.
 
-## Types
+[Types]
 
-No type changes needed. Existing `CustomTheme` interface in `src/lib/fewer/types.ts` already supports all theme colors - full revamp applies to default values, not theme system itself.
+Single sentence: Add `settingsOpen` boolean and `setSettingsOpen` action to the UI slice; no new domain types needed.
 
-## Files
+```typescript
+// Addition to src/store/slices/uiSlice.ts — UiSliceCreator type block
+settingsOpen: boolean;
+setSettingsOpen: (open: boolean) => void;
 
-### New Files
-- `src/app/fonts.ts` - Google Fonts configuration: Inter (heading) + DM Sans (body)
-- `src/styles/design-system.css` - Design system CSS variables (luxury palette)
+// Addition to createUiSlice initial state
+settingsOpen: false,
 
-### Modified Files
-- `src/app/globals.css` - Replace Geist fonts, update CSS variables to luxury palette
-- `src/app/layout.tsx` - Import and apply new fonts
-- `tailwind.config.ts` - Add new color tokens from design system
-- `src/lib/fewer/types.ts` - Update `DEFAULT_CUSTOM_THEME` to luxury palette
-- `src/components/ui/button.tsx` - Add `.btn-primary` variants (magenta + cyan)
-- `src/components/ui/card.tsx` - Apply `.card` design system styles
-- `src/components/ui/input.tsx` - Apply `.input` design system styles
-- `src/components/ui/dialog.tsx` - Apply `.modal` design system styles
-- `src/components/fewer/Sidebar.tsx` - Apply luxury glass morphism classes
-- `src/components/fewer/CustomNode.tsx` - Align with luxury variables
-- `src/components/fewer/GraphCanvas.tsx` - Apply background theme
-- `src/components/fewer/BreadcrumbBar.tsx` - Apply glass morphism
+// Addition to createUiSlice actions
+setSettingsOpen: (open) => set({ settingsOpen: open }),
+```
 
-## Functions
+No other type changes required. The Settings dialog reuses existing store state: `themeMode`, `setThemeMode`, `showFiles`, `setShowFiles`, `advancedModeEnabled`, `setAdvancedMode`, `showMiniMap`, `setShowMiniMap`, `miniMapPosition`, `setMiniMapPosition`, `miniMapSize`, `setMiniMapSize`, `bugReportOpen`, `setBugReportOpen`, `shortcutsOpen`, `setShortcutsOpen`, `tutorialDismissed`, `resetTutorial`.
 
-### New Functions
-- None (CSS-only changes)
+[Files]
 
-### Modified Functions
-- None (CSS variable propagation via Tailwind theme)
+Single sentence: One new component file, four existing files modified, zero deletions.
 
-## Classes
+**New Files:**
 
-### CSS Classes to Add
-- `.btn-primary` - Magenta background (#FF00FF) with hover lift
-- `.btn-secondary` - Cyan border (#00FFFF) with hover lift
-- `.card` - Glass morphism with shadow-md elevation
-- `.input` - Cyan focus ring with smooth transition
-- `.modal-overlay` - Blur backdrop with dark overlay
-- `.modal` - White/center card with shadow-xl
+| File | Purpose |
+|------|---------|
+| `src/components/fewer/SettingsDialog.tsx` | Tabbed settings dialog with About, Appearance, Advanced, Help tabs. ~350 lines. Uses existing `Dialog` + `Tabs` shadcn primitives. Embeds `PowerUserToggle`, `CustomThemeEditor`, and `MinimapControls` (extracted from Sidebar). Triggers `BugReportDialog` and `ShortcutsDialog` via store actions. |
 
-### CSS Classes to Update
-- Replace `.gm-glass` background values with design system colors
-- Replace `.gm-float` background values with design system colors
-- Update `.gm-selected-glow` to use `#00FFFF` (cyan) instead of `#22d3ee`
-- Update scrollbar colors to use `--color-muted`
+**Modified Files:**
 
-## Dependencies
+| File | Changes |
+|------|---------|
+| `src/store/slices/uiSlice.ts` | Add `settingsOpen: boolean` state + `setSettingsOpen` action (3 insertions in type block, initial state, and action body) |
+| `src/components/fewer/CanvasToolbar.tsx` | Add `Settings` (gear) icon button on far-right after Export button. Wire to `setSettingsOpen(true)`. Import `Settings` from lucide-react. |
+| `src/components/fewer/Sidebar.tsx` | Remove the "Configuration" `CollapsibleSection` (lines 894-897) containing `PowerUserToggle`. Remove the "Appearance" section's theme mode buttons + custom theme editor (lines 833-854) — keep only the "Show files" toggle. Remove the "Minimap" `AnimatedConditional` + `CollapsibleSection` (lines 888-892). Remove `MinimapControls` function definition (lines 312-379) — move to `SettingsDialog.tsx`. Remove unused imports: `Sun`, `Moon`, `Palette`, `Settings2`, `Maximize2`, `Map as MinimapIcon`. Remove unused store selectors: `themeMode`, `setThemeMode`, `showMiniMap`, `setShowMiniMap`, `miniMapPosition`, `setMiniMapPosition`, `miniMapSize`, `setMiniMapSize`. |
+| `src/components/fewer/GlobalNavbar.tsx` | Remove the `Keyboard`, `Bug`, `Github`, `Globe` buttons (lines 84-140). Remove `onRestartTutorial` prop and its button. Remove unused imports: `Bug`, `HelpCircle`, `Keyboard`, `Github`, `Globe`. Remove `setBugReportOpen` store selector. The navbar becomes: Logo + Search + Notifications only. |
+| `src/components/fewer/FewerApp.tsx` | Add `<SettingsDialog />` to the dialog stack (after `<ShortcutsDialog />`). Remove `onRestartTutorial` prop from `<GlobalNavbar>`. |
+| `src/components/fewer/index.ts` | Add `export { SettingsDialog } from "./SettingsDialog";` |
 
-### New Packages
-- None (uses existing `@next/font/google`)
+[Functions]
 
-### Font URLs
-- Google Fonts: Inter (weight 700) + DM Sans (weights 400,500,700)
+Single sentence: One new component function, several modified functions for removal/wiring.
 
-## Testing
+**New Functions:**
 
-Verify changes by:
-1. Running `npm run dev`
-2. Check font rendering on all pages
-3. Verify color contrast meets 4.5:1 ratio
-4. Test dark/light theme switches
-5. Test glass morphism on different backgrounds
-6. Verify responsive breakpoints (375px, 768px, 1024px, 1440px)
+| Function | File | Signature | Purpose |
+|----------|------|-----------|---------|
+| `SettingsDialog` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Main settings dialog component. Reads `settingsOpen`/`setSettingsOpen` from store. Renders `Dialog` with `Tabs` (About, Appearance, Advanced, Help). Each tab is an inline sub-component. |
+| `AboutTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | App version, description, links to GitHub/website, credits. Static content. |
+| `AppearanceTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Theme mode selector (light/dark/custom), `CustomThemeEditor` when custom, "Show files" toggle. Reads `themeMode`, `setThemeMode`, `showFiles`, `setShowFiles` from store. |
+| `AdvancedTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | `PowerUserToggle` component, `MinimapControls` component (moved from Sidebar), node dimension sliders (moved from Sidebar "Node Metrics" section). |
+| `HelpTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Buttons to open `ShortcutsDialog` (via `setShortcutsOpen(true)`), `BugReportDialog` (via `setBugReportOpen(true)`), restart tutorial (via `resetTutorial()` + local state key), link to GitHub issues, link to website. |
+| `MinimapControls` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Moved verbatim from Sidebar.tsx lines 312-379. Same store selectors. |
 
-## Implementation Order
+**Modified Functions:**
 
-1. Create `src/app/fonts.ts` with Inter + DM Sans font definitions
-2. Create `src/styles/design-system.css` with all CSS variables and utility classes
-3. Update `src/app/layout.tsx` to import and apply new fonts
-4. Update `src/app/globals.css` - merge design system variables with existing
-5. Update `tailwind.config.ts` - add brand color tokens
-6. Update `src/lib/fewer/types.ts` - sync DEFAULT_CUSTOM_THEME with MASTER.md
-7. Update `src/components/ui/button.tsx` - add design system button variants
-8. Update `src/components/ui/card.tsx` - apply card styles
-9. Update `src/components/ui/input.tsx` - apply input focus styles
-10. Update `src/components/ui/dialog.tsx` - apply modal overlay styles
-11. Update `src/components/fewer/Sidebar.tsx` - apply glass morphism classes
-12. Update `src/components/fewer/CustomNode.tsx` - align with design system variables
-13. Update remaining components (GraphCanvas, BreadcrumbBar, etc.)
-14. Run visual tests and adjust as needed
+| Function | File | Changes |
+|----------|------|---------|
+| `CanvasToolbar` | `src/components/fewer/CanvasToolbar.tsx` | Add `setSettingsOpen` selector. Add gear icon `Button` after Export button in right cluster. |
+| `Sidebar` | `src/components/fewer/Sidebar.tsx` | Remove Configuration section, Appearance theme controls, Minimap section, Node Metrics section. Remove `MinimapControls` helper. Remove unused imports and selectors. |
+| `GlobalNavbar` | `src/components/fewer/GlobalNavbar.tsx` | Remove `onRestartTutorial` prop, remove Keyboard/Bug/Github/Globe buttons. Simplify to Logo + Search + Notifications. |
+| `FewerApp` | `src/components/fewer/FewerApp.tsx` | Remove `onRestartTutorial` from `<GlobalNavbar>`. Add `<SettingsDialog />` to dialog stack. |
+
+**Removed Functions:**
+
+| Function | File | Reason | Migration |
+|----------|------|--------|-----------|
+| `MinimapControls` | `src/components/fewer/Sidebar.tsx` | Moved to SettingsDialog | Redefined in `SettingsDialog.tsx` |
+
+[Classes]
+
+Single sentence: No class modifications — this codebase is functional/React-based.
+
+[Dependencies]
+
+Single sentence: No new dependencies required.
+
+All required primitives already exist:
+- `Dialog` — `@/components/ui/dialog` (Radix UI)
+- `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` — `@/components/ui/tabs` (Radix UI)
+- `Switch` — `@/components/ui/switch`
+- `Slider` — `@/components/ui/slider`
+- `Button` — `@/components/ui/button`
+- `Label` — `@/components/ui/label`
+- Icons — `lucide-react` (Settings, Sun, Moon, Palette, Bug, Keyboard, Github, Globe, HelpCircle, Map, Maximize2, Info)
+
+[Testing]
+
+Single sentence: Manual testing via dev server + quality gates.
+
+**Manual Test Cases:**
+1. Click gear icon on CanvasToolbar → Settings dialog opens with About tab active
+2. Switch to Appearance tab → theme buttons work (light/dark/custom), custom theme editor appears when custom selected, Show files toggle works
+3. Switch to Advanced tab → Power User toggle works, minimap controls work, node dimension sliders work
+4. Switch to Help tab → "View Keyboard Shortcuts" button opens ShortcutsDialog, "Report a Bug" button opens BugReportDialog, "Restart Tutorial" button resets tutorial, GitHub/website links open in new tab
+5. Close Settings dialog → all state persists (theme, power user, minimap settings)
+6. Sidebar no longer shows Configuration, Minimap, or theme mode sections
+7. GlobalNavbar no longer shows Keyboard/Bug/GitHub/Globe buttons
+8. Power User toggle in Settings still controls advanced features in Sidebar (Layout directions, edge motion, etc.)
+9. Mobile: Settings dialog is responsive (tabs scroll horizontally, content scrolls vertically)
+10. Keyboard: Tab navigation works through all settings controls, Escape closes dialog
+
+**Quality Gates:**
+```bash
+npm run lint && npm run build
+```
+
+[Implementation Order]
+
+1. Add `settingsOpen` state + `setSettingsOpen` action to `src/store/slices/uiSlice.ts`
+2. Create `src/components/fewer/SettingsDialog.tsx` with all four tabs (About, Appearance, Advanced, Help), including moved `MinimapControls`
+3. Add `SettingsDialog` export to `src/components/fewer/index.ts`
+4. Add gear icon button to `src/components/fewer/CanvasToolbar.tsx` right cluster
+5. Add `<SettingsDialog />` to `src/components/fewer/FewerApp.tsx` dialog stack
+6. Remove Configuration/Appearance-theme/Minimap/NodeMetrics sections from `src/components/fewer/Sidebar.tsx`, remove `MinimapControls` function, clean unused imports/selectors
+7. Remove Keyboard/Bug/GitHub/Globe buttons + `onRestartTutorial` prop from `src/components/fewer/GlobalNavbar.tsx`, clean unused imports
+8. Remove `onRestartTutorial` from `<GlobalNavbar>` in `src/components/fewer/FewerApp.tsx`
+9. Run `npm run lint && npm run build` — fix any errors
+10. Update `CHANGELOG.md` with entry for settings dialog feature

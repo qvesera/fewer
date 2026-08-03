@@ -416,7 +416,7 @@ export function KeyboardShortcuts() {
               : e.key === "ArrowLeft"
                 ? "left"
                 : "right";
-        const hiddenIdsSet = new Set(useGraphStore.getState().hiddenIds);
+        const hiddenIdsSet = new Set<string>(useGraphStore.getState().hiddenIds);
         const nextId = navigate(currentId, dir, nodes, edges, hiddenIdsSet);
         if (nextId) {
           setFocusedNodeId(nextId);

@@ -34,12 +34,9 @@ const nodeTypes: NodeTypes = {
 
 function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   switch (style) {
-    case "curved":
-      return "default";
-    case "angled":
-      return "smoothstep";
-    case "straight":
-      return "straight";
+    case "curved": return "default";
+    case "angled": return "smoothstep";
+    case "straight": return "straight";
   }
 }
 
@@ -78,8 +75,7 @@ function CanvasInner() {
       case "dashed": return "6 6";
       case "dotted": return "2 6";
       case "solid":
-      default:
-        return undefined;
+      default: return undefined;
     }
   }, [edgeStrokeStyle]);
 
@@ -100,28 +96,20 @@ function CanvasInner() {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
 
+  const graphVersion = useGraphStore((s) => s.graphVersion);
+  const prevGraphVersion = useRef(graphVersion);
   useEffect(() => {
-    setRfNodes(visibleNodes);
-  }, [visibleNodes, setRfNodes]);
+    if (graphVersion !== prevGraphVersion.current) {
+      setRfNodes(visibleNodes);
+      setRfEdges(visibleEdges);
+      prevGraphVersion.current = graphVersion;
+    }
+  }, [graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges]);
 
-  useEffect(() => {
-    setRfEdges(visibleEdges);
-  }, [visibleEdges, setRfEdges]);
+  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
-  useEffect(() => {
-    console.log(
-      "[GraphCanvas] rfNodes:",
-      rfNodes.length,
-      "rfEdges:",
-      rfEdges.length,
-    );
-  }, [rfNodes.length, rfEdges.length]);
-
-  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } =
-    useReactFlow();
-
-  const hasMeasuredRef = useRef(false);
   const relayout = useGraphStore((s) => s.relayout);
+  const hasMeasuredRef = useRef(false);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
 
@@ -129,48 +117,29 @@ function CanvasInner() {
     if (!zoomToNode) return;
     const { nodeId } = zoomToNode;
     const t = setTimeout(() => {
-      fitView({
-        nodes: [{ id: nodeId }],
-        duration: 600,
-        padding: 0.3,
-        maxZoom: 1.5,
-      });
+      fitView({ nodes: [{ id: nodeId }], duration: 600, padding: 0.3, maxZoom: 1.5 });
     }, 150);
     return () => clearTimeout(t);
   }, [zoomToNode, fitView]);
 
   const zoomToNodeIdsRef = useRef(zoomToNodeIds);
-
-  useEffect(() => {
-    zoomToNodeIdsRef.current = zoomToNodeIds;
-  }, [zoomToNodeIds]);
+  useEffect(() => { zoomToNodeIdsRef.current = zoomToNodeIds; }, [zoomToNodeIds]);
 
   useEffect(() => {
     const ids = zoomToNodeIdsRef.current;
     if (ids && ids.length > 0) {
       const t = setTimeout(() => {
-        fitView({
-          nodes: ids.map((id) => ({ id })),
-          duration: 600,
-          padding: 0.3,
-          maxZoom: 1.5,
-        });
+        fitView({ nodes: ids.map((id) => ({ id })), duration: 600, padding: 0.3, maxZoom: 1.5 });
         useGraphStore.getState().setZoomToNodeIds(null);
       }, 150);
       return () => clearTimeout(t);
     }
   }, [zoomToNodeIds]);
 
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      hasMeasuredRef.current = false;
-    }
-  }, [rfNodes.length]);
-
-  const graphVersion = useGraphStore((s) => s.graphVersion);
-
+  const didInitialFit = useRef(false);
   useEffect(() => {
     if (rfNodes.length === 0) return;
+    if (!didInitialFit.current) { didInitialFit.current = true; return; }
     const t = setTimeout(() => {
       if (useGraphStore.getState().zoomToNode) return;
       fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
@@ -178,38 +147,105 @@ function CanvasInner() {
     return () => clearTimeout(t);
   }, [direction, graphVersion, fitView]);
 
+  // ── Re-apply edge colors when theme changes ──
+  useEffect(() => {
+    const selectedIds = useGraphStore.getState().selectedNodeIds;
+    if (selectedIds.length === 0) {
+      // No selection: reset edges to default colors
+      const edges = useGraphStore.getState().edges;
+      const dark = themeMode === "dark";
+      const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
+      const resetEdges = edges.map((e) => ({ ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } }));
+      useGraphStore.setState({ edges: resetEdges });
+      const hidden = new Set(useGraphStore.getState().hiddenIds);
+      setRfEdges(resetEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
+      return;
+    }
+    // Re-highlight the ancestor path with the new theme colors
+    const focusId = selectedIds[selectedIds.length - 1];
+    const edges = useGraphStore.getState().edges;
+    const parentMap = new Map<string, string>();
+    for (const e of edges) parentMap.set(e.target, e.source);
+    const pathEdges = new Set<string>();
+    let currentId: string | undefined = focusId;
+    while (currentId && parentMap.has(currentId)) {
+      const parentId = parentMap.get(currentId)!;
+      const edgeId = edges.find((e) => e.source === parentId && e.target === currentId)?.id;
+      if (edgeId) pathEdges.add(edgeId);
+      currentId = parentId;
+    }
+    const dark = themeMode === "dark";
+    const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
+    const accentColor = dark ? "#a855f7" : "#fb923c";
+    const updatedEdges = edges.map((e) => {
+      if (pathEdges.has(e.id)) return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
+      return { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+    });
+    updatedEdges.sort((a) => (pathEdges.has(a.id) ? 1 : -1));
+    useGraphStore.setState({ edges: updatedEdges });
+    const hidden = new Set(useGraphStore.getState().hiddenIds);
+    setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
+  }, [themeMode, setRfEdges, edgeWidth]);
+
+  // ── Selection: highlight ancestor path ──
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       const selectedIds = new Set(selected.map((n) => n.id));
       const prevIds = useGraphStore.getState().selectedNodeIds;
-      // Preserve click order: keep previous IDs that are still selected,
-      // then append any newly selected IDs at the end
       const kept = prevIds.filter((id) => selectedIds.has(id));
-      const added = selected
-        .filter((n) => !prevIds.includes(n.id))
-        .map((n) => n.id);
-      setSelectedNodeIds([...kept, ...added]);
+      const added = selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id);
+      const newIds = [...kept, ...added];
+      setSelectedNodeIds(newIds);
+
+      const edges = useGraphStore.getState().edges;
+      const parentMap = new Map<string, string>();
+      for (const e of edges) parentMap.set(e.target, e.source);
+
+      const focusId = newIds.length > 0 ? newIds[newIds.length - 1] : null;
+      const pathEdges = new Set<string>();
+      if (focusId) {
+        let currentId: string | undefined = focusId;
+        while (currentId && parentMap.has(currentId)) {
+          const parentId = parentMap.get(currentId)!;
+          const edgeId = edges.find((e) => e.source === parentId && e.target === currentId)?.id;
+          if (edgeId) pathEdges.add(edgeId);
+          currentId = parentId;
+        }
+      }
+
+      const dark = document.documentElement.classList.contains("dark");
+      const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
+      // Accent: amber/orange in light mode (matches folder color), purple in dark mode (matches file color)
+      const accentColor = dark ? "#a855f7" : "#fb923c";
+      const updatedEdges = edges.map((e) => {
+        if (pathEdges.has(e.id)) {
+          return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
+        }
+        return { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+      });
+      // Sort: highlighted edges last so they render on top
+      updatedEdges.sort((a) => (pathEdges.has(a.id) ? 1 : -1));
+      useGraphStore.setState({ edges: updatedEdges });
+      const hidden = new Set(useGraphStore.getState().hiddenIds);
+      setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
     },
-    [setSelectedNodeIds],
+    [setSelectedNodeIds, setRfEdges, edgeWidth],
   );
 
+  // ── Handle node changes (position/dimension) ──
   const handleNodesChange = useCallback(
     (changes: NodeChange<FewerNode>[]) => {
       onNodesChange(changes);
 
       const dimensionChanges = changes.filter(
-        (c): c is NodeChange<FewerNode> & {
-          id: string;
-          dimensions: { width: number; height: number };
-        } => c.type === "dimensions" && !!c.dimensions,
+        (c): c is NodeChange<FewerNode> & { id: string; dimensions: { width: number; height: number } } =>
+          c.type === "dimensions" && !!c.dimensions,
+      );
+      const positionChanges = changes.filter(
+        (c): c is NodeChange<FewerNode> & { id: string; position: { x: number; y: number } } =>
+          c.type === "position" && !!c.position,
       );
 
-      const positionChanges = changes.filter(
-        (c): c is NodeChange<FewerNode> & {
-          id: string;
-          position: { x: number; y: number };
-        } => c.type === "position" && !!c.position,
-      );
       if (positionChanges.length > 0) {
         useGraphStore.setState((s) => ({
           nodes: s.nodes.map((n) => {
@@ -226,18 +262,8 @@ function CanvasInner() {
             if (change) {
               return {
                 ...n,
-                style: {
-                  ...n.style,
-                  width: change.dimensions.width,
-                  height:
-                    n.data.type === "folder"
-                      ? change.dimensions.height
-                      : n.style?.height,
-                },
-                measured: {
-                  width: change.dimensions.width,
-                  height: change.dimensions.height,
-                },
+                style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
+                measured: { width: change.dimensions.width, height: change.dimensions.height },
               };
             }
             return n;
@@ -246,10 +272,7 @@ function CanvasInner() {
 
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
-          setTimeout(() => {
-            relayout();
-            fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 });
-          }, 50);
+          setTimeout(() => { relayout(); fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 }); }, 50);
         }
       }
     },
@@ -260,24 +283,12 @@ function CanvasInner() {
     (connection: Connection) => {
       const result = connectNodes(connection);
       if (!result.ok) {
-        toast({
-          title: "Connection rejected",
-          description: result.reason,
-          variant: "destructive",
-        });
-      } else {
-        if (connection.source && connection.target) {
-          const newEdge = {
-            id: `e-${connection.source}-${connection.target}-${Date.now()}`,
-            source: connection.source,
-            target: connection.target,
-            type: edgeTypeFor(edgeStyle),
-          };
-          setRfEdges((eds) => [...eds, newEdge]);
-        }
+        toast({ title: "Connection rejected", description: result.reason, variant: "destructive" });
+      } else if (connection.source && connection.target) {
+        setRfEdges((eds) => [...eds, { id: `e-${connection.source}-${connection.target}-${Date.now()}`, source: connection.source, target: connection.target, type: edgeTypeFor(edgeStyle) }]);
       }
     },
-    [connectNodes, toast, setRfEdges],
+    [connectNodes, toast, setRfEdges, edgeStyle],
   );
 
   const onDrop = useCallback(
@@ -287,263 +298,110 @@ function CanvasInner() {
       if (!payload) return;
       try {
         const { label, type, parentId } = JSON.parse(payload);
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-
+        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const { draggedFolderHandle } = await import("./CustomNode");
         const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
-
         const { expandFolderNode } = await import("@/lib/fewer/fileOps");
         if (handle && handle.kind === "directory") {
-          await expandFolderNode(
-            label,
-            parentId,
-            position,
-            handle,
-            useGraphStore.getState(),
-          );
-          toast({
-            title: "Folder expanded",
-            description: `"${label}" and its contents loaded from disk`,
-          });
+          await expandFolderNode(label, parentId, position, handle, useGraphStore.getState() as any);
+          toast({ title: "Folder expanded", description: `"${label}" and its contents loaded from disk` });
         } else {
           addStandaloneNode(label, type, position);
-          toast({
-            title: "Node created",
-            description: `"${label}" dropped onto canvas`,
-          });
+          toast({ title: "Node created", description: `"${label}" dropped onto canvas` });
         }
-      } catch {
-        // ignore malformed payload
-      }
+      } catch { /* ignore */ }
     },
     [screenToFlowPosition, addStandaloneNode, toast],
   );
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  }, []);
-
-  const onNodeDragStop = useCallback(() => {
-    commitHistory();
-  }, [commitHistory]);
-
-  const onSelectionDragStop = useCallback(() => {
-    commitHistory();
-  }, [commitHistory]);
+  const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }, []);
+  const onNodeDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
+  const onSelectionDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
 
   const fitToSelection = useCallback(() => {
     const selected = useGraphStore.getState().selectedNodeIds;
-    if (selected.length === 0) {
-      fitView({ duration: 600, padding: 0.2 });
-      return;
-    }
-    fitView({
-      nodes: selected.map((id) => ({ id })),
-      duration: 600,
-      padding: 0.3,
-    });
+    if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
+    fitView({ nodes: selected.map((id) => ({ id })), duration: 600, padding: 0.3 });
   }, [fitView]);
 
   const selectAll = useCallback(() => {
-    useGraphStore.setState((s) => ({
-      nodes: s.nodes.map((n) => ({ ...n, selected: true })),
-      selectedNodeIds: s.nodes.map((n) => n.id),
-    }));
+    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: s.nodes.map((n) => n.id) }));
   }, []);
 
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
 
-  const minimapStyle = useMemo(
-    () => ({
-      width: miniMapSize,
-      height: miniMapSize,
-      backgroundColor: isDark
-        ? "rgba(15, 23, 42, 0.6)"
-        : "rgba(255, 255, 255, 0.6)",
-      borderRadius: "12px",
-      border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
-    }),
-    [isDark, miniMapSize],
-  );
+  const minimapStyle = useMemo(() => ({
+    width: miniMapSize, height: miniMapSize,
+    backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
+    borderRadius: "12px",
+    border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
+  }), [isDark, miniMapSize]);
 
-  const nodeColor = useCallback(
-    (n: FewerNode) =>
-      n.data?.type === "folder"
-        ? "rgba(249, 115, 22, 0.7)"
-        : "rgba(168, 85, 247, 0.7)",
-    [],
-  );
-
-  const nodeStrokeColor = useCallback(
-    (n: FewerNode) =>
-      n.data?.type === "folder"
-        ? "rgba(249, 115, 22, 0.9)"
-        : "rgba(168, 85, 247, 0.9)",
-    [],
-  );
+  const nodeColor = useCallback((n: FewerNode) => n.data?.type === "folder" ? "rgba(249, 115, 22, 0.7)" : "rgba(168, 85, 247, 0.7)", []);
+  const nodeStrokeColor = useCallback((n: FewerNode) => n.data?.type === "folder" ? "rgba(249, 115, 22, 0.9)" : "rgba(168, 85, 247, 0.9)", []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full"
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-      onContextMenu={(e) => {
-        e.preventDefault(); // Suppress browser default context menu
-      }}
-    >
+    <div ref={containerRef} className="relative h-full w-full" onDrop={onDrop} onDragOver={onDragOver}
+      onContextMenu={(e) => e.preventDefault()}>
+      {/* Aurora Haze — ambient canvas atmosphere (dark mode only, pointer-events-none) */}
+      <div className="gm-canvas-aurora" aria-hidden="true" />
+      <div className="gm-canvas-aurora-3" aria-hidden="true" />
       <ReactFlow
         key={`flow-${direction}`}
-        nodes={rfNodes}
-        edges={rfEdges}
-        nodeTypes={nodeTypes}
-        onNodesChange={handleNodesChange}
+        nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
+        onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
-        onNodeDragStop={onNodeDragStop}
-        onSelectionDragStop={onSelectionDragStop}
+        onNodeDragStop={onNodeDragStop} onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
-          useGraphStore.setState((s) => ({
-            nodes: s.nodes.map((n) => ({
-              ...n,
-              selected: n.id === node.id,
-            })),
-            selectedNodeIds: [node.id],
-          }));
+          useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
           fitToSelection();
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
-          if (deletedNodes.length > 0) deleteNodes(deletedNodes.map((n) => n.id));
-          if (deletedEdges.length > 0) useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
-        }}
-        onInit={(instance) => {
-          console.log(
-            "[ReactFlow] onInit - edges:",
-            instance.getEdges().length,
-            "nodes:",
-            instance.getNodes().length,
-          );
-        }}
-        onNodeContextMenu={(event) => {
-          event.preventDefault(); // Suppress browser default context menu on nodes
-        }}
-        onEdgeContextMenu={(event, edge) => {
-          event.preventDefault(); // Suppress browser default context menu on edges
-          setLastClickedEdgeId(edge.id);
-          // Show canvas menu for edge right-click (with Delete Edge option)
-          const rect = containerRef.current?.getBoundingClientRect();
-          if (rect) {
-            setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+          if (deletedNodes.length > 0) {
+            deleteNodes(deletedNodes.map((n) => n.id));
+            toast({ title: "Deleted", description: `${deletedNodes.length} item${deletedNodes.length === 1 ? "" : "s"} removed` });
+          }
+          if (deletedEdges.length > 0) {
+            useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
+            toast({ title: "Deleted", description: `${deletedEdges.length} edge${deletedEdges.length === 1 ? "" : "s"} removed` });
           }
         }}
-        onPaneContextMenu={(e) => {
-          e.preventDefault(); // Suppress browser default context menu on pane
-          // Right-click on empty canvas — show canvas menu
-          const mouseEvent = e as unknown as MouseEvent;
-          setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY });
-          useGraphStore.getState().setRightClickDetected();
-        }}
-        onMouseMove={(e) => {
-          const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-          useGraphStore.getState().setMousePosition({ x: point.x, y: point.y });
-        }}
-        nodesDraggable
-        nodesConnectable
-        elementsSelectable
-        onlyRenderVisibleElements={false}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
-        minZoom={0.15}
-        maxZoom={3}
+        onInit={(instance) => { console.log("[ReactFlow] onInit - edges:", instance.getEdges().length, "nodes:", instance.getNodes().length); }}
+        onNodeContextMenu={(event) => event.preventDefault()}
+        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); const rect = containerRef.current?.getBoundingClientRect(); if (rect) setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }); }}
+        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); useGraphStore.getState().setRightClickDetected(); }}
+        onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
+        nodesDraggable nodesConnectable elementsSelectable
+        onlyRenderVisibleElements
+        fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(edgeStyle),
-          animated: edgeAnimated,
-          style: {
-            stroke: isDark
-              ? "rgba(148, 163, 184, 0.55)"
-              : "rgba(71, 85, 105, 0.6)",
-            strokeWidth: edgeWidth,
-            ...(dashArray ? { strokeDasharray: dashArray } : {}),
-          },
+          type: edgeTypeFor(edgeStyle), animated: edgeAnimated,
+          style: { stroke: isDark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)", strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
         }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent h-full w-full"
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1.5}
-          color={
-            isDark ? "rgba(148, 163, 184, 0.18)" : "rgba(71, 85, 105, 0.2)"
-          }
-          className="transition-colors"
-        />
-        <Controls
-          className="!rounded-xl !border !border-border/40 !bg-card/80 !shadow-xl backdrop-blur-md"
-          showInteractive={false}
-        />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.5}
+          color={isDark ? "rgba(148, 163, 184, 0.18)" : "rgba(71, 85, 105, 0.2)"}
+          className="transition-colors" />
+        <Controls className="!rounded-xl !border !border-border/40 !bg-card/80 !shadow-xl backdrop-blur-md" showInteractive={false} />
         {showMiniMap && (
-          <MiniMap
-            position={miniMapPosition}
-            style={minimapStyle}
-            pannable
-            zoomable
-            nodeColor={nodeColor}
-            nodeStrokeColor={nodeStrokeColor}
-            nodeStrokeWidth={2}
-            nodeBorderRadius={4}
-            ariaLabel="Mini map"
-          />
+          <MiniMap position={miniMapPosition} style={minimapStyle} pannable zoomable
+            nodeColor={nodeColor} nodeStrokeColor={nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
         )}
-
         <Panel position="bottom-center">
           <div className="gm-float flex items-center gap-1 rounded-2xl p-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 min-hit"
-              onClick={() => zoomIn({ duration: 250 })}
-              title="Zoom in (+)"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 min-hit"
-              onClick={() => zoomOut({ duration: 250 })}
-              title="Zoom out (-)"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 min-hit"
-              onClick={() => fitView({ duration: 600, padding: 0.2 })}
-              title="Fit view (Space)"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 min-hit"
-              onClick={fitToSelection}
-              title="Zoom to selection"
-            >
-              <Crosshair className="h-4 w-4" />
-            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => zoomIn({ duration: 250 })} title="Zoom in (+)"><ZoomIn className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => zoomOut({ duration: 250 })} title="Zoom out (-)"><ZoomOut className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => fitView({ duration: 600, padding: 0.2 })} title="Fit view (Space)"><Maximize2 className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={fitToSelection} title="Zoom to selection"><Crosshair className="h-4 w-4" /></Button>
           </div>
         </Panel>
-
         {loading && (
           <Panel position="top-center" className="!top-[15%]">
             <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
@@ -555,195 +413,68 @@ function CanvasInner() {
         )}
         {!loading && rfNodes.length === 0 && (
           <Panel position="top-center" className="!top-[15%]">
-            <div
-              className={cn(
-                "gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto",
-              )}
-            >
+            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
               <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">No directory loaded</div>
-              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
-                Use the sidebar to open a directory from your file system, or
-                load one of the sample datasets to explore the visualization.
-              </div>
+              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">Use the sidebar to open a directory from your file system, or load one of the sample datasets to explore the visualization.</div>
             </div>
           </Panel>
         )}
-
         {hiddenCount > 0 && (
           <Panel position="top-right">
-            <button
-              className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-600 dark:text-amber-300 cursor-pointer hover:bg-amber-500/20 transition-colors animate-in fade-in slide-in-from-right-2 duration-200"
-              onClick={() => {
-                useGraphStore.getState().setSidebarOpen(true);
-                useGraphStore.getState().triggerHiddenPanelExpand();
-              }}
-            >
+            <button className="gm-float rounded-full px-3 py-1.5 text-xs text-amber-600 dark:text-amber-300 cursor-pointer hover:bg-amber-500/20 transition-colors animate-in fade-in slide-in-from-right-2 duration-200"
+              onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
               {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
-
             </button>
           </Panel>
         )}
       </ReactFlow>
 
-      {/* Canvas context menu (custom, positioned at cursor) */}
       {canvasMenu && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setCanvasMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setCanvasMenu(null);
-            }}
-          />
-          <div
-            className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150"
-            style={{ left: canvasMenu.x, top: canvasMenu.y }}
-          >
-            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-              Canvas actions
-            </div>
+          <div className="fixed inset-0 z-40" onClick={() => setCanvasMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCanvasMenu(null); }} />
+          <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
+            <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Canvas actions</div>
             <div className="my-1 h-px bg-border/40" />
-            <button
-              onClick={() => {
-                fitView({ duration: 500, padding: 0.2 });
-                setCanvasMenu(null);
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
-            >
-              Fit View
-            </button>
-            <button
-              onClick={() => {
-                selectAll();
-                setCanvasMenu(null);
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
-            >
-              Select All
-            </button>
-            <button
-              onClick={() => {
-                zoomIn({ duration: 250 });
-                setCanvasMenu(null);
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
-            >
-              Zoom In
-            </button>
-            <button
-              onClick={() => {
-                zoomOut({ duration: 250 });
-                setCanvasMenu(null);
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-            >
-              Zoom Out
-            </button>
-            {/* Delete Edge — visible when right-clicked on an edge */}
+            <button onClick={() => { fitView({ duration: 500, padding: 0.2 }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Fit View</button>
+            <button onClick={() => { selectAll(); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
+            <button onClick={() => { zoomIn({ duration: 250 }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
+            <button onClick={() => { zoomOut({ duration: 250 }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
             {(() => {
               const edgeId = lastClickedEdgeId;
-              if (edgeId) {
-                const selectedEdgeIds = [edgeId];
-                return (
+              if (edgeId) return (
+                <>
+                  <div className="my-1 h-px bg-border/40" />
+                  <button onClick={() => { useGraphStore.getState().deleteEdges([edgeId]); toast({ title: "Edge deleted", description: "1 edge removed" }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>
+                </>
+              );
+              return null;
+            })()}
+            {(() => {
+              const ids = useGraphStore.getState().selectedNodeIds;
+              if (ids.length >= 2) {
+                const lastNode = useGraphStore.getState().nodes.find((n) => n.id === ids[ids.length - 1]);
+                if (lastNode?.data.type === "folder") return (
                   <>
                     <div className="my-1 h-px bg-border/40" />
-                    <button
-                      onClick={() => {
-                        useGraphStore.getState().deleteEdges(selectedEdgeIds);
-                        toast({
-                          title: "Edge deleted",
-                          description: `${selectedEdgeIds.length} edge${selectedEdgeIds.length === 1 ? "" : "s"} removed`,
-                        });
-                        setCanvasMenu(null);
-                      }}
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
-                    >
-                      Delete Edge
-                    </button>
+                    <button onClick={() => {
+                      const state = useGraphStore.getState(); const parentId = ids[ids.length - 1]; const childIds = ids.slice(0, -1);
+                      let ok = 0, fail = 0;
+                      for (const childId of childIds) { const r = state.connectNodes({ source: parentId, target: childId } as Connection); if (r.ok) ok++; else fail++; }
+                      toast({ title: "Nodes parented", description: `${ok} node${ok !== 1 ? "s" : ""} parented${fail > 0 ? `, ${fail} skipped` : ""}` });
+                      setCanvasMenu(null);
+                    }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]">Set as Parent</button>
                   </>
                 );
               }
               return null;
             })()}
-
-            {/* Set as Parent — visible when ≥2 nodes selected and last is a folder */}
-            {(() => {
-              const ids = useGraphStore.getState().selectedNodeIds;
-              if (ids.length >= 2) {
-                const lastNode = useGraphStore.getState().nodes.find((n) => n.id === ids[ids.length - 1]);
-                const canParent = lastNode?.data.type === "folder";
-                if (canParent) {
-                  return (
-                    <>
-                      <div className="my-1 h-px bg-border/40" />
-                      <button
-                        onClick={() => {
-                          const state = useGraphStore.getState();
-                          const parentId = ids[ids.length - 1];
-                          const childIds = ids.slice(0, -1);
-                          let okCount = 0;
-                          let failCount = 0;
-                          for (const childId of childIds) {
-                            const result = state.connectNodes({ source: parentId, target: childId } as Connection);
-                            if (result.ok) okCount++;
-                            else failCount++;
-                          }
-                          toast({
-                            title: "Nodes parented",
-                            description: `${okCount} node${okCount !== 1 ? "s" : ""} parented under "${lastNode.data.label}"${failCount > 0 ? `, ${failCount} skipped` : ""}`,
-                          });
-                          setCanvasMenu(null);
-                        }}
-                        className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]"
-                      >
-                        Set as Parent 
-                      </button>
-                    </>
-                  );
-                }
-              }
-              return null;
-            })()}
-
             {advancedModeEnabled && (
               <>
                 <div className="my-1 h-px bg-border/40" />
-                <button
-                  onClick={() => {
-                    useGraphStore.getState().showAll();
-                    toast({
-                      title: "Unhid all nodes",
-                      description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
-                    });
-                    setCanvasMenu(null);
-                  }}
-                  disabled={hiddenCount === 0}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  Show All Nodes
-                </button>
+                <button onClick={() => { useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); setCanvasMenu(null); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All Nodes</button>
                 <div className="my-1 h-px bg-border/40" />
-                <button
-                  onClick={() => {
-                    const clipboard = useGraphStore.getState().clipboard;
-                    if (clipboard && clipboard.nodeIds.length > 0) {
-                      const mousePos = useGraphStore.getState().mousePosition;
-                      useGraphStore.getState().setPastePosition(mousePos);
-                      useGraphStore.getState().pasteFromClipboard();
-                      toast({
-                        title: "Pasted",
-                        description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted`,
-                      });
-                    }
-                    setCanvasMenu(null);
-                  }}
-                  disabled={!useGraphStore.getState().clipboard}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  Paste
-                </button>
+                <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } setCanvasMenu(null); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
               </>
             )}
           </div>

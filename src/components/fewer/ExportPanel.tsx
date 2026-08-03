@@ -27,7 +27,6 @@ import {
   FolderTree,
   Download,
   MousePointerClick,
-  ChevronDown,
   ChevronRight,
   Info,
   Link,
@@ -171,12 +170,13 @@ export function ExportPanel() {
                 const Icon = f.icon;
                 const active = settings.format === f.value;
                 return (
+                  /* Hybrid Choice Card (Custom <button>) */
                   <button
                     key={f.value}
                     type="button"
                     onClick={() => setSettings({ format: f.value })}
                     className={cn(
-                      "flex items-center gap-3.5 rounded-xl border p-3.5 text-left transition-[colors,transform] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "group flex w-full items-center gap-3.5 rounded-xl border p-3.5 text-left transition-all active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
                         ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300 shadow-sm shadow-purple-500/5"
                         : "border-border/50 hover:border-border hover:bg-muted/30 text-foreground"
@@ -185,21 +185,24 @@ export function ExportPanel() {
                     <div
                       className={cn(
                         "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
-                        active ? "bg-purple-500 text-white" : "bg-muted text-muted-foreground/70"
+                        active ? "bg-purple-500 text-white" : "bg-muted text-muted-foreground/70 group-hover:text-foreground"
                       )}
                     >
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold tracking-tight">{f.label}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                      <div className="text-xs text-muted-foreground leading-snug font-normal">
                         {f.desc}
                       </div>
                     </div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="flex items-center justify-center rounded-full hover:bg-muted/80 p-1 transition-colors cursor-pointer shrink-0 self-center">
+                          <span 
+                            onClick={(e) => e.stopPropagation()} 
+                            className="flex items-center justify-center rounded-full hover:bg-muted/80 p-1 transition-colors cursor-pointer shrink-0 self-center"
+                          >
                             <Info className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-muted-foreground" />
                           </span>
                         </TooltipTrigger>
@@ -214,8 +217,9 @@ export function ExportPanel() {
             </div>
           </div>
 
+          {/* Action Buttons (Standard shadcn Button) */}
           <Button
-            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.96] transition-[colors,transform,box-shadow] h-11"
+            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.96] transition-all h-11"
             onClick={handleExport}
             disabled={nodes.length === 0}
           >
@@ -301,42 +305,42 @@ export function ExportPanel() {
           )}
 
           <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
-          <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
-            <CollapsibleTrigger asChild>
-              <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase block mb-1">
-                <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
-                Summary
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
-            <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Nodes</span>
-              <span className="font-mono text-foreground/90 font-semibold">
-                {exportSelected && canExportSelected
-                  ? `${exportNodes.length} nodes`
-                  : `${nodes.length} nodes`}
-              </span>
+            <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-1.5 w-full justify-start h-auto p-0 font-bold text-foreground/90 tracking-wider text-[10px] uppercase hover:bg-transparent">
+                  <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
+                  Summary
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out] pt-2">
+                <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
+                  <span>Nodes</span>
+                  <span className="font-mono text-foreground/90 font-semibold">
+                    {exportSelected && canExportSelected
+                      ? `${exportNodes.length} nodes`
+                      : `${nodes.length} nodes`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
+                  <span>Edges</span>
+                  <span className="font-mono text-foreground/90 font-semibold">
+                    {exportSelected && canExportSelected
+                      ? `${exportEdges.length} edges`
+                      : `${edges.length} edges`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
+                  <span>Scope</span>
+                  <span className="text-foreground/90 font-medium">
+                    {exportSelected && canExportSelected ? "Selection" : "Full Canvas"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Format</span>
+                  <span className="uppercase font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[10px]">{settings.format}</span>
+                </div>
+              </CollapsibleContent>
             </div>
-            <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Edges</span>
-              <span className="font-mono text-foreground/90 font-semibold">
-                {exportSelected && canExportSelected
-                  ? `${exportEdges.length} edges`
-                  : `${edges.length} edges`}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-              <span>Scope</span>
-              <span className="text-foreground/90 font-medium">
-                {exportSelected && canExportSelected ? "Selection" : "Full Canvas"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Format</span>
-              <span className="uppercase font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[10px]">{settings.format}</span>
-            </div>
-            </CollapsibleContent>
-          </div>
           </Collapsible>
 
         </div>

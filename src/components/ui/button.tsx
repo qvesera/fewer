@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[scale,background-color,color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:not-disabled:scale-[0.96]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[scale,background-color,color,box-shadow,border-color] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:not-disabled:scale-[0.96]",
   {
     variants: {
       variant: {
@@ -20,12 +20,23 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        sidebar:
+          "w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50",
+        toolbar:
+          "h-8 w-8 text-muted-foreground hover:text-foreground",
+        layout:
+          "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden h-auto whitespace-normal",
+        cardChoice:
+          "flex items-center justify-start h-auto w-full whitespace-normal text-left transition-[colors,transform] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        ghostIcon:
+          "rounded p-0.5 text-muted-foreground hover:bg-foreground/15 hover:text-foreground cursor-pointer h-auto w-auto",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
         sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
         lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9 relative after:absolute after:inset-[-2px]",
+        icon: "size-9 relative after:absolute after:inset:[-2px]",
+        xs: "h-7 rounded px-2 text-xs",
       },
     },
     defaultVariants: {
