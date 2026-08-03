@@ -63,6 +63,14 @@ export function layoutGraphContour(
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
+  for (const childIds of childrenMap.values()) {
+    childIds.sort((a, b) => {
+      const labelA = nodeMap.get(a)?.data?.label || a;
+      const labelB = nodeMap.get(b)?.data?.label || b;
+      return labelA.localeCompare(labelB);
+    });
+  }
+
   // 1. Calculate depth level for every node
   const nodeDepths = new Map<string, number>();
   function calculateDepths(nodeId: string, currentDepth: number) {
