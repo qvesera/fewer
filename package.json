@@ -1,7 +1,14 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.0",
+  "name": "fewer",
+  "version": "0.3.4",
   "private": true,
+  "description": "Interactive File & System Graph Visualizer",
+  "author": "qvesera",
+  "license": "AGPLv3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qvesera/fewer.git"
+  },
   "funding": {
     "type": "github",
     "url": "https://github.com/sponsors/qvesera"
