@@ -1,3 +1,4 @@
+"use client";
 import { create } from "zustand";
 import type { GraphState } from "./slices/types";
 import { createHistorySlice } from "./slices/historySlice";

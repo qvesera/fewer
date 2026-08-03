@@ -1,4 +1,5 @@
-import type { StateCreator } from "zustand";
+"use client";
+import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
@@ -175,10 +176,19 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   },
 
   setShowFiles: (show) => {
-    const { nodes, graphVersion } = get();
+    const { nodes, edges, graphVersion } = get();
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
-      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !fileIds.includes(id)), graphVersion: graphVersion + 1 }));
+      // Only reveal files whose parent folder is NOT hidden.
+      // Files under hidden folders must remain hidden to avoid orphan rendering.
+      const parentMap = new Map<string, string>();
+      for (const e of edges) parentMap.set(e.target, e.source);
+      const hiddenSet = new Set(get().hiddenIds);
+      const revealableFileIds = fileIds.filter((fid) => {
+        const parentId = parentMap.get(fid);
+        return !parentId || !hiddenSet.has(parentId);
+      });
+      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealableFileIds.includes(id)), graphVersion: graphVersion + 1 }));
     } else {
       set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }

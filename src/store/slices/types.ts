@@ -1,3 +1,4 @@
+"use client";
 // GraphState is a loose type — the actual shape is inferred from the
 // combined Zustand store. Each slice file defines its own state shape
 // via StateCreator, and createStore.ts merges them all.

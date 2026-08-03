@@ -1,4 +1,5 @@
-import type { StateCreator } from "zustand";
+"use client";
+import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry } from "./types";
 import type { HistoryOp } from "@/lib/fewer/types";
 import { applyOps, undoOps } from "@/lib/fewer/history";

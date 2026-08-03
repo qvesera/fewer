@@ -1,4 +1,5 @@
-import type { StateCreator } from "zustand";
+"use client";
+import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
@@ -80,14 +81,12 @@ export type GraphSliceCreator = StateCreator<
   {
     nodes: FewerNode[];
     edges: FewerEdge[];
-    includeFiles: boolean;
     dataSource: string | null;
     graphVersion: number;
     hiddenPanelExpandTrigger: number;
     clipboard: GraphState["clipboard"];
 
     setGraph: (nodes: FewerNode[], edges: FewerEdge[], pushHistory?: boolean, hiddenFileIds?: string[]) => void;
-    setIncludeFiles: (v: boolean) => void;
     setDataSource: (v: string | null) => void;
     addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
@@ -136,7 +135,6 @@ export type GraphSliceCreator = StateCreator<
 export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   nodes: [],
   edges: [],
-  includeFiles: true,
   dataSource: null,
   graphVersion: 0,
   hiddenPanelExpandTrigger: 0,
@@ -146,7 +144,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   revealedRootIds: [],
   autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
-  setIncludeFiles: (v) => set({ includeFiles: v }),
   setDataSource: (v) => set({ dataSource: v }),
 
   triggerHiddenPanelExpand: () => {

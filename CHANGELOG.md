@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Sidebar decluttered** — removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
+
+### Fixed
+
+- **Include File Nodes toggle preserves ancestor-aware visibility** — re-enabling "Include File Nodes" no longer reveals files whose parent folder is hidden, preventing orphan file nodes from appearing as root-level items on the canvas.
 - **GlobalNavbar simplified** — removed Keyboard/Bug/GitHub/Globe buttons; now Logo + Search + Notifications + Settings gear.
 - **Minimap controls** and **node dimension sliders** moved from sidebar to Settings → Advanced tab.
 - **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.

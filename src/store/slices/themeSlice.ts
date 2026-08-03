@@ -1,4 +1,5 @@
-import type { StateCreator } from "zustand";
+"use client";
+import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
