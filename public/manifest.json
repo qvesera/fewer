@@ -1,0 +1,21 @@
+{
+  "name": "fewer",
+  "short_name": "fewer",
+  "description": "Interactive Directory Graph Visualizer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a0a0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer-tools", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}

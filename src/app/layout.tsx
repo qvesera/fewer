@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -14,6 +14,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "fewer | Interactive Directory Graph Visualizer",
@@ -50,6 +57,7 @@ export const metadata: Metadata = {
     icon: [{ url: "/logo.png", type: "image/png" }],
     apple: [{ url: "/logo.png", type: "image/png" }],
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -59,6 +67,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark tabular-nums" suppressHydrationWarning>
+      <head>
+        {/* Resource hints for third-party origins */}
+        <link rel="preconnect" href="https://cdn.segment.com" />
+        <link rel="preconnect" href="https://app.netlify.com" />
+        <link rel="dns-prefetch" href="https://cdn.segment.com" />
+        <link rel="dns-prefetch" href="https://app.netlify.com" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-pretty bg-background text-foreground`}
       >

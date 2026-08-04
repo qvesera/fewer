@@ -21,6 +21,15 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
+  
+  // Disable Netlify Deploy Preview overlays in production
+  // This removes CDP, Bugsnag, and analytics scripts from production builds
+  ...(process.env.NETLIFY &&
+    process.env.CONTEXT === "production" && {
+      netlify: {
+        cdpHidden: true,
+      },
+    }),
 };
 
 export default nextConfig;
