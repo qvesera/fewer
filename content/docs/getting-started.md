@@ -1,0 +1,75 @@
+---
+title: "Getting Started with Fewer"
+description: "Install, import your first directory, and navigate the graph. Everything you need to start exploring directory structures visually."
+---
+
+# Getting Started
+
+## Installation
+
+```bash
+git clone https://github.com/qvesera/fewer.git
+cd fewer
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Quick Start
+
+1. Click **Load sample project** in the welcome dialog
+2. Use **arrow keys** (↑↓←→) to navigate the tree
+3. **Right-click** any node for context menu
+4. Press **Ctrl+I** to see all keyboard shortcuts
+5. Click **Export** to save the graph
+
+## Import a Real Directory
+
+1. Click **Import from disk** (or **Alt+I**)
+2. Select a folder — configurable depth, hidden files, extension filters
+3. The graph builds instantly with Dagre auto-layout
+
+## Import Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| Max Depth | 6 | How many folder levels to import |
+| Include Hidden Files | Off | Include `.git`, `node_modules`, etc. |
+| Include File Nodes | On | Show files or folders only |
+| Extension Filter | None | Comma-separated whitelist |
+| Auto-hide Large Folders | On | Folders with >10 children hide children |
+
+## First Graph
+
+After import, you'll see:
+
+- **Orange cards** for folders (children inline, scrollable)
+- **Purple cards** for files (name, extension, size)
+- **Edges** connecting parent → child with 3 style options
+- **Minimap** in bottom-right for navigation
+- **Breadcrumb bar** showing selected node's full path
+
+## Keyboard Navigation
+
+| Key | Action |
+|-----|--------|
+| **↑↓←→** | Tree navigation (parent/child/sibling) |
+| **Alt+N** | New node |
+| **Ctrl+F** | Search (fuzzy, click-to-zoom) |
+| **Ctrl+E** | Export panel |
+| **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo |
+| **Ctrl+A** | Select all |
+| **Ctrl+L** | Cycle layout direction |
+| **Ctrl+I** | Shortcuts reference |
+| **F2** | Rename |
+| **Delete/Backspace** | Remove (cascading) |
+| **Space** | Fit view |
+| **+ / - / 0** | Zoom in/out/reset |
+
+## What's Next
+
+- [Graph Features](/docs/graph-features)
+- [Import & Export](/docs/import-export)
+- [Keyboard Shortcuts](/docs/shortcuts)
+- [Theming](/docs/theming)

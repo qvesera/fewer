@@ -9,7 +9,7 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
 ![License](https://img.shields.io/badge/License-AGPLv3-blue)
 
-[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Keyboard](#keyboard-shortcuts) • [Export](#export) • [Browser Support](#browser-support) • [FAQ](#faq)
+[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Docs](/docs) • [Blog](/blog) • [FAQ](#faq)
 
 ---
 
@@ -211,6 +211,11 @@ docker run -p 3000:3000 fewer
 Toggle **Export Selected** to export only the selected subtree.
 
 ---
+
+## Docs & Blog
+
+- [Docs](/docs) — feature guides, tutorials, and technical references
+- [Blog](/blog) — release notes, feature deep-dives, and behind-the-scenes stories
 
 ## How It Works
 

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { version } from "./package.json";
+import createMDX from "@next/mdx";
 
 // Netlify automatically provides COMMIT_REF during builds
 const commitHash = process.env.COMMIT_REF
@@ -11,7 +12,7 @@ const appVersion = `${version}-${commitHash}`;
 
 const nextConfig: NextConfig = {
   output: process.env.NETLIFY ? undefined : "standalone",
-  /* config options here */
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -32,4 +33,11 @@ const nextConfig: NextConfig = {
     }),
 };
 
-export default nextConfig;
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: [],
+    rehypePlugins: [],
+  },
+});
+
+export default withMDX(nextConfig);

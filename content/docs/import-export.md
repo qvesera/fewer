@@ -1,0 +1,74 @@
+---
+title: "Import & Export"
+description: "Import directories from disk, GitHub, or files. Export your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees."
+---
+
+# Import & Export
+
+## Import from Disk
+
+1. Click **Import from disk** (or press **Alt+I**)
+2. Select a folder in the file picker
+3. Configure options:
+   - Max depth
+   - Include hidden files
+   - Include file nodes
+   - Extension filter
+4. Click **Import**
+
+The graph builds instantly with auto-layout.
+
+### Browser Support
+
+- **Chrome/Edge:** Full File System Access API — can read and write back to disk
+- **Firefox/Safari:** `webkitdirectory` fallback — read-only import
+- **Brave:** May require flag `brave://flags/#enable-experimental-web-platform-features`
+
+## Import from URL
+
+Import public GitHub repositories:
+
+1. Click the GitHub icon or use Import dialog
+2. Paste repo URL (e.g., `https://github.com/owner/repo`)
+3. Click **Import**
+
+Fetches repo tree via `/api/github-tree` route.
+
+## Import from File
+
+Supported formats:
+
+- **JSON** — previous Fewer export
+- **ASCII tree** — `tree` command output
+- **Shell/batch script** — `mkdir -p` output
+
+Click **Import from File** and select your file.
+
+## Export Formats
+
+| Format | Extension | Use Case |
+|--------|-----------|----------|
+| SVG | `.svg` | Vector, documentation, presentations |
+| PNG | `.png` | Raster, slides, social media |
+| JSON | `.json` | Full graph state, re-import |
+| CSV | `.csv` | Tabular, spreadsheets |
+| DOT | `.dot` | Graphviz rendering |
+| Script | `.sh` / `.bat` | Reproduce directory structure |
+| Tree | `.txt` | ASCII tree for docs/README |
+
+### Export Selected
+
+Toggle **Export Selected** to export only the currently selected subtree instead of the full graph.
+
+### PNG Options
+
+- Adjustable quality (1-100)
+- Transparent background toggle
+- Theme-aware background color
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Alt+I** | Open import dialog |
+| **Ctrl+E** | Open export panel |
