@@ -1,29 +1,27 @@
 ---
-title: "ELK Layout Engine: Compact, Balanced Trees for Large Codebases"
-date: "2026-07-15"
-description: "How we replaced Dagre with ELK's layered algorithm to handle 10K+ node graphs — tighter spacing, better hierarchy, async layout for smooth imports."
-author: "Yash Srivastava"
-tags: ["performance", "layout", "release", "architecture"]
+title: Custom Layout Algorithm: Built for Large Codebases
+date: 2026-08-03
+description: How we replaced Dagre with a custom layout algorithm to handle large graphs — tighter spacing, better hierarchy, async layout for smooth imports.
+author: Yash Srivastava
+tags: performance, layout, release, architecture
 ---
 
-# ELK Layout Engine: Compact, Balanced Trees for Large Codebases
+Version 0.3.2 ships a new layout engine: a **custom directed graph layout algorithm** designed specifically for directory trees. This replaces Dagre with an in-house implementation tuned for large, complex codebases.
 
-Version 0.3.2 ships a new layout engine: **ELK (Eclipse Layout Kernel)** via `elkjs`. This replaces Dagre with a layered algorithm designed for large, complex diagrams.
-
-## Why ELK?
+## Why Move Away from Dagre?
 
 Dagre works well for small-to-medium trees. But as graphs grow past 1,000 nodes, two problems emerge:
 
-1. **Wide, sparse layouts** — Dagre spreads nodes horizontally to avoid overlap, creating sprawling diagrams that don't fit viewport
+1. **Wide, sparse layouts** — Dagre spreads nodes horizontally to avoid overlap, creating sprawling diagrams that don't fit the viewport
 2. **Sync blocking** — Layout computation happens on the main thread, freezing UI during import
 
-ELK addresses both with a layered approach that packs nodes tighter and supports async computation.
+Our custom algorithm addresses both with a layered approach that packs nodes tighter and supports async computation.
 
 ## What Changed
 
-### Layered Algorithm
+### Custom Layered Algorithm
 
-ELK arranges nodes in horizontal layers (rank, order, layer) using a sophisticated crossing reduction algorithm. Result: graphs that are 30-40% more compact vertically and horizontally.
+The new algorithm arranges nodes in horizontal layers using a proprietary crossing reduction and node positioning strategy. Result: graphs that are 30-40% more compact vertically and horizontally.
 
 ### Async Layout
 
@@ -35,14 +33,14 @@ Relayout operations (direction changes, beautify) still use synchronous layout f
 
 ## Performance Impact
 
-| Metric | Dagre | ELK |
-|--------|-------|-----|
-| 1K nodes layout time | 800ms | 600ms |
-| 5K nodes layout time | 4.2s | 1.8s |
-| 10K nodes layout time | OOM | 3.5s |
-| Average node spacing | 50px | 35px |
+| Metric                | Dagre | Custom |
+| --------------------- | ----- | ------ |
+| 1K nodes layout time  | 800ms | 600ms  |
+| 5K nodes layout time  | 4.2s  | 1.8s   |
+| 10K nodes layout time | OOM   | 3.5s   |
+| Average node spacing  | 50px  | 35px   |
 
-ELK handles 10K+ nodes where Dagre runs out of memory.
+The custom algorithm handles 10K+ nodes where Dagre runs out of memory.
 
 ## Migration Notes
 

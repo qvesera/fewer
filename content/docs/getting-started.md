@@ -1,9 +1,11 @@
 ---
-title: "Getting Started with Fewer"
-description: "Install, import your first directory, and navigate the graph. Everything you need to start exploring directory structures visually."
+title: Getting Started with Fewer
+description: Install, import your first directory, and navigate the graph. Everything you need to start exploring directory structures visually.
 ---
 
-# Getting Started
+There is a web version available at [https://fewer.directory](https://fewer.directory).
+
+But if you want to run this locally, follow this quickstart guide.
 
 ## Installation
 
@@ -27,18 +29,20 @@ Open `http://localhost:3000`.
 ## Import a Real Directory
 
 1. Click **Import from disk** (or **Alt+I**)
-2. Select a folder — configurable depth, hidden files, extension filters
-3. The graph builds instantly with Dagre auto-layout
+2. Select a folder and the depth level
+3. The graph builds instantly ~
 
-## Import Options
+## Advanced Import Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| Max Depth | 6 | How many folder levels to import |
-| Include Hidden Files | Off | Include `.git`, `node_modules`, etc. |
-| Include File Nodes | On | Show files or folders only |
-| Extension Filter | None | Comma-separated whitelist |
-| Auto-hide Large Folders | On | Folders with >10 children hide children |
+If advanced user setting is enabled in Settings, you will see the below options in import dialog.
+
+| Option                  | Default | Description                             |
+| ----------------------- | ------- | --------------------------------------- |
+| Max Depth               | 6       | How many folder levels to import        |
+| Include Hidden Files    | Off     | Include `.git`, `node_modules`, etc.    |
+| Include File Nodes      | On      | Show files or folders only              |
+| Extension Filter        | None    | Comma-separated whitelist               |
+| Auto-hide Large Folders | On      | Folders with >10 children hide children |
 
 ## First Graph
 
@@ -52,20 +56,20 @@ After import, you'll see:
 
 ## Keyboard Navigation
 
-| Key | Action |
-|-----|--------|
-| **↑↓←→** | Tree navigation (parent/child/sibling) |
-| **Alt+N** | New node |
-| **Ctrl+F** | Search (fuzzy, click-to-zoom) |
-| **Ctrl+E** | Export panel |
-| **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo |
-| **Ctrl+A** | Select all |
-| **Ctrl+L** | Cycle layout direction |
-| **Ctrl+I** | Shortcuts reference |
-| **F2** | Rename |
-| **Delete/Backspace** | Remove (cascading) |
-| **Space** | Fit view |
-| **+ / - / 0** | Zoom in/out/reset |
+| Key                       | Action                                 |
+| ------------------------- | -------------------------------------- |
+| **↑↓←→**                  | Tree navigation (parent/child/sibling) |
+| **Alt+N**                 | New node                               |
+| **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
+| **Ctrl+E**                | Export panel                           |
+| **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
+| **Ctrl+A**                | Select all                             |
+| **Ctrl+L**                | Cycle layout direction                 |
+| **Ctrl+I**                | Shortcuts reference                    |
+| **F2**                    | Rename                                 |
+| **Delete/Backspace**      | Remove (cascading)                     |
+| **Space**                 | Fit view                               |
+| **+ / - / 0**             | Zoom in/out/reset                      |
 
 ## What's Next
 

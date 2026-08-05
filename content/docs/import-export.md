@@ -1,9 +1,9 @@
 ---
-title: "Import & Export"
-description: "Import directories from disk, GitHub, or files. Export your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees."
+title: Import & Export
+description: Import directories from disk, GitHub, or files. Export your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees.
 ---
 
-# Import & Export
+Fewer lets you import file trees in multiple formats, whether it is directly from your disk, a github url, or from a previously exported file.
 
 ## Import from Disk
 
@@ -46,15 +46,15 @@ Click **Import from File** and select your file.
 
 ## Export Formats
 
-| Format | Extension | Use Case |
-|--------|-----------|----------|
-| SVG | `.svg` | Vector, documentation, presentations |
-| PNG | `.png` | Raster, slides, social media |
-| JSON | `.json` | Full graph state, re-import |
-| CSV | `.csv` | Tabular, spreadsheets |
-| DOT | `.dot` | Graphviz rendering |
-| Script | `.sh` / `.bat` | Reproduce directory structure |
-| Tree | `.txt` | ASCII tree for docs/README |
+| Format | Extension      | Use Case                             |
+| ------ | -------------- | ------------------------------------ |
+| SVG    | `.svg`         | Vector, documentation, presentations |
+| PNG    | `.png`         | Raster, slides, social media         |
+| JSON   | `.json`        | Full graph state, re-import          |
+| CSV    | `.csv`         | Tabular, spreadsheets                |
+| DOT    | `.dot`         | Graphviz rendering                   |
+| Script | `.sh` / `.bat` | Reproduce directory structure        |
+| Tree   | `.txt`         | ASCII tree for docs/README           |
 
 ### Export Selected
 
@@ -68,7 +68,7 @@ Toggle **Export Selected** to export only the currently selected subtree instead
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| **Alt+I** | Open import dialog |
-| **Ctrl+E** | Open export panel |
+| Key        | Action             |
+| ---------- | ------------------ |
+| **Alt+I**  | Open import dialog |
+| **Ctrl+E** | Open export panel  |

@@ -1,9 +1,9 @@
 ---
-title: "Theming"
-description: "Customize Fewer's appearance with built-in light/dark modes, custom color themes, and Aurora Haze design tokens."
+title: Theming
+description: Customize Fewer's appearance with built-in light/dark modes, custom color themes, and Aurora Haze design tokens.
 ---
 
-# Theming
+Fewer has been designed with a dual color theme in mind. It comes with a light and dark theme, both of which are customizable. There are plans to add more themes in the future.
 
 ## Theme Modes
 
@@ -37,23 +37,23 @@ Access via Settings → Appearance → Custom Theme.
 
 15 CSS color variables exposed:
 
-| Variable | Purpose |
-|----------|---------|
-| `--background` | Main background |
-| `--foreground` | Main text color |
-| `--card` | Node card background |
-| `--card-foreground` | Node card text |
-| `--border` | Borders, dividers |
-| `--primary` | Accent color, links |
-| `--secondary` | Secondary surfaces |
-| `--muted` | Subtle backgrounds |
-| `--accent` | Hover states |
-| `--folder-bg` | Folder card specific |
-| `--folder-border` | Folder card border |
-| `--file-bg` | File card specific |
-| `--file-border` | File card border |
-| `--edge-color` | Graph edge color |
-| `--edge-highlight` | Selected edge color |
+| Variable            | Purpose              |
+| ------------------- | -------------------- |
+| `--background`      | Main background      |
+| `--foreground`      | Main text color      |
+| `--card`            | Node card background |
+| `--card-foreground` | Node card text       |
+| `--border`          | Borders, dividers    |
+| `--primary`         | Accent color, links  |
+| `--secondary`       | Secondary surfaces   |
+| `--muted`           | Subtle backgrounds   |
+| `--accent`          | Hover states         |
+| `--folder-bg`       | Folder card specific |
+| `--folder-border`   | Folder card border   |
+| `--file-bg`         | File card specific   |
+| `--file-border`     | File card border     |
+| `--edge-color`      | Graph edge color     |
+| `--edge-highlight`  | Selected edge color  |
 
 ## Aurora Haze Tokens
 

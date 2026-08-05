@@ -1,9 +1,9 @@
 ---
-title: "Graph Features"
-description: "Deep dive into Fewer's graph visualization — React Flow canvas, custom node types, layout engines, edge styles, and navigation features."
+title: Graph Features
+description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, edge styles, and navigation features.
 ---
 
-# Graph Features
+Fewer is a very feature-rich directory viewer. Here is a deep dive into all of its features:
 
 ## Canvas
 
@@ -34,13 +34,14 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 ## Layout Engines
 
-### ELK (Default)
+### Custom Algorithm (Default)
 
-Layered algorithm from Eclipse Layout Kernel. Best for large graphs (1K+ nodes).
+Proprietary layered algorithm designed specifically for directory trees. Best for large graphs (1K+ nodes).
 
 - Tighter spacing (35px average)
 - Async computation for large imports
 - Better hierarchy preservation
+- 30-40% more compact than Dagre
 
 ### Dagre (Fallback)
 
@@ -52,12 +53,12 @@ Classic Sugiyama-style layered layout. Used for relayout operations.
 
 ## Layout Directions
 
-Cycle through 4 directions with **Ctrl+L** or via sidebar:
+Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar:
 
 1. **Top → Bottom** (default)
 2. **Left → Right**
-3. **Bottom → Top**
-4. **Right → Left**
+3. **Bottom → Top** (limited to advanced mode)
+4. **Right → Left** (limited to advanced mode)
 
 ## Edge Styles
 
@@ -81,7 +82,7 @@ Shows selected node's full path. Click any segment to navigate to that ancestor.
 
 Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Nodes** section as a nested tree.
 
-**Reveal a folder** — click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
+**Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
 ## Hidden Nodes Panel
 
@@ -96,7 +97,7 @@ Access via sidebar. Shows all hidden nodes grouped by parent folder:
 Fuzzy search across filenames, paths, and extensions.
 
 - **Click result** → zoom to node
-- **Hidden matches** appear with badge — click to show & zoom
+- **Hidden matches** appear with badge, click to show & zoom
 - **Highlight/dim** matched/unmatched nodes
 
 ## Stats Panel

@@ -1,18 +1,16 @@
 ---
-title: "Introducing Fewer: Turn Any Directory Into an Interactive Graph"
-date: "2026-08-04"
-description: "Meet Fewer — the open-source tool that transforms static directory trees into interactive, explorable graphs. Built with React Flow, Dagre, and a privacy-first philosophy."
-author: "Yash Srivastava"
-tags: ["launch", "release", "features"]
+title: Introducing Fewer: Turn Any Directory Into an Interactive Graph
+date: 2026-08-01
+description: Meet Fewer, the open-source tool that transforms static directory trees into interactive, explorable graphs. Built with React Flow, Dagre, and a privacy-first philosophy.
+author: Yash Srivastava
+tags: launch, release, features
 ---
 
-# Introducing Fewer: Turn Any Directory Into an Interactive Graph
-
-We're excited to announce the first public release of **Fewer** — an interactive directory graph visualizer that runs entirely in your browser.
+We're excited to announce the first public release of **Fewer**, an interactive directory graph visualizer that runs entirely in your browser.
 
 ## The Problem
 
-You need to understand a directory structure — a new codebase, a project to document, a mess to reorganize. Standard tools don't help:
+You need to understand a directory structure, for example in a new codebase, a project to document, or a mess to reorganize. Standard tools don't help:
 
 - `tree` is static and overwhelming for large codebases
 - File managers show one folder at a time
@@ -22,7 +20,7 @@ You scroll, search, switch contexts, and still miss the shape of it.
 
 ## The Solution
 
-Fewer turns that tree into an interactive graph. Drag nodes, zoom in/out, rename files, add folders, and export in 7 formats — all in the browser, with nothing to install beyond a dev server.
+Fewer turns that tree into an interactive graph. Drag nodes, zoom in/out, rename files, add folders, and export in 7 formats, all in the browser with nothing to install.
 
 ## What You Can Do Today
 
@@ -30,7 +28,7 @@ Fewer turns that tree into an interactive graph. Drag nodes, zoom in/out, rename
 
 **Edit** — Rename files (F2), add new nodes (Alt+N), delete with cascading children (Delete), copy/paste subtrees (Ctrl+C/Ctrl+V). Undo/redo (Ctrl+Z/Ctrl+Shift+Z) with a 50-step history buffer.
 
-**Search** — Fuzzy search across filenames, paths, and extensions. Click any result to zoom directly to that node. Hidden nodes appear with badges — click to reveal and zoom.
+**Search** — Fuzzy search across filenames, paths, and extensions. Click any result to zoom directly to that node. Hidden nodes appear with badges, click to reveal and zoom.
 
 **Export** — Save your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees. Toggle "Export Selected" to grab just a subtree.
 
@@ -50,6 +48,8 @@ Fewer runs entirely client-side. No telemetry, no data exfiltration, no config f
 
 ## Get Started
 
+### If you want to host locally
+
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
@@ -58,6 +58,12 @@ npm run dev
 ```
 
 Open `http://localhost:3000`, click **Load sample project**, and explore.
+
+### If you want to try it out instantly
+
+Visit [fewer.directory](https://fewer.directory) and start exploring.
+
+All the same features, none of the installation. Still built for your privacy.
 
 ## What's Next
 
