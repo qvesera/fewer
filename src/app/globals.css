@@ -174,21 +174,21 @@
   --brand-amber-500: #ffbf00;
   --brand-orange-500: #ff8c00;
 
-  /* fewer node colors — dark mode defaults */
+  /* fewer node colors — dark mode defaults (Open Color palette) */
   --fewer-background: #0b0b13;
-  --fewer-text: #e2e8f0;
-  --fewer-text-subtle: #94a3b8;
-  --fewer-item-hover: rgba(148, 163, 184, 0.12);
-  --fewer-handle: #475569;
-  --fewer-edge: rgba(148, 163, 184, 0.55);
-  --fewer-folder-bg: rgba(249, 115, 22, 0.1);
-  --fewer-folder-border: rgba(249, 115, 22, 0.4);
-  --fewer-folder-header-bg: rgba(249, 115, 22, 0.2);
-  --fewer-folder-header-text: #fdba74;
-  --fewer-folder-icon: #fb923c;
-  --fewer-file-bg: rgba(168, 85, 247, 0.15);
-  --fewer-file-border: rgba(168, 85, 247, 0.4);
-  --fewer-file-icon: #c084fc;
+  --fewer-text: #f8f9fa;
+  --fewer-text-subtle: #adb5bd;
+  --fewer-item-hover: rgba(173, 181, 189, 0.15);
+  --fewer-handle: #868e96;
+  --fewer-edge: rgba(173, 181, 189, 0.5);
+  --fewer-folder-bg: rgba(253, 126, 20, 0.12);
+  --fewer-folder-border: rgba(253, 126, 20, 0.45);
+  --fewer-folder-header-bg: rgba(253, 126, 20, 0.25);
+  --fewer-folder-header-text: #ffd8a8;
+  --fewer-folder-icon: #ffa94d;
+  --fewer-file-bg: rgba(190, 75, 219, 0.18);
+  --fewer-file-border: rgba(190, 75, 219, 0.45);
+  --fewer-file-icon: #e599f7;
 }
 
 @layer base {

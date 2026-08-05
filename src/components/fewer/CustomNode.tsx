@@ -606,7 +606,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
     <div
       className={cn(
         "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
-        "hover:bg-foreground/8 hover:pl-3",
+        "hover:bg-fewer-item-hover hover:pl-3",
         isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
         isDimmed && "opacity-40",
       )}
@@ -633,14 +633,14 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
           onCancel={() => useGraphStore.getState().setRenamingId(null)}
         />
       ) : (
-        <span className="truncate text-foreground/90">{child.data.label}</span>
+        <span className="truncate text-fewer-text">{child.data.label}</span>
       )}
-      <span className="ml-auto shrink-0 tabular-nums text-[10px] text-muted-foreground">
+      <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
           ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
           : formatSize(child.data.size ?? 0)}
       </span>
-      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+      <ChevronRight className="h-3 w-3 shrink-0 text-fewer-text-subtle/60" />
     </div>
   );
 
@@ -796,14 +796,14 @@ function CustomNodeImpl({
                   />
                 ) : (
                   <span
-                    className="truncate text-sm font-semibold text-foreground"
+                    className="truncate text-sm font-semibold text-fewer-text"
                     title={data.label}
                   >
                     {data.label}
                   </span>
                 )}
                 <span
-                  className="truncate text-[10px] text-muted-foreground"
+                  className="truncate text-[10px] text-fewer-text-subtle"
                   title={data.path}
                 >
                   {data.path}
@@ -818,7 +818,7 @@ function CustomNodeImpl({
               onWheel={(e) => { e.stopPropagation(); }}
             >
               {children.length === 0 ? (
-                <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                <div className="px-2 py-3 text-center text-xs text-fewer-text-subtle">
                   Empty folder
                 </div>
               ) : (
@@ -933,13 +933,13 @@ function CustomNodeImpl({
             />
           ) : (
             <span
-              className="truncate text-sm font-semibold text-foreground"
+              className="truncate text-sm font-semibold text-fewer-text"
               title={data.label}
             >
               {data.label}
             </span>
           )}
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-text-subtle">
             <span>{data.extension ? `.${data.extension}` : "file"}</span>
             {data.size ? (
               <>

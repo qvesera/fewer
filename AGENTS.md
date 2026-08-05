@@ -1,14 +1,14 @@
 # Agent Instructions
 
-This project uses **Next.js 16 + React Flow v12** for an interactive graph-based directory visualizer. Run `npm run dev` to get started.
+This project uses **Next.js 16 + React Flow v12** for an interactive graph-based directory visualizer. Run `bun run dev` to get started.
 
 ## Quick Reference
 
 ```bash
-npm install            # Install dependencies
-npm run dev            # Start dev server on port 3000
-npm run build          # Production build
-npm run lint           # Run ESLint
+bun install            # Install dependencies
+bun run dev            # Start dev server on port 3000
+bun run build          # Production build
+bun run lint           # Run ESLint
 ```
 
 ## Project Architecture
@@ -75,15 +75,15 @@ FewerApp
 ## Quality Gates
 
 ```bash
-npm run lint           # Must pass before commit
-npm run build          # Must succeed
+bun run lint           # Must pass before commit
+bun run build          # Must succeed
 ```
 
 ## Landing the Plane (Session Completion)
 
 **MANDATORY WORKFLOW:**
 
-1. **Run quality gates** — `npm run lint && npm run build`
+1. **Run quality gates** — `bun run lint && bun run build`
 2. **Update CHANGELOG.md** — Add entry for meaningful changes (new features, fixes, breaking changes), following existing format. The changelog must be updated before committing.
 3. **Commit changes** — Meaningful commit message (conventional commits)
 4. **PUSH TO REMOTE** — This is MANDATORY

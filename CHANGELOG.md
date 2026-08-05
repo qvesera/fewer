@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Structured custom theme colors** — each theme color now has independent `{ color, opacity }` fields instead of plain CSS strings. Per-color opacity slider in the Custom Theme Editor with live preview swatch.
+- **Open Color palette** — dark mode defaults migrated to Open Color (gray/orange/grape families) for consistent, accessible color values.
+- **`themeColors.ts` module** — `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.
+- **Theme color tests** — 8 tests covering `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme` (legacy + structured + empty input).
+- **Sectioned Custom Theme Editor** — colors grouped into "Canvas & Text", "Folders", "Files" sections with descriptions and opacity sliders.
+
+### Changed
+
+- **Bun as default package manager** — `bun install`, `bun run dev/build/lint/test`. Removed `package-lock.json` in favor of `bun.lock`. Installed Bun 1.3.14. Docs updated (README, AGENTS.md, CONTRIBUTING, netlify.toml, PR template).
+- **`ThemeColorMeta` expanded** — now includes `description`, `defaultColor`, `defaultOpacity`, and `openColor` fields for richer editor metadata.
+- **`ThemeProvider`** — uses `migrateCustomTheme` for safe legacy theme loading + `applyCustomThemeToDOM` for structured color application.
+- **Dark mode CSS variables** — `globals.css` updated with Open Color-based values for text, edges, handles, folder/file colors.
+
 ## [0.3.4]
 
 ### Added

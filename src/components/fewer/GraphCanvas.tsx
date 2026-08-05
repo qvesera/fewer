@@ -40,6 +40,13 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   }
 }
 
+/** Read a CSS variable from :root (falling back to the bare var name). */
+function cssVar(name: string, fallback = ""): string {
+  if (typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
 interface CanvasMenuPosition {
   x: number;
   y: number;
@@ -67,6 +74,19 @@ function CanvasInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const themeMode = useGraphStore((s) => s.themeMode);
   const isDark = themeMode === "dark";
+
+  // Resolve theme colors once per theme change so edges, minimap, and the
+  // background dots follow light/dark/custom without hard-coded values.
+  const themeColors = useMemo(() => {
+    const edge = cssVar("--fewer-edge", isDark ? "rgba(173, 181, 189, 0.5)" : "rgba(100, 116, 139, 0.4)");
+    const folderBg = cssVar("--fewer-folder-bg", "rgba(253, 126, 20, 0.12)");
+    const fileBg = cssVar("--fewer-file-bg", "rgba(190, 75, 219, 0.18)");
+    const folderIcon = cssVar("--fewer-folder-icon", "#ffa94d");
+    const fileIcon = cssVar("--fewer-file-icon", "#e599f7");
+    const bgDot = isDark ? "rgba(173, 181, 189, 0.18)" : "rgba(100, 116, 139, 0.2)";
+    return { edge, folderBg, fileBg, folderIcon, fileIcon, bgDot };
+  }, [themeMode, isDark]);
+
   const [canvasMenu, setCanvasMenu] = useState<CanvasMenuPosition | null>(null);
   const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
 
@@ -150,11 +170,10 @@ function CanvasInner() {
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
     const selectedIds = useGraphStore.getState().selectedNodeIds;
+    const defaultStroke = themeColors.edge;
     if (selectedIds.length === 0) {
       // No selection: reset edges to default colors
       const edges = useGraphStore.getState().edges;
-      const dark = themeMode === "dark";
-      const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
       const resetEdges = edges.map((e) => ({ ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } }));
       useGraphStore.setState({ edges: resetEdges });
       const hidden = new Set(useGraphStore.getState().hiddenIds);
@@ -174,9 +193,7 @@ function CanvasInner() {
       if (edgeId) pathEdges.add(edgeId);
       currentId = parentId;
     }
-    const dark = themeMode === "dark";
-    const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
-    const accentColor = dark ? "#a855f7" : "#fb923c";
+    const accentColor = themeColors.folderIcon;
     const updatedEdges = edges.map((e) => {
       if (pathEdges.has(e.id)) return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
       return { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
@@ -185,7 +202,7 @@ function CanvasInner() {
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(useGraphStore.getState().hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth]);
+  }, [themeMode, setRfEdges, edgeWidth, themeColors]);
 
   // ── Selection: highlight ancestor path ──
   const onSelectionChange = useCallback(
@@ -213,10 +230,8 @@ function CanvasInner() {
         }
       }
 
-      const dark = document.documentElement.classList.contains("dark");
-      const defaultStroke = dark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)";
-      // Accent: amber/orange in light mode (matches folder color), purple in dark mode (matches file color)
-      const accentColor = dark ? "#a855f7" : "#fb923c";
+      const defaultStroke = themeColors.edge;
+      const accentColor = themeColors.folderIcon;
       const updatedEdges = edges.map((e) => {
         if (pathEdges.has(e.id)) {
           return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
@@ -229,7 +244,7 @@ function CanvasInner() {
       const hidden = new Set(useGraphStore.getState().hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
     },
-    [setSelectedNodeIds, setRfEdges, edgeWidth],
+    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors],
   );
 
   // ── Handle node changes (position/dimension) ──
@@ -339,8 +354,14 @@ function CanvasInner() {
     border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
   }), [isDark, miniMapSize]);
 
-  const nodeColor = useCallback((n: FewerNode) => n.data?.type === "folder" ? "rgba(249, 115, 22, 0.7)" : "rgba(168, 85, 247, 0.7)", []);
-  const nodeStrokeColor = useCallback((n: FewerNode) => n.data?.type === "folder" ? "rgba(249, 115, 22, 0.9)" : "rgba(168, 85, 247, 0.9)", []);
+  const nodeColor = useCallback(
+    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderBg : themeColors.fileBg,
+    [themeColors],
+  );
+  const nodeStrokeColor = useCallback(
+    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon,
+    [themeColors],
+  );
 
   return (
     <div ref={containerRef} className="relative h-full w-full" onDrop={onDrop} onDragOver={onDragOver}
@@ -381,13 +402,13 @@ function CanvasInner() {
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
           type: edgeTypeFor(edgeStyle), animated: edgeAnimated,
-          style: { stroke: isDark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.6)", strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+          style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
         }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent h-full w-full"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5}
-          color={isDark ? "rgba(148, 163, 184, 0.18)" : "rgba(71, 85, 105, 0.2)"}
+          color={themeColors.bgDot}
           className="transition-colors" />
         <Controls className="!rounded-xl !border !border-border/40 !bg-card/80 !shadow-xl backdrop-blur-md" showInteractive={false} />
         {showMiniMap && (

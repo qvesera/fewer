@@ -3,6 +3,10 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
+import { toCssColor, migrateCustomTheme } from "@/lib/fewer/themeColors";
+
+const STORAGE_THEME = "fewer-theme";
+const STORAGE_CUSTOM = "fewer-custom-theme";
 
 export type ThemeSliceCreator = StateCreator<
   GraphState,
@@ -17,13 +21,24 @@ export type ThemeSliceCreator = StateCreator<
   }
 >;
 
+function loadCustomTheme(): CustomTheme {
+  if (typeof window === "undefined") return { ...DEFAULT_CUSTOM_THEME };
+  try {
+    const raw = localStorage.getItem(STORAGE_CUSTOM);
+    if (!raw) return { ...DEFAULT_CUSTOM_THEME };
+    return migrateCustomTheme(JSON.parse(raw));
+  } catch {
+    return { ...DEFAULT_CUSTOM_THEME };
+  }
+}
+
 export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
   themeMode: "dark",
-  customTheme: { ...DEFAULT_CUSTOM_THEME },
+  customTheme: loadCustomTheme(),
 
   setThemeMode: (mode) => {
     set({ themeMode: mode });
-    if (typeof window !== "undefined") localStorage.setItem("fewer-theme", mode);
+    if (typeof window !== "undefined") localStorage.setItem(STORAGE_THEME, mode);
     if (mode === "custom") {
       applyCustomThemeToDOM(get().customTheme);
     } else {
@@ -37,23 +52,34 @@ export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
   },
 
   setCustomTheme: (partial) => {
-    set((s) => ({ customTheme: { ...s.customTheme, ...partial } }));
-    applyCustomThemeToDOM(get().customTheme);
+    const next = migrateCustomTheme({ ...get().customTheme, ...partial });
+    set({ customTheme: next });
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(next));
+    }
+    applyCustomThemeToDOM(next);
   },
 
   resetCustomTheme: () => {
-    set({ customTheme: { ...DEFAULT_CUSTOM_THEME } });
-    applyCustomThemeToDOM(DEFAULT_CUSTOM_THEME);
+    const next = { ...DEFAULT_CUSTOM_THEME };
+    set({ customTheme: next });
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(next));
+    }
+    applyCustomThemeToDOM(next);
   },
 });
 
-function applyCustomThemeToDOM(theme: CustomTheme) {
+export function applyCustomThemeToDOM(theme: CustomTheme) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  for (const meta of THEME_COLOR_META) root.style.setProperty(meta.cssVar, theme[meta.key]);
+  for (const meta of THEME_COLOR_META) {
+    const c = theme[meta.key];
+    root.style.setProperty(meta.cssVar, toCssColor(c.color, c.opacity));
+  }
 }
 
-function clearCustomThemeFromDOM() {
+export function clearCustomThemeFromDOM() {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   for (const meta of THEME_COLOR_META) root.style.removeProperty(meta.cssVar);
