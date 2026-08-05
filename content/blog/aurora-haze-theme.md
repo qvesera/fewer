@@ -1,12 +1,12 @@
 ---
 title: Aurora Haze: A New Visual Identity for Fewer
 date: 2026-08-05
-description: How we designed and implemented the Aurora Haze design system — subtle warm atmospheric effects, motion tokens, and a refined sidebar that makes directory exploration feel alive.
+description: How we designed and implemented the Aurora Haze design system: a subtle warm atmospheric effects, motion tokens, and a refined sidebar that makes directory exploration feel alive.
 author: Yash Srivastava
 tags: design, theme, ux, release
 ---
 
-Version 0.3.4 introduces **Aurora Haze** — a cohesive design language that transforms Fewer from a functional tool into a visually distinctive experience.
+Version 0.3.4 introduces **Aurora Haze**: a cohesive design language that transforms Fewer from a functional tool into a visually distinctive experience.
 
 ## What Changed
 

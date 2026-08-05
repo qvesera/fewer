@@ -1,7 +1,7 @@
 ---
 title: Custom Layout Algorithm: Built for Large Codebases
 date: 2026-08-03
-description: How we replaced Dagre with a custom layout algorithm to handle large graphs — tighter spacing, better hierarchy, async layout for smooth imports.
+description: How we replaced Dagre with a custom layout algorithm to handle large graphs for tighter spacing, better hierarchy, async layout for smooth imports.
 author: Yash Srivastava
 tags: performance, layout, release, architecture
 ---

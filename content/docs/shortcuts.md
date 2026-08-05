@@ -1,6 +1,6 @@
 ---
 title: Keyboard Shortcuts
-description: Complete reference for all keyboard shortcuts in Fewer — navigation, editing, search, export, and view controls.
+description: Complete reference for all keyboard shortcuts in Fewer. Navigation, editing, search, export, and view controls.
 ---
 
 Fewer is primarily a keyboard driven application. Most of the common operations can be triggered using keyboard shortcuts. Here is a comprehensive list of all available shortcuts:
