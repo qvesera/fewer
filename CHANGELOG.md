@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation gap fixes**: advanced import options, missing keyboard shortcuts, theme presets/editor details, edge customization, canvas context menu, multi-select, drag & drop, node resizing, handle shortcuts, sidebar resize, max display depth
 - **Shortcuts dialog sync**: added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
 - **Public file index import**: Import from URL now crawls Apache/nginx auto-index pages (e.g. `https://www.sidc.be/EUI/data/`) server-side via new `/api/crawl` route, with depth/page caps and partial-tree truncation notice. GitHub URLs still use the existing `/api/github-tree` path.
+- **Hidden nodes search**: search bar in the Hidden Nodes sidebar section filters hidden nodes by name, keeping parent/child hierarchy context
 
 ### Changed
 
