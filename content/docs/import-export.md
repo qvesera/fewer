@@ -48,10 +48,12 @@ How deep to display after import. Deeper nodes go to the Hidden Nodes panel.
 
 ## Import from URL
 
-Import public GitHub repositories:
+Import a directory from a URL. Fewer supports two kinds of URLs:
+
+### GitHub repositories
 
 1. Click the GitHub icon or use Import dialog
-2. Paste repo URL (e.g., `https://github.com/owner/repo`)
+2. Paste a repo URL (e.g., `https://github.com/owner/repo`)
 3. Click **Import**
 
 Supports branch and subdirectory URLs:
@@ -59,7 +61,16 @@ Supports branch and subdirectory URLs:
 - `https://github.com/owner/repo`
 - `https://github.com/owner/repo/tree/branch/path`
 
-Fetches repo tree via the `/api/github-tree` route.
+Fetches the repo tree via the `/api/github-tree` route.
+
+### Public file index URLs
+
+Fewer can also visualize any public directory listing that uses Apache or nginx auto-index format (the kind you see when a web server exposes a folder without an index page). Paste the URL and click **Import**:
+
+- `https://example.com/data/`
+- `https://www.sidc.be/EUI/data/`
+
+The server crawls the index (breadth-first, up to 200 pages and 6 levels deep), parses folder/file entries and sizes, and builds the graph. Large listings are truncated with a notice. Results are cached for 24 hours, so repeat imports of the same URL load instantly.
 
 ## Import from File
 

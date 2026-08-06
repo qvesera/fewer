@@ -47,6 +47,37 @@ Settings in Advanced:
 - **GitHub Issues** link
 - **Website** link
 
+## Accounts & Saved Graphs
+
+Fewer works fully without an account. Signing in (optional) unlocks saving and sharing your directories across devices.
+
+### Sign in
+
+Click the **Sign in** button in the top navbar to open the auth dialog. You can:
+
+- **Create an account** with email + password
+- **Sign in** to an existing account
+- **Reset your password** via email
+
+### Save a graph
+
+1. Sign in
+2. Click **Save Current Graph** in the **Your Directories** sidebar section
+3. Name the graph and click **Save**
+
+Saved graphs capture the full app state: nodes, edges, layout, theme mode, custom theme, minimap, and advanced settings. Restoring a saved graph restores everything.
+
+### Manage saved graphs
+
+The **Your Directories** section lists your saved graphs. Each row lets you:
+
+- **Load** the graph (click the name)
+- **Rename** (pencil icon)
+- **Share** (link icon): anyone-with-the-link or invite-only
+- **Delete** (trash icon)
+
+Saving is always user-initiated. Fewer never auto-uploads your graph.
+
 ## Notifications
 
 The bell icon in the navbar opens the **notification history** panel. Every major action posts a toast:

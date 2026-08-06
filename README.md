@@ -158,7 +158,7 @@ docker run -p 3000:3000 fewer
 
 - **File System Access API** (Chrome/Edge): real directory read with depth, hidden file, and extension filters
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
-- **Import from URL**: GitHub repo tree (public repos)
+- **Import from URL**: GitHub repo tree (public repos) or any public Apache/nginx file index
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Brave browser** detection with flag workaround instructions
 
@@ -180,6 +180,17 @@ docker run -p 3000:3000 fewer
 - **File operations**: copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
 - **Import settings**: depth limit, hidden files, vendored dirs, extension filter, file/folder toggles
+
+</details>
+
+<details>
+<summary><b>Accounts & Saved Graphs</b></summary>
+
+- **Optional accounts**: email/password sign-in via Supabase Auth. The app works fully logged-out
+- **Save graphs**: save the current graph (nodes, layout, theme, settings) to your account
+- **Your Directories**: load, rename, share, and delete saved graphs from the sidebar
+- **Selective sharing**: share saved graphs as "anyone with the link" or invite-only
+- **Short share links**: large graphs use a short server-backed `#s:<id>` link instead of a long URL hash
 
 </details>
 
@@ -291,7 +302,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                 |
 | State     | Zustand                                        |
 | Language  | TypeScript 5 (strict)                          |
-| Database  | Prisma ORM + SQLite                            |
+| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links) |
 | Icons     | Lucide React                                   |
 | Fonts     | Geist Sans / Geist Mono                        |
 
@@ -328,6 +339,10 @@ A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webki
 **Q: How do I uninstall?**
 
 A: Delete the repo folder. That's it. No background processes, no config files, no registry entries.
+
+**Q: Do I need an account?**
+
+A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
 
 ---
 

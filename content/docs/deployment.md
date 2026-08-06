@@ -83,14 +83,28 @@ The `public/` directory ships:
 
 The standalone build copies `public/` automatically. If you self-host with a custom server, make sure `public/` is served so the manifest resolves correctly.
 
-## Environment Variables
+## Supabase (accounts, saved graphs, share links)
+
+Accounts, saved graphs, crawl caching, and server-backed share links use **Supabase**. The app works fully without it (local import/export/theme all function), but these features require a Supabase project.
+
+### Setup
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the migrations in `supabase/migrations/` (via the Supabase CLI: `supabase db push`, or the SQL editor)
+3. Set the two environment variables below
+
+### Environment Variables
 
 | Variable | Purpose |
 | -------- | ------- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The publishable (anon) key. RLS protects data; auth is enforced via the user's JWT |
 | `NEXT_PUBLIC_APP_VERSION` | Injected at build time from `package.json` version + git commit SHA |
 | `COMMIT_REF` | Git commit SHA (Netlify provides this automatically) |
 | `NETLIFY` | Set by Netlify builds; disables standalone output |
 | `CONTEXT` | Set by Netlify; `production` hides deploy preview overlays |
+
+> **Note:** `NEXT_PUBLIC_*` variables are inlined at build time, so they must be set when you build, not just at runtime.
 
 ## Next Steps
 

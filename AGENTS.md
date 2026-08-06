@@ -27,6 +27,16 @@ bun run lint           # Run ESLint
 | `src/lib/fewer/parsers.ts`             | JSON/ASCII tree/script parsers                                                     |
 | `src/lib/fewer/validation.ts`          | Connection validation + ancestor/descendant utils                                  |
 | `src/lib/fewer/navigation.ts`          | Arrow key tree navigation                                                          |
+| `src/lib/fewer/autoIndex.ts`           | Apache/nginx auto-index HTML parser + tree builder                                 |
+| `src/lib/fewer/savedGraphs.ts`         | Saved-graph types + DB share URL helpers                                           |
+| `src/lib/fewer/snapshot.ts`            | Graph snapshot build/apply for saved graphs                                        |
+| `src/lib/supabase.ts`                  | Supabase client (server + browser)                                                 |
+| `src/hooks/use-auth.ts`                | Auth state hook                                                                    |
+| `src/components/fewer/AuthDialog.tsx`  | Sign in / sign up / password reset dialog                                          |
+| `src/components/fewer/SavedGraphsPanel.tsx` | Save/load/rename/share/delete saved graphs                                   |
+| `src/app/api/crawl/route.ts`           | Crawl public file index URLs                                                       |
+| `src/app/api/graphs/route.ts`          | Saved-graph CRUD (GET/POST)                                                        |
+| `src/app/api/share/route.ts`           | Create share links (hash or DB-backed)                                             |
 
 ### State Flow
 
