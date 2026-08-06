@@ -1,24 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Sidebar,
   SearchPanel,
-  ExportPanel,
   ErrorBoundary,
   GraphCanvas,
   BreadcrumbBar,
-  ImportDialog,
-  ImportFromFileDialog,
-  BugReportDialog,
-  TutorialDialog,
-  ShortcutsDialog,
-  SettingsDialog,
-  ShareDialog,
-  ThemeEditorDialog,
-  AddNodeDialog,
-  ImportUrlDialog,
-  NotificationPanel,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
@@ -34,6 +23,21 @@ import { useDevice } from "@/hooks/use-device";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+
+// Dialogs lazy-loaded — only fetched when opened. Keeps react-colorful,
+// export libs, and dialog code out of the startup bundle.
+const ExportPanel = dynamic(() => import("./ExportPanel").then((m) => m.ExportPanel), { ssr: false });
+const ImportDialog = dynamic(() => import("./ImportDialog").then((m) => m.ImportDialog), { ssr: false });
+const ImportFromFileDialog = dynamic(() => import("./ImportFromFileDialog").then((m) => m.ImportFromFileDialog), { ssr: false });
+const BugReportDialog = dynamic(() => import("./BugReportDialog").then((m) => m.BugReportDialog), { ssr: false });
+const TutorialDialog = dynamic(() => import("./TutorialDialog").then((m) => m.TutorialDialog), { ssr: false });
+const ShortcutsDialog = dynamic(() => import("./ShortcutsDialog").then((m) => m.ShortcutsDialog), { ssr: false });
+const SettingsDialog = dynamic(() => import("./SettingsDialog").then((m) => m.SettingsDialog), { ssr: false });
+const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDialog), { ssr: false });
+const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) => m.ThemeEditorDialog), { ssr: false });
+const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
+const ImportUrlDialog = dynamic(() => import("./ImportUrlDialog").then((m) => m.ImportUrlDialog), { ssr: false });
+const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);

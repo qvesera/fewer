@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+
+### Performance
+
+- **Removed dead `elkjs` import** — `layout.ts` imported `ELK` but never used it. Dropped ~300KB from bundle.
+- **Removed dead dependencies** — `@dagrejs/dagre`, `recharts`, `react-color`, `web-worker` were in `package.json` but never imported.
+- **Deleted unused shadcn components** — `chart`, `calendar`, `command`, `carousel`, `drawer`, `form`, `input-otp`, `resizable` were never imported by app code.
+- **Lazy-loaded all dialogs** — ExportPanel, ImportDialog, ImportFromFileDialog, BugReportDialog, TutorialDialog, ShortcutsDialog, SettingsDialog, ShareDialog, ThemeEditorDialog, AddNodeDialog, ImportUrlDialog, NotificationPanel now load via `next/dynamic` only when opened. `react-colorful` and dialog code out of startup bundle → fewer long tasks, lower TBT/TTI.
+- **Removed ReactFlow `onInit` console.log** — debug noise gone.
+
+### PWA
+
+- **512x512 icon** — generated `logo-512.png` from `logo.svg` (square-padded, no letterboxing). Manifest now lists 192 + 512 icons → fixes Lighthouse `splash-screen` audit.
+- **Manifest icon sizes corrected** — previously claimed 192x192 but pointed at a 494x445 PNG. Now points to real 192x192 `logo-192.png`.
+
 ## [0.3.0]
 
 ### Added

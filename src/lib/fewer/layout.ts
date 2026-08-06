@@ -1,4 +1,3 @@
-import ELK from "elkjs";
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
 
 const DEFAULT_FOLDER_WIDTH = 240;
