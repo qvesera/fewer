@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Github, Loader2, Globe, AlertCircle } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { useGitHubImport } from "@/hooks/use-github-import";
+import { useImport } from "@/hooks/use-github-import";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
@@ -28,7 +28,7 @@ interface ImportUrlDialogProps {
 export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
   const [url, setUrl] = useState("");
   const [options, setOptions] = useState<ImportOptions>({ ...DEFAULT_IMPORT_OPTIONS });
-  const { loading, error, setError, importUrl } = useGitHubImport();
+  const { loading, error, setError, importUrl, truncated } = useImport();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
 
@@ -48,8 +48,8 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
     if (ok) {
       const nodeCount = useGraphStore.getState().nodes.length;
       toast({
-        title: "Repository imported",
-        description: `${nodeCount} node${nodeCount === 1 ? "" : "s"} loaded.`,
+        title: "Imported",
+        description: `${nodeCount} node${nodeCount === 1 ? "" : "s"} loaded.${truncated ? " Showing first items (crawl limit reached)." : ""}`,
       });
       await new Promise((r) => setTimeout(r, 20));
       const autoHidden = useGraphStore.getState().autoHideCount;
@@ -73,15 +73,15 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
             Import from URL
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-normal font-normal mt-1">
-            Paste a GitHub repository URL to visualize its directory structure.
+            Paste a GitHub repository URL or a public file index URL to visualize its directory structure.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
-              <Github className="h-3.5 w-3.5" />
-              GitHub Repository URL
+              <Globe className="h-3.5 w-3.5" />
+              URL
             </Label>
             <Input
               value={url}
@@ -94,12 +94,12 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
                   handleImport();
                 }
               }}
-              placeholder="https://github.com/owner/repo"
+              placeholder="https://github.com/owner/repo or https://example.com/data/"
               className="text-xs font-mono bg-muted/20 border-border/50 focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
               Supports: <code className="text-[10px] font-mono bg-muted/50 px-1 rounded">https://github.com/owner/repo</code> or{" "}
-              <code className="text-[10px] font-mono bg-muted/50 px-1 rounded">https://github.com/owner/repo/tree/branch/path</code>
+              <code className="text-[10px] font-mono bg-muted/50 px-1 rounded">https://github.com/owner/repo/tree/branch/path</code> or any public file index URL
             </p>
           </div>
 
