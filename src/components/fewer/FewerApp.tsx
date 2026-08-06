@@ -15,6 +15,7 @@ import {
   ShortcutsDialog,
   SettingsDialog,
   ShareDialog,
+  ThemeEditorDialog,
   AddNodeDialog,
   ImportUrlDialog,
   NotificationPanel,
@@ -113,6 +114,9 @@ export function FewerApp() {
       useGraphStore.getState().setGraph(data.nodes, data.edges, false);
       useGraphStore.getState().setDirection(data.direction);
       useGraphStore.getState().setEdgeStyle(data.edgeStyle);
+      if (data.customTheme) {
+        useGraphStore.getState().setCustomTheme(data.customTheme as any);
+      }
       useGraphStore.getState().setThemeMode(data.themeMode as any);
       useGraphStore.getState().setCornerRadius(data.cornerRadius);
       useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
@@ -288,6 +292,7 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
       <SettingsDialog />
+      <ThemeEditorDialog />
       <ShareDialog />
       <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
 

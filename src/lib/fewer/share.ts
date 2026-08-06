@@ -1,4 +1,4 @@
-import type { FewerNode, FewerEdge, LayoutDirection, EdgeStyle } from "./types";
+import type { FewerNode, FewerEdge, LayoutDirection, EdgeStyle, CustomTheme } from "./types";
 import LZString from "lz-string";
 
 interface ShareData {
@@ -7,6 +7,7 @@ interface ShareData {
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   themeMode: string;
+  customTheme?: CustomTheme;
   cornerRadius: number;
   nodeWidth: number;
   nodeHeight: number;

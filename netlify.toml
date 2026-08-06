@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build:netlify"
+  command = "bun run build:netlify"
   publish = ".next"
 
 [functions]

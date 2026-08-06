@@ -6,7 +6,7 @@ const commitHash = process.env.COMMIT_REF
   ? process.env.COMMIT_REF.substring(0, 7)
   : "dev";
 
-// Combines package.json version with the git commit SHA (e.g., "0.3.0-a1b2c3d")
+// Combines package.json version with the git commit SHA (e.g., "0.2.5-a1b2c3d")
 const appVersion = `${version}-${commitHash}`;
 
 const nextConfig: NextConfig = {

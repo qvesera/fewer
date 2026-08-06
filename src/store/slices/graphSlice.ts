@@ -142,6 +142,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   maxDisplayDepth: 6,
   autoHideCount: 0,
   revealedRootIds: [],
+      revealedFromHidden: [],
   autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
   setDataSource: (v) => set({ dataSource: v }),
@@ -562,27 +563,31 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   showNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
 
   showAncestors: (id) => {
-    const { hiddenIds, edges } = get();
+    const { hiddenIds, edges, revealedFromHidden } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
+    const revealedSet = new Set(revealedFromHidden);
     const parentMap = new Map<string, string>();
     for (const e of edges) parentMap.set(e.target, e.source);
     const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
     while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
   },
 
   showSubtree: (id) => {
     const { hiddenIds, edges } = get();
     const toShow = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
+        set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
   showAll: () => set((s) => ({ hiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 })),
 
   revealSubtree: (id) => {
     const { revealedRootIds } = get();
+    // Reveal ancestors first so the folder is reachable
+    get().showAncestors(id);
+    // Then reveal the subtree
     get().showSubtree(id);
     set({ revealedRootIds: [...new Set([...revealedRootIds, id])] });
     // Re-apply auto-hide so folders with >10 children underneath stay hidden,
@@ -591,11 +596,36 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   setMaxDisplayDepth: (maxDepth) => {
-    const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion } = get();
-    // Recompute from scratch so raising the limit reveals previously hidden nodes
+    const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion, maxDisplayDepth: oldMaxDepth, revealedFromHidden } = get();
+    // Recompute depth-hidden from scratch
     const depthHidden = new Set(computeDisplayDepthHiddenIds(nodes, maxDepth));
-    // Keep only existing hidden ids that are within the new depth (manual/auto hides)
-    const kept = hiddenIds.filter((id) => !depthHidden.has(id) && (nodes.find((n) => n.id === id)?.data.depth ?? 0) <= maxDepth);
+    // When depth increases, reveal nodes that were hidden by the old depth limit
+    const oldDepthHidden = new Set(computeDisplayDepthHiddenIds(nodes, oldMaxDepth));
+    // Keep only existing hidden ids that are within the new depth AND were not hidden by old depth (manual/auto hides)
+    const hiddenSet = new Set(hiddenIds);
+    const revealedSet = new Set(revealedFromHidden);
+    const parentMap = new Map<string, string>();
+    for (const e of edges) parentMap.set(e.target, e.source);
+    const kept = hiddenIds.filter((id) => {
+      if (depthHidden.has(id)) return false;
+      const depth = nodes.find((n) => n.id === id)?.data.depth ?? 0;
+      if (depth > maxDepth) return false;
+      // If this node was hidden by old depth limit and is now within new limit, reveal it
+      if (oldDepthHidden.has(id)) {
+        // Check if any ancestor was hidden by non-depth reasons (manual/auto-hide)
+        let ancestorId = parentMap.get(id);
+        while (ancestorId) {
+          if (revealedSet.has(ancestorId) || (hiddenSet.has(ancestorId) && !oldDepthHidden.has(ancestorId))) {
+            // Ancestor was hidden by manual/auto-hide, not depth → keep this node hidden
+            return true;
+          }
+          ancestorId = parentMap.get(ancestorId);
+        }
+        // All hidden ancestors were depth-hidden → reveal
+        return false;
+      }
+      return true;
+    });
     // Re-apply large-folder auto-hide since visibility changed
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
@@ -674,6 +704,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [],
+      revealedFromHidden: [],
     });
   },
 });

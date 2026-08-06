@@ -17,8 +17,8 @@
 
 <!-- Describe the testing you've done -->
 
-- [ ] `npm run lint` passes
-- [ ] `npm run build` succeeds
+- [ ] `bun run lint` passes
+- [ ] `bun run build` succeeds
 - [ ] Manual testing in Chrome/Edge
 - [ ] Manual testing in Firefox
 - [ ] Manual testing in Safari

@@ -281,7 +281,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
           <span
             className={cn(
               "h-1.5 w-1.5 shrink-0 rounded-full",
-              node.data.type === "folder" ? "bg-orange-500" : "bg-purple-500",
+              node.data.type === "folder" ? "bg-fewer-folder-icon" : "bg-fewer-file-icon",
             )}
           />
 
@@ -392,7 +392,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
           <div className="space-y-2.5 w-full min-w-0">
             {/* Primary Action Button (shadcn) */}
             <Button
-              className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10"
+              className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10"
               onClick={onOpenDirectory}
             >
               <FolderOpen className="h-4 w-4 shrink-0" />
@@ -480,7 +480,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                     className={cn(
                       "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
                       active
-                        ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 font-medium shadow-sm"
+                        ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
                         : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -505,7 +505,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                       className={cn(
                         "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
                         active
-                          ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 font-medium shadow-sm"
+                          ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
                           : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
                       )}
                     >

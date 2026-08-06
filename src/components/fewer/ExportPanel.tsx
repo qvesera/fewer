@@ -151,7 +151,7 @@ export function ExportPanel() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto gm-scroll bg-background/95 backdrop-blur-md border-l border-border/40 p-6">
+      <SheetContent className="export-panel w-full sm:max-w-md overflow-y-auto gm-scroll bg-background/95 backdrop-blur-md border-l border-border/40 p-6">
         <SheetHeader className="space-y-2">
           <SheetTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
             <Download className="h-5 w-5 text-muted-foreground/85" />
@@ -178,14 +178,14 @@ export function ExportPanel() {
                     className={cn(
                       "group flex w-full items-center gap-3.5 rounded-xl border p-3.5 text-left transition-all active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
-                        ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-300 shadow-sm shadow-purple-500/5"
+                        ? "border-fewer-file-border bg-fewer-file-bg text-fewer-file-icon shadow-sm "
                         : "border-border/50 hover:border-border hover:bg-muted/30 text-foreground"
                     )}
                   >
                     <div
                       className={cn(
                         "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
-                        active ? "bg-purple-500 text-white" : "bg-muted text-muted-foreground/70 group-hover:text-foreground"
+                        active ? "bg-fewer-file-icon text-white" : "bg-muted text-muted-foreground/70 group-hover:text-foreground"
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -219,7 +219,7 @@ export function ExportPanel() {
 
           {/* Action Buttons (Standard shadcn Button) */}
           <Button
-            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white hover:from-purple-600 hover:to-fuchsia-600 shadow-sm active:scale-[0.96] transition-all h-11"
+            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r bg-fewer-file-icon text-white hover:opacity-90 shadow-sm active:scale-[0.96] transition-all h-11"
             onClick={handleExport}
             disabled={nodes.length === 0}
           >

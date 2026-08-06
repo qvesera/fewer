@@ -5,7 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.4]
+## [0.3.0]
+
+### Added
+
+- **Theme presets** — 18 popular open source theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark/Light, GitHub, Material)
+- **Draggable theme editor** — Opens as a movable panel when selecting Custom theme, locked within browser window bounds
+- **Minimize theme editor** — Click the minimize (−) button to collapse the Custom Theme dialog into a small draggable dock pill that snaps to any position along the canvas edges (top/bottom/left/right); pill renders vertically on side edges. Click pill to restore.
+- **Theme-aware UI** — All buttons, sliders, switches, and icons follow the active theme's primary/secondary colors
+- **Export panel secondary colors** — Export panel uses file icon color scheme for sliders, switches, and format selection
+- **Close theme editor on light/dark switch** — Custom theme dialog automatically closes when switching to light or dark mode
+- **Reset settings on power user toggle off** — All settings reset to defaults including theme when disabling power user mode
+
+- **Structured custom theme colors** — each theme color now has independent `{ color, opacity }` fields instead of plain CSS strings. Per-color opacity slider in the Custom Theme Editor with live preview swatch.
+- **Open Color palette** — dark mode defaults migrated to Open Color (gray/orange/grape families) for consistent, accessible color values.
+- **`themeColors.ts` module** — `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.
+- **Theme color tests** — 8 tests covering `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme` (legacy + structured + empty input).
+- **Sectioned Custom Theme Editor** — colors grouped into "Canvas & Text", "Folders", "Files" sections with descriptions and opacity sliders.
+- **`react-colorful` color picker** — `HexAlphaColorPicker` with gradient panel, hue strip, and alpha channel built into each theme color popover.
+- **Per-type secondary text** — `folderSubtleText` and `fileSubtleText` controls for folder paths/footers and file extensions/sizes.
+
+### Changed
+
+- **Bun as default package manager** — `bun install`, `bun run dev/build/lint/test`. Removed `package-lock.json` in favor of `bun.lock`. Installed Bun 1.3.14. Docs updated (README, AGENTS.md, CONTRIBUTING, netlify.toml, PR template).
+- **`ThemeColorMeta` expanded** — now includes `description`, `defaultColor`, `defaultOpacity`, and `openColor` fields for richer editor metadata.
+- **`ThemeProvider`** — uses `migrateCustomTheme` for safe legacy theme loading + `applyCustomThemeToDOM` for structured color application.
+- **Dark mode CSS variables** — `globals.css` updated with Open Color-based values for text, edges, handles, folder/file colors.
+- **Simplified folder/file theme controls** — 5 controls each (body, text, secondary text, border, icon). Removed separate `folderHeaderBg`/`folderHeaderText`; folder text controls title, secondary text controls path/footers. Added `fileText` and `fileSubtleText` controls.
+
+### Fixed
+
+- **Custom theme canvas background** — canvas now reads `--fewer-background` via inline style, so custom background color actually applies.
+- **Theme mode class cleanup** — switching to custom mode now removes `light`/`dark` classes from `<html>`, preventing CSS variable conflicts and unwanted aurora overlays.
+- **Connection handle colors** — handles now use `--fewer-handle` CSS variable instead of hardcoded `slate-700`, following the active theme.
+- **Hidden nodes chip** — uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
+- **Hidden panel dots** — folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
+
+## [0.2.5]
 
 ### Added
 
@@ -33,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.
 - **Tutorial restart** now accessible via Settings → Help tab (uses `fewer-restart-tutorial` window event).
 
-## [0.3.3] - 2026-08
+## [0.2.4] - 2026-08
 
 ### Added
 
@@ -56,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Notification history panel** — click the bell icon in the navbar to view past notifications; badge shows unread count and clears on open.
 - **Auto-hide threshold slider** — adjustable threshold (2-100) in the sidebar Layout section controls when folder children get auto-hidden.
 
-## [0.3.2] - 2026-07
+## [0.2.3] - 2026-07
 
 ### Added
 
@@ -88,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL import not rendering until "Beautify Layout" clicked (async `setGraph` → sync `layoutGraphSync`)
 - Edge styles not updating when switching themes (added `useEffect` watching `themeMode`)
 
-## [0.3.1] - 2026-07
+## [0.2.2] - 2026-07
 
 ### Added
 
@@ -118,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `descendantIds` scope bug in `connectNodes` (variable was shadowed inside if-block)
 - Duplicate `removeEdgesFromHandle` and `deleteEdges` function definitions in graphSlice
 
-## [0.3.0] - 2026-07
+## [0.2.1] - 2026-07
 
 ### Added
 

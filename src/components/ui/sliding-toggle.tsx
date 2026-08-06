@@ -20,8 +20,8 @@ export function SlidingToggle({
   options,
   value,
   onValueChange,
-  activeTextClass = "text-purple-600 dark:text-purple-300",
-  activeIndicatorClass = "bg-purple-500/15 border border-purple-500/50 shadow-[0_0_12px_rgba(168,85,247,0.25)]",
+  activeTextClass = "text-primary",
+  activeIndicatorClass = "bg-primary/15 border border-primary/50 shadow-[0_0_8px_rgba(var(--primary-rgb,249,115,22),0.15)]",
   className,
 }: SlidingToggleProps) {
   const activeIndex = Math.max(0, options.findIndex((o) => o.value === value));

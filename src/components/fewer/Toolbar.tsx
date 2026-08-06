@@ -135,14 +135,14 @@ export function Toolbar({
             disabled={hasNodes}
             data-tutorial="sample-button"
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
             <span className="hidden lg:inline">Load Sample</span>
           </Button>
 
           <Button
             variant="default"
             size="sm"
-            className="h-8 gap-1.5 font-medium text-xs bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm"
+            className="h-8 gap-1.5 font-medium text-xs bg-gradient-to-r bg-primary text-primary-foreground hover:opacity-90 shadow-sm"
             onClick={() => setExportOpen(true)}
           >
             <Download className="h-3.5 w-3.5" />
@@ -156,7 +156,7 @@ export function Toolbar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-orange-400/80 hover:bg-orange-500/10 hover:text-orange-500"
+              className="h-8 w-8 text-primary/80 hover:bg-primary/10 hover:text-orange-500"
               onClick={onRestartTutorial}
               title="Restart system tour tutorial"
             >

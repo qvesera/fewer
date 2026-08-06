@@ -4,6 +4,7 @@ export { BugReportDialog } from "./BugReportDialog";
 export { draggedFolderHandle, CustomNode, RenameInput } from "./CustomNode";
 export { CustomMiniMap } from "./CustomMiniMap";
 export { CustomThemeEditor } from "./CustomThemeEditor";
+export { ThemeEditorDialog } from "./ThemeEditorDialog";
 export { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
 export { ExportPanel } from "./ExportPanel";
 export { GraphCanvas } from "./GraphCanvas";

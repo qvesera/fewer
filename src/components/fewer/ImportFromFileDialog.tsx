@@ -178,7 +178,7 @@ export function ImportFromFileDialog({
                         className={cn(
                           "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           active
-                            ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-300 shadow-sm"
+                            ? "border-primary bg-primary/10 text-primary dark:text-primary shadow-sm"
                             : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
                         )}
                       >
@@ -260,7 +260,7 @@ export function ImportFromFileDialog({
             size="default"
             onClick={handleImport}
             disabled={importing || !content.trim()}
-            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-primary to-primary text-white hover:opacity-90 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {importing ? (
               <Loader2 className="h-4 w-4 animate-spin" />

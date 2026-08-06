@@ -1,126 +1,162 @@
 # Implementation Plan
 
 [Overview]
-Consolidate scattered utility controls (bug report, keyboard shortcuts, power user toggle, about, theme, minimap) into a single tabbed Settings Dialog accessible via a gear icon on the top-right of the CanvasToolbar, decluttering the Sidebar and GlobalNavbar.
+Overhaul the theme system so that the dark theme is visually cohesive, the custom theme is fully functional and correctly maps each labeled color to its responsible CSS variable, and every custom color supports a per-color opacity control.
 
-The Sidebar currently has 8 collapsible sections — too crowded. The GlobalNavbar has 6 icon buttons crammed into the right cluster. This plan creates a unified `SettingsDialog` with tabbed sections (About, Appearance, Advanced, Help) that absorbs the Configuration section from the Sidebar and the utility buttons from GlobalNavbar/Toolbar. The Settings button lives on the far right of `CanvasToolbar`, following the universal gear-icon convention. Existing dialogs (`BugReportDialog`, `ShortcutsDialog`) remain as standalone components but are triggered from within the Settings dialog's Help tab. The `PowerUserToggle` component is embedded directly in the Advanced tab. Theme controls (light/dark/custom) move from the Sidebar's Appearance section into the Settings dialog's Appearance tab. Minimap controls move from Sidebar to Settings → Advanced tab. This reduces the Sidebar to 4-5 core sections (File & Actions, Layout & Edges, Hidden Nodes, Graph Analytics) and reduces GlobalNavbar to just search + notifications + settings.
+Currently the theme system has three modes (light, dark, custom) but the custom theme editor is half-baked: the `CustomTheme` type contains legacy fields (`nodeBg`, `nodeBorder`, `headerBg`, `headerText`, `icon`, `accent`) that are never consumed, while the UI labels in `CustomThemeEditor` are only loosely connected to the actual CSS variables used in `CustomNode.tsx` and `globals.css`. The result is that changing a color in the custom editor often does not affect the part of the UI the user expects. The dark theme also has poor contrast because it uses a near-black canvas with the same saturated orange/purple folder/file colors from the light theme. This plan redefines the color contract, fixes the variable wiring, adds per-color opacity, refreshes the dark palette, and ensures theme state is restored correctly after reload.
 
 [Types]
+Redefine `CustomTheme` so each color is a structured `{ color: hex, opacity: number }` instead of a plain CSS string, and keep the legacy fields only as a deprecated migration layer so existing saved states do not break. Dark-mode defaults should be chosen from the Open Color palette (https://github.com/yeun/open-color) for better contrast and saturation balance.
 
-Single sentence: Add `settingsOpen` boolean and `setSettingsOpen` action to the UI slice; no new domain types needed.
+```ts
+// src/lib/fewer/types.ts
+export interface CustomThemeColor {
+  color: string;   // hex, e.g. #fd7e14
+  opacity: number; // 0..1
+}
 
-```typescript
-// Addition to src/store/slices/uiSlice.ts — UiSliceCreator type block
-settingsOpen: boolean;
-setSettingsOpen: (open: boolean) => void;
+export interface CustomTheme {
+  background: CustomThemeColor;
+  defaultText: CustomThemeColor;
+  subtleText: CustomThemeColor;
+  itemHover: CustomThemeColor;
+  handle: CustomThemeColor;
+  edge: CustomThemeColor;
+  // Folder colors
+  folderBg: CustomThemeColor;
+  folderBorder: CustomThemeColor;
+  folderHeaderBg: CustomThemeColor;
+  folderHeaderText: CustomThemeColor;
+  folderIcon: CustomThemeColor;
+  // File colors
+  fileBg: CustomThemeColor;
+  fileBorder: CustomThemeColor;
+  fileIcon: CustomThemeColor;
+  // Legacy fields retained for runtime migration from old plain-string schema
+  nodeBg?: string;
+  nodeBorder?: string;
+  headerBg?: string;
+  headerText?: string;
+  icon?: string;
+  accent?: string;
+}
 
-// Addition to createUiSlice initial state
-settingsOpen: false,
+export type ThemeMode = "light" | "dark" | "custom";
 
-// Addition to createUiSlice actions
-setSettingsOpen: (open) => set({ settingsOpen: open }),
+export interface ThemeColorMeta {
+  key: keyof Omit<CustomTheme, "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent">;
+  label: string;
+  cssVar: string;
+  description: string; // shown as a tooltip/label hint in the editor
+  defaultColor: string;
+  defaultOpacity: number;
+  /** Open Color palette used for this slot in the dark theme. */
+  openColor: { family: string; index: number };
+}
+
+export const THEME_COLOR_META: ThemeColorMeta[] = [
+  { key: "background", label: "Canvas Background", cssVar: "--fewer-background", description: "Graph canvas background", defaultColor: "#0b0b13", defaultOpacity: 1, openColor: { family: "black", index: 0 } },
+  { key: "defaultText", label: "Primary Text", cssVar: "--fewer-text", description: "Node titles and file names", defaultColor: "#f8f9fa", defaultOpacity: 1, openColor: { family: "gray", index: 0 } },
+  { key: "subtleText", label: "Secondary Text", cssVar: "--fewer-text-subtle", description: "Paths, sizes, and meta text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
+  { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
+  { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
+  { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
+  { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
+  { key: "folderBorder", label: "Folder Border", cssVar: "--fewer-folder-border", description: "Folder card outline", defaultColor: "#fd7e14", defaultOpacity: 0.45, openColor: { family: "orange", index: 6 } },
+  { key: "folderHeaderBg", label: "Folder Header", cssVar: "--fewer-folder-header-bg", description: "Folder title bar background", defaultColor: "#fd7e14", defaultOpacity: 0.25, openColor: { family: "orange", index: 6 } },
+  { key: "folderHeaderText", label: "Folder Header Text", cssVar: "--fewer-folder-header-text", description: "Folder title and footer text", defaultColor: "#ffd8a8", defaultOpacity: 1, openColor: { family: "orange", index: 3 } },
+  { key: "folderIcon", label: "Folder Icon", cssVar: "--fewer-folder-icon", description: "Folder/root icon color", defaultColor: "#ffa94d", defaultOpacity: 1, openColor: { family: "orange", index: 4 } },
+  { key: "fileBg", label: "File Body", cssVar: "--fewer-file-bg", description: "File card background", defaultColor: "#be4bdb", defaultOpacity: 0.18, openColor: { family: "grape", index: 6 } },
+  { key: "fileBorder", label: "File Border", cssVar: "--fewer-file-border", description: "File card outline", defaultColor: "#be4bdb", defaultOpacity: 0.45, openColor: { family: "grape", index: 6 } },
+  { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon", description: "File type icon color", defaultColor: "#e599f7", defaultOpacity: 1, openColor: { family: "grape", index: 4 } },
+];
+
+export const DEFAULT_CUSTOM_THEME: CustomTheme = Object.fromEntries(
+  THEME_COLOR_META.map((m) => [m.key, { color: m.defaultColor, opacity: m.defaultOpacity }])
+) as CustomTheme;
 ```
 
-No other type changes required. The Settings dialog reuses existing store state: `themeMode`, `setThemeMode`, `showFiles`, `setShowFiles`, `advancedModeEnabled`, `setAdvancedMode`, `showMiniMap`, `setShowMiniMap`, `miniMapPosition`, `setMiniMapPosition`, `miniMapSize`, `setMiniMapSize`, `bugReportOpen`, `setBugReportOpen`, `shortcutsOpen`, `setShortcutsOpen`, `tutorialDismissed`, `resetTutorial`.
+Validation rules:
+- `color` must be a 7-character hex string (`#rrggbb`). Empty or malformed values fall back to the default for that key.
+- `opacity` is clamped to `[0, 1]`.
+- The legacy fields are ignored at runtime but kept in the interface for one migration cycle.
+
+Open Color integration: the default custom/dark theme values above are sourced from Open Color (gray, orange, grape). A small static map (`OPEN_COLOR`) can be embedded in `themeColors.ts` so the editor can offer preset swatches per color slot without adding a network dependency.
 
 [Files]
+Modify the type system, store, editor, node rendering, and global styles; add a small utility module for color conversion; and update the theme init script so it re-applies custom theme variables after reload.
 
-Single sentence: One new component file, four existing files modified, zero deletions.
+New files:
+- `src/lib/fewer/themeColors.ts` — helper functions: `toCssColor(color, opacity)`, `hexToRgb(hex)`, `migrateCustomTheme(theme)`, `clampOpacity(n)`.
 
-**New Files:**
+Existing files to modify:
+- `src/lib/fewer/types.ts` — redefine `CustomTheme`, `THEME_COLOR_META`, and `DEFAULT_CUSTOM_THEME` as described above.
+- `src/store/slices/themeSlice.ts` — change the slice state to use the new `CustomThemeColor` shape; import `toCssColor` and `migrateCustomTheme` from `themeColors.ts`; apply CSS variables using the helper; add localStorage persistence for `customTheme` under a new key `fewer-custom-theme`; on load, migrate any legacy plain-string values.
+- `src/app/layout.tsx` — update the inline `theme-init` script: after reading `fewer-theme`, if the mode is `custom`, read `fewer-custom-theme` and apply the variables before first paint to avoid FOUC. The script should also keep the `.dark`/`.light` class logic for light and dark modes.
+- `src/components/fewer/CustomThemeEditor.tsx` — rewrite the color picker to show a hex input, native color picker, and an opacity slider per row; render a live preview square that reflects the final `rgba` output; group rows by purpose (Canvas, Text, Folder, File) with small section labels.
+- `src/components/fewer/CustomNode.tsx` — fix the wiring so node text uses `--fewer-text`, node meta text uses `--fewer-text-subtle`, child row hover uses `--fewer-item-hover`, folder header uses `--fewer-folder-header-bg`, etc. Remove any hard-coded `text-foreground`/`text-muted-foreground` usage that should be theme-driven.
+- `src/app/globals.css` — update the dark mode palette (`:root` is already light; `.dark` is the target) to lower saturation and improve contrast. Keep the same CSS variable names but change the default values inside `.dark` and add a few extra utility variables used only for the selected-node glow so they can be themed later (e.g. `--fewer-selection-glow`). Keep light-mode defaults untouched.
+- `src/components/fewer/ThemeProvider.tsx` — on mount, re-apply the stored custom theme if `themeMode` is `custom`; ensure it reads `fewer-custom-theme` from localStorage and calls the same injection helper as the slice.
+- `src/components/fewer/SettingsDialog.tsx` — no structural change, but verify that the theme buttons still trigger `setThemeMode` and that the custom editor is rendered only in `custom` mode.
+- `src/components/fewer/GraphCanvas.tsx` — update the `nodeColor` and `nodeStrokeColor` callbacks used by the minimap so they derive from the current CSS variables (using `getComputedStyle` or theme state) instead of hard-coded `rgba(249, 115, 22, 0.7)` / `rgba(168, 85, 247, 0.7)`. Also update the default edge stroke and the background dot color to respect the active theme.
+- `src/lib/fewer/share.ts` — optionally include `customTheme` in `ShareData` and encode/decode it so shared links preserve custom palettes. This is safe because the rest of the graph payload already includes the theme mode.
 
-| File | Purpose |
-|------|---------|
-| `src/components/fewer/SettingsDialog.tsx` | Tabbed settings dialog with About, Appearance, Advanced, Help tabs. ~350 lines. Uses existing `Dialog` + `Tabs` shadcn primitives. Embeds `PowerUserToggle`, `CustomThemeEditor`, and `MinimapControls` (extracted from Sidebar). Triggers `BugReportDialog` and `ShortcutsDialog` via store actions. |
-
-**Modified Files:**
-
-| File | Changes |
-|------|---------|
-| `src/store/slices/uiSlice.ts` | Add `settingsOpen: boolean` state + `setSettingsOpen` action (3 insertions in type block, initial state, and action body) |
-| `src/components/fewer/CanvasToolbar.tsx` | Add `Settings` (gear) icon button on far-right after Export button. Wire to `setSettingsOpen(true)`. Import `Settings` from lucide-react. |
-| `src/components/fewer/Sidebar.tsx` | Remove the "Configuration" `CollapsibleSection` (lines 894-897) containing `PowerUserToggle`. Remove the "Appearance" section's theme mode buttons + custom theme editor (lines 833-854) — keep only the "Show files" toggle. Remove the "Minimap" `AnimatedConditional` + `CollapsibleSection` (lines 888-892). Remove `MinimapControls` function definition (lines 312-379) — move to `SettingsDialog.tsx`. Remove unused imports: `Sun`, `Moon`, `Palette`, `Settings2`, `Maximize2`, `Map as MinimapIcon`. Remove unused store selectors: `themeMode`, `setThemeMode`, `showMiniMap`, `setShowMiniMap`, `miniMapPosition`, `setMiniMapPosition`, `miniMapSize`, `setMiniMapSize`. |
-| `src/components/fewer/GlobalNavbar.tsx` | Remove the `Keyboard`, `Bug`, `Github`, `Globe` buttons (lines 84-140). Remove `onRestartTutorial` prop and its button. Remove unused imports: `Bug`, `HelpCircle`, `Keyboard`, `Github`, `Globe`. Remove `setBugReportOpen` store selector. The navbar becomes: Logo + Search + Notifications only. |
-| `src/components/fewer/FewerApp.tsx` | Add `<SettingsDialog />` to the dialog stack (after `<ShortcutsDialog />`). Remove `onRestartTutorial` prop from `<GlobalNavbar>`. |
-| `src/components/fewer/index.ts` | Add `export { SettingsDialog } from "./SettingsDialog";` |
+Files to delete or move:
+- None. The legacy fields stay in the type for migration.
 
 [Functions]
+Add utility functions and modify store/theme-related functions to work with the new color shape.
 
-Single sentence: One new component function, several modified functions for removal/wiring.
+New functions (in `src/lib/fewer/themeColors.ts`):
+- `hexToRgb(hex: string): { r: number; g: number; b: number } | null` — parses `#rrggbb`.
+- `toCssColor(color: string, opacity: number): string` — returns hex if opacity is 1, otherwise `rgba(r, g, b, opacity)`. Falls back to the default color for the key if the hex is invalid (this overload is not used; invalid input is handled by callers).
+- `clampOpacity(opacity: number): number` — clamps to `[0, 1]` with two decimal precision.
+- `migrateCustomTheme(input: unknown): CustomTheme` — takes a possibly legacy custom theme object and returns a valid `CustomTheme` where every key is a `CustomThemeColor`; fills missing/legacy values from `DEFAULT_CUSTOM_THEME`.
 
-**New Functions:**
+Modified functions:
+- `createThemeSlice.setThemeMode` in `src/store/slices/themeSlice.ts` — persist `fewer-custom-theme` when switching to custom; read it when initializing; always call the DOM injection helper so the transition is immediate.
+- `createThemeSlice.setCustomTheme` in `src/store/slices/themeSlice.ts` — accept `Partial<CustomTheme>` (with color/opacity shapes) and persist the result to `localStorage` after applying.
+- `createThemeSlice.resetCustomTheme` in `src/store/slices/themeSlice.ts` — reset to `DEFAULT_CUSTOM_THEME` and persist.
+- `applyCustomThemeToDOM` in `src/store/slices/themeSlice.ts` — change signature to `applyCustomThemeToDOM(theme: CustomTheme)` and iterate over `THEME_COLOR_META` using `toCssColor(theme[meta.key].color, theme[meta.key].opacity)`.
+- `clearCustomThemeFromDOM` in `src/store/slices/themeSlice.ts` — unchanged behavior, but ensure it is only called when leaving custom mode.
+- `ThemeProvider` useEffect in `src/components/fewer/ThemeProvider.tsx` — re-apply stored custom theme after reading `fewer-theme`; if `stored === "custom"`, call the DOM injection helper (or import the same logic from `themeColors.ts`) instead of just toggling `.dark`.
+- `ColorPicker` component in `src/components/fewer/CustomThemeEditor.tsx` — accept `value: CustomThemeColor`, emit `onChange({ color, opacity })`, add an opacity slider, and render the computed color in the preview square.
+- `CustomNodeImpl` rendering in `src/components/fewer/CustomNode.tsx` — replace hard-coded `text-foreground`/`text-muted-foreground` with `text-fewer-text`/`text-fewer-text-subtle` where appropriate; ensure the folder header background, border, and icon use the `fewer-folder-*` variables; ensure file card uses `fewer-file-*` variables.
+- `CanvasInner` in `src/components/fewer/GraphCanvas.tsx` — read `--fewer-edge`, `--fewer-folder-bg`, `--fewer-file-bg`, and background dot color from `getComputedStyle(document.documentElement)` when theme changes, so the minimap and edges follow the custom theme without hard-coded colors.
 
-| Function | File | Signature | Purpose |
-|----------|------|-----------|---------|
-| `SettingsDialog` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Main settings dialog component. Reads `settingsOpen`/`setSettingsOpen` from store. Renders `Dialog` with `Tabs` (About, Appearance, Advanced, Help). Each tab is an inline sub-component. |
-| `AboutTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | App version, description, links to GitHub/website, credits. Static content. |
-| `AppearanceTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Theme mode selector (light/dark/custom), `CustomThemeEditor` when custom, "Show files" toggle. Reads `themeMode`, `setThemeMode`, `showFiles`, `setShowFiles` from store. |
-| `AdvancedTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | `PowerUserToggle` component, `MinimapControls` component (moved from Sidebar), node dimension sliders (moved from Sidebar "Node Metrics" section). |
-| `HelpTab` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Buttons to open `ShortcutsDialog` (via `setShortcutsOpen(true)`), `BugReportDialog` (via `setBugReportOpen(true)`), restart tutorial (via `resetTutorial()` + local state key), link to GitHub issues, link to website. |
-| `MinimapControls` | `src/components/fewer/SettingsDialog.tsx` | `() => JSX.Element` | Moved verbatim from Sidebar.tsx lines 312-379. Same store selectors. |
-
-**Modified Functions:**
-
-| Function | File | Changes |
-|----------|------|---------|
-| `CanvasToolbar` | `src/components/fewer/CanvasToolbar.tsx` | Add `setSettingsOpen` selector. Add gear icon `Button` after Export button in right cluster. |
-| `Sidebar` | `src/components/fewer/Sidebar.tsx` | Remove Configuration section, Appearance theme controls, Minimap section, Node Metrics section. Remove `MinimapControls` helper. Remove unused imports and selectors. |
-| `GlobalNavbar` | `src/components/fewer/GlobalNavbar.tsx` | Remove `onRestartTutorial` prop, remove Keyboard/Bug/Github/Globe buttons. Simplify to Logo + Search + Notifications. |
-| `FewerApp` | `src/components/fewer/FewerApp.tsx` | Remove `onRestartTutorial` from `<GlobalNavbar>`. Add `<SettingsDialog />` to dialog stack. |
-
-**Removed Functions:**
-
-| Function | File | Reason | Migration |
-|----------|------|--------|-----------|
-| `MinimapControls` | `src/components/fewer/Sidebar.tsx` | Moved to SettingsDialog | Redefined in `SettingsDialog.tsx` |
+Removed functions:
+- None.
 
 [Classes]
-
-Single sentence: No class modifications — this codebase is functional/React-based.
+No class changes; this is a functional theme refactor, not a class-level refactor.
 
 [Dependencies]
+Add `open-color` as a runtime dependency to provide the official color palette JSON instead of embedding it manually. The refactor also uses the browser's native `<input type="color">`, `getComputedStyle`, and existing project utilities. No UI component libraries are added.
 
-Single sentence: No new dependencies required.
-
-All required primitives already exist:
-- `Dialog` — `@/components/ui/dialog` (Radix UI)
-- `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` — `@/components/ui/tabs` (Radix UI)
-- `Switch` — `@/components/ui/switch`
-- `Slider` — `@/components/ui/slider`
-- `Button` — `@/components/ui/button`
-- `Label` — `@/components/ui/label`
-- Icons — `lucide-react` (Settings, Sun, Moon, Palette, Bug, Keyboard, Github, Globe, HelpCircle, Map, Maximize2, Info)
+- `package.json`: add `"open-color": "^1.9.1"` to `dependencies`.
+- `src/lib/fewer/themeColors.ts`: import `open-color.json` and build the `OPEN_COLOR` map from it; use the same map for default values and editor swatches.
 
 [Testing]
+Add a small Node test file for the color helper and perform manual visual QA for the three themes.
 
-Single sentence: Manual testing via dev server + quality gates.
-
-**Manual Test Cases:**
-1. Click gear icon on CanvasToolbar → Settings dialog opens with About tab active
-2. Switch to Appearance tab → theme buttons work (light/dark/custom), custom theme editor appears when custom selected, Show files toggle works
-3. Switch to Advanced tab → Power User toggle works, minimap controls work, node dimension sliders work
-4. Switch to Help tab → "View Keyboard Shortcuts" button opens ShortcutsDialog, "Report a Bug" button opens BugReportDialog, "Restart Tutorial" button resets tutorial, GitHub/website links open in new tab
-5. Close Settings dialog → all state persists (theme, power user, minimap settings)
-6. Sidebar no longer shows Configuration, Minimap, or theme mode sections
-7. GlobalNavbar no longer shows Keyboard/Bug/GitHub/Globe buttons
-8. Power User toggle in Settings still controls advanced features in Sidebar (Layout directions, edge motion, etc.)
-9. Mobile: Settings dialog is responsive (tabs scroll horizontally, content scrolls vertically)
-10. Keyboard: Tab navigation works through all settings controls, Escape closes dialog
-
-**Quality Gates:**
-```bash
-npm run lint && npm run build
-```
+- `src/lib/fewer/themeColors.test.ts` (or `__tests__/themeColors.test.ts` if the project prefers that layout) — tests for `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme`. Use Node's built-in `node:test` runner so no extra test framework is required. If the project already has a test runner, conform to that instead; if not, add `npm test` to `package.json` that runs `node --test src/lib/fewer/themeColors.test.ts`.
+- Manual QA checklist:
+  1. Start the app with `npm run dev`.
+  2. Load the sample tree and switch between light, dark, and custom themes in Settings → Appearance.
+  3. In custom mode, change each color + opacity and confirm the preview square and the canvas update immediately and correctly.
+  4. Verify that "Folder Body" changes the folder card background, "Folder Header" changes only the title bar, "File Body" changes file cards, "Primary Text" changes labels, and "Secondary Text" changes paths/sizes.
+  5. Reload the page and confirm the custom theme is restored without a flash of the wrong palette.
+  6. Run `npm run lint` and `npm run build` and fix any errors.
 
 [Implementation Order]
-
-1. Add `settingsOpen` state + `setSettingsOpen` action to `src/store/slices/uiSlice.ts`
-2. Create `src/components/fewer/SettingsDialog.tsx` with all four tabs (About, Appearance, Advanced, Help), including moved `MinimapControls`
-3. Add `SettingsDialog` export to `src/components/fewer/index.ts`
-4. Add gear icon button to `src/components/fewer/CanvasToolbar.tsx` right cluster
-5. Add `<SettingsDialog />` to `src/components/fewer/FewerApp.tsx` dialog stack
-6. Remove Configuration/Appearance-theme/Minimap/NodeMetrics sections from `src/components/fewer/Sidebar.tsx`, remove `MinimapControls` function, clean unused imports/selectors
-7. Remove Keyboard/Bug/GitHub/Globe buttons + `onRestartTutorial` prop from `src/components/fewer/GlobalNavbar.tsx`, clean unused imports
-8. Remove `onRestartTutorial` from `<GlobalNavbar>` in `src/components/fewer/FewerApp.tsx`
-9. Run `npm run lint && npm run build` — fix any errors
-10. Update `CHANGELOG.md` with entry for settings dialog feature
+1. Create `src/lib/fewer/themeColors.ts` with helper functions and `migrateCustomTheme`.
+2. Update `src/lib/fewer/types.ts` with the new `CustomTheme`/`ThemeColorMeta` shapes and `DEFAULT_CUSTOM_THEME`.
+3. Update `src/store/slices/themeSlice.ts` to use the new shape, persist/load custom theme, and apply variables via `toCssColor`.
+4. Update `src/components/fewer/ThemeProvider.tsx` and `src/app/layout.tsx` to re-apply the stored custom theme on hydration without FOUC.
+5. Update `src/components/fewer/CustomThemeEditor.tsx` with per-color opacity and a corrected preview.
+6. Update `src/components/fewer/CustomNode.tsx` to use the theme variables consistently.
+7. Update `src/app/globals.css` dark-mode defaults for better contrast.
+8. Update `src/components/fewer/GraphCanvas.tsx` to read dynamic theme colors for edges and minimap.
+9. Optionally update `src/lib/fewer/share.ts` to include `customTheme` in share payloads.
+10. Add `src/lib/fewer/themeColors.test.ts` and run the test + lint + build.
+11. Update `CHANGELOG.md` and commit.

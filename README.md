@@ -31,8 +31,8 @@ If you've used a file tree in VS Code or `tree` in the terminal, you know the fi
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open `http://localhost:3000`, click **Load sample project**, and explore the graph:
@@ -48,26 +48,16 @@ Use arrow keys to navigate the tree. Right-click any node for actions. Press **C
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
-```
-
-### Prerequisites
-
-- Node.js 18+ (or Bun)
-- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
-
-### Alternative installs
-
-<details>
-<summary><b>Bun</b></summary>
-
-```bash
 bun install
 bun run dev
 ```
 
-</details>
+### Prerequisites
+
+- Bun 1.3+ (or Node.js 18+)
+- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
+
+### Alternative installs
 
 <details>
 <summary><b>Docker</b></summary>
@@ -322,7 +312,7 @@ src/
 A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
-A: Yes — the standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `npm install && npm run dev`.
+A: Yes — the standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `bun install && bun run dev`.
 
 **Q: Why does directory import not work in Firefox/Safari?**
 A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback — works for import, but can't write back to disk.

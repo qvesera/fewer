@@ -23,6 +23,7 @@ export type UiSliceCreator = StateCreator<
     exportOpen: boolean;
     sidebarOpen: boolean;
     advancedOpen: boolean;
+    themeEditorOpen: boolean;
     bugReportOpen: boolean;
     shortcutsOpen: boolean;
     settingsOpen: boolean;
@@ -55,6 +56,7 @@ export type UiSliceCreator = StateCreator<
     setExportOpen: (open: boolean) => void;
     setSidebarOpen: (open: boolean) => void;
     setAdvancedOpen: (open: boolean) => void;
+    setThemeEditorOpen: (open: boolean) => void;
     setBugReportOpen: (open: boolean) => void;
     setShortcutsOpen: (open: boolean) => void;
     setSettingsOpen: (open: boolean) => void;
@@ -90,6 +92,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   exportOpen: false,
   sidebarOpen: true,
   advancedOpen: false,
+  themeEditorOpen: false,
   bugReportOpen: false,
   shortcutsOpen: false,
   settingsOpen: false,
@@ -161,6 +164,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setExportOpen: (open) => set({ exportOpen: open }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
+  setThemeEditorOpen: (open) => set({ themeEditorOpen: open }),
   setBugReportOpen: (open) => set({ bugReportOpen: open }),
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
@@ -173,6 +177,29 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setAdvancedMode: (enabled) => {
     set({ advancedModeEnabled: enabled });
     if (typeof window !== "undefined") localStorage.setItem("fewer-advanced-mode", String(enabled));
+    // When disabling advanced mode, reset all settings to defaults
+    if (!enabled) {
+      // Reset theme to dark
+      get().setThemeMode("dark");
+      get().resetCustomTheme();
+      set({
+        // Layout defaults
+        direction: "TB",
+        edgeStyle: "curved",
+        edgeAnimated: false,
+        edgeStrokeStyle: "solid",
+        edgeWidth: 2,
+        cornerRadius: 8,
+        // UI defaults
+        showMiniMap: true,
+        miniMapPosition: "bottom-right",
+        miniMapSize: 160,
+        showFiles: true,
+        // Graph defaults
+        maxDisplayDepth: 6,
+        autoHideThreshold: 10,
+      });
+    }
   },
 
   setShowFiles: (show) => {

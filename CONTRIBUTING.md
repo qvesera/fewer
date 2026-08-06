@@ -10,7 +10,7 @@ This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participatin
 
 ### Prerequisites
 
-- Node.js 18+ (or Bun)
+- Bun 1.3+ (or Node.js 18+)
 - A modern browser (Chrome/Edge recommended for File System Access API)
 
 ### Development Setup
@@ -21,10 +21,10 @@ git clone https://github.com/yourusername/fewer.git
 cd fewer
 
 # Install dependencies
-npm install
+bun install
 
 # Start the development server
-npm run dev
+bun run dev
 ```
 
 Open `http://localhost:3000` in your browser.
@@ -53,7 +53,7 @@ All graph logic is in `src/lib/fewer/` — layout via Dagre, export/import parse
 ### Coding Standards
 
 - **TypeScript strict mode** — no `any`, no implicit `undefined`
-- **ESLint** — run `npm run lint` before committing
+- **ESLint** — run `bun run lint` before committing
 - **Functional components** with hooks, no class components
 - **Zustand** for global state, React state for local UI
 - **CSS**: Tailwind CSS 4 utility classes + shadcn/ui component patterns
@@ -73,7 +73,7 @@ refactor: extract layout logic from GraphCanvas
 
 ```bash
 # Run tests (when available)
-npm test
+bun test
 ```
 
 Manual testing checklist:
@@ -89,7 +89,7 @@ Manual testing checklist:
 1. **Fork** the repository and create a feature branch from `main`
 2. **Write clear commit messages** following conventional commits
 3. **Update documentation** if adding or changing features
-4. **Ensure lint passes** — `npm run lint`
+4. **Ensure lint passes** — `bun run lint`
 5. **Open a pull request** with a clear title and description
 
 ### PR Title Format
