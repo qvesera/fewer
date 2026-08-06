@@ -27,12 +27,13 @@ async function getAuthedClient() {
   });
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
-  return supabase;
+  return { supabase, user: data.user };
 }
 
 export async function GET() {
-  const supabase = await getAuthedClient();
-  if (!supabase) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const authed = await getAuthedClient();
+  if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const { supabase } = authed;
 
   const { data, error } = await supabase
     .from("saved_graphs")
@@ -44,8 +45,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await getAuthedClient();
-  if (!supabase) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const authed = await getAuthedClient();
+  if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const { supabase, user } = authed;
 
   let body: { name?: string; data?: unknown; id?: string };
   try {
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from("saved_graphs")
-    .insert({ name, data: body.data })
+    .insert({ name, data: body.data, user_id: user.id })
     .select("id, name, data, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
