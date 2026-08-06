@@ -15,6 +15,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { Logo } from "./Logo";
 
 interface ToolbarProps {
@@ -40,6 +41,7 @@ export function Toolbar({
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const hasNodes = useGraphStore((s) => s.nodes.length > 0);
+  const { toast } = useToast();
   
   return (
     <header className="z-20 mx-4 mt-4 flex items-center justify-between gap-4 rounded-xl border border-border/40 bg-background/80 backdrop-blur-md px-4 py-2.5 shadow-sm">
@@ -116,7 +118,12 @@ export function Toolbar({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-red-400 disabled:opacity-30"
-              onClick={() => selectedNodeIds.length && deleteNodes(selectedNodeIds)}
+              onClick={() => {
+                if (selectedNodeIds.length) {
+                  deleteNodes(selectedNodeIds);
+                  toast({ title: "Deleted", description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} removed` });
+                }
+              }}
               disabled={selectedNodeIds.length === 0}
               title="Delete selected"
             >

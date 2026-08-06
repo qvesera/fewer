@@ -38,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
   exportDirectoryScript,
@@ -94,6 +95,7 @@ export function ExportPanel() {
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const { toast } = useToast();
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -144,6 +146,10 @@ export function ExportPanel() {
       exportGraph(nodesToExport, edgesToExport, settings, stats);
     }
     setOpen(false);
+    toast({
+      title: "Exported",
+      description: `${settings.format.toUpperCase()} — ${nodesToExport.length} node${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
+    });
   };
 
   const isRaster = settings.format === "png";

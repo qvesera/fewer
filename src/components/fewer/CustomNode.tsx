@@ -296,6 +296,7 @@ function FolderContextMenu({
                         hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
                       }));
                       useGraphStore.getState().relayout();
+                      toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
                     useGraphStore.getState().setZoomToNodeIds(childIds);
                   }}
@@ -321,6 +322,7 @@ function FolderContextMenu({
                     }
                     useGraphStore.setState({ hiddenIds: [...hiddenSet] });
                     useGraphStore.getState().relayout();
+                    toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
                 >

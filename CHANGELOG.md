@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Toast feedback for silent actions** — added toast notifications for previously silent destructive/confirm actions: delete selected (toolbar, canvas toolbar, Delete/Backspace key), clear canvas (sidebar confirm), reveal all nodes (sidebar), add file/folder (sidebar quick-add + Add Node dialog), export download, open file via Enter key, and hide/show children (folder context menu).
 - **Theme-responsive blog & docs** — docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
 - **Design system tokens** — added spacing (`--space-*`) and shadow depth (`--shadow-*`) tokens plus `--font-heading` / `--font-body` stacks to `globals.css` per `design-system/fewer/MASTER.md`.
 - **Theme-aligned gradients** — `text-gradient-fewer` now derives its leading stop from `--color-primary` instead of hard-coded orange.
