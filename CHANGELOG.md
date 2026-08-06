@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Theme presets** — 18 popular open source theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark/Light, GitHub, Material)
-- **Draggable theme editor** — Opens as a movable panel when selecting Custom theme, with viewport bounds locking
+- **Draggable theme editor** — Opens as a movable panel when selecting Custom theme, locked within browser window bounds
+- **Minimize theme editor** — Click the minimize (−) button to collapse the Custom Theme dialog into a small draggable dock pill that snaps to any position along the canvas edges (top/bottom/left/right); pill renders vertically on side edges. Click pill to restore.
 - **Theme-aware UI** — All buttons, sliders, switches, and icons follow the active theme's primary/secondary colors
 - **Export panel secondary colors** — Export panel uses file icon color scheme for sliders, switches, and format selection
 - **Close theme editor on light/dark switch** — Custom theme dialog automatically closes when switching to light or dark mode

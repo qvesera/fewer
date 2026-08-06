@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Palette, Download, Upload, X, GripVertical } from "lucide-react";
+import { RotateCcw, Palette, Download, Upload, X, GripVertical, Minus } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
 import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
@@ -12,8 +12,71 @@ import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
 
-function isHexColor(v: string) {
-  return /^#?([0-9a-fA-F]{6})$/.test(v.trim());
+const DIALOG_WIDTH = 360;
+const TOP_OFFSET = 80; // navbar + toolbar
+
+function clampPosition(x: number, y: number, dialogHeight?: number) {
+  const minX = 0;
+  const maxX = window.innerWidth - DIALOG_WIDTH;
+  const minY = TOP_OFFSET;
+  const h = dialogHeight ?? Math.min(window.innerHeight * 0.85, 600);
+  const maxY = Math.max(TOP_OFFSET, window.innerHeight - h);
+  return {
+    x: Math.max(minX, Math.min(maxX, x)),
+    y: Math.max(minY, Math.min(maxY, y)),
+  };
+}
+
+type DockEdge = "top" | "bottom" | "left" | "right";
+
+/** Snap to nearest canvas edge, keeping the perpendicular position */
+function snapDockPosition(x: number, y: number): { x: number; y: number; edge: DockEdge } {
+  const b = getCanvasBounds();
+  const pad = 12;
+  const vPillW = 26;
+  const vPillH = 48;
+  const hPillW = 80;
+  const hPillH = 26;
+
+  // Distance from each edge
+  const distTop = y - b.top;
+  const distBottom = (b.top + b.height) - y;
+  const distLeft = x - b.left;
+  const distRight = (b.left + b.width) - x;
+  const minDist = Math.min(distTop, distBottom, distLeft, distRight);
+
+  if (minDist === distTop) {
+    // Top edge: keep x, snap y to top
+    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + pad, edge: "top" };
+  }
+  if (minDist === distBottom) {
+    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + b.height - pad - hPillH, edge: "bottom" };
+  }
+  if (minDist === distLeft) {
+    return { x: b.left + pad, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "left" };
+  }
+  // Right edge
+  return { x: b.left + b.width - pad - vPillW, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "right" };
+}
+
+/** Get the canvas area bounds (excludes sidebar, navbar, toolbar) */
+function getCanvasBounds() {
+  const main = document.getElementById("main-content");
+  if (main) {
+    const r = main.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+  return { left: 0, top: TOP_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_OFFSET };
+}
+
+/** Clamp raw dock drag position to canvas area */
+function clampDockRaw(x: number, y: number) {
+  const b = getCanvasBounds();
+  const pillSize = 36;
+  return {
+    x: Math.max(b.left, Math.min(b.left + b.width - pillSize, x)),
+    y: Math.max(b.top, Math.min(b.top + b.height - pillSize, y)),
+  };
 }
 
 const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
@@ -51,16 +114,24 @@ export function ThemeEditorDialog() {
     return `${theme.color}${a}`;
   };
 
-  // Dragging state
+  // Position + minimize + drag state
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [minimized, setMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [isDraggingDock, setIsDraggingDock] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const dockDragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const [dockPosition, setDockPosition] = useState({ x: 0, y: 0 });
+  const [dockEdge, setDockEdge] = useState<DockEdge>("bottom");
+  const dockMovedRef = useRef(false);
+  const dockPosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    setPosition({
-      x: Math.max(20, window.innerWidth - 380),
-      y: Math.max(20, window.innerHeight / 2 - 250),
-    });
+    setPosition(clampPosition(
+      Math.max(0, window.innerWidth - DIALOG_WIDTH - 20),
+      Math.max(TOP_OFFSET, window.innerHeight / 2 - 250),
+    ));
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -75,13 +146,8 @@ export function ThemeEditorDialog() {
     const handleMouseMove = (e: MouseEvent) => {
       const newX = dragStartRef.current.posX + (e.clientX - dragStartRef.current.x);
       const newY = dragStartRef.current.posY + (e.clientY - dragStartRef.current.y);
-      // Clamp to viewport bounds
-      const maxX = window.innerWidth - 100;
-      const maxY = window.innerHeight - 40;
-      setPosition({
-        x: Math.max(-20, Math.min(maxX, newX)),
-        y: Math.max(-20, Math.min(maxY, newY)),
-      });
+      const h = dialogRef.current?.offsetHeight;
+      setPosition(clampPosition(newX, newY, h));
     };
     const handleMouseUp = () => setIsDragging(false);
     window.addEventListener("mousemove", handleMouseMove);
@@ -92,6 +158,55 @@ export function ThemeEditorDialog() {
     };
   }, [isDragging]);
 
+  // Dock pill drag with snap-to-edge
+  const handleDockMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    dockMovedRef.current = false;
+    setIsDraggingDock(true);
+    dockDragStartRef.current = { x: e.clientX, y: e.clientY, posX: dockPosition.x, posY: dockPosition.y };
+    e.preventDefault();
+  }, [dockPosition]);
+
+  useEffect(() => {
+    if (!isDraggingDock) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      dockMovedRef.current = true;
+      const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
+      const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
+      const clamped = clampDockRaw(newX, newY);
+      dockPosRef.current = clamped;
+      setDockPosition(clamped);
+    };
+    const handleMouseUp = () => {
+      setIsDraggingDock(false);
+      if (!dockMovedRef.current) {
+        setMinimized(false);
+        return;
+      }
+      // Snap to nearest dock point using ref for latest position
+      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y);
+      dockPosRef.current = snapped;
+      setDockPosition(snapped);
+      setDockEdge(snapped.edge);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDraggingDock]);
+
+  const handleMinimize = useCallback(() => {
+    const centerX = position.x + DIALOG_WIDTH / 2;
+    const centerY = position.y + 200;
+    const snapped = snapDockPosition(centerX, centerY);
+    dockPosRef.current = snapped;
+    setDockPosition(snapped);
+    setDockEdge(snapped.edge);
+    setMinimized(true);
+  }, [position]);
+
   if (!themeEditorOpen) return null;
 
   // Group presets by category
@@ -101,10 +216,37 @@ export function ThemeEditorDialog() {
     return acc;
   }, {} as Record<string, typeof THEME_PRESETS>);
 
+  // Minimized: small docked pill (draggable, snaps to edges)
+  if (minimized) {
+    const isVertical = dockEdge === "left" || dockEdge === "right";
+
+    return (
+      <div
+        className={`fixed z-50 flex rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg select-none hover:shadow-xl ${isVertical ? "flex-col items-center gap-1" : "flex-row items-center gap-2"}`}
+        style={{
+          left: dockPosition.x,
+          top: dockPosition.y,
+          padding: isVertical ? "10px 6px" : "8px 14px",
+          cursor: isDraggingDock ? "grabbing" : "grab",
+          transition: isDraggingDock ? "box-shadow 150ms ease" : "left 300ms cubic-bezier(0.34,1.56,0.64,1), top 300ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease",
+        }}
+        onMouseDown={handleDockMouseDown}
+        title="Drag to snap · Click to restore"
+      >
+        <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className={`text-[10px] font-medium text-foreground/80 ${isVertical ? "writing-vertical" : ""}`} style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}>
+          Theme
+        </span>
+      </div>
+    );
+  }
+
+  // Full dialog
   return (
     <div
+      ref={dialogRef}
       className="fixed z-50 flex flex-col rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-      style={{ left: position.x, top: position.y, width: 360, maxHeight: "85vh" }}
+      style={{ left: position.x, top: position.y, width: DIALOG_WIDTH, maxHeight: "85vh" }}
     >
       {/* Header - draggable */}
       <div
@@ -169,6 +311,15 @@ export function ThemeEditorDialog() {
             onClick={resetCustomTheme}
           >
             <RotateCcw className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={handleMinimize}
+            title="Minimize to dock"
+          >
+            <Minus className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
