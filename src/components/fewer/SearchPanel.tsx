@@ -118,7 +118,7 @@ export function SearchPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search files & directories..."
-            className="w-full rounded-lg border border-border/50 bg-muted/30 pl-9 pr-9 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/60 focus:bg-background transition-all"
+            className="w-full rounded-lg border border-border/50 bg-muted/30 pl-9 pr-9 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/60 focus:bg-background transition-all"
             autoFocus
           />
           {query && (
@@ -166,12 +166,12 @@ export function SearchPanel() {
                     className={cn(
                       "flex items-center gap-2.5 px-2.5 py-1.5 text-xs cursor-pointer rounded-md transition-all select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isActive 
-                        ? "bg-orange-500/10 text-foreground ring-1 ring-inset ring-orange-500/40" 
+                        ? "bg-primary/10 text-foreground ring-1 ring-inset ring-primary/40" 
                         : "hover:bg-muted/60 text-foreground/90",
                       isHidden && "opacity-60",
                     )}
                   >
-                    <Icon className={cn("h-3.5 w-3.5 shrink-0", n.data.type === "folder" ? "text-orange-400" : "text-purple-500")} />
+                    <Icon className={cn("h-3.5 w-3.5 shrink-0", n.data.type === "folder" ? "text-primary" : "text-purple-500")} />
                     
                     <div className="flex flex-col min-w-0 flex-1 leading-snug">
                       <span className="truncate font-semibold">{n.data.label}</span>

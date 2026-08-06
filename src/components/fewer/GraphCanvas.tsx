@@ -5,7 +5,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   useReactFlow,
   useNodesState,
@@ -23,7 +22,6 @@ import { CustomNode, KeyboardShortcuts } from ".";
 import { useGraphStore } from "@/store/graphStore";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 
@@ -426,7 +424,6 @@ function CanvasInner() {
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5}
           color={themeColors.bgDot}
           className="transition-colors" />
-        <Controls className="!rounded-xl !border !border-border/40 !bg-card/80 !shadow-xl backdrop-blur-md" showInteractive={false} />
         {showMiniMap && (
           <MiniMap position={miniMapPosition} style={minimapStyle} pannable zoomable
             nodeColor={nodeColor} nodeStrokeColor={nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />

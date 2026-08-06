@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Theme presets** — 18 popular open source theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark/Light, GitHub, Material)
+- **Draggable theme editor** — Opens as a movable panel when selecting Custom theme, with viewport bounds locking
+- **Theme-aware UI** — All buttons, sliders, switches, and icons follow the active theme's primary/secondary colors
+- **Export panel secondary colors** — Export panel uses file icon color scheme for sliders, switches, and format selection
+- **Close theme editor on light/dark switch** — Custom theme dialog automatically closes when switching to light or dark mode
+- **Reset settings on power user toggle off** — All settings reset to defaults including theme when disabling power user mode
+
 - **Structured custom theme colors** — each theme color now has independent `{ color, opacity }` fields instead of plain CSS strings. Per-color opacity slider in the Custom Theme Editor with live preview swatch.
 - **Open Color palette** — dark mode defaults migrated to Open Color (gray/orange/grape families) for consistent, accessible color values.
 - **`themeColors.ts` module** — `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.

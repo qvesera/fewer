@@ -44,8 +44,8 @@ function DemoStage({ step }: { step: number }) {
               "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-medium shadow-sm border",
               "animate-[tutorial-bounce-in_0.5s_ease-out_both]",
               n.type === "folder"
-                ? "border-orange-400/40 bg-orange-500/10 text-orange-300"
-                : "border-purple-400/40 bg-purple-500/10 text-purple-300",
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-purple-400/40 bg-purple-500/10 text-primary",
             )}
             style={{
               animationDelay: n.delay,
@@ -55,7 +55,7 @@ function DemoStage({ step }: { step: number }) {
             <div
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                n.type === "folder" ? "bg-orange-400" : "bg-purple-400",
+                n.type === "folder" ? "bg-orange-400" : "bg-primary",
               )}
             />
             {n.label}
@@ -106,7 +106,7 @@ function ChecklistItem({
         {done ? (
           <Check className="h-4 w-4 text-green-400" />
         ) : (
-          <Icon className="h-4 w-4 text-orange-400" />
+          <Icon className="h-4 w-4 text-primary" />
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -250,7 +250,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
         type="button"
         onClick={handleStart}
         size="sm"
-        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-orange-500 to-amber-500 font-medium text-white shadow-md shadow-orange-500/15 hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] transition-[colors,transform]"
+        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-primary to-primary font-medium text-white shadow-md shadow-orange-500/15 hover:opacity-90 active:scale-[0.96] transition-[colors,transform]"
       >
         <BookOpen className="h-4 w-4" />
         Start Tutorial
@@ -286,8 +286,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10">
-              <BookOpen className="h-3.5 w-3.5 text-orange-400" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-xs font-bold">Tutorial</span>
           </div>
@@ -303,7 +303,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
         <div className="mb-3 flex items-center gap-2">
           <div className="flex-1 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
             <div
-              className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-orange-500 to-amber-500"
+              className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-primary to-primary"
               style={{ width: `${isTouch ? ((mobileStep + 1) / items.length) * 100 : progress}%` }}
             />
           </div>
@@ -335,7 +335,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 <Button
                   type="button"
                   size="sm"
-                  className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
                   onClick={() => setMobileStep((s) => Math.min(items.length - 1, s + 1))}
                 >
                   Next →
@@ -344,7 +344,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 <Button
                   type="button"
                   size="sm"
-                  className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
                   onClick={handleDismiss}
                 >
                   <Check className="h-3 w-3 mr-1" />
@@ -393,7 +393,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                   <Button
                     type="button"
                     size="sm"
-                    className="flex-1 text-[10px] bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
                     onClick={handleDismiss}
                   >
                     <Check className="h-3 w-3 mr-1" />

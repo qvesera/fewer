@@ -92,14 +92,14 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           disabled={hasNodes}
           data-tutorial="sample-button"
         >
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
           <span>Load Sample</span>
         </Button>
 
         <Button
           variant="default"
           size="sm"
-          className="h-8 gap-1.5 font-medium text-s bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shrink-0"
+          className="h-8 gap-1.5 font-medium text-s bg-gradient-to-r bg-primary text-primary-foreground hover:opacity-90 shadow-sm shrink-0"
           onClick={() => setExportOpen(true)}
         >
           <Download className="h-3.5 w-3.5" />

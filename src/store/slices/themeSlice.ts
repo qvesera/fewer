@@ -132,7 +132,7 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   const accG = parseInt(accHex.substring(2, 4), 16) || 0;
   const accB = parseInt(accHex.substring(4, 6), 16) || 0;
   const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
-  const primaryFgFinal = accLum > 128 ? "#000000" : "#ffffff";
+  const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
 
   root.style.setProperty("--background", toCssColor(bg, theme.background.opacity));
   root.style.setProperty("--foreground", toCssColor(fg, theme.defaultText.opacity));
@@ -160,4 +160,14 @@ export function clearCustomThemeFromDOM() {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   for (const meta of THEME_COLOR_META) root.style.removeProperty(meta.cssVar);
+  // Also remove shadcn/ui CSS variables that were set by applyCustomThemeToDOM
+  const uiVars = [
+    "--background", "--foreground", "--card", "--card-foreground",
+    "--popover", "--popover-foreground", "--primary", "--primary-foreground",
+    "--secondary", "--secondary-foreground", "--muted", "--muted-foreground",
+    "--accent", "--accent-foreground", "--border", "--input", "--ring",
+    "--sidebar", "--sidebar-foreground", "--sidebar-border",
+    "--fewer-folder-border", "--fewer-file-border",
+  ];
+  for (const v of uiVars) root.style.removeProperty(v);
 }

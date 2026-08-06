@@ -133,7 +133,7 @@ export function ImportUrlDialog({ open, onOpenChange }: ImportUrlDialogProps) {
             size="default"
             onClick={handleImport}
             disabled={!url.trim() || loading}
-            className="text-xs font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
+            className="text-xs font-medium bg-gradient-to-r from-primary to-primary text-white hover:opacity-90 shadow-sm shadow-orange-500/10 active:scale-[0.99] transition-all gap-1.5 h-10 px-4 flex-1 sm:flex-initial"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

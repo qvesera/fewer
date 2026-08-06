@@ -174,7 +174,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                   className={cn(
                     "rounded-lg border p-3 text-sm transition-colors",
                     type === "folder"
-                      ? "border-orange-400 bg-orange-500/10 text-orange-300 ring-2 ring-orange-400/40"
+                      ? "border-primary bg-primary/10 text-primary ring-2 ring-orange-400/40"
                       : "border-border/40 hover:bg-muted/40"
                   )}
                 >
@@ -186,7 +186,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                   className={cn(
                     "rounded-lg border p-3 text-sm transition-colors",
                     type === "file"
-                      ? "border-purple-400 bg-purple-500/10 text-purple-300 ring-2 ring-purple-400/40"
+                      ? "border-purple-400 bg-purple-500/10 text-primary ring-2 ring-purple-400/40"
                       : "border-border/40 hover:bg-muted/40"
                   )}
                 >
@@ -209,7 +209,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
               className={cn(
                 "text-white",
                 type === "folder"
-                  ? "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                  ? "bg-gradient-to-r from-primary to-primary hover:opacity-90"
                   : "bg-gradient-to-r from-purple-500 to-fuchsia-500 hover:from-purple-600 hover:to-fuchsia-600"
               )}
             >

@@ -143,6 +143,8 @@ function AppearanceTab() {
                       useGraphStore.getState().setThemeEditorOpen(true);
                     }, 150);
                   } else {
+                    // Close theme editor dialog when switching to light/dark
+                    useGraphStore.getState().setThemeEditorOpen(false);
                     setThemeMode(mode);
                   }
                 }}

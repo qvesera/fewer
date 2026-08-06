@@ -84,7 +84,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: #f97316;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -144,7 +144,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
+  --primary: #f97316;
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -428,13 +428,25 @@ aside::-webkit-scrollbar-thumb:hover {
     0 0 0 1px rgba(148, 163, 184, 0.06);
 }
 
+/* Export panel uses secondary (file) colors for sliders and switches */
+.export-panel [data-slot="slider-range"] {
+  background: var(--fewer-file-icon) !important;
+}
+.export-panel [data-slot="slider-thumb"] {
+  border-color: var(--fewer-file-icon) !important;
+  background: var(--background) !important;
+}
+.export-panel [role="switch"][data-state="checked"] {
+  background: var(--fewer-file-icon) !important;
+}
+
 /* ── Shadow utilities ───────────────────────────────────────────────────────── */
 
 .shadow-node-folder {
-  box-shadow: 0 8px 24px -8px rgba(249, 115, 22, 0.25);
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--fewer-folder-icon) 25%, transparent);
 }
 .shadow-node-file {
-  box-shadow: 0 8px 24px -8px rgba(168, 85, 247, 0.25);
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--fewer-file-icon) 25%, transparent);
 }
 
 /* ── Node card utilities ───────────────────────────────────────────────────── */
@@ -567,16 +579,14 @@ aside::-webkit-scrollbar-thumb:hover {
   opacity: 0.45;
 }
 
-/* Warm aurora — folders (orange/amber) */
+/* Warm aurora — folders */
 .dark .gm-aurora-warm::before {
-  background: radial-gradient(ellipse at 50% 40%, rgba(249, 115, 22, 0.28), rgba(255, 191, 0, 0.1) 50%, transparent 72%);
-  filter: blur(60px);
+  opacity: 0;
 }
 
-/* Cool aurora — files (purple/cyan) */
+/* Cool aurora — files */
 .dark .gm-aurora-cool::before {
-  background: radial-gradient(ellipse at 50% 40%, rgba(168, 85, 247, 0.24), rgba(34, 211, 238, 0.08) 50%, transparent 72%);
-  filter: blur(60px);
+  opacity: 0;
 }
 
 /* Brand aurora — root/selected/brand moments (fuchsia) */

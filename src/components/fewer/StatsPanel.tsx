@@ -59,16 +59,16 @@ export function StatsPanel() {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-orange-400/30 bg-orange-500/10 p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-orange-300">
+        <div className="rounded-xl border border-fewer-folder-border bg-fewer-folder-bg p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-icon">
             <Folder className="h-3 w-3" /> Folders
           </div>
           <div className="mt-0.5 text-2xl font-bold tabular-nums">
             {stats.totalFolders}
           </div>
         </div>
-        <div className="rounded-xl border border-purple-400/30 bg-purple-500/10 p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-purple-300">
+        <div className="rounded-xl border border-fewer-file-border bg-fewer-file-bg p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-fewer-file-icon">
             <FileIcon className="h-3 w-3" /> Files
           </div>
           <div className="mt-0.5 text-2xl font-bold tabular-nums">
@@ -133,7 +133,7 @@ export function StatsPanel() {
           <span className="tabular-nums font-medium">{selectedCount}</span>
         </div>
         {hiddenCount > 0 && (
-          <div className="flex items-center justify-between text-amber-600 dark:text-amber-300">
+          <div className="flex items-center justify-between text-primary">
             <span>Hidden</span>
             <span className="tabular-nums font-medium">{hiddenCount}</span>
           </div>
