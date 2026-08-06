@@ -1,18 +1,29 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bell, Settings, BookOpen, FileText } from "lucide-react";
+import { Search, Bell, Settings, BookOpen, FileText, LogIn, LogOut, User } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { getBrowserSupabase } from "@/lib/supabase";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface GlobalNavbarProps {
   onToggleNotifications?: () => void;
+  onOpenAuth?: () => void;
 }
 
-export function GlobalNavbar({ onToggleNotifications }: GlobalNavbarProps) {
+export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbarProps) {
   const { history, unreadCount, clearUnread } = useToast();
   const setSearchOpen = useGraphStore((s) => s.setSearchOpen);
   const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
@@ -21,10 +32,21 @@ export function GlobalNavbar({ onToggleNotifications }: GlobalNavbarProps) {
   const searchOpen = useGraphStore((s) => s.searchOpen);
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { user, loading } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
+
+  const handleSignOut = async () => {
+    try {
+      await getBrowserSupabase().auth.signOut();
+      toast({ title: "Signed out" });
+    } catch {
+      toast({ title: "Could not sign out", variant: "destructive" });
+    }
+  };
 
 
   return (
@@ -85,6 +107,45 @@ export function GlobalNavbar({ onToggleNotifications }: GlobalNavbarProps) {
               </span>
             )}
           </Button>
+        )}
+
+        {!loading && !user && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={onOpenAuth}
+            title="Sign in"
+          >
+            <LogIn className="mr-1.5 h-3.5 w-3.5" />
+            Sign in
+          </Button>
+        )}
+
+        {!loading && user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground min-hit"
+                title="Account"
+                aria-label="Account menu"
+              >
+                <User className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs font-medium truncate">
+                {user.email}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-xs cursor-pointer">
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         <Button

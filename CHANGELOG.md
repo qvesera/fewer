@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - Unreleased
+
+### Added
+
+- **Accounts & authentication**: optional email/password sign-in via Supabase Auth. The app works fully logged-out; login unlocks save/load/share. Sign in button + account dropdown in the navbar, auth dialog with sign up / sign in / password reset, `/auth/callback` route, session-refresh middleware. `@supabase/ssr` added; `[auth]` enabled in `supabase/config.toml`.
+- **Saved graphs**: logged-in users can save the current graph (nodes, edges, layout, theme, settings) to their account, list them in a new "Your Directories" sidebar section, load, rename, and delete. Never auto-uploads — saving is always user-initiated. New `/api/graphs` (GET/POST) + `/api/graphs/[id]` (DELETE) routes; migration `0003_auth_saved_graphs.sql`.
+- **Selective sharing**: saved graphs can be shared as "anyone with the link" (public) or "invite only" (only specified emails). Invite-only links require a signed-in user whose email is invited. Share dialog with public/invite toggle + email list; `/api/share` extended with `owner_id`, `access`, `invited_emails`, `saved_graph_id`; `/api/share/[id]` enforces invite access (403 + sign-in prompt).
+- **Theme & settings sync**: saved graphs capture the full app state including theme mode, custom theme, layout, minimap, and advanced settings — restoring a saved graph restores everything.
+
 ## [0.3.2] - Unreleased
 
 ### Added

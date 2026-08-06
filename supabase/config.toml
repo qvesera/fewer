@@ -12,4 +12,10 @@ port = 54321
 schemas = ["public", "graphql_public"]
 
 [auth]
-enabled = false
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false

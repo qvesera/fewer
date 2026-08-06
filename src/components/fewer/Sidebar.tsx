@@ -30,7 +30,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
-import { StatsPanel, RenameInput } from ".";
+import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -77,6 +77,7 @@ interface SidebarProps {
   onOpenDirectory: () => void;
   onImportFromFile: () => void;
   onImportFromUrl: () => void;
+  onRequireAuth: () => void;
 }
 
 function CollapsibleSection({
@@ -332,7 +333,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -494,6 +495,11 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               </TooltipProvider>
             </div>
           </div>
+        </CollapsibleSection>
+
+        {/* ── 1.5 YOUR DIRECTORIES ── */}
+        <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
+          <SavedGraphsPanel onRequireAuth={onRequireAuth} />
         </CollapsibleSection>
 
         {/* ── 2. LAYOUT & ORIENTATION ── */}

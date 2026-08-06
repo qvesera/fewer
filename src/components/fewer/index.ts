@@ -26,3 +26,5 @@ export { ThemeProvider } from "./ThemeProvider";
 export { Toolbar } from "./Toolbar";
 export { TutorialDialog } from "./TutorialDialog";
 export { PowerUserToggle } from "./PowerUserToggle";
+export { SavedGraphsPanel } from "./SavedGraphsPanel";
+export { AuthDialog } from "./AuthDialog";

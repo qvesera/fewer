@@ -38,6 +38,7 @@ const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) =
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
 const ImportUrlDialog = dynamic(() => import("./ImportUrlDialog").then((m) => m.ImportUrlDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
+const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -56,6 +57,7 @@ export function FewerApp() {
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const resizingRef = useRef(false);
 
   // On mobile, start with sidebar closed
@@ -136,7 +138,12 @@ export function FewerApp() {
           const res = await fetch(`/api/share/${id}`);
           const json = await res.json();
           if (!res.ok || !json.data) {
-            toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+            if (res.status === 403) {
+              toast({ title: "Invite-only graph", description: json.error || "Sign in with an invited email to view it.", variant: "destructive" });
+              setAuthOpen(true);
+            } else {
+              toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+            }
             return;
           }
           applyData(json.data);
@@ -257,7 +264,7 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} />
+      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -269,6 +276,7 @@ export function FewerApp() {
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           {sidebarOpen && (
             <div
@@ -302,6 +310,7 @@ export function FewerApp() {
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           </div>
         </div>
@@ -347,6 +356,8 @@ export function FewerApp() {
         onConfirm={handleConfirmImport}
         importing={importing}
       />
+
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
