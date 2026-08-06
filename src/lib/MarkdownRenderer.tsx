@@ -78,13 +78,14 @@ export function renderInline(text: string): React.ReactNode {
 }
 
 function isTable(block: string): boolean {
-  const lines = block.split("\n");
+  const lines = block.split("\n").filter((l) => l.trim().length > 0);
   if (lines.length < 2) return false;
   return lines.every((l) => l.trim().startsWith("|"));
 }
 
 export function renderMarkdown(content: string): React.ReactNode {
-  const blocks = content.split("\n\n");
+  const normalized = content.replace(/\r\n/g, "\n");
+  const blocks = normalized.split("\n\n");
   const result: React.ReactNode[] = [];
   let i = 0;
 

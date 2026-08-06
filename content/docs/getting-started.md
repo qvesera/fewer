@@ -75,5 +75,7 @@ After import, you'll see:
 
 - [Graph Features](/docs/graph-features)
 - [Import & Export](/docs/import-export)
+- [Sharing Graphs](/docs/sharing)
 - [Keyboard Shortcuts](/docs/shortcuts)
 - [Theming](/docs/theming)
+- [Deployment & Self-Hosting](/docs/deployment)

@@ -12,6 +12,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **↑ / ↓** | Move to parent/child node                    |
 | **←**     | Collapse current folder or move to parent    |
 | **→**     | Expand current folder or move to first child |
+| **Shift+↑↓←→** | Add node to selection (multi-select)    |
 
 ## Editing
 
@@ -20,11 +21,23 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **F2**                 | Rename selected node             |
 | **Delete / Backspace** | Delete selected node (cascading) |
 | **Alt+N**              | Add new node (file or folder)    |
+| **Alt+Shift+N**        | Clear canvas                     |
 | **Ctrl+C**             | Copy selected node               |
 | **Ctrl+X**             | Cut selected node                |
 | **Ctrl+V**             | Paste copied/cut node            |
+| **Ctrl+D**             | Duplicate selected node(s)       |
 | **Ctrl+Z**             | Undo last action                 |
-| **Ctrl+Shift+Z**       | Redo last action                 |
+| **Ctrl+Shift+Z / Ctrl+Y** | Redo last action              |
+| **H**                  | Hide selected nodes              |
+| **Shift+H**            | Show all nodes                   |
+| **Enter**              | Open selected file, or focus first child of folder |
+
+## Parent / Unparent
+
+| Key             | Action                              |
+| --------------- | ----------------------------------- |
+| **Alt+P**       | Parent selected nodes (last selected = parent) |
+| **Alt+Shift+P** | Unparent all selected nodes         |
 
 ## Search
 
@@ -42,6 +55,8 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **-**      | Zoom out                                                                |
 | **0**      | Reset zoom to 100%                                                      |
 | **Ctrl+L** | Cycle layout direction (Top→Bottom, Left→Right, Bottom→Top, Right→Left) |
+| **Alt+F**  | Zoom to selection                                                       |
+| **Alt+R**  | Re-layout graph                                                         |
 
 ## Export
 
@@ -53,7 +68,10 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 
 | Key       | Action             |
 | --------- | ------------------ |
-| **Alt+I** | Open import dialog |
+| **Alt+I** | Open import folder dialog |
+| **Alt+U** | Open import from file dialog |
+| **Alt+L** | Open import from URL dialog |
+| **Alt+O** | Open selected folder in file explorer |
 
 ## Reference
 
@@ -66,3 +84,4 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 - Shortcuts work when the canvas is focused
 - Use **Tab** to move focus between panels if needed
 - **Ctrl+A** selects all visible nodes
+- **Ctrl+click** a node handle removes its connected edges

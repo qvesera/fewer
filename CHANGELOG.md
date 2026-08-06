@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Node Editing docs page** — add, rename, copy/cut/paste, duplicate, delete, unparent, connect, hide/show children, context menus
 - **PWA install docs page** — install-as-app guide for desktop, Android, and iOS
 - **v0.3.0 release blog post** — theme engine, 18 presets, bundle-size cuts, and PWA fixes
+- **Sharing docs page** — share link generation, URL hash encoding, opening shared graphs, limitations
+- **Deployment docs page** — Docker, Netlify, Caddy reverse proxy, standalone build, environment variables
+- **Documentation gap fixes** — advanced import options, missing keyboard shortcuts, theme presets/editor details, edge customization, canvas context menu, multi-select, drag & drop, node resizing, handle shortcuts, sidebar resize, max display depth
+- **Shortcuts dialog sync** — added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
 
 ### Changed
 
