@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Global navbar navigation** — Docs and Blog links in top-right corner
 - **MDX support** — Next.js configured with `@next/mdx` for future component embedding in docs
 - **404 page** — theme-aware not-found page with aurora background, primary accent, and links back to home/docs.
+- **Settings & Power User docs page** — Settings dialog tabs, power user mode, minimap config, node dimensions, notifications
+- **Node Editing docs page** — add, rename, copy/cut/paste, duplicate, delete, unparent, connect, hide/show children, context menus
+- **PWA install docs page** — install-as-app guide for desktop, Android, and iOS
+- **v0.3.0 release blog post** — theme engine, 18 presets, bundle-size cuts, and PWA fixes
 
 ### Changed
 

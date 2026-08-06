@@ -44,11 +44,11 @@ const sections = [
   },
   {
     title: "Features",
-    items: ["graph-features", "import-export"],
+    items: ["graph-features", "editing", "import-export"],
   },
   {
     title: "Reference",
-    items: ["shortcuts", "theming"],
+    items: ["settings", "shortcuts", "theming", "pwa-install"],
   },
 ];
 
