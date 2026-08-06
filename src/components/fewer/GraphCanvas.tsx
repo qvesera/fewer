@@ -405,7 +405,6 @@ function CanvasInner() {
             toast({ title: "Deleted", description: `${deletedEdges.length} edge${deletedEdges.length === 1 ? "" : "s"} removed` });
           }
         }}
-        onInit={(instance) => { console.log("[ReactFlow] onInit - edges:", instance.getEdges().length, "nodes:", instance.getNodes().length); }}
         onNodeContextMenu={(event) => event.preventDefault()}
         onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); const rect = containerRef.current?.getBoundingClientRect(); if (rect) setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }); }}
         onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); useGraphStore.getState().setRightClickDetected(); }}
