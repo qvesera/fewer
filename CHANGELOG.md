@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Blog posts** — launch announcement, Aurora Haze design system deep-dive, ELK layout engine release notes
 - **Global navbar navigation** — Docs and Blog links in top-right corner
 - **MDX support** — Next.js configured with `@next/mdx` for future component embedding in docs
+- **404 page** — theme-aware not-found page with aurora background, primary accent, and links back to home/docs.
 
 ### Changed
 
