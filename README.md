@@ -9,7 +9,7 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
 ![License](https://img.shields.io/badge/License-AGPLv3-blue)
 
-[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Keyboard](#keyboard-shortcuts) • [Export](#export) • [Browser Support](#browser-support) • [FAQ](#faq)
+[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Docs](/docs) • [Blog](/blog) • [FAQ](#faq)
 
 ---
 
@@ -85,7 +85,7 @@ docker run -p 3000:3000 fewer
 
 1. Click **Import from disk** (or **Alt+I**)
 2. Select a folder — configurable depth, hidden files, extension filters
-3. The graph builds instantly with Dagre auto-layout
+3. The graph builds instantly with auto-layout
 
 ### Edit the graph
 
@@ -107,7 +107,7 @@ docker run -p 3000:3000 fewer
 - **File cards** (purple) — filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
-- **Dagre auto-layout** with type-aware dimensions
+- **Custom Reingold-Tilford layout** with type-aware dimensions
 - **Breadcrumb bar** — selected node's full path
 
 </details>
@@ -212,6 +212,11 @@ Toggle **Export Selected** to export only the selected subtree.
 
 ---
 
+## Docs & Blog
+
+- [Docs](/docs) — feature guides, tutorials, and technical references
+- [Blog](/blog) — release notes, feature deep-dives, and behind-the-scenes stories
+
 ## How It Works
 
 ```
@@ -251,7 +256,7 @@ src/
 │   └── KeyboardShortcuts.tsx # Global hotkey handler
 ├── lib/fewer/
 │   ├── types.ts              # TypeScript types + theme metadata
-│   ├── layout.ts             # Dagre layout with type-aware dimensions
+│   ├── layout.ts             # Custom tree layout with type-aware dimensions
 │   ├── treeToGraph.ts        # Tree → flat nodes/edges
 │   ├── fileSystem.ts         # File System Access API
 │   ├── fileOps.ts            # Copy/move/delete/create/open on disk
@@ -283,7 +288,7 @@ src/
 | --------- | ---------------------------------------------- |
 | Framework | Next.js 16 (App Router, Turbopack)             |
 | UI        | React 19, Tailwind CSS 4, shadcn/ui (New York) |
-| Graph     | React Flow v12 (@xyflow/react), Dagre          |
+| Graph     | React Flow v12 (@xyflow/react)                 |
 | State     | Zustand                                        |
 | Language  | TypeScript 5 (strict)                          |
 | Database  | Prisma ORM + SQLite                            |
@@ -339,7 +344,7 @@ AGPLv3 — see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - [React Flow](https://reactflow.dev/) — graph visualization library
-- [Dagre](https://github.com/dagrejs/dagre) — directed graph layout algorithms
+- [Reingold-Tilford](https://en.wikipedia.org/wiki/Tree_traversal) — tree layout algorithm
 - [shadcn/ui](https://ui.shadcn.com/) — accessible component library
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first CSS framework
 - [Lucide](https://lucide.dev/) — icon set

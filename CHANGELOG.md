@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - Unreleased
+
+### Added
+
+- **Docs site** — new `/docs` and `/blog` routes with markdown-based content system in `content/`
+- **Docs pages** — Getting Started, Graph Features, Import & Export, Keyboard Shortcuts, Theming
+- **Blog posts** — launch announcement, Aurora Haze design system deep-dive, ELK layout engine release notes
+- **Global navbar navigation** — Docs and Blog links in top-right corner
+- **MDX support** — Next.js configured with `@next/mdx` for future component embedding in docs
+- **404 page** — theme-aware not-found page with aurora background, primary accent, and links back to home/docs.
+- **Settings & Power User docs page** — Settings dialog tabs, power user mode, minimap config, node dimensions, notifications
+- **Node Editing docs page** — add, rename, copy/cut/paste, duplicate, delete, unparent, connect, hide/show children, context menus
+- **PWA install docs page** — install-as-app guide for desktop, Android, and iOS
+- **v0.3.0 release blog post** — theme engine, 18 presets, bundle-size cuts, and PWA fixes
+- **Sharing docs page** — share link generation, URL hash encoding, opening shared graphs, limitations
+- **Deployment docs page** — Docker, Netlify, Caddy reverse proxy, standalone build, environment variables
+- **Documentation gap fixes** — advanced import options, missing keyboard shortcuts, theme presets/editor details, edge customization, canvas context menu, multi-select, drag & drop, node resizing, handle shortcuts, sidebar resize, max display depth
+- **Shortcuts dialog sync** — added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
+
+### Changed
+
+- **Toast feedback for silent actions** — added toast notifications for previously silent destructive/confirm actions: delete selected (toolbar, canvas toolbar, Delete/Backspace key), clear canvas (sidebar confirm), reveal all nodes (sidebar), add file/folder (sidebar quick-add + Add Node dialog), export download, open file via Enter key, and hide/show children (folder context menu).
+- **Theme-responsive blog & docs** — docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
+- **Design system tokens** — added spacing (`--space-*`) and shadow depth (`--shadow-*`) tokens plus `--font-heading` / `--font-body` stacks to `globals.css` per `design-system/fewer/MASTER.md`.
+- **Theme-aligned gradients** — `text-gradient-fewer` now derives its leading stop from `--color-primary` instead of hard-coded orange.
+
+### Fixed
+
+- **Multi-select edge highlighting** — ancestor-path edges now highlight for EVERY selected node (not just the last-picked one). Each path edge is colored by its target node type (folder vs file).
+- **Duplicate rename guard** — renaming a node to a name already used by a sibling in the same folder is now blocked with a toast (`"X" already exists in this folder.`). Previously duplicate names were allowed.
+- **Custom theme editor mobile support** — dialog width clamps to viewport (`min(360px, 100vw - 16px)`), drag/dock now use pointer events (works with touch), and `touch-action: none` prevents scroll interference while dragging.
+- **Preset dropdown width** — the preset theme dropdown now matches the trigger input width instead of a fixed 280px.
+- **Tutorial restart z-order** — restarting the tutorial from Settings now closes the Settings dialog first (and waits for its exit animation), so the tutorial's options are clickable instead of being blocked behind it.
+- **Tutorial button contrast** — primary tutorial buttons now use `text-primary-foreground` (matching the export button) instead of hard-coded white, so the label stays visible on the primary background.
+- **Tutorial docs redirect** — the tutorial now offers an optional "Docs →" button at the end (mobile final step and desktop "All done!" state) that navigates to `/docs`.
+
 ## [0.3.1]
 
 ### Performance

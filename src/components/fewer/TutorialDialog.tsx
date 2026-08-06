@@ -250,7 +250,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
         type="button"
         onClick={handleStart}
         size="sm"
-        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-primary to-primary font-medium text-white shadow-md shadow-orange-500/15 hover:opacity-90 active:scale-[0.96] transition-[colors,transform]"
+        className="w-full h-10 rounded-xl gap-2 bg-gradient-to-r from-primary to-primary font-medium text-primary-foreground shadow-md shadow-orange-500/15 hover:opacity-90 active:scale-[0.96] transition-[colors,transform]"
       >
         <BookOpen className="h-4 w-4" />
         Start Tutorial
@@ -335,21 +335,32 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 <Button
                   type="button"
                   size="sm"
-                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
+                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
                   onClick={() => setMobileStep((s) => Math.min(items.length - 1, s + 1))}
                 >
                   Next →
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
-                  onClick={handleDismiss}
-                >
-                  <Check className="h-3 w-3 mr-1" />
-                  Done
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
+                    onClick={handleDismiss}
+                  >
+                    <Check className="h-3 w-3 mr-1" />
+                    Done
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-[10px]"
+                    onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
+                  >
+                    Docs →
+                  </Button>
+                </>
               )}
             </div>
             <button
@@ -393,7 +404,16 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                   <Button
                     type="button"
                     size="sm"
-                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-white"
+                    variant="outline"
+                    className="flex-1 text-[10px]"
+                    onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
+                  >
+                    Docs →
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
                     onClick={handleDismiss}
                   >
                     <Check className="h-3 w-3 mr-1" />

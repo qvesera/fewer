@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle } from "lucide-react";
 
 interface AddNodeDialogProps {
@@ -37,6 +38,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
   const edges = useGraphStore((s) => s.edges);
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const [name, setName] = useState("");
   const [type, setType] = useState<"folder" | "file">("folder");
@@ -107,6 +109,10 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
       addStandaloneNode(trimmed, type, { x: 1000, y: 600 });
     }
     onOpenChange(false);
+    toast({
+      title: type === "folder" ? "Folder added" : "File added",
+      description: mode === "child" ? `"${trimmed}" added to folder` : `"${trimmed}" added to canvas`,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

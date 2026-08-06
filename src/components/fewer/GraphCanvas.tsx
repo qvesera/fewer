@@ -38,6 +38,53 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   }
 }
 
+/**
+ * Highlight the ancestor path of EVERY selected node. Each path edge is
+ * colored by its target node type (folder vs file) so multi-selection
+ * shows every selected chain, not just the last-picked node.
+ * Empty selection → all edges reset to default stroke. Highlighted edges
+ * sort last so they render on top.
+ */
+function buildPathEdgeHighlight(
+  selectedIds: string[],
+  edges: FewerEdge[],
+  nodes: FewerNode[],
+  themeColors: { edge: string; folderIcon: string; fileIcon: string },
+  edgeWidth: number,
+): FewerEdge[] {
+  const parentMap = new Map<string, string>();
+  const edgeIdByTarget = new Map<string, string>();
+  for (const e of edges) {
+    parentMap.set(e.target, e.source);
+    edgeIdByTarget.set(e.target, e.id);
+  }
+
+  const highlighted = new Map<string, { stroke: string; width: number }>();
+  for (const id of selectedIds) {
+    let currentId: string | undefined = id;
+    let guard = 0;
+    while (currentId && parentMap.has(currentId) && guard++ <= edges.length) {
+      const edgeId = edgeIdByTarget.get(currentId);
+      if (edgeId) {
+        const targetNode = nodes.find((n) => n.id === currentId);
+        const stroke = targetNode?.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
+        highlighted.set(edgeId, { stroke, width: Math.max(edgeWidth, 3) });
+      }
+      currentId = parentMap.get(currentId);
+    }
+  }
+
+  const defaultStroke = themeColors.edge;
+  return edges
+    .map((e) => {
+      const h = highlighted.get(e.id);
+      return h
+        ? { ...e, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
+        : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+    })
+    .sort((a, b) => (highlighted.has(b.id) ? 1 : -1) - (highlighted.has(a.id) ? 1 : -1));
+}
+
 /** Read a CSS variable from :root (falling back to the bare var name). */
 function cssVar(name: string, fallback = ""): string {
   if (typeof document === "undefined") return fallback;
@@ -168,43 +215,14 @@ function CanvasInner() {
 
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
-    const selectedIds = useGraphStore.getState().selectedNodeIds;
-    const defaultStroke = themeColors.edge;
-    if (selectedIds.length === 0) {
-      // No selection: reset edges to default colors
-      const edges = useGraphStore.getState().edges;
-      const resetEdges = edges.map((e) => ({ ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } }));
-      useGraphStore.setState({ edges: resetEdges });
-      const hidden = new Set(useGraphStore.getState().hiddenIds);
-      setRfEdges(resetEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-      return;
-    }
-    // Re-highlight the ancestor path with the new theme colors
-    const focusId = selectedIds[selectedIds.length - 1];
-    const edges = useGraphStore.getState().edges;
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
-    const pathEdges = new Set<string>();
-    let currentId: string | undefined = focusId;
-    while (currentId && parentMap.has(currentId)) {
-      const parentId = parentMap.get(currentId)!;
-      const edgeId = edges.find((e) => e.source === parentId && e.target === currentId)?.id;
-      if (edgeId) pathEdges.add(edgeId);
-      currentId = parentId;
-    }
-    const focusNode = useGraphStore.getState().nodes.find((n) => n.id === focusId);
-    const accentColor = focusNode?.data.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-    const updatedEdges = edges.map((e) => {
-      if (pathEdges.has(e.id)) return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
-      return { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
-    });
-    updatedEdges.sort((a) => (pathEdges.has(a.id) ? 1 : -1));
+    const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
+    const updatedEdges = buildPathEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
     useGraphStore.setState({ edges: updatedEdges });
-    const hidden = new Set(useGraphStore.getState().hiddenIds);
+    const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
   }, [themeMode, setRfEdges, edgeWidth, themeColors]);
 
-  // ── Selection: highlight ancestor path ──
+  // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       const selectedIds = new Set(selected.map((n) => n.id));
@@ -214,35 +232,10 @@ function CanvasInner() {
       const newIds = [...kept, ...added];
       setSelectedNodeIds(newIds);
 
-      const edges = useGraphStore.getState().edges;
-      const parentMap = new Map<string, string>();
-      for (const e of edges) parentMap.set(e.target, e.source);
-
-      const focusId = newIds.length > 0 ? newIds[newIds.length - 1] : null;
-      const pathEdges = new Set<string>();
-      if (focusId) {
-        let currentId: string | undefined = focusId;
-        while (currentId && parentMap.has(currentId)) {
-          const parentId = parentMap.get(currentId)!;
-          const edgeId = edges.find((e) => e.source === parentId && e.target === currentId)?.id;
-          if (edgeId) pathEdges.add(edgeId);
-          currentId = parentId;
-        }
-      }
-
-      const defaultStroke = themeColors.edge;
-      const focusSel = selected.find((n) => n.id === focusId);
-      const accentColor = focusSel?.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-      const updatedEdges = edges.map((e) => {
-        if (pathEdges.has(e.id)) {
-          return { ...e, style: { ...e.style, stroke: accentColor, strokeWidth: Math.max(edgeWidth, 3) } };
-        }
-        return { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
-      });
-      // Sort: highlighted edges last so they render on top
-      updatedEdges.sort((a) => (pathEdges.has(a.id) ? 1 : -1));
+      const { edges, nodes, hiddenIds } = useGraphStore.getState();
+      const updatedEdges = buildPathEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
       useGraphStore.setState({ edges: updatedEdges });
-      const hidden = new Set(useGraphStore.getState().hiddenIds);
+      const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
     },
     [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors],

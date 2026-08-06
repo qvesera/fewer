@@ -15,9 +15,15 @@ import { ChevronDown } from "lucide-react";
 const DIALOG_WIDTH = 360;
 const TOP_OFFSET = 80; // navbar + toolbar
 
+/** Dialog width clamped to viewport (mobile-safe). */
+function dialogWidth() {
+  return Math.min(DIALOG_WIDTH, window.innerWidth - 16);
+}
+
 function clampPosition(x: number, y: number, dialogHeight?: number) {
+  const w = dialogWidth();
   const minX = 0;
-  const maxX = window.innerWidth - DIALOG_WIDTH;
+  const maxX = Math.max(0, window.innerWidth - w);
   const minY = TOP_OFFSET;
   const h = dialogHeight ?? Math.min(window.innerHeight * 0.85, 600);
   const maxY = Math.max(TOP_OFFSET, window.innerHeight - h);
@@ -129,12 +135,12 @@ export function ThemeEditorDialog() {
 
   useEffect(() => {
     setPosition(clampPosition(
-      Math.max(0, window.innerWidth - DIALOG_WIDTH - 20),
+      Math.max(0, window.innerWidth - dialogWidth() - 20),
       Math.max(TOP_OFFSET, window.innerHeight / 2 - 250),
     ));
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("button, input, [role='slider']")) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY, posX: position.x, posY: position.y };
@@ -143,23 +149,25 @@ export function ThemeEditorDialog() {
 
   useEffect(() => {
     if (!isDragging) return;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const newX = dragStartRef.current.posX + (e.clientX - dragStartRef.current.x);
       const newY = dragStartRef.current.posY + (e.clientY - dragStartRef.current.y);
       const h = dialogRef.current?.offsetHeight;
       setPosition(clampPosition(newX, newY, h));
     };
-    const handleMouseUp = () => setIsDragging(false);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    const handlePointerUp = () => setIsDragging(false);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
   }, [isDragging]);
 
   // Dock pill drag with snap-to-edge
-  const handleDockMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleDockPointerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     dockMovedRef.current = false;
     setIsDraggingDock(true);
@@ -169,7 +177,7 @@ export function ThemeEditorDialog() {
 
   useEffect(() => {
     if (!isDraggingDock) return;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       dockMovedRef.current = true;
       const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
       const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
@@ -177,7 +185,7 @@ export function ThemeEditorDialog() {
       dockPosRef.current = clamped;
       setDockPosition(clamped);
     };
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDraggingDock(false);
       if (!dockMovedRef.current) {
         setMinimized(false);
@@ -189,16 +197,18 @@ export function ThemeEditorDialog() {
       setDockPosition(snapped);
       setDockEdge(snapped.edge);
     };
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
   }, [isDraggingDock]);
 
   const handleMinimize = useCallback(() => {
-    const centerX = position.x + DIALOG_WIDTH / 2;
+    const centerX = position.x + dialogWidth() / 2;
     const centerY = position.y + 200;
     const snapped = snapDockPosition(centerX, centerY);
     dockPosRef.current = snapped;
@@ -228,9 +238,10 @@ export function ThemeEditorDialog() {
           top: dockPosition.y,
           padding: isVertical ? "10px 6px" : "8px 14px",
           cursor: isDraggingDock ? "grabbing" : "grab",
+          touchAction: "none",
           transition: isDraggingDock ? "box-shadow 150ms ease" : "left 300ms cubic-bezier(0.34,1.56,0.64,1), top 300ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease",
         }}
-        onMouseDown={handleDockMouseDown}
+        onPointerDown={handleDockPointerDown}
         title="Drag to snap · Click to restore"
       >
         <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -246,12 +257,12 @@ export function ThemeEditorDialog() {
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-      style={{ left: position.x, top: position.y, width: DIALOG_WIDTH, maxHeight: "85vh" }}
+      style={{ left: position.x, top: position.y, width: dialogWidth(), maxHeight: "85vh", touchAction: "none" }}
     >
       {/* Header - draggable */}
       <div
         className="flex items-center justify-between border-b border-border/40 px-3 py-2 cursor-grab select-none"
-        onMouseDown={handleMouseDown}
+        onPointerDown={handlePointerDown}
       >
         <div className="flex items-center gap-2">
           <GripVertical className="h-4 w-4 text-muted-foreground/50" />
@@ -349,7 +360,7 @@ export function ThemeEditorDialog() {
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-1.5 max-h-[300px] overflow-y-auto" align="start">
+            <PopoverContent className="w-[calc(min(360px,100vw-16px)-24px)] p-1.5 max-h-[300px] overflow-y-auto" align="start">
               {Object.entries(groupedPresets).map(([category, presets]) => (
                 <div key={category} className="mb-1.5">
                   <div className="px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">

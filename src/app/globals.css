@@ -53,9 +53,6 @@
   --color-brand-cool-end: var(--brand-purple-500);
   --color-brand-warm-start: var(--brand-amber-500);
   --color-brand-warm-end: var(--brand-orange-500);
-  --color-gradient-cool: linear-gradient(135deg, var(--brand-fuchsia-500), var(--brand-cyan-400), var(--brand-purple-500));
-  --color-gradient-warm: linear-gradient(135deg, var(--brand-amber-500), var(--brand-orange-500));
-  --color-gradient-premium: linear-gradient(135deg, var(--brand-purple-500), var(--brand-amber-500));
 
   /* fewer */
   --color-fewer-background: var(--fewer-background);
@@ -78,6 +75,19 @@
 
 :root {
   --radius: 0.625rem;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.15);
+  --font-heading: 'Satoshi', 'General Sans', system-ui, sans-serif;
+  --font-body: 'General Sans', 'Satoshi', system-ui, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

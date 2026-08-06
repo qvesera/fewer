@@ -296,6 +296,7 @@ function FolderContextMenu({
                         hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
                       }));
                       useGraphStore.getState().relayout();
+                      toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
                     useGraphStore.getState().setZoomToNodeIds(childIds);
                   }}
@@ -321,6 +322,7 @@ function FolderContextMenu({
                     }
                     useGraphStore.setState({ hiddenIds: [...hiddenSet] });
                     useGraphStore.getState().relayout();
+                    toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
                 >
@@ -594,8 +596,14 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const renameNode = useGraphStore((s) => s.renameNode);
+  const { toast } = useToast();
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
+
+  const handleRename = (v: string) => {
+    const ok = renameNode(child.id, v);
+    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
+  };
 
   const folderChildCount = useMemo(() => {
     if (child.data.type !== "folder") return 0;
@@ -629,7 +637,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       {renamingId === child.id && renameSource === "folder" ? (
         <RenameInput
           initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
-          onCommit={(v) => renameNode(child.id, v)}
+          onCommit={handleRename}
           onCancel={() => useGraphStore.getState().setRenamingId(null)}
         />
       ) : (
@@ -687,8 +695,14 @@ function CustomNodeImpl({
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
+  const { toast } = useToast();
 
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+
+  const handleRename = (v: string) => {
+    const ok = renameNode(id, v);
+    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
+  };
 
   const children = useMemo(() => {
     if (!isFolder) return [];
@@ -791,7 +805,7 @@ function CustomNodeImpl({
                 {isRenaming && renameSource === "canvas" ? (
                   <RenameInput
                     initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
-                    onCommit={(v) => renameNode(id, v)}
+                    onCommit={handleRename}
                     onCancel={() => useGraphStore.getState().setRenamingId(null)}
                   />
                 ) : (
@@ -928,7 +942,7 @@ function CustomNodeImpl({
           {isRenaming && renameSource === "canvas" ? (
             <RenameInput
               initialValue={data.extension ? `${data.label}.${data.extension}` : data.label}
-              onCommit={(v) => renameNode(id, v)}
+              onCommit={handleRename}
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
           ) : (

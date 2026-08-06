@@ -48,7 +48,7 @@ src/
 
 fewer uses a **Zustand store** (`src/store/graphStore.ts`) as the single source of truth for graph state. React Flow renders nodes/edges from this store. The store also manages undo/redo history (50 steps), theme state, clipboard, and UI flags.
 
-All graph logic is in `src/lib/fewer/` — layout via Dagre, export/import parsers, file system operations, validation, navigation.
+All graph logic is in `src/lib/fewer/` — custom tree layout, export/import parsers, file system operations, validation, navigation.
 
 ### Coding Standards
 

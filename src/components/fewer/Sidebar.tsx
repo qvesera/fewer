@@ -244,6 +244,11 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   const node = tree.node;
   const hasChildren = tree.children.length > 0;
 
+  const handleRename = (v: string) => {
+    const ok = renameNode(node.id, v);
+    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
+  };
+
   return (
     <div className="space-y-0.5 w-full min-w-0">
       <div className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0">
@@ -288,7 +293,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
           {renamingId === node.id ? (
             <RenameInput
               initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
-              onCommit={(v) => renameNode(node.id, v)}
+              onCommit={handleRename}
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
           ) : (
@@ -381,6 +386,10 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
       : useGraphStore.getState().addStandaloneNode(name, type, { x: 1000, y: 600 });
     useGraphStore.getState().setRenamingId(newId);
     useGraphStore.getState().setZoomToNode(newId);
+    toast({
+      title: type === "folder" ? "Folder added" : "File added",
+      description: selectedFolderId ? `"${name}" added to folder` : `"${name}" added to canvas`,
+    });
   };
 
   return (
@@ -690,7 +699,12 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               variant="outline"
               size="sm"
               className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
-              onClick={() => { showAll(); setShowFiles(true); }}
+              onClick={() => {
+                const count = hiddenIds.length;
+                showAll();
+                setShowFiles(true);
+                if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
+              }}
             >
               <Eye className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Reveal All Nodes</span>
@@ -727,6 +741,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               onClick={() => {
                 reset();
                 setResetConfirmOpen(false);
+                toast({ title: "Canvas cleared" });
               }}
               className="bg-destructive text-white hover:bg-destructive/90 text-xs font-normal"
             >
