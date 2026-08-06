@@ -334,13 +334,12 @@ function ShareGraphDialog({
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const buildShare = async (a: "public" | "invite") => {
+  const buildShare = async () => {
     if (!user) return onRequireAuth();
-    setAccess(a);
     setBuilding(true);
     setShareUrl("");
     try {
-      const invited_emails = a === "invite"
+      const invited_emails = access === "invite"
         ? emails.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
         : [];
       const res = await fetch("/api/share", {
@@ -348,7 +347,7 @@ function ShareGraphDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           data: graph.data,
-          access: a,
+          access,
           invited_emails,
           saved_graph_id: graph.id,
         }),
@@ -392,9 +391,11 @@ function ShareGraphDialog({
         <div className="space-y-3">
           {/* Access choice */}
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => buildShare("public")}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setAccess("public")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("public"); } }}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "public" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
             >
               <Globe className="h-4 w-4 text-muted-foreground" />
@@ -402,12 +403,14 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Anyone with the link</p>
                 <p className="text-[11px] text-muted-foreground/70">Anyone can open this graph.</p>
               </div>
-              <Switch checked={access === "public"} onCheckedChange={() => buildShare("public")} className="ml-auto shrink-0" />
-            </button>
+              <Switch checked={access === "public"} onCheckedChange={() => setAccess("public")} className="ml-auto shrink-0" />
+            </div>
 
-            <button
-              type="button"
-              onClick={() => buildShare("invite")}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setAccess("invite")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("invite"); } }}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "invite" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
             >
               <Mail className="h-4 w-4 text-muted-foreground" />
@@ -415,8 +418,8 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Invite only</p>
                 <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
-              <Switch checked={access === "invite"} onCheckedChange={() => buildShare("invite")} className="ml-auto shrink-0" />
-            </button>
+              <Switch checked={access === "invite"} onCheckedChange={() => setAccess("invite")} className="ml-auto shrink-0" />
+            </div>
           </div>
 
           {/* Invite emails */}
@@ -428,13 +431,22 @@ function ShareGraphDialog({
                 value={emails}
                 onChange={(e) => setEmails(e.target.value)}
                 placeholder="a@example.com, b@example.com"
-                onBlur={() => buildShare("invite")}
               />
               <p className="text-[11px] text-muted-foreground/70">
-                Comma-separated. Regenerate the link after editing.
+                Comma-separated. Click "Generate link" to create the share link.
               </p>
             </div>
           )}
+
+          {/* Generate link */}
+          <Button
+            className="w-full gap-1.5 cursor-pointer"
+            onClick={buildShare}
+            disabled={building}
+          >
+            {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+            Generate link
+          </Button>
 
           {/* Link */}
           {shareUrl && (
