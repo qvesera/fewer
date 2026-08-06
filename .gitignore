@@ -63,3 +63,6 @@ server.log
 LIGHTHOUSE_IMPROVEMENTS.md
 implementation_plan.md
 .agents/
+
+# supabase local cli state
+supabase/.temp/
