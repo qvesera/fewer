@@ -244,6 +244,11 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   const node = tree.node;
   const hasChildren = tree.children.length > 0;
 
+  const handleRename = (v: string) => {
+    const ok = renameNode(node.id, v);
+    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
+  };
+
   return (
     <div className="space-y-0.5 w-full min-w-0">
       <div className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0">
@@ -288,7 +293,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
           {renamingId === node.id ? (
             <RenameInput
               initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
-              onCommit={(v) => renameNode(node.id, v)}
+              onCommit={handleRename}
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
           ) : (

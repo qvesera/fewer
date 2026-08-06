@@ -110,7 +110,7 @@ export type GraphSliceCreator = StateCreator<
     moveNode: (id: string) => void;
     _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
     deleteNodes: (ids: string[]) => void;
-    renameNode: (id: string, newLabel: string) => void;
+    renameNode: (id: string, newLabel: string) => boolean;
     duplicateNode: (id: string) => void;
     connectNodes: (connection: { source: string; target: string }) => { ok: boolean; reason?: string };
     removeEdgesFromHandle: (nodeId: string, handleType: "source" | "target") => void;
@@ -241,16 +241,34 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   renameNode: (id, newLabel) => {
     const { nodes, edges, searchQuery } = get();
     const trimmed = newLabel.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     const node = nodes.find((n) => n.id === id);
-    if (!node) return;
+    if (!node) return false;
     const oldLabel = node.data.label;
     const newExt = node.data.type === "file" ? getFileExtension(trimmed) : "";
     const newLabelOnly = newExt ? trimmed.slice(0, -(newExt.length + 1)) : trimmed;
     const oldFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
     const newFullLabel = newExt ? `${newLabelOnly}.${newExt}` : newLabelOnly;
+    if (newFullLabel.toLowerCase() === oldFullLabel.toLowerCase()) {
+      set({ renamingId: null });
+      return false;
+    }
     const parentEdge = edges.find((e) => e.target === id);
     const parent = parentEdge ? nodes.find((n) => n.id === parentEdge.source) : null;
+    // Block rename when a sibling already uses the same full label
+    const siblingIds = parentEdge
+      ? edges.filter((e) => e.source === parentEdge.source && e.target !== id).map((e) => e.target)
+      : nodes.filter((n) => !edges.some((e) => e.target === n.id) && n.id !== id).map((n) => n.id);
+    const siblingHasLabel = siblingIds.some((sid) => {
+      const s = nodes.find((n) => n.id === sid);
+      if (!s) return false;
+      const sFull = s.data.extension ? `${s.data.label}.${s.data.extension}` : s.data.label;
+      return sFull.toLowerCase() === newFullLabel.toLowerCase();
+    });
+    if (siblingHasLabel) {
+      set({ renamingId: null });
+      return false;
+    }
     const parentPath = parent ? parent.data.path : "";
     const oldPathPrefix = parent ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
     const newPathPrefix = parent ? `${parentPath}/${newFullLabel}` : newFullLabel;
@@ -275,6 +293,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Targeted rename op — stores only the diff, not the full array
     get().pushOp({ type: "rename", nodeId: id, oldLabel, newLabel: newLabelOnly });
     set({ nodes: applySearchInternal(newNodes, searchQuery), renamingId: null, graphVersion: get().graphVersion + 1 });
+    return true;
   },
 
   _makeCopyNode: (sourceNode, parentId) => {

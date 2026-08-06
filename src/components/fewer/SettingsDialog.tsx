@@ -330,8 +330,13 @@ function HelpTab() {
   const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
 
   const handleRestartTutorial = () => {
+    useGraphStore.getState().setSettingsOpen(false);
     useGraphStore.getState().resetTutorial();
-    window.dispatchEvent(new Event("fewer-restart-tutorial"));
+    // Wait for the settings dialog's exit animation to finish so its overlay
+    // doesn't keep capturing clicks on top of the tutorial.
+    setTimeout(() => {
+      window.dispatchEvent(new Event("fewer-restart-tutorial"));
+    }, 200);
   };
 
   const helpActions = [

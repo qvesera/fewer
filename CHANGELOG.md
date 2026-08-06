@@ -23,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Theme-responsive blog & docs** — docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
+- **Design system tokens** — added spacing (`--space-*`) and shadow depth (`--shadow-*`) tokens plus `--font-heading` / `--font-body` stacks to `globals.css` per `design-system/fewer/MASTER.md`.
+- **Theme-aligned gradients** — `text-gradient-fewer` now derives its leading stop from `--color-primary` instead of hard-coded orange.
+
+### Fixed
+
+- **Multi-select edge highlighting** — ancestor-path edges now highlight for EVERY selected node (not just the last-picked one). Each path edge is colored by its target node type (folder vs file).
+- **Duplicate rename guard** — renaming a node to a name already used by a sibling in the same folder is now blocked with a toast (`"X" already exists in this folder.`). Previously duplicate names were allowed.
+- **Custom theme editor mobile support** — dialog width clamps to viewport (`min(360px, 100vw - 16px)`), drag/dock now use pointer events (works with touch), and `touch-action: none` prevents scroll interference while dragging.
+- **Preset dropdown width** — the preset theme dropdown now matches the trigger input width instead of a fixed 280px.
+- **Tutorial restart z-order** — restarting the tutorial from Settings now closes the Settings dialog first (and waits for its exit animation), so the tutorial's options are clickable instead of being blocked behind it.
+- **Tutorial button contrast** — primary tutorial buttons now use `text-primary-foreground` (matching the export button) instead of hard-coded white, so the label stays visible on the primary background.
+- **Tutorial docs redirect** — the tutorial now offers an optional "Docs →" button at the end (mobile final step and desktop "All done!" state) that navigates to `/docs`.
 
 ## [0.3.1]
 
