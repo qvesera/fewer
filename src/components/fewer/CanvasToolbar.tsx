@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Undo2, Redo2, Trash2, Sparkles, Download, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface CanvasToolbarProps {
@@ -20,6 +21,8 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const hasNodes = useGraphStore((s) => s.nodes.length > 0);
+  const { toast } = useToast();
 
   return (
     <div className="w-full flex items-center justify-between gap-2 border-b border-border/30 bg-background/50 backdrop-blur-sm px-4 py-1.5 overflow-x-auto flex-nowrap [&::-webkit-scrollbar]:h-0">
@@ -72,7 +75,12 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-red-400 disabled:opacity-30 min-hit"
-            onClick={() => selectedNodeIds.length && deleteNodes(selectedNodeIds)}
+            onClick={() => {
+              if (selectedNodeIds.length) {
+                deleteNodes(selectedNodeIds);
+                toast({ title: "Deleted", description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} removed` });
+              }
+            }}
             disabled={selectedNodeIds.length === 0}
             title="Delete selection"
           >
@@ -88,21 +96,23 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
           size="sm"
           className="h-8 gap-1.5 font-medium text-s text-muted-foreground hover:text-foreground shrink-0"
           onClick={onLoadSample}
+          disabled={hasNodes}
           data-tutorial="sample-button"
         >
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
           <span>Load Sample</span>
         </Button>
 
         <Button
           variant="default"
           size="sm"
-          className="h-8 gap-1.5 font-medium text-s bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm shrink-0"
+          className="h-8 gap-1.5 font-medium text-s bg-gradient-to-r bg-primary text-primary-foreground hover:opacity-90 shadow-sm shrink-0"
           onClick={() => setExportOpen(true)}
         >
           <Download className="h-3.5 w-3.5" />
           <span>Export</span>
         </Button>
+
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { fsHandleStore } from "./types";
+
 /**
  * Real file system operations using the File System Access API.
  * These functions actually modify files on disk — not just the graph.
@@ -260,13 +262,14 @@ export async function expandFolderNode(
       type: "folder" as const,
       depth: (parentNode?.data.depth ?? 0) + 1,
       isRoot: false,
-      fsHandle: handle,
     },
     style: {
       width: store.nodeWidth,
       height: store.nodeHeight,
     },
   };
+  // Store fsHandle separately to avoid live browser API objects on node data
+  fsHandleStore.set(folderNodeId, handle);
 
   // Offset child nodes relative to the folder node
   const offsetChildren = childNodes.map((n) => ({
@@ -287,11 +290,11 @@ export async function expandFolderNode(
 
   // Create edge from parent to new folder
   const edgeType = store.edgeStyle === "curved" ? "default" : store.edgeStyle === "angled" ? "smoothstep" : "straight";
-  const parentEdge = {
+  const parentEdge: { id: string; source: string; target: string; type: string } = {
     id: `e-${parentId}-${folderNodeId}`,
     source: parentId,
     target: folderNodeId,
-    type: edgeType as const,
+    type: edgeType,
   };
 
   // Update edges to reference the new folder as source (instead of the
@@ -324,6 +327,11 @@ export async function expandFolderNode(
     nodes: [...s.nodes, ...allNewNodes],
     edges: [...s.edges, ...merged],
   }));
+
+  // Re-apply auto-hide: if the dragged folder has >10 children, hide them
+  setTimeout(() => {
+    useGraphStore.getState().autoHideLargeFolders();
+  }, 0);
 
   // Trigger relayout
   setTimeout(() => {

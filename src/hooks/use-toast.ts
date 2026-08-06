@@ -8,7 +8,7 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
+const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 1000000
 
 type ToasterToast = ToastProps & {
@@ -16,6 +16,7 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  createdAt?: number
 }
 
 const actionTypes = {
@@ -54,6 +55,8 @@ type Action =
 
 interface State {
   toasts: ToasterToast[]
+  history: ToasterToast[]
+  unreadCount: number
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
@@ -79,7 +82,9 @@ export const reducer = (state: State, action: Action): State => {
     case "ADD_TOAST":
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+        toasts: [{ ...action.toast, createdAt: Date.now() }, ...state.toasts].slice(0, TOAST_LIMIT),
+        history: [{ ...action.toast, timestamp: Date.now() }, ...state.history].slice(0, 50),
+        unreadCount: state.unreadCount + 1,
       }
 
     case "UPDATE_TOAST":
@@ -126,12 +131,24 @@ export const reducer = (state: State, action: Action): State => {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       }
+    case "CLEAR_HISTORY":
+      return {
+        ...state,
+        history: [],
+        unreadCount: 0,
+      }
+
+    case "CLEAR_UNREAD":
+      return {
+        ...state,
+        unreadCount: 0,
+      }
   }
 }
 
 const listeners: Array<(state: State) => void> = []
 
-let memoryState: State = { toasts: [] }
+let memoryState: State = { toasts: [], history: [], unreadCount: 0 }
 
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action)
@@ -188,6 +205,8 @@ function useToast() {
     ...state,
     toast,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    clearHistory: () => dispatch({ type: "CLEAR_HISTORY" }),
+    clearUnread: () => dispatch({ type: "CLEAR_UNREAD" }),
   }
 }
 

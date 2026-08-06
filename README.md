@@ -9,7 +9,7 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss)
 ![License](https://img.shields.io/badge/License-AGPLv3-blue)
 
-[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Keyboard](#keyboard-shortcuts) • [Export](#export) • [Browser Support](#browser-support) • [FAQ](#faq)
+[Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Docs](/docs) • [Blog](/blog) • [FAQ](#faq)
 
 ---
 
@@ -31,8 +31,8 @@ If you've used a file tree in VS Code or `tree` in the terminal, you know the fi
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open `http://localhost:3000`, click **Load sample project**, and explore the graph:
@@ -48,26 +48,16 @@ Use arrow keys to navigate the tree. Right-click any node for actions. Press **C
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
-```
-
-### Prerequisites
-
-- Node.js 18+ (or Bun)
-- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
-
-### Alternative installs
-
-<details>
-<summary><b>Bun</b></summary>
-
-```bash
 bun install
 bun run dev
 ```
 
-</details>
+### Prerequisites
+
+- Bun 1.3+ (or Node.js 18+)
+- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
+
+### Alternative installs
 
 <details>
 <summary><b>Docker</b></summary>
@@ -93,14 +83,14 @@ docker run -p 3000:3000 fewer
 
 ### Import a real directory
 
-1. Click **Import from disk** (or **Ctrl+O**)
+1. Click **Import from disk** (or **Alt+I**)
 2. Select a folder — configurable depth, hidden files, extension filters
-3. The graph builds instantly with Dagre auto-layout
+3. The graph builds instantly with auto-layout
 
 ### Edit the graph
 
 - **Rename** a node — **F2** or right-click
-- **Add** a node — **Ctrl+N**
+- **Add** a node — **Alt+N**
 - **Delete** — **Delete** key (cascading children)
 - **Copy/Paste** — **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo** — **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
@@ -117,7 +107,7 @@ docker run -p 3000:3000 fewer
 - **File cards** (purple) — filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
-- **Dagre auto-layout** with type-aware dimensions
+- **Custom Reingold-Tilford layout** with type-aware dimensions
 - **Breadcrumb bar** — selected node's full path
 
 </details>
@@ -128,7 +118,7 @@ docker run -p 3000:3000 fewer
 | Key                       | Action                                 |
 | ------------------------- | -------------------------------------- |
 | **↑↓←→**                  | Tree navigation (parent/child/sibling) |
-| **Ctrl+N**                | New node                               |
+| **Alt+N**                 | New node                               |
 | **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
 | **Ctrl+E**                | Export panel                           |
 | **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
@@ -136,7 +126,7 @@ docker run -p 3000:3000 fewer
 | **Ctrl+L**                | Cycle layout direction                 |
 | **Ctrl+I**                | Shortcuts reference                    |
 | **F2**                    | Rename                                 |
-| **Delete**                | Remove (cascading)                     |
+| **Delete/Backspace**      | Remove (cascading)                     |
 | **Space**                 | Fit view                               |
 | **+ / - / 0**             | Zoom in/out/reset                      |
 
@@ -187,7 +177,6 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>File System Integration</b></summary>
 
-- **File System Access API** — read/write real directories
 - **File operations** — copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
 - **Import settings** — depth limit, hidden files, vendored dirs, extension filter, file/folder toggles
@@ -222,6 +211,11 @@ docker run -p 3000:3000 fewer
 Toggle **Export Selected** to export only the selected subtree.
 
 ---
+
+## Docs & Blog
+
+- [Docs](/docs) — feature guides, tutorials, and technical references
+- [Blog](/blog) — release notes, feature deep-dives, and behind-the-scenes stories
 
 ## How It Works
 
@@ -262,7 +256,7 @@ src/
 │   └── KeyboardShortcuts.tsx # Global hotkey handler
 ├── lib/fewer/
 │   ├── types.ts              # TypeScript types + theme metadata
-│   ├── layout.ts             # Dagre layout with type-aware dimensions
+│   ├── layout.ts             # Custom tree layout with type-aware dimensions
 │   ├── treeToGraph.ts        # Tree → flat nodes/edges
 │   ├── fileSystem.ts         # File System Access API
 │   ├── fileOps.ts            # Copy/move/delete/create/open on disk
@@ -294,7 +288,7 @@ src/
 | --------- | ---------------------------------------------- |
 | Framework | Next.js 16 (App Router, Turbopack)             |
 | UI        | React 19, Tailwind CSS 4, shadcn/ui (New York) |
-| Graph     | React Flow v12 (@xyflow/react), Dagre          |
+| Graph     | React Flow v12 (@xyflow/react)                 |
 | State     | Zustand                                        |
 | Language  | TypeScript 5 (strict)                          |
 | Database  | Prisma ORM + SQLite                            |
@@ -323,7 +317,7 @@ src/
 A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
-A: Yes — the standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `npm install && npm run dev`.
+A: Yes — the standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `bun install && bun run dev`.
 
 **Q: Why does directory import not work in Firefox/Safari?**
 A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback — works for import, but can't write back to disk.
@@ -350,8 +344,10 @@ AGPLv3 — see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - [React Flow](https://reactflow.dev/) — graph visualization library
-- [Dagre](https://github.com/dagrejs/dagre) — directed graph layout algorithms
+- [Reingold-Tilford](https://en.wikipedia.org/wiki/Tree_traversal) — tree layout algorithm
 - [shadcn/ui](https://ui.shadcn.com/) — accessible component library
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first CSS framework
 - [Lucide](https://lucide.dev/) — icon set
 - [Directory icons by Freepik - Flaticon](https://www.flaticon.com/free-icons/directory)
+
+**This project stands with Palestine 🇵🇸**

@@ -1,49 +1,91 @@
 "use client";
 
+import { useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
-import { THEME_COLOR_META, type CustomTheme } from "@/lib/fewer/types";
+import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta } from "@/lib/fewer/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Palette } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { RotateCcw, Palette, Download, Upload } from "lucide-react";
+import { toCssColor } from "@/lib/fewer/themeColors";
+import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 
 interface ColorPickerProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
+  meta: ThemeColorMeta;
+  value: CustomThemeColor;
+  onChange: (value: CustomThemeColor) => void;
 }
 
-function ColorPicker({ label, value, onChange }: ColorPickerProps) {
+function ColorPicker({ meta, value, onChange }: ColorPickerProps) {
+  const preview = toCssColor(value.color, value.opacity);
   return (
-    <div className="flex items-center justify-between gap-2">
-      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </Label>
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-24 rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px]"
-        />
-        <input
-          type="color"
-          value={value.startsWith("#") ? value : "#000000"}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-7 cursor-pointer rounded-md border border-border bg-transparent p-0.5 min-hit"
-        />
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-background/40 px-2 py-1.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="h-5 w-5 shrink-0 rounded-md border border-border cursor-pointer transition-transform hover:scale-110"
+              style={{ background: preview }}
+              title={`${meta.label} — ${meta.description}`}
+            />
+          </PopoverTrigger>
+          <PopoverContent className="w-[240px] p-3 space-y-3" align="start" sideOffset={4}>
+            <div className="rounded-lg overflow-hidden">
+              <HexAlphaColorPicker
+                color={value.color}
+                onChange={(c) => {
+                  const hex = c.startsWith("#") ? c : `#${c}`;
+                  if (hex.length === 9) {
+                    const a = parseInt(hex.slice(7, 9), 16) / 255;
+                    onChange({ color: hex.slice(0, 7), opacity: Math.round(a * 100) / 100 });
+                  } else {
+                    onChange({ color: hex.slice(0, 7), opacity: value.opacity });
+                  }
+                }}
+                style={{ width: "100%", height: 160 }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <HexColorInput
+                  color={value.color}
+                  onChange={(c) => onChange({ color: c, opacity: value.opacity })}
+                  prefixed
+                  className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
+                />
+                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">#</span>
+              </div>
+              <span className="shrink-0 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs tabular-nums text-foreground/70">
+                {Math.round(value.opacity * 100)}%
+              </span>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Label
+          className="truncate text-[10px] font-medium uppercase tracking-wider text-foreground/80"
+          title={`${meta.label} — ${meta.description}`}
+        >
+          {meta.label}
+        </Label>
       </div>
     </div>
   );
 }
 
+const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
+  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge"].includes(m.key)) },
+  { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },
+  { title: "Files", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("file")) },
+];
+
 export function CustomThemeEditor() {
   const customTheme = useGraphStore((s) => s.customTheme);
   const setCustomTheme = useGraphStore((s) => s.setCustomTheme);
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (key: keyof CustomTheme, value: string) => {
-    setCustomTheme({ [key]: value });
+  const handleChange = (key: keyof CustomTheme, value: CustomThemeColor) => {
+    setCustomTheme({ [key]: value } as Partial<CustomTheme>);
   };
 
   return (
@@ -53,24 +95,80 @@ export function CustomThemeEditor() {
           <Palette className="h-3 w-3" />
           Custom Theme
         </Label>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 gap-1 px-2 text-[10px]"
-          onClick={resetCustomTheme}
-        >
-          <RotateCcw className="h-3 w-3" />
-          Reset
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-2">
-        {THEME_COLOR_META.map((meta) => (
-          <ColorPicker
-            key={meta.key}
-            label={meta.label}
-            value={customTheme[meta.key]}
-            onChange={(v) => handleChange(meta.key, v)}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[10px]"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(customTheme, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "fewer-theme.json";
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            <Download className="h-3 w-3" />
+            Export
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[10px]"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-3 w-3" />
+            Import
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                try {
+                  const imported = JSON.parse(ev.target?.result as string) as Partial<CustomTheme>;
+                  setCustomTheme(imported);
+                } catch { /* invalid JSON */ }
+              };
+              reader.readAsText(file);
+              e.target.value = "";
+            }}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 gap-1 px-2 text-[10px]"
+            onClick={resetCustomTheme}
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {SECTIONS.map((section) => (
+          <div key={section.title} className="space-y-1.5">
+            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              {section.title}
+            </Label>
+            <div className="space-y-2">
+              {section.keys.map((meta) => (
+                <ColorPicker
+                  key={meta.key}
+                  meta={meta}
+                  value={customTheme[meta.key]}
+                  onChange={(v) => handleChange(meta.key, v)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>

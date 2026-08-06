@@ -1,137 +1,284 @@
-import dagre from "@dagrejs/dagre";
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
 
-/**
- * Default dimensions per node type.
- * Folder cards are taller because they contain a child list + header + footer.
- * File cards are single-row.
- */
 const DEFAULT_FOLDER_WIDTH = 240;
 const DEFAULT_FOLDER_HEIGHT = 200;
 const DEFAULT_FILE_WIDTH = 220;
 const DEFAULT_FILE_HEIGHT = 58;
 
-/**
- * Layout spacing — generous so nodes don't feel cramped.
- * These are the gaps BETWEEN nodes, not the node sizes themselves.
- */
-const NODE_SEP = 60;   // horizontal gap between nodes in the same rank
-const RANK_SEP_TB = 120; // vertical gap between ranks (parent → child) for TB/BT
-const RANK_SEP_LR = 160; // horizontal gap between ranks for LR/RL
-
-/**
- * Get the best available dimensions for a node, in priority order:
- * 1. Node's style.width/height (set by setNodeDimensions or NodeResizer)
- * 2. React Flow's measured dimensions (after render)
- * 3. Type-based defaults (folder vs file)
- */
 function getNodeDimensions(node: FewerNode): { w: number; h: number } {
-  // Check style.width/height first — these are explicitly set by the user
-  // via the sidebar sliders or NodeResizer, so they take priority.
   const styleW = node.style?.width as number | undefined;
   const styleH = node.style?.height as number | undefined;
-
-  // React Flow stores measured dimensions in node.measured after render
   const measuredW = node.measured?.width;
   const measuredH = node.measured?.height;
-
-  // Also check node.width/height (set by React Flow or resizer)
   const nodeW = node.width;
   const nodeH = node.height;
-
-  // Type-based defaults
   const isFolder = node.data.type === "folder" || node.type === "folder";
   const defaultW = isFolder ? DEFAULT_FOLDER_WIDTH : DEFAULT_FILE_WIDTH;
   const defaultH = isFolder ? DEFAULT_FOLDER_HEIGHT : DEFAULT_FILE_HEIGHT;
-
-  // For folder nodes: use style.height if set (from setNodeDimensions), otherwise measured/default
-  // For file nodes: NEVER use style.height/minHeight — files always render at
-  // their natural height (~58px) regardless of the node height slider.
   const w = styleW || measuredW || nodeW || defaultW;
   const h = isFolder
     ? (styleH || measuredH || nodeH || defaultH)
     : (measuredH || nodeH || defaultH);
-
   return { w, h };
 }
 
-/**
- * Run a dagre layout pass over the supplied nodes/edges.
- * Supports four layout directions and returns NEW node objects with
- * updated positions and a stashed layout direction for handle placement.
- *
- * Uses each node's style or measured dimensions (from React Flow) when
- * available, falling back to type-based defaults. This ensures dagre
- * positions nodes with correct spacing for their actual rendered size.
- */
 export interface LayoutOptions {
-  /** Set of node IDs to exclude from layout (will stay at x=0, y=0 or existing position) */
   excludeFromLayout?: Set<string>;
 }
 
-export function layoutGraph(
+interface TreeContour {
+  left: number[];  // min relative position for each depth level below this node
+  right: number[]; // max relative position for each depth level below this node
+}
+
+/**
+ * Strict Reingold-Tilford Tree Layout with Contour Matching.
+ * Guarantees parents stay centered over children while preventing cross-level collisions.
+ */
+export function layoutGraphContour(
   nodes: FewerNode[],
   edges: FewerEdge[],
   direction: LayoutDirection = "TB",
   options?: LayoutOptions
 ): FewerNode[] {
-  const isHorizontal = direction === "LR" || direction === "RL";
-
-  const g = new dagre.graphlib.Graph({ multigraph: false, compound: false });
-  g.setGraph({
-    rankdir: direction,
-    // Generous spacing so nodes aren't cramped
-    nodesep: NODE_SEP,
-    ranksep: isHorizontal ? RANK_SEP_LR : RANK_SEP_TB,
-    marginx: 40,
-    marginy: 40,
-    ranker: "tight-tree",
-  });
-  g.setDefaultEdgeLabel(() => ({}));
-
-  // Track dimensions per node so we can center positions correctly
-  const dims = new Map<string, { w: number; h: number }>();
   const excludeSet = options?.excludeFromLayout ?? new Set();
+  const isHorizontal = direction === "LR" || direction === "RL";
+  const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
+  const layerGap = 70; // Spacing between tree depths
 
-  for (const node of nodes) {
-    // Skip excluded nodes - they keep their current position
-    if (excludeSet.has(node.id)) {
-      dims.set(node.id, { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT });
-      continue;
-    }
-    const { w, h } = getNodeDimensions(node);
-    g.setNode(node.id, { width: w, height: h });
-    dims.set(node.id, { w, h });
-  }
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+
   for (const edge of edges) {
-    // Skip edges where BOTH ends are excluded
-    if (excludeSet.has(edge.source) && excludeSet.has(edge.target)) continue;
-    if (g.hasNode(edge.source) && g.hasNode(edge.target)) {
-      g.setEdge(edge.source, edge.target);
+    if (excludeSet.has(edge.source) || excludeSet.has(edge.target)) continue;
+    if (!childrenMap.has(edge.source)) childrenMap.set(edge.source, []);
+    childrenMap.get(edge.source)!.push(edge.target);
+    parentMap.set(edge.target, edge.source);
+  }
+
+  const roots = nodes.filter(
+    (n) => !excludeSet.has(n.id) && !parentMap.has(n.id)
+  );
+
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  for (const childIds of childrenMap.values()) {
+    childIds.sort((a, b) => {
+      const labelA = nodeMap.get(a)?.data?.label || a;
+      const labelB = nodeMap.get(b)?.data?.label || b;
+      return labelA.localeCompare(labelB);
+    });
+  }
+
+  // 1. Calculate depth level for every node
+  const nodeDepths = new Map<string, number>();
+  function calculateDepths(nodeId: string, currentDepth: number) {
+    nodeDepths.set(nodeId, currentDepth);
+    const children = childrenMap.get(nodeId) ?? [];
+    for (const childId of children) {
+      calculateDepths(childId, currentDepth + 1);
+    }
+  }
+  for (const root of roots) {
+    calculateDepths(root.id, 0);
+  }
+
+  // 2. Compute dynamic depth layer positions (Y in TB/BT, X in LR/RL)
+  const depthMaxBreadth: number[] = [];
+  nodeDepths.forEach((depth, nodeId) => {
+    const node = nodeMap.get(nodeId);
+    if (!node) return;
+    const { w, h } = getNodeDimensions(node);
+    const b = isHorizontal ? w : h;
+    depthMaxBreadth[depth] = Math.max(depthMaxBreadth[depth] ?? 0, b);
+  });
+
+  const effectiveLayerGap = isHorizontal ? layerGap + 60 : layerGap + 30; // Extra clearance between layers for folders
+
+  const depthPositions: number[] = [0];
+  for (let d = 0; d < depthMaxBreadth.length; d++) {
+    depthPositions[d + 1] = depthPositions[d] + depthMaxBreadth[d] + effectiveLayerGap;
+  }
+
+  // Store relative offsets from parent center
+  const relativeXMap = new Map<string, number>();
+
+  // 3. Bottom-up subtree layout with exact contour matching
+  function layoutSubtree(nodeId: string): TreeContour {
+    const node = nodeMap.get(nodeId)!;
+    const { w, h } = getNodeDimensions(node);
+    const nodeSize = isHorizontal ? h : w;
+    const children = childrenMap.get(nodeId) ?? [];
+
+    if (children.length === 0) {
+      relativeXMap.set(nodeId, 0);
+      return {
+        left: [-nodeSize / 2],
+        right: [nodeSize / 2],
+      };
+    }
+
+    const childContours: TreeContour[] = [];
+    const childOffsets: number[] = [];
+
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      const contour = layoutSubtree(childId);
+      childContours.push(contour);
+
+      if (i === 0) {
+        childOffsets.push(0);
+      } else {
+        let maxOverlapShift = 0;
+        const currentGap = isHorizontal ? 50 : nodeGap;
+
+        // Compare against ALL previously placed siblings to prevent cross-subtree overlap
+        for (let j = 0; j < i; j++) {
+          const prevContour = childContours[j];
+          const compareDepth = Math.min(prevContour.right.length, contour.left.length);
+
+          for (let d = 0; d < compareDepth; d++) {
+            const prevRight = childOffsets[j] + prevContour.right[d];
+            const currLeft = contour.left[d];
+            const requiredShift = prevRight - currLeft + currentGap;
+            if (requiredShift > maxOverlapShift) {
+              maxOverlapShift = requiredShift;
+            }
+          }
+        }
+        childOffsets.push(maxOverlapShift);
+      }
+    }
+
+    // Center parent over children group
+    const firstChildOffset = childOffsets[0];
+    const lastChildOffset = childOffsets[childOffsets.length - 1];
+    const childrenCenter = (firstChildOffset + lastChildOffset) / 2;
+
+    const mergedLeft: number[] = [-nodeSize / 2];
+    const mergedRight: number[] = [nodeSize / 2];
+
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i];
+      // Final relative position from parent
+      const relX = childOffsets[i] - childrenCenter;
+      relativeXMap.set(childId, relX);
+
+      const c = childContours[i];
+      for (let d = 0; d < c.left.length; d++) {
+        const targetDepth = d + 1;
+        const cLeft = c.left[d] + relX;
+        const cRight = c.right[d] + relX;
+
+        if (mergedLeft[targetDepth] === undefined) {
+          mergedLeft[targetDepth] = cLeft;
+          mergedRight[targetDepth] = cRight;
+        } else {
+          mergedLeft[targetDepth] = Math.min(mergedLeft[targetDepth], cLeft);
+          mergedRight[targetDepth] = Math.max(mergedRight[targetDepth], cRight);
+        }
+      }
+    }
+
+    relativeXMap.set(nodeId, 0);
+    return { left: mergedLeft, right: mergedRight };
+  }
+
+  // 4. Top-down position assignment
+  const finalXMap = new Map<string, number>();
+
+  function assignPositions(nodeId: string, currentAbsoluteX: number) {
+    finalXMap.set(nodeId, currentAbsoluteX);
+
+    const children = childrenMap.get(nodeId) ?? [];
+    for (const childId of children) {
+      const relX = relativeXMap.get(childId) ?? 0;
+      assignPositions(childId, currentAbsoluteX + relX);
     }
   }
 
-  dagre.layout(g);
+  let rootXOffset = 0;
+  for (const root of roots) {
+    const contour = layoutSubtree(root.id);
+    const minL = Math.min(...contour.left);
+    const maxR = Math.max(...contour.right);
 
-  const positioned = nodes.map((node) => {
-    // Excluded nodes keep existing position (or origin)
+    assignPositions(root.id, rootXOffset - minL);
+    rootXOffset += (maxR - minL) + 120;
+  }
+
+  // 5. Build output node positions with direction inversions (TB, LR, BT, RL)
+  const maxDepthPos = depthPositions[depthPositions.length - 1] ?? 0;
+
+  return nodes.map((node) => {
     if (excludeSet.has(node.id)) {
       return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
     }
-    const pos = g.node(node.id);
-    if (!pos) return node;
-    const d = dims.get(node.id) ?? { w: DEFAULT_FILE_WIDTH, h: DEFAULT_FILE_HEIGHT };
+
+    const { w, h } = getNodeDimensions(node);
+    const depth = nodeDepths.get(node.id) ?? 0;
+    const depthPos = depthPositions[depth];
+    const xPos = finalXMap.get(node.id) ?? 0;
+
+    let finalX = 0;
+    let finalY = 0;
+
+    switch (direction) {
+      case "LR":
+        finalX = depthPos;
+        finalY = xPos - h / 2;
+        break;
+      case "RL":
+        finalX = maxDepthPos - depthPos - w;
+        finalY = xPos - h / 2;
+        break;
+      case "BT":
+        finalX = xPos - w / 2;
+        finalY = maxDepthPos - depthPos - h;
+        break;
+      case "TB":
+      default:
+        finalX = xPos - w / 2;
+        finalY = depthPos;
+        break;
+    }
+
     return {
       ...node,
-      position: {
-        x: pos.x - d.w / 2,
-        y: pos.y - d.h / 2,
-      },
+      position: { x: finalX, y: finalY },
       data: { ...node.data, layoutDirection: direction, isHorizontal },
     } as FewerNode;
   });
+}
 
-  return positioned;
+/**
+ * Main Layout Entrypoints
+ */
+export async function layoutGraph(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): Promise<FewerNode[]> {
+  return layoutGraphContour(nodes, edges, direction, options);
+}
+
+export function layoutGraphSync(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): FewerNode[] {
+  return layoutGraphContour(nodes, edges, direction, options);
+}
+
+export function runLayoutAsync(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  direction: LayoutDirection = "TB",
+  options?: LayoutOptions
+): Promise<FewerNode[]> {
+  return layoutGraph(nodes, edges, direction, options);
 }
 
 export const LAYOUT_DIMENSIONS = {

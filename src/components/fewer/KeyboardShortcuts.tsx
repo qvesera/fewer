@@ -248,7 +248,7 @@ export function KeyboardShortcuts() {
       }
 
       // Ctrl+A
-      if (mod && e.key.toLowerCase() === "a") {
+      if (mod && e.key.toLowerCase() === "a" && !inEditable) {
         e.preventDefault();
         setSelectedNodeIds(nodes.map((n) => n.id));
         useGraphStore.setState((s) => ({
@@ -385,12 +385,16 @@ export function KeyboardShortcuts() {
           e.preventDefault();
           const node = nodes.find((n) => n.id === selectedNodeIds[0]);
           if (node && node.data.type === "file" && node.data.fsHandle) {
-            openFile(node.data.fsHandle as FileSystemFileHandle).catch(() => {
-              toast({
-                title: "Cannot open file",
-                variant: "destructive",
+            openFile(node.data.fsHandle as FileSystemFileHandle)
+              .then(() => {
+                toast({ title: "Opening file", description: node.data.label });
+              })
+              .catch(() => {
+                toast({
+                  title: "Cannot open file",
+                  variant: "destructive",
+                });
               });
-            });
           }
         }
         return;
@@ -416,7 +420,7 @@ export function KeyboardShortcuts() {
               : e.key === "ArrowLeft"
                 ? "left"
                 : "right";
-        const hiddenIdsSet = new Set(useGraphStore.getState().hiddenIds);
+        const hiddenIdsSet = new Set<string>(useGraphStore.getState().hiddenIds);
         const nextId = navigate(currentId, dir, nodes, edges, hiddenIdsSet);
         if (nextId) {
           setFocusedNodeId(nextId);
@@ -463,6 +467,10 @@ export function KeyboardShortcuts() {
           e.preventDefault();
           if (selectedEdgeIds.length > 0) deleteEdges(selectedEdgeIds);
           if (selectedNodeIds.length > 0) deleteNodes(selectedNodeIds);
+          const parts: string[] = [];
+          if (selectedNodeIds.length > 0) parts.push(`${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"}`);
+          if (selectedEdgeIds.length > 0) parts.push(`${selectedEdgeIds.length} edge${selectedEdgeIds.length === 1 ? "" : "s"}`);
+          toast({ title: "Deleted", description: `${parts.join(" and ")} removed` });
         }
         return;
       }

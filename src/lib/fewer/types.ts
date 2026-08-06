@@ -41,8 +41,11 @@ export interface FewerNodeData {
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
-  /** File System Access API handle for this node (if loaded from disk) */
-  fsHandle?: FileSystemHandle | null;
+  /** Whether folder is collapsed */
+  collapsed?: boolean;
+  /** Parent node id (for tree navigation) */
+  parentId?: string | null;
+  /** Allow arbitrary extra fields (required by React Flow Node type) */
   [key: string]: unknown;
 }
 
@@ -91,99 +94,138 @@ export interface FSHandle {
   relativePath?: string;
 }
 
+/** A single theme color: hex value + independent opacity (0..1). */
+export interface CustomThemeColor {
+  /** Hex color, e.g. "#fd7e14". */
+  color: string;
+  /** Opacity 0..1 applied to the color. */
+  opacity: number;
+}
+
 /**
- * Custom theme — CSS variable color overrides.
+ * Custom theme — structured color overrides with per-color opacity.
  * When themeMode === "custom", these values are injected as inline CSS variables
  * on document.documentElement.
  */
 export interface CustomTheme {
-  background: string;
-  nodeBg: string;
-  nodeBorder: string;
-  headerBg: string;
-  headerText: string;
-  defaultText: string;
-  subtleText: string;
-  itemHover: string;
-  handle: string;
-  edge: string;
-  icon: string;
-  accent: string;
+  background: CustomThemeColor;
+  defaultText: CustomThemeColor;
+  subtleText: CustomThemeColor;
+  itemHover: CustomThemeColor;
+  handle: CustomThemeColor;
+  edge: CustomThemeColor;
   // Folder-specific colors
-  folderBg: string;
-  folderBorder: string;
-  folderHeaderBg: string;
-  folderHeaderText: string;
-  folderIcon: string;
+  folderBg: CustomThemeColor;
+  folderBorder: CustomThemeColor;
+  folderText: CustomThemeColor;
+  folderSubtleText: CustomThemeColor;
+  folderIcon: CustomThemeColor;
   // File-specific colors
-  fileBg: string;
-  fileBorder: string;
-  fileIcon: string;
+  fileBg: CustomThemeColor;
+  fileBorder: CustomThemeColor;
+  fileText: CustomThemeColor;
+  fileSubtleText: CustomThemeColor;
+  fileIcon: CustomThemeColor;
+  // Legacy fields retained for runtime migration from old plain-string schema
+  nodeBg?: string;
+  nodeBorder?: string;
+  headerBg?: string;
+  headerText?: string;
+  icon?: string;
+  accent?: string;
 }
 
 export type ThemeMode = "light" | "dark" | "custom";
 
-/** Default custom theme (warm orange + purple palette) */
-export const DEFAULT_CUSTOM_THEME: CustomTheme = {
-  background: "#0b0b13",
-  nodeBg: "rgba(249, 115, 22, 0.12)",
-  nodeBorder: "rgba(249, 115, 22, 0.4)",
-  headerBg: "rgba(249, 115, 22, 0.2)",
-  headerText: "#f8fafc",
-  defaultText: "#e2e8f0",
-  subtleText: "#94a3b8",
-  itemHover: "rgba(148, 163, 184, 0.12)",
-  handle: "#475569",
-  edge: "rgba(148, 163, 184, 0.55)",
-  icon: "#a855f7",
-  accent: "#a855f7",
-  // Folder colors (orange by default)
-  folderBg: "rgba(249, 115, 22, 0.1)",
-  folderBorder: "rgba(249, 115, 22, 0.4)",
-  folderHeaderBg: "rgba(249, 115, 22, 0.2)",
-  folderHeaderText: "#fdba74",
-  folderIcon: "#fb923c",
-  // File colors (purple by default)
-  fileBg: "rgba(168, 85, 247, 0.15)",
-  fileBorder: "rgba(168, 85, 247, 0.4)",
-  fileIcon: "#c084fc",
-};
-
-/**
- * Metadata for each color in the custom theme editor.
- * Maps theme keys to labels and CSS variable names.
- */
-export const THEME_COLOR_META: {
-  key: keyof CustomTheme;
+/** Metadata for each editable color slot. */
+export interface ThemeColorMeta {
+  key: keyof Omit<CustomTheme, "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent">;
   label: string;
   cssVar: string;
-}[] = [
-  { key: "background", label: "Background", cssVar: "--fewer-background" },
-  { key: "defaultText", label: "Default Text", cssVar: "--fewer-text" },
-  { key: "subtleText", label: "Subtle Text", cssVar: "--fewer-text-subtle" },
-  { key: "itemHover", label: "Item Hover", cssVar: "--fewer-item-hover" },
-  { key: "handle", label: "Handle", cssVar: "--fewer-handle" },
-  { key: "edge", label: "Edge", cssVar: "--fewer-edge" },
-  // Folder colors
-  { key: "folderBg", label: "Folder BG", cssVar: "--fewer-folder-bg" },
-  {
-    key: "folderBorder",
-    label: "Folder Border",
-    cssVar: "--fewer-folder-border",
-  },
-  {
-    key: "folderHeaderBg",
-    label: "Folder Header BG",
-    cssVar: "--fewer-folder-header-bg",
-  },
-  {
-    key: "folderHeaderText",
-    label: "Folder Header Text",
-    cssVar: "--fewer-folder-header-text",
-  },
-  { key: "folderIcon", label: "Folder Icon", cssVar: "--fewer-folder-icon" },
-  // File colors
-  { key: "fileBg", label: "File BG", cssVar: "--fewer-file-bg" },
-  { key: "fileBorder", label: "File Border", cssVar: "--fewer-file-border" },
-  { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon" },
+  description: string;
+  defaultColor: string;
+  defaultOpacity: number;
+  /** Open Color palette used for this slot in the dark theme. */
+  openColor: { family: string; index: number };
+}
+
+export const THEME_COLOR_META: ThemeColorMeta[] = [
+  { key: "background", label: "Canvas Background", cssVar: "--fewer-background", description: "Graph canvas background", defaultColor: "#0b0b13", defaultOpacity: 1, openColor: { family: "black", index: 0 } },
+  { key: "defaultText", label: "Primary Text", cssVar: "--fewer-text", description: "Node titles and file names", defaultColor: "#f8f9fa", defaultOpacity: 1, openColor: { family: "gray", index: 0 } },
+  { key: "subtleText", label: "Secondary Text", cssVar: "--fewer-text-subtle", description: "Paths, sizes, and meta text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
+  { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
+  { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
+  { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
+  { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
+  { key: "folderText", label: "Folder Text", cssVar: "--fewer-folder-text", description: "Folder title text", defaultColor: "#1e293b", defaultOpacity: 1, openColor: { family: "gray", index: 8 } },
+  { key: "folderSubtleText", label: "Folder Secondary", cssVar: "--fewer-folder-subtle-text", description: "Folder path and footer text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
+  { key: "folderIcon", label: "Folder Icon", cssVar: "--fewer-folder-icon", description: "Folder/root icon color", defaultColor: "#ffa94d", defaultOpacity: 1, openColor: { family: "orange", index: 4 } },
+  { key: "fileBg", label: "File Body", cssVar: "--fewer-file-bg", description: "File card background", defaultColor: "#be4bdb", defaultOpacity: 0.18, openColor: { family: "grape", index: 6 } },
+  { key: "fileText", label: "File Text", cssVar: "--fewer-file-text", description: "File name text", defaultColor: "#f8f9fa", defaultOpacity: 1, openColor: { family: "gray", index: 0 } },
+  { key: "fileSubtleText", label: "File Secondary", cssVar: "--fewer-file-subtle-text", description: "File extension and size text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
+  { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon", description: "File type icon color", defaultColor: "#e599f7", defaultOpacity: 1, openColor: { family: "grape", index: 4 } },
 ];
+
+/** Default custom theme (Open Color gray + orange + grape palette) */
+export const DEFAULT_CUSTOM_THEME: CustomTheme = Object.fromEntries(
+  THEME_COLOR_META.map((m) => [m.key, { color: m.defaultColor, opacity: m.defaultOpacity }]),
+) as CustomTheme;
+
+/**
+ * Operation-based history: each undo/redo step stores a diff instead of
+ * cloning the full nodes/edges arrays. This is critical for 10K+ node graphs.
+ */
+export interface AddNodeOp {
+  type: "add-node";
+  node: FewerNode;
+  edge: FewerEdge | null;
+}
+
+export interface RemoveNodeOp {
+  type: "remove-node";
+  node: FewerNode;
+  edge: FewerEdge | null;
+  children: FewerNode[];
+  childEdges: FewerEdge[];
+}
+
+export interface MoveNodeOp {
+  type: "move-node";
+  nodeId: string;
+  from: { parentId: string | null; x: number; y: number };
+  to: { parentId: string | null; x: number; y: number };
+}
+
+export interface RenameOp {
+  type: "rename";
+  nodeId: string;
+  oldLabel: string;
+  newLabel: string;
+}
+
+export interface BulkImportOp {
+  type: "bulk-import";
+  nodes: FewerNode[];
+  edges: FewerEdge[];
+}
+
+export interface ToggleCollapseOp {
+  type: "toggle-collapse";
+  nodeId: string;
+  wasCollapsed: boolean;
+}
+
+export type HistoryOp =
+  | AddNodeOp
+  | RemoveNodeOp
+  | MoveNodeOp
+  | RenameOp
+  | BulkImportOp
+  | ToggleCollapseOp;
+
+/**
+ * Separate store for FileSystem handles — these are live browser API objects
+ * that are not serializable and bloat memory when stored on every node.
+ * Using a WeakMap-like Map keyed by nodeId keeps them out of the main store.
+ */
+export const fsHandleStore = new Map<string, FileSystemHandle | null>();

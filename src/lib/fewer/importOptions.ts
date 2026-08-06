@@ -17,6 +17,8 @@ export interface ImportOptions {
   extensions: string[];
   /** Whether file extensions should be case-sensitive. */
   caseSensitiveExtensions: boolean;
+  /** Display depth: hide nodes deeper than this on the canvas (0 = unlimited). */
+  displayMaxDepth: number;
 }
 
 export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
@@ -27,6 +29,7 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   includeFiles: true,
   extensions: [],
   caseSensitiveExtensions: false,
+  displayMaxDepth: 5,
 };
 
 /** Directories that are typically vendored/generated and skipped by default. */

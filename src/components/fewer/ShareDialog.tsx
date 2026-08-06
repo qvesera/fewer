@@ -27,6 +27,7 @@ export function ShareDialog() {
   const direction = useGraphStore((s) => s.direction);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const themeMode = useGraphStore((s) => s.themeMode);
+  const customTheme = useGraphStore((s) => s.customTheme);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -42,12 +43,13 @@ export function ShareDialog() {
       direction,
       edgeStyle,
       themeMode,
+      customTheme,
       cornerRadius,
       nodeWidth,
       nodeHeight,
     });
     return buildShareUrl(encoded);
-  }, [nodes, edges, direction, edgeStyle, themeMode, cornerRadius, nodeWidth, nodeHeight]);
+  }, [nodes, edges, direction, edgeStyle, themeMode, customTheme, cornerRadius, nodeWidth, nodeHeight]);
 
   const handleCopy = async () => {
     if (!shareUrl) return;

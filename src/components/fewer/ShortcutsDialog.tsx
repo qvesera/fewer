@@ -50,8 +50,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["⌘", "Ctrl", "C"], action: "Copy selected nodes" },
       { keys: ["⌘", "Ctrl", "X"], action: "Cut selected nodes" },
       { keys: ["⌘", "Ctrl", "V"], action: "Paste nodes" },
+      { keys: ["⌘", "Ctrl", "D"], action: "Duplicate selected nodes" },
       { keys: ["⌘", "Ctrl", "Z"], action: "Undo" },
       { keys: ["⌘", "Ctrl", "Shift", "Z"], action: "Redo" },
+      { keys: ["⌘", "Ctrl", "Y"], action: "Redo (alternate)" },
     ],
   },
   {
@@ -61,6 +63,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["↓"], action: "Navigate down / child" },
       { keys: ["←"], action: "Navigate left / sibling" },
       { keys: ["→"], action: "Navigate right / sibling" },
+      { keys: ["Shift", "↑↓←→"], action: "Add to selection" },
       { keys: ["Alt", "R"], action: "Re-layout graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
       { keys: ["Alt", "I"], action: "Import folder" },
