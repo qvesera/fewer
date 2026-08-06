@@ -1,27 +1,27 @@
 ---
 title: Custom Layout Algorithm: Built for Large Codebases
 date: 2026-08-03
-description: How we replaced Dagre with a custom layout algorithm to handle large graphs for tighter spacing, better hierarchy, async layout for smooth imports.
+description: How we replaced Dagre with a custom Reingold-Tilford tree layout to handle large graphs for tighter spacing, better hierarchy, async layout for smooth imports.
 author: Yash Srivastava
 tags: performance, layout, release, architecture
 ---
 
-Version 0.2.3 ships a new layout engine: a **custom directed graph layout algorithm** designed specifically for directory trees. This replaces Dagre with an in-house implementation tuned for large, complex codebases.
+Version 0.2.3 ships a new layout engine: a **custom Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. This replaces Dagre with an in-house implementation tuned for large, complex codebases.
 
 ## Why Move Away from Dagre?
 
 Dagre works well for small-to-medium trees. But as graphs grow past 1,000 nodes, two problems emerge:
 
-1. **Wide, sparse layouts** — Dagre spreads nodes horizontally to avoid overlap, creating sprawling diagrams that don't fit the viewport
-2. **Sync blocking** — Layout computation happens on the main thread, freezing UI during import
+1. **Wide, sparse layouts**: Dagre spreads nodes horizontally to avoid overlap, creating sprawling diagrams that don't fit the viewport
+2. **Sync blocking**: Layout computation happens on the main thread, freezing UI during import
 
 Our custom algorithm addresses both with a layered approach that packs nodes tighter and supports async computation.
 
 ## What Changed
 
-### Custom Layered Algorithm
+### Custom Reingold-Tilford Algorithm
 
-The new algorithm arranges nodes in horizontal layers using a proprietary crossing reduction and node positioning strategy. Result: graphs that are 30-40% more compact vertically and horizontally.
+The new algorithm arranges nodes using the classic Reingold-Tilford tree layout with contour matching: parents centered over their children, with contour-based collision prevention. Result: graphs that are 30-40% more compact vertically and horizontally.
 
 ### Async Layout
 

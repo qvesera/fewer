@@ -48,12 +48,12 @@ src/
 
 fewer uses a **Zustand store** (`src/store/graphStore.ts`) as the single source of truth for graph state. React Flow renders nodes/edges from this store. The store also manages undo/redo history (50 steps), theme state, clipboard, and UI flags.
 
-All graph logic is in `src/lib/fewer/` — custom tree layout, export/import parsers, file system operations, validation, navigation.
+All graph logic is in `src/lib/fewer/`: custom tree layout, export/import parsers, file system operations, validation, navigation.
 
 ### Coding Standards
 
-- **TypeScript strict mode** — no `any`, no implicit `undefined`
-- **ESLint** — run `bun run lint` before committing
+- **TypeScript strict mode**: no `any`, no implicit `undefined`
+- **ESLint**: run `bun run lint` before committing
 - **Functional components** with hooks, no class components
 - **Zustand** for global state, React state for local UI
 - **CSS**: Tailwind CSS 4 utility classes + shadcn/ui component patterns
@@ -72,7 +72,6 @@ refactor: extract layout logic from GraphCanvas
 ### Testing
 
 ```bash
-# Run tests (when available)
 bun test
 ```
 
@@ -89,7 +88,7 @@ Manual testing checklist:
 1. **Fork** the repository and create a feature branch from `main`
 2. **Write clear commit messages** following conventional commits
 3. **Update documentation** if adding or changing features
-4. **Ensure lint passes** — `bun run lint`
+4. **Ensure lint passes**: `bun run lint`
 5. **Open a pull request** with a clear title and description
 
 ### PR Title Format

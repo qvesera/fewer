@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 
 export const metadata = {
-  title: "Blog — Fewer",
+  title: "Blog | Fewer",
   description: "Release notes, feature deep-dives, and behind-the-scenes stories from the Fewer project.",
 };
 

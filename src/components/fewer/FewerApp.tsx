@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
-// Dialogs lazy-loaded — only fetched when opened. Keeps react-colorful,
+// Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
 const ExportPanel = dynamic(() => import("./ExportPanel").then((m) => m.ExportPanel), { ssr: false });
 const ImportDialog = dynamic(() => import("./ImportDialog").then((m) => m.ImportDialog), { ssr: false });
@@ -179,7 +179,7 @@ export function FewerApp() {
         setImportDialogOpen(false);
         toast({
           title: "Directory loaded",
-          description: `${tree.name} — ${nodes.length} entries`,
+          description: `${tree.name}: ${nodes.length} entries`,
         });
         await new Promise((r) => setTimeout(r, 20));
         const autoHidden = useGraphStore.getState().autoHideCount;
@@ -225,7 +225,7 @@ export function FewerApp() {
       setGraph(nodes, edges, false);
       toast({
         title: "Graph built from file",
-        description: `${tree.name} — ${nodes.length} entries`,
+        description: `${tree.name}: ${nodes.length} entries`,
       });
     },
     [setGraph, toast],

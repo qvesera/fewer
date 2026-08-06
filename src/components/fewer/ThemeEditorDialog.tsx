@@ -401,11 +401,11 @@ export function ThemeEditorDialog() {
                       <div
                         className="h-5 w-5 shrink-0 rounded-md border border-border"
                         style={{ background: toCssColor(customTheme[meta.key].color, customTheme[meta.key].opacity) }}
-                        title={`${meta.label} — ${meta.description}`}
+                        title={`${meta.label}: ${meta.description}`}
                       />
                       <Label
                         className="truncate text-[10px] font-medium uppercase tracking-wider text-foreground/80"
-                        title={`${meta.label} — ${meta.description}`}
+                        title={`${meta.label}: ${meta.description}`}
                       >
                         {meta.label}
                       </Label>

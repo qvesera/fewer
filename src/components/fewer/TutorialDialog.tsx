@@ -122,7 +122,7 @@ function ChecklistItem({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Portal wrapper — renders children to document.body                        */
+/*  Portal wrapper: renders children to document.body                        */
 /* -------------------------------------------------------------------------- */
 
 function Portal({ children }: { children: React.ReactNode }) {

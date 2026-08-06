@@ -1,6 +1,6 @@
 ---
 title: Deployment & Self-Hosting
-description: Deploy Fewer to production — Docker, Netlify, Caddy reverse proxy, and the standalone build.
+description: Deploy Fewer to production: Docker, Netlify, Caddy reverse proxy, and the standalone build.
 ---
 
 Fewer is a Next.js 16 app that can be deployed anywhere Node.js runs. This guide covers the supported deployment paths.
@@ -77,9 +77,9 @@ It also supports a `?XTransformPort=` query parameter for port forwarding during
 
 The `public/` directory ships:
 
-- `manifest.json` — PWA manifest with 192x192 and 512x512 icons
-- `robots.txt` — search engine rules
-- `logo*.png/svg` — brand assets
+- `manifest.json`: PWA manifest with 192x192 and 512x512 icons
+- `robots.txt`: search engine rules
+- `logo*.png/svg`: brand assets
 
 The standalone build copies `public/` automatically. If you self-host with a custom server, make sure `public/` is served so the manifest resolves correctly.
 
@@ -94,5 +94,5 @@ The standalone build copies `public/` automatically. If you self-host with a cus
 
 ## Next Steps
 
-- [PWA Install](/docs/pwa-install) — install the deployed app to your device
-- [Getting Started](/docs/getting-started) — run locally for development
+- [PWA Install](/docs/pwa-install): install the deployed app to your device
+- [Getting Started](/docs/getting-started): run locally for development

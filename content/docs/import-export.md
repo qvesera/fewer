@@ -21,8 +21,8 @@ The graph builds instantly with auto-layout. Large imports show a progress indic
 
 ### Browser Support
 
-- **Chrome/Edge:** Full File System Access API — can read and write back to disk
-- **Firefox/Safari:** `webkitdirectory` fallback — read-only import
+- **Chrome/Edge:** Full File System Access API: can read and write back to disk
+- **Firefox/Safari:** `webkitdirectory` fallback: read-only import
 - **Brave:** May require flag `brave://flags/#enable-experimental-web-platform-features`
 
 ## Import Options
@@ -65,9 +65,9 @@ Fetches repo tree via the `/api/github-tree` route.
 
 Supported formats:
 
-- **JSON** — previous Fewer export
-- **ASCII tree** — `tree` command output
-- **Shell/batch script** — `mkdir -p` output
+- **JSON**: previous Fewer export
+- **ASCII tree**: `tree` command output
+- **Shell/batch script**: `mkdir -p` output
 
 Click **Import from File** and select your file. You can also paste content directly into the dialog.
 

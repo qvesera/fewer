@@ -12,8 +12,8 @@ But if you want to run this locally, follow this quickstart guide.
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open `http://localhost:3000`.
@@ -30,11 +30,11 @@ Open `http://localhost:3000`.
 
 1. Click **Import from disk** (or **Alt+I**)
 2. Select a folder and the depth level
-3. The graph builds instantly ~
+3. The graph builds instantly
 
 ## Advanced Import Options
 
-If advanced user setting is enabled in Settings, you will see the below options in import dialog.
+If **Power User mode** is enabled in Settings, you will see the below options in the import dialog.
 
 | Option                  | Default | Description                             |
 | ----------------------- | ------- | --------------------------------------- |

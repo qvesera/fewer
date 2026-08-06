@@ -66,7 +66,7 @@ function AboutTab() {
 
       <p className="text-xs leading-relaxed text-muted-foreground/90 font-normal text-pretty">
         Transform complex file systems into clear, interactive graphs. Explore, search,
-        customize, and export with ease. No data is ever uploaded — processing is completely local.
+        customize, and export with ease. No data is ever uploaded. Processing is completely local.
       </p>
 
       {/* Action Links */}

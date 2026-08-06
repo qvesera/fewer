@@ -148,7 +148,7 @@ export function ExportPanel() {
     setOpen(false);
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()} — ${nodesToExport.length} node${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} node${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
     });
   };
 

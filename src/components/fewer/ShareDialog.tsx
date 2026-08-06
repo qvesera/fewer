@@ -85,7 +85,7 @@ export function ShareDialog() {
 
         {nodes.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            Nothing to share — add nodes to your canvas first.
+            Nothing to share: add nodes to your canvas first.
           </p>
         ) : (
           <div className="space-y-3 py-2">

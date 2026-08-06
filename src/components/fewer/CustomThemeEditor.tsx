@@ -26,7 +26,7 @@ function ColorPicker({ meta, value, onChange }: ColorPickerProps) {
             <button
               className="h-5 w-5 shrink-0 rounded-md border border-border cursor-pointer transition-transform hover:scale-110"
               style={{ background: preview }}
-              title={`${meta.label} — ${meta.description}`}
+              title={`${meta.label}: ${meta.description}`}
             />
           </PopoverTrigger>
           <PopoverContent className="w-[240px] p-3 space-y-3" align="start" sideOffset={4}>
@@ -63,7 +63,7 @@ function ColorPicker({ meta, value, onChange }: ColorPickerProps) {
         </Popover>
         <Label
           className="truncate text-[10px] font-medium uppercase tracking-wider text-foreground/80"
-          title={`${meta.label} — ${meta.description}`}
+          title={`${meta.label}: ${meta.description}`}
         >
           {meta.label}
         </Label>
