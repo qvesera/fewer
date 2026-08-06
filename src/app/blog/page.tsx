@@ -65,7 +65,7 @@ export default function BlogPage() {
               <time dateTime={post.date}>{post.date}</time>
               {post.author && <span>· {post.author}</span>}
             </div>
-            <h2 className="mt-2 text-2xl font-semibold text-foreground group-hover:text-primary transition-colors">
+            <h2 className="mt-2 text-2xl font-semibold text-foreground group-hover:text-fewer-file-icon transition-colors">
               {post.title}
             </h2>
             <p className="mt-3 text-muted-foreground">{post.description}</p>
@@ -81,7 +81,7 @@ export default function BlogPage() {
             </div>
             <Link
               href={`/blog/${post.slug}`}
-              className="mt-4 inline-flex items-center text-sm font-medium text-primary hover:underline"
+              className="mt-4 inline-flex items-center text-sm font-medium text-fewer-file-icon hover:underline"
             >
               Read more →
             </Link>

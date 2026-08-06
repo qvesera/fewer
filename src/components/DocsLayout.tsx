@@ -12,8 +12,8 @@ interface DocsLayoutProps {
 }
 
 export function DocsLayout({ children, type, title, backHref, backLabel }: DocsLayoutProps) {
-  const accentColor = type === "blog" ? "var(--color-brand-purple)" : "var(--color-brand-orange)";
-  const iconColor = type === "blog" ? "text-brand-purple" : "text-brand-orange";
+  const accentColor = type === "blog" ? "var(--fewer-file-icon)" : "var(--fewer-folder-icon)";
+  const iconColor = type === "blog" ? "text-fewer-file-icon" : "text-fewer-folder-icon";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -69,7 +69,7 @@ export function DocsLayout({ children, type, title, backHref, backLabel }: DocsL
             color: ${accentColor};
           }
           .prose a:hover {
-            color: var(--color-brand-purple);
+            color: ${accentColor};
           }
           .prose strong {
             color: ${accentColor};

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Global navbar navigation** — Docs and Blog links in top-right corner
 - **MDX support** — Next.js configured with `@next/mdx` for future component embedding in docs
 
+### Changed
+
+- **Theme-responsive blog & docs** — docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
+
 ## [0.3.1]
 
 ### Performance
