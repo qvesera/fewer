@@ -66,10 +66,12 @@
   --color-fewer-edge: var(--fewer-edge);
   --color-fewer-folder-bg: var(--fewer-folder-bg);
   --color-fewer-folder-border: var(--fewer-folder-border);
-  --color-fewer-folder-header-bg: var(--fewer-folder-header-bg);
-  --color-fewer-folder-header-text: var(--fewer-folder-header-text);
+  --color-fewer-folder-text: var(--fewer-folder-text);
+  --color-fewer-folder-subtle-text: var(--fewer-folder-subtle-text);
   --color-fewer-folder-icon: var(--fewer-folder-icon);
   --color-fewer-file-bg: var(--fewer-file-bg);
+  --color-fewer-file-text: var(--fewer-file-text);
+  --color-fewer-file-subtle-text: var(--fewer-file-subtle-text);
   --color-fewer-file-border: var(--fewer-file-border);
   --color-fewer-file-icon: var(--fewer-file-icon);
 }
@@ -124,11 +126,13 @@
   --fewer-handle: #94a3b8;
   --fewer-edge: rgba(100, 116, 139, 0.4);
   --fewer-folder-bg: rgba(249, 115, 22, 0.08);
+  --fewer-folder-text: #1e293b;
+  --fewer-folder-subtle-text: #64748b;
   --fewer-folder-border: rgba(249, 115, 22, 0.35);
-  --fewer-folder-header-bg: rgba(249, 115, 22, 0.15);
-  --fewer-folder-header-text: #c2410c;
   --fewer-folder-icon: #f97316;
   --fewer-file-bg: rgba(168, 85, 247, 0.08);
+  --fewer-file-text: #1e293b;
+  --fewer-file-subtle-text: #64748b;
   --fewer-file-border: rgba(168, 85, 247, 0.35);
   --fewer-file-icon: #9333ea;
 }
@@ -182,11 +186,13 @@
   --fewer-handle: #868e96;
   --fewer-edge: rgba(173, 181, 189, 0.5);
   --fewer-folder-bg: rgba(253, 126, 20, 0.12);
+  --fewer-folder-text: #ffd8a8;
+  --fewer-folder-subtle-text: #adb5bd;
   --fewer-folder-border: rgba(253, 126, 20, 0.45);
-  --fewer-folder-header-bg: rgba(253, 126, 20, 0.25);
-  --fewer-folder-header-text: #ffd8a8;
   --fewer-folder-icon: #ffa94d;
   --fewer-file-bg: rgba(190, 75, 219, 0.18);
+  --fewer-file-text: #f8f9fa;
+  --fewer-file-subtle-text: #adb5bd;
   --fewer-file-border: rgba(190, 75, 219, 0.45);
   --fewer-file-icon: #e599f7;
 }
@@ -405,32 +411,21 @@ aside::-webkit-scrollbar-thumb:hover {
 /* ── Glass Utilities ───────────────────────────────────────────────────────── */
 
 .gm-glass {
-  background: rgba(255, 255, 255, 0.55);
+  background: color-mix(in srgb, var(--background) 85%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-}
-.dark .gm-glass {
-  background: rgba(15, 23, 42, 0.55);
-  border-color: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border);
 }
 
 /* Floating panel — for toolbar, breadcrumbs, search, bottom bar */
 .gm-float {
-  background: rgba(255, 255, 255, 0.65);
+  background: color-mix(in srgb, var(--background) 80%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  border: 1px solid var(--border);
   box-shadow:
     0 8px 32px -8px rgba(0, 0, 0, 0.15),
     0 0 0 1px rgba(148, 163, 184, 0.06);
-}
-.dark .gm-float {
-  background: rgba(15, 23, 42, 0.65);
-  border-color: rgba(148, 163, 184, 0.1);
-  box-shadow:
-    0 8px 32px -8px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(148, 163, 184, 0.04);
 }
 
 /* ── Shadow utilities ───────────────────────────────────────────────────────── */

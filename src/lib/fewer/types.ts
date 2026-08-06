@@ -117,12 +117,14 @@ export interface CustomTheme {
   // Folder-specific colors
   folderBg: CustomThemeColor;
   folderBorder: CustomThemeColor;
-  folderHeaderBg: CustomThemeColor;
-  folderHeaderText: CustomThemeColor;
+  folderText: CustomThemeColor;
+  folderSubtleText: CustomThemeColor;
   folderIcon: CustomThemeColor;
   // File-specific colors
   fileBg: CustomThemeColor;
   fileBorder: CustomThemeColor;
+  fileText: CustomThemeColor;
+  fileSubtleText: CustomThemeColor;
   fileIcon: CustomThemeColor;
   // Legacy fields retained for runtime migration from old plain-string schema
   nodeBg?: string;
@@ -155,12 +157,12 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
   { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
   { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
   { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
-  { key: "folderBorder", label: "Folder Border", cssVar: "--fewer-folder-border", description: "Folder card outline", defaultColor: "#fd7e14", defaultOpacity: 0.45, openColor: { family: "orange", index: 6 } },
-  { key: "folderHeaderBg", label: "Folder Header", cssVar: "--fewer-folder-header-bg", description: "Folder title bar background", defaultColor: "#fd7e14", defaultOpacity: 0.25, openColor: { family: "orange", index: 6 } },
-  { key: "folderHeaderText", label: "Folder Header Text", cssVar: "--fewer-folder-header-text", description: "Folder title and footer text", defaultColor: "#ffd8a8", defaultOpacity: 1, openColor: { family: "orange", index: 3 } },
+  { key: "folderText", label: "Folder Text", cssVar: "--fewer-folder-text", description: "Folder title text", defaultColor: "#1e293b", defaultOpacity: 1, openColor: { family: "gray", index: 8 } },
+  { key: "folderSubtleText", label: "Folder Secondary", cssVar: "--fewer-folder-subtle-text", description: "Folder path and footer text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
   { key: "folderIcon", label: "Folder Icon", cssVar: "--fewer-folder-icon", description: "Folder/root icon color", defaultColor: "#ffa94d", defaultOpacity: 1, openColor: { family: "orange", index: 4 } },
   { key: "fileBg", label: "File Body", cssVar: "--fewer-file-bg", description: "File card background", defaultColor: "#be4bdb", defaultOpacity: 0.18, openColor: { family: "grape", index: 6 } },
-  { key: "fileBorder", label: "File Border", cssVar: "--fewer-file-border", description: "File card outline", defaultColor: "#be4bdb", defaultOpacity: 0.45, openColor: { family: "grape", index: 6 } },
+  { key: "fileText", label: "File Text", cssVar: "--fewer-file-text", description: "File name text", defaultColor: "#f8f9fa", defaultOpacity: 1, openColor: { family: "gray", index: 0 } },
+  { key: "fileSubtleText", label: "File Secondary", cssVar: "--fewer-file-subtle-text", description: "File extension and size text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
   { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon", description: "File type icon color", defaultColor: "#e599f7", defaultOpacity: 1, openColor: { family: "grape", index: 4 } },
 ];
 

@@ -757,7 +757,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "target");
             }
           }}
-          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
 
         <FolderContextMenu
@@ -774,11 +774,11 @@ function CustomNodeImpl({
             <div
               className={cn(
                 "flex items-center gap-2 rounded-t-xl border-b border-fewer-folder-border px-3 py-2",
-                "bg-fewer-folder-header-bg",
+                "bg-fewer-folder-bg",
               )}
             >
               <div
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fewer-folder-header-bg text-fewer-folder-icon"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fewer-folder-bg text-fewer-folder-icon"
               >
                 <NodeIcon
                   type={data.type}
@@ -796,14 +796,14 @@ function CustomNodeImpl({
                   />
                 ) : (
                   <span
-                    className="truncate text-sm font-semibold text-fewer-text"
+                    className="truncate text-sm font-semibold text-fewer-folder-text"
                     title={data.label}
                   >
                     {data.label}
                   </span>
                 )}
                 <span
-                  className="truncate text-[10px] text-fewer-text-subtle"
+                  className="truncate text-[10px] text-fewer-folder-subtle-text"
                   title={data.path}
                 >
                   {data.path}
@@ -837,13 +837,13 @@ function CustomNodeImpl({
             </div>
 
             <div
-              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-header-text bg-fewer-folder-bg"
+              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text bg-fewer-folder-bg"
             >
               <span>
                 {childCount} {childCount === 1 ? "item" : "items"}
               </span>
               {hiddenChildCount > 0 && (
-                <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] text-amber-500">
+                <span className="rounded bg-fewer-folder-subtle-text/15 px-1 py-px text-[9px] text-fewer-folder-subtle-text">
                   {hiddenChildCount} hidden
                 </span>
               )}
@@ -861,7 +861,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "source");
             }
           }}
-          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
       </div>
     );
@@ -879,7 +879,7 @@ function CustomNodeImpl({
         className={cn(
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
-          "bg-fewer-file-bg border-fewer-file-border text-fewer-text shadow-node-file",
+          "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
           "gm-aurora gm-aurora-cool",
           data.highlighted && "ring-2 ring-amber-400",
           data.dimmed && "opacity-40 saturate-50",
@@ -910,7 +910,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "target");
             }
           }}
-          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
 
         <div
@@ -933,13 +933,13 @@ function CustomNodeImpl({
             />
           ) : (
             <span
-              className="truncate text-sm font-semibold text-fewer-text"
+              className="truncate text-sm font-semibold text-fewer-file-text"
               title={data.label}
             >
               {data.label}
             </span>
           )}
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-text-subtle">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-file-subtle-text">
             <span>{data.extension ? `.${data.extension}` : "file"}</span>
             {data.size ? (
               <>
@@ -960,7 +960,7 @@ function CustomNodeImpl({
               useGraphStore.getState().removeEdgesFromHandle(id, "source");
             }
           }}
-          className="!hidden !h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-slate-700"
+          className="!hidden !h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
       </div>
     </FileEntryContextMenu>

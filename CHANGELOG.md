@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`themeColors.ts` module** — `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.
 - **Theme color tests** — 8 tests covering `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme` (legacy + structured + empty input).
 - **Sectioned Custom Theme Editor** — colors grouped into "Canvas & Text", "Folders", "Files" sections with descriptions and opacity sliders.
+- **`react-colorful` color picker** — `HexAlphaColorPicker` with gradient panel, hue strip, and alpha channel built into each theme color popover.
+- **Per-type secondary text** — `folderSubtleText` and `fileSubtleText` controls for folder paths/footers and file extensions/sizes.
 
 ### Changed
 
@@ -21,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ThemeColorMeta` expanded** — now includes `description`, `defaultColor`, `defaultOpacity`, and `openColor` fields for richer editor metadata.
 - **`ThemeProvider`** — uses `migrateCustomTheme` for safe legacy theme loading + `applyCustomThemeToDOM` for structured color application.
 - **Dark mode CSS variables** — `globals.css` updated with Open Color-based values for text, edges, handles, folder/file colors.
+- **Simplified folder/file theme controls** — 5 controls each (body, text, secondary text, border, icon). Removed separate `folderHeaderBg`/`folderHeaderText`; folder text controls title, secondary text controls path/footers. Added `fileText` and `fileSubtleText` controls.
+
+### Fixed
+
+- **Custom theme canvas background** — canvas now reads `--fewer-background` via inline style, so custom background color actually applies.
+- **Theme mode class cleanup** — switching to custom mode now removes `light`/`dark` classes from `<html>`, preventing CSS variable conflicts and unwanted aurora overlays.
+- **Connection handle colors** — handles now use `--fewer-handle` CSS variable instead of hardcoded `slate-700`, following the active theme.
+- **Hidden nodes chip** — uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
+- **Hidden panel dots** — folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
 
 ## [0.3.4]
 

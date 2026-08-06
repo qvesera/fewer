@@ -15,6 +15,7 @@ import {
   ShortcutsDialog,
   SettingsDialog,
   ShareDialog,
+  ThemeEditorDialog,
   AddNodeDialog,
   ImportUrlDialog,
   NotificationPanel,
@@ -291,6 +292,7 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
       <SettingsDialog />
+      <ThemeEditorDialog />
       <ShareDialog />
       <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
 

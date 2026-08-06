@@ -34,7 +34,7 @@ import {
   Heart,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
-import { PowerUserToggle, CustomThemeEditor, Logo } from ".";
+import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo } from ".";
 import { cn } from "@/lib/utils";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
@@ -134,7 +134,18 @@ function AppearanceTab() {
             return (
               <button
                 key={mode}
-                onClick={() => setThemeMode(mode)}
+                onClick={() => {
+                  if (mode === "custom") {
+                    // Close settings dialog and open the theme editor dialog
+                    useGraphStore.getState().setSettingsOpen(false);
+                    setTimeout(() => {
+                      useGraphStore.getState().setThemeMode("custom");
+                      useGraphStore.getState().setThemeEditorOpen(true);
+                    }, 150);
+                  } else {
+                    setThemeMode(mode);
+                  }
+                }}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-[colors,transform,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]",
                   active
@@ -148,7 +159,6 @@ function AppearanceTab() {
             );
           })}
         </div>
-        {advancedModeEnabled && themeMode === "custom" && <CustomThemeEditor />}
       </div>
 
         <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/30 p-3.5 hover:border-border/80 transition-[colors,box-shadow] hover:shadow-sm">
