@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0]
 
 ### Added
 
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hidden nodes chip** — uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
 - **Hidden panel dots** — folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
 
-## [0.3.4]
+## [0.2.5]
 
 ### Added
 
@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.
 - **Tutorial restart** now accessible via Settings → Help tab (uses `fewer-restart-tutorial` window event).
 
-## [0.3.3] - 2026-08
+## [0.2.4] - 2026-08
 
 ### Added
 
@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Notification history panel** — click the bell icon in the navbar to view past notifications; badge shows unread count and clears on open.
 - **Auto-hide threshold slider** — adjustable threshold (2-100) in the sidebar Layout section controls when folder children get auto-hidden.
 
-## [0.3.2] - 2026-07
+## [0.2.3] - 2026-07
 
 ### Added
 
@@ -124,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL import not rendering until "Beautify Layout" clicked (async `setGraph` → sync `layoutGraphSync`)
 - Edge styles not updating when switching themes (added `useEffect` watching `themeMode`)
 
-## [0.3.1] - 2026-07
+## [0.2.2] - 2026-07
 
 ### Added
 
@@ -154,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `descendantIds` scope bug in `connectNodes` (variable was shadowed inside if-block)
 - Duplicate `removeEdgesFromHandle` and `deleteEdges` function definitions in graphSlice
 
-## [0.3.0] - 2026-07
+## [0.2.1] - 2026-07
 
 ### Added
 
