@@ -45,3 +45,29 @@ export function buildShareUrl(encoded: string): string {
   const base = window.location.origin + window.location.pathname;
   return `${base}#${encoded}`;
 }
+
+/**
+ * Encoded-hash length above which we store the graph in the DB and use a
+ * short `#s:<id>` link instead of embedding the full hash in the URL.
+ * ~2000 chars ≈ a few hundred nodes; keeps URLs shareable (Twitter/WhatsApp
+ * truncate long URLs, and some clients cap URL length).
+ */
+export const SHARE_HASH_THRESHOLD = 2000;
+
+/** Build a short DB-backed share URL: `#s:<id>`. */
+export function buildDbShareUrl(id: string): string {
+  const base = window.location.origin + window.location.pathname;
+  return `${base}#s:${id}`;
+}
+
+/** True if a hash fragment is a DB-backed share link (`s:<id>`). */
+export function isDbShareHash(hash: string): boolean {
+  return hash.startsWith("s:");
+}
+
+/** Extract the DB id from a `s:<id>` hash fragment. */
+export function parseDbShareId(hash: string): string | null {
+  if (!isDbShareHash(hash)) return null;
+  const id = hash.slice(2);
+  return id || null;
+}

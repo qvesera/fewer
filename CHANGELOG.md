@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shortcuts dialog sync**: added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
 - **Public file index import**: Import from URL now crawls Apache/nginx auto-index pages (e.g. `https://www.sidc.be/EUI/data/`) server-side via new `/api/crawl` route, with depth/page caps and partial-tree truncation notice. GitHub URLs still use the existing `/api/github-tree` path.
 - **Crawl cache (Supabase)**: crawled file index trees cached in a `crawl_cache` table (JSONB tree + TTL, 24h). Repeat imports of the same URL return instantly from cache. Cache is best-effort — on any Supabase failure the route falls back to a fresh crawl. Migration in `supabase/migrations/0001_crawl_cache.sql`; Supabase CLI linked.
+- **DB-backed share links**: large graphs (encoded hash > 2000 chars) are stored in a `shared_graphs` table and shared via a short `#s:<id>` link instead of a long URL hash. Small graphs still embed the compressed hash. 30-day TTL with lazy expiry on read. New `/api/share` (POST) + `/api/share/[id]` (GET) routes; migration `0002_shared_graphs.sql`.
 - **Hidden nodes search**: search bar in the Hidden Nodes sidebar section filters hidden nodes by name, keeping parent/child hierarchy context
 
 ### Changed

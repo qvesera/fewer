@@ -99,12 +99,53 @@ export function FewerApp() {
     document.body.style.userSelect = "none";
   }, []);
 
-  // Load shared graph from URL hash
+  // Load shared graph from URL hash (embedded) or DB-backed short link (#s:<id>)
   useEffect(() => {
     if (hashLoaded) return;
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash) return;
-    import("@/lib/fewer/share").then(({ decodeShareData }) => {
+
+    const applyData = (data: { nodes: unknown[]; edges: unknown[]; direction: unknown; edgeStyle: unknown; customTheme?: unknown; themeMode: unknown; cornerRadius: unknown; nodeWidth: unknown; nodeHeight: unknown }) => {
+      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false);
+      useGraphStore.getState().setDirection(data.direction as never);
+      useGraphStore.getState().setEdgeStyle(data.edgeStyle as never);
+      if (data.customTheme) {
+        useGraphStore.getState().setCustomTheme(data.customTheme as never);
+      }
+      useGraphStore.getState().setThemeMode(data.themeMode as never);
+      useGraphStore.getState().setCornerRadius(data.cornerRadius as never);
+      useGraphStore.getState().setNodeDimensions(data.nodeWidth as never, data.nodeHeight as never);
+      useGraphStore.setState({ dataSource: "shared" });
+      setHashLoaded(true);
+      // Clear hash from address bar
+      window.history.replaceState(null, "", window.location.pathname);
+      toast({
+        title: "Shared graph loaded",
+        description: `${(data.nodes as unknown[]).length} node${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
+      });
+    };
+
+    import("@/lib/fewer/share").then(async ({ decodeShareData, isDbShareHash, parseDbShareId }) => {
+      if (isDbShareHash(hash)) {
+        const id = parseDbShareId(hash);
+        if (!id) {
+          toast({ title: "Invalid share link", description: "Could not load the graph from the URL.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/${id}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Share link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
       const data = decodeShareData(hash);
       if (!data) {
         toast({
@@ -114,24 +155,7 @@ export function FewerApp() {
         });
         return;
       }
-      // Restore graph state
-      useGraphStore.getState().setGraph(data.nodes, data.edges, false);
-      useGraphStore.getState().setDirection(data.direction);
-      useGraphStore.getState().setEdgeStyle(data.edgeStyle);
-      if (data.customTheme) {
-        useGraphStore.getState().setCustomTheme(data.customTheme as any);
-      }
-      useGraphStore.getState().setThemeMode(data.themeMode as any);
-      useGraphStore.getState().setCornerRadius(data.cornerRadius);
-      useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
-      useGraphStore.setState({ dataSource: "shared" });
-      setHashLoaded(true);
-      // Clear hash from address bar
-      window.history.replaceState(null, "", window.location.pathname);
-      toast({
-        title: "Shared graph loaded",
-        description: `${data.nodes.length} node${data.nodes.length === 1 ? "" : "s"} from share link`,
-      });
+      applyData(data);
     });
   }, [hashLoaded, toast]);
 
