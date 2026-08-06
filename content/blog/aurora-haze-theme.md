@@ -6,7 +6,7 @@ author: Yash Srivastava
 tags: design, theme, ux, release
 ---
 
-Version 0.3.4 introduces **Aurora Haze**: a cohesive design language that transforms Fewer from a functional tool into a visually distinctive experience.
+Version 0.2.5 introduces **Aurora Haze**: a cohesive design language that transforms Fewer from a functional tool into a visually distinctive experience.
 
 ## What Changed
 

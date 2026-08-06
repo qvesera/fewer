@@ -6,7 +6,7 @@ author: Yash Srivastava
 tags: performance, layout, release, architecture
 ---
 
-Version 0.3.2 ships a new layout engine: a **custom directed graph layout algorithm** designed specifically for directory trees. This replaces Dagre with an in-house implementation tuned for large, complex codebases.
+Version 0.2.3 ships a new layout engine: a **custom directed graph layout algorithm** designed specifically for directory trees. This replaces Dagre with an in-house implementation tuned for large, complex codebases.
 
 ## Why Move Away from Dagre?
 

@@ -1,6 +1,6 @@
 ---
 title: v0.3.0 — Theme Engine, 18 Presets, and a Lighter Bundle
-date: 2026-08-05
+date: 2026-08-06
 description: Fewer 0.3.0 brings a structured custom theme engine with 18 presets, a draggable minimizable theme editor, and a bundle that's 300KB lighter after dead-code removal.
 author: Yash Srivastava
 tags: release, themes, performance, pwa
