@@ -146,18 +146,36 @@ https://your-domain.com/api/cloud/callback   (prod)
 All four Microsoft-backed providers use a single Azure AD app.
 
 1. Go to [Azure Portal](https://portal.azure.com) → **App registrations → New registration**.
-2. Set the **Redirect URI** to a **Web** platform: `https://your-domain.com/api/cloud/callback`.
-3. Under **Certificates & secrets → New client secret**, create one and copy it.
-4. Under **API permissions → Add a permission → Microsoft Graph → Delegated**, add:
+2. **Supported account types**: choose **"Any Entra ID Tenant + Personal Microsoft accounts"** (the `common` tenant). This allows both personal OneDrive accounts and work/school accounts (SharePoint, Azure DevOps, Azure Blob). If you only need your own organization, "Single tenant" also works — set `MICROSOFT_TENANT` to your tenant ID instead of `common`.
+3. Set the **Redirect URI** to a **Web** platform: `https://your-domain.com/api/cloud/callback`.
+4. Under **Certificates & secrets → New client secret**, create one and copy it.
+5. Under **API permissions → Add a permission → Microsoft Graph → Delegated**, add:
    - `Files.Read`
+   - `Files.Read.All`
    - `Sites.Read.All`
-5. For Azure DevOps, add a separate permission: **Azure DevOps → user_impersonation** (or add the `499b84ac-...` resource scope).
-6. For Azure Blob, add the **Azure Storage** delegated permission (`https://storage.azure.com/user_impersonation`), and assign the **Storage Blob Data Reader** role to the app on your storage account.
-7. Copy the values into:
+   - `User.Read`
+6. For Azure DevOps, add a separate permission: **Azure DevOps → user_impersonation** (or add the `499b84ac-...` resource scope).
+7. For Azure Blob, add the **Azure Storage** delegated permission (`https://storage.azure.com/user_impersonation`), and assign the **Storage Blob Data Reader** role to the app on your storage account.
+8. Copy the values into:
    - `MICROSOFT_CLIENT_ID` (Application/client ID)
    - `MICROSOFT_CLIENT_SECRET` (client secret)
    - `MICROSOFT_TENANT` (`common` to allow personal + org accounts, or your tenant ID)
    - `AZURE_BLOB_STORAGE_ACCOUNT` (your storage account name)
+
+### Troubleshooting Microsoft registration
+
+**"Could not grant admin consent. Your organization does not have a subscription (or service principal) for: Microsoft Graph, Azure DevOps, Azure Storage"**
+
+This is expected on free/personal Entra tenants — they have no Azure DevOps org or Azure Storage subscription, so those service principals can't exist.
+
+Fix:
+1. **Remove** the Azure DevOps and Azure Storage API permissions from the registration. They're only needed with real Azure resources.
+2. **Skip "Grant admin consent"** — it's optional for delegated scopes. Consent happens at first sign-in.
+3. Keep only `User.Read` + `Files.Read` for personal OneDrive. Drop `Files.Read.All` / `Sites.Read.All` if they also fail consent.
+
+Account-type reality check:
+- **Personal Microsoft account** → OneDrive works. SharePoint / Azure DevOps / Azure Blob do not (org-only).
+- **Work/school account** → SharePoint/DevOps/Blob possible, if the org has the services and you hold the roles.
 
 ## Next Steps
 
