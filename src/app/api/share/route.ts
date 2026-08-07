@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { getSupabase } from "@/lib/supabase";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { Resend } from "resend";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "fewer <onboarding@resend.dev>";
+const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-/** Resolve the current user from the session cookie, if any. */
-async function getCurrentUser() {
+/**
+ * Build an authed Supabase client from the session cookie and return it with
+ * the current user. Using the authed client (not the anon key) attaches the
+ * user's JWT so RLS sees auth.uid() — required for owner-scoped policies.
+ */
+async function getAuthed() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
@@ -27,7 +33,7 @@ async function getCurrentUser() {
     },
   });
   const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  return { supabase, user: data.user ?? null };
 }
 
 /**
@@ -43,14 +49,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
     }
 
-    const user = await getCurrentUser();
+    const authed = await getAuthed();
+    const user = authed?.user ?? null;
+    const supabase = authed?.supabase;
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    }
+
     const access = body?.access === "invite" ? "invite" : "public";
     const invitedEmails: string[] = Array.isArray(body?.invited_emails)
       ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)
       : [];
     const savedGraphId = body?.saved_graph_id ?? null;
-
-    const supabase = getSupabase();
 
     // Reuse existing share for this owner + saved graph (stable link).
     if (user && savedGraphId) {
@@ -85,10 +95,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Invite-only: create a per-email token and email each invitee a link.
+    if (access === "invite" && invitedEmails.length > 0) {
+      await sendInvites(supabase, id, invitedEmails);
+    }
+
     return NextResponse.json({ id, access, invited_emails: invitedEmails });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/**
+ * Create a per-email token for each invitee and email them a link.
+ * Token is the credential — the link works without login.
+ */
+async function sendInvites(supabase: Awaited<ReturnType<typeof getAuthed>>["supabase"], shareId: string, emails: string[]) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.warn("RESEND_API_KEY not set — skipping invite emails");
+    return;
+  }
+  const resend = new Resend(resendKey);
+
+  for (const email of emails) {
+    const token = randomBytes(24).toString("base64url");
+    const { error } = await supabase.from("share_invites").insert({ share_id: shareId, email, token });
+    if (error) {
+      console.warn(`Failed to create invite for ${email}:`, error.message);
+      continue;
+    }
+    const link = `${APP_ORIGIN}/#i:${token}`;
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [email],
+        subject: "You've been invited to view a graph",
+        html: `<p>Someone shared a graph with you on <strong>fewer</strong>.</p><p><a href="${link}">Open the graph</a></p><p>This link is private — don't forward it.</p>`,
+      });
+    } catch (err) {
+      console.warn(`Failed to email ${email}:`, err instanceof Error ? err.message : err);
+    }
   }
 }
 
@@ -104,10 +152,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing saved_graph_id" }, { status: 400 });
     }
 
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    const authed = await getAuthed();
+    if (!authed?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    const { supabase, user } = authed;
 
-    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("shared_graphs")
       .select("id, access, invited_emails")
@@ -136,10 +184,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Missing saved_graph_id" }, { status: 400 });
     }
 
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    const authed = await getAuthed();
+    if (!authed?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    const { supabase, user } = authed;
 
-    const supabase = getSupabase();
     const { error } = await supabase
       .from("shared_graphs")
       .delete()

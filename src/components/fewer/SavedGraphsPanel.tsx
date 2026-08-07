@@ -405,6 +405,9 @@ function ShareGraphDialog({
       if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
       setExistingId(json.id);
       setShareUrl(buildDbShareUrl(json.id));
+      if (access === "invite") {
+        toast({ title: "Invites sent", description: `Emailed ${invited_emails.length} invitee${invited_emails.length === 1 ? "" : "s"} a private link.` });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Share failed";
       toast({ title: "Could not share", description: msg, variant: "destructive" });

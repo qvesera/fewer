@@ -129,6 +129,27 @@ export function FewerApp() {
     };
 
     import("@/lib/fewer/share").then(async ({ decodeShareData, isDbShareHash, parseDbShareId }) => {
+      // Invite token link: #i:<token> — token is the credential, no login.
+      if (hash.startsWith("i:")) {
+        const token = hash.slice(2);
+        if (!token) {
+          toast({ title: "Invalid invite link", description: "Could not load the graph.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/invite/${token}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            toast({ title: "Invite link invalid", description: json.error || "Could not load the graph.", variant: "destructive" });
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
       if (isDbShareHash(hash)) {
         const id = parseDbShareId(hash);
         if (!id) {
