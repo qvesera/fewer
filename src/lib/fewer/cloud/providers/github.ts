@@ -1,6 +1,6 @@
 import "server-only";
 import { callbackUrl } from "../oauth";
-import type { CloudProviderAdapter, CloudEntry, CloudListResult } from "../types";
+import type { CloudProviderAdapter, CloudEntry } from "../types";
 import type { TreeEntry } from "@/lib/fewer/types";
 
 const CLIENT_ID = () => process.env.GITHUB_CLIENT_ID ?? "";
@@ -23,10 +23,23 @@ interface GhTreeItem {
   size?: number;
 }
 
-/** Parse owner/repo out of a repo ref like "owner/repo". */
-function parseRepo(repo: string): { owner: string; repo: string } {
-  const [owner, name] = repo.split("/");
-  return { owner, repo: name };
+interface GhContentItem {
+  name: string;
+  path: string;
+  type: "dir" | "file";
+  size?: number;
+  html_url?: string;
+}
+
+/**
+ * Refs:
+ *   undefined            → list the user's repositories
+ *   "owner/repo"         → repo root (default branch)
+ *   "owner/repo/branch[/path…]" → branch may itself contain "/"
+ */
+function parseRef(ref: string): { owner: string; name: string; rest: string[] } {
+  const parts = ref.split("/");
+  return { owner: parts[0], name: parts[1], rest: parts.slice(2) };
 }
 
 export const githubAdapter: CloudProviderAdapter = {
@@ -77,75 +90,71 @@ export const githubAdapter: CloudProviderAdapter = {
   },
 
   async listChildren(accessToken, ref) {
-    // ref = "owner/repo" or "owner/repo/branch/path"
-    if (!ref) throw new Error("GitHub requires a repo ref");
-    const [repo, ...rest] = ref.split("/");
-    const { owner, repo: name } = parseRepo(repo!);
-    const path = rest.join("/");
-    const branch = rest[0];
+    // Root: list the user's repositories
+    if (!ref) {
+      const res = await fetch(`${API}/user/repos?per_page=100&sort=updated`, { headers: ghHeaders(accessToken) });
+      if (!res.ok) throw new Error("GitHub API error (repos)");
+      const repos: Array<{ full_name: string; html_url: string; private: boolean }> = await res.json();
+      return {
+        entries: repos.map((r) => ({
+          name: r.full_name,
+          type: "folder" as const,
+          webUrl: r.html_url,
+          ref: r.full_name,
+        })),
+        rootName: "GitHub",
+      };
+    }
 
-    // If a branch/path was given, resolve the tree for that branch, else use default.
-    const entries: CloudEntry[] = [];
+    const { owner, name, rest } = parseRef(ref);
+    if (!owner || !name) throw new Error("Invalid GitHub ref");
+
+    // Resolve branch + path. At the repo root, use the default branch.
+    let branch: string;
+    let path: string;
     if (rest.length === 0) {
-      // Root of repo: list default branch via contents API
-      const res = await fetch(`${API}/repos/${owner}/${name}/contents?ref=HEAD`, { headers: ghHeaders(accessToken) });
-      if (!res.ok) throw new Error("GitHub API error (contents)");
-      const items: Array<{ name: string; type: "dir" | "file"; size?: number }> = await res.json();
-      for (const it of items) {
-        entries.push({
-          name: it.name,
-          type: it.type === "dir" ? "folder" : "file",
-          size: it.type === "file" ? it.size : undefined,
-          webUrl: `https://github.com/${owner}/${name}/tree/HEAD/${it.name}`.replace(/\/tree\/HEAD\/$/, `/tree/HEAD`),
-        });
-      }
-      return { entries, rootRef: `${owner}/${name}`, rootName: name };
+      const repoRes = await fetch(`${API}/repos/${owner}/${name}`, { headers: ghHeaders(accessToken) });
+      if (!repoRes.ok) throw new Error("GitHub API error (repo)");
+      branch = ((await repoRes.json()).default_branch as string) || "main";
+      path = "";
+    } else {
+      const resolved = await resolveBranchPath(accessToken, owner, name, rest[0], rest.slice(1).join("/"));
+      if (!resolved) throw new Error("Could not resolve GitHub branch/path");
+      branch = resolved.branch;
+      path = resolved.path;
     }
 
-    // Branch-provided: use git tree resolution (branch may contain "/")
-    // Resolve branch + path progressively.
-    const resolved = await resolveBranchPath(accessToken, owner, name, branch, path);
-    if (!resolved) throw new Error("Could not resolve GitHub branch/path");
-    const { commitSha, branch: actBranch, path: actPath } = resolved;
+    const contentUrl = `${API}/repos/${owner}/${name}/contents${path ? `/${path}` : ""}?ref=${encodeURIComponent(branch)}`;
+    const res = await fetch(contentUrl, { headers: ghHeaders(accessToken) });
+    if (!res.ok) throw new Error("GitHub API error (contents)");
+    const raw = await res.json();
+    const items: GhContentItem[] = Array.isArray(raw) ? raw : [raw];
 
-    const treeRes = await fetch(`${API}/repos/${owner}/${name}/git/trees/${commitSha}?recursive=1`, { headers: ghHeaders(accessToken) });
-    if (!treeRes.ok) throw new Error("GitHub API error (tree)");
-    const treeData = await treeRes.json();
-    const items: GhTreeItem[] = treeData.tree || [];
-
-    const prefix = actPath ? `${actPath}/` : "";
-    const direct = new Map<string, GhTreeItem>();
-    for (const item of items) {
-      if (item.path === actPath) continue;
-      if (!actPath ? item.path.includes("/") : item.path.startsWith(prefix)) {
-        const rel = actPath ? item.path.slice(actPath.length + 1) : item.path;
-        const top = rel.split("/")[0];
-        if (top && !direct.has(top)) direct.set(top, { ...item, path: `${actPath ? actPath + "/" : ""}${top}` });
-      }
-    }
-
-    for (const item of direct.values()) {
-      const isDir = item.type === "tree";
-      entries.push({
-        name: item.path.split("/").pop()!,
-        type: isDir ? "folder" : "file",
-        size: isDir ? undefined : item.size,
-        webUrl: `https://github.com/${owner}/${name}/tree/${actBranch}/${item.path}`,
-      });
-    }
     return {
-      entries,
-      rootRef: `${owner}/${name}/${actBranch}${actPath ? "/" + actPath : ""}`,
-      rootName: actPath.split("/").pop() || name,
+      entries: items.map((it) => ({
+        name: it.name,
+        type: it.type === "dir" ? ("folder" as const) : ("file" as const),
+        size: it.type === "file" ? it.size : undefined,
+        webUrl: it.html_url,
+        ref: it.type === "dir" ? `${owner}/${name}/${branch}/${it.path}` : undefined,
+      })),
+      rootRef: `${owner}/${name}`,
+      rootName: path.split("/").pop() || name,
     };
   },
 
   async buildTree(accessToken, ref, depth) {
-    const [repo, ...rest] = ref.split("/");
-    const { owner, repo: name } = parseRepo(repo!);
-    const branch = rest[0];
-    const path = rest.slice(1).join("/");
+    const { owner, name, rest } = parseRef(ref);
+    if (!owner || !name) throw new Error("Invalid GitHub ref");
 
+    let branch = rest[0];
+    let path = rest.slice(1).join("/");
+    if (!branch) {
+      const repoRes = await fetch(`${API}/repos/${owner}/${name}`, { headers: ghHeaders(accessToken) });
+      if (!repoRes.ok) throw new Error("GitHub API error (repo)");
+      branch = ((await repoRes.json()).default_branch as string) || "main";
+      path = "";
+    }
     const resolved = await resolveBranchPath(accessToken, owner, name, branch, path);
     if (!resolved) throw new Error("Could not resolve GitHub branch/path");
     const { commitSha } = resolved;
@@ -155,29 +164,32 @@ export const githubAdapter: CloudProviderAdapter = {
     const treeData = await treeRes.json();
     const items: GhTreeItem[] = treeData.tree || [];
 
-    const rootName = path.split("/").pop() || name;
+    const rootPath = resolved.path;
+    const rootName = rootPath.split("/").pop() || name;
     const root: TreeEntry = { name: rootName, type: "folder", children: [] };
     const map = new Map<string, TreeEntry>();
     map.set("", root);
 
-    const prefix = path ? `${path}/` : "";
-    const filtered = path ? items.filter((i) => i.path === path || i.path.startsWith(prefix)) : items;
-    const stripped = path
+    const prefix = rootPath ? `${rootPath}/` : "";
+    const filtered = rootPath ? items.filter((i) => i.path === rootPath || i.path.startsWith(prefix)) : items;
+    const stripped = rootPath
       ? filtered.map((i) => ({
           ...i,
-          path: i.path === path ? "." : i.path.slice(prefix.length),
+          path: i.path === rootPath ? "." : i.path.slice(prefix.length),
         }))
       : filtered;
 
+    // ponytail: depth cap applied here to bound huge repos (upgrade: stream/paginate)
     const sorted = [...stripped].sort((a, b) => a.path.length - b.path.length);
     for (const item of sorted) {
       if (item.path === ".") continue;
       const parts = item.path.split("/");
+      if (depth > 0 && parts.length > depth) continue;
       const nm = parts.pop()!;
       const parentPath = parts.join("/");
       const parent = map.get(parentPath);
       if (!parent) continue;
-      const webUrl = `https://github.com/${owner}/${name}/tree/${resolved.branch}/${path ? path + "/" + item.path : item.path}`;
+      const webUrl = `https://github.com/${owner}/${name}/tree/${resolved.branch}/${rootPath ? rootPath + "/" + item.path : item.path}`;
       if (item.type === "tree") {
         const dir: TreeEntry = { name: nm, type: "folder", children: [], webUrl };
         parent.children = parent.children || [];

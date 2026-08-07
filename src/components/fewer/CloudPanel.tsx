@@ -4,8 +4,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useConnections, connectProvider, unlinkConnection, AVAILABLE_PROVIDERS, PROVIDER_LABELS } from "@/hooks/use-cloud";
-import { Cloud, Github, Loader2, Trash2, ExternalLink, Sparkles } from "lucide-react";
+import { Cloud, Github, Loader2, Trash2, ExternalLink, HardDrive, Share2, FolderGit2, Database } from "lucide-react";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
+
+const PROVIDER_ICON: Record<CloudProvider, React.ComponentType<{ className?: string }>> = {
+  github: Github,
+  "google-drive": Cloud,
+  onedrive: HardDrive,
+  sharepoint: Share2,
+  "azure-devops": FolderGit2,
+  "azure-blob": Database,
+};
 
 interface CloudPanelProps {
   onRequireAuth: () => void;
@@ -57,10 +66,11 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
           {AVAILABLE_PROVIDERS.map((provider) => {
             const isLinked = linked.has(provider);
             const conns = connections.filter((c) => c.provider === provider);
+            const Icon = PROVIDER_ICON[provider];
             return (
               <div key={provider} className="rounded-xl border border-border/40 bg-muted/10">
                 <div className="flex items-center gap-2 p-2.5">
-                  <Cloud className="h-4 w-4 shrink-0 text-primary/70" />
+                  <Icon className="h-4 w-4 shrink-0 text-primary/70" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-foreground">{PROVIDER_LABELS[provider]}</p>
                     {isLinked ? (
@@ -87,18 +97,13 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
                     </div>
                   ) : (
                     <Button variant="outline" size="sm" className="h-6 gap-1 text-[10px]" onClick={() => handleConnect(provider)}>
-                      <Github className="h-3 w-3" /> Link
+                      <Icon className="h-3 w-3" /> Link
                     </Button>
                   )}
                 </div>
               </div>
             );
           })}
-
-          {/* Placeholder for planned providers */}
-          <div className="rounded-xl border border-dashed border-border/40 bg-transparent p-2.5 text-[10px] text-muted-foreground/70">
-            Coming soon: Google Drive, OneDrive, SharePoint, Azure DevOps, Azure Blob, public links.
-          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import {
   Dialog,
@@ -17,7 +18,6 @@ import {
   Sun,
   Moon,
   Palette,
-  Info,
   Settings,
   Bug,
   Keyboard,
@@ -36,9 +36,11 @@ import {
   LogOut,
   User2,
   BellRing,
+  Info,
+  Cloud,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
-import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo } from ".";
+import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -365,6 +367,45 @@ function AdvancedTab() {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Cloud tab                                                                 */
+/* -------------------------------------------------------------------------- */
+
+function CloudTab() {
+  const { user, loading } = useAuth();
+
+  const handleBrowse = () => {
+    useGraphStore.getState().setSettingsOpen(false);
+    setTimeout(() => window.dispatchEvent(new Event("fewer-cloud-browse")), 200);
+  };
+
+  const handleRequireAuth = () => {
+    useGraphStore.getState().setSettingsOpen(false);
+    setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
+  };
+
+  if (loading) {
+    return <div className="py-6 text-center text-xs text-muted-foreground">Checking session…</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/30 p-6 text-center">
+        <Cloud className="h-6 w-6 text-primary/70" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Link Google Drive, OneDrive, SharePoint, GitHub, and Azure to browse and visualize cloud folders.
+        </p>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleRequireAuth}>
+          <LogIn className="h-3.5 w-3.5" />
+          Sign in to link accounts
+        </Button>
+      </div>
+    );
+  }
+
+  return <CloudPanel onRequireAuth={handleRequireAuth} onBrowse={handleBrowse} />;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Help tab                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -439,6 +480,18 @@ function HelpTab() {
 export function SettingsDialog() {
   const settingsOpen = useGraphStore((s) => s.settingsOpen);
   const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
+  const { user } = useAuth();
+  const [tab, setTab] = useState("appearance");
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active tab visible: scroll it toward the center of the list so
+  // selecting a tab near either end reveals its hidden neighbours.
+  // Runs after commit so data-state is already updated.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector('[data-state="active"]')
+      ?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [tab]);
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
@@ -457,40 +510,51 @@ export function SettingsDialog() {
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="appearance" className="flex min-h-0 flex-1 flex-col">
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
-            <TabsList className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [&::-webkit-scrollbar]:h-0">
+            <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsTrigger
                 value="about"
-                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
                 <Info className="h-3.5 w-3.5" />
                 About
               </TabsTrigger>
               <TabsTrigger
                 value="appearance"
-                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
                 <Palette className="h-3.5 w-3.5" />
                 Appearance
               </TabsTrigger>
-              <TabsTrigger
-                value="watched"
-                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <BellRing className="h-3.5 w-3.5" />
-                Watched
-              </TabsTrigger>
+              {user && (
+                <TabsTrigger
+                  value="watched"
+                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                >
+                  <BellRing className="h-3.5 w-3.5" />
+                  Watched
+                </TabsTrigger>
+              )}
+              {user && (
+                <TabsTrigger
+                  value="cloud"
+                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                >
+                  <Cloud className="h-3.5 w-3.5" />
+                  Cloud
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="advanced"
-                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
                 <Settings className="h-3.5 w-3.5" />
                 Advanced
               </TabsTrigger>
               <TabsTrigger
                 value="help"
-                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
                 <BookOpen className="h-3.5 w-3.5" />
                 Help
@@ -505,9 +569,16 @@ export function SettingsDialog() {
             <TabsContent value="appearance" className="m-0">
               <AppearanceTab />
             </TabsContent>
-            <TabsContent value="watched" className="m-0">
-              <WatchedIndexesPanel />
-            </TabsContent>
+            {user && (
+              <TabsContent value="watched" className="m-0">
+                <WatchedIndexesPanel />
+              </TabsContent>
+            )}
+            {user && (
+              <TabsContent value="cloud" className="m-0">
+                <CloudTab />
+              </TabsContent>
+            )}
             <TabsContent value="advanced" className="m-0">
               <AdvancedTab />
             </TabsContent>

@@ -211,12 +211,14 @@ export function FewerApp() {
     const openImportFolder = () => setImportDialogOpen(true);
     const openImportFile = () => setImportFromFileOpen(true);
     const openImportUrl = () => setImportUrlOpen(true);
+    const openCloudBrowser = () => setCloudBrowserOpen(true);
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
     window.addEventListener("fewer-import-file", openImportFile);
     window.addEventListener("fewer-import-url", openImportUrl);
+    window.addEventListener("fewer-cloud-browse", openCloudBrowser);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
@@ -224,6 +226,7 @@ export function FewerApp() {
       window.removeEventListener("fewer-import-folder", openImportFolder);
       window.removeEventListener("fewer-import-file", openImportFile);
       window.removeEventListener("fewer-import-url", openImportUrl);
+      window.removeEventListener("fewer-cloud-browse", openCloudBrowser);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, []);
@@ -287,10 +290,6 @@ export function FewerApp() {
     setImportUrlOpen(true);
   }, []);
 
-  const handleBrowseCloud = useCallback(() => {
-    setCloudBrowserOpen(true);
-  }, []);
-
   const handleImportFromFile = useCallback(
     (tree: import("@/lib/fewer/types").TreeEntry) => {
       const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
@@ -319,7 +318,6 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
-            onBrowseCloud={handleBrowseCloud}
           />
           {sidebarOpen && (
             <div
@@ -354,7 +352,6 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
-            onBrowseCloud={handleBrowseCloud}
           />
           </div>
         </div>

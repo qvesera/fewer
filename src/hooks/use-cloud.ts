@@ -12,8 +12,15 @@ export const PROVIDER_LABELS: Record<CloudProvider, string> = {
   "azure-blob": "Azure Blob",
 };
 
-/** Providers with a working adapter (others show as "coming soon"). */
-export const AVAILABLE_PROVIDERS: CloudProvider[] = ["github"];
+/** Providers with a working adapter. */
+export const AVAILABLE_PROVIDERS: CloudProvider[] = [
+  "github",
+  "google-drive",
+  "onedrive",
+  "sharepoint",
+  "azure-devops",
+  "azure-blob",
+];
 
 /** Fetch the current user's linked cloud connections. */
 export function useConnections() {

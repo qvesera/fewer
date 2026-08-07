@@ -1,40 +1,43 @@
 import "server-only";
 import type { CloudProvider, CloudProviderAdapter } from "./types";
 
-// Configured adapters: add new providers here as they land.
-const ADAPTERS: Partial<Record<CloudProvider, string>> = {
-  github: "@/lib/fewer/cloud/providers/github",
+// Configured adapters: provider id → module + named export.
+const ADAPTERS: Partial<Record<CloudProvider, { mod: string; exp: string }>> = {
+  github: { mod: "@/lib/fewer/cloud/providers/github", exp: "githubAdapter" },
+  "google-drive": { mod: "@/lib/fewer/cloud/providers/google", exp: "googleDriveAdapter" },
+  onedrive: { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "onedriveAdapter" },
+  sharepoint: { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "sharepointAdapter" },
+  "azure-devops": { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "azureDevOpsAdapter" },
+  "azure-blob": { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "azureBlobAdapter" },
 };
 
-const cache = new Map<CloudProvider, CloudProviderAdapter | null>();
+const cache = new Map<CloudProvider, CloudProviderAdapter>();
 
 function notConfigured(provider: CloudProvider): CloudProviderAdapter {
+  const fail = () => {
+    throw new Error(`${provider} is not implemented yet`);
+  };
   return {
     id: provider,
     label: provider,
-    async buildAuthUrl() {
-      throw new Error(`${provider} is not configured yet`);
-    },
-    async exchangeCode() {
-      throw new Error(`${provider} is not configured yet`);
-    },
+    buildAuthUrl: fail,
+    exchangeCode: fail,
     async refreshToken() {
       return null;
     },
-    async listChildren() {
-      throw new Error(`${provider} is not configured yet`);
-    },
+    listChildren: fail,
   };
 }
 
 /** Load a provider adapter (lazy via dynamic import). */
 export async function getAdapter(provider: CloudProvider): Promise<CloudProviderAdapter> {
-  if (cache.has(provider)) return cache.get(provider)!;
-  const mod = ADAPTERS[provider];
+  const cached = cache.get(provider);
+  if (cached) return cached;
+  const entry = ADAPTERS[provider];
   let adapter: CloudProviderAdapter;
-  if (mod) {
-    const m = await import(mod);
-    adapter = m[`${provider}Adapter`] as CloudProviderAdapter;
+  if (entry) {
+    const m = await import(entry.mod);
+    adapter = (m[entry.exp] as CloudProviderAdapter) ?? notConfigured(provider);
   } else {
     adapter = notConfigured(provider);
   }

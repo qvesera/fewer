@@ -7,15 +7,18 @@ import type { CloudProvider } from "@/lib/fewer/cloud/types";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const provider = searchParams.get("provider") as CloudProvider | null;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   const cookieStore = await cookies();
   const expectedState = cookieStore.get("cloud_oauth_state")?.value;
-  // Clear the state cookie regardless of outcome.
+  // Providers only echo `code` + `state`, so the provider comes from the cookie
+  // set by /api/cloud/connect.
+  const provider = (cookieStore.get("cloud_oauth_provider")?.value ?? null) as CloudProvider | null;
+  // Clear the flow cookies regardless of outcome.
   cookieStore.delete("cloud_oauth_state");
+  cookieStore.delete("cloud_oauth_provider");
 
   const bad = (msg: string) => NextResponse.redirect(`${origin}/?cloud=error&msg=${encodeURIComponent(msg)}`);
 

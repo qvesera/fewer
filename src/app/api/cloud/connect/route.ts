@@ -24,8 +24,15 @@ export async function GET(request: Request) {
   }
 
   // Store state in a httpOnly cookie so the callback can verify it (CSRF).
+  // Providers only echo `code` + `state` back, so carry `provider` in a cookie too.
   const res = NextResponse.redirect(url);
   res.cookies.set("cloud_oauth_state", state, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  res.cookies.set("cloud_oauth_provider", provider, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

@@ -30,9 +30,8 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
-import { StatsPanel, RenameInput, SavedGraphsPanel, CloudPanel } from ".";
+import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
-import { Cloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -80,7 +79,6 @@ interface SidebarProps {
   onImportFromFile: () => void;
   onImportFromUrl: () => void;
   onRequireAuth: () => void;
-  onBrowseCloud: () => void;
 }
 
 function CollapsibleSection({
@@ -336,7 +334,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth, onBrowseCloud }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
   const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
@@ -505,24 +503,6 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, on
         {user && (
           <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
             <SavedGraphsPanel onRequireAuth={onRequireAuth} />
-          </CollapsibleSection>
-        )}
-
-        {/* ── 1.6 CLOUD CONNECTIONS ── */}
-        {user ? (
-          <CollapsibleSection title="Cloud" icon={Cloud} defaultOpen={false}>
-            <CloudPanel onRequireAuth={onRequireAuth} onBrowse={onBrowseCloud} />
-          </CollapsibleSection>
-        ) : (
-          <CollapsibleSection title="Cloud" icon={Cloud} defaultOpen={false}>
-            <div className="space-y-2">
-              <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                Link Google Drive, OneDrive, SharePoint, GitHub, and Azure to browse and visualize cloud folders.
-              </p>
-              <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={onRequireAuth}>
-                <Cloud className="h-3.5 w-3.5" /> Sign in to link
-              </Button>
-            </div>
           </CollapsibleSection>
         )}
 
