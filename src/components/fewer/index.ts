@@ -29,3 +29,5 @@ export { PowerUserToggle } from "./PowerUserToggle";
 export { SavedGraphsPanel } from "./SavedGraphsPanel";
 export { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 export { AuthDialog } from "./AuthDialog";
+export { CloudPanel } from "./CloudPanel";
+export { CloudBrowserDialog } from "./CloudBrowserDialog";

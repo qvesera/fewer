@@ -39,6 +39,7 @@ const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddN
 const ImportUrlDialog = dynamic(() => import("./ImportUrlDialog").then((m) => m.ImportUrlDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
 const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
+const CloudBrowserDialog = dynamic(() => import("./CloudBrowserDialog").then((m) => m.CloudBrowserDialog), { ssr: false });
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -54,6 +55,7 @@ export function FewerApp() {
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [importUrlOpen, setImportUrlOpen] = useState(false);
+  const [cloudBrowserOpen, setCloudBrowserOpen] = useState(false);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -188,6 +190,20 @@ export function FewerApp() {
     });
   }, [hashLoaded, toast]);
 
+  // Handle OAuth callback query params (?cloud=connected|error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cloud = params.get("cloud");
+    if (cloud === "connected") {
+      const provider = params.get("provider");
+      toast({ title: "Cloud account linked", description: provider ? `${provider} connected.` : "Cloud account linked." });
+      window.history.replaceState(null, "", window.location.pathname);
+    } else if (cloud === "error") {
+      toast({ title: "Cloud connection failed", description: params.get("msg") || "Unknown error", variant: "destructive" });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [toast]);
+
   // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
@@ -271,6 +287,10 @@ export function FewerApp() {
     setImportUrlOpen(true);
   }, []);
 
+  const handleBrowseCloud = useCallback(() => {
+    setCloudBrowserOpen(true);
+  }, []);
+
   const handleImportFromFile = useCallback(
     (tree: import("@/lib/fewer/types").TreeEntry) => {
       const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
@@ -299,6 +319,7 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
+            onBrowseCloud={handleBrowseCloud}
           />
           {sidebarOpen && (
             <div
@@ -333,6 +354,7 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
+            onBrowseCloud={handleBrowseCloud}
           />
           </div>
         </div>
@@ -380,6 +402,7 @@ export function FewerApp() {
       />
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      <CloudBrowserDialog open={cloudBrowserOpen} onOpenChange={setCloudBrowserOpen} />
     </div>
   );
 }
