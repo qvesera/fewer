@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -334,6 +335,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
 }
 
 export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
+  const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -497,10 +499,12 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, on
           </div>
         </CollapsibleSection>
 
-        {/* ── 1.5 YOUR DIRECTORIES ── */}
-        <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
-          <SavedGraphsPanel onRequireAuth={onRequireAuth} />
-        </CollapsibleSection>
+        {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
+        {user && (
+          <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
+            <SavedGraphsPanel onRequireAuth={onRequireAuth} />
+          </CollapsibleSection>
+        )}
 
         {/* ── 2. LAYOUT & ORIENTATION ── */}
         <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
