@@ -5,7 +5,7 @@ import { randomState } from "@/lib/fewer/cloud/oauth";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const { searchParams, origin } = new URL(request.url);
   const provider = searchParams.get("provider") as CloudProvider | null;
   if (!provider) return NextResponse.json({ error: "Missing provider" }, { status: 400 });
 
@@ -14,7 +14,14 @@ export async function GET(request: Request) {
 
   const adapter = await getAdapter(provider);
   const state = randomState();
-  const url = await adapter.buildAuthUrl(state);
+
+  let url: string;
+  try {
+    url = await adapter.buildAuthUrl(state);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Provider not configured";
+    return NextResponse.redirect(`${origin}/?cloud=error&msg=${encodeURIComponent(msg)}`);
+  }
 
   // Store state in a httpOnly cookie so the callback can verify it (CSRF).
   const res = NextResponse.redirect(url);

@@ -34,6 +34,9 @@ export const githubAdapter: CloudProviderAdapter = {
   label: "GitHub",
 
   async buildAuthUrl(state) {
+    if (!CLIENT_ID() || !CLIENT_SECRET()) {
+      throw new Error("GitHub OAuth is not configured. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.");
+    }
     const scope = encodeURIComponent("repo");
     const clientId = CLIENT_ID();
     const redirect = encodeURIComponent(callbackUrl());
