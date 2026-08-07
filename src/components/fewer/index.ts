@@ -27,4 +27,5 @@ export { Toolbar } from "./Toolbar";
 export { TutorialDialog } from "./TutorialDialog";
 export { PowerUserToggle } from "./PowerUserToggle";
 export { SavedGraphsPanel } from "./SavedGraphsPanel";
+export { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 export { AuthDialog } from "./AuthDialog";

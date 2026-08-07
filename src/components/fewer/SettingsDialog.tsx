@@ -35,9 +35,11 @@ import {
   LogIn,
   LogOut,
   User2,
+  BellRing,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo } from ".";
+import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
@@ -473,6 +475,13 @@ export function SettingsDialog() {
                 Appearance
               </TabsTrigger>
               <TabsTrigger
+                value="watched"
+                className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+              >
+                <BellRing className="h-3.5 w-3.5" />
+                Watched
+              </TabsTrigger>
+              <TabsTrigger
                 value="advanced"
                 className="gap-1.5 rounded-lg px-3 text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
@@ -495,6 +504,9 @@ export function SettingsDialog() {
             </TabsContent>
             <TabsContent value="appearance" className="m-0">
               <AppearanceTab />
+            </TabsContent>
+            <TabsContent value="watched" className="m-0">
+              <WatchedIndexesPanel />
             </TabsContent>
             <TabsContent value="advanced" className="m-0">
               <AdvancedTab />

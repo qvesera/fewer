@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - Unreleased
+
+### Added
+
+- **Index change digests**: signed-in users can watch a public file index and get one consolidated daily email (23:59 UTC) listing everything added/removed across their watched indexes. New "Watch for changes" toggle in the Import URL dialog, a "Watched" tab in Settings, /api/watch (GET/POST/DELETE) CRUD, and /api/watch/run cron job (service-role + x-cron-secret protected) that crawls, diffs against the stored baseline, and emails via Resend - skipping days with no changes. Netlify scheduled function netlify/functions/watch-digest.ts (59 23 * * *). Migration 0010_watch_indexes.sql; crawl engine extracted to src/lib/fewer/crawl.ts; new src/lib/fewer/treeDiff.ts. Env: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+
 ## [0.4.0] - Unreleased
 
 ### Added
