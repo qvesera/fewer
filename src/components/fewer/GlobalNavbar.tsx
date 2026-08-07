@@ -1,12 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Search, Bell, Settings, BookOpen, FileText, LogIn, LogOut, User } from "lucide-react";
+import { Search, Bell, Settings, LogIn, LogOut, User } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
-import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
 import {
@@ -159,28 +158,6 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           <Settings className="h-4 w-4" />
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground"
-          asChild
-        >
-          <Link href="/docs">
-            <BookOpen className="mr-2 h-3.5 w-3.5" />
-            Docs
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-foreground"
-          asChild
-        >
-          <Link href="/blog">
-            <FileText className="mr-2 h-3.5 w-3.5" />
-            Blog
-          </Link>
-        </Button>
       </div>
     </div>
   );

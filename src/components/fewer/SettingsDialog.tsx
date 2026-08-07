@@ -27,15 +27,21 @@ import {
   HelpCircle,
   Map as MinimapIcon,
   Maximize2,
-  FileIcon,
   BookOpen,
+  Newspaper,
   ExternalLink,
   ChevronRight,
   Heart,
+  LogIn,
+  LogOut,
+  User2,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo } from ".";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { getBrowserSupabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 
@@ -44,8 +50,63 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 /* -------------------------------------------------------------------------- */
 
 function AboutTab() {
+  const { user, loading } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    try {
+      await getBrowserSupabase().auth.signOut();
+      toast({ title: "Signed out" });
+    } catch {
+      toast({ title: "Could not sign out", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5 py-1">
+      {/* Account Card */}
+      <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/40 p-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+            <User2 className="h-4 w-4" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-medium text-foreground">
+              {loading ? "Loading…" : user ? user.email : "Signed out"}
+            </span>
+            <span className="text-[11px] text-muted-foreground/70">
+              {loading ? "Checking session" : user ? "Account" : "Sign in to save and share graphs"}
+            </span>
+          </div>
+        </div>
+        {!loading && (
+          user ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => {
+                useGraphStore.getState().setSettingsOpen(false);
+                setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
+              }}
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              Sign in
+            </Button>
+          )
+        )}
+      </div>
+
       {/* Brand Hero Card */}
         <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/50 p-4 shadow-sm transition-[colors,transform,box-shadow]">
         <div className="flex items-center gap-3.5">
@@ -117,8 +178,6 @@ function AboutTab() {
 function AppearanceTab() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
-  const showFiles = useGraphStore((s) => s.showFiles);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
   return (
@@ -163,23 +222,16 @@ function AppearanceTab() {
         </div>
       </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/30 p-3.5 hover:border-border/80 transition-[colors,box-shadow] hover:shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-accent/50 text-muted-foreground shadow-sm">
-            <FileIcon className="h-4 w-4" />
-          </div>
-          <div className="flex flex-col">
-            <Label htmlFor="settings-show-files" className="text-xs font-medium cursor-pointer">
-              Show Files
-            </Label>
-            <span className="text-[11px] text-muted-foreground/70 text-pretty">Toggle display of file-level graph nodes</span>
-          </div>
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <MinimapIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Minimap
+          </Label>
         </div>
-        <Switch
-          id="settings-show-files"
-          checked={showFiles}
-          onCheckedChange={setShowFiles}
-        />
+        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <MinimapControls />
+        </div>
       </div>
     </div>
   );
@@ -306,17 +358,6 @@ function AdvancedTab() {
         </div>
       )}
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <MinimapIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Minimap Settings
-          </Label>
-        </div>
-        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
-          <MinimapControls />
-        </div>
-      </div>
     </div>
   );
 }
@@ -339,17 +380,21 @@ function HelpTab() {
     }, 200);
   };
 
-  const helpActions = [
-    { label: "Keyboard Shortcuts", icon: Keyboard, onClick: () => setShortcutsOpen(true) },
-    { label: "Report an Issue", icon: Bug, onClick: () => setBugReportOpen(true) },
+  const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "GitHub Issues", icon: HelpCircle, onClick: () => window.open("https://github.com/qvesera/fewer/issues", "_blank", "noreferrer") },
-    { label: "Official Documentation", icon: Globe, onClick: () => window.open("https://qvesera.github.io", "_blank", "noreferrer") },
+    { label: "Blog", icon: Newspaper, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/blog"); } },
+    { label: "Documentation", icon: BookOpen, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/docs"); } },
   ];
 
-  return (
-    <div className="flex flex-col gap-2 py-1">
-      {helpActions.map((item, idx) => (
+  const supportActions = [
+    { label: "Keyboard Shortcuts", icon: Keyboard, onClick: () => setShortcutsOpen(true) },
+    { label: "Report an Issue", icon: Bug, onClick: () => setBugReportOpen(true) },
+    { label: "GitHub Issues", icon: HelpCircle, onClick: () => window.open("https://github.com/qvesera/fewer/issues", "_blank", "noreferrer") },
+  ];
+
+  const renderActions = (actions: typeof learnActions) => (
+    <div className="flex flex-col gap-2">
+      {actions.map((item, idx) => (
         <Button
           key={idx}
           variant="ghost"
@@ -364,6 +409,23 @@ function HelpTab() {
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Button>
       ))}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-5 py-1">
+      <div className="space-y-2.5">
+        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Learn
+        </Label>
+        {renderActions(learnActions)}
+      </div>
+      <div className="space-y-2.5">
+        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Support
+        </Label>
+        {renderActions(supportActions)}
+      </div>
     </div>
   );
 }
@@ -393,7 +455,7 @@ export function SettingsDialog() {
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="about" className="flex min-h-0 flex-1 flex-col">
+        <Tabs defaultValue="appearance" className="flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
             <TabsList className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [&::-webkit-scrollbar]:h-0">
               <TabsTrigger

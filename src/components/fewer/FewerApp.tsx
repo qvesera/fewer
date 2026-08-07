@@ -57,7 +57,8 @@ export function FewerApp() {
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
+  const authOpen = useGraphStore((s) => s.authOpen);
+  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
   // On mobile, start with sidebar closed
