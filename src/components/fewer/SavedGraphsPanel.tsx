@@ -399,6 +399,7 @@ function ShareGraphDialog({
           access,
           invited_emails,
           saved_graph_id: graph.id,
+          name: graph.name,
         }),
       });
       const json = await res.json();

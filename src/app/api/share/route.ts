@@ -97,7 +97,9 @@ export async function POST(request: Request) {
 
     // Invite-only: create a per-email token and email each invitee a link.
     if (access === "invite" && invitedEmails.length > 0) {
-      await sendInvites(supabase, id, invitedEmails);
+      const graphName = (body?.name ?? "a graph").toString().slice(0, 200);
+      const inviterEmail = user?.email ?? "a fewer user";
+      await sendInvites(supabase, id, invitedEmails, graphName, inviterEmail);
     }
 
     return NextResponse.json({ id, access, invited_emails: invitedEmails });
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
  * Create a per-email token for each invitee and email them a link.
  * Token is the credential — the link works without login.
  */
-async function sendInvites(supabase: Awaited<ReturnType<typeof getAuthed>>["supabase"], shareId: string, emails: string[]) {
+async function sendInvites(supabase: Awaited<ReturnType<typeof getAuthed>>["supabase"], shareId: string, emails: string[], graphName: string, inviterEmail: string) {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
     console.warn("RESEND_API_KEY not set — skipping invite emails");
@@ -127,12 +129,41 @@ async function sendInvites(supabase: Awaited<ReturnType<typeof getAuthed>>["supa
       continue;
     }
     const link = `${APP_ORIGIN}/#i:${token}`;
+    const html = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b13;padding:32px 16px;">
+        <div style="max-width:480px;margin:0 auto;background:#16161f;border:1px solid #2a2a3a;border-radius:16px;overflow:hidden;">
+          <div style="padding:28px 32px;border-bottom:1px solid #2a2a3a;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:20px;">🗂️</span>
+              <span style="font-size:18px;font-weight:700;color:#f8f9fa;">fewer</span>
+            </div>
+          </div>
+          <div style="padding:32px;">
+            <h1 style="margin:0 0 8px;font-size:20px;color:#f8f9fa;">You're invited to view a graph</h1>
+            <p style="margin:0 0 20px;font-size:14px;color:#adb5bd;line-height:1.5;">
+              <strong style="color:#f8f9fa;">${inviterEmail}</strong> shared <strong style="color:#f8f9fa;">"${graphName}"</strong> with you on fewer.
+            </p>
+            <a href="${link}" style="display:inline-block;background:#fd7e14;color:#1e293b;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
+              Open the graph
+            </a>
+            <p style="margin:24px 0 0;font-size:12px;color:#868e96;line-height:1.5;">
+              This link is private — don't forward it. It works without an account.
+            </p>
+          </div>
+          <div style="padding:16px 32px;border-top:1px solid #2a2a3a;text-align:center;">
+            <span style="font-size:12px;color:#868e96;">fewer · Interactive File & System Graph Visualizer</span>
+          </div>
+        </div>
+      </div>
+    `;
+    const text = `${inviterEmail} invited you to view "${graphName}" on fewer.\n\nOpen the graph: ${link}\n\nThis link is private — don't forward it.`;
     try {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: [email],
-        subject: "You've been invited to view a graph",
-        html: `<p>Someone shared a graph with you on <strong>fewer</strong>.</p><p><a href="${link}">Open the graph</a></p><p>This link is private — don't forward it.</p>`,
+        subject: `You're invited to view "${graphName}"`,
+        html,
+        text,
       });
     } catch (err) {
       console.warn(`Failed to email ${email}:`, err instanceof Error ? err.message : err);
