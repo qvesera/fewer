@@ -145,6 +145,18 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
   const nodeCount = (g: SavedGraph) => g.data?.nodes?.length ?? 0;
 
+  const timeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(iso).toLocaleDateString();
+  };
+
   return (
     <div className="space-y-2.5 w-full min-w-0">
       {/* Save button */}
@@ -202,7 +214,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   <span className="truncate text-[11px] text-foreground/90 flex-1 min-w-0">
                     {g.name}
                     <span className="ml-1 text-[10px] text-muted-foreground/60">
-                      {nodeCount(g)} nodes
+                      {nodeCount(g)} nodes · {timeAgo(g.updated_at)}
                     </span>
                   </span>
                 )}
@@ -333,15 +345,52 @@ function ShareGraphDialog({
   const [building, setBuilding] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [existingId, setExistingId] = useState<string | null>(null);
+  const [unsharing, setUnsharing] = useState(false);
+
+  // Load any existing share link for this saved graph on open.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch(`/api/share?saved_graph_id=${graph.id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.share) return;
+        setExistingId(json.share.id);
+        setAccess(json.share.access);
+        if (json.share.access === "invite" && Array.isArray(json.share.invited_emails)) {
+          setEmails(json.share.invited_emails.join(", "));
+        }
+        setShareUrl(buildDbShareUrl(json.share.id));
+      })
+      .catch(() => { /* no existing share */ });
+    return () => { cancelled = true; };
+  }, [user, graph.id]);
+
+  const parseEmails = (): string[] => {
+    const list = emails.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const e of list) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        toast({ title: "Invalid email", description: `"${e}" is not a valid email.`, variant: "destructive" });
+        return [];
+      }
+      if (!seen.has(e)) { seen.add(e); out.push(e); }
+    }
+    return out;
+  };
 
   const buildShare = async () => {
     if (!user) return onRequireAuth();
+    const invited_emails = access === "invite" ? parseEmails() : [];
+    if (access === "invite" && invited_emails.length === 0) {
+      toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
+      return;
+    }
     setBuilding(true);
     setShareUrl("");
     try {
-      const invited_emails = access === "invite"
-        ? emails.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
-        : [];
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -354,12 +403,31 @@ function ShareGraphDialog({
       });
       const json = await res.json();
       if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
+      setExistingId(json.id);
       setShareUrl(buildDbShareUrl(json.id));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Share failed";
       toast({ title: "Could not share", description: msg, variant: "destructive" });
     } finally {
       setBuilding(false);
+    }
+  };
+
+  const handleUnshare = async () => {
+    if (!user || !existingId) return;
+    setUnsharing(true);
+    try {
+      const res = await fetch(`/api/share?saved_graph_id=${graph.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unshare failed");
+      setExistingId(null);
+      setShareUrl("");
+      setAccess("public");
+      setEmails("");
+      toast({ title: "Share link removed" });
+    } catch {
+      toast({ title: "Could not remove share", variant: "destructive" });
+    } finally {
+      setUnsharing(false);
     }
   };
 
@@ -460,7 +528,19 @@ function ShareGraphDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex items-center justify-between gap-2">
+          {existingId && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleUnshare}
+              disabled={unsharing}
+              className="gap-1.5 cursor-pointer mr-auto"
+            >
+              {unsharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Stop sharing
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer">
             Close
           </Button>

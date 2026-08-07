@@ -49,7 +49,7 @@ Settings in Advanced:
 
 ## Accounts & Saved Graphs
 
-Fewer works fully without an account. Signing in (optional) unlocks saving and sharing your directories across devices.
+Fewer works fully without an account. Signing in (optional) unlocks saving and sharing your directories across devices. See [Accounts & Saved Graphs](/docs/accounts) for the full guide.
 
 ### Sign in
 

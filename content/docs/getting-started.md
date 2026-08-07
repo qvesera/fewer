@@ -71,11 +71,16 @@ After import, you'll see:
 | **Space**                 | Fit view                               |
 | **+ / - / 0**             | Zoom in/out/reset                      |
 
+## Sign In (Optional)
+
+Fewer works fully without an account. If you'd like to save your directories to your account, access them across devices, and share them, click **Sign in** in the top navbar. See [Accounts & Saved Graphs](/docs/accounts) for details.
+
 ## What's Next
 
 - [Graph Features](/docs/graph-features)
 - [Import & Export](/docs/import-export)
 - [Sharing Graphs](/docs/sharing)
+- [Accounts & Saved Graphs](/docs/accounts)
 - [Keyboard Shortcuts](/docs/shortcuts)
 - [Theming](/docs/theming)
 - [Deployment & Self-Hosting](/docs/deployment)
