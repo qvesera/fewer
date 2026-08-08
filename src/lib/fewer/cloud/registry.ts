@@ -1,17 +1,24 @@
 import "server-only";
 import type { CloudProvider, CloudProviderAdapter } from "./types";
+import { githubAdapter } from "./providers/github";
+import { googleDriveAdapter } from "./providers/google";
+import {
+  onedriveAdapter,
+  sharepointAdapter,
+  azureDevOpsAdapter,
+  azureBlobAdapter,
+} from "./providers/microsoft";
 
-// Configured adapters: provider id → module + named export.
-const ADAPTERS: Partial<Record<CloudProvider, { mod: string; exp: string }>> = {
-  github: { mod: "@/lib/fewer/cloud/providers/github", exp: "githubAdapter" },
-  "google-drive": { mod: "@/lib/fewer/cloud/providers/google", exp: "googleDriveAdapter" },
-  onedrive: { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "onedriveAdapter" },
-  sharepoint: { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "sharepointAdapter" },
-  "azure-devops": { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "azureDevOpsAdapter" },
-  "azure-blob": { mod: "@/lib/fewer/cloud/providers/microsoft", exp: "azureBlobAdapter" },
+// ponytail: static imports — dynamic import() of alias paths is not resolvable
+// at runtime under Next's server bundler (MODULE_NOT_FOUND).
+const ADAPTERS: Partial<Record<CloudProvider, CloudProviderAdapter>> = {
+  github: githubAdapter,
+  "google-drive": googleDriveAdapter,
+  onedrive: onedriveAdapter,
+  sharepoint: sharepointAdapter,
+  "azure-devops": azureDevOpsAdapter,
+  "azure-blob": azureBlobAdapter,
 };
-
-const cache = new Map<CloudProvider, CloudProviderAdapter>();
 
 function notConfigured(provider: CloudProvider): CloudProviderAdapter {
   const fail = () => {
@@ -29,20 +36,8 @@ function notConfigured(provider: CloudProvider): CloudProviderAdapter {
   };
 }
 
-/** Load a provider adapter (lazy via dynamic import). */
 export async function getAdapter(provider: CloudProvider): Promise<CloudProviderAdapter> {
-  const cached = cache.get(provider);
-  if (cached) return cached;
-  const entry = ADAPTERS[provider];
-  let adapter: CloudProviderAdapter;
-  if (entry) {
-    const m = await import(entry.mod);
-    adapter = (m[entry.exp] as CloudProviderAdapter) ?? notConfigured(provider);
-  } else {
-    adapter = notConfigured(provider);
-  }
-  cache.set(provider, adapter);
-  return adapter;
+  return ADAPTERS[provider] ?? notConfigured(provider);
 }
 
 /** Whether a provider has a registered adapter implementation. */
