@@ -28,6 +28,7 @@ import {
   FilePlus,
   FolderPlus,
   EyeOff,
+  Cloud,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
@@ -79,6 +80,7 @@ interface SidebarProps {
   onImportFromFile: () => void;
   onImportFromUrl: () => void;
   onRequireAuth: () => void;
+  onImportFromCloud: () => void;
 }
 
 function CollapsibleSection({
@@ -334,7 +336,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth, onImportFromCloud }: SidebarProps) {
   const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
@@ -435,7 +437,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, on
             </Button>
             
             <AnimatedConditional show={advancedModeEnabled} delay={0}>
-              <div className="grid grid-cols-2 gap-2 pb-1 w-full min-w-0">
+              <div className="grid grid-cols-3 gap-2 pb-1 w-full min-w-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -453,6 +455,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, on
                 >
                   <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate">URL</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50"
+                  onClick={onImportFromCloud}
+                >
+                  <Cloud className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">Cloud</span>
                 </Button>
               </div>
             </AnimatedConditional>

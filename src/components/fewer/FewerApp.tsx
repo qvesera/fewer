@@ -290,6 +290,10 @@ export function FewerApp() {
     setImportUrlOpen(true);
   }, []);
 
+  const handleImportFromCloud = useCallback(() => {
+    setCloudBrowserOpen(true);
+  }, []);
+
   const handleImportFromFile = useCallback(
     (tree: import("@/lib/fewer/types").TreeEntry) => {
       const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
@@ -318,6 +322,7 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
+            onImportFromCloud={handleImportFromCloud}
           />
           {sidebarOpen && (
             <div
@@ -352,6 +357,7 @@ export function FewerApp() {
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
             onRequireAuth={() => setAuthOpen(true)}
+            onImportFromCloud={handleImportFromCloud}
           />
           </div>
         </div>

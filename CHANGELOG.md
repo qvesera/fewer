@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
-- **Cloud entry point moved**: cloud linking removed from the sidebar; now in Settings → Cloud.
+- **Cloud entry point moved**: account connections live in Settings → Cloud; the cloud **import** browser is a sidebar option (File & Actions → Cloud, next to File/URL).
+- **Cloud import UX**: the cloud browser now uses the shared import options panel (max depth, hidden files, vendored dirs, empty folders, extensions, file nodes, display depth) instead of a single depth field; empty states guide signed-out users to sign in and unlinked users to Settings → Cloud.
 
 ### Docs
 
