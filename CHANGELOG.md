@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - Unreleased
+## [0.5.0] - Unreleased
 
 ### Added
 
@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
 - **Cloud entry point moved**: cloud linking removed from the sidebar; now in Settings → Cloud.
+
+### Docs
+
+- **Watch File Indexes page**: new `/docs/watch` covers watching public file indexes, the 23:59 daily digest, and managing watched indexes in Settings
+- **Deployment**: documented Resend + scheduled-digest env vars (RESEND_API_KEY, RESEND_FROM_EMAIL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET)
+- **Docs nav**: registered `watch` and `cloud` pages in the Features section
 
 ## [0.4.0] - Unreleased
 

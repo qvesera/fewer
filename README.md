@@ -195,6 +195,24 @@ docker run -p 3000:3000 fewer
 </details>
 
 <details>
+<summary><b>Cloud Storage</b></summary>
+
+- **Link cloud accounts**: connect GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps, and Azure Blob via OAuth
+- **Browse & import**: lazily browse a linked account's folders and import one into the graph
+- **Open in provider**: open any imported node in its provider's web UI
+
+</details>
+
+<details>
+<summary><b>Watch File Indexes</b></summary>
+
+- **Watch indexes**: watch a public file index and get a daily email digest when it changes
+- **Consolidated digest**: one email at 23:59 listing everything added/removed across your watched indexes
+- **No changes, no email**: digests are only sent on days something changed
+
+</details>
+
+<details>
 <summary><b>Additional</b></summary>
 
 - **Interactive tutorial**: spotlight walkthrough with user interaction

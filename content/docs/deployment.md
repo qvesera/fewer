@@ -106,6 +106,19 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 
 > **Note:** `NEXT_PUBLIC_*` variables are inlined at build time, so they must be set when you build, not just at runtime.
 
+### Mail & scheduled digests (Watch File Indexes)
+
+Watching file indexes and emailing daily change digests uses **Resend** for email and a scheduled Netlify function for the nightly crawl.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `RESEND_API_KEY` | Resend API key for sending digest emails |
+| `RESEND_FROM_EMAIL` | Sender address for digest emails (defaults to `fewer <onboarding@resend.dev>`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-side only) so the nightly job can read every user's watchlist |
+| `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` job |
+
+The nightly job is triggered by the Netlify scheduled function in `netlify/functions/watch-digest.ts`. It crawls watched indexes, diffs against the previous crawl, and sends one consolidated email per user only when something changed.
+
 ## Cloud Connections (OAuth)
 
 Cloud storage browsing (GitHub private repos, Google Drive, OneDrive, SharePoint, Azure) uses OAuth. Each provider needs its own app credentials. The redirect URI for every provider is:
