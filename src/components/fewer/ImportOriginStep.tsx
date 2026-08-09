@@ -66,6 +66,13 @@ export interface ImportOriginStepProps {
 
 const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
 
+// URL and cloud origins require a linked account — only available to
+// signed-in users. Signed-out users see folder + file only.
+const VISIBLE_ORIGINS_FOR: Record<"any" | "signedOut", ImportOrigin[]> = {
+  any: ORIGINS,
+  signedOut: ORIGINS.filter((o) => o === "folder" || o === "file"),
+};
+
 const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
@@ -87,7 +94,7 @@ export function ImportOriginStep({
     <div className="space-y-4">
       {/* ── Origin selection ── */}
       <div className="grid grid-cols-2 gap-2">
-        {ORIGINS.map((o) => {
+        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
@@ -130,30 +137,38 @@ export function ImportOriginStep({
       </div>
 
       {/* ── Origin-specific source picking ── */}
-      {origin === "folder" && <FolderSource />}
-      {origin === "file" && (
-        <FileSource
-          source={source as Extract<OriginSource, { origin: "file" }>}
-          onSourceChange={onSourceChange}
-          advancedModeEnabled={advancedModeEnabled}
-        />
-      )}
-      {origin === "url" && (
-        <UrlSource
-          source={source as Extract<OriginSource, { origin: "url" }>}
-          onSourceChange={onSourceChange}
-          signedIn={signedIn}
-          onRequireAuth={onRequireAuth}
-        />
-      )}
-      {origin === "cloud" && (
-        <CloudSource
-          source={source as Extract<OriginSource, { origin: "cloud" }>}
-          onSourceChange={onSourceChange}
-          signedIn={signedIn}
-          onRequireAuth={onRequireAuth}
-          onOpenCloudSettings={onOpenCloudSettings}
-        />
+      {signedIn || origin === "folder" || origin === "file" ? (
+        <>
+          {origin === "folder" && <FolderSource />}
+          {origin === "file" && (
+            <FileSource
+              source={source as Extract<OriginSource, { origin: "file" }>}
+              onSourceChange={onSourceChange}
+              advancedModeEnabled={advancedModeEnabled}
+            />
+          )}
+          {origin === "url" && (
+            <UrlSource
+              source={source as Extract<OriginSource, { origin: "url" }>}
+              onSourceChange={onSourceChange}
+              signedIn={signedIn}
+              onRequireAuth={onRequireAuth}
+            />
+          )}
+          {origin === "cloud" && (
+            <CloudSource
+              source={source as Extract<OriginSource, { origin: "cloud" }>}
+              onSourceChange={onSourceChange}
+              signedIn={signedIn}
+              onRequireAuth={onRequireAuth}
+              onOpenCloudSettings={onOpenCloudSettings}
+            />
+          )}
+        </>
+      ) : (
+        // Signed-out user holding a stale url/cloud origin (e.g. signed out
+        // mid-flow) — fall back to the folder source; url/cloud are hidden.
+        <FolderSource />
       )}
     </div>
   );

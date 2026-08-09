@@ -40,7 +40,7 @@ import {
   Cloud,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
-import { PowerUserToggle, CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
+import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -323,8 +323,6 @@ function AdvancedTab() {
 
   return (
     <div className="flex flex-col gap-5 py-1">
-      <PowerUserToggle />
-
       {advancedModeEnabled && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">

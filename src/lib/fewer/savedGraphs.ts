@@ -20,7 +20,6 @@ export interface SavedGraphData {
   showMiniMap: boolean;
   miniMapPosition: string;
   miniMapSize: number;
-  advancedModeEnabled: boolean;
 }
 
 export interface SavedGraph {

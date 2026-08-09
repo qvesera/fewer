@@ -15,6 +15,7 @@ import { SAMPLE_TREE } from "@/lib/fewer/sampleData";
 import type { ImportOrigin } from "@/lib/fewer/importFlow";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -39,6 +40,7 @@ export function FewerApp() {
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
   const { toast } = useToast();
   const device = useDevice();
+  const { user } = useAuth();
 
   const [importFlowOpen, setImportFlowOpen] = useState(false);
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
@@ -66,6 +68,14 @@ export function FewerApp() {
       useGraphStore.getState().setThemeMode(savedTheme as any);
     }
   }, []);
+
+  // Advanced power-user options are available only to signed-in users.
+  // The old PowerUserToggle is gone; the flag now tracks auth. Drive the
+  // store flag directly (not via a reset-triggering setter) so a logged-in
+  // user's theme/settings are never wiped on sign-in/out.
+  useEffect(() => {
+    useGraphStore.setState({ advancedModeEnabled: !!user });
+  }, [user]);
 
   // Sidebar drag-resize handler
   useEffect(() => {
@@ -205,24 +215,15 @@ export function FewerApp() {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
     const openImportFolder = () => openImportFlow("folder");
-    const openImportFile = () => openImportFlow("file");
-    const openImportUrl = () => openImportFlow("url");
-    const openCloudBrowser = () => openImportFlow("cloud");
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
-    window.addEventListener("fewer-import-file", openImportFile);
-    window.addEventListener("fewer-import-url", openImportUrl);
-    window.addEventListener("fewer-cloud-browse", openCloudBrowser);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
       window.removeEventListener("fewer-import-folder", openImportFolder);
-      window.removeEventListener("fewer-import-file", openImportFile);
-      window.removeEventListener("fewer-import-url", openImportUrl);
-      window.removeEventListener("fewer-cloud-browse", openCloudBrowser);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, [openImportFlow]);
@@ -249,10 +250,7 @@ export function FewerApp() {
         >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
-            onImportFromFile={() => openImportFlow("file")}
-            onImportFromUrl={() => openImportFlow("url")}
             onRequireAuth={() => setAuthOpen(true)}
-            onImportFromCloud={() => openImportFlow("cloud")}
           />
           {sidebarOpen && (
             <div
@@ -284,10 +282,7 @@ export function FewerApp() {
           >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
-            onImportFromFile={() => openImportFlow("file")}
-            onImportFromUrl={() => openImportFlow("url")}
             onRequireAuth={() => setAuthOpen(true)}
-            onImportFromCloud={() => openImportFlow("cloud")}
           />
           </div>
         </div>

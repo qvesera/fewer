@@ -1,11 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -17,9 +12,7 @@ import {
   Package,
   FolderX,
   FileIcon,
-  ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 
 interface ImportOptionsPanelProps {
@@ -33,8 +26,6 @@ export function ImportOptionsPanel({
   onChange,
   advancedModeEnabled,
 }: ImportOptionsPanelProps) {
-  const [summaryOpen, setSummaryOpen] = useState(false);
-
   const update = (partial: Partial<ImportOptions>) => onChange(partial);
 
   // Extensions are edited as raw text; binding the input directly to the
@@ -228,52 +219,6 @@ export function ImportOptionsPanel({
               </Label>
             </div>
           </div>
-
-          {/* Summary */}
-          <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
-            <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
-              <CollapsibleTrigger asChild>
-                <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase">
-                  <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
-                  Summary
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Depth</span>
-                  <span className="font-mono font-medium text-foreground/80">
-                    {options.maxDepth === 0 ? "No Limit" : `${options.maxDepth} levels`}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Hidden Files</span>
-                  <span className="font-medium text-foreground/85">{options.includeHidden ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>node_modules</span>
-                  <span className="font-medium text-foreground/85">{options.includeVendored ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Empty Folders</span>
-                  <span className="font-medium text-foreground/85">{options.skipEmptyFolders ? "Skip" : "Show"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Show Files</span>
-                  <span className="font-medium text-foreground/85">
-                    {options.includeFiles ? "Yes" : "No"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Extensions</span>
-                  <span className="font-mono bg-secondary font-medium text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
-                    {options.extensions.length > 0
-                      ? `${options.extensions.length} ext`
-                      : "All (*)"}
-                  </span>
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
         </>
       )}
     </div>

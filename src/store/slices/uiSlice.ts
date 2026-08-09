@@ -66,7 +66,6 @@ export type UiSliceCreator = StateCreator<
     setShowMiniMap: (show: boolean) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
     setMiniMapSize: (size: number) => void;
-    setAdvancedMode: (enabled: boolean) => void;
     setShowFiles: (show: boolean) => void;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
@@ -177,34 +176,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setLoading: (loading) => set({ loading }),
-
-  setAdvancedMode: (enabled) => {
-    set({ advancedModeEnabled: enabled });
-    if (typeof window !== "undefined") localStorage.setItem("fewer-advanced-mode", String(enabled));
-    // When disabling advanced mode, reset all settings to defaults
-    if (!enabled) {
-      // Reset theme to dark
-      get().setThemeMode("dark");
-      get().resetCustomTheme();
-      set({
-        // Layout defaults
-        direction: "TB",
-        edgeStyle: "curved",
-        edgeAnimated: false,
-        edgeStrokeStyle: "solid",
-        edgeWidth: 2,
-        cornerRadius: 8,
-        // UI defaults
-        showMiniMap: true,
-        miniMapPosition: "bottom-right",
-        miniMapSize: 160,
-        showFiles: true,
-        // Graph defaults
-        maxDisplayDepth: 6,
-        autoHideThreshold: 10,
-      });
-    }
-  },
 
   setShowFiles: (show) => {
     const { nodes, edges, graphVersion } = get();
