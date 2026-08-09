@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 
 interface ImportOptionsPanelProps {
   options: ImportOptions;
@@ -37,6 +36,32 @@ export function ImportOptionsPanel({
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const update = (partial: Partial<ImportOptions>) => onChange(partial);
+
+  // Extensions are edited as raw text; binding the input directly to the
+  // parsed array eats commas/spaces while typing. Commit on blur/Enter.
+  const [extText, setExtText] = useState(() => options.extensions.join(", "));
+  // External change (e.g. dialog reset) — sync unless it matches what's typed.
+  useEffect(() => {
+    setExtText((current) => {
+      const parsed = current
+        .split(",")
+        .map((s) => s.trim().replace(/^\./, ""))
+        .filter(Boolean);
+      const same =
+        parsed.length === options.extensions.length &&
+        parsed.every((p, i) => p === options.extensions[i]);
+      return same ? current : options.extensions.join(", ");
+    });
+  }, [options.extensions]);
+
+  const commitExtensions = () => {
+    const exts = extText
+      .split(",")
+      .map((s) => s.trim().replace(/^\./, ""))
+      .filter(Boolean);
+    update({ extensions: exts });
+    setExtText(exts.join(", "));
+  };
 
   return (
     <div className="space-y-4">
@@ -177,13 +202,14 @@ export function ImportOptionsPanel({
               Only scan these extensions. Comma-separated.
             </p>
             <Input
-              value={options.extensions.join(", ")}
-              onChange={(e) => {
-                const exts = e.target.value
-                  .split(",")
-                  .map((s) => s.trim().replace(/^\./, ""))
-                  .filter(Boolean);
-                update({ extensions: exts });
+              value={extText}
+              onChange={(e) => setExtText(e.target.value)}
+              onBlur={commitExtensions}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitExtensions();
+                }
               }}
               placeholder="e.g. ts, tsx, js, json"
               className="font-mono text-xs h-9 bg-muted/20 border-border/50 focus-visible:ring-1 focus-visible:ring-ring"

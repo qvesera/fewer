@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
 - **Cloud entry point moved**: account connections live in Settings → Cloud; the cloud **import** browser is a sidebar option (File & Actions → Cloud, next to File/URL).
 - **Cloud import UX**: the cloud browser now uses the shared import options panel (max depth, hidden files, vendored dirs, empty folders, extensions, file nodes, display depth) instead of a single depth field; empty states guide signed-out users to sign in and unlinked users to Settings → Cloud.
+- **Unified 3-step import flow**: every import — folder, file, URL, cloud — now follows exactly three steps: select origin → configure options → import. One `ImportFlowDialog` replaces the four separate dialogs; step 1 picks the origin and its source (device folder, ASCII-tree/JSON/script payload, URL + watch toggle, or cloud account + folder browser), step 2 is the single shared `ImportOptionsPanel` for all origins, step 3 confirms and runs the per-origin action. File imports now actually honor the import options (filtering, file nodes, display depth), cloud imports honor the scan-depth option, and all sidebar/shortcut entry points preselect their origin in the same flow. Sign-in and Settings detours stack on top without destroying flow progress; closing is blocked while an import is in flight. Also fixes the options panel's extension filter input (commas no longer eaten while typing) and dedupes URL-import error/truncation reporting via a synchronous hook snapshot.
+
+### Removed
+
+- `ImportDialog`, `ImportFromFileDialog`, `ImportUrlDialog`, `CloudBrowserDialog` and orphaned `ImportProgress` — replaced by the unified `ImportFlowDialog` (see Changed → Unified 3-step import flow).
 
 ### Docs
 
