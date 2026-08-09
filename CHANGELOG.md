@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deployment**: documented Resend + scheduled-digest env vars (RESEND_API_KEY, RESEND_FROM_EMAIL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET)
 - **Docs nav**: registered `watch` and `cloud` pages in the Features section
 
+### Fixed
+
+- **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
+- **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
+
 ## [0.4.0] - Unreleased
 
 ### Added

@@ -18,4 +18,8 @@ additional_redirect_urls = ["http://localhost:3000"]
 [auth.email]
 enable_signup = true
 double_confirm_changes = false
-enable_confirmations = false
+# Require email confirmation before a new account can sign in (blocks fake
+# sign-ups). The sign-up dialog already prompts "Check your email". Match this
+# in the hosted project: Supabase dashboard -> Authentication -> Sign In / Up
+# -> Confirm email.
+enable_confirmations = true
