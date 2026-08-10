@@ -59,7 +59,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery } = get();
+    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -73,12 +73,13 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       future: [entry, ...future].slice(0, MAX_HISTORY),
       nodes: applySearchInternal(prevNodes, searchQuery),
       edges: prevEdges,
+      graphVersion: graphVersion + 1,
       ...viewPatch,
     });
   },
 
   redo: () => {
-    const { past, future, nodes, edges, searchQuery } = get();
+    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
     if (future.length === 0) return;
     const entry = future[0];
     const { nodes: nextNodes, edges: nextEdges } = applyOps(nodes, edges, entry.ops);
@@ -91,6 +92,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       past: [...past, entry].slice(-MAX_HISTORY),
       nodes: applySearchInternal(nextNodes, searchQuery),
       edges: nextEdges,
+      graphVersion: graphVersion + 1,
       ...viewPatch,
     });
   },
