@@ -194,7 +194,7 @@ export function undoOp(
     }
     case "remove-subtree": {
       const n = [...nodes, op.node, ...op.children];
-      const e = [op.edge, ...op.childEdges].filter((ed): ed is FewerEdge => !!ed);
+      const e = [...edges, op.edge, ...op.childEdges].filter((ed): ed is FewerEdge => !!ed);
       return { nodes: n, edges: e };
     }
     case "connect": {
