@@ -24,7 +24,7 @@ Each provider uses its own OAuth app. Before you can link, the provider's creden
 
 ## Import into the graph
 
-1. Browse to the folder you want.
+1. Browse to the folder you want — the folder you're viewing is selected automatically for import.
 2. Set the import **Depth** (how many levels deep to fetch).
 3. Click **Import Folder**.
 
