@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Persistent share links**: a logged-in owner's share link no longer expires (previously it got the same 30-day TTL as anonymous shares). Anonymous shares keep the TTL; a NULL `expires_at` means never. Migration `0013_persistent_shares.sql`.
 - **Pin saved graphs**: star a saved graph to float it to the top of "Your Directories". Optimistic toggle via new `PATCH /api/graphs/[id]`; the list sorts favorites first. Migration `0014_saved_graphs_favorite.sql`.
 - **Shared badge in the saved list**: each saved graph shows a globe (anyone with link) or mail (invite-only) badge when it has an active share, so share status is visible without opening the dialog. `GET /api/graphs` now returns per-graph share info.
+- **Privacy Policy & Terms of Use**: new legal pages at `/docs/privacy` and `/docs/terms` (rendered from `content/docs/privacy.md` and `content/docs/terms.md`), a "Legal" section in the docs sidebar, and a site footer with Privacy/Terms links added to `DocsLayout`.
 
 
 ### Changed
