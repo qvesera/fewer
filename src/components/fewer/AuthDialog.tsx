@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/tooltip";
 import { PASSWORD_HINTS, unmetPasswordHints } from "@/lib/fewer/passwordPolicy";
 
+/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface AuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,16 +35,28 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const close = () => {
     onOpenChange(false);
     setMode("signin");
     setEmail("");
     setPassword("");
+    setEmailError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Field-level email validation (all modes need a well-formed email).
+    const emailOk = EMAIL_RE.test(email.trim());
+    if (!emailOk) {
+      setEmailError("Enter a valid email address.");
+      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (emailError) setEmailError(null);
+
     if (mode === "reset") {
       setLoading(true);
       try {
@@ -121,10 +136,18 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setEmail(v);
+                if (emailError) {
+                  setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                }
+              }}
               placeholder="you@example.com"
               autoComplete="email"
+              aria-invalid={!!emailError}
             />
+            {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
           </div>
 
           {mode !== "reset" && (
