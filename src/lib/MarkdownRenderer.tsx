@@ -92,7 +92,10 @@ export function renderMarkdown(content: string): React.ReactNode {
   while (i < blocks.length) {
     const block = blocks[i];
 
-    if (block.startsWith("# ")) {
+    if (block.startsWith("<!--")) {
+      // Skip HTML comments (e.g. operator-only notes) — not rendered.
+      i++;
+    } else if (block.startsWith("# ")) {
       result.push(<h1 key={i} className="text-3xl font-bold mt-8 mb-4">{renderInline(block.slice(2))}</h1>);
       i++;
     } else if (block.startsWith("## ")) {

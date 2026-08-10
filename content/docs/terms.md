@@ -8,7 +8,7 @@ lastUpdated: August 10, 2026
 
 **Last updated: August 10, 2026**
 
-> **Not legal advice.** This page is an informational template and does not constitute legal advice, nor does it create an attorney-client relationship. Laws vary by jurisdiction. You should consult a qualified attorney to review your specific situation before relying on these terms.
+<!-- NOTE FOR THE SITE OPERATOR: This is a generic template. Before publishing these terms as legally binding, have a qualified attorney review them for your jurisdiction and specific business model (accounts, saved graphs, share links, cloud OAuth connections). This is not legal advice. -->
 
 These Terms of Use ("Terms") govern your access to and use of the fewer web application available at [fewer.directory](https://fewer.directory) and related services (together, the "Service"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.
 
