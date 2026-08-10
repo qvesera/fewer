@@ -2,6 +2,7 @@
 
 ### Turn any directory into an interactive graph you can explore, edit, and export.
 
+[![Website Status](https://api.netlify.com/api/v1/badges/c64e4649-a3d3-4eb4-a02a-f712a785ab70/deploy-status)](https://app.netlify.com/projects/fewer-directory/deploys)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
@@ -313,16 +314,16 @@ src/
 
 ## Tech Stack
 
-| Layer     | Technology                                     |
-| --------- | ---------------------------------------------- |
-| Framework | Next.js 16 (App Router, Turbopack)             |
-| UI        | React 19, Tailwind CSS 4, shadcn/ui (New York) |
-| Graph     | React Flow v12 (@xyflow/react)                 |
-| State     | Zustand                                        |
-| Language  | TypeScript 5 (strict)                          |
+| Layer     | Technology                                                      |
+| --------- | --------------------------------------------------------------- |
+| Framework | Next.js 16 (App Router, Turbopack)                              |
+| UI        | React 19, Tailwind CSS 4, shadcn/ui (New York)                  |
+| Graph     | React Flow v12 (@xyflow/react)                                  |
+| State     | Zustand                                                         |
+| Language  | TypeScript 5 (strict)                                           |
 | Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links) |
-| Icons     | Lucide React                                   |
-| Fonts     | Geist Sans / Geist Mono                        |
+| Icons     | Lucide React                                                    |
+| Fonts     | Geist Sans / Geist Mono                                         |
 
 ---
 
@@ -385,6 +386,5 @@ AGPLv3. See [LICENSE](LICENSE) for details.
 - [shadcn/ui](https://ui.shadcn.com/): accessible component library
 - [Tailwind CSS](https://tailwindcss.com/): utility-first CSS framework
 - [Lucide](https://lucide.dev/): icon set
-- [Directory icons by Freepik - Flaticon](https://www.flaticon.com/free-icons/directory)
 
 **This project stands with Palestine 🇵🇸**
