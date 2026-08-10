@@ -64,9 +64,11 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         return;
       }
       const json = await res.json();
-      if (res.ok && Array.isArray(json.graphs)) setGraphs(json.graphs);
-    } catch {
-      toast({ title: "Could not load saved graphs", variant: "destructive" });
+      if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
+      if (Array.isArray(json.graphs)) setGraphs(json.graphs);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not load saved graphs";
+      toast({ title: "Could not load saved graphs", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }

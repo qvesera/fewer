@@ -33,7 +33,7 @@ async function getAuthedClient() {
 export async function GET() {
   const authed = await getAuthedClient();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  const { supabase } = authed;
+  const { supabase, user } = authed;
 
   const { data, error } = await supabase
     .from("saved_graphs")
