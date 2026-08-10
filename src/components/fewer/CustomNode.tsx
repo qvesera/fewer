@@ -150,7 +150,8 @@ function RenameInput({
 }
 
 /** Map a dataSource prefix to a display label for "Open in provider". */
-function providerLabelFromSource(dataSource: string): string {
+function providerLabelFromSource(dataSource: string | null): string {
+  if (!dataSource) return "Provider";
   if (dataSource.startsWith("cloud:github")) return "GitHub";
   if (dataSource.startsWith("cloud:google-drive")) return "Google Drive";
   if (dataSource.startsWith("cloud:onedrive")) return "OneDrive";
