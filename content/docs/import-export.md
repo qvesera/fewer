@@ -40,7 +40,7 @@ How deep to display after import. Deeper nodes go to the Hidden Nodes panel.
 | Option | Default | Description |
 | ------ | ------- | ----------- |
 | Include Hidden Files | Off | Include dotfiles (`.gitignore`, `.env`, etc.) |
-| Include node_modules | Off | Scan `node_modules` and dependency folders |
+| Include dependency &amp; build folders | Off | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
 | Skip Empty Folders | On | Hide folders with no files inside |
 | Show Files on Canvas | On | Show file nodes. Off = directories only |
 | File Extensions | None | Comma-separated whitelist (e.g. `ts, tsx, js`) |
