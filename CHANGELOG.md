@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - Unreleased
+## [0.5.1] - Unreleased
 
 ### Added
 
@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Undo/redo overhaul**: undo/redo now works correctly across every graph-mutating action. Previously node-drag undo deleted the whole graph, and delete/cut/connect/edge-delete undo were no-ops or worse (connect undo removed the child node). Each action now uses a dedicated history op: `remove-subtree` (delete/cut restores the subtree on undo), `connect` (removes the edge and restores paths without deleting the child), `remove-edges` (restores deleted edges), `move-positions` (restores dragged positions), `resize` (restores dimensions), `collapse-batch` (collapse/expand-all restores each folder's prior collapsed state), and `view-state` (hide/show, show-files, max-display-depth, auto-hide-threshold). Undo/redo also restores `hiddenIds`/`showFiles`/`maxDisplayDepth`/`autoHideThreshold` alongside nodes/edges. New `src/lib/fewer/history.test.ts` covers round-trips for all op types.
 - **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
 - **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
 

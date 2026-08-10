@@ -109,7 +109,8 @@ function CanvasInner() {
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const commitHistory = useGraphStore((s) => s.commitHistory);
+  const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
+  const recordResize = useGraphStore((s) => s.recordResize);
   const connectNodes = useGraphStore((s) => s.connectNodes);
   const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
@@ -176,6 +177,9 @@ function CanvasInner() {
 
   const relayout = useGraphStore((s) => s.relayout);
   const hasMeasuredRef = useRef(false);
+  const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
+  const resizeTimerRef = useRef<number | null>(null);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
 
@@ -269,6 +273,12 @@ function CanvasInner() {
           nodes: s.nodes.map((n) => {
             const change = dimensionChanges.find((c) => c.id === n.id);
             if (change) {
+              // Record the pre-resize dimensions the first time we see this node resize.
+              if (!resizeStartDimensions.current.has(n.id)) {
+                const prev = n.style?.width ?? n.measured?.width ?? 0;
+                const prevH = n.style?.height ?? n.measured?.height ?? 0;
+                resizeStartDimensions.current.set(n.id, { w: prev, h: prevH });
+              }
               return {
                 ...n,
                 style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
@@ -283,9 +293,24 @@ function CanvasInner() {
           hasMeasuredRef.current = true;
           setTimeout(() => { relayout(); fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 }); }, 50);
         }
+
+        // Commit a resize op once the resize gesture settles (debounced).
+        if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = window.setTimeout(() => {
+          const store = useGraphStore.getState();
+          const changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[] = [];
+          for (const [id, from] of resizeStartDimensions.current) {
+            const node = store.nodes.find((n) => n.id === id);
+            if (!node) continue;
+            const to = { w: (node.style?.width as number) ?? 0, h: (node.style?.height as number) ?? 0 };
+            if (from.w !== to.w || from.h !== to.h) changes.push({ nodeId: id, from, to });
+          }
+          if (changes.length > 0) recordResize(changes);
+          resizeStartDimensions.current.clear();
+        }, 300);
       }
     },
-    [onNodesChange, relayout, fitView],
+    [onNodesChange, relayout, fitView, recordResize],
   );
 
   const onConnect = useCallback(
@@ -324,8 +349,28 @@ function CanvasInner() {
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }, []);
-  const onNodeDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
-  const onSelectionDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
+  const onNodeDragStart = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
+    dragStartPositions.current.set(node.id, { x: node.position.x, y: node.position.y });
+  }, []);
+  const onNodeDragStop = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
+    const from = dragStartPositions.current.get(node.id);
+    const to = { x: node.position.x, y: node.position.y };
+    if (from) recordDragMoves([{ nodeId: node.id, from, to }]);
+    dragStartPositions.current.delete(node.id);
+  }, [recordDragMoves]);
+  const onSelectionDragStart = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
+    for (const n of nodes) dragStartPositions.current.set(n.id, { x: n.position.x, y: n.position.y });
+  }, []);
+  const onSelectionDragStop = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
+    const moves = nodes.map((n) => {
+      const from = dragStartPositions.current.get(n.id);
+      const to = { x: n.position.x, y: n.position.y };
+      return from ? { nodeId: n.id, from, to } : null;
+    }).filter((m): m is { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } } => !!m);
+    recordDragMoves(moves);
+    for (const n of nodes) dragStartPositions.current.delete(n.id);
+  }, [recordDragMoves]);
+  /* Resize is delivered as "dimensions" node changes (see handleNodesChange). */
 
   const fitToSelection = useCallback(() => {
     const selected = useGraphStore.getState().selectedNodeIds;
@@ -382,7 +427,8 @@ function CanvasInner() {
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
-        onNodeDragStop={onNodeDragStop} onSelectionDragStop={onSelectionDragStop}
+        onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
+        onSelectionDragStart={onSelectionDragStart} onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
           useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
