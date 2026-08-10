@@ -23,6 +23,7 @@ import {
   Copy,
   Globe,
   Mail,
+  Star,
 } from "lucide-react";
 import {
   Dialog,
@@ -145,6 +146,24 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
   const nodeCount = (g: SavedGraph) => g.data?.nodes?.length ?? 0;
 
+  const handleFavorite = async (graph: SavedGraph) => {
+    if (!user) return;
+    const next = !graph.is_favorite;
+    // Optimistic update; reverted on failure.
+    setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: next } : g)));
+    try {
+      const res = await fetch(`/api/graphs/${graph.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: next }),
+      });
+      if (!res.ok) throw new Error("Pin failed");
+    } catch {
+      setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: !next } : g)));
+      toast({ title: "Could not pin", variant: "destructive" });
+    }
+  };
+
   const timeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
@@ -186,7 +205,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         </p>
       ) : (
         <div className="space-y-1.5 w-full min-w-0">
-          {graphs.map((g) => (
+          {[...graphs]
+            .sort((a, b) => Number(b.is_favorite ?? false) - Number(a.is_favorite ?? false))
+            .map((g) => (
             <div
               key={g.id}
               className="group flex items-center gap-1.5 rounded-lg border border-border/30 bg-muted/10 p-1.5 w-full min-w-0"
@@ -212,6 +233,18 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   />
                 ) : (
                   <span className="truncate text-[11px] text-foreground/90 flex-1 min-w-0">
+                    {g.share && (
+                      <span
+                        className="inline-flex mr-1 align-middle"
+                        title={g.share.access === "invite" ? "Invite-only share" : "Anyone with the link"}
+                      >
+                        {g.share.access === "invite" ? (
+                          <Mail className="h-3 w-3 text-purple-500" />
+                        ) : (
+                          <Globe className="h-3 w-3 text-sky-500" />
+                        )}
+                      </span>
+                    )}
                     {g.name}
                     <span className="ml-1 text-[10px] text-muted-foreground/60">
                       {nodeCount(g)} nodes · {timeAgo(g.updated_at)}
@@ -242,6 +275,18 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                 </>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => handleFavorite(g)}
+                    className={`h-5 w-5 shrink-0 flex items-center justify-center rounded hover:bg-foreground/10 transition-opacity ${
+                      g.is_favorite
+                        ? "text-amber-500"
+                        : "text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+                    }`}
+                    title={g.is_favorite ? "Unpin from top" : "Pin to top"}
+                  >
+                    <Star className="h-3 w-3" fill={g.is_favorite ? "currentColor" : "none"} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setRenamingId(g.id); setRenameValue(g.name); }}
@@ -493,6 +538,8 @@ function ShareGraphDialog({
               <Switch checked={access === "invite"} onCheckedChange={() => setAccess("invite")} className="ml-auto shrink-0" />
             </div>
           </div>
+
+          <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
 
           {/* Invite emails */}
           {access === "invite" && (

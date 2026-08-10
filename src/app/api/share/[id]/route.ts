@@ -51,8 +51,8 @@ export async function GET(
       return NextResponse.json({ error: "Share link not found or expired" }, { status: 404 });
     }
 
-    // Lazy expiry: if past expires_at, delete and 404.
-    if (new Date(data.expires_at).getTime() < Date.now()) {
+    // Lazy expiry: if past expires_at (NULL = never expires), delete and 404.
+    if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
       await supabase.from("shared_graphs").delete().eq("id", id);
       return NextResponse.json({ error: "Share link not found or expired" }, { status: 404 });
     }

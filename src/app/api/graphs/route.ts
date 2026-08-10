@@ -37,11 +37,25 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("saved_graphs")
-    .select("id, name, data, created_at, updated_at")
+    .select("id, name, data, created_at, updated_at, is_favorite")
+    .order("is_favorite", { ascending: false })
     .order("updated_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ graphs: data });
+
+  // Attach each graph's active share (access mode) so the UI can show a badge.
+  const { data: shares } = await supabase
+    .from("shared_graphs")
+    .select("saved_graph_id, access")
+    .eq("owner_id", user.id)
+    .not("saved_graph_id", "is", null);
+  const shareMap = new Map<string, { access: string }>();
+  for (const s of shares ?? []) {
+    if (s.saved_graph_id) shareMap.set(s.saved_graph_id, { access: s.access });
+  }
+
+  const graphs = (data ?? []).map((g) => ({ ...g, share: shareMap.get(g.id) ?? null }));
+  return NextResponse.json({ graphs });
 }
 
 export async function POST(request: Request) {
