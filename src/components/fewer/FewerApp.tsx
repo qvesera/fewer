@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
-// Dialogs lazy-loaded — only fetched when opened. Keeps react-colorful,
+// Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
 const ExportPanel = dynamic(() => import("./ExportPanel").then((m) => m.ExportPanel), { ssr: false });
 const ImportDialog = dynamic(() => import("./ImportDialog").then((m) => m.ImportDialog), { ssr: false });
@@ -38,6 +38,7 @@ const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) =
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
 const ImportUrlDialog = dynamic(() => import("./ImportUrlDialog").then((m) => m.ImportUrlDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
+const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -56,6 +57,8 @@ export function FewerApp() {
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
+  const authOpen = useGraphStore((s) => s.authOpen);
+  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
   // On mobile, start with sidebar closed
@@ -99,12 +102,79 @@ export function FewerApp() {
     document.body.style.userSelect = "none";
   }, []);
 
-  // Load shared graph from URL hash
+  // Load shared graph from URL hash (embedded) or DB-backed short link (#s:<id>)
   useEffect(() => {
     if (hashLoaded) return;
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash) return;
-    import("@/lib/fewer/share").then(({ decodeShareData }) => {
+
+    const applyData = (data: { nodes: unknown[]; edges: unknown[]; direction: unknown; edgeStyle: unknown; customTheme?: unknown; themeMode: unknown; cornerRadius: unknown; nodeWidth: unknown; nodeHeight: unknown }) => {
+      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false);
+      useGraphStore.getState().setDirection(data.direction as never);
+      useGraphStore.getState().setEdgeStyle(data.edgeStyle as never);
+      if (data.customTheme) {
+        useGraphStore.getState().setCustomTheme(data.customTheme as never);
+      }
+      useGraphStore.getState().setThemeMode(data.themeMode as never);
+      useGraphStore.getState().setCornerRadius(data.cornerRadius as never);
+      useGraphStore.getState().setNodeDimensions(data.nodeWidth as never, data.nodeHeight as never);
+      useGraphStore.setState({ dataSource: "shared" });
+      setHashLoaded(true);
+      // Clear hash from address bar
+      window.history.replaceState(null, "", window.location.pathname);
+      toast({
+        title: "Shared graph loaded",
+        description: `${(data.nodes as unknown[]).length} node${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
+      });
+    };
+
+    import("@/lib/fewer/share").then(async ({ decodeShareData, isDbShareHash, parseDbShareId }) => {
+      // Invite token link: #i:<token> — token is the credential, no login.
+      if (hash.startsWith("i:")) {
+        const token = hash.slice(2);
+        if (!token) {
+          toast({ title: "Invalid invite link", description: "Could not load the graph.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/invite/${token}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            toast({ title: "Invite link invalid", description: json.error || "Could not load the graph.", variant: "destructive" });
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
+      if (isDbShareHash(hash)) {
+        const id = parseDbShareId(hash);
+        if (!id) {
+          toast({ title: "Invalid share link", description: "Could not load the graph from the URL.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/${id}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            if (res.status === 403) {
+              toast({ title: "Invite-only graph", description: json.error || "Sign in with an invited email to view it.", variant: "destructive" });
+              setAuthOpen(true);
+            } else {
+              toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+            }
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Share link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
       const data = decodeShareData(hash);
       if (!data) {
         toast({
@@ -114,24 +184,7 @@ export function FewerApp() {
         });
         return;
       }
-      // Restore graph state
-      useGraphStore.getState().setGraph(data.nodes, data.edges, false);
-      useGraphStore.getState().setDirection(data.direction);
-      useGraphStore.getState().setEdgeStyle(data.edgeStyle);
-      if (data.customTheme) {
-        useGraphStore.getState().setCustomTheme(data.customTheme as any);
-      }
-      useGraphStore.getState().setThemeMode(data.themeMode as any);
-      useGraphStore.getState().setCornerRadius(data.cornerRadius);
-      useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
-      useGraphStore.setState({ dataSource: "shared" });
-      setHashLoaded(true);
-      // Clear hash from address bar
-      window.history.replaceState(null, "", window.location.pathname);
-      toast({
-        title: "Shared graph loaded",
-        description: `${data.nodes.length} node${data.nodes.length === 1 ? "" : "s"} from share link`,
-      });
+      applyData(data);
     });
   }, [hashLoaded, toast]);
 
@@ -179,7 +232,7 @@ export function FewerApp() {
         setImportDialogOpen(false);
         toast({
           title: "Directory loaded",
-          description: `${tree.name} — ${nodes.length} entries`,
+          description: `${tree.name}: ${nodes.length} entries`,
         });
         await new Promise((r) => setTimeout(r, 20));
         const autoHidden = useGraphStore.getState().autoHideCount;
@@ -225,7 +278,7 @@ export function FewerApp() {
       setGraph(nodes, edges, false);
       toast({
         title: "Graph built from file",
-        description: `${tree.name} — ${nodes.length} entries`,
+        description: `${tree.name}: ${nodes.length} entries`,
       });
     },
     [setGraph, toast],
@@ -233,7 +286,7 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} />
+      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -245,6 +298,7 @@ export function FewerApp() {
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           {sidebarOpen && (
             <div
@@ -278,6 +332,7 @@ export function FewerApp() {
             onOpenDirectory={handleOpenDirectory}
             onImportFromFile={() => setImportFromFileOpen(true)}
             onImportFromUrl={handleImportFromUrl}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           </div>
         </div>
@@ -323,6 +378,8 @@ export function FewerApp() {
         onConfirm={handleConfirmImport}
         importing={importing}
       />
+
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }

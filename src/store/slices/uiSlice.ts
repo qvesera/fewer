@@ -28,6 +28,7 @@ export type UiSliceCreator = StateCreator<
     shortcutsOpen: boolean;
     settingsOpen: boolean;
     shareOpen: boolean;
+    authOpen: boolean;
     showMiniMap: boolean;
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
     miniMapSize: number;
@@ -61,6 +62,7 @@ export type UiSliceCreator = StateCreator<
     setShortcutsOpen: (open: boolean) => void;
     setSettingsOpen: (open: boolean) => void;
     setShareOpen: (open: boolean) => void;
+    setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
     setMiniMapSize: (size: number) => void;
@@ -97,6 +99,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   shortcutsOpen: false,
   settingsOpen: false,
   shareOpen: false,
+  authOpen: false,
   showMiniMap: true,
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
@@ -169,6 +172,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setShareOpen: (open) => set({ shareOpen: open }),
+  setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),

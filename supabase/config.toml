@@ -1,0 +1,21 @@
+# Supabase CLI configuration. Used for local dev and applying migrations
+# to a hosted project via `supabase link` + `supabase db push`.
+
+project_id = "fewer"
+
+[db]
+major_version = 15
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false

@@ -36,14 +36,15 @@ fewer is a client-side browser application. Security considerations include:
 
 - **File System Access API**: The app reads directory structures from the user's file system. It does not transmit file contents to any server.
 - **Local storage**: Graph state is stored in the browser only. No data is sent to external services.
-- **No backend**: fewer is fully client-side (Next.js static export). There is no server-side data processing.
+- **Minimal backend**: fewer is primarily client-side. Server-side routes include `/api/github-tree` (fetches public GitHub repo trees), `/api/crawl` (crawls public Apache/nginx file indexes), and `/api/open-folder` (local dev helper). A Prisma + SQLite database is used for app metadata. Optional Supabase integration provides accounts, saved graphs, crawl caching, and server-backed share links. Directory contents are only transmitted when you explicitly save or share a graph.
 
 ## Safe Usage
 
-- fewer runs entirely in your browser — no data leaves your machine
-- Imported directory structures and file metadata are never uploaded
+- fewer runs entirely in your browser by default: no data leaves your machine
+- Imported directory structures and file metadata are never uploaded unless you explicitly save or share a graph
 - Export operations (SVG, PNG, JSON, CSV, DOT, scripts, tree) produce local files only
 - The app does not collect telemetry, analytics, or usage statistics
+- Saved graphs and share links are stored in Supabase and protected by row-level security; invite-only shares require a signed-in user with an invited email
 
 ## Responsible Disclosure
 

@@ -1,7 +1,7 @@
 ---
 title: Introducing Fewer: Turn Any Directory Into an Interactive Graph
 date: 2026-08-01
-description: Meet Fewer, the open-source tool that transforms static directory trees into interactive, explorable graphs. Built with React Flow, Dagre, and a privacy-first philosophy.
+description: Meet Fewer, the open-source tool that transforms static directory trees into interactive, explorable graphs. Built with React Flow, a custom tree layout, and a privacy-first philosophy.
 author: Yash Srivastava
 tags: launch, release, features
 ---
@@ -24,13 +24,13 @@ Fewer turns that tree into an interactive graph. Drag nodes, zoom in/out, rename
 
 ## What You Can Do Today
 
-**Explore** — Load any directory and watch it build into a clean graph with Dagre auto-layout. Use arrow keys to navigate the tree. Right-click any node for instant actions.
+**Explore**: Load any directory and watch it build into a clean graph with auto-layout. Use arrow keys to navigate the tree. Right-click any node for instant actions.
 
-**Edit** — Rename files (F2), add new nodes (Alt+N), delete with cascading children (Delete), copy/paste subtrees (Ctrl+C/Ctrl+V). Undo/redo (Ctrl+Z/Ctrl+Shift+Z) with a 50-step history buffer.
+**Edit**: Rename files (F2), add new nodes (Alt+N), delete with cascading children (Delete), copy/paste subtrees (Ctrl+C/Ctrl+V). Undo/redo (Ctrl+Z/Ctrl+Shift+Z) with a 50-step history buffer.
 
-**Search** — Fuzzy search across filenames, paths, and extensions. Click any result to zoom directly to that node. Hidden nodes appear with badges, click to reveal and zoom.
+**Search**: Fuzzy search across filenames, paths, and extensions. Click any result to zoom directly to that node. Hidden nodes appear with badges, click to reveal and zoom.
 
-**Export** — Save your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees. Toggle "Export Selected" to grab just a subtree.
+**Export**: Save your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees. Toggle "Export Selected" to grab just a subtree.
 
 ## Built for Privacy
 
@@ -41,7 +41,7 @@ Fewer runs entirely client-side. No telemetry, no data exfiltration, no config f
 - **Next.js 16** with App Router and Turbopack
 - **React 19** with TypeScript 5 strict mode
 - **React Flow v12** for canvas rendering
-- **Dagre** for auto-layout
+- **Custom Reingold-Tilford layout** for auto-layout
 - **Zustand** for state management
 - **Tailwind CSS 4** with shadcn/ui
 - **Prisma + SQLite** for persistence
@@ -53,8 +53,8 @@ Fewer runs entirely client-side. No telemetry, no data exfiltration, no config f
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open `http://localhost:3000`, click **Load sample project**, and explore.

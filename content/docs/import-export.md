@@ -21,8 +21,8 @@ The graph builds instantly with auto-layout. Large imports show a progress indic
 
 ### Browser Support
 
-- **Chrome/Edge:** Full File System Access API — can read and write back to disk
-- **Firefox/Safari:** `webkitdirectory` fallback — read-only import
+- **Chrome/Edge:** Full File System Access API: can read and write back to disk
+- **Firefox/Safari:** `webkitdirectory` fallback: read-only import
 - **Brave:** May require flag `brave://flags/#enable-experimental-web-platform-features`
 
 ## Import Options
@@ -48,10 +48,12 @@ How deep to display after import. Deeper nodes go to the Hidden Nodes panel.
 
 ## Import from URL
 
-Import public GitHub repositories:
+Import a directory from a URL. Fewer supports two kinds of URLs:
+
+### GitHub repositories
 
 1. Click the GitHub icon or use Import dialog
-2. Paste repo URL (e.g., `https://github.com/owner/repo`)
+2. Paste a repo URL (e.g., `https://github.com/owner/repo`)
 3. Click **Import**
 
 Supports branch and subdirectory URLs:
@@ -59,15 +61,24 @@ Supports branch and subdirectory URLs:
 - `https://github.com/owner/repo`
 - `https://github.com/owner/repo/tree/branch/path`
 
-Fetches repo tree via the `/api/github-tree` route.
+Fetches the repo tree via the `/api/github-tree` route.
+
+### Public file index URLs
+
+Fewer can also visualize any public directory listing that uses Apache or nginx auto-index format (the kind you see when a web server exposes a folder without an index page). Paste the URL and click **Import**:
+
+- `https://example.com/data/`
+- `https://www.sidc.be/EUI/data/`
+
+The server crawls the index (breadth-first, up to 200 pages and 6 levels deep), parses folder/file entries and sizes, and builds the graph. Large listings are truncated with a notice. Results are cached for 24 hours, so repeat imports of the same URL load instantly.
 
 ## Import from File
 
 Supported formats:
 
-- **JSON** — previous Fewer export
-- **ASCII tree** — `tree` command output
-- **Shell/batch script** — `mkdir -p` output
+- **JSON**: previous Fewer export
+- **ASCII tree**: `tree` command output
+- **Shell/batch script**: `mkdir -p` output
 
 Click **Import from File** and select your file. You can also paste content directly into the dialog.
 

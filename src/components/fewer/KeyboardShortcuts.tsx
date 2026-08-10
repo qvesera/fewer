@@ -281,7 +281,7 @@ export function KeyboardShortcuts() {
           }
           toast({
             title: "Cut",
-            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut — paste to place`,
+            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut: paste to place`,
           });
         }
         return;
@@ -327,11 +327,11 @@ export function KeyboardShortcuts() {
 
       if (inEditable) return;
 
-      // H — hide selected nodes. Shift+H — show all.
+      // H: hide selected nodes. Shift+H: show all.
       if (e.key.toLowerCase() === "h" && !mod) {
         e.preventDefault();
         if (e.shiftKey) {
-          // Shift+H — show all and show files
+          // Shift+H: show all and show files
           const hiddenCount = useGraphStore.getState().hiddenIds.length;
           if (hiddenCount > 0) {
             showAll();
@@ -344,7 +344,7 @@ export function KeyboardShortcuts() {
             setShowFiles(true);
           }
         } else {
-          // H — hide selected nodes
+          // H: hide selected nodes
           if (selectedNodeIds.length > 0) {
             // Count subnodes (descendants) that will also be hidden
             const toHide = new Set(selectedNodeIds);
@@ -363,7 +363,7 @@ export function KeyboardShortcuts() {
             hideNodes(selectedNodeIds);
             toast({
               title: "Nodes hidden",
-              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden${subCount > 0 ? ` (${subCount} subnode${subCount === 1 ? "" : "s"})` : ""} — press Shift+H to restore`,
+              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden${subCount > 0 ? ` (${subCount} subnode${subCount === 1 ? "" : "s"})` : ""}: press Shift+H to restore`,
             });
           }
         }
@@ -459,7 +459,7 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Delete/Backspace — delete selected nodes + edges
+      // Delete/Backspace: delete selected nodes + edges
       if (e.key === "Delete" || e.key === "Backspace") {
         const rfEdges = reactFlow.getEdges();
         const selectedEdgeIds = rfEdges.filter((ed) => ed.selected).map((ed) => ed.id);

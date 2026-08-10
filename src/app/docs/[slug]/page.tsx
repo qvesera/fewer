@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const doc = getDoc(slug);
   if (!doc) return { title: "Not Found" };
   return {
-    title: `${doc.meta.title} — Docs — Fewer`,
+    title: `${doc.meta.title} | Docs | Fewer`,
     description: doc.meta.description,
   };
 }

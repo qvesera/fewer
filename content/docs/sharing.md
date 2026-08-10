@@ -1,17 +1,25 @@
 ---
 title: Sharing Graphs
-description: Generate shareable links that encode your graph state. Anyone with the link can open the exact same graph in their browser.
+description: Generate shareable links for your graph. Small graphs embed in the URL; large graphs use a short server-backed link. Saved graphs can be shared publicly or invite-only.
 ---
 
-Fewer can encode your entire graph — nodes, edges, positions, layout settings, and theme — into a single URL. Share it with anyone and they'll see the exact same graph.
+Fewer lets you share graphs with anyone via a link. Two ways to share:
 
-## Generate a Share Link
+1. **Share the current canvas** from the export toolbar (works without an account)
+2. **Share a saved graph** from the "Your Directories" sidebar section (requires an account)
+
+## Share the Current Graph
 
 1. Click **Export** in the toolbar
 2. Click **Generate Share Link**
 3. Click **Copy** to copy the link to your clipboard
 
 The link contains all nodes and edges with their positions, plus layout direction, edge style, theme mode, custom theme colors, corner radius, and node dimensions.
+
+### How it works
+
+- **Small graphs** are compressed into the URL hash using LZ-string (e.g. `https://fewer.directory/#N4IgDgTgpghgLmAXGB...`). Nothing is uploaded; the link is self-contained.
+- **Large graphs** (encoded hash over ~2000 characters, roughly a few hundred nodes) are stored on the server and shared via a short link like `https://fewer.directory/#s:abc123`. This keeps URLs shareable where long links get truncated. If the server store is unavailable, Fewer falls back to the long hash URL.
 
 ## Open a Shared Graph
 
@@ -21,27 +29,27 @@ Anyone with the link can open it in their browser:
 2. The graph loads automatically from the URL hash
 3. A toast confirms how many nodes were loaded
 
-No server round-trip — the graph state is compressed directly into the URL fragment using LZ-string.
+## Share a Saved Graph
 
-## How It Works
+If you've signed in and saved a graph (see [Settings](/docs/settings)), you can share it with more control:
 
-The share link uses the URL hash (`#...`) to store a compressed, URL-safe encoding of the graph state:
+1. Open the **Your Directories** section in the sidebar
+2. Click the **share** icon on a saved graph
+3. Choose access:
+   - **Anyone with the link**: anyone can open the graph
+   - **Invite only**: only the email addresses you list can open it
+4. Click **Generate link** and copy the URL
 
-```
-https://fewer.directory/#N4IgDgTgpghgLmAXGB...
-```
-
-- **Compression** — LZ-string `compressToEncodedURIComponent` keeps links compact
-- **No upload** — the graph never leaves your browser
-- **Self-contained** — the link works even if the original graph was deleted
+Invite-only links require the recipient to sign in with an invited email address.
 
 ## Limitations
 
-- **Link size** — very large graphs (10K+ nodes) produce long URLs that may exceed browser URL limits. For large graphs, use **JSON export** instead.
-- **File handles** — disk file handles are not encoded. Shared graphs are read-only snapshots; "Open File" and "Refresh from Disk" actions are unavailable.
-- **Hidden nodes** — hidden node state is not preserved in the share link.
+- **File handles**: disk file handles are not encoded. Shared graphs are read-only snapshots; "Open File" and "Refresh from Disk" actions are unavailable.
+- **Hidden nodes**: hidden node state is not preserved in the share link.
+- **Server-backed links expire**: large-graph and saved-graph share links are stored with a 30-day expiry and are cleaned up when read.
 
 ## Next Steps
 
-- [Import & Export](/docs/import-export) — other ways to save and load graphs
-- [Graph Features](/docs/graph-features) — what's included in a shared graph
+- [Import & Export](/docs/import-export): other ways to save and load graphs
+- [Settings](/docs/settings): accounts and saved graphs
+- [Graph Features](/docs/graph-features): what's included in a shared graph

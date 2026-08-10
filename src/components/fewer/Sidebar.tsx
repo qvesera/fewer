@@ -30,7 +30,8 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
-import { StatsPanel, RenameInput } from ".";
+import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -50,6 +51,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 const PRIMARY_LAYOUTS: {
   value: LayoutDirection;
@@ -75,6 +78,7 @@ interface SidebarProps {
   onOpenDirectory: () => void;
   onImportFromFile: () => void;
   onImportFromUrl: () => void;
+  onRequireAuth: () => void;
 }
 
 function CollapsibleSection({
@@ -223,6 +227,20 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
   return roots;
 }
 
+function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return tree;
+  const result: HiddenTreeNode[] = [];
+  for (const t of tree) {
+    const children = filterHiddenTree(t.children, q);
+    const selfMatch = t.node.data.label.toLowerCase().includes(q);
+    if (selfMatch || children.length > 0) {
+      result.push({ node: t.node, children });
+    }
+  }
+  return result;
+}
+
 function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameNode = useGraphStore((s) => s.renameNode);
@@ -316,7 +334,8 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
+  const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -347,9 +366,16 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
 
+  const [hiddenSearch, setHiddenSearch] = useState("");
+
   const hiddenTree = useMemo(
     () => getHiddenLayerData(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
+  );
+
+  const filteredHiddenTree = useMemo(
+    () => filterHiddenTree(hiddenTree, hiddenSearch),
+    [hiddenTree, hiddenSearch],
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -472,6 +498,13 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
             </div>
           </div>
         </CollapsibleSection>
+
+        {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
+        {user && (
+          <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
+            <SavedGraphsPanel onRequireAuth={onRequireAuth} />
+          </CollapsibleSection>
+        )}
 
         {/* ── 2. LAYOUT & ORIENTATION ── */}
         <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
@@ -695,6 +728,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
           >
+            <div className="relative w-full min-w-0">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+              <Input
+                value={hiddenSearch}
+                onChange={(e) => setHiddenSearch(e.target.value)}
+                placeholder="Search hidden nodes…"
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -710,9 +752,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               <span className="truncate">Reveal All Nodes</span>
             </Button>
             <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-              {hiddenTree.map((root) => (
-                <HiddenNodeRow key={root.node.id} tree={root} />
-              ))}
+              {filteredHiddenTree.length > 0 ? (
+                filteredHiddenTree.map((root) => (
+                  <HiddenNodeRow key={root.node.id} tree={root} />
+                ))
+              ) : (
+                <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+                  No hidden nodes match “{hiddenSearch.trim()}”.
+                </p>
+              )}
             </div>
           </CollapsibleSection>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   encodeShareData,
   buildShareUrl,
+  buildDbShareUrl,
+  SHARE_HASH_THRESHOLD,
 } from "@/lib/fewer/share";
 import { Link, Copy, Check, Loader2 } from "lucide-react";
 
@@ -34,10 +36,17 @@ export function ShareDialog() {
   const { toast } = useToast();
 
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [building, setBuilding] = useState(false);
 
-  const shareUrl = useMemo(() => {
-    if (nodes.length === 0) return "";
-    const encoded = encodeShareData({
+  // Build the share URL only when the user clicks "Generate link".
+  // Small graphs embed the compressed hash in the URL; large graphs are
+  // stored in Supabase and referenced by a short `#s:<id>`.
+  const handleGenerate = async () => {
+    if (nodes.length === 0) return;
+    setBuilding(true);
+    setShareUrl("");
+    const data = {
       nodes,
       edges,
       direction,
@@ -47,9 +56,32 @@ export function ShareDialog() {
       cornerRadius,
       nodeWidth,
       nodeHeight,
-    });
-    return buildShareUrl(encoded);
-  }, [nodes, edges, direction, edgeStyle, themeMode, customTheme, cornerRadius, nodeWidth, nodeHeight]);
+    };
+    const encoded = encodeShareData(data);
+    if (encoded.length <= SHARE_HASH_THRESHOLD) {
+      setShareUrl(buildShareUrl(encoded));
+      setBuilding(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      });
+      const json = await res.json();
+      if (json.id) {
+        setShareUrl(buildDbShareUrl(json.id));
+      } else {
+        // Fall back to the (long) hash URL if DB store fails.
+        setShareUrl(buildShareUrl(encoded));
+      }
+    } catch {
+      setShareUrl(buildShareUrl(encoded));
+    } finally {
+      setBuilding(false);
+    }
+  };
 
   const handleCopy = async () => {
     if (!shareUrl) return;
@@ -85,38 +117,54 @@ export function ShareDialog() {
 
         {nodes.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            Nothing to share — add nodes to your canvas first.
+            Nothing to share: add nodes to your canvas first.
           </p>
         ) : (
           <div className="space-y-3 py-2">
-            <div className="flex items-center gap-2">
-              <Input
-                value={shareUrl}
-                readOnly
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-                className="text-xs font-mono flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopy}
-                className="gap-1.5 shrink-0 cursor-pointer"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button
+              className="w-full gap-1.5 cursor-pointer"
+              onClick={handleGenerate}
+              disabled={building}
+            >
+              {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link className="h-3.5 w-3.5" />}
+              Generate link
+            </Button>
+
+            {shareUrl && (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={shareUrl}
+                  readOnly
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                  className="text-xs font-mono flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                  disabled={building || !shareUrl}
+                  className="gap-1.5 shrink-0 cursor-pointer"
+                >
+                  {building ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : copied ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-green-500" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              This link contains all {nodes.length} node{ nodes.length === 1 ? "" : "s" } and {edges.length} edge{ edges.length === 1 ? "" : "s" } with their positions and layout settings.
+              {building
+                ? "Storing large graph for a short share link…"
+                : `This link contains all ${nodes.length} node${ nodes.length === 1 ? "" : "s" } and ${edges.length} edge${ edges.length === 1 ? "" : "s" } with their positions and layout settings.`}
             </p>
           </div>
         )}

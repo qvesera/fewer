@@ -20,38 +20,38 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 Right-click empty canvas space to open quick actions:
 
-- **Fit View** — zoom to show all nodes
-- **Select All** — select every visible node
+- **Fit View**: zoom to show all nodes
+- **Select All**: select every visible node
 - **Zoom In / Zoom Out**
-- **Delete Edge** — removes the last-clicked edge
-- **Set as Parent** — with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Nodes** — reveal hidden nodes (Power User mode)
-- **Paste** — paste clipboard contents at the mouse position (Power User mode)
+- **Delete Edge**: removes the last-clicked edge
+- **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
+- **Show All Nodes**: reveal hidden nodes (Power User mode)
+- **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
 ## Node Types
 
 ### Folder Cards (Orange)
 
-- **Children inline** — scrollable list of child nodes inside the card
-- **Item counts** — shows number of children
-- **Size display** — total size of all children
-- **Collapsible** — click to expand/collapse children
-- **Resizable** — drag corners to adjust (multi-direction)
+- **Children inline**: scrollable list of child nodes inside the card
+- **Item counts**: shows number of children
+- **Size display**: total size of all children
+- **Collapsible**: click to expand/collapse children
+- **Resizable**: drag corners to adjust (multi-direction)
 
 ### File Cards (Purple)
 
-- **Filename + extension** — displayed with category icon
-- **Size** — file size in bytes/KB/MB
-- **Category** — auto-detected from extension (image, code, doc, etc.)
-- **No children** — source handle hidden
-- **Resizable** — horizontal only (width)
+- **Filename + extension**: displayed with category icon
+- **Size**: file size in bytes/KB/MB
+- **Category**: auto-detected from extension (image, code, doc, etc.)
+- **No children**: source handle hidden
+- **Resizable**: horizontal only (width)
 
 ### Node Resizing
 
 Select a node to see resize handles:
 
-- **Folders** — resize in all directions
-- **Files** — resize horizontally only (width)
+- **Folders**: resize in all directions
+- **Files**: resize horizontally only (width)
 
 ### Handle Shortcuts
 
@@ -59,10 +59,10 @@ Select a node to see resize handles:
 
 ## Multi-Select
 
-- **Ctrl+A** — select all visible nodes
-- **Shift+Arrow keys** — add nodes to the selection while navigating
-- **Set as Parent** — batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
-- **Alt+Shift+P** — unparent all selected nodes
+- **Ctrl+A**: select all visible nodes
+- **Shift+Arrow keys**: add nodes to the selection while navigating
+- **Set as Parent**: batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
+- **Alt+Shift+P**: unparent all selected nodes
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
 ## Drag & Drop
@@ -110,16 +110,16 @@ Direct lines. Minimalist look.
 
 Optional motion effects:
 
-- **None** — static edges
-- **Flow** — animated dash offset
-- **Pulse** — animated stroke opacity
+- **None**: static edges
+- **Flow**: animated dash offset
+- **Pulse**: animated stroke opacity
 
 ## Edge Pattern & Weight
 
 In Power User mode, the sidebar Edges section controls:
 
-- **Pattern** — solid, dashed, or dotted
-- **Line Thickness** — 0.5px to 6px slider
+- **Pattern**: solid, dashed, or dotted
+- **Line Thickness**: 0.5px to 6px slider
 
 ## Breadcrumb Bar
 
@@ -149,8 +149,8 @@ Fuzzy search across filenames, paths, and extensions.
 
 ## Sidebar
 
-- **Drag-resizable** — drag the right edge to resize (200-560px)
-- **Collapsible sections** — File & Actions, Layout, Edges & Style, Hidden Nodes, Graph Analytics
+- **Drag-resizable**: drag the right edge to resize (200-560px)
+- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Nodes, Graph Analytics
 
 ## Stats Panel
 
