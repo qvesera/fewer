@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Import options wording**: the advanced "Include node_modules" option is relabeled **"Include dependency & build folders"** — it controls all generated/vendored dirs (`node_modules`, `dist`, `build`, `.git`, …), not just `node_modules`. Docs corrected so the hidden-files and vendored options are described accurately.
+- **Cloud import auto-selects the viewed folder**: the folder you're currently viewing (breadcrumb position) is selected for import automatically — the "Select the folder you're viewing" button is removed. Selecting a specific subfolder without opening it still works via that row's Select action.
 - **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
 - **Cloud entry point moved**: account connections live in Settings → Cloud; the cloud **import** browser is a sidebar option (File & Actions → Cloud, next to File/URL).
 - **Cloud import UX**: the cloud browser now uses the shared import options panel (max depth, hidden files, vendored dirs, empty folders, extensions, file nodes, display depth) instead of a single depth field; empty states guide signed-out users to sign in and unlinked users to Settings → Cloud.

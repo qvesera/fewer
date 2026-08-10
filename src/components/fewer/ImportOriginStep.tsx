@@ -522,16 +522,27 @@ function CloudSource({
     await load(connection, repo);
   };
 
-  const selectFolder = (ref: string, name: string) => {
-    if (!connection) return;
-    onSourceChange({
-      origin: "cloud",
-      connectionId: connection.id,
-      provider: connection.provider,
-      ref,
-      name,
-    });
-  };
+  const selectFolder = useCallback(
+    (ref: string, name: string) => {
+      if (!connection) return;
+      onSourceChange({
+        origin: "cloud",
+        connectionId: connection.id,
+        provider: connection.provider,
+        ref,
+        name,
+      });
+    },
+    [connection, onSourceChange]
+  );
+
+  // Auto-select whichever folder is currently being viewed. Every navigation
+  // path (account pick, folder click, breadcrumb, repo jump) updates `crumbs`,
+  // so this reacts to all of them and keeps the import selection in sync.
+  useEffect(() => {
+    if (!connection || !currentRef) return;
+    selectFolder(currentRef, currentName ?? "");
+  }, [connection, currentRef, currentName, selectFolder]);
 
   if (!signedIn) {
     return (
@@ -653,16 +664,6 @@ function CloudSource({
           title="Refresh"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => currentRef && selectFolder(currentRef, currentName ?? "")}
-          disabled={!currentRef}
-          title="Select the folder you're viewing"
-        >
-          <Download className="h-3.5 w-3.5" />
         </Button>
       </div>
 

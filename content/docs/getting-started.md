@@ -39,7 +39,7 @@ If **Power User mode** is enabled in Settings, you will see the below options in
 | Option                  | Default | Description                             |
 | ----------------------- | ------- | --------------------------------------- |
 | Max Depth               | 6       | How many folder levels to import        |
-| Include Hidden Files    | Off     | Include `.git`, `node_modules`, etc.    |
+| Include Hidden Files    | Off     | Include dotfiles (`.gitignore`, `.env`, etc.) |
 | Include File Nodes      | On      | Show files or folders only              |
 | Extension Filter        | None    | Comma-separated whitelist               |
 | Auto-hide Large Folders | On      | Folders with >10 children hide children |

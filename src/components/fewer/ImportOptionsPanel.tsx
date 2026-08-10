@@ -135,10 +135,13 @@ export function ImportOptionsPanel({
               <Package className="h-4 w-4 text-muted-foreground/80 shrink-0" />
               <div className="space-y-0.5">
                 <Label htmlFor="ip-include-vendored" className="text-xs font-medium cursor-pointer">
-                  Include node_modules
+                  Include dependency &amp; build folders
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Scan <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code> and dependency folders.
+                  Scan <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code>,{" "}
+                  <code className="font-mono text-[10px] bg-muted px-1 rounded">dist</code>,{" "}
+                  <code className="font-mono text-[10px] bg-muted px-1 rounded">.git</code>, and other{" "}
+                  generated folders.
                 </p>
               </div>
             </div>
