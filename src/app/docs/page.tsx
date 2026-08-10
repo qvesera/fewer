@@ -44,7 +44,7 @@ const sections = [
   },
   {
     title: "Features",
-    items: ["graph-features", "editing", "import-export", "sharing", "accounts"],
+    items: ["graph-features", "editing", "import-export", "sharing", "accounts", "watch", "cloud"],
   },
   {
     title: "Reference",

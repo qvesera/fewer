@@ -149,6 +149,17 @@ function RenameInput({
   );
 }
 
+/** Map a dataSource prefix to a display label for "Open in provider". */
+function providerLabelFromSource(dataSource: string): string {
+  if (dataSource.startsWith("cloud:github")) return "GitHub";
+  if (dataSource.startsWith("cloud:google-drive")) return "Google Drive";
+  if (dataSource.startsWith("cloud:onedrive")) return "OneDrive";
+  if (dataSource.startsWith("cloud:sharepoint")) return "SharePoint";
+  if (dataSource.startsWith("cloud:azure-devops")) return "Azure DevOps";
+  if (dataSource.startsWith("cloud:azure-blob")) return "Azure Blob";
+  return "Provider";
+}
+
 const openFolderInExplorer = async (path: string) => {
   try {
     const res = await fetch("/api/open-folder", {
@@ -170,15 +181,18 @@ function FolderContextMenu({
   nodeId,
   nodeLabel,
   nodePath,
+  nodeWebUrl,
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   nodePath: string;
+  nodeWebUrl?: string;
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const providerLabel = providerLabelFromSource(dataSource);
   const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
@@ -268,6 +282,14 @@ function FolderContextMenu({
             className="cursor-pointer"
           >
             Unparent
+          </ContextMenuItem>
+        )}
+        {nodeWebUrl && (
+          <ContextMenuItem
+            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+            className="cursor-pointer"
+          >
+            Open in {providerLabel}
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -395,6 +417,7 @@ function FileEntryContextMenu({
   nodeLabel,
   onDelete,
   showOpenFile,
+  nodeWebUrl,
   renameSource: menuRenameSource = "canvas",
   children,
 }: {
@@ -402,10 +425,13 @@ function FileEntryContextMenu({
   nodeLabel: string;
   onDelete: () => void;
   showOpenFile?: boolean;
+  nodeWebUrl?: string;
   renameSource?: "canvas" | "folder";
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const dataSource = useGraphStore((s) => s.dataSource);
+  const providerLabel = providerLabelFromSource(dataSource);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -492,6 +518,14 @@ function FileEntryContextMenu({
             className="cursor-pointer"
           >
             Unparent
+          </ContextMenuItem>
+        )}
+        {nodeWebUrl && (
+          <ContextMenuItem
+            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+            className="cursor-pointer"
+          >
+            Open in {providerLabel}
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -658,6 +692,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         nodeId={child.id}
         nodeLabel={child.data.label}
         nodePath={child.data.path}
+        nodeWebUrl={child.data.webUrl}
       >
         {childContent}
       </FolderContextMenu>
@@ -670,6 +705,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
       showOpenFile={dataSource === "directory"}
+      nodeWebUrl={child.data.webUrl}
     >
       {childContent}
     </FileEntryContextMenu>
@@ -778,6 +814,7 @@ function CustomNodeImpl({
           nodeId={id}
           nodeLabel={data.label}
           nodePath={data.path}
+          nodeWebUrl={data.webUrl}
         >
           {/*
            * Wrap the entire card body in the folder context menu so right-clicking
@@ -888,6 +925,7 @@ function CustomNodeImpl({
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
       showOpenFile={dataSource === "directory"}
+      nodeWebUrl={data.webUrl}
     >
       <div
         className={cn(

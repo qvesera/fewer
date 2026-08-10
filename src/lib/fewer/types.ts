@@ -38,6 +38,8 @@ export interface FewerNodeData {
   depth?: number;
   /** Whether this node is the root of the loaded tree */
   isRoot?: boolean;
+  /** Provider web URL for cloud-imported entries (open in a new tab) */
+  webUrl?: string;
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
@@ -84,6 +86,8 @@ export interface TreeEntry {
   children?: TreeEntry[];
   /** File System Access handle (if loaded from disk) */
   fsHandle?: FileSystemHandle | null;
+  /** Provider web URL for cloud-imported entries (open in a new tab) */
+  webUrl?: string;
 }
 
 /** Optional File System Access handle stored on each node/item */

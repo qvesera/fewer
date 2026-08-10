@@ -1,6 +1,6 @@
 {
   "name": "fewer",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "Interactive File & System Graph Visualizer",
   "author": "qvesera",
@@ -74,6 +74,7 @@
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^3.0.3",
     "resend": "^6.18.1",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",

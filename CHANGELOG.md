@@ -5,11 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - Unreleased
+## [0.5.0] - Unreleased
 
 ### Added
 
-- **Index change digests**: signed-in users can watch a public file index and get one consolidated daily email (23:59 UTC) listing everything added/removed across their watched indexes. New "Watch for changes" toggle in the Import URL dialog, a "Watched" tab in Settings, /api/watch (GET/POST/DELETE) CRUD, and /api/watch/run cron job (service-role + x-cron-secret protected) that crawls, diffs against the stored baseline, and emails via Resend - skipping days with no changes. Netlify scheduled function netlify/functions/watch-digest.ts (59 23 * * *). Migration 0010_watch_indexes.sql; crawl engine extracted to src/lib/fewer/crawl.ts; new src/lib/fewer/treeDiff.ts. Env: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+- **Index change digests**: signed-in users can watch a public file index and get one consolidated daily email (23:59 UTC) listing everything added/removed across their watched indexes. New "Watch for changes" toggle in the Import URL dialog, a "Watched" tab in Settings, /api/watch (GET/POST/DELETE) CRUD, and /api/watch/run cron job (service-role + x-cron-secret protected) that crawls, diffs against the stored baseline, and emails via Resend - skipping days with no changes. Netlify scheduled function netlify/functions/watch-digest.ts (59 23 \* \* \*). Migration 0010_watch_indexes.sql; crawl engine extracted to src/lib/fewer/crawl.ts; new src/lib/fewer/treeDiff.ts. Env: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+- **Cloud connections (OAuth account linking)**: signed-in users can link cloud accounts — GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps, Azure Blob — and browse/import their folders into the graph. All six provider adapters implemented (`src/lib/fewer/cloud/providers/`: github, google, microsoft [OneDrive/SharePoint/DevOps/Blob]). Cloud management lives in Settings → Cloud tab; Cloud Browser dialog offers lazy folder navigation (repos/drives/sites/orgs/containers as roots) + depth-limited import; "Open in provider" context-menu action on imported nodes opens the folder/file in its provider in a new tab. Server-side OAuth: `/api/cloud/connect` (redirect to provider consent), `/api/cloud/callback` (exchange code, encrypt+store tokens), `/api/cloud/connections` (list/unlink), `/api/cloud/list` (lazy folder listing), `/api/cloud/tree` (build subtree). Tokens encrypted (AES-256-GCM) via `CONNECTIONS_ENCRYPTION_KEY`, owner-only RLS, auto-refresh on expiry. Migration `0011_cloud_connections.sql`. Env: CONNECTIONS_ENCRYPTION_KEY, GITHUB_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET, MICROSOFT_CLIENT_ID/SECRET/TENANT, AZURE_BLOB_STORAGE_ACCOUNT. Docs: `/docs/cloud` + OAuth setup (incl. Entra tenant-type + admin-consent troubleshooting) in `/docs/deployment`.
+
+### Changed
+
+- **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
+- **Cloud entry point moved**: account connections live in Settings → Cloud; the cloud **import** browser is a sidebar option (File & Actions → Cloud, next to File/URL).
+- **Cloud import UX**: the cloud browser now uses the shared import options panel (max depth, hidden files, vendored dirs, empty folders, extensions, file nodes, display depth) instead of a single depth field; empty states guide signed-out users to sign in and unlinked users to Settings → Cloud.
+- **Unified 3-step import flow**: every import — folder, file, URL, cloud — now follows exactly three steps: select origin → configure options → import. One `ImportFlowDialog` replaces the four separate dialogs; step 1 picks the origin and its source (device folder, ASCII-tree/JSON/script payload, URL + watch toggle, or cloud account + folder browser), step 2 is the single shared `ImportOptionsPanel` for all origins, step 3 confirms and runs the per-origin action. File imports now actually honor the import options (filtering, file nodes, display depth), cloud imports honor the scan-depth option, and all sidebar/shortcut entry points preselect their origin in the same flow. Sign-in and Settings detours stack on top without destroying flow progress; closing is blocked while an import is in flight. Also fixes the options panel's extension filter input (commas no longer eaten while typing) and dedupes URL-import error/truncation reporting via a synchronous hook snapshot.
+- **URL and Cloud import origins are sign-in gated**: the unified import flow's origin picker shows Folder and File to signed-out users; URL and Cloud origins appear only for signed-in users (they depend on a linked/authenticated account).
+- **Removed the options summary from the import flow's step 2**: the shared options panel no longer includes the collapsible "Summary" block — the step-3 confirmation screen already shows the chosen options compactly.
+- **Power user options are now sign-in gated**: advanced features (advanced import options, extra export formats, advanced layouts, node/edge tools, analytics) are available only to signed-in users. The "Power User Mode" toggle is removed — the flag now tracks auth state, so it's on for signed-in users and off for everyone else. `advancedModeEnabled` is no longer persisted in saved-graph snapshots.
+
+### Removed
+
+- `ImportDialog`, `ImportFromFileDialog`, `ImportUrlDialog`, `CloudBrowserDialog` and orphaned `ImportProgress` — replaced by the unified `ImportFlowDialog` (see Changed → Unified 3-step import flow).
+
+### Docs
+
+- **Watch File Indexes page**: new `/docs/watch` covers watching public file indexes, the 23:59 daily digest, and managing watched indexes in Settings
+- **Deployment**: documented Resend + scheduled-digest env vars (RESEND_API_KEY, RESEND_FROM_EMAIL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET)
+- **Docs nav**: registered `watch` and `cloud` pages in the Features section
 
 ## [0.4.0] - Unreleased
 

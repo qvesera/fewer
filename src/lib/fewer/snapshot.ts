@@ -26,7 +26,6 @@ export function buildSnapshot(): SavedGraphData {
     showMiniMap: s.showMiniMap,
     miniMapPosition: s.miniMapPosition,
     miniMapSize: s.miniMapSize,
-    advancedModeEnabled: s.advancedModeEnabled,
   };
 }
 
@@ -51,6 +50,5 @@ export function applySnapshot(data: SavedGraphData) {
   s.setShowMiniMap(data.showMiniMap);
   s.setMiniMapPosition(data.miniMapPosition as never);
   s.setMiniMapSize(data.miniMapSize);
-  s.setAdvancedMode(data.advancedModeEnabled);
   useGraphStore.setState({ dataSource: "saved" });
 }

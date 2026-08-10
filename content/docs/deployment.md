@@ -106,6 +106,90 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 
 > **Note:** `NEXT_PUBLIC_*` variables are inlined at build time, so they must be set when you build, not just at runtime.
 
+### Mail & scheduled digests (Watch File Indexes)
+
+Watching file indexes and emailing daily change digests uses **Resend** for email and a scheduled Netlify function for the nightly crawl.
+
+| Variable | Purpose |
+| -------- | ------- |
+| `RESEND_API_KEY` | Resend API key for sending digest emails |
+| `RESEND_FROM_EMAIL` | Sender address for digest emails (defaults to `fewer <onboarding@resend.dev>`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-side only) so the nightly job can read every user's watchlist |
+| `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` job |
+
+The nightly job is triggered by the Netlify scheduled function in `netlify/functions/watch-digest.ts`. It crawls watched indexes, diffs against the previous crawl, and sends one consolidated email per user only when something changed.
+
+## Cloud Connections (OAuth)
+
+Cloud storage browsing (GitHub private repos, Google Drive, OneDrive, SharePoint, Azure) uses OAuth. Each provider needs its own app credentials. The redirect URI for every provider is:
+
+```
+http://localhost:3000/api/cloud/callback      (dev)
+https://your-domain.com/api/cloud/callback   (prod)
+```
+
+### Shared environment variables
+
+| Variable | Purpose |
+| -------- | ------- |
+| `CONNECTIONS_ENCRYPTION_KEY` | 32-byte base64 key used to encrypt OAuth tokens at rest. Generate with `openssl rand -base64 32` |
+| `NEXT_PUBLIC_APP_URL` | Your app origin (used to build the OAuth redirect URI) |
+
+### GitHub (private repos)
+
+1. Go to GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. **Homepage URL**: `https://your-domain.com` (or `http://localhost:3000`).
+3. **Authorization callback URL**: `https://your-domain.com/api/cloud/callback`.
+4. Copy the Client ID and Client Secret into:
+   - `GITHUB_CLIENT_ID`
+   - `GITHUB_CLIENT_SECRET`
+
+### Google Drive
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → your project → **APIs & Services → OAuth consent screen**.
+2. Set the app to **External** and add the `drive.readonly` scope in **Data Access**.
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID → Web application**.
+4. Add the redirect URI: `https://your-domain.com/api/cloud/callback`.
+5. Copy the Client ID and Client Secret into:
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+
+### OneDrive, SharePoint, Azure DevOps, Azure Blob (Microsoft)
+
+All four Microsoft-backed providers use a single Azure AD app.
+
+1. Go to [Azure Portal](https://portal.azure.com) → **App registrations → New registration**.
+2. **Supported account types**: choose **"Any Entra ID Tenant + Personal Microsoft accounts"** (the `common` tenant). This allows both personal OneDrive accounts and work/school accounts (SharePoint, Azure DevOps, Azure Blob). If you only need your own organization, "Single tenant" also works — set `MICROSOFT_TENANT` to your tenant ID instead of `common`.
+3. Set the **Redirect URI** to a **Web** platform: `https://your-domain.com/api/cloud/callback`.
+4. Under **Certificates & secrets → New client secret**, create one and copy it.
+5. Under **API permissions → Add a permission → Microsoft Graph → Delegated**, add:
+   - `Files.Read`
+   - `Files.Read.All`
+   - `Sites.Read.All`
+   - `User.Read`
+6. For Azure DevOps, add a separate permission: **Azure DevOps → user_impersonation** (or add the `499b84ac-...` resource scope).
+7. For Azure Blob, add the **Azure Storage** delegated permission (`https://storage.azure.com/user_impersonation`), and assign the **Storage Blob Data Reader** role to the app on your storage account.
+8. Copy the values into:
+   - `MICROSOFT_CLIENT_ID` (Application/client ID)
+   - `MICROSOFT_CLIENT_SECRET` (client secret)
+   - `MICROSOFT_TENANT` (`common` to allow personal + org accounts, or your tenant ID)
+   - `AZURE_BLOB_STORAGE_ACCOUNT` (your storage account name)
+
+### Troubleshooting Microsoft registration
+
+**"Could not grant admin consent. Your organization does not have a subscription (or service principal) for: Microsoft Graph, Azure DevOps, Azure Storage"**
+
+This is expected on free/personal Entra tenants — they have no Azure DevOps org or Azure Storage subscription, so those service principals can't exist.
+
+Fix:
+1. **Remove** the Azure DevOps and Azure Storage API permissions from the registration. They're only needed with real Azure resources.
+2. **Skip "Grant admin consent"** — it's optional for delegated scopes. Consent happens at first sign-in.
+3. Keep only `User.Read` + `Files.Read` for personal OneDrive. Drop `Files.Read.All` / `Sites.Read.All` if they also fail consent.
+
+Account-type reality check:
+- **Personal Microsoft account** → OneDrive works. SharePoint / Azure DevOps / Azure Blob do not (org-only).
+- **Work/school account** → SharePoint/DevOps/Blob possible, if the org has the services and you hold the roles.
+
 ## Next Steps
 
 - [PWA Install](/docs/pwa-install): install the deployed app to your device

@@ -1,11 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -17,11 +12,8 @@ import {
   Package,
   FolderX,
   FileIcon,
-  ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 
 interface ImportOptionsPanelProps {
   options: ImportOptions;
@@ -34,9 +26,33 @@ export function ImportOptionsPanel({
   onChange,
   advancedModeEnabled,
 }: ImportOptionsPanelProps) {
-  const [summaryOpen, setSummaryOpen] = useState(false);
-
   const update = (partial: Partial<ImportOptions>) => onChange(partial);
+
+  // Extensions are edited as raw text; binding the input directly to the
+  // parsed array eats commas/spaces while typing. Commit on blur/Enter.
+  const [extText, setExtText] = useState(() => options.extensions.join(", "));
+  // External change (e.g. dialog reset) — sync unless it matches what's typed.
+  useEffect(() => {
+    setExtText((current) => {
+      const parsed = current
+        .split(",")
+        .map((s) => s.trim().replace(/^\./, ""))
+        .filter(Boolean);
+      const same =
+        parsed.length === options.extensions.length &&
+        parsed.every((p, i) => p === options.extensions[i]);
+      return same ? current : options.extensions.join(", ");
+    });
+  }, [options.extensions]);
+
+  const commitExtensions = () => {
+    const exts = extText
+      .split(",")
+      .map((s) => s.trim().replace(/^\./, ""))
+      .filter(Boolean);
+    update({ extensions: exts });
+    setExtText(exts.join(", "));
+  };
 
   return (
     <div className="space-y-4">
@@ -177,13 +193,14 @@ export function ImportOptionsPanel({
               Only scan these extensions. Comma-separated.
             </p>
             <Input
-              value={options.extensions.join(", ")}
-              onChange={(e) => {
-                const exts = e.target.value
-                  .split(",")
-                  .map((s) => s.trim().replace(/^\./, ""))
-                  .filter(Boolean);
-                update({ extensions: exts });
+              value={extText}
+              onChange={(e) => setExtText(e.target.value)}
+              onBlur={commitExtensions}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitExtensions();
+                }
               }}
               placeholder="e.g. ts, tsx, js, json"
               className="font-mono text-xs h-9 bg-muted/20 border-border/50 focus-visible:ring-1 focus-visible:ring-ring"
@@ -202,52 +219,6 @@ export function ImportOptionsPanel({
               </Label>
             </div>
           </div>
-
-          {/* Summary */}
-          <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
-            <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
-              <CollapsibleTrigger asChild>
-                <button type="button" className="flex items-center gap-1.5 w-full text-left font-bold text-foreground/90 tracking-wider text-[10px] uppercase">
-                  <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
-                  Summary
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out]">
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Depth</span>
-                  <span className="font-mono font-medium text-foreground/80">
-                    {options.maxDepth === 0 ? "No Limit" : `${options.maxDepth} levels`}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Hidden Files</span>
-                  <span className="font-medium text-foreground/85">{options.includeHidden ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>node_modules</span>
-                  <span className="font-medium text-foreground/85">{options.includeVendored ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Empty Folders</span>
-                  <span className="font-medium text-foreground/85">{options.skipEmptyFolders ? "Skip" : "Show"}</span>
-                </div>
-                <div className="flex justify-between border-b border-border/10 pb-1.5">
-                  <span>Show Files</span>
-                  <span className="font-medium text-foreground/85">
-                    {options.includeFiles ? "Yes" : "No"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Extensions</span>
-                  <span className="font-mono bg-secondary font-medium text-secondary-foreground px-2 py-0.5 rounded text-[10px]">
-                    {options.extensions.length > 0
-                      ? `${options.extensions.length} ext`
-                      : "All (*)"}
-                  </span>
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
         </>
       )}
     </div>

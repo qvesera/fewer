@@ -13,15 +13,12 @@ import {
   ArrowLeftToLine,
   RefreshCw,
   FolderOpen,
-  Upload,
   Trash2,
   Eye,
   ChevronRight,
-  Palette,
   Layers,
   HardDrive,
   SlidersHorizontal,
-  Globe,
   FileIcon,
   Spline,
   Info,
@@ -76,8 +73,6 @@ const ADVANCED_LAYOUTS: {
 
 interface SidebarProps {
   onOpenDirectory: () => void;
-  onImportFromFile: () => void;
-  onImportFromUrl: () => void;
   onRequireAuth: () => void;
 }
 
@@ -334,7 +329,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, onRequireAuth }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
@@ -425,37 +420,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl, on
         {/* ── 1. FILE & ACTIONS ── */}
         <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
           <div className="space-y-2.5 w-full min-w-0">
-            {/* Primary Action Button (shadcn) */}
+            {/* Primary Action Button (shadcn) — opens the unified 3-step
+                import flow at step 1 (origin selection). */}
             <Button
               className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10"
               onClick={onOpenDirectory}
             >
               <FolderOpen className="h-4 w-4 shrink-0" />
-              <span className="truncate">Import Folder</span>
+              <span className="truncate">Import</span>
             </Button>
-            
-            <AnimatedConditional show={advancedModeEnabled} delay={0}>
-              <div className="grid grid-cols-2 gap-2 pb-1 w-full min-w-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50"
-                  onClick={onImportFromFile}
-                >
-                  <Upload className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">File</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50"
-                  onClick={onImportFromUrl}
-                >
-                  <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">URL</span>
-                </Button>
-              </div>
-            </AnimatedConditional>
 
             {/* Quick Canvas Toolbar Buttons (shadcn) */}
             <div className="flex items-center gap-1 pt-1 border-t border-border/20 w-full min-w-0">

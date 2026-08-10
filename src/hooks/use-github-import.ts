@@ -1,21 +1,22 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
+import { isGitHubUrl } from "@/lib/fewer/importFlow";
 
-function isGitHubUrl(url: string): boolean {
-  try {
-    return new URL(url).hostname === "github.com";
-  } catch {
-    return false;
-  }
+export interface UrlImportSnapshot {
+  error: string | null;
+  truncated: boolean;
 }
 
 export function useImport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
+  // Synchronous snapshot — state updates only land after re-render, but the
+  // unified import flow reads these in the same tick `importUrl` resolves.
+  const snapshotRef = useRef<UrlImportSnapshot>({ error: null, truncated: false });
 
   /**
    * Import a directory graph from a GitHub repo URL or a public file index URL.
@@ -23,6 +24,8 @@ export function useImport() {
    */
   const importUrl = useCallback(
     async (url: string, options?: ImportOptions): Promise<boolean> => {
+      // Reset FIRST so even guard-return paths never expose stale data.
+      snapshotRef.current = { error: null, truncated: false };
       if (!url.trim() || loading) return false;
       setLoading(true);
       setError(null);
@@ -44,6 +47,7 @@ export function useImport() {
 
         const data = await res.json();
         setTruncated(!!data.truncated);
+        snapshotRef.current.truncated = !!data.truncated;
         const opts = options ?? DEFAULT_IMPORT_OPTIONS;
         const tree =
           opts.maxDepth > 0 ||
@@ -53,7 +57,12 @@ export function useImport() {
           opts.extensions.length > 0
             ? filterTree(data.tree, opts)
             : data.tree;
-        if (!tree) return true; // everything filtered out, still "success"
+        if (!tree) {
+          const msg = "All entries were filtered out by the import options.";
+          setError(msg);
+          snapshotRef.current.error = msg;
+          return false;
+        }
         const { nodes, edges, hiddenFileIds } = treeToGraph(tree, {
           idPrefix: isGitHubUrl(url.trim()) ? "github" : "crawl",
           includeFiles: opts.includeFiles,
@@ -63,11 +72,11 @@ export function useImport() {
           maxDisplayDepth: opts.displayMaxDepth,
         });
         useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
-        // Apply the currently selected edge flow style to the imported edges
-        useGraphStore.getState().setEdgeStyle(useGraphStore.getState().edgeStyle);
         return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setError(msg);
+        snapshotRef.current.error = msg;
         return false;
       } finally {
         setLoading(false);
@@ -76,5 +85,8 @@ export function useImport() {
     [loading]
   );
 
-  return { loading, error, setError, importUrl, truncated };
+  /** Sync read of the last import's error/truncated — safe in the same tick. */
+  const getResult = useCallback((): UrlImportSnapshot => snapshotRef.current, []);
+
+  return { loading, error, setError, importUrl, truncated, getResult };
 }
