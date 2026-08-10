@@ -93,6 +93,17 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 2. Run the migrations in `supabase/migrations/` (via the Supabase CLI: `supabase db push`, or the SQL editor)
 3. Set the two environment variables below
 
+### Production go-live checklist
+
+One-time settings to verify before real users arrive:
+
+1. **Supabase dashboard → Authentication → Providers → Email**: make sure **Email** is enabled (it is the only sign-in provider).
+2. **Supabase dashboard → Authentication → Sign In / Up**: turn on **Confirm email** so new accounts must verify their address (blocks fake sign-ups). The app's sign-up dialog already prompts "Check your email".
+3. **Supabase dashboard → Authentication → URL Configuration**: set **Site URL** to your production origin (e.g. `https://fewer.directory`) and add your origin + `https://your-domain.com/auth/callback` to **Redirect URLs** — required for password-reset and email-confirmation links.
+4. **Netlify env vars**: linking the Netlify ⇄ Supabase integration sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` automatically. Add the rest manually: `NEXT_PUBLIC_APP_URL` (production origin, used in emailed links), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `CONNECTIONS_ENCRYPTION_KEY` (`openssl rand -base64 32`), and the per-provider OAuth keys below.
+5. **Run migrations on the hosted project**: `supabase link --project-ref <ref>` then `supabase db push`, so hardening migrations (e.g. `0012_harden_share_rls.sql`) are applied before launch.
+6. **Verify invite-only sharing in an incognito window**: open an invite link signed out → 403 + sign-in prompt → sign in as the invited email → the graph loads.
+
 ### Environment Variables
 
 | Variable | Purpose |

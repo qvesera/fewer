@@ -13,7 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
-import { Loader2, LogIn, UserPlus, KeyRound } from "lucide-react";
+import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { PASSWORD_HINTS, unmetPasswordHints } from "@/lib/fewer/passwordPolicy";
+
+/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface AuthDialogProps {
   open: boolean;
@@ -26,16 +35,28 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const close = () => {
     onOpenChange(false);
     setMode("signin");
     setEmail("");
     setPassword("");
+    setEmailError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Field-level email validation (all modes need a well-formed email).
+    const emailOk = EMAIL_RE.test(email.trim());
+    if (!emailOk) {
+      setEmailError("Enter a valid email address.");
+      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (emailError) setEmailError(null);
+
     if (mode === "reset") {
       setLoading(true);
       try {
@@ -53,6 +74,19 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         setLoading(false);
       }
       return;
+    }
+
+    // Field-level validation before submitting (matches Supabase's policy).
+    if (mode === "signup") {
+      const unmet = unmetPasswordHints(password);
+      if (unmet.length) {
+        toast({
+          title: "Password requirements not met",
+          description: unmet.map((h) => h.label).join(", "),
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setLoading(true);
@@ -102,25 +136,82 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setEmail(v);
+                if (emailError) {
+                  setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                }
+              }}
               placeholder="you@example.com"
               autoComplete="email"
+              aria-invalid={!!emailError}
             />
+            {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
           </div>
 
           {mode !== "reset" && (
             <div className="space-y-1.5">
-              <Label htmlFor="auth-password" className="text-xs font-medium">Password</Label>
+              <Label htmlFor="auth-password" className="text-xs font-medium flex items-center gap-1">
+                Password
+                {mode === "signup" && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className="inline-flex text-muted-foreground hover:text-foreground cursor-help"
+                        aria-label="Password requirements"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[230px]">
+                      <p className="font-medium mb-1">Password must include:</p>
+                      <ul className="list-disc pl-4 space-y-0.5">
+                        {PASSWORD_HINTS.map((h) => (
+                          <li key={h.id}>{h.label}</li>
+                        ))}
+                      </ul>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </Label>
               <Input
                 id="auth-password"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                aria-invalid={
+                  mode === "signup" && password.length > 0 && PASSWORD_HINTS.some((h) => !h.test(password))
+                }
               />
+              {mode === "signup" && password.length > 0 && (
+                <ul className="space-y-0.5 pt-0.5" aria-live="polite">
+                  {PASSWORD_HINTS.map((h) => {
+                    const ok = h.test(password);
+                    return (
+                      <li
+                        key={h.id}
+                        className={`flex items-center gap-1.5 text-[11px] ${
+                          ok ? "text-green-600 dark:text-green-500" : "text-muted-foreground/70"
+                        }`}
+                      >
+                        {ok ? (
+                          <Check className="h-3 w-3 shrink-0" aria-hidden />
+                        ) : (
+                          <X className="h-3 w-3 shrink-0 opacity-40" aria-hidden />
+                        )}
+                        {h.label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           )}
 
