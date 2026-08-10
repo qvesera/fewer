@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       if (existing) {
         const { error } = await supabase
           .from("shared_graphs")
-          .update({ data, access, invited_emails: invitedEmails, expires_at: new Date(Date.now() + TTL_MS).toISOString() })
+          .update({ data, access, invited_emails: invitedEmails, expires_at: user ? null : new Date(Date.now() + TTL_MS).toISOString() })
           .eq("id", existing.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         return NextResponse.json({ id: existing.id, access, invited_emails: invitedEmails });
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       saved_graph_id: savedGraphId,
       access,
       invited_emails: invitedEmails,
-      expires_at: new Date(Date.now() + TTL_MS).toISOString(),
+      expires_at: user ? null : new Date(Date.now() + TTL_MS).toISOString(),
     });
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

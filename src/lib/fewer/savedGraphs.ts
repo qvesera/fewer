@@ -28,6 +28,10 @@ export interface SavedGraph {
   data: SavedGraphData;
   created_at: string;
   updated_at: string;
+  /** Pinned to the top of the saved-graph list. */
+  is_favorite?: boolean;
+  /** Active share for this graph (owner only), if any. */
+  share?: { access: "public" | "invite" } | null;
 }
 
 export interface ShareInfo {
