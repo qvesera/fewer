@@ -144,6 +144,18 @@ export function renderMarkdown(content: string): React.ReactNode {
         </div>,
       );
       i++;
+    } else if (block.startsWith(">")) {
+      const quote = block
+        .split("\n")
+        .filter((l) => l.trim().length > 0)
+        .map((l) => l.replace(/^>\s?/, ""))
+        .join(" ");
+      result.push(
+        <blockquote key={i} className="my-4 border-l-4 border-border pl-4 italic text-muted-foreground">
+          {renderInline(quote)}
+        </blockquote>,
+      );
+      i++;
     } else {
       result.push(<p key={i} className="my-4 text-foreground/90">{renderInline(block)}</p>);
       i++;

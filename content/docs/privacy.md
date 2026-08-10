@@ -8,6 +8,8 @@ lastUpdated: August 10, 2026
 
 **Last updated: August 10, 2026**
 
+> **Not legal advice.** This page is an informational template and does not constitute legal advice, nor does it create an attorney-client relationship. Laws vary by jurisdiction. You should consult a qualified attorney to review your specific privacy and compliance obligations before relying on this policy.
+
 This Privacy Policy explains how fewer ("we", "our", or "us") collects, uses, and protects information when you use the fewer web application at [fewer.directory](https://fewer.directory) and related services.
 
 By using fewer, you agree to the practices described in this policy.
