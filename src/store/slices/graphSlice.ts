@@ -13,8 +13,10 @@ const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
 /**
  * Pure helper: ids of nodes deeper than `maxDepth`.
+ * `maxDepth <= 0` means unlimited — no depth-based hiding.
  */
 function computeDisplayDepthHiddenIds(nodes: FewerNode[], maxDepth: number): string[] {
+  if (maxDepth <= 0) return [];
   return nodes
     .filter((n) => (n.data.depth ?? 0) > maxDepth)
     .map((n) => n.id);
@@ -749,7 +751,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const kept = hiddenIds.filter((id) => {
       if (depthHidden.has(id)) return false;
       const depth = nodes.find((n) => n.id === id)?.data.depth ?? 0;
-      if (depth > maxDepth) return false;
+      if (maxDepth > 0 && depth > maxDepth) return false;
       // If this node was hidden by old depth limit and is now within new limit, reveal it
       if (oldDepthHidden.has(id)) {
         // Check if any ancestor was hidden by non-depth reasons (manual/auto-hide)

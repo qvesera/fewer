@@ -557,7 +557,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                   <Slider
                     value={[maxDisplayDepth]}
                     onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={1}
+                    min={0}
                     max={10}
                     step={1}
                   />
