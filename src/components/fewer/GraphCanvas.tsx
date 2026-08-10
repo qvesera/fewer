@@ -206,17 +206,6 @@ function CanvasInner() {
     }
   }, [zoomToNodeIds]);
 
-  const didInitialFit = useRef(false);
-  useEffect(() => {
-    if (rfNodes.length === 0) return;
-    if (!didInitialFit.current) { didInitialFit.current = true; return; }
-    const t = setTimeout(() => {
-      if (useGraphStore.getState().zoomToNode) return;
-      fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [direction, graphVersion, fitView]);
-
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
     const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
@@ -291,7 +280,7 @@ function CanvasInner() {
 
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
-          setTimeout(() => { relayout(); fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 }); }, 50);
+          setTimeout(() => { relayout(); }, 50);
         }
 
         // Commit a resize op once the resize gesture settles (debounced).

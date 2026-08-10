@@ -25,7 +25,6 @@ export type LayoutSliceCreator = StateCreator<
     setEdgeWidth: (w: number) => void;
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
-    skipNextFitView: () => void;
   }
 >;
 
@@ -38,7 +37,6 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   cornerRadius: 8,
   nodeWidth: 240,
   nodeHeight: 200,
-  _skipNextFitView: false,
 
   setDirection: (direction) => {
     set({ direction });
@@ -55,14 +53,12 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeStyle: (style) => {
-    get().skipNextFitView();
     set({ edgeStyle: style });
     const edgeType = style === "curved" ? "default" : style === "angled" ? "smoothstep" : "straight";
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, type: edgeType as any })), graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeAnimated: (animated) => {
-    get().skipNextFitView();
     if (animated && get().edgeStrokeStyle === "solid") {
       set({ edgeAnimated: animated, edgeStrokeStyle: "dashed" });
     } else {
@@ -72,7 +68,6 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {
-    get().skipNextFitView();
     set({ edgeStrokeStyle: strokeStyle });
     const strokeDasharray = strokeStyle === "dashed" ? "8 4" : strokeStyle === "dotted" ? "2 4" : undefined;
     set((s) => ({
@@ -85,21 +80,15 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeWidth: (width) => {
-    get().skipNextFitView();
     const clamped = Math.max(0.5, Math.min(6, width));
     set({ edgeWidth: clamped });
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, style: { ...e.style, strokeWidth: clamped } })), graphVersion: s.graphVersion + 1 }));
   },
 
   setCornerRadius: (radius) => {
-    get().skipNextFitView();
     const clamped = Math.max(0, Math.min(20, radius));
     set({ cornerRadius: clamped });
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, pathOptions: { borderRadius: clamped } })), graphVersion: s.graphVersion + 1 }));
-  },
-
-  skipNextFitView: () => {
-    set({ _skipNextFitView: true });
   },
 
   setNodeDimensions: (w, h) => {
