@@ -75,7 +75,6 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       edges: prevEdges,
       ...viewPatch,
     });
-    if (needsRelayout(lastOp)) get().relayout();
   },
 
   redo: () => {
@@ -94,26 +93,8 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       edges: nextEdges,
       ...viewPatch,
     });
-    if (needsRelayout(lastOp)) get().relayout();
   },
 });
-
-/**
- * Structural ops change the graph's topology and benefit from a re-flow.
- * Position-only (drag) and resize ops must NOT be re-laid-out, otherwise the
- * restored manual positions/dimensions would be overwritten by the layout engine.
- */
-function needsRelayout(op: HistoryOp): boolean {
-  switch (op.type) {
-    case "move-positions":
-    case "resize":
-      return false;
-    case "view-state":
-      return false;
-    default:
-      return true;
-  }
-}
 
 function applySearchInternal(
   nodes: GraphState["nodes"],
