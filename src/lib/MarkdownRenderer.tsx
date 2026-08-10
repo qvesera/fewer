@@ -92,7 +92,10 @@ export function renderMarkdown(content: string): React.ReactNode {
   while (i < blocks.length) {
     const block = blocks[i];
 
-    if (block.startsWith("# ")) {
+    if (block.startsWith("<!--")) {
+      // Skip HTML comments (e.g. operator-only notes) — not rendered.
+      i++;
+    } else if (block.startsWith("# ")) {
       result.push(<h1 key={i} className="text-3xl font-bold mt-8 mb-4">{renderInline(block.slice(2))}</h1>);
       i++;
     } else if (block.startsWith("## ")) {
@@ -142,6 +145,18 @@ export function renderMarkdown(content: string): React.ReactNode {
             </tbody>
           </table>
         </div>,
+      );
+      i++;
+    } else if (block.startsWith(">")) {
+      const quote = block
+        .split("\n")
+        .filter((l) => l.trim().length > 0)
+        .map((l) => l.replace(/^>\s?/, ""))
+        .join(" ");
+      result.push(
+        <blockquote key={i} className="my-4 border-l-4 border-border pl-4 italic text-muted-foreground">
+          {renderInline(quote)}
+        </blockquote>,
       );
       i++;
     } else {

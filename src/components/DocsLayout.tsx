@@ -93,6 +93,29 @@ export function DocsLayout({ children, type, title, backHref, backLabel }: DocsL
           }
         `}</style>
       </div>
+
+      {/* Footer with legal links */}
+      <footer className="relative z-10 border-t border-border/40 bg-background/95">
+        <div className="mx-auto max-w-4xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} fewer ·{" "}
+            <Link href="/" className="hover:text-foreground">
+              fewer.directory
+            </Link>
+          </p>
+          <nav className="flex items-center gap-4 text-xs text-muted-foreground">
+            <Link href="/docs/privacy" className="hover:text-foreground">
+              Privacy Policy
+            </Link>
+            <Link href="/docs/terms" className="hover:text-foreground">
+              Terms of Use
+            </Link>
+            <Link href="/docs" className="hover:text-foreground">
+              Docs
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -50,6 +50,10 @@ const sections = [
     title: "Reference",
     items: ["settings", "shortcuts", "theming", "pwa-install", "deployment"],
   },
+  {
+    title: "Legal",
+    items: ["privacy", "terms"],
+  },
 ];
 
 export default function DocsPage() {
