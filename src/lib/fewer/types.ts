@@ -246,10 +246,12 @@ export interface ConnectOp {
   nextPaths: { nodeId: string; path: string }[];
 }
 
-/** Delete edges / remove edges from a handle. Undo re-adds them. */
+/** Delete edges / remove edges from a handle. Undo re-adds them and restores paths. */
 export interface RemoveEdgesOp {
   type: "remove-edges";
   edges: FewerEdge[];
+  /** Path rewrites caused by unparenting (child + descendants). Undo restores prevPath. */
+  pathChanges?: { nodeId: string; prevPath: string; nextPath: string }[];
 }
 
 /** Node drag (single or multi-selection). Undo restores original positions. */

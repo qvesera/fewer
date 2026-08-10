@@ -85,7 +85,13 @@ export function applyOp(
     }
     case "remove-edges": {
       const removedIds = new Set(op.edges.map((e) => e.id));
-      return { nodes, edges: edges.filter((e) => !removedIds.has(e.id)) };
+      const n = op.pathChanges?.length
+        ? nodes.map((nd) => {
+            const pc = op.pathChanges!.find((x) => x.nodeId === nd.id);
+            return pc ? { ...nd, data: { ...nd.data, path: pc.nextPath, isRoot: true } } : nd;
+          })
+        : nodes;
+      return { nodes: n, edges: edges.filter((e) => !removedIds.has(e.id)) };
     }
     case "move-positions": {
       const n = nodes.map((nd) => {
@@ -205,7 +211,13 @@ export function undoOp(
       return { nodes: n, edges: edges.filter((e) => e.id !== op.edge.id) };
     }
     case "remove-edges": {
-      return { nodes, edges: [...edges, ...op.edges] };
+      const n = op.pathChanges?.length
+        ? nodes.map((nd) => {
+            const pc = op.pathChanges!.find((x) => x.nodeId === nd.id);
+            return pc ? { ...nd, data: { ...nd.data, path: pc.prevPath } } : nd;
+          })
+        : nodes;
+      return { nodes: n, edges: [...edges, ...op.edges] };
     }
     case "move-positions": {
       const n = nodes.map((nd) => {

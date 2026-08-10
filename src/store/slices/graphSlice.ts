@@ -75,6 +75,68 @@ function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
   });
 }
 
+/**
+ * After removing edges, reset the path of any node that lost its last parent edge
+ * (and of its descendants) so breadcrumbs reflect the new root-level location.
+ * Returns the updated nodes plus the path changes for the history op.
+ */
+function unparentSubtree(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  removedEdges: FewerEdge[],
+): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
+  // Nodes whose last parent edge was removed.
+  const incoming = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!incoming.has(e.target)) incoming.set(e.target, []);
+    incoming.get(e.target)!.push(e.source);
+  }
+  const rootless = new Set<string>();
+  for (const e of removedEdges) {
+    const parents = (incoming.get(e.target) ?? []).filter((p) => !removedEdges.some((re) => re.source === p && re.target === e.target));
+    if (parents.length === 0) rootless.add(e.target);
+  }
+
+  const pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] = [];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const next = nodes.map((n) => ({ ...n }));
+
+  for (const rid of rootless) {
+    const label = byId.get(rid)?.data.label ?? rid;
+    const extension = byId.get(rid)?.data.extension ? `.${byId.get(rid)!.data.extension}` : "";
+    const newRootPath = `${label}${extension}`;
+    const cur = byId.get(rid);
+    if (!cur) continue;
+    const prevRootPath = cur.data.path;
+    // Reset the rootless node itself.
+    const idx = next.findIndex((n) => n.id === rid);
+    if (idx !== -1) {
+      pathChanges.push({ nodeId: rid, prevPath: prevRootPath, nextPath: newRootPath });
+      next[idx] = { ...next[idx], data: { ...next[idx].data, path: newRootPath, isRoot: true } };
+    }
+    // Reset descendants whose path was under the old root prefix.
+    const queue = [rid];
+    const seen = new Set<string>([rid]);
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source !== nid) continue;
+        if (seen.has(e.target)) continue;
+        seen.add(e.target);
+        const child = byId.get(e.target);
+        const childIdx = next.findIndex((n) => n.id === e.target);
+        if (child && child.data.path.startsWith(prevRootPath) && childIdx !== -1) {
+          const newPath = child.data.path.replace(prevRootPath, newRootPath);
+          pathChanges.push({ nodeId: e.target, prevPath: child.data.path, nextPath: newPath });
+          next[childIdx] = { ...next[childIdx], data: { ...next[childIdx].data, path: newPath } };
+        }
+        queue.push(e.target);
+      }
+    }
+  }
+  return { nodes: next, pathChanges };
+}
+
 export type GraphSliceCreator = StateCreator<
   GraphState,
   [],
@@ -572,8 +634,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const filteredEdges = edges.filter((e) => { if (handleType === "source") return e.source !== nodeId; if (handleType === "target") return e.target !== nodeId; return true; });
     if (filteredEdges.length === edges.length) return;
     const removedEdges = edges.filter((e) => !filteredEdges.includes(e));
-    get().pushOp({ type: "remove-edges", edges: removedEdges });
-    set({ edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
+    get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
   },
 
   deleteEdges: (ids) => {
@@ -582,8 +645,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const filtered = edges.filter((e) => !idSet.has(e.id));
     if (filtered.length === edges.length) return;
     const removedEdges = edges.filter((e) => idSet.has(e.id));
-    get().pushOp({ type: "remove-edges", edges: removedEdges });
-    set({ edges: filtered, graphVersion: get().graphVersion + 1 });
+    const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filtered, removedEdges);
+    get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filtered, graphVersion: get().graphVersion + 1 });
   },
 
   hideNode: (id) => {

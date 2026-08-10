@@ -97,3 +97,41 @@ test("delete then delete+undo+redo reaches original state", () => {
   const undoneAgain = undoOps(applied.nodes, applied.edges, [op]); // undo again
   expect(undoneAgain.nodes.map((n) => n.id).sort()).toEqual(["root", "a", "b"].sort());
 });
+
+test("unparent (remove-edges) resets child + descendant paths and undo restores them", () => {
+  // root -> outer -> inner ; outer & inner carry parent-qualified paths
+  const nodes: FewerNode[] = [
+    makeNode("root", "root", null, { isRoot: true }),
+    makeNode("outer", "outer", "root", { path: "root/outer" }),
+    makeNode("inner", "inner", "outer", { path: "root/outer/inner" }),
+  ] as FewerNode[];
+  const edges: FewerEdge[] = [
+    makeEdge("e-root-outer", "root", "outer"),
+    makeEdge("e-outer-inner", "outer", "inner"),
+  ];
+
+  const removedEdge = makeEdge("e-root-outer", "root", "outer");
+  const op: import("./types").RemoveEdgesOp = {
+    type: "remove-edges",
+    edges: [removedEdge],
+    pathChanges: [
+      { nodeId: "outer", prevPath: "root/outer", nextPath: "outer" },
+      { nodeId: "inner", prevPath: "root/outer/inner", nextPath: "outer/inner" },
+    ],
+  };
+
+  // Apply (unparent): edge gone, paths rewritten to root-level.
+  const applied = applyOps(nodes, edges, [op]);
+  expect(applied.edges.map((e) => e.id)).toEqual(["e-outer-inner"]);
+  const appliedMap = new Map(applied.nodes.map((n) => [n.id, n]));
+  expect(appliedMap.get("outer")?.data.path).toBe("outer");
+  expect(appliedMap.get("outer")?.data.isRoot).toBe(true);
+  expect(appliedMap.get("inner")?.data.path).toBe("outer/inner");
+
+  // Undo: edge restored, paths restored.
+  const undone = undoOps(applied.nodes, applied.edges, [op]);
+  const undoneMap = new Map(undone.nodes.map((n) => [n.id, n]));
+  expect(undone.edges.map((e) => e.id).sort()).toEqual(["e-outer-inner", "e-root-outer"]);
+  expect(undoneMap.get("outer")?.data.path).toBe("root/outer");
+  expect(undoneMap.get("inner")?.data.path).toBe("root/outer/inner");
+});
