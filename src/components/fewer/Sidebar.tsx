@@ -190,6 +190,12 @@ interface HiddenTreeNode {
   children: HiddenTreeNode[];
 }
 
+/** App-wide ordering convention: folders first, then labels A→Z. */
+function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
+  if (a.node.data.type !== b.node.data.type) return a.node.data.type === "folder" ? -1 : 1;
+  return a.node.data.label.localeCompare(b.node.data.label);
+}
+
 function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
   const idSet = new Set(hiddenIds);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -209,7 +215,8 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     const node = nodeMap.get(id)!;
     const children = (childrenMap.get(id) ?? [])
       .filter((cid) => idSet.has(cid))
-      .map((cid) => build(cid));
+      .map((cid) => build(cid))
+      .sort(hiddenTreeSort);
     return { node, children };
   }
 
@@ -220,7 +227,7 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     roots.push(build(id));
   }
 
-  return roots;
+  return roots.sort(hiddenTreeSort);
 }
 
 function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
