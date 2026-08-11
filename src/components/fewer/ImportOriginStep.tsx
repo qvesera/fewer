@@ -90,23 +90,81 @@ export function ImportOriginStep({
   onRequireAuth,
   onOpenCloudSettings,
 }: ImportOriginStepProps) {
+  const visibleOrigins = signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut;
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Roving-tabindex arrow-key navigation across the origin cards (2-col grid,
+  // wraps on all edges). Selecting also focuses the target so focus follows
+  // the chosen source.
+  const focusOrigin = useCallback((index: number) => {
+    const el = gridRef.current?.querySelector<HTMLButtonElement>(
+      `[data-origin-index="${index}"]`,
+    );
+    el?.focus();
+  }, []);
+
+  const handleGridKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Let inputs/textareas keep their own Enter/arrows.
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      const selected = visibleOrigins.indexOf(origin);
+      if (selected < 0) return;
+      const n = visibleOrigins.length;
+      const cols = 2;
+      let next = -1;
+      switch (e.key) {
+        case "ArrowRight": next = (selected + 1) % n; break;
+        case "ArrowLeft": next = (selected - 1 + n) % n; break;
+        case "ArrowDown": next = (selected + cols) % n; break;
+        case "ArrowUp": next = (selected - cols + n) % n; break;
+        default: return;
+      }
+      e.preventDefault();
+      const chosen = visibleOrigins[next];
+      onOriginChange(chosen);
+      onSourceChange(defaultSourceFor(chosen));
+      focusOrigin(next);
+    },
+    [visibleOrigins, origin, onOriginChange, onSourceChange, focusOrigin],
+  );
+
+  // The three steps stay mounted (hidden via CSS), so focus the selected
+  // origin once when the dialog opens to enable instant arrow-key switching.
+  useEffect(() => {
+    const idx = visibleOrigins.indexOf(origin);
+    if (idx >= 0) focusOrigin(idx);
+    // Run once on mount only.
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* ── Origin selection ── */}
-      <div className="grid grid-cols-2 gap-2">
-        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o) => {
+      <div role="radiogroup" aria-label="Import source"
+        className="grid grid-cols-2 gap-2" ref={gridRef} onKeyDown={handleGridKeyDown}>
+        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o, idx) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
             <button
               key={o}
               type="button"
+              role="radio"
+              aria-checked={active}
+              data-origin-index={idx}
               onClick={() => {
                 if (!active) {
                   onOriginChange(o);
                   onSourceChange(defaultSourceFor(o));
                 }
               }}
+              tabIndex={active ? 0 : -1}
               className={cn(
                 "flex flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
@@ -135,6 +193,10 @@ export function ImportOriginStep({
           );
         })}
       </div>
+      <p className="text-[10px] text-muted-foreground/60">
+        Tip: use <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> to switch source,{" "}
+        <kbd>Tab</kbd> to continue.
+      </p>
 
       {/* ── Origin-specific source picking ── */}
       {signedIn || origin === "folder" || origin === "file" ? (

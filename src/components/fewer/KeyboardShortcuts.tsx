@@ -32,9 +32,7 @@ import { useToast } from "@/hooks/use-toast";
  * Arrow keys     - navigate between nodes (tree-style)
  * Alt+R          - re-layout graph
  * Alt+F          - zoom to selection
- * Alt+I          - import folder
- * Alt+U          - import from file
- * Alt+L          - import from URL
+ * Alt+I          - open import dialog (folder / file / URL / cloud)
  * Alt+O          - open in file explorer
  */
 export function KeyboardShortcuts() {
@@ -156,24 +154,10 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Alt+I - open import folder dialog
+      // Alt+I - open the unified import dialog (folder / file / URL / cloud)
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "i" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-folder"));
-        return;
-      }
-
-      // Alt+U - open import from file dialog
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "u" && !inEditable) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("fewer-import-file"));
-        return;
-      }
-
-      // Alt+L - open import from URL dialog
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "l" && !inEditable) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("fewer-import-url"));
         return;
       }
 
