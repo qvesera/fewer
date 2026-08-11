@@ -30,7 +30,7 @@ export type LayoutSliceCreator = StateCreator<
 
 export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   direction: "TB",
-  edgeStyle: "curved",
+  edgeStyle: "angled",
   edgeAnimated: false,
   edgeStrokeStyle: "solid",
   edgeWidth: 2,
