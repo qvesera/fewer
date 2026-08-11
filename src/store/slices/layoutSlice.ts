@@ -28,8 +28,22 @@ export type LayoutSliceCreator = StateCreator<
   }
 >;
 
+/**
+ * Default layout direction: LR on screens smaller than full HD (1920×1080) so
+ * the wide LR layout better fits the available horizontal space, TB otherwise.
+ * Returns TB when there is no window (SSR/build), and can be overridden by
+ * saved graphs / the sidebar control.
+ */
+function defaultDirection(): LayoutDirection {
+  if (typeof window !== "undefined") {
+    const { width, height } = window.screen;
+    if (width > 0 && height > 0 && (width < 1920 || height < 1080)) return "LR";
+  }
+  return "TB";
+}
+
 export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
-  direction: "TB",
+  direction: defaultDirection(),
   edgeStyle: "angled",
   edgeAnimated: false,
   edgeStrokeStyle: "solid",
