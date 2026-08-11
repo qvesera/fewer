@@ -19,6 +19,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
+import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { useGraphStore } from "@/store/graphStore";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -172,6 +173,15 @@ function CanvasInner() {
       prevGraphVersion.current = graphVersion;
     }
   }, [graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges]);
+
+  // Run the shared edge-dash clock only while animated edges are enabled.
+  // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
+  // inherit the current phase instead of restarting a CSS animation.
+  useEffect(() => {
+    if (!edgeAnimated) return;
+    startDashClock();
+    return stopDashClock;
+  }, [edgeAnimated]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 

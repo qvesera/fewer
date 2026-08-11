@@ -64,7 +64,22 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     } else {
       set({ edgeAnimated: animated });
     }
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })), graphVersion: s.graphVersion + 1 }));
+    set((s) => {
+      // Animated edges need an explicit dash pattern on the element itself.
+      // Without one, @xyflow/react's CSS falls back to `stroke-dasharray: 5`
+      // (period 10), which doesn't match the app's patterns and shows up as
+      // periodic jumps in the dash animation.
+      const strokeDasharray =
+        s.edgeStrokeStyle === "dashed" ? "8 4" : s.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
+      return {
+        edges: s.edges.map((e) => ({
+          ...e,
+          animated,
+          style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
+        })),
+        graphVersion: s.graphVersion + 1,
+      };
+    });
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {
