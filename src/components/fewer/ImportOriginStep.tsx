@@ -18,7 +18,6 @@ import {
   BellRing,
   ChevronRight,
   Cloud,
-  Download,
   ExternalLink,
   FileIcon,
   FileJson,
@@ -888,16 +887,6 @@ function CloudSource({
                     </span>
                   ) : null}
                 </div>
-              )}
-              {entry.type === "folder" && entry.ref && (
-                <button
-                  type="button"
-                  onClick={() => selectFolder(entry.ref!, entry.name)}
-                  className="shrink-0 cursor-pointer p-1 text-muted-foreground hover:text-foreground"
-                  title="Select this folder"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
               )}
               {entry.webUrl && (
                 <a
