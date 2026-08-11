@@ -36,6 +36,8 @@ async function getAuthed() {
   return { supabase, user: data.user ?? null };
 }
 
+type Authed = NonNullable<Awaited<ReturnType<typeof getAuthed>>>;
+
 /**
  * POST /api/share
  * Create or update a share link. When a logged-in user shares a saved graph
@@ -113,7 +115,7 @@ export async function POST(request: Request) {
  * Create a per-email token for each invitee and email them a link.
  * Token is the credential — the link works without login.
  */
-async function sendInvites(supabase: Awaited<ReturnType<typeof getAuthed>>["supabase"], shareId: string, emails: string[], graphName: string, inviterEmail: string) {
+async function sendInvites(supabase: Authed["supabase"], shareId: string, emails: string[], graphName: string, inviterEmail: string) {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
     console.warn("RESEND_API_KEY not set — skipping invite emails");
