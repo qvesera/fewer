@@ -198,7 +198,6 @@ function FolderContextMenu({
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
-  const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
@@ -357,12 +356,12 @@ function FolderContextMenu({
           })()}
           <ContextMenuItem
             onSelect={() => {
-              addNode(nodeId, "New Folder", "folder");
-              setSelectedNodeIds([]);
-              toast({
-                title: "Child node added",
-                description: "New Folder added to " + nodeLabel,
-              });
+              // Select this folder so the Add Node dialog (Alt+N) adds a child of it.
+              setSelectedNodeIds([nodeId]);
+              useGraphStore.setState((s) => ({
+                nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+              }));
+              window.dispatchEvent(new CustomEvent("fewer-add-node"));
             }}
             className="cursor-pointer"
           >
