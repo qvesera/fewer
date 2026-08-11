@@ -18,7 +18,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
-import { fsHandleStore } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -419,6 +418,7 @@ function FileEntryContextMenu({
   showOpenFile,
   nodeWebUrl,
   renameSource: menuRenameSource = "canvas",
+  nodePath,
   children,
 }: {
   nodeId: string;
@@ -427,6 +427,7 @@ function FileEntryContextMenu({
   showOpenFile?: boolean;
   nodeWebUrl?: string;
   renameSource?: "canvas" | "folder";
+  nodePath?: string;
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -543,22 +544,13 @@ function FileEntryContextMenu({
             {showOpenFile !== false && (
             <ContextMenuItem
               onSelect={async () => {
-                const handle = fsHandleStore.get(nodeId);
-                if (handle && handle.kind === "file") {
-                  try {
-                    const { openFile } = await import("@/lib/fewer/fileOps");
-                    await openFile(handle as FileSystemFileHandle);
-                    toast({ title: "Opening file", description: nodeLabel });
-                  } catch {
-                    toast({ title: "Cannot open file", variant: "destructive" });
-                  }
-                } else {
-                  toast({
-                    title: "No file handle",
-                    description: "File not loaded from disk",
-                    variant: "destructive",
-                  });
-                }
+                const { openNodeFile } = await import("@/lib/fewer/fileOps");
+                const ok = await openNodeFile({ id: nodeId, data: { type: "file", path: nodePath } }, dataSource);
+                toast({
+                  title: ok ? "Opening file" : "Cannot open file",
+                  description: nodeLabel,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
               }}
               className="cursor-pointer"
             >
@@ -705,6 +697,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
       showOpenFile={dataSource === "directory"}
+      nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
       {childContent}
@@ -925,6 +918,7 @@ function CustomNodeImpl({
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
       showOpenFile={dataSource === "directory"}
+      nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >
       <div

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { useReactFlow, type Connection } from "@xyflow/react";
 import { navigate } from "@/lib/fewer/navigation";
-import { openFile } from "@/lib/fewer/fileOps";
+import { openNodeFile } from "@/lib/fewer/fileOps";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -48,6 +48,7 @@ export function KeyboardShortcuts() {
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -384,10 +385,14 @@ export function KeyboardShortcuts() {
         if (selectedNodeIds.length === 1) {
           e.preventDefault();
           const node = nodes.find((n) => n.id === selectedNodeIds[0]);
-          if (node && node.data.type === "file" && node.data.fsHandle) {
-            openFile(node.data.fsHandle as FileSystemFileHandle)
-              .then(() => {
-                toast({ title: "Opening file", description: node.data.label });
+          if (node && node.data.type === "file") {
+            openNodeFile(node, dataSource)
+              .then((ok) => {
+                toast({
+                  title: ok ? "Opening file" : "Cannot open file",
+                  description: node.data.label,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
               })
               .catch(() => {
                 toast({
