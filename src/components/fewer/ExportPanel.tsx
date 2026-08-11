@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   FileImage,
@@ -266,7 +267,7 @@ export function ExportPanel() {
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-muted-foreground">Quality</Label>
-                <span className="text-xs font-mono font-semibold text-foreground/80">{settings.quality}%</span>
+                <span className="text-xs font-mono font-semibold text-foreground/80"><EditableNumber value={settings.quality} onCommit={(v) => setSettings({ quality: v })} unit="%" /></span>
               </div>
               <Slider
                 value={[settings.quality]}

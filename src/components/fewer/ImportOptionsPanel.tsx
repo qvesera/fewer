@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import {
@@ -63,7 +64,7 @@ export function ImportOptionsPanel({
             Max Scan Depth
           </Label>
           <span className="text-xs font-mono font-medium text-foreground/80">
-            {options.maxDepth === 0 ? "Unlimited" : `${options.maxDepth} levels`}
+            <EditableNumber value={options.maxDepth} onCommit={(v) => update({ maxDepth: v })} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} levels`)} />
           </span>
         </div>
         <Slider
@@ -85,7 +86,7 @@ export function ImportOptionsPanel({
             Max Display Depth
           </Label>
           <span className="text-xs font-mono font-medium text-foreground/80">
-            {options.displayMaxDepth === 0 ? "Unlimited" : `${options.displayMaxDepth} levels`}
+            <EditableNumber value={options.displayMaxDepth} onCommit={(v) => update({ displayMaxDepth: v })} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} levels`)} />
           </span>
         </div>
         <Slider

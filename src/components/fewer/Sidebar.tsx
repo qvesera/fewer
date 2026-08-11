@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
@@ -551,7 +552,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                       </TooltipProvider>
                     </div>
                     <span className="text-xs font-mono text-muted-foreground">
-                      {maxDisplayDepth === 0 ? "Unlimited" : `${maxDisplayDepth} lvl`}
+                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
                     </span>
                   </div>
                   <Slider
@@ -578,7 +579,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground">{autoHideThreshold} items</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
                   </div>
                   <Slider
                     value={[autoHideThreshold]}
@@ -639,7 +640,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground">{cornerRadius}px</span>
+                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
                 </div>
                 <Slider
                   value={[cornerRadius]}
@@ -677,7 +678,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground">{edgeWidth}px</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
                   </div>
                   <Slider
                     value={[edgeWidth]}

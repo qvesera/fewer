@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   Sun,
@@ -295,7 +296,7 @@ function MinimapControls() {
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] text-muted-foreground font-medium">Size</Label>
-              <span className="text-xs font-mono tabular-nums text-foreground/80">{miniMapSize}px</span>
+              <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapSize} onCommit={(v) => setMiniMapSize(v)} unit="px" /></span>
             </div>
             <Slider
               value={[miniMapSize]}
@@ -334,7 +335,7 @@ function AdvancedTab() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground font-normal">Width</Label>
-              <span className="text-xs font-mono tabular-nums font-medium text-foreground">{nodeWidth}px</span>
+              <span className="text-xs font-mono tabular-nums font-medium text-foreground"><EditableNumber value={nodeWidth} onCommit={(v) => setNodeDimensions(v, nodeHeight)} unit="px" /></span>
             </div>
             <Slider
               value={[nodeWidth]}
@@ -347,7 +348,7 @@ function AdvancedTab() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground font-normal">Height</Label>
-              <span className="text-xs font-mono tabular-nums font-medium text-foreground">{nodeHeight}px</span>
+              <span className="text-xs font-mono tabular-nums font-medium text-foreground"><EditableNumber value={nodeHeight} onCommit={(v) => setNodeDimensions(nodeWidth, v)} unit="px" /></span>
             </div>
             <Slider
               value={[nodeHeight]}
