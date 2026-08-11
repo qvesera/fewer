@@ -53,6 +53,49 @@ function computeLargeFolderHiddenIds(
   return [...toHide];
 }
 
+/**
+ * Live-reconcile the large-folder auto-hide filter against the current threshold.
+ * Works both ways:
+ *   - children whose folder now exceeds the threshold are newly hidden;
+ *   - children that were auto-hidden but whose folder now falls under the threshold
+ *     are revealed (removed from hiddenIds), as long as they were not hidden by any
+ *     other mechanism (manual, depth, file) — only `autoHiddenIds` are ever revealed.
+ * Returns the reconciled hiddenIds + autoHiddenIds.
+ */
+export function reconcileAutoHide(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  hiddenIds: string[],
+  autoHiddenIds: string[],
+  revealedRootIds: string[],
+  threshold: number,
+): { hiddenIds: string[]; autoHiddenIds: string[] } {
+  // Compute the target auto-hidden set from scratch (never reveals manual/depth/file hides).
+  const target = computeLargeFolderHiddenIds(
+    nodes.filter((n) => !new Set(hiddenIds).has(n.id)),
+    edges,
+    threshold,
+    new Set(revealedRootIds),
+  );
+  const targetSet = new Set(target);
+  const revealedRoots = new Set(revealedRootIds);
+  const nextHidden = new Set(hiddenIds);
+  const nextAuto = new Set<string>();
+
+  // Reveal previously-auto-hidden nodes that are no longer in the target set.
+  for (const id of autoHiddenIds) {
+    if (!targetSet.has(id) && !revealedRoots.has(id)) {
+      nextHidden.delete(id);
+    }
+  }
+  // Hide + re-tag nodes that belong in the target set.
+  for (const id of targetSet) {
+    nextHidden.add(id);
+    nextAuto.add(id);
+  }
+  return { hiddenIds: [...nextHidden], autoHiddenIds: [...nextAuto] };
+}
+
 function edgeTypeFromStyle(style: string): FewerEdge["type"] {
   switch (style) {
     case "curved": return "default";
@@ -191,6 +234,8 @@ export type GraphSliceCreator = StateCreator<
     setMaxDisplayDepth: (depth: number) => void;
     autoHideCount: number;
     revealedRootIds: string[];
+    /** Ids hidden by the large-folder auto-hide filter (as opposed to manual/depth/file hides). */
+    autoHiddenIds: string[];
     revealSubtree: (id: string) => void;
     autoHideThreshold: number;
     setAutoHideThreshold: (threshold: number) => void;
@@ -207,6 +252,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   maxDisplayDepth: 6,
   autoHideCount: 0,
   revealedRootIds: [],
+  autoHiddenIds: [],
       revealedFromHidden: [],
   autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
@@ -251,7 +297,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
     const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
-    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [] });
+    const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
+    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
   },
 
   relayout: () => {
@@ -653,7 +700,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   hideNode: (id) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
     if (hiddenIds.includes(id)) return;
     const toHide = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } }
@@ -662,6 +709,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp(viewStateOp(before, after));
     set({
       hiddenIds: [...hiddenIds, ...toHide],
+      autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
       graphVersion: get().graphVersion + 1,
@@ -669,7 +717,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   hideNodes: (ids) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
     const toHide = new Set(ids);
     for (const id of ids) { const queue = [id]; while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } } }
     const before = captureViewState(get());
@@ -677,6 +725,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp(viewStateOp(before, after));
     set({
       hiddenIds: [...hiddenIds, ...toHide],
+      autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
     });
@@ -688,11 +737,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!before.hiddenIds.includes(id)) return;
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout();
+    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id) })); get().relayout();
   },
 
   showAncestors: (id) => {
-    const { hiddenIds, edges, revealedFromHidden } = get();
+    const { hiddenIds, edges, revealedFromHidden, autoHiddenIds } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
@@ -703,17 +752,17 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
   },
 
   showSubtree: (id) => {
-    const { hiddenIds, edges } = get();
+    const { hiddenIds, edges, autoHiddenIds } = get();
     const toShow = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
   showAll: () => {
@@ -721,7 +770,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (before.hiddenIds.length === 0) return;
     const after = { ...before, hiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
   },
 
   revealSubtree: (id) => {
@@ -776,35 +825,53 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const searched = applySearchInternal(laid, searchQuery);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));
+    const { autoHiddenIds: nextAutoHidden } = reconcileAutoHide(
+      nodes,
+      edges,
+      mergedIds,
+      get().autoHiddenIds,
+      get().revealedRootIds,
+      get().autoHideThreshold,
+    );
     set({
       maxDisplayDepth: maxDepth,
       hiddenIds: mergedIds,
+      autoHiddenIds: nextAutoHidden,
       nodes: searched,
       graphVersion: graphVersion + 1,
     });
   },
 
   autoHideLargeFolders: (threshold?) => {
-    const { nodes, edges, hiddenIds, revealedRootIds, autoHideThreshold } = get();
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds, autoHideThreshold } = get();
     const thresholdValue = threshold ?? autoHideThreshold;
-    const hiddenSet = new Set(hiddenIds);
-    const toHide = computeLargeFolderHiddenIds(
-      nodes.filter((n) => !hiddenSet.has(n.id)),
+    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+      nodes,
       edges,
+      hiddenIds,
+      autoHiddenIds,
+      revealedRootIds,
       thresholdValue,
-      new Set(revealedRootIds),
     );
-    const newIds = toHide.filter((id) => !hiddenSet.has(id));
-    if (newIds.length === 0) return;
-    get().hideNodes(newIds);
+    if (nextHidden.length !== hiddenIds.length || nextAuto.length !== autoHiddenIds.length) {
+      set({ hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
+    }
   },
 
   setAutoHideThreshold: (threshold) => {
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds } = get();
     const before = captureViewState(get());
-    set({ autoHideThreshold: threshold });
-    const after = { ...before, autoHideThreshold: threshold };
+    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+      nodes,
+      edges,
+      hiddenIds,
+      autoHiddenIds,
+      revealedRootIds,
+      threshold,
+    );
+    const after = { ...before, autoHideThreshold: threshold, hiddenIds: nextHidden };
+    set({ autoHideThreshold: threshold, hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
     get().pushOp(viewStateOp(before, after));
-    get().autoHideLargeFolders(threshold);
   },
 
   connect: (source, target) => {
@@ -856,7 +923,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
-      graphVersion: 0, revealedRootIds: [],
+      graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [],
     });
   },

@@ -148,7 +148,10 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       : [...hiddenIds, id];
     const after = { ...before, hiddenIds: next };
     if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")) get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: next });
+    set((s) => ({
+      hiddenIds: next,
+      autoHiddenIds: hiddenIds.includes(id) ? s.autoHiddenIds.filter((h) => h !== id) : s.autoHiddenIds,
+    }));
   },
 
   hideSelected: () => {
@@ -165,7 +168,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], selectedNodeIds: [], graphVersion: graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -174,7 +177,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (before.hiddenIds.length === 0) return;
     const after = { ...before, hiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: [] });
+    set((s) => ({ hiddenIds: [], autoHiddenIds: [] }));
   },
 
   setSearchOpen: (open) => set({ searchOpen: open }),

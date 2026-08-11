@@ -16,6 +16,7 @@ export function captureViewState(state: GraphState): ViewState {
     showFiles: state.showFiles as boolean,
     maxDisplayDepth: state.maxDisplayDepth as number,
     autoHideThreshold: state.autoHideThreshold as number,
+    autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
   };
 }
 
@@ -34,6 +35,7 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.showFiles !== undefined) patch.showFiles = view.showFiles;
   if (view.maxDisplayDepth !== undefined) patch.maxDisplayDepth = view.maxDisplayDepth;
   if (view.autoHideThreshold !== undefined) patch.autoHideThreshold = view.autoHideThreshold;
+  if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
   return patch;
 }
 

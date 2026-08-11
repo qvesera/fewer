@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
 import { applyOps, undoOps } from "./history";
+import { reconcileAutoHide } from "@/store/slices/graphSlice";
 import type { FewerNode, FewerEdge, ViewState, RemoveSubtreeOp } from "./types";
 
 function makeNode(id: string, label: string, parentId?: string | null, opts: Partial<FewerNode["data"]> = {}): FewerNode {
@@ -16,7 +17,7 @@ function makeEdge(id: string, source: string, target: string): FewerEdge {
   return { id, source, target, type: "smoothstep" } as FewerEdge;
 }
 
-const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10 };
+const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [] };
 
 /**
  * Mirror the exact subtree-collection + op-building logic used by graphSlice.deleteNodes
@@ -134,4 +135,42 @@ test("unparent (remove-edges) resets child + descendant paths and undo restores 
   expect(undone.edges.map((e) => e.id).sort()).toEqual(["e-outer-inner", "e-root-outer"]);
   expect(undoneMap.get("outer")?.data.path).toBe("root/outer");
   expect(undoneMap.get("inner")?.data.path).toBe("root/outer/inner");
+});
+
+test("auto-hide is a live filter both ways", () => {
+  // root with 5 children (> threshold 2 => children hidden; > threshold 10 => none hidden)
+  const children = ["c1", "c2", "c3", "c4", "c5"].map((id, i) => makeNode(id, id, "root"));
+  const nodes: FewerNode[] = [makeNode("root", "root", null, { isRoot: true }), ...children];
+  const edges: FewerEdge[] = children.map((c, i) => makeEdge(`e-root-${c.id}`, "root", c.id));
+
+  const noneHidden = [] as string[];
+
+  // Threshold 2: all 5 children are auto-hidden.
+  const low = reconcileAutoHide(nodes, edges, noneHidden, [], [], 2);
+  expect(low.hiddenIds.length).toBe(5);
+  expect(low.autoHiddenIds.length).toBe(5);
+
+  // Threshold 10: children fall under the limit -> revealed (live filter both ways).
+  const high = reconcileAutoHide(nodes, edges, low.hiddenIds, low.autoHiddenIds, [], 10);
+  expect(high.hiddenIds.length).toBe(0);
+  expect(high.autoHiddenIds.length).toBe(0);
+
+  // Threshold back to 2: re-hidden.
+  const backLow = reconcileAutoHide(nodes, edges, high.hiddenIds, high.autoHiddenIds, [], 2);
+  expect(backLow.hiddenIds.length).toBe(5);
+});
+
+test("auto-hide does not reveal manually-hidden nodes when threshold rises", () => {
+  const children = ["c1", "c2", "c3"].map((id) => makeNode(id, id, "root"));
+  const nodes: FewerNode[] = [makeNode("root", "root", null, { isRoot: true }), ...children];
+  const edges: FewerEdge[] = children.map((c) => makeEdge(`e-root-${c.id}`, "root", c.id));
+
+  // c1 is auto-hidden, c2 is manually hidden (in hiddenIds but NOT in autoHiddenIds).
+  const hiddenIds = ["c1", "c2"];
+  const autoHiddenIds = ["c1"];
+
+  // Raising the threshold should reveal c1 (auto-hidden, now under limit) but keep c2 hidden.
+  const high = reconcileAutoHide(nodes, edges, hiddenIds, autoHiddenIds, [], 10);
+  expect(high.hiddenIds).toEqual(["c2"]);
+  expect(high.autoHiddenIds).toEqual([]);
 });

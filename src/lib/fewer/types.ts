@@ -225,6 +225,7 @@ export interface ViewState {
   showFiles: boolean;
   maxDisplayDepth: number;
   autoHideThreshold: number;
+  autoHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
