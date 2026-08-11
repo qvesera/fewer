@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.1] - Unreleased
 
+### Fixed
+
+- **App no longer crash-loops when Supabase isn't configured**: `useAuth` called `getBrowserSupabase()`, which throws when `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are missing. On a build without those env vars (e.g. CI), the throw during mount cascaded so the UI kept remounting (`element was detached from the DOM`) and nothing was interactive. `useAuth` now catches missing-env and stays signed out, so the graph visualizer loads normally and cloud features just report unavailable.
+
 ### Added
 
 - **GitHub Actions CI**: added `.github/workflows/ci.yml` running lint, typecheck, tests, and build on every PR to `main`/`dev`. Uses `bun` (`oven-sh/setup-bun`, `bun install --frozen-lockfile`) to match the project's bun-based scripts and lockfile.
