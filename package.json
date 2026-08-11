@@ -18,7 +18,7 @@
     "build": "bun next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "bun eslint .",
-    "test": "bun test",
+    "test": "bun test src/lib/fewer",
     "build:netlify": "bun next build"
   },
   "dependencies": {
@@ -84,6 +84,7 @@
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.11.3",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
