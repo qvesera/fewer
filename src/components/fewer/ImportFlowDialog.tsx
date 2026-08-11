@@ -256,6 +256,7 @@ export function ImportFlowDialog({
               onOpenCloudSettings={() =>
                 useGraphStore.getState().setSettingsOpen(true)
               }
+              onAdvance={() => setStep(2)}
             />
           </div>
 
