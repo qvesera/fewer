@@ -84,7 +84,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
       const siblingIds = edges.filter((e) => e.source === parentId).map((e) => e.target);
       return nodes.some((n) => siblingIds.includes(n.id) && n.data.label.toLowerCase() === label.toLowerCase());
     } else {
-      // Standalone — check root-level nodes
+      // Standalone: check root-level nodes
       const rootNodeLabels = nodes
         .filter((n) => !edges.some((e) => e.target === n.id))
         .map((n) => n.data.label.toLowerCase());
@@ -170,7 +170,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
               )}
             </div>
 
-            {/* Type toggle — use ← → arrows to switch, Enter to confirm */}
+            {/* Type toggle: use ← → arrows to switch, Enter to confirm */}
             <div className="space-y-1.5">
               <Label>Type</Label>
               <div className="grid grid-cols-2 gap-2">

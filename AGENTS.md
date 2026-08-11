@@ -17,7 +17,7 @@ bun run lint           # Run ESLint
 
 | File                                   | Purpose                                                                            |
 | -------------------------------------- | ---------------------------------------------------------------------------------- |
-| `src/store/graphStore.ts`              | Zustand store — single source of truth for nodes, edges, history, theme, clipboard |
+| `src/store/graphStore.ts`              | Zustand store: single source of truth for nodes, edges, history, theme, clipboard |
 | `src/components/fewer/GraphCanvas.tsx` | React Flow canvas with minimap + controls                                          |
 | `src/components/fewer/CustomNode.tsx`  | Folder/file card rendering with context menus                                      |
 | `src/components/fewer/FewerApp.tsx`    | Main app shell orchestrating all dialogs                                           |
@@ -27,6 +27,16 @@ bun run lint           # Run ESLint
 | `src/lib/fewer/parsers.ts`             | JSON/ASCII tree/script parsers                                                     |
 | `src/lib/fewer/validation.ts`          | Connection validation + ancestor/descendant utils                                  |
 | `src/lib/fewer/navigation.ts`          | Arrow key tree navigation                                                          |
+| `src/lib/fewer/autoIndex.ts`           | Apache/nginx auto-index HTML parser + tree builder                                 |
+| `src/lib/fewer/savedGraphs.ts`         | Saved-graph types + DB share URL helpers                                           |
+| `src/lib/fewer/snapshot.ts`            | Graph snapshot build/apply for saved graphs                                        |
+| `src/lib/supabase.ts`                  | Supabase client (server + browser)                                                 |
+| `src/hooks/use-auth.ts`                | Auth state hook                                                                    |
+| `src/components/fewer/AuthDialog.tsx`  | Sign in / sign up / password reset dialog                                          |
+| `src/components/fewer/SavedGraphsPanel.tsx` | Save/load/rename/share/delete saved graphs                                   |
+| `src/app/api/crawl/route.ts`           | Crawl public file index URLs                                                       |
+| `src/app/api/graphs/route.ts`          | Saved-graph CRUD (GET/POST)                                                        |
+| `src/app/api/share/route.ts`           | Create share links (hash or DB-backed)                                             |
 
 ### State Flow
 
@@ -86,15 +96,15 @@ bun run build          # Must succeed
 
 **MANDATORY WORKFLOW:**
 
-1. **Run quality gates** — `bun run lint && bun run build`
-2. **Update CHANGELOG.md** — Add entry for meaningful changes (new features, fixes, breaking changes), following existing format. The changelog must be updated before committing.
-3. **Update package.json** — Check and update the version number in `package.json` to always match the changelog.
-4. **Commit changes** — Meaningful commit message (conventional commits)
-5. **PUSH TO REMOTE** — This is MANDATORY
-6. **Verify** — All changes committed AND pushed
+1. **Run quality gates**: `bun run lint && bun run build`
+2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes), following existing format. The changelog must be updated before committing.
+3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog.
+4. **Commit changes**: Meaningful commit message (conventional commits)
+5. **PUSH TO REMOTE**: This is MANDATORY
+6. **Verify**: All changes committed AND pushed
 
 **CRITICAL RULES:**
 
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing
-- NEVER say "ready to push when you are" — YOU must push
+- NEVER say "ready to push when you are": YOU must push

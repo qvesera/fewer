@@ -53,20 +53,20 @@ type Category =
   | "other";
 
 const SEVERITIES: { value: Severity; label: string; color: string }[] = [
-  { value: "low", label: "Low — minor inconvenience", color: "text-blue-500" },
+  { value: "low", label: "Low: minor inconvenience", color: "text-blue-500" },
   {
     value: "medium",
-    label: "Medium — workaround exists",
+    label: "Medium: workaround exists",
     color: "text-yellow-600 dark:text-yellow-500",
   },
   {
     value: "high",
-    label: "High — feature broken",
+    label: "High: feature broken",
     color: "text-orange-600 dark:text-orange-500",
   },
   {
     value: "critical",
-    label: "Critical — app unusable",
+    label: "Critical: app unusable",
     color: "text-red-600 dark:text-red-500",
   },
 ];

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 
 export const metadata = {
-  title: "Docs — Fewer",
+  title: "Docs | Fewer",
   description: "Feature guides, tutorials, and technical references for Fewer.",
 };
 
@@ -44,11 +44,15 @@ const sections = [
   },
   {
     title: "Features",
-    items: ["graph-features", "editing", "import-export", "sharing"],
+    items: ["graph-features", "editing", "import-export", "sharing", "accounts", "watch", "cloud"],
   },
   {
     title: "Reference",
     items: ["settings", "shortcuts", "theming", "pwa-install", "deployment"],
+  },
+  {
+    title: "Legal",
+    items: ["privacy", "terms"],
   },
 ];
 

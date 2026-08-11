@@ -12,23 +12,18 @@ import {
 import { useGraphStore } from "@/store/graphStore";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/fewer/sampleData";
-import {
-  pickDirectoryTree,
-  isFileSystemAccessSupported,
-} from "@/lib/fewer/fileSystem";
-import type { ImportOptions } from "@/lib/fewer/importOptions";
-import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
+import type { ImportOrigin } from "@/lib/fewer/importFlow";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
-// Dialogs lazy-loaded — only fetched when opened. Keeps react-colorful,
+// Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
 const ExportPanel = dynamic(() => import("./ExportPanel").then((m) => m.ExportPanel), { ssr: false });
-const ImportDialog = dynamic(() => import("./ImportDialog").then((m) => m.ImportDialog), { ssr: false });
-const ImportFromFileDialog = dynamic(() => import("./ImportFromFileDialog").then((m) => m.ImportFromFileDialog), { ssr: false });
+const ImportFlowDialog = dynamic(() => import("./ImportFlowDialog").then((m) => m.ImportFlowDialog), { ssr: false });
 const BugReportDialog = dynamic(() => import("./BugReportDialog").then((m) => m.BugReportDialog), { ssr: false });
 const TutorialDialog = dynamic(() => import("./TutorialDialog").then((m) => m.TutorialDialog), { ssr: false });
 const ShortcutsDialog = dynamic(() => import("./ShortcutsDialog").then((m) => m.ShortcutsDialog), { ssr: false });
@@ -36,8 +31,8 @@ const SettingsDialog = dynamic(() => import("./SettingsDialog").then((m) => m.Se
 const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDialog), { ssr: false });
 const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) => m.ThemeEditorDialog), { ssr: false });
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
-const ImportUrlDialog = dynamic(() => import("./ImportUrlDialog").then((m) => m.ImportUrlDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
+const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
 
 export function FewerApp() {
   const setGraph = useGraphStore((s) => s.setGraph);
@@ -45,17 +40,18 @@ export function FewerApp() {
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
   const { toast } = useToast();
   const device = useDevice();
+  const { user } = useAuth();
 
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importFromFileOpen, setImportFromFileOpen] = useState(false);
+  const [importFlowOpen, setImportFlowOpen] = useState(false);
+  const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
-  const [importUrlOpen, setImportUrlOpen] = useState(false);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [notifOpen, setNotifOpen] = useState(false);
+  const authOpen = useGraphStore((s) => s.authOpen);
+  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
   // On mobile, start with sidebar closed
@@ -72,6 +68,14 @@ export function FewerApp() {
       useGraphStore.getState().setThemeMode(savedTheme as any);
     }
   }, []);
+
+  // Advanced power-user options are available only to signed-in users.
+  // The old PowerUserToggle is gone; the flag now tracks auth. Drive the
+  // store flag directly (not via a reset-triggering setter) so a logged-in
+  // user's theme/settings are never wiped on sign-in/out.
+  useEffect(() => {
+    useGraphStore.setState({ advancedModeEnabled: !!user });
+  }, [user]);
 
   // Sidebar drag-resize handler
   useEffect(() => {
@@ -99,12 +103,79 @@ export function FewerApp() {
     document.body.style.userSelect = "none";
   }, []);
 
-  // Load shared graph from URL hash
+  // Load shared graph from URL hash (embedded) or DB-backed short link (#s:<id>)
   useEffect(() => {
     if (hashLoaded) return;
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash) return;
-    import("@/lib/fewer/share").then(({ decodeShareData }) => {
+
+    const applyData = (data: { nodes: unknown[]; edges: unknown[]; direction: unknown; edgeStyle: unknown; customTheme?: unknown; themeMode: unknown; cornerRadius: unknown; nodeWidth: unknown; nodeHeight: unknown }) => {
+      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false);
+      useGraphStore.getState().setDirection(data.direction as never);
+      useGraphStore.getState().setEdgeStyle(data.edgeStyle as never);
+      if (data.customTheme) {
+        useGraphStore.getState().setCustomTheme(data.customTheme as never);
+      }
+      useGraphStore.getState().setThemeMode(data.themeMode as never);
+      useGraphStore.getState().setCornerRadius(data.cornerRadius as never);
+      useGraphStore.getState().setNodeDimensions(data.nodeWidth as never, data.nodeHeight as never);
+      useGraphStore.setState({ dataSource: "shared" });
+      setHashLoaded(true);
+      // Clear hash from address bar
+      window.history.replaceState(null, "", window.location.pathname);
+      toast({
+        title: "Shared graph loaded",
+        description: `${(data.nodes as unknown[]).length} node${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
+      });
+    };
+
+    import("@/lib/fewer/share").then(async ({ decodeShareData, isDbShareHash, parseDbShareId }) => {
+      // Invite token link: #i:<token> — token is the credential, no login.
+      if (hash.startsWith("i:")) {
+        const token = hash.slice(2);
+        if (!token) {
+          toast({ title: "Invalid invite link", description: "Could not load the graph.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/invite/${token}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            toast({ title: "Invite link invalid", description: json.error || "Could not load the graph.", variant: "destructive" });
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
+      if (isDbShareHash(hash)) {
+        const id = parseDbShareId(hash);
+        if (!id) {
+          toast({ title: "Invalid share link", description: "Could not load the graph from the URL.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/share/${id}`);
+          const json = await res.json();
+          if (!res.ok || !json.data) {
+            if (res.status === 403) {
+              toast({ title: "Invite-only graph", description: json.error || "Sign in with an invited email to view it.", variant: "destructive" });
+              setAuthOpen(true);
+            } else {
+              toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+            }
+            return;
+          }
+          applyData(json.data);
+        } catch {
+          toast({ title: "Share link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
       const data = decodeShareData(hash);
       if (!data) {
         toast({
@@ -114,95 +185,48 @@ export function FewerApp() {
         });
         return;
       }
-      // Restore graph state
-      useGraphStore.getState().setGraph(data.nodes, data.edges, false);
-      useGraphStore.getState().setDirection(data.direction);
-      useGraphStore.getState().setEdgeStyle(data.edgeStyle);
-      if (data.customTheme) {
-        useGraphStore.getState().setCustomTheme(data.customTheme as any);
-      }
-      useGraphStore.getState().setThemeMode(data.themeMode as any);
-      useGraphStore.getState().setCornerRadius(data.cornerRadius);
-      useGraphStore.getState().setNodeDimensions(data.nodeWidth, data.nodeHeight);
-      useGraphStore.setState({ dataSource: "shared" });
-      setHashLoaded(true);
-      // Clear hash from address bar
-      window.history.replaceState(null, "", window.location.pathname);
-      toast({
-        title: "Shared graph loaded",
-        description: `${data.nodes.length} node${data.nodes.length === 1 ? "" : "s"} from share link`,
-      });
+      applyData(data);
     });
   }, [hashLoaded, toast]);
+
+  // Handle OAuth callback query params (?cloud=connected|error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cloud = params.get("cloud");
+    if (cloud === "connected") {
+      const provider = params.get("provider");
+      toast({ title: "Cloud account linked", description: provider ? `${provider} connected.` : "Cloud account linked." });
+      window.history.replaceState(null, "", window.location.pathname);
+    } else if (cloud === "error") {
+      toast({ title: "Cloud connection failed", description: params.get("msg") || "Unknown error", variant: "destructive" });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [toast]);
+
+  // Every import entry point opens the SAME 3-step flow; only the
+  // preselected origin differs.
+  const openImportFlow = useCallback((origin: ImportOrigin) => {
+    setImportFlowOrigin(origin);
+    setImportFlowOpen(true);
+  }, []);
 
   // Listen for keyboard shortcuts and sidebar button clicks to open dialogs
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
-    const openImportFolder = () => setImportDialogOpen(true);
-    const openImportFile = () => setImportFromFileOpen(true);
-    const openImportUrl = () => setImportUrlOpen(true);
+    const openImportFolder = () => openImportFlow("folder");
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener("fewer-add-node", openChild);
     window.addEventListener("fewer-add-node-standalone", openStandalone);
     window.addEventListener("fewer-import-folder", openImportFolder);
-    window.addEventListener("fewer-import-file", openImportFile);
-    window.addEventListener("fewer-import-url", openImportUrl);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener("fewer-add-node", openChild);
       window.removeEventListener("fewer-add-node-standalone", openStandalone);
       window.removeEventListener("fewer-import-folder", openImportFolder);
-      window.removeEventListener("fewer-import-file", openImportFile);
-      window.removeEventListener("fewer-import-url", openImportUrl);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
-  }, []);
-
-  const handleOpenDirectory = useCallback(() => {
-    setImportDialogOpen(true);
-  }, []);
-
-  const handleConfirmImport = useCallback(
-    async (options: ImportOptions) => {
-      setImporting(true);
-      try {
-        const tree = await pickDirectoryTree(options);
-        if (!tree) {
-          setImporting(false);
-          setImportDialogOpen(false);
-          return;
-        }
-        const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: options.includeFiles });
-        useGraphStore.setState({ dataSource: "directory", includeFiles: options.includeFiles, maxDisplayDepth: options.displayMaxDepth });
-        setGraph(nodes, edges, false, hiddenFileIds);
-        setImportDialogOpen(false);
-        toast({
-          title: "Directory loaded",
-          description: `${tree.name} — ${nodes.length} entries`,
-        });
-        await new Promise((r) => setTimeout(r, 20));
-        const autoHidden = useGraphStore.getState().autoHideCount;
-        if (autoHidden > 0) {
-          const threshold = useGraphStore.getState().autoHideThreshold;
-          toast({
-            title: "Large folders collapsed",
-            description: `${autoHidden} item${autoHidden === 1 ? " was" : "s were"} auto-hidden (folders with more than ${threshold} children). Use Hidden Nodes in the sidebar to reveal them.`,
-          });
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        toast({
-          title: "Could not open directory",
-          description: msg,
-          variant: "destructive",
-        });
-      } finally {
-        setImporting(false);
-      }
-    },
-    [setGraph, toast],
-  );
+  }, [openImportFlow]);
 
   const handleLoadSample = useCallback(() => {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" });
@@ -214,26 +238,9 @@ export function FewerApp() {
     });
   }, [setGraph, toast]);
 
-  const handleImportFromUrl = useCallback(() => {
-    setImportUrlOpen(true);
-  }, []);
-
-  const handleImportFromFile = useCallback(
-    (tree: import("@/lib/fewer/types").TreeEntry) => {
-      const { nodes, edges } = treeToGraph(tree, { idPrefix: "file-import" });
-      useGraphStore.setState({ dataSource: "file", maxDisplayDepth: DEFAULT_IMPORT_OPTIONS.displayMaxDepth });
-      setGraph(nodes, edges, false);
-      toast({
-        title: "Graph built from file",
-        description: `${tree.name} — ${nodes.length} entries`,
-      });
-    },
-    [setGraph, toast],
-  );
-
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} />
+      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -242,9 +249,8 @@ export function FewerApp() {
           style={{ width: sidebarOpen ? sidebarWidth : 0 }}
         >
           <Sidebar
-            onOpenDirectory={handleOpenDirectory}
-            onImportFromFile={() => setImportFromFileOpen(true)}
-            onImportFromUrl={handleImportFromUrl}
+            onOpenDirectory={() => openImportFlow("folder")}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           {sidebarOpen && (
             <div
@@ -275,15 +281,14 @@ export function FewerApp() {
             )}
           >
           <Sidebar
-            onOpenDirectory={handleOpenDirectory}
-            onImportFromFile={() => setImportFromFileOpen(true)}
-            onImportFromUrl={handleImportFromUrl}
+            onOpenDirectory={() => openImportFlow("folder")}
+            onRequireAuth={() => setAuthOpen(true)}
           />
           </div>
         </div>
         <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
-            <GraphCanvas />
+            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
           </ErrorBoundary>
           <BreadcrumbBar />
           <SearchPanel />
@@ -298,7 +303,15 @@ export function FewerApp() {
       <SettingsDialog />
       <ThemeEditorDialog />
       <ShareDialog />
-      <ImportUrlDialog open={importUrlOpen} onOpenChange={setImportUrlOpen} />
+      {/* Mounted only while open — shell hooks (useAuth/useWatch) must not
+          fire at app startup when the import flow is never used. */}
+      {importFlowOpen && (
+        <ImportFlowDialog
+          open={importFlowOpen}
+          onOpenChange={setImportFlowOpen}
+          initialOrigin={importFlowOrigin}
+        />
+      )}
 
       <AddNodeDialog
         open={addChildOpen}
@@ -311,18 +324,7 @@ export function FewerApp() {
         mode="standalone"
       />
 
-      <ImportFromFileDialog
-        open={importFromFileOpen}
-        onOpenChange={setImportFromFileOpen}
-        onImport={handleImportFromFile}
-      />
-
-      <ImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        onConfirm={handleConfirmImport}
-        importing={importing}
-      />
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }

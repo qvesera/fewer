@@ -18,7 +18,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
-import { fsHandleStore } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -149,6 +148,18 @@ function RenameInput({
   );
 }
 
+/** Map a dataSource prefix to a display label for "Open in provider". */
+function providerLabelFromSource(dataSource: string | null): string {
+  if (!dataSource) return "Provider";
+  if (dataSource.startsWith("cloud:github")) return "GitHub";
+  if (dataSource.startsWith("cloud:google-drive")) return "Google Drive";
+  if (dataSource.startsWith("cloud:onedrive")) return "OneDrive";
+  if (dataSource.startsWith("cloud:sharepoint")) return "SharePoint";
+  if (dataSource.startsWith("cloud:azure-devops")) return "Azure DevOps";
+  if (dataSource.startsWith("cloud:azure-blob")) return "Azure Blob";
+  return "Provider";
+}
+
 const openFolderInExplorer = async (path: string) => {
   try {
     const res = await fetch("/api/open-folder", {
@@ -170,20 +181,22 @@ function FolderContextMenu({
   nodeId,
   nodeLabel,
   nodePath,
+  nodeWebUrl,
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   nodePath: string;
+  nodeWebUrl?: string;
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const providerLabel = providerLabelFromSource(dataSource);
   const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
-  const addNode = useGraphStore((s) => s.addNode);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
@@ -270,6 +283,14 @@ function FolderContextMenu({
             Unparent
           </ContextMenuItem>
         )}
+        {nodeWebUrl && (
+          <ContextMenuItem
+            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+            className="cursor-pointer"
+          >
+            Open in {providerLabel}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => {
             deleteNode([nodeId]);
@@ -334,12 +355,12 @@ function FolderContextMenu({
           })()}
           <ContextMenuItem
             onSelect={() => {
-              addNode(nodeId, "New Folder", "folder");
-              setSelectedNodeIds([]);
-              toast({
-                title: "Child node added",
-                description: "New Folder added to " + nodeLabel,
-              });
+              // Select this folder so the Add Node dialog (Alt+N) adds a child of it.
+              setSelectedNodeIds([nodeId]);
+              useGraphStore.setState((s) => ({
+                nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+              }));
+              window.dispatchEvent(new CustomEvent("fewer-add-node"));
             }}
             className="cursor-pointer"
           >
@@ -395,17 +416,23 @@ function FileEntryContextMenu({
   nodeLabel,
   onDelete,
   showOpenFile,
+  nodeWebUrl,
   renameSource: menuRenameSource = "canvas",
+  nodePath,
   children,
 }: {
   nodeId: string;
   nodeLabel: string;
   onDelete: () => void;
   showOpenFile?: boolean;
+  nodeWebUrl?: string;
   renameSource?: "canvas" | "folder";
+  nodePath?: string;
   children: React.ReactNode;
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const dataSource = useGraphStore((s) => s.dataSource);
+  const providerLabel = providerLabelFromSource(dataSource);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -494,6 +521,14 @@ function FileEntryContextMenu({
             Unparent
           </ContextMenuItem>
         )}
+        {nodeWebUrl && (
+          <ContextMenuItem
+            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+            className="cursor-pointer"
+          >
+            Open in {providerLabel}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => {
             onDelete();
@@ -509,22 +544,13 @@ function FileEntryContextMenu({
             {showOpenFile !== false && (
             <ContextMenuItem
               onSelect={async () => {
-                const handle = fsHandleStore.get(nodeId);
-                if (handle && handle.kind === "file") {
-                  try {
-                    const { openFile } = await import("@/lib/fewer/fileOps");
-                    await openFile(handle as FileSystemFileHandle);
-                    toast({ title: "Opening file", description: nodeLabel });
-                  } catch {
-                    toast({ title: "Cannot open file", variant: "destructive" });
-                  }
-                } else {
-                  toast({
-                    title: "No file handle",
-                    description: "File not loaded from disk",
-                    variant: "destructive",
-                  });
-                }
+                const { openNodeFile } = await import("@/lib/fewer/fileOps");
+                const ok = await openNodeFile({ id: nodeId, data: { type: "file", path: nodePath } }, dataSource);
+                toast({
+                  title: ok ? "Opening file" : "Cannot open file",
+                  description: nodeLabel,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
               }}
               className="cursor-pointer"
             >
@@ -658,6 +684,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         nodeId={child.id}
         nodeLabel={child.data.label}
         nodePath={child.data.path}
+        nodeWebUrl={child.data.webUrl}
       >
         {childContent}
       </FolderContextMenu>
@@ -670,6 +697,8 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
       showOpenFile={dataSource === "directory"}
+      nodePath={child.data.path}
+      nodeWebUrl={child.data.webUrl}
     >
       {childContent}
     </FileEntryContextMenu>
@@ -778,6 +807,7 @@ function CustomNodeImpl({
           nodeId={id}
           nodeLabel={data.label}
           nodePath={data.path}
+          nodeWebUrl={data.webUrl}
         >
           {/*
            * Wrap the entire card body in the folder context menu so right-clicking
@@ -888,6 +918,8 @@ function CustomNodeImpl({
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
       showOpenFile={dataSource === "directory"}
+      nodePath={data.path}
+      nodeWebUrl={data.webUrl}
     >
       <div
         className={cn(

@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { useAuth } from "@/hooks/use-auth";
 import { useReactFlow, type Connection } from "@xyflow/react";
 import { navigate } from "@/lib/fewer/navigation";
-import { openFile } from "@/lib/fewer/fileOps";
+import { openNodeFile } from "@/lib/fewer/fileOps";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -32,10 +33,9 @@ import { useToast } from "@/hooks/use-toast";
  * Arrow keys     - navigate between nodes (tree-style)
  * Alt+R          - re-layout graph
  * Alt+F          - zoom to selection
- * Alt+I          - import folder
- * Alt+U          - import from file
- * Alt+L          - import from URL
+ * Alt+I          - open import dialog (folder / file / URL / cloud)
  * Alt+O          - open in file explorer
+ * Alt+S          - save current graph (logged-in users only)
  */
 export function KeyboardShortcuts() {
   const undo = useGraphStore((s) => s.undo);
@@ -48,6 +48,7 @@ export function KeyboardShortcuts() {
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
+  const dataSource = useGraphStore((s) => s.dataSource);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -69,6 +70,7 @@ export function KeyboardShortcuts() {
   const removeEdgesFromHandle = useGraphStore((s) => s.removeEdgesFromHandle);
   const deleteEdges = useGraphStore((s) => s.deleteEdges);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const reactFlow = useReactFlow();
 
@@ -155,24 +157,10 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Alt+I - open import folder dialog
+      // Alt+I - open the unified import dialog (folder / file / URL / cloud)
       if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "i" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-folder"));
-        return;
-      }
-
-      // Alt+U - open import from file dialog
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "u" && !inEditable) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("fewer-import-file"));
-        return;
-      }
-
-      // Alt+L - open import from URL dialog
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "l" && !inEditable) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("fewer-import-url"));
         return;
       }
 
@@ -189,6 +177,18 @@ export function KeyboardShortcuts() {
             });
           }
         }
+        return;
+      }
+
+      // Alt+S - save current graph (logged-in users only). Opens the auth
+      // dialog when signed out; otherwise triggers the save dialog.
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "s" && !inEditable) {
+        e.preventDefault();
+        if (!user) {
+          useGraphStore.getState().setAuthOpen(true);
+          return;
+        }
+        window.dispatchEvent(new CustomEvent("fewer-save-graph"));
         return;
       }
 
@@ -281,7 +281,7 @@ export function KeyboardShortcuts() {
           }
           toast({
             title: "Cut",
-            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut — paste to place`,
+            description: `${selectedNodeIds.length} item${selectedNodeIds.length === 1 ? "" : "s"} cut: paste to place`,
           });
         }
         return;
@@ -327,11 +327,11 @@ export function KeyboardShortcuts() {
 
       if (inEditable) return;
 
-      // H — hide selected nodes. Shift+H — show all.
+      // H: hide selected nodes. Shift+H: show all.
       if (e.key.toLowerCase() === "h" && !mod) {
         e.preventDefault();
         if (e.shiftKey) {
-          // Shift+H — show all and show files
+          // Shift+H: show all and show files
           const hiddenCount = useGraphStore.getState().hiddenIds.length;
           if (hiddenCount > 0) {
             showAll();
@@ -344,7 +344,7 @@ export function KeyboardShortcuts() {
             setShowFiles(true);
           }
         } else {
-          // H — hide selected nodes
+          // H: hide selected nodes
           if (selectedNodeIds.length > 0) {
             // Count subnodes (descendants) that will also be hidden
             const toHide = new Set(selectedNodeIds);
@@ -363,7 +363,7 @@ export function KeyboardShortcuts() {
             hideNodes(selectedNodeIds);
             toast({
               title: "Nodes hidden",
-              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden${subCount > 0 ? ` (${subCount} subnode${subCount === 1 ? "" : "s"})` : ""} — press Shift+H to restore`,
+              description: `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} hidden${subCount > 0 ? ` (${subCount} subnode${subCount === 1 ? "" : "s"})` : ""}: press Shift+H to restore`,
             });
           }
         }
@@ -384,10 +384,14 @@ export function KeyboardShortcuts() {
         if (selectedNodeIds.length === 1) {
           e.preventDefault();
           const node = nodes.find((n) => n.id === selectedNodeIds[0]);
-          if (node && node.data.type === "file" && node.data.fsHandle) {
-            openFile(node.data.fsHandle as FileSystemFileHandle)
-              .then(() => {
-                toast({ title: "Opening file", description: node.data.label });
+          if (node && node.data.type === "file") {
+            openNodeFile(node, dataSource)
+              .then((ok) => {
+                toast({
+                  title: ok ? "Opening file" : "Cannot open file",
+                  description: node.data.label,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
               })
               .catch(() => {
                 toast({
@@ -459,7 +463,7 @@ export function KeyboardShortcuts() {
         return;
       }
 
-      // Delete/Backspace — delete selected nodes + edges
+      // Delete/Backspace: delete selected nodes + edges
       if (e.key === "Delete" || e.key === "Backspace") {
         const rfEdges = reactFlow.getEdges();
         const selectedEdgeIds = rfEdges.filter((ed) => ed.selected).map((ed) => ed.id);
@@ -539,6 +543,7 @@ export function KeyboardShortcuts() {
     deleteEdges,
     reactFlow,
     toast,
+    user,
   ]);
 
   return null;

@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = getPost(slug);
   if (!post) return { title: "Not Found" };
   return {
-    title: `${post.meta.title} — Blog — Fewer`,
+    title: `${post.meta.title} | Blog | Fewer`,
     description: post.meta.description,
   };
 }

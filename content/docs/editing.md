@@ -23,17 +23,17 @@ To add a child directly from the canvas, right-click a folder → **Add Child No
 
 ## Copy / Cut / Paste
 
-- **Copy** (Ctrl+C) — copies the selected node(s) to the clipboard
-- **Cut** (Ctrl+X) — cuts the selection to the clipboard (the node stays visible until pasted)
-- **Paste** (Ctrl+V) — pastes cut/copied nodes. Pastes into the selected folder if exactly one folder is selected, otherwise at root
-- **Duplicate** (Ctrl+D) — copies a node as a sibling with a "copy" naming convention
+- **Copy** (Ctrl+C): copies the selected node(s) to the clipboard
+- **Cut** (Ctrl+X): cuts the selection to the clipboard (the node stays visible until pasted)
+- **Paste** (Ctrl+V): pastes cut/copied nodes. Pastes into the selected folder if exactly one folder is selected, otherwise at root
+- **Duplicate** (Ctrl+D): copies a node as a sibling with a "copy" naming convention
 
 From the context menu, **Paste** on a folder pastes the clipboard contents into that folder specifically.
 
 ## Deleting
 
-- **Delete / Backspace** — removes selected node(s)
-- **Right-click → Delete** — removes a single node
+- **Delete / Backspace**: removes selected node(s)
+- **Right-click → Delete**: removes a single node
 - Deleting a folder cascades: all descendants (children, grandchildren, edges) are removed too
 - **Clear Canvas** (trash icon in the sidebar) wipes the whole graph after a confirmation dialog
 
@@ -45,16 +45,16 @@ Right-click a node that has a parent → **Unparent** to detach it from its pare
 
 Drag from a node's **output handle** to another node's **input handle** to create a parent→child connection. Fewer validates the connection:
 
-- No cycles — you cannot connect a descendant back to its ancestor
-- No orphans pushed below files — files have no children, so their output handle is hidden
+- No cycles: you cannot connect a descendant back to its ancestor
+- No orphans pushed below files: files have no children, so their output handle is hidden
 - Unparenting or deleting removes the affected edges automatically
 
 ## Hiding & Showing Children
 
 In Power User mode, right-click a folder for:
 
-- **Hide Children** — collapse the folder's children into the Hidden Nodes panel
-- **Show Children** — reveal hidden children again
+- **Hide Children**: collapse the folder's children into the Hidden Nodes panel
+- **Show Children**: reveal hidden children again
 
 ## Context Menu Actions
 
@@ -79,21 +79,22 @@ In Power User mode, right-click a folder for:
 | ------ | ----- |
 | Rename | Updates extension/category |
 | Copy / Cut / Duplicate | Clipboard-aware |
+| Copy Name | Copies filename to clipboard |
 | Delete | Single node |
-| Open File | Directory imports (Chrome/Edge only) |
+| Open File | Power User mode, directory imports only |
 
 ## Undo / Redo
 
 Every editing operation records an undo step:
 
-- **Ctrl+Z** — undo
-- **Ctrl+Shift+Z / Ctrl+Y** — redo
+- **Ctrl+Z**: undo
+- **Ctrl+Shift+Z / Ctrl+Y**: redo
 - 50-step history buffer
 
 Use **Relayout** after heavy manual edits to tidy the graph.
 
 ## Next Steps
 
-- [Keyboard Shortcuts](/docs/shortcuts) — full shortcut reference
-- [Graph Features](/docs/graph-features) — layout, hidden nodes, and canvas
-- [Settings](/docs/settings) — Power User mode and node dimensions
+- [Keyboard Shortcuts](/docs/shortcuts): full shortcut reference
+- [Graph Features](/docs/graph-features): layout, hidden nodes, and canvas
+- [Settings](/docs/settings): Power User mode and node dimensions

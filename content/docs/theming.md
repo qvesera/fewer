@@ -9,9 +9,9 @@ Fewer has been designed with a dual color theme in mind. It comes with a light a
 
 Fewer supports three theme modes:
 
-- **Light** — default light interface
-- **Dark** — dark interface
-- **Custom** — user-defined color palette
+- **Light**: default light interface
+- **Dark**: dark interface
+- **Custom**: user-defined color palette
 
 Switch themes via Settings → Appearance tab or use the theme toggle in the sidebar.
 
@@ -47,9 +47,9 @@ Access via Settings → Appearance → Custom Theme (Power User mode only).
 
 Colors are grouped into three sections:
 
-- **Canvas & Text** — background, primary/secondary text, hover, handles, edges
-- **Folders** — body, text, secondary text, border, icon
-- **Files** — body, text, secondary text, border, icon
+- **Canvas & Text**: background, primary/secondary text, hover, handles, edges
+- **Folders**: body, text, secondary text, border, icon
+- **Files**: body, text, secondary text, border, icon
 
 ### Per-Color Opacity
 
@@ -59,38 +59,41 @@ Each color has an independent opacity slider with live preview swatch. The edito
 
 The editor is a movable panel locked within the browser window. Click the minimize (−) button to collapse it into a small draggable dock pill that snaps to any canvas edge (top/bottom/left/right). The pill renders vertically on side edges. Click the pill to restore.
 
-### 15 CSS Color Variables
+### 16 CSS Color Variables
 
-| Variable            | Purpose              |
-| ------------------- | -------------------- |
-| `--background`      | Main background      |
-| `--foreground`      | Main text color      |
-| `--card`            | Node card background |
-| `--card-foreground` | Node card text       |
-| `--border`          | Borders, dividers    |
-| `--primary`         | Accent color, links  |
-| `--secondary`       | Secondary surfaces   |
-| `--muted`           | Subtle backgrounds   |
-| `--accent`          | Hover states         |
-| `--folder-bg`       | Folder card specific |
-| `--folder-border`   | Folder card border   |
-| `--file-bg`         | File card specific   |
-| `--file-border`     | File card border     |
-| `--edge-color`      | Graph edge color     |
-| `--edge-highlight`  | Selected edge color  |
+All theme colors are exposed as `--fewer-*` CSS variables:
+
+| Variable                     | Purpose                    |
+| ---------------------------- | -------------------------- |
+| `--fewer-background`         | Canvas background          |
+| `--fewer-text`               | Main text color            |
+| `--fewer-text-subtle`        | Secondary/subtle text      |
+| `--fewer-item-hover`         | Hover state background     |
+| `--fewer-handle`             | Connection handle color    |
+| `--fewer-edge`               | Graph edge color           |
+| `--fewer-folder-bg`          | Folder card background     |
+| `--fewer-folder-border`      | Folder card border         |
+| `--fewer-folder-text`        | Folder title color         |
+| `--fewer-folder-subtle-text` | Folder path/footer color   |
+| `--fewer-folder-icon`        | Folder icon/accent color   |
+| `--fewer-file-bg`            | File card background       |
+| `--fewer-file-text`          | File name color            |
+| `--fewer-file-subtle-text`   | File extension/size color  |
+| `--fewer-file-border`        | File card border           |
+| `--fewer-file-icon`          | File icon/accent color     |
 
 ### Per-Type Text Controls
 
 Folder and file cards each have separate text controls:
 
-- **Folder text** — title color
-- **Folder secondary text** — path and footer color
-- **File text** — filename color
-- **File secondary text** — extension and size color
+- **Folder text**: title color
+- **Folder secondary text**: path and footer color
+- **File text**: filename color
+- **File secondary text**: extension and size color
 
 ## Aurora Haze Tokens
 
-Version 0.2.5 introduces motion tokens for consistent transitions:
+Motion tokens for consistent transitions:
 
 ```css
 --ease-aurora: cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,9 +106,9 @@ These power sidebar hover states, expand animations, and UI transitions.
 
 Three edge styles available:
 
-1. **Curved** — smooth bezier curves
-2. **Angled** — sharp corners with configurable radius
-3. **Straight** — direct lines
+1. **Curved**: smooth bezier curves
+2. **Angled**: sharp corners with configurable radius
+3. **Straight**: direct lines
 
 Adjust via sidebar Edges section or cycle with layout controls.
 
@@ -113,19 +116,19 @@ Adjust via sidebar Edges section or cycle with layout controls.
 
 Optional motion effects:
 
-- **None** — static edges
-- **Flow** — animated dash offset
-- **Pulse** — animated stroke opacity
+- **None**: static edges
+- **Flow**: animated dash offset
+- **Pulse**: animated stroke opacity
 
 ## Edge Pattern & Weight
 
 In Power User mode, the sidebar Edges section also controls:
 
-- **Pattern** — solid, dashed, or dotted
-- **Line Thickness** — 0.5px to 6px slider
-- **Corner Radius** — 0-20px for angled edges
+- **Pattern**: solid, dashed, or dotted
+- **Line Thickness**: 0.5px to 6px slider
+- **Corner Radius**: 0-20px for angled edges
 
 ## Next Steps
 
-- [Settings](/docs/settings) — Power User mode and node dimensions
-- [Graph Features](/docs/graph-features) — canvas, layout, and edge behavior
+- [Settings](/docs/settings): Power User mode and node dimensions
+- [Graph Features](/docs/graph-features): canvas, layout, and edge behavior

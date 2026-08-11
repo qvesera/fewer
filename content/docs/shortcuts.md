@@ -68,9 +68,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 
 | Key       | Action             |
 | --------- | ------------------ |
-| **Alt+I** | Open import folder dialog |
-| **Alt+U** | Open import from file dialog |
-| **Alt+L** | Open import from URL dialog |
+| **Alt+I** | Open import dialog (choose folder / file / URL / cloud source) |
 | **Alt+O** | Open selected folder in file explorer |
 
 ## Reference

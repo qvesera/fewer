@@ -25,16 +25,16 @@ New CSS variables for consistent Aurora Haze transitions:
 --dur-aurora: 200ms;
 ```
 
-These tokens power every hover, expand, and state change in the sidebar — giving the interface a unified, polished feel.
+These tokens power every hover, expand, and state change in the sidebar: giving the interface a unified, polished feel.
 
 ### Unified Settings Dialog
 
 Previously scattered controls now live in a single tabbed Settings dialog:
 
-- **About** — version, description, GitHub/website links, credits
-- **Appearance** — theme mode, custom theme editor, show files toggle
-- **Advanced** — power user toggle, minimap controls, node dimension sliders
-- **Help** — shortcuts, bug report, tutorial restart, issue links
+- **About**: version, description, GitHub/website links, credits
+- **Appearance**: theme mode, custom theme editor, show files toggle
+- **Advanced**: power user toggle, minimap controls, node dimension sliders
+- **Help**: shortcuts, bug report, tutorial restart, issue links
 
 Opened via gear icon in the navbar.
 
@@ -46,8 +46,8 @@ Extracted from Edge Motion into a generic multi-option toggle with sliding indic
 
 Split dense "Layout & Edges" section into focused subsections:
 
-- **Layout** — direction, depth, auto-hide, beautify
-- **Edges** — style, motion, stroke, weight (collapsed by default)
+- **Layout**: direction, depth, auto-hide, beautify
+- **Edges**: style, motion, stroke, weight (collapsed by default)
 
 Max Display Depth and Auto-hide threshold sliders now only visible in advanced mode.
 
@@ -55,9 +55,9 @@ Max Display Depth and Auto-hide threshold sliders now only visible in advanced m
 
 Aurora Haze follows three principles:
 
-1. **Subtlety over noise** — atmospheric effects should enhance, not distract
-2. **Consistency through tokens** — motion, color, and spacing derive from a shared vocabulary
-3. **Progressive disclosure** — advanced controls hidden until needed
+1. **Subtlety over noise**: atmospheric effects should enhance, not distract
+2. **Consistency through tokens**: motion, color, and spacing derive from a shared vocabulary
+3. **Progressive disclosure**: advanced controls hidden until needed
 
 ## What's Next
 

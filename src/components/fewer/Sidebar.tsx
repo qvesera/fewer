@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
@@ -13,15 +14,12 @@ import {
   ArrowLeftToLine,
   RefreshCw,
   FolderOpen,
-  Upload,
   Trash2,
   Eye,
   ChevronRight,
-  Palette,
   Layers,
   HardDrive,
   SlidersHorizontal,
-  Globe,
   FileIcon,
   Spline,
   Info,
@@ -30,7 +28,9 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
-import { StatsPanel, RenameInput } from ".";
+import { defaultDirection } from "@/store/slices/layoutSlice";
+import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -50,6 +50,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 const PRIMARY_LAYOUTS: {
   value: LayoutDirection;
@@ -73,8 +75,7 @@ const ADVANCED_LAYOUTS: {
 
 interface SidebarProps {
   onOpenDirectory: () => void;
-  onImportFromFile: () => void;
-  onImportFromUrl: () => void;
+  onRequireAuth: () => void;
 }
 
 function CollapsibleSection({
@@ -190,6 +191,12 @@ interface HiddenTreeNode {
   children: HiddenTreeNode[];
 }
 
+/** App-wide ordering convention: folders first, then labels A→Z. */
+function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
+  if (a.node.data.type !== b.node.data.type) return a.node.data.type === "folder" ? -1 : 1;
+  return a.node.data.label.localeCompare(b.node.data.label);
+}
+
 function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
   const idSet = new Set(hiddenIds);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -209,7 +216,8 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     const node = nodeMap.get(id)!;
     const children = (childrenMap.get(id) ?? [])
       .filter((cid) => idSet.has(cid))
-      .map((cid) => build(cid));
+      .map((cid) => build(cid))
+      .sort(hiddenTreeSort);
     return { node, children };
   }
 
@@ -220,7 +228,21 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     roots.push(build(id));
   }
 
-  return roots;
+  return roots.sort(hiddenTreeSort);
+}
+
+function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return tree;
+  const result: HiddenTreeNode[] = [];
+  for (const t of tree) {
+    const children = filterHiddenTree(t.children, q);
+    const selfMatch = t.node.data.label.toLowerCase().includes(q);
+    if (selfMatch || children.length > 0) {
+      result.push({ node: t.node, children });
+    }
+  }
+  return result;
 }
 
 function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
@@ -316,7 +338,8 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   );
 }
 
-export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: SidebarProps) {
+export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
+  const { user } = useAuth();
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -347,9 +370,16 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
 
+  const [hiddenSearch, setHiddenSearch] = useState("");
+
   const hiddenTree = useMemo(
     () => getHiddenLayerData(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
+  );
+
+  const filteredHiddenTree = useMemo(
+    () => filterHiddenTree(hiddenTree, hiddenSearch),
+    [hiddenTree, hiddenSearch],
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -359,6 +389,18 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
       setDirection("TB");
     }
   }, [advancedModeEnabled, direction, setDirection]);
+
+  // On first client mount, apply the responsive default layout direction
+  // (LR on screens <1.5k, TB otherwise). The store starts as "TB" for an
+  // isomorphic SSR/hydration match, so this picks the right orientation here.
+  // Skip when a graph is already loaded (e.g. a shared URL) so a load's own
+  // direction is never clobbered.
+  useEffect(() => {
+    const def = defaultDirection();
+    if (def !== "TB" && useGraphStore.getState().nodes.length === 0) {
+      setDirection(def);
+    }
+  }, []);
 
   const availableEdgeStyles = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },
@@ -399,37 +441,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
         {/* ── 1. FILE & ACTIONS ── */}
         <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
           <div className="space-y-2.5 w-full min-w-0">
-            {/* Primary Action Button (shadcn) */}
+            {/* Primary Action Button (shadcn) — opens the unified 3-step
+                import flow at step 1 (origin selection). */}
             <Button
               className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10"
               onClick={onOpenDirectory}
             >
               <FolderOpen className="h-4 w-4 shrink-0" />
-              <span className="truncate">Import Folder</span>
+              <span className="truncate">Import</span>
             </Button>
-            
-            <AnimatedConditional show={advancedModeEnabled} delay={0}>
-              <div className="grid grid-cols-2 gap-2 pb-1 w-full min-w-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50"
-                  onClick={onImportFromFile}
-                >
-                  <Upload className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">File</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full min-w-0 gap-1.5 text-xs font-normal border-border/60 hover:bg-muted/50"
-                  onClick={onImportFromUrl}
-                >
-                  <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">URL</span>
-                </Button>
-              </div>
-            </AnimatedConditional>
 
             {/* Quick Canvas Toolbar Buttons (shadcn) */}
             <div className="flex items-center gap-1 pt-1 border-t border-border/20 w-full min-w-0">
@@ -472,6 +492,13 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
             </div>
           </div>
         </CollapsibleSection>
+
+        {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
+        {user && (
+          <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen>
+            <SavedGraphsPanel onRequireAuth={onRequireAuth} />
+          </CollapsibleSection>
+        )}
 
         {/* ── 2. LAYOUT & ORIENTATION ── */}
         <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
@@ -545,13 +572,13 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                       </TooltipProvider>
                     </div>
                     <span className="text-xs font-mono text-muted-foreground">
-                      {maxDisplayDepth === 0 ? "Unlimited" : `${maxDisplayDepth} lvl`}
+                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
                     </span>
                   </div>
                   <Slider
                     value={[maxDisplayDepth]}
                     onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={1}
+                    min={0}
                     max={10}
                     step={1}
                   />
@@ -572,7 +599,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground">{autoHideThreshold} items</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
                   </div>
                   <Slider
                     value={[autoHideThreshold]}
@@ -633,7 +660,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground">{cornerRadius}px</span>
+                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
                 </div>
                 <Slider
                   value={[cornerRadius]}
@@ -671,7 +698,7 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
                 <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground">{edgeWidth}px</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
                   </div>
                   <Slider
                     value={[edgeWidth]}
@@ -695,6 +722,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
           >
+            <div className="relative w-full min-w-0">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+              <Input
+                value={hiddenSearch}
+                onChange={(e) => setHiddenSearch(e.target.value)}
+                placeholder="Search hidden nodes…"
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -710,9 +746,15 @@ export function Sidebar({ onOpenDirectory, onImportFromFile, onImportFromUrl }: 
               <span className="truncate">Reveal All Nodes</span>
             </Button>
             <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-              {hiddenTree.map((root) => (
-                <HiddenNodeRow key={root.node.id} tree={root} />
-              ))}
+              {filteredHiddenTree.length > 0 ? (
+                filteredHiddenTree.map((root) => (
+                  <HiddenNodeRow key={root.node.id} tree={root} />
+                ))
+              ) : (
+                <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+                  No hidden nodes match “{hiddenSearch.trim()}”.
+                </p>
+              )}
             </div>
           </CollapsibleSection>
         )}

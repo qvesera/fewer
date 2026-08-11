@@ -1,10 +1,43 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry } from "./types";
-import type { HistoryOp } from "@/lib/fewer/types";
-import { applyOps, undoOps } from "@/lib/fewer/history";
+import type { HistoryOp, ViewState } from "@/lib/fewer/types";
+import { applyOps, undoOps, getUndoViewState, getRedoViewState } from "@/lib/fewer/history";
 
 const MAX_HISTORY = 50;
+
+/**
+ * Capture the current view-state fields from the store. Used to build
+ * before/after sidecars on ops and to restore them on undo/redo.
+ */
+export function captureViewState(state: GraphState): ViewState {
+  return {
+    hiddenIds: (state.hiddenIds ?? []) as string[],
+    showFiles: state.showFiles as boolean,
+    maxDisplayDepth: state.maxDisplayDepth as number,
+    autoHideThreshold: state.autoHideThreshold as number,
+    autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
+  };
+}
+
+/** Build a `view-state` history op from a before/after view snapshot. */
+export function viewStateOp(before: ViewState, after: ViewState): { type: "view-state"; before: ViewState; after: ViewState } {
+  return { type: "view-state", before, after };
+}
+
+/**
+ * Merge a partial view-state diff into the store. Only provided keys are applied.
+ */
+function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
+  if (!view) return {};
+  const patch: Partial<GraphState> = {};
+  if (view.hiddenIds !== undefined) patch.hiddenIds = view.hiddenIds;
+  if (view.showFiles !== undefined) patch.showFiles = view.showFiles;
+  if (view.maxDisplayDepth !== undefined) patch.maxDisplayDepth = view.maxDisplayDepth;
+  if (view.autoHideThreshold !== undefined) patch.autoHideThreshold = view.autoHideThreshold;
+  if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
+  return patch;
+}
 
 export type HistorySliceCreator = StateCreator<
   GraphState,
@@ -28,28 +61,41 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery } = get();
+    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
+    // Restore view-state that the last op changed (e.g. hiddenIds after a delete/cut).
+    let viewPatch: Partial<GraphState> = {};
+    const lastOp = entry.ops[entry.ops.length - 1];
+    const vs = getUndoViewState(lastOp);
+    if (vs) viewPatch = applyViewState(get(), vs);
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
       nodes: applySearchInternal(prevNodes, searchQuery),
       edges: prevEdges,
+      graphVersion: graphVersion + 1,
+      ...viewPatch,
     });
   },
 
   redo: () => {
-    const { past, future, nodes, edges, searchQuery } = get();
+    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
     if (future.length === 0) return;
     const entry = future[0];
     const { nodes: nextNodes, edges: nextEdges } = applyOps(nodes, edges, entry.ops);
+    let viewPatch: Partial<GraphState> = {};
+    const lastOp = entry.ops[entry.ops.length - 1];
+    const vs = getRedoViewState(lastOp);
+    if (vs) viewPatch = applyViewState(get(), vs);
     set({
       future: future.slice(1),
       past: [...past, entry].slice(-MAX_HISTORY),
       nodes: applySearchInternal(nextNodes, searchQuery),
       edges: nextEdges,
+      graphVersion: graphVersion + 1,
+      ...viewPatch,
     });
   },
 });

@@ -5,92 +5,188 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - Unreleased
+
+### Fixed
+
+- **App no longer crash-loops when Supabase isn't configured**: `useAuth` called `getBrowserSupabase()`, which throws when `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are missing. On a build without those env vars (e.g. CI), the throw during mount cascaded so the UI kept remounting (`element was detached from the DOM`) and nothing was interactive. `useAuth` now catches missing-env and stays signed out, so the graph visualizer loads normally and cloud features just report unavailable.
+
+### Added
+
+- **GitHub Actions CI**: added `.github/workflows/ci.yml` running lint, typecheck, tests, and build on every PR to `main`/`dev`. Uses `bun` (`oven-sh/setup-bun`, `bun install --frozen-lockfile`) to match the project's bun-based scripts and lockfile.
+- **Index change digests**: signed-in users can watch a public file index and get one consolidated daily email (23:59 UTC) listing everything added/removed across their watched indexes. New "Watch for changes" toggle in the Import URL dialog, a "Watched" tab in Settings, /api/watch (GET/POST/DELETE) CRUD, and /api/watch/run cron job (service-role + x-cron-secret protected) that crawls, diffs against the stored baseline, and emails via Resend - skipping days with no changes. Netlify scheduled function netlify/functions/watch-digest.ts (59 23 \* \* \*). Migration 0010_watch_indexes.sql; crawl engine extracted to src/lib/fewer/crawl.ts; new src/lib/fewer/treeDiff.ts. Env: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET.
+- **Cloud connections (OAuth account linking)**: signed-in users can link cloud accounts — GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps, Azure Blob — and browse/import their folders into the graph. All six provider adapters implemented (`src/lib/fewer/cloud/providers/`: github, google, microsoft [OneDrive/SharePoint/DevOps/Blob]). Cloud management lives in Settings → Cloud tab; Cloud Browser dialog offers lazy folder navigation (repos/drives/sites/orgs/containers as roots) + depth-limited import; "Open in provider" context-menu action on imported nodes opens the folder/file in its provider in a new tab. Server-side OAuth: `/api/cloud/connect` (redirect to provider consent), `/api/cloud/callback` (exchange code, encrypt+store tokens), `/api/cloud/connections` (list/unlink), `/api/cloud/list` (lazy folder listing), `/api/cloud/tree` (build subtree). Tokens encrypted (AES-256-GCM) via `CONNECTIONS_ENCRYPTION_KEY`, owner-only RLS, auto-refresh on expiry. Migration `0011_cloud_connections.sql`. Env: CONNECTIONS_ENCRYPTION_KEY, GITHUB_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET, MICROSOFT_CLIENT_ID/SECRET/TENANT, AZURE_BLOB_STORAGE_ACCOUNT. Docs: `/docs/cloud` + OAuth setup (incl. Entra tenant-type + admin-consent troubleshooting) in `/docs/deployment`.
+- **Microsoft app verification**: added `public/.well-known/microsoft-identity-association.json` so the listed Azure AD app (`MICROSOFT_CLIENT_ID`) can be verified by Microsoft Publisher Domain verification.
+- **Persistent share links**: a logged-in owner's share link no longer expires (previously it got the same 30-day TTL as anonymous shares). Anonymous shares keep the TTL; a NULL `expires_at` means never. Migration `0013_persistent_shares.sql`.
+- **Pin saved graphs**: star a saved graph to float it to the top of "Your Directories". Optimistic toggle via new `PATCH /api/graphs/[id]`; the list sorts favorites first. Migration `0014_saved_graphs_favorite.sql`.
+- **Shared badge in the saved list**: each saved graph shows a globe (anyone with link) or mail (invite-only) badge when it has an active share, so share status is visible without opening the dialog. `GET /api/graphs` now returns per-graph share info.
+- **Privacy Policy & Terms of Use**: new legal pages at `/docs/privacy` and `/docs/terms` (rendered from `content/docs/privacy.md` and `content/docs/terms.md`), a "Legal" section in the docs sidebar, and a site footer with Privacy/Terms links added to `DocsLayout`. The `MarkdownRenderer` now supports blockquote rendering and skips HTML comments (used for operator-only "get legal review" notes that stay out of the user-facing page).
+- **Empty-canvas quick actions**: the "No directory loaded" state now offers **Import** and **Load sample** buttons, so a first-time visitor can get started from the canvas itself instead of finding the sidebar. Added `onOpenImport`/`onLoadSample` props to `GraphCanvas` (wired from `FewerApp`).
+- **Alt+S to save the current graph**: pressing **Alt+S** saves the graph — it opens the same save dialog as the (now "Save Graph") sidebar button when signed in, and prompts sign-in when signed out. `KeyboardShortcuts` dispatches a `fewer-save-graph` window event that `SavedGraphsPanel` listens for.
+- **Clear canvas from the canvas context menu**: right-clicking empty space now offers **Clear Canvas** to wipe all nodes/edges at once (mirrors the existing "Clear canvas" shortcut).
+- **Platform-aware shortcut labels**: the navbar search hint and the shortcuts dialog now show Mac-native modifiers (**⌘ / ⌥**) on Mac/iOS and **Ctrl/Alt** elsewhere, and the four navigation arrows render as consistent lucide icons instead of raw mono glyphs. New `src/lib/fewer/platform.ts` (`isMac()`).
+
+### Changed
+
+- **Unified import shortcut + keyboard-friendly dialog**: importing now uses a single **Alt+I** shortcut that opens the unified import flow (folder / file / URL / cloud are all picked inside it). The old `Alt+U` and `Alt+L` shortcuts (which dispatched events with no listener after the flow rewrite) and their docs/dialog entries were removed. The import dialog is now keyboard-driven throughout: step 1's origin picker is a roving-tabindex `radiogroup` with **arrow-key** navigation (auto-focuses on open); pressing **Enter** advances — on step 1 **folder** jumps to step 2 while **file**/**URL**/**cloud** focus the format tiles / address field / linked-account list, on step 2 it moves to the summary, and on step 3 it starts the import (buttons/inputs keep their own Enter). The file format tiles and cloud account list support arrow-key navigation, and steps 2–3 show a small "Press Enter" hint.
+- **Responsive default layout direction**: on screens smaller than 1.5k (2560×1440) the initial layout direction is now LR (wide layout fits better on smaller/portrait displays); on 1.5k and larger it stays TB. SSR/headless still defaults to TB, saved graphs and the sidebar control can override.
+- **Default edge style is now Angled**: new graphs render with `smoothstep` (angled) edges on page load instead of curved. The default `edgeStyle` in the store changed from `curved` to `angled`; existing edges are still re-derived from the selected style, and the sidebar control is unchanged.
+- **Open local files in their default app**: "Open File" (file context menu + Enter shortcut) for a directory import now opens the file in the OS app assigned to its file type instead of in the browser. It POSTs the node's `data.path` to the new `/api/open-file` route, which resolves it to a real path on the dev machine and hands it to `open` / `start` / `xdg-open` (shared helper `src/lib/fewer/openInOs.ts`, also used by `/api/open-folder`). Falls back to opening in the browser (object URL) when the path can't be resolved on the server or no live file handle is available. Also fixes the Enter shortcut, which previously read a removed `node.data.fsHandle`.
+- **Import options wording**: the advanced "Include node_modules" option is relabeled **"Include dependency & build folders"** — it controls all generated/vendored dirs (`node_modules`, `dist`, `build`, `.git`, …), not just `node_modules`. Docs corrected so the hidden-files and vendored options are described accurately.
+- **Cloud import auto-selects the viewed folder**: the folder you're currently viewing (breadcrumb position) is selected for import automatically — the "Select the folder you're viewing" button is removed. Selecting a specific subfolder without opening it still works via that row's Select action.
+- **Settings tabs**: horizontally scrollable tab bar with icons (scrollbar hidden); selecting a tab auto-scrolls it into view. **Watched** and **Cloud** tabs only render for signed-in users.
+- **Cloud entry point moved**: account connections live in Settings → Cloud; the cloud **import** browser is a sidebar option (File & Actions → Cloud, next to File/URL).
+- **Cloud import UX**: the cloud browser now uses the shared import options panel (max depth, hidden files, vendored dirs, empty folders, extensions, file nodes, display depth) instead of a single depth field; empty states guide signed-out users to sign in and unlinked users to Settings → Cloud.
+- **Unified 3-step import flow**: every import — folder, file, URL, cloud — now follows exactly three steps: select origin → configure options → import. One `ImportFlowDialog` replaces the four separate dialogs; step 1 picks the origin and its source (device folder, ASCII-tree/JSON/script payload, URL + watch toggle, or cloud account + folder browser), step 2 is the single shared `ImportOptionsPanel` for all origins, step 3 confirms and runs the per-origin action. File imports now actually honor the import options (filtering, file nodes, display depth), cloud imports honor the scan-depth option, and all sidebar/shortcut entry points preselect their origin in the same flow. Sign-in and Settings detours stack on top without destroying flow progress; closing is blocked while an import is in flight. Also fixes the options panel's extension filter input (commas no longer eaten while typing) and dedupes URL-import error/truncation reporting via a synchronous hook snapshot.
+- **URL and Cloud import origins are sign-in gated**: the unified import flow's origin picker shows Folder and File to signed-out users; URL and Cloud origins appear only for signed-in users (they depend on a linked/authenticated account).
+- **Removed the options summary from the import flow's step 2**: the shared options panel no longer includes the collapsible "Summary" block — the step-3 confirmation screen already shows the chosen options compactly.
+- **Power user options are now sign-in gated**: advanced features (advanced import options, extra export formats, advanced layouts, node/edge tools, analytics) are available only to signed-in users. The "Power User Mode" toggle is removed — the flag now tracks auth state, so it's on for signed-in users and off for everyone else. `advancedModeEnabled` is no longer persisted in saved-graph snapshots.
+- **SSR-safe default layout direction**: the store now initializes layout direction to the isomorphic **TB** (no `window` read during render, matching the SSR/headless default), and the Sidebar applies the responsive **LR** default once on the client for screens smaller than 1.5k — skipping when a graph is already loaded (e.g. a shared URL) so a load's own saved direction is never clobbered. Fixes a potential SSR/client hydration mismatch in the previous `defaultDirection()`-during-store-creation approach; `defaultDirection` is now exported from `layoutSlice`.
+- **Tutorial dialog unified**: the separate desktop flat-checklist layout is removed; the tutorial is now the same **step-through wizard** on all screen sizes with a consistent live progress count.
+- **Drop duplicate legal page H1s**: removed the `# Privacy Policy` / `# Terms of Use` headings inside `content/docs/privacy.md` / `terms.md` (the docs layout already titles each page, so they appeared twice). Getting-started now notes that the context menu also opens via **long-press** on touch.
+
+### Removed
+
+- `ImportDialog`, `ImportFromFileDialog`, `ImportUrlDialog`, `CloudBrowserDialog` and orphaned `ImportProgress` — replaced by the unified `ImportFlowDialog` (see Changed → Unified 3-step import flow).
+
+### Docs
+
+- **Watch File Indexes page**: new `/docs/watch` covers watching public file indexes, the 23:59 daily digest, and managing watched indexes in Settings
+- **Deployment**: documented Resend + scheduled-digest env vars (RESEND_API_KEY, RESEND_FROM_EMAIL, SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET)
+- **Docs nav**: registered `watch` and `cloud` pages in the Features section
+
+### Fixed
+
+- **Hidden Nodes panel ordering**: the sidebar Hidden Nodes list showed items in reverse alphabetical order (it inherited the store's edge array order). Roots and children are now sorted with the app-wide convention — folders first, then labels A→Z — matching folder cards, imports, and layout.
+- **Open in File Explorer on Windows**: the "Open in File Explorer" action failed on Windows. The server route ran `explorer "C:\path"` through `exec`, but `explorer.exe` doesn't strip quotes from its own argument, so paths with spaces (or the surrounding quotes) failed to open. The route now uses `spawn` with a `cmd /c start "" "<path>"` argument array (no shell quoting mangling), which reliably opens the folder; macOS/Linux paths are unchanged.
+- **Animated edge dashes no longer reset/jerk**: the animated dashes ran a per-edge CSS animation that restarted from zero every time an edge (re)mounted — with `onlyRenderVisibleElements` on large graphs, edges crossing the viewport boundary remount constantly, so the dashes kept snapping back. The fixed keyframe cycle also visibly jumped every loop whenever the dash pattern period didn't divide it — notably for `@xyflow/react`'s fallback `stroke-dasharray: 5` (period 10), which edges get when they carry no inline dasharray (e.g. toggling animation on from solid stroke). Edges are now driven by one shared rAF clock (`src/lib/fewer/dashClock.ts`) writing `--gm-dash-offset` on `<html>`: remounted edges inherit the current phase, the offset wraps only at a common multiple of every dash period (12,000px ≈ every 10 minutes, invisible), and React Flow's own `dashdraw` animation is suppressed. `setEdgeAnimated` now writes an explicit dash pattern onto the edges so nothing falls back to the library's 5-5 dashes. The clock runs only while animation is enabled and respects `prefers-reduced-motion`.
+- **Undo/redo overhaul**: undo/redo now works correctly across every graph-mutating action. Previously node-drag undo deleted the whole graph, and delete/cut/connect/edge-delete undo were no-ops or worse (connect undo removed the child node). Each action now uses a dedicated history op: `remove-subtree` (delete/cut restores the subtree on undo), `connect` (removes the edge and restores paths without deleting the child), `remove-edges` (restores deleted edges), `move-positions` (restores dragged positions), `resize` (restores dimensions), `collapse-batch` (collapse/expand-all restores each folder's prior collapsed state), and `view-state` (hide/show, show-files, max-display-depth, auto-hide-threshold). Undo/redo also restores `hiddenIds`/`showFiles`/`maxDisplayDepth`/`autoHideThreshold` alongside nodes/edges. New `src/lib/fewer/history.test.ts` covers round-trips for all op types. Undo/redo no longer re-runs the graph layout, so restored nodes keep their exact positions and parent relationships.
+- **Fix crash on empty graph**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) crashed with `Cannot read properties of null (reading 'startsWith')`. `providerLabelFromSource` now accepts `null` and falls back to a generic "Provider" label.
+- **Fix delete→undo dropping surviving edges**: undoing a node delete restored the deleted subtree but replaced the whole edge list with only the restored edges, dropping every edge that belonged to nodes that were *not* deleted (so sibling folders/files lost their connections). `remove-subtree` undo now merges the restored edges back into the existing edge set. New `src/lib/fewer/deleteUndo.test.ts` covers a 3-level delete→undo round-trip plus delete→redo→undo.
+- **Fix undo not re-rendering the canvas**: undo/redo restored nodes/edges in the store but did not bump `graphVersion`, and the React Flow canvas only re-syncs from the store when `graphVersion` changes — so a restored node was in the store but invisible on the canvas. Undo/redo now increment `graphVersion`, forcing the canvas to refresh.
+- **No automatic fit-zoom**: the canvas no longer auto-fits the view when the graph changes (parent/unparent, undo/redo, add/delete, or any layout/edge-style change). Previously a `graphVersion` change triggered a `fitView`, which was disruptive when parenting/unparenting nodes. Fit is now only applied on initial load and via explicit user actions (Fit View button/shortcut, zoom-to-selection). Removed the now-dead `_skipNextFitView`/`skipNextFitView` mechanism that existed only to suppress that auto-fit.
+- **Unparenting updates node paths**: removing a parent→child edge now rewrites the child's path (breadcrumb) back to a root-level path instead of leaving the stale `parent/child` breadcrumb behind. Descendants under the unparented node are rewritten too. Undo restores the original paths. `remove-edges` history ops now carry the path changes so redo/undo round-trip correctly.
+- **Max display depth 0 = unlimited**: the display-depth slider now allows 0, which shows the full tree with no depth-based hiding (matching the existing "Unlimited" label and the `0 = unlimited` convention used elsewhere, e.g. file system/import scan depth). Previously 0 was not reachable and any value below the current depth hid everything deeper than it.
+- **Auto-hide is now a live filter both ways**: increasing the auto-hide limit now reveals previously auto-hidden children that fall under the new limit (previously they stayed hidden forever — only newly-exceeding folders got hidden). Auto-hidden ids are tracked separately from manual/depth/file hides so raising the limit never reveals a node the user hid manually. Covered by `reconcileAutoHide` and new tests.
+- **Click-to-type slider values**: every slider's numeric value (display depth, auto-hide limit, corner radius, edge width, node width/height, minimap size, export quality, scan/display depth) now becomes a manual number input when you click it. Type a value and press Enter/blur to commit — it bypasses the slider's min/max — or press Escape to cancel. The normal display returns after committing.
+- **Right-click "Add Child Node" opens the Add Node dialog**: the folder context menu's "Add Child Node" no longer adds a "New Folder" node immediately. It now selects the folder and opens the same Add Node dialog that Alt+N opens (in child mode), so you can name the node and pick folder/file before it's created.
+- **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
+- **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
+
+## [0.4.0] - Unreleased
+
+### Added
+
+- **Accounts & authentication**: optional email/password sign-in via Supabase Auth. The app works fully logged-out; login unlocks save/load/share. Sign in button + account dropdown in the navbar, auth dialog with sign up / sign in / password reset, `/auth/callback` route, session-refresh middleware. `@supabase/ssr` added; `[auth]` enabled in `supabase/config.toml`.
+- **Saved graphs**: logged-in users can save the current graph (nodes, edges, layout, theme, settings) to their account, list them in a new "Your Directories" sidebar section, load, rename, and delete. Never auto-uploads — saving is always user-initiated. New `/api/graphs` (GET/POST) + `/api/graphs/[id]` (DELETE) routes; migration `0003_auth_saved_graphs.sql`.
+- **Selective sharing**: saved graphs can be shared as "anyone with the link" (public) or "invite only" (only specified emails). Invite-only links require a signed-in user whose email is invited. Share dialog with public/invite toggle + email list; `/api/share` extended with `owner_id`, `access`, `invited_emails`, `saved_graph_id`; `/api/share/[id]` enforces invite access (403 + sign-in prompt).
+- **Theme & settings sync**: saved graphs capture the full app state including theme mode, custom theme, layout, minimap, and advanced settings — restoring a saved graph restores everything.
+- **Accounts docs page**: new `/docs/accounts` covers sign in, save/load/rename/delete saved graphs, theme/settings sync; sign-in mentioned in getting-started + settings docs
+
 ## [0.3.2] - Unreleased
 
 ### Added
 
-- **Docs site** — new `/docs` and `/blog` routes with markdown-based content system in `content/`
-- **Docs pages** — Getting Started, Graph Features, Import & Export, Keyboard Shortcuts, Theming
-- **Blog posts** — launch announcement, Aurora Haze design system deep-dive, ELK layout engine release notes
-- **Global navbar navigation** — Docs and Blog links in top-right corner
-- **MDX support** — Next.js configured with `@next/mdx` for future component embedding in docs
-- **404 page** — theme-aware not-found page with aurora background, primary accent, and links back to home/docs.
-- **Settings & Power User docs page** — Settings dialog tabs, power user mode, minimap config, node dimensions, notifications
-- **Node Editing docs page** — add, rename, copy/cut/paste, duplicate, delete, unparent, connect, hide/show children, context menus
-- **PWA install docs page** — install-as-app guide for desktop, Android, and iOS
-- **v0.3.0 release blog post** — theme engine, 18 presets, bundle-size cuts, and PWA fixes
-- **Sharing docs page** — share link generation, URL hash encoding, opening shared graphs, limitations
-- **Deployment docs page** — Docker, Netlify, Caddy reverse proxy, standalone build, environment variables
-- **Documentation gap fixes** — advanced import options, missing keyboard shortcuts, theme presets/editor details, edge customization, canvas context menu, multi-select, drag & drop, node resizing, handle shortcuts, sidebar resize, max display depth
-- **Shortcuts dialog sync** — added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
+- **Docs site**: new `/docs` and `/blog` routes with markdown-based content system in `content/`
+- **Docs pages**: Getting Started, Graph Features, Import & Export, Keyboard Shortcuts, Theming
+- **Blog posts**: launch announcement, Aurora Haze design system deep-dive, ELK layout engine release notes
+- **Global navbar navigation**: Docs and Blog links in top-right corner
+- **MDX support**: Next.js configured with `@next/mdx` for future component embedding in docs
+- **404 page**: theme-aware not-found page with aurora background, primary accent, and links back to home/docs.
+- **Settings & Power User docs page**: Settings dialog tabs, power user mode, minimap config, node dimensions, notifications
+- **Node Editing docs page**: add, rename, copy/cut/paste, duplicate, delete, unparent, connect, hide/show children, context menus
+- **PWA install docs page**: install-as-app guide for desktop, Android, and iOS
+- **v0.3.0 release blog post**: theme engine, 18 presets, bundle-size cuts, and PWA fixes
+- **Sharing docs page**: share link generation, URL hash encoding, opening shared graphs, limitations
+- **Deployment docs page**: Docker, Netlify, Caddy reverse proxy, standalone build, environment variables
+- **Documentation gap fixes**: advanced import options, missing keyboard shortcuts, theme presets/editor details, edge customization, canvas context menu, multi-select, drag & drop, node resizing, handle shortcuts, sidebar resize, max display depth
+- **Shortcuts dialog sync**: added missing `Ctrl+D` (duplicate) and `Ctrl+Y` (redo alternate) entries
+- **Public file index import**: Import from URL now crawls Apache/nginx auto-index pages (e.g. `https://www.sidc.be/EUI/data/`) server-side via new `/api/crawl` route, with depth/page caps and partial-tree truncation notice. GitHub URLs still use the existing `/api/github-tree` path.
+- **Crawl cache (Supabase)**: crawled file index trees cached in a `crawl_cache` table (JSONB tree + TTL, 24h). Repeat imports of the same URL return instantly from cache. Cache is best-effort — on any Supabase failure the route falls back to a fresh crawl. Migration in `supabase/migrations/0001_crawl_cache.sql`; Supabase CLI linked.
+- **DB-backed share links**: large graphs (encoded hash > 2000 chars) are stored in a `shared_graphs` table and shared via a short `#s:<id>` link instead of a long URL hash. Small graphs still embed the compressed hash. 30-day TTL with lazy expiry on read. New `/api/share` (POST) + `/api/share/[id]` (GET) routes; migration `0002_shared_graphs.sql`.
+- **Hidden nodes search**: search bar in the Hidden Nodes sidebar section filters hidden nodes by name, keeping parent/child hierarchy context
 
 ### Changed
 
-- **Toast feedback for silent actions** — added toast notifications for previously silent destructive/confirm actions: delete selected (toolbar, canvas toolbar, Delete/Backspace key), clear canvas (sidebar confirm), reveal all nodes (sidebar), add file/folder (sidebar quick-add + Add Node dialog), export download, open file via Enter key, and hide/show children (folder context menu).
-- **Theme-responsive blog & docs** — docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
-- **Design system tokens** — added spacing (`--space-*`) and shadow depth (`--shadow-*`) tokens plus `--font-heading` / `--font-body` stacks to `globals.css` per `design-system/fewer/MASTER.md`.
-- **Theme-aligned gradients** — `text-gradient-fewer` now derives its leading stop from `--color-primary` instead of hard-coded orange.
+- **Toast feedback for silent actions**: added toast notifications for previously silent destructive/confirm actions: delete selected (toolbar, canvas toolbar, Delete/Backspace key), clear canvas (sidebar confirm), reveal all nodes (sidebar), add file/folder (sidebar quick-add + Add Node dialog), export download, open file via Enter key, and hide/show children (folder context menu).
+- **Theme-responsive blog & docs**: docs pages use primary (`--fewer-folder-icon`) accents; blog uses secondary (`--fewer-file-icon`) accents. Both follow the active custom theme instead of static brand colors.
+- **Design system tokens**: added spacing (`--space-*`) and shadow depth (`--shadow-*`) tokens plus `--font-heading` / `--font-body` stacks to `globals.css` per `design-system/fewer/MASTER.md`.
+- **Theme-aligned gradients**: `text-gradient-fewer` now derives its leading stop from `--color-primary` instead of hard-coded orange.
+
+### Docs
+
+- **Docs audit**: audited all 23 doc files against current source; fixed 12 stale/broken files
+- **`theming.md`**: corrected CSS variable table to actual `--fewer-*` names (16 vars), removed stale version reference
+- **`SECURITY.md`**: replaced "no backend" claim with accurate minimal-backend description (API routes + Prisma/SQLite)
+- **`getting-started.md`**: `npm` → `bun`, "advanced user setting" → "Power User mode"
+- **`first-release.md` / `v030-release.md`**: `npm` → `bun`; Dagre → custom Reingold-Tilford layout
+- **`elk-layout-engine.md`**: rewritten: describes custom Reingold-Tilford layout instead of removed ELK engine
+- **`MASTER.md`**: design tokens aligned with Aurora Haze + Open Color + actual CSS variables
+- **`CODE_OF_CONDUCT.md`**: filled `[INSERT CONTACT METHOD]` placeholder with GitHub issue + security advisory links
+- **`ROADMAP.md`**: checked off completed items (theme editor, theme saving)
+- **`editing.md`**: added "Copy Name" file action, corrected "Open File" gating
+- **`pwa-install.md` / `CONTRIBUTING.md`**: typo + test phrasing fixes
 
 ### Fixed
 
-- **Multi-select edge highlighting** — ancestor-path edges now highlight for EVERY selected node (not just the last-picked one). Each path edge is colored by its target node type (folder vs file).
-- **Duplicate rename guard** — renaming a node to a name already used by a sibling in the same folder is now blocked with a toast (`"X" already exists in this folder.`). Previously duplicate names were allowed.
-- **Custom theme editor mobile support** — dialog width clamps to viewport (`min(360px, 100vw - 16px)`), drag/dock now use pointer events (works with touch), and `touch-action: none` prevents scroll interference while dragging.
-- **Preset dropdown width** — the preset theme dropdown now matches the trigger input width instead of a fixed 280px.
-- **Tutorial restart z-order** — restarting the tutorial from Settings now closes the Settings dialog first (and waits for its exit animation), so the tutorial's options are clickable instead of being blocked behind it.
-- **Tutorial button contrast** — primary tutorial buttons now use `text-primary-foreground` (matching the export button) instead of hard-coded white, so the label stays visible on the primary background.
-- **Tutorial docs redirect** — the tutorial now offers an optional "Docs →" button at the end (mobile final step and desktop "All done!" state) that navigates to `/docs`.
+- **Multi-select edge highlighting**: ancestor-path edges now highlight for EVERY selected node (not just the last-picked one). Each path edge is colored by its target node type (folder vs file).
+- **Duplicate rename guard**: renaming a node to a name already used by a sibling in the same folder is now blocked with a toast (`"X" already exists in this folder.`). Previously duplicate names were allowed.
+- **Custom theme editor mobile support**: dialog width clamps to viewport (`min(360px, 100vw - 16px)`), drag/dock now use pointer events (works with touch), and `touch-action: none` prevents scroll interference while dragging.
+- **Preset dropdown width**: the preset theme dropdown now matches the trigger input width instead of a fixed 280px.
+- **Tutorial restart z-order**: restarting the tutorial from Settings now closes the Settings dialog first (and waits for its exit animation), so the tutorial's options are clickable instead of being blocked behind it.
+- **Tutorial button contrast**: primary tutorial buttons now use `text-primary-foreground` (matching the export button) instead of hard-coded white, so the label stays visible on the primary background.
+- **Tutorial docs redirect**: the tutorial now offers an optional "Docs →" button at the end (mobile final step and desktop "All done!" state) that navigates to `/docs`.
 
 ## [0.3.1]
 
 ### Performance
 
-- **Removed dead `elkjs` import** — `layout.ts` imported `ELK` but never used it. Dropped ~300KB from bundle.
-- **Removed dead dependencies** — `@dagrejs/dagre`, `recharts`, `react-color`, `web-worker` were in `package.json` but never imported.
-- **Deleted unused shadcn components** — `chart`, `calendar`, `command`, `carousel`, `drawer`, `form`, `input-otp`, `resizable` were never imported by app code.
-- **Lazy-loaded all dialogs** — ExportPanel, ImportDialog, ImportFromFileDialog, BugReportDialog, TutorialDialog, ShortcutsDialog, SettingsDialog, ShareDialog, ThemeEditorDialog, AddNodeDialog, ImportUrlDialog, NotificationPanel now load via `next/dynamic` only when opened. `react-colorful` and dialog code out of startup bundle → fewer long tasks, lower TBT/TTI.
-- **Removed ReactFlow `onInit` console.log** — debug noise gone.
+- **Removed dead `elkjs` import**: `layout.ts` imported `ELK` but never used it. Dropped ~300KB from bundle.
+- **Removed dead dependencies**: `@dagrejs/dagre`, `recharts`, `react-color`, `web-worker` were in `package.json` but never imported.
+- **Deleted unused shadcn components**: `chart`, `calendar`, `command`, `carousel`, `drawer`, `form`, `input-otp`, `resizable` were never imported by app code.
+- **Lazy-loaded all dialogs**: ExportPanel, ImportDialog, ImportFromFileDialog, BugReportDialog, TutorialDialog, ShortcutsDialog, SettingsDialog, ShareDialog, ThemeEditorDialog, AddNodeDialog, ImportUrlDialog, NotificationPanel now load via `next/dynamic` only when opened. `react-colorful` and dialog code out of startup bundle → fewer long tasks, lower TBT/TTI.
+- **Removed ReactFlow `onInit` console.log**: debug noise gone.
 
 ### PWA
 
-- **512x512 icon** — generated `logo-512.png` from `logo.svg` (square-padded, no letterboxing). Manifest now lists 192 + 512 icons → fixes Lighthouse `splash-screen` audit.
-- **Manifest icon sizes corrected** — previously claimed 192x192 but pointed at a 494x445 PNG. Now points to real 192x192 `logo-192.png`.
+- **512x512 icon**: generated `logo-512.png` from `logo.svg` (square-padded, no letterboxing). Manifest now lists 192 + 512 icons → fixes Lighthouse `splash-screen` audit.
+- **Manifest icon sizes corrected**: previously claimed 192x192 but pointed at a 494x445 PNG. Now points to real 192x192 `logo-192.png`.
 
 ## [0.3.0]
 
 ### Added
 
-- **Theme presets** — 18 popular open source theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark/Light, GitHub, Material)
-- **Draggable theme editor** — Opens as a movable panel when selecting Custom theme, locked within browser window bounds
-- **Minimize theme editor** — Click the minimize (−) button to collapse the Custom Theme dialog into a small draggable dock pill that snaps to any position along the canvas edges (top/bottom/left/right); pill renders vertically on side edges. Click pill to restore.
-- **Theme-aware UI** — All buttons, sliders, switches, and icons follow the active theme's primary/secondary colors
-- **Export panel secondary colors** — Export panel uses file icon color scheme for sliders, switches, and format selection
-- **Close theme editor on light/dark switch** — Custom theme dialog automatically closes when switching to light or dark mode
-- **Reset settings on power user toggle off** — All settings reset to defaults including theme when disabling power user mode
+- **Theme presets**: 18 popular open source theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark/Light, GitHub, Material)
+- **Draggable theme editor**: Opens as a movable panel when selecting Custom theme, locked within browser window bounds
+- **Minimize theme editor**: Click the minimize (−) button to collapse the Custom Theme dialog into a small draggable dock pill that snaps to any position along the canvas edges (top/bottom/left/right); pill renders vertically on side edges. Click pill to restore.
+- **Theme-aware UI**: All buttons, sliders, switches, and icons follow the active theme's primary/secondary colors
+- **Export panel secondary colors**: Export panel uses file icon color scheme for sliders, switches, and format selection
+- **Close theme editor on light/dark switch**: Custom theme dialog automatically closes when switching to light or dark mode
+- **Reset settings on power user toggle off**: All settings reset to defaults including theme when disabling power user mode
 
-- **Structured custom theme colors** — each theme color now has independent `{ color, opacity }` fields instead of plain CSS strings. Per-color opacity slider in the Custom Theme Editor with live preview swatch.
-- **Open Color palette** — dark mode defaults migrated to Open Color (gray/orange/grape families) for consistent, accessible color values.
-- **`themeColors.ts` module** — `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.
-- **Theme color tests** — 8 tests covering `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme` (legacy + structured + empty input).
-- **Sectioned Custom Theme Editor** — colors grouped into "Canvas & Text", "Folders", "Files" sections with descriptions and opacity sliders.
-- **`react-colorful` color picker** — `HexAlphaColorPicker` with gradient panel, hue strip, and alpha channel built into each theme color popover.
-- **Per-type secondary text** — `folderSubtleText` and `fileSubtleText` controls for folder paths/footers and file extensions/sizes.
+- **Structured custom theme colors**: each theme color now has independent `{ color, opacity }` fields instead of plain CSS strings. Per-color opacity slider in the Custom Theme Editor with live preview swatch.
+- **Open Color palette**: dark mode defaults migrated to Open Color (gray/orange/grape families) for consistent, accessible color values.
+- **`themeColors.ts` module**: `hexToRgb`, `clampOpacity`, `toCssColor`, `migrateCustomTheme`, `resolveCss` utilities. Handles legacy plain-string theme migration to structured format.
+- **Theme color tests**: 8 tests covering `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme` (legacy + structured + empty input).
+- **Sectioned Custom Theme Editor**: colors grouped into "Canvas & Text", "Folders", "Files" sections with descriptions and opacity sliders.
+- **`react-colorful` color picker**: `HexAlphaColorPicker` with gradient panel, hue strip, and alpha channel built into each theme color popover.
+- **Per-type secondary text**: `folderSubtleText` and `fileSubtleText` controls for folder paths/footers and file extensions/sizes.
 
 ### Changed
 
-- **Bun as default package manager** — `bun install`, `bun run dev/build/lint/test`. Removed `package-lock.json` in favor of `bun.lock`. Installed Bun 1.3.14. Docs updated (README, AGENTS.md, CONTRIBUTING, netlify.toml, PR template).
-- **`ThemeColorMeta` expanded** — now includes `description`, `defaultColor`, `defaultOpacity`, and `openColor` fields for richer editor metadata.
-- **`ThemeProvider`** — uses `migrateCustomTheme` for safe legacy theme loading + `applyCustomThemeToDOM` for structured color application.
-- **Dark mode CSS variables** — `globals.css` updated with Open Color-based values for text, edges, handles, folder/file colors.
-- **Simplified folder/file theme controls** — 5 controls each (body, text, secondary text, border, icon). Removed separate `folderHeaderBg`/`folderHeaderText`; folder text controls title, secondary text controls path/footers. Added `fileText` and `fileSubtleText` controls.
+- **Bun as default package manager**: `bun install`, `bun run dev/build/lint/test`. Removed `package-lock.json` in favor of `bun.lock`. Installed Bun 1.3.14. Docs updated (README, AGENTS.md, CONTRIBUTING, netlify.toml, PR template).
+- **`ThemeColorMeta` expanded**: now includes `description`, `defaultColor`, `defaultOpacity`, and `openColor` fields for richer editor metadata.
+- **`ThemeProvider`**: uses `migrateCustomTheme` for safe legacy theme loading + `applyCustomThemeToDOM` for structured color application.
+- **Dark mode CSS variables**: `globals.css` updated with Open Color-based values for text, edges, handles, folder/file colors.
+- **Simplified folder/file theme controls**: 5 controls each (body, text, secondary text, border, icon). Removed separate `folderHeaderBg`/`folderHeaderText`; folder text controls title, secondary text controls path/footers. Added `fileText` and `fileSubtleText` controls.
 
 ### Fixed
 
-- **Custom theme canvas background** — canvas now reads `--fewer-background` via inline style, so custom background color actually applies.
-- **Theme mode class cleanup** — switching to custom mode now removes `light`/`dark` classes from `<html>`, preventing CSS variable conflicts and unwanted aurora overlays.
-- **Connection handle colors** — handles now use `--fewer-handle` CSS variable instead of hardcoded `slate-700`, following the active theme.
-- **Hidden nodes chip** — uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
-- **Hidden panel dots** — folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
+- **Custom theme canvas background**: canvas now reads `--fewer-background` via inline style, so custom background color actually applies.
+- **Theme mode class cleanup**: switching to custom mode now removes `light`/`dark` classes from `<html>`, preventing CSS variable conflicts and unwanted aurora overlays.
+- **Connection handle colors**: handles now use `--fewer-handle` CSS variable instead of hardcoded `slate-700`, following the active theme.
+- **Hidden nodes chip**: uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
+- **Hidden panel dots**: folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
 
 ## [0.2.5]
 
@@ -98,24 +194,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Sponsor / Ko-fi button** in Settings → About tab linking to GitHub Sponsors.
 - **GitHub Sponsors funding entry** added to `package.json` so GitHub shows a sponsor button on the repo.
-- **Sidebar Aurora Haze integration** — sidebar container now uses `gm-aurora gm-aurora-warm` for subtle warm atmospheric tint. Section cards refined: subtler borders (`border-border/20`), lighter backgrounds (`bg-card/5`), cleaner hover states. Footer redesigned from text blob to structured shortcut-hint grid with `<kbd>` chips. Icon sizes standardized to `h-3.5 w-3.5` for all secondary actions.
-- **Reusable SlidingToggle component** — extracted from Edge Motion into generic multi-option toggle with sliding indicator + glow animation. Now used for Edge Style, Edge Motion, and Stroke Pattern.
-- **Sidebar layout cleanup** — split dense "Layout & Edges" section into focused "Layout" (direction, depth, auto-hide, beautify) and "Edges" (style, motion, stroke, weight) sections. "Edges" collapsed by default to reduce initial clutter. Max Display Depth and Auto-hide threshold sliders now only visible in advanced mode.
-- **Motion tokens** — `--ease-aurora: cubic-bezier(0.4, 0, 0.2, 1)` and `--dur-aurora: 200ms` for consistent Aurora Haze transitions.
-- **Settings Dialog** — unified tabbed settings dialog (About, Appearance, Advanced, Help) opened via gear icon in the top navbar (right of notifications). Consolidates previously scattered utility controls.
-- **About tab** — app version, description, GitHub/website links, credits.
-- **Appearance tab** — theme mode selector (light/dark/custom), custom theme editor, and Show files toggle moved from the sidebar.
-- **Advanced tab** — Power User toggle, minimap controls (visibility/position/size), and node dimension sliders moved from the sidebar.
-- **Help tab** — buttons to open the Keyboard Shortcuts dialog, Bug Report dialog, restart the tutorial, and links to GitHub issues/website.
+- **Sidebar Aurora Haze integration**: sidebar container now uses `gm-aurora gm-aurora-warm` for subtle warm atmospheric tint. Section cards refined: subtler borders (`border-border/20`), lighter backgrounds (`bg-card/5`), cleaner hover states. Footer redesigned from text blob to structured shortcut-hint grid with `<kbd>` chips. Icon sizes standardized to `h-3.5 w-3.5` for all secondary actions.
+- **Reusable SlidingToggle component**: extracted from Edge Motion into generic multi-option toggle with sliding indicator + glow animation. Now used for Edge Style, Edge Motion, and Stroke Pattern.
+- **Sidebar layout cleanup**: split dense "Layout & Edges" section into focused "Layout" (direction, depth, auto-hide, beautify) and "Edges" (style, motion, stroke, weight) sections. "Edges" collapsed by default to reduce initial clutter. Max Display Depth and Auto-hide threshold sliders now only visible in advanced mode.
+- **Motion tokens**: `--ease-aurora: cubic-bezier(0.4, 0, 0.2, 1)` and `--dur-aurora: 200ms` for consistent Aurora Haze transitions.
+- **Settings Dialog**: unified tabbed settings dialog (About, Appearance, Advanced, Help) opened via gear icon in the top navbar (right of notifications). Consolidates previously scattered utility controls.
+- **About tab**: app version, description, GitHub/website links, credits.
+- **Appearance tab**: theme mode selector (light/dark/custom), custom theme editor, and Show files toggle moved from the sidebar.
+- **Advanced tab**: Power User toggle, minimap controls (visibility/position/size), and node dimension sliders moved from the sidebar.
+- **Help tab**: buttons to open the Keyboard Shortcuts dialog, Bug Report dialog, restart the tutorial, and links to GitHub issues/website.
 
 ### Changed
 
-- Sidebar decluttered — removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
+- Sidebar decluttered: removed Configuration, Minimap, and Node Metrics sections; theme mode buttons moved out of Appearance section (Show files toggle stays).
 
 ### Fixed
 
-- **Include File Nodes toggle preserves ancestor-aware visibility** — re-enabling "Include File Nodes" no longer reveals files whose parent folder is hidden, preventing orphan file nodes from appearing as root-level items on the canvas.
-- **GlobalNavbar simplified** — removed Keyboard/Bug/GitHub/Globe buttons; now Logo + Search + Notifications + Settings gear.
+- **Include File Nodes toggle preserves ancestor-aware visibility**: re-enabling "Include File Nodes" no longer reveals files whose parent folder is hidden, preventing orphan file nodes from appearing as root-level items on the canvas.
+- **GlobalNavbar simplified**: removed Keyboard/Bug/GitHub/Globe buttons; now Logo + Search + Notifications + Settings gear.
 - **Minimap controls** and **node dimension sliders** moved from sidebar to Settings → Advanced tab.
 - **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.
 - **Tutorial restart** now accessible via Settings → Help tab (uses `fewer-restart-tutorial` window event).
@@ -124,44 +220,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Auto-hide large folder children** — folders with >10 children hide their children on import (threshold adjustable in sidebar, 2-100). Hidden children appear in the sidebar Hidden Nodes section grouped by folder.
-- **Recursive Hidden Nodes tree** — hidden nodes shown as nested expandable tree, any depth. Eye button on a folder reveals its subtree; large grandchildren stay hidden via re-applied auto-hide.
-- **Max Display Depth** — configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to Hidden Nodes.
-- **Sidebar drag-resize** — drag the right edge of the sidebar to resize it (200-560px).
-- **File nodes hide output handle** — files can't have children, so their source handle is hidden.
+- **Auto-hide large folder children**: folders with >10 children hide their children on import (threshold adjustable in sidebar, 2-100). Hidden children appear in the sidebar Hidden Nodes section grouped by folder.
+- **Recursive Hidden Nodes tree**: hidden nodes shown as nested expandable tree, any depth. Eye button on a folder reveals its subtree; large grandchildren stay hidden via re-applied auto-hide.
+- **Max Display Depth**: configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to Hidden Nodes.
+- **Sidebar drag-resize**: drag the right edge of the sidebar to resize it (200-560px).
+- **File nodes hide output handle**: files can't have children, so their source handle is hidden.
 
 ### Changed
 
-- **Memory leak fixes:** `fsHandleStore` now cleared on `reset()` — handles no longer accumulate across imports
-- **Memory leak fixes:** `fsHandle` removed from `expandFolderNode` node data — uses `fsHandleStore` instead of storing live `FileSystemDirectoryHandle` on every node
-- **Memory optimization:** Virtualized child list in folder cards — only renders visible children (+5 overscan) instead of all children as DOM nodes
+- **Memory leak fixes:** `fsHandleStore` now cleared on `reset()`: handles no longer accumulate across imports
+- **Memory leak fixes:** `fsHandle` removed from `expandFolderNode` node data: uses `fsHandleStore` instead of storing live `FileSystemDirectoryHandle` on every node
+- **Memory optimization:** Virtualized child list in folder cards: only renders visible children (+5 overscan) instead of all children as DOM nodes
 - **`FileEntryContextMenu` "Open File"** now reads from `fsHandleStore` instead of `node.data.fsHandle`
-- **Auto-hide toast on import** — shows how many items were auto-hidden (folders with >10 children), directory, URL, and library imports.
-- **Revealed roots protected from re-hiding** — explicitly shown folders stay visible even when their parent still has >10 children.
-- **Toast notifications for all major actions** — delete, copy, cut, duplicate, paste, unparent, connect, relayout, show/hide nodes, open file, refresh from disk, and more.
-- **Toast stacking** — up to 5 simultaneous toasts with right-side viewport and proper spacing (`gap-2`, `items-end`).
-- **Notification history panel** — click the bell icon in the navbar to view past notifications; badge shows unread count and clears on open.
-- **Auto-hide threshold slider** — adjustable threshold (2-100) in the sidebar Layout section controls when folder children get auto-hidden.
+- **Auto-hide toast on import**: shows how many items were auto-hidden (folders with >10 children), directory, URL, and library imports.
+- **Revealed roots protected from re-hiding**: explicitly shown folders stay visible even when their parent still has >10 children.
+- **Toast notifications for all major actions**: delete, copy, cut, duplicate, paste, unparent, connect, relayout, show/hide nodes, open file, refresh from disk, and more.
+- **Toast stacking**: up to 5 simultaneous toasts with right-side viewport and proper spacing (`gap-2`, `items-end`).
+- **Notification history panel**: click the bell icon in the navbar to view past notifications; badge shows unread count and clears on open.
+- **Auto-hide threshold slider**: adjustable threshold (2-100) in the sidebar Layout section controls when folder children get auto-hidden.
 
 ## [0.2.3] - 2026-07
 
 ### Added
 
-- **Ancestor path highlighting** — selecting a node highlights all edges from that node up to the root parent with the accent color (amber/orange `#fb923c` in light mode, purple `#a855f7` in dark mode)
-- **Theme-aware edge colors** — edge highlight colors update immediately when switching between light/dark/custom themes
-- **ELK (elkjs) layout engine** — replaces dagre with ELK's layered algorithm for more compact, balanced tree layouts. Async layout for initial import, sync fallback for relayout
+- **Ancestor path highlighting**: selecting a node highlights all edges from that node up to the root parent with the accent color (amber/orange `#fb923c` in light mode, purple `#a855f7` in dark mode)
+- **Theme-aware edge colors**: edge highlight colors update immediately when switching between light/dark/custom themes
+- **ELK (elkjs) layout engine**: replaces dagre with ELK's layered algorithm for more compact, balanced tree layouts. Async layout for initial import, sync fallback for relayout
 - `parentId` and `collapsed` fields on `FewerNodeData` for tree navigation
-- `fsHandleStore` — separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
+- `fsHandleStore`: separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
 
 ### Changed
 
 - **Split monolithic 1018-line `graphStore` into 6 focused Zustand slices**: graph, history, ui, layout, theme
-- **Operation-based undo/redo** — stores diffs instead of full snapshots (critical for 10K+ node graphs)
-- **`graphVersion` sync** — every mutation that changes `nodes`, `edges`, or `hiddenIds` now increments `graphVersion`, ensuring the React Flow canvas syncs immediately
-- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full arrays — cuts history memory from O(50×n) to O(50×k)
+- **Operation-based undo/redo**: stores diffs instead of full snapshots (critical for 10K+ node graphs)
+- **`graphVersion` sync**: every mutation that changes `nodes`, `edges`, or `hiddenIds` now increments `graphVersion`, ensuring the React Flow canvas syncs immediately
+- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full arrays: cuts history memory from O(50×n) to O(50×k)
 - **Memory optimization:** `FileSystemHandle` objects moved out of `FewerNodeData` into `fsHandleStore`
 - **Memory optimization:** React Flow viewport culling via `onlyRenderVisibleElements=true` (minimap uses custom component independent of viewport)
-- **Highlighted edges render on top** — sorted to end of array so they're never covered by grey edges
+- **Highlighted edges render on top**: sorted to end of array so they're never covered by grey edges
 - **Show All button** now also calls `setShowFiles(true)` to restore file visibility
 - Dagre layout parameters adjusted for tighter spacing (network-simplex ranker, reduced ranksep)
 
@@ -185,7 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ImportProgress` component for large directory imports
 - Typed store hooks with shallow comparison selectors (`useGraphData`, `useLayoutConfig`, `useUiState`)
 - History operation types (`HistoryOp`) and `applyOp`/`undoOp` functions
-- `fsHandleStore` — separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
+- `fsHandleStore`: separate `Map<string, FileSystemHandle>` to keep live browser API objects out of serialized node data
 - `parentId` and `collapsed` fields on `FewerNodeData` for tree navigation
 
 ### Changed
@@ -194,9 +290,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rewrote `graphStore.ts` as a thin re-export wrapper for backward compatibility
 - `applySearch` now only recomputes when `searchQuery` changes, not on every mutation
 - GraphCanvas now uses `as OnNodesChange` cast for React Flow v12 compatibility
-- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full `nodes`/`edges` arrays — cuts history memory from O(50×n) to O(50×k) where k << n
-- **Memory optimization:** `FileSystemHandle` objects moved out of `FewerNodeData` into `fsHandleStore` — reduces per-node memory by removing heavy browser API objects from serialized data
-- **Memory optimization:** React Flow viewport culling enabled (`onlyRenderVisibleElements=true`) — previously all nodes were rendered regardless of viewport
+- **Memory optimization:** BulkImportOp now stores only the removed/added subtree instead of the full `nodes`/`edges` arrays: cuts history memory from O(50×n) to O(50×k) where k << n
+- **Memory optimization:** `FileSystemHandle` objects moved out of `FewerNodeData` into `fsHandleStore`: reduces per-node memory by removing heavy browser API objects from serialized data
+- **Memory optimization:** React Flow viewport culling enabled (`onlyRenderVisibleElements=true`): previously all nodes were rendered regardless of viewport
 
 ### Fixed
 
@@ -237,7 +333,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Breadcrumb navigation bar showing selected node's full path
-- Custom theme editor with 15 CSS color variables and live color pickers
+- Custom theme editor with 16 CSS color variables and live color pickers
 - Import from File dialog (JSON, ASCII tree, shell/batch scripts)
 - Search panel with fuzzy matching and click-to-zoom
 - Stats panel with file/folder counts, size, by-category breakdown

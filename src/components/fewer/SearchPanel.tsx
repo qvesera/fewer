@@ -109,7 +109,7 @@ export function SearchPanel() {
 
       {/* CLEAN OVERLAY PANEL: Placed below top center omnibar */}
       <div className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5 max-h-[calc(100vh-140px)] overflow-hidden">
-        {/* Search Input — only on mobile, desktop has search bar in navbar */}
+        {/* Search Input: only on mobile, desktop has search bar in navbar */}
         <div className="relative sm:hidden">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
           <input

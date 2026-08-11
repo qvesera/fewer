@@ -12,8 +12,8 @@ But if you want to run this locally, follow this quickstart guide.
 ```bash
 git clone https://github.com/qvesera/fewer.git
 cd fewer
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open `http://localhost:3000`.
@@ -22,7 +22,7 @@ Open `http://localhost:3000`.
 
 1. Click **Load sample project** in the welcome dialog
 2. Use **arrow keys** (↑↓←→) to navigate the tree
-3. **Right-click** any node for context menu
+3. **Right-click** (or **long-press** on touch) any node for context menu
 4. Press **Ctrl+I** to see all keyboard shortcuts
 5. Click **Export** to save the graph
 
@@ -30,16 +30,16 @@ Open `http://localhost:3000`.
 
 1. Click **Import from disk** (or **Alt+I**)
 2. Select a folder and the depth level
-3. The graph builds instantly ~
+3. The graph builds instantly
 
 ## Advanced Import Options
 
-If advanced user setting is enabled in Settings, you will see the below options in import dialog.
+If **Power User mode** is enabled in Settings, you will see the below options in the import dialog.
 
 | Option                  | Default | Description                             |
 | ----------------------- | ------- | --------------------------------------- |
 | Max Depth               | 6       | How many folder levels to import        |
-| Include Hidden Files    | Off     | Include `.git`, `node_modules`, etc.    |
+| Include Hidden Files    | Off     | Include dotfiles (`.gitignore`, `.env`, etc.) |
 | Include File Nodes      | On      | Show files or folders only              |
 | Extension Filter        | None    | Comma-separated whitelist               |
 | Auto-hide Large Folders | On      | Folders with >10 children hide children |
@@ -71,11 +71,16 @@ After import, you'll see:
 | **Space**                 | Fit view                               |
 | **+ / - / 0**             | Zoom in/out/reset                      |
 
+## Sign In (Optional)
+
+Fewer works fully without an account. If you'd like to save your directories to your account, access them across devices, and share them, click **Sign in** in the top navbar. See [Accounts & Saved Graphs](/docs/accounts) for details.
+
 ## What's Next
 
 - [Graph Features](/docs/graph-features)
 - [Import & Export](/docs/import-export)
 - [Sharing Graphs](/docs/sharing)
+- [Accounts & Saved Graphs](/docs/accounts)
 - [Keyboard Shortcuts](/docs/shortcuts)
 - [Theming](/docs/theming)
 - [Deployment & Self-Hosting](/docs/deployment)

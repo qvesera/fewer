@@ -243,15 +243,6 @@
   }
 }
 
-@keyframes gm-edge-flow {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -24;
-  }
-}
-
 /* Subtle entrance animation for nodes.
    ⚠ DO NOT animate `transform` on `.react-flow__node` — React Flow uses
    `transform: translate(x,y)` to position each node. Animating transform
@@ -331,7 +322,13 @@
 }
 
 .react-flow__edge.animated .react-flow__edge-path {
-  animation: gm-edge-flow 1.2s linear infinite;
+  /* Suppress @xyflow/react's built-in `dashdraw` animation (applied to
+     `.react-flow__edge.animated path`), which restarts on edge remount and,
+     with a non-5 dash pattern, jumps every loop. Driven instead by a single
+     rAF loop (dashClock.ts) writing --gm-dash-offset on <html>, so edge
+     (re)mounts pick up the current phase — no reset, no jerk. */
+  animation: none;
+  stroke-dashoffset: var(--gm-dash-offset, 0);
 }
 
 /* Selected / focused edges glow brighter + thicker */
@@ -341,10 +338,6 @@
   stroke: rgb(34, 211, 238) !important;
   stroke-width: 2.5px !important;
   filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
-}
-
-.react-flow__edge.selected.animated .react-flow__edge-path {
-  animation: gm-edge-flow 0.6s linear infinite;
 }
 
 /* ── Node Styling ──────────────────────────────────────────────────────────── */

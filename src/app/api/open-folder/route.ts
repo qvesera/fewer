@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
 import path from "path";
 import fs from "fs";
-
-const execAsync = promisify(exec);
+import { openInOs } from "@/lib/fewer/openInOs";
 
 export async function POST(request: Request) {
   try {
@@ -26,21 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Path does not exist: ${resolved}` }, { status: 404 });
     }
 
-    // Determine the OS-specific command to open the file manager
-    const platform = process.platform;
-    let cmd: string;
-    const escaped = `"${resolved}"`;
-
-    if (platform === "darwin") {
-      cmd = `open ${escaped}`;
-    } else if (platform === "win32") {
-      cmd = `explorer ${escaped.replace(/\//g, "\\")}`;
-    } else {
-      // Linux and others
-      cmd = `xdg-open ${escaped}`;
-    }
-
-    await execAsync(cmd, { timeout: 5000 });
+    await openInOs(resolved);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

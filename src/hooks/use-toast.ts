@@ -24,6 +24,8 @@ const actionTypes = {
   UPDATE_TOAST: "UPDATE_TOAST",
   DISMISS_TOAST: "DISMISS_TOAST",
   REMOVE_TOAST: "REMOVE_TOAST",
+  CLEAR_HISTORY: "CLEAR_HISTORY",
+  CLEAR_UNREAD: "CLEAR_UNREAD",
 } as const
 
 let count = 0
@@ -51,6 +53,12 @@ type Action =
   | {
     type: ActionType["REMOVE_TOAST"]
     toastId?: ToasterToast["id"]
+  }
+  | {
+    type: ActionType["CLEAR_HISTORY"]
+  }
+  | {
+    type: ActionType["CLEAR_UNREAD"]
   }
 
 interface State {

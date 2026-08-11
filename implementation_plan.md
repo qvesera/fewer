@@ -1,162 +1,200 @@
 # Implementation Plan
 
-[Overview]
-Overhaul the theme system so that the dark theme is visually cohesive, the custom theme is fully functional and correctly maps each labeled color to its responsible CSS variable, and every custom color supports a per-color opacity control.
+## [Overview]
 
-Currently the theme system has three modes (light, dark, custom) but the custom theme editor is half-baked: the `CustomTheme` type contains legacy fields (`nodeBg`, `nodeBorder`, `headerBg`, `headerText`, `icon`, `accent`) that are never consumed, while the UI labels in `CustomThemeEditor` are only loosely connected to the actual CSS variables used in `CustomNode.tsx` and `globals.css`. The result is that changing a color in the custom editor often does not affect the part of the UI the user expects. The dark theme also has poor contrast because it uses a near-black canvas with the same saturated orange/purple folder/file colors from the light theme. This plan redefines the color contract, fixes the variable wiring, adds per-color opacity, refreshes the dark palette, and ensures theme state is restored correctly after reload.
+Audit every user action in the app against the undo/redo system, then overhaul the history model so that every graph-mutating action is correctly undoable/redoable with dedicated operations. Today undo/redo only restores `nodes` and `edges`, and the `bulk-import` op is misused to record "removals for undo" even though its undo always removes its payload — so delete, cut, edge-delete, connect, and (catastrophically) node-drag are broken, while hide/show, collapse-all, resize, show-files, and max-depth have no history at all.
 
-[Types]
-Redefine `CustomTheme` so each color is a structured `{ color: hex, opacity: number }` instead of a plain CSS string, and keep the legacy fields only as a deprecated migration layer so existing saved states do not break. Dark-mode defaults should be chosen from the Open Color palette (https://github.com/yeun/open-color) for better contrast and saturation balance.
+## [Audit: every action vs. undo/redo]
+
+Legend: works · broken (pushes history but undo is wrong) · not undoable (no history push) · intentionally non-undoable (view/preference).
+
+### Structure mutations (nodes/edges)
+
+| Action | Entry points | Op pushed | Status |
+|---|---|---|---|
+| Add node / add standalone | AddNodeDialog, sidebar quick-add, Alt+N | add-node | undo removes the node |
+| Duplicate node/subtree | Ctrl+D, context menu | bulk-import (new nodes) | undo removes the copies |
+| Paste (copy or cut) | Ctrl+V, context menu | bulk-import (new nodes) | undo removes the pasted copies |
+| Rename node | F2, context menu, inline | rename | undo restores name + path |
+| Delete nodes (incl. subtree) | Delete, context menu, toolbar, removeNode/removeSelected | bulk-import (removed subtree) | undo removes already-removed nodes -> no-op; nothing restored |
+| Cut (move to clipboard) | Ctrl+X, context menu | bulk-import (removed subtree) | same as delete; original can't be restored |
+| Connect nodes (drag handle) | canvas drag, onConnect | bulk-import (new edge + path-changed nodes) | undo deletes the target child node |
+| Delete edge(s) | select + Delete, context menu | bulk-import (removed edges, nodes:[]) | undo removes already-removed edges; edge never restored |
+| Remove edges from a handle | context menu | bulk-import (removed edges, nodes:[]) | same as delete edge |
+| Drag node / multi-select drag | canvas drag -> commitHistory() | bulk-import (entire current graph) | undo deletes the whole graph |
+| Resize node | canvas resize handles -> handleNodesChange | none | not undoable |
+| Import graph (folder/file/URL/sample/library) | setGraph(..., pushHistory=false) | none | not undoable (replaces graph) |
+| Load saved graph / apply snapshot | applySnapshot -> setGraph(..., false) | none | not undoable (replaces graph) |
+| Clear canvas (reset) | sidebar confirm | (clears past/future) | not undoable (wipes history) |
+
+### Visibility mutations (hiddenIds / display)
+
+| Action | Entry points | Op pushed | Status |
+|---|---|---|---|
+| Hide node / hide subtree | H, context menu, hideNode/hideNodes | none | not undoable |
+| Hide selected | toolbar/shortcut hideSelected | none | not undoable |
+| Toggle hidden | hidden-panel tree toggleHidden | none | not undoable |
+| Show all nodes | Shift+H, sidebar, showAll | none | not undoable |
+| Show ancestors / subtree / reveal | hidden-panel showAncestors/showSubtree/revealSubtree/showNode | none | not undoable |
+| Toggle file visibility | sidebar/shortcut setShowFiles | none | not undoable |
+| Max display depth | sidebar setMaxDisplayDepth | none | not undoable |
+| Auto-hide large folders | import-time + setAutoHideThreshold | none | not undoable |
+| Collapse-one (toggle) | double-click folder | toggle-collapse | undo restores collapsed flag |
+| Collapse-all / expand-all | sidebar | none | not undoable |
+
+### Layout / style / theme (view preferences)
+
+| Action | Status |
+|---|---|
+| Layout direction, edge style/animated/stroke/width, corner radius, node dimensions (sidebar) | intentionally non-undoable |
+| Theme mode / custom theme / theme presets | intentionally non-undoable |
+| Search, selection, zoom, pan, fit-view, navigation | intentionally non-undoable |
+
+### Root cause
+
+historySlice.undo/redo restores only nodes and edges. Ops live in src/lib/fewer/types.ts / history.ts. The bulk-import op's undoOp always removes op.nodes/op.edges. That is correct only for "add-style" ops (import/duplicate/paste). It is incorrectly reused to record "remove-style" undo data:
+
+- deleteNodes, moveNode(cut) push the removed subtree as bulk-import -> undo tries to remove already-absent nodes -> no-op.
+- deleteEdges/removeEdgesFromHandle push removed edges as bulk-import -> undo no-op.
+- connectNodes pushes path-changed nodes as bulk-import -> undo removes the child node.
+- commitHistory (drag stop) pushes the full current graph as bulk-import -> undo removes everything.
+
+Meanwhile the dedicated ops that would restore state — remove-node (restores subtree on undo) and move-node (position) — are defined but never used. And no op touches hiddenIds, showFiles, maxDisplayDepth, autoHideThreshold, collapsed (batch), node style/measured (resize).
+
+## [Types]
+
+Add new op types and a small "view-state" sidecar to the history entry. All in src/lib/fewer/types.ts.
 
 ```ts
-// src/lib/fewer/types.ts
-export interface CustomThemeColor {
-  color: string;   // hex, e.g. #fd7e14
-  opacity: number; // 0..1
+// Common auxiliary graph state that some ops must restore.
+export interface ViewState {
+  hiddenIds: string[];
+  showFiles: boolean;
+  maxDisplayDepth: number;
+  autoHideThreshold: number;
 }
 
-export interface CustomTheme {
-  background: CustomThemeColor;
-  defaultText: CustomThemeColor;
-  subtleText: CustomThemeColor;
-  itemHover: CustomThemeColor;
-  handle: CustomThemeColor;
-  edge: CustomThemeColor;
-  // Folder colors
-  folderBg: CustomThemeColor;
-  folderBorder: CustomThemeColor;
-  folderHeaderBg: CustomThemeColor;
-  folderHeaderText: CustomThemeColor;
-  folderIcon: CustomThemeColor;
-  // File colors
-  fileBg: CustomThemeColor;
-  fileBorder: CustomThemeColor;
-  fileIcon: CustomThemeColor;
-  // Legacy fields retained for runtime migration from old plain-string schema
-  nodeBg?: string;
-  nodeBorder?: string;
-  headerBg?: string;
-  headerText?: string;
-  icon?: string;
-  accent?: string;
+// New op types
+export interface RemoveSubtreeOp {   // replaces bulk-import for deletes/cuts
+  type: "remove-subtree";
+  node: FewerNode;
+  edge: FewerEdge | null;
+  children: FewerNode[];
+  childEdges: FewerEdge[];
+}
+export interface ConnectOp {
+  type: "connect";
+  edge: FewerEdge;
+  changedNodeIds: string[];
+  prevPaths: { nodeId: string; path: string }[];
+}
+export interface RemoveEdgesOp {
+  type: "remove-edges";
+  edges: FewerEdge[];
+}
+export interface MovePositionsOp {
+  type: "move-positions";
+  moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[];
+}
+export interface ResizeOp {
+  type: "resize";
+  changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[];
+}
+export interface CollapseBatchOp {
+  type: "collapse-batch";
+  changes: { nodeId: string; wasCollapsed: boolean; willCollapse: boolean }[];
+}
+export interface ViewStateOp {
+  type: "view-state";
+  before: ViewState;
+  after: ViewState;
 }
 
-export type ThemeMode = "light" | "dark" | "custom";
-
-export interface ThemeColorMeta {
-  key: keyof Omit<CustomTheme, "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent">;
-  label: string;
-  cssVar: string;
-  description: string; // shown as a tooltip/label hint in the editor
-  defaultColor: string;
-  defaultOpacity: number;
-  /** Open Color palette used for this slot in the dark theme. */
-  openColor: { family: string; index: number };
-}
-
-export const THEME_COLOR_META: ThemeColorMeta[] = [
-  { key: "background", label: "Canvas Background", cssVar: "--fewer-background", description: "Graph canvas background", defaultColor: "#0b0b13", defaultOpacity: 1, openColor: { family: "black", index: 0 } },
-  { key: "defaultText", label: "Primary Text", cssVar: "--fewer-text", description: "Node titles and file names", defaultColor: "#f8f9fa", defaultOpacity: 1, openColor: { family: "gray", index: 0 } },
-  { key: "subtleText", label: "Secondary Text", cssVar: "--fewer-text-subtle", description: "Paths, sizes, and meta text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
-  { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
-  { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
-  { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
-  { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
-  { key: "folderBorder", label: "Folder Border", cssVar: "--fewer-folder-border", description: "Folder card outline", defaultColor: "#fd7e14", defaultOpacity: 0.45, openColor: { family: "orange", index: 6 } },
-  { key: "folderHeaderBg", label: "Folder Header", cssVar: "--fewer-folder-header-bg", description: "Folder title bar background", defaultColor: "#fd7e14", defaultOpacity: 0.25, openColor: { family: "orange", index: 6 } },
-  { key: "folderHeaderText", label: "Folder Header Text", cssVar: "--fewer-folder-header-text", description: "Folder title and footer text", defaultColor: "#ffd8a8", defaultOpacity: 1, openColor: { family: "orange", index: 3 } },
-  { key: "folderIcon", label: "Folder Icon", cssVar: "--fewer-folder-icon", description: "Folder/root icon color", defaultColor: "#ffa94d", defaultOpacity: 1, openColor: { family: "orange", index: 4 } },
-  { key: "fileBg", label: "File Body", cssVar: "--fewer-file-bg", description: "File card background", defaultColor: "#be4bdb", defaultOpacity: 0.18, openColor: { family: "grape", index: 6 } },
-  { key: "fileBorder", label: "File Border", cssVar: "--fewer-file-border", description: "File card outline", defaultColor: "#be4bdb", defaultOpacity: 0.45, openColor: { family: "grape", index: 6 } },
-  { key: "fileIcon", label: "File Icon", cssVar: "--fewer-file-icon", description: "File type icon color", defaultColor: "#e599f7", defaultOpacity: 1, openColor: { family: "grape", index: 4 } },
-];
-
-export const DEFAULT_CUSTOM_THEME: CustomTheme = Object.fromEntries(
-  THEME_COLOR_META.map((m) => [m.key, { color: m.defaultColor, opacity: m.defaultOpacity }])
-) as CustomTheme;
+export type HistoryOp =
+  | AddNodeOp
+  | RemoveNodeOp          // keep (unused) OR replace with RemoveSubtreeOp
+  | RenameOp
+  | MoveNodeOp            // keep (unused) OR replace with MovePositionsOp
+  | ToggleCollapseOp
+  | BulkImportOp          // keep for genuine imports/duplicate/paste
+  | RemoveSubtreeOp
+  | ConnectOp
+  | RemoveEdgesOp
+  | MovePositionsOp
+  | ResizeOp
+  | CollapseBatchOp
+  | ViewStateOp;
 ```
 
-Validation rules:
-- `color` must be a 7-character hex string (`#rrggbb`). Empty or malformed values fall back to the default for that key.
-- `opacity` is clamped to `[0, 1]`.
-- The legacy fields are ignored at runtime but kept in the interface for one migration cycle.
+Every new op carries a before/after view-state sidecar so undo/redo can restore hiddenIds/showFiles/maxDisplayDepth/autoHideThreshold even when nodes/edges are the primary change. Existing ops that mutate visibility indirectly (delete, connect, collapse) also carry the sidecar.
 
-Open Color integration: the default custom/dark theme values above are sourced from Open Color (gray, orange, grape). A small static map (`OPEN_COLOR`) can be embedded in `themeColors.ts` so the editor can offer preset swatches per color slot without adding a network dependency.
+## [Files]
 
-[Files]
-Modify the type system, store, editor, node rendering, and global styles; add a small utility module for color conversion; and update the theme init script so it re-applies custom theme variables after reload.
+- src/lib/fewer/types.ts — add the new op interfaces above; extend the HistoryOp union; add the ViewState interface.
+- src/lib/fewer/history.ts — add applyOp/undoOp cases for every new op type; extend bulk-import undo to prune restored node ids from hiddenIds; add applyViewState/undoViewState helpers that apply ViewState diffs.
+- src/store/slices/historySlice.ts — undo/redo must also restore hiddenIds, showFiles, maxDisplayDepth, autoHideThreshold in addition to nodes/edges; read the op sidecars and apply them; call relayout() after ops that change positions/collapse/dimensions.
+- src/store/createStore.ts — fix commitHistory (drag) to push a MovePositionsOp instead of a full-graph bulk-import; fix applyEdgeChanges to push RemoveEdgesOp; route the legacy applyNodeChanges/applyEdgeChanges paths through the correct ops or remove them.
+- src/store/slices/graphSlice.ts — change deleteNodes/moveNode(cut) to push RemoveSubtreeOp; connectNodes to push ConnectOp; deleteEdges/removeEdgesFromHandle to push RemoveEdgesOp; keep BulkImportOp for duplicateNodeUnderParent/pasteFromClipboard (correct) but add the view-state sidecar; collapseAll/expandAll to push CollapseBatchOp; toggleCollapse keeps ToggleCollapseOp.
+- src/store/slices/uiSlice.ts — add history pushes to hideSelected, toggleHidden, setShowFiles; route showAll/showNode/showAncestors/showSubtree/revealSubtree through a shared pushViewStateOp(before, after) helper.
+- src/store/slices/graphSlice.ts — add history pushes to hideNode/hideNodes, setMaxDisplayDepth, setAutoHideThreshold via the same ViewStateOp helper.
+- src/components/fewer/GraphCanvas.tsx — replace commitHistory on onNodeDragStop/onSelectionDragStop with a move-positions push recording before/after positions for all dragged nodes (capture positions on onNodeDragStart, diff on stop); add onNodeResizeStart/onNodeResizeStop to push a ResizeOp capturing before/after dimensions.
+- src/components/fewer/KeyboardShortcuts.tsx — no logic change; ensure Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y still call undo/redo.
+- src/components/fewer/Toolbar.tsx — unchanged enabled/disabled logic (past/future lengths); verify buttons still bind to undo/redo.
+- New test file src/lib/fewer/history.test.ts (project uses bun test).
 
-New files:
-- `src/lib/fewer/themeColors.ts` — helper functions: `toCssColor(color, opacity)`, `hexToRgb(hex)`, `migrateCustomTheme(theme)`, `clampOpacity(n)`.
+## [Functions]
 
-Existing files to modify:
-- `src/lib/fewer/types.ts` — redefine `CustomTheme`, `THEME_COLOR_META`, and `DEFAULT_CUSTOM_THEME` as described above.
-- `src/store/slices/themeSlice.ts` — change the slice state to use the new `CustomThemeColor` shape; import `toCssColor` and `migrateCustomTheme` from `themeColors.ts`; apply CSS variables using the helper; add localStorage persistence for `customTheme` under a new key `fewer-custom-theme`; on load, migrate any legacy plain-string values.
-- `src/app/layout.tsx` — update the inline `theme-init` script: after reading `fewer-theme`, if the mode is `custom`, read `fewer-custom-theme` and apply the variables before first paint to avoid FOUC. The script should also keep the `.dark`/`.light` class logic for light and dark modes.
-- `src/components/fewer/CustomThemeEditor.tsx` — rewrite the color picker to show a hex input, native color picker, and an opacity slider per row; render a live preview square that reflects the final `rgba` output; group rows by purpose (Canvas, Text, Folder, File) with small section labels.
-- `src/components/fewer/CustomNode.tsx` — fix the wiring so node text uses `--fewer-text`, node meta text uses `--fewer-text-subtle`, child row hover uses `--fewer-item-hover`, folder header uses `--fewer-folder-header-bg`, etc. Remove any hard-coded `text-foreground`/`text-muted-foreground` usage that should be theme-driven.
-- `src/app/globals.css` — update the dark mode palette (`:root` is already light; `.dark` is the target) to lower saturation and improve contrast. Keep the same CSS variable names but change the default values inside `.dark` and add a few extra utility variables used only for the selected-node glow so they can be themed later (e.g. `--fewer-selection-glow`). Keep light-mode defaults untouched.
-- `src/components/fewer/ThemeProvider.tsx` — on mount, re-apply the stored custom theme if `themeMode` is `custom`; ensure it reads `fewer-custom-theme` from localStorage and calls the same injection helper as the slice.
-- `src/components/fewer/SettingsDialog.tsx` — no structural change, but verify that the theme buttons still trigger `setThemeMode` and that the custom editor is rendered only in `custom` mode.
-- `src/components/fewer/GraphCanvas.tsx` — update the `nodeColor` and `nodeStrokeColor` callbacks used by the minimap so they derive from the current CSS variables (using `getComputedStyle` or theme state) instead of hard-coded `rgba(249, 115, 22, 0.7)` / `rgba(168, 85, 247, 0.7)`. Also update the default edge stroke and the background dot color to respect the active theme.
-- `src/lib/fewer/share.ts` — optionally include `customTheme` in `ShareData` and encode/decode it so shared links preserve custom palettes. This is safe because the rest of the graph payload already includes the theme mode.
+New (in src/lib/fewer/history.ts):
+- applyViewState(nodes, edges, view) / undoViewState(...) — apply/restore hiddenIds/showFiles/maxDisplayDepth/autoHideThreshold.
+- applyOp/undoOp cases for remove-subtree, connect, remove-edges, move-positions, resize, collapse-batch, view-state.
+- captureViewState(state) — returns current ViewState from the store (used to fill before/after sidecars).
 
-Files to delete or move:
-- None. The legacy fields stay in the type for migration.
+Modified:
+- historySlice.undo / historySlice.redo — restore nodes+edges AND the op's view-state sidecar; call relayout() after ops that change positions/collapse/dimensions.
+- graphSlice.deleteNodes — push RemoveSubtreeOp (node, edge, children, childEdges) instead of bulk-import; prune restored ids from hiddenIds on undo.
+- graphSlice.moveNode (cut) — push RemoveSubtreeOp; the paste step already pushes bulk-import, so cut+paste composes into two undoable steps.
+- graphSlice.connectNodes — push ConnectOp (edge + prevPaths); undo removes edge and restores paths (no node deletion).
+- graphSlice.deleteEdges / removeEdgesFromHandle — push RemoveEdgesOp; undo re-adds edges.
+- graphSlice.collapseAll / expandAll — push CollapseBatchOp.
+- graphSlice.hideNode / hideNodes, uiSlice.setShowFiles, setMaxDisplayDepth, setAutoHideThreshold — push ViewStateOp capturing before/after.
+- createStore.commitHistory — repurpose to push a MovePositionsOp (supplied by GraphCanvas) or remove it; no longer pushes full-graph bulk-import.
 
-[Functions]
-Add utility functions and modify store/theme-related functions to work with the new color shape.
+Removed:
+- The broken bulk-import-as-removal usages in deleteNodes, connectNodes, deleteEdges, removeEdgesFromHandle, commitHistory, and applyEdgeChanges. BulkImportOp remains only for genuine adds (duplicate/paste) and gains a view-state sidecar.
 
-New functions (in `src/lib/fewer/themeColors.ts`):
-- `hexToRgb(hex: string): { r: number; g: number; b: number } | null` — parses `#rrggbb`.
-- `toCssColor(color: string, opacity: number): string` — returns hex if opacity is 1, otherwise `rgba(r, g, b, opacity)`. Falls back to the default color for the key if the hex is invalid (this overload is not used; invalid input is handled by callers).
-- `clampOpacity(opacity: number): number` — clamps to `[0, 1]` with two decimal precision.
-- `migrateCustomTheme(input: unknown): CustomTheme` — takes a possibly legacy custom theme object and returns a valid `CustomTheme` where every key is a `CustomThemeColor`; fills missing/legacy values from `DEFAULT_CUSTOM_THEME`.
+## [Classes]
 
-Modified functions:
-- `createThemeSlice.setThemeMode` in `src/store/slices/themeSlice.ts` — persist `fewer-custom-theme` when switching to custom; read it when initializing; always call the DOM injection helper so the transition is immediate.
-- `createThemeSlice.setCustomTheme` in `src/store/slices/themeSlice.ts` — accept `Partial<CustomTheme>` (with color/opacity shapes) and persist the result to `localStorage` after applying.
-- `createThemeSlice.resetCustomTheme` in `src/store/slices/themeSlice.ts` — reset to `DEFAULT_CUSTOM_THEME` and persist.
-- `applyCustomThemeToDOM` in `src/store/slices/themeSlice.ts` — change signature to `applyCustomThemeToDOM(theme: CustomTheme)` and iterate over `THEME_COLOR_META` using `toCssColor(theme[meta.key].color, theme[meta.key].opacity)`.
-- `clearCustomThemeFromDOM` in `src/store/slices/themeSlice.ts` — unchanged behavior, but ensure it is only called when leaving custom mode.
-- `ThemeProvider` useEffect in `src/components/fewer/ThemeProvider.tsx` — re-apply stored custom theme after reading `fewer-theme`; if `stored === "custom"`, call the DOM injection helper (or import the same logic from `themeColors.ts`) instead of just toggling `.dark`.
-- `ColorPicker` component in `src/components/fewer/CustomThemeEditor.tsx` — accept `value: CustomThemeColor`, emit `onChange({ color, opacity })`, add an opacity slider, and render the computed color in the preview square.
-- `CustomNodeImpl` rendering in `src/components/fewer/CustomNode.tsx` — replace hard-coded `text-foreground`/`text-muted-foreground` with `text-fewer-text`/`text-fewer-text-subtle` where appropriate; ensure the folder header background, border, and icon use the `fewer-folder-*` variables; ensure file card uses `fewer-file-*` variables.
-- `CanvasInner` in `src/components/fewer/GraphCanvas.tsx` — read `--fewer-edge`, `--fewer-folder-bg`, `--fewer-file-bg`, and background dot color from `getComputedStyle(document.documentElement)` when theme changes, so the minimap and edges follow the custom theme without hard-coded colors.
+No class changes.
 
-Removed functions:
-- None.
+## [Dependencies]
 
-[Classes]
-No class changes; this is a functional theme refactor, not a class-level refactor.
+None. Pure TypeScript refactor of existing store/history utilities.
 
-[Dependencies]
-Add `open-color` as a runtime dependency to provide the official color palette JSON instead of embedding it manually. The refactor also uses the browser's native `<input type="color">`, `getComputedStyle`, and existing project utilities. No UI component libraries are added.
+## [Testing]
 
-- `package.json`: add `"open-color": "^1.9.1"` to `dependencies`.
-- `src/lib/fewer/themeColors.ts`: import `open-color.json` and build the `OPEN_COLOR` map from it; use the same map for default values and editor swatches.
-
-[Testing]
-Add a small Node test file for the color helper and perform manual visual QA for the three themes.
-
-- `src/lib/fewer/themeColors.test.ts` (or `__tests__/themeColors.test.ts` if the project prefers that layout) — tests for `hexToRgb`, `toCssColor`, `clampOpacity`, and `migrateCustomTheme`. Use Node's built-in `node:test` runner so no extra test framework is required. If the project already has a test runner, conform to that instead; if not, add `npm test` to `package.json` that runs `node --test src/lib/fewer/themeColors.test.ts`.
+- src/lib/fewer/history.test.ts (bun test): unit tests for applyOp/undoOp round-trips on each new op type — remove-subtree, connect, remove-edges, move-positions, resize, collapse-batch, view-state — asserting symmetric undo/redo and that hiddenIds/showFiles/maxDisplayDepth are restored.
 - Manual QA checklist:
-  1. Start the app with `npm run dev`.
-  2. Load the sample tree and switch between light, dark, and custom themes in Settings → Appearance.
-  3. In custom mode, change each color + opacity and confirm the preview square and the canvas update immediately and correctly.
-  4. Verify that "Folder Body" changes the folder card background, "Folder Header" changes only the title bar, "File Body" changes file cards, "Primary Text" changes labels, and "Secondary Text" changes paths/sizes.
-  5. Reload the page and confirm the custom theme is restored without a flash of the wrong palette.
-  6. Run `npm run lint` and `npm run build` and fix any errors.
+  1. Add node -> undo removes, redo restores.
+  2. Rename -> undo restores name; redo re-applies.
+  3. Delete a folder -> undo restores folder + children + edges; redo re-deletes.
+  4. Drag a single node and a multi-selection -> Ctrl+Z returns nodes to original positions (graph intact), Ctrl+Shift+Z re-applies drag.
+  5. Connect A->B -> undo removes edge and restores B's path (B still exists); redo re-connects.
+  6. Delete an edge -> undo restores it.
+  7. Cut + paste -> undo once removes the pasted copy; undo again restores the original subtree.
+  8. Hide a subtree -> undo reveals; redo re-hides. Show-all -> undo restores prior hidden set.
+  9. Toggle file visibility / max display depth -> undo/redo restore both the flag and the hidden set.
+  10. Collapse-all -> undo restores each folder's prior collapsed state; redo re-collapses.
+  11. Resize a folder -> undo restores prior dimensions; redo re-applies.
+  12. Confirm canUndo/canRedo and toolbar buttons reflect the new history correctly.
+  13. Run bun run lint and bun run build; no errors.
 
-[Implementation Order]
-1. Create `src/lib/fewer/themeColors.ts` with helper functions and `migrateCustomTheme`.
-2. Update `src/lib/fewer/types.ts` with the new `CustomTheme`/`ThemeColorMeta` shapes and `DEFAULT_CUSTOM_THEME`.
-3. Update `src/store/slices/themeSlice.ts` to use the new shape, persist/load custom theme, and apply variables via `toCssColor`.
-4. Update `src/components/fewer/ThemeProvider.tsx` and `src/app/layout.tsx` to re-apply the stored custom theme on hydration without FOUC.
-5. Update `src/components/fewer/CustomThemeEditor.tsx` with per-color opacity and a corrected preview.
-6. Update `src/components/fewer/CustomNode.tsx` to use the theme variables consistently.
-7. Update `src/app/globals.css` dark-mode defaults for better contrast.
-8. Update `src/components/fewer/GraphCanvas.tsx` to read dynamic theme colors for edges and minimap.
-9. Optionally update `src/lib/fewer/share.ts` to include `customTheme` in share payloads.
-10. Add `src/lib/fewer/themeColors.test.ts` and run the test + lint + build.
-11. Update `CHANGELOG.md` and commit.
+## [Implementation Order]
+
+1. Add new op types + ViewState to src/lib/fewer/types.ts.
+2. Implement applyOp/undoOp + applyViewState/undoViewState for all new ops in src/lib/fewer/history.ts.
+3. Extend historySlice.undo/redo to restore view-state and call relayout().
+4. Convert graphSlice mutations (deleteNodes, moveNode, connectNodes, deleteEdges, removeEdgesFromHandle, collapseAll, expandAll, hideNode, hideNodes, setMaxDisplayDepth, setAutoHideThreshold) to the new ops.
+5. Convert uiSlice visibility actions (hideSelected, toggleHidden, setShowFiles, showAll, showNode, showAncestors, showSubtree, revealSubtree) to ViewStateOps.
+6. Fix createStore.commitHistory/applyEdgeChanges and GraphCanvas drag/resize wiring (onNodeDragStart/onNodeDragStop -> MovePositionsOp; onNodeResizeStart/onNodeResizeStop -> ResizeOp).
+7. Add src/lib/fewer/history.test.ts; run bun test, bun run lint, bun run build.
+8. Update CHANGELOG.md, bump package.json version, commit, push.
