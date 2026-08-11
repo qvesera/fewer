@@ -67,3 +67,10 @@ implementation_plan.md
 # supabase local cli state
 supabase/.temp/
 IMPORT_REWRITE_PROGRESS.md
+
+# Playwright + E2E
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+

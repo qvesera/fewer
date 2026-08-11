@@ -173,7 +173,7 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
 /** Default custom theme (Open Color gray + orange + grape palette) */
 export const DEFAULT_CUSTOM_THEME: CustomTheme = Object.fromEntries(
   THEME_COLOR_META.map((m) => [m.key, { color: m.defaultColor, opacity: m.defaultOpacity }]),
-) as CustomTheme;
+) as unknown as CustomTheme;
 
 /**
  * Operation-based history: each undo/redo step stores a diff instead of

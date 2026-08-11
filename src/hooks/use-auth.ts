@@ -15,7 +15,18 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    const supabase = getBrowserSupabase();
+
+    let supabase: ReturnType<typeof getBrowserSupabase>;
+    try {
+      supabase = getBrowserSupabase();
+    } catch {
+      // Supabase not configured (env vars missing) — the app must still load.
+      // Stay signed out; cloud/cloud-save features are simply unavailable.
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
