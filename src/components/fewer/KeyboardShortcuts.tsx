@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { useAuth } from "@/hooks/use-auth";
 import { useReactFlow, type Connection } from "@xyflow/react";
 import { navigate } from "@/lib/fewer/navigation";
 import { openNodeFile } from "@/lib/fewer/fileOps";
@@ -34,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
  * Alt+F          - zoom to selection
  * Alt+I          - open import dialog (folder / file / URL / cloud)
  * Alt+O          - open in file explorer
+ * Alt+S          - save current graph (logged-in users only)
  */
 export function KeyboardShortcuts() {
   const undo = useGraphStore((s) => s.undo);
@@ -68,6 +70,7 @@ export function KeyboardShortcuts() {
   const removeEdgesFromHandle = useGraphStore((s) => s.removeEdgesFromHandle);
   const deleteEdges = useGraphStore((s) => s.deleteEdges);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const reactFlow = useReactFlow();
 
@@ -174,6 +177,18 @@ export function KeyboardShortcuts() {
             });
           }
         }
+        return;
+      }
+
+      // Alt+S - save current graph (logged-in users only). Opens the auth
+      // dialog when signed out; otherwise triggers the save dialog.
+      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "s" && !inEditable) {
+        e.preventDefault();
+        if (!user) {
+          useGraphStore.getState().setAuthOpen(true);
+          return;
+        }
+        window.dispatchEvent(new CustomEvent("fewer-save-graph"));
         return;
       }
 
@@ -528,6 +543,7 @@ export function KeyboardShortcuts() {
     deleteEdges,
     reactFlow,
     toast,
+    user,
   ]);
 
   return null;

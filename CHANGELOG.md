@@ -16,7 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pin saved graphs**: star a saved graph to float it to the top of "Your Directories". Optimistic toggle via new `PATCH /api/graphs/[id]`; the list sorts favorites first. Migration `0014_saved_graphs_favorite.sql`.
 - **Shared badge in the saved list**: each saved graph shows a globe (anyone with link) or mail (invite-only) badge when it has an active share, so share status is visible without opening the dialog. `GET /api/graphs` now returns per-graph share info.
 - **Privacy Policy & Terms of Use**: new legal pages at `/docs/privacy` and `/docs/terms` (rendered from `content/docs/privacy.md` and `content/docs/terms.md`), a "Legal" section in the docs sidebar, and a site footer with Privacy/Terms links added to `DocsLayout`. The `MarkdownRenderer` now supports blockquote rendering and skips HTML comments (used for operator-only "get legal review" notes that stay out of the user-facing page).
-
+- **Empty-canvas quick actions**: the "No directory loaded" state now offers **Import** and **Load sample** buttons, so a first-time visitor can get started from the canvas itself instead of finding the sidebar. Added `onOpenImport`/`onLoadSample` props to `GraphCanvas` (wired from `FewerApp`).
+- **Alt+S to save the current graph**: pressing **Alt+S** saves the graph — it opens the same save dialog as the (now "Save Graph") sidebar button when signed in, and prompts sign-in when signed out. `KeyboardShortcuts` dispatches a `fewer-save-graph` window event that `SavedGraphsPanel` listens for.
+- **Clear canvas from the canvas context menu**: right-clicking empty space now offers **Clear Canvas** to wipe all nodes/edges at once (mirrors the existing "Clear canvas" shortcut).
+- **Platform-aware shortcut labels**: the navbar search hint and the shortcuts dialog now show Mac-native modifiers (**⌘ / ⌥**) on Mac/iOS and **Ctrl/Alt** elsewhere, and the four navigation arrows render as consistent lucide icons instead of raw mono glyphs. New `src/lib/fewer/platform.ts` (`isMac()`).
 
 ### Changed
 
@@ -33,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **URL and Cloud import origins are sign-in gated**: the unified import flow's origin picker shows Folder and File to signed-out users; URL and Cloud origins appear only for signed-in users (they depend on a linked/authenticated account).
 - **Removed the options summary from the import flow's step 2**: the shared options panel no longer includes the collapsible "Summary" block — the step-3 confirmation screen already shows the chosen options compactly.
 - **Power user options are now sign-in gated**: advanced features (advanced import options, extra export formats, advanced layouts, node/edge tools, analytics) are available only to signed-in users. The "Power User Mode" toggle is removed — the flag now tracks auth state, so it's on for signed-in users and off for everyone else. `advancedModeEnabled` is no longer persisted in saved-graph snapshots.
+- **SSR-safe default layout direction**: the store now initializes layout direction to the isomorphic **TB** (no `window` read during render, matching the SSR/headless default), and the Sidebar applies the responsive **LR** default once on the client for screens smaller than 1.5k — skipping when a graph is already loaded (e.g. a shared URL) so a load's own saved direction is never clobbered. Fixes a potential SSR/client hydration mismatch in the previous `defaultDirection()`-during-store-creation approach; `defaultDirection` is now exported from `layoutSlice`.
+- **Tutorial dialog unified**: the separate desktop flat-checklist layout is removed; the tutorial is now the same **step-through wizard** on all screen sizes with a consistent live progress count.
+- **Drop duplicate legal page H1s**: removed the `# Privacy Policy` / `# Terms of Use` headings inside `content/docs/privacy.md` / `terms.md` (the docs layout already titles each page, so they appeared twice). Getting-started now notes that the context menu also opens via **long-press** on touch.
 
 ### Removed
 

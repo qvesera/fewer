@@ -2,7 +2,24 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useGraphStore } from "@/store/graphStore";
-import { Keyboard } from "lucide-react";
+import {
+  Keyboard,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  type LucideIcon,
+} from "lucide-react";
+import { isMac } from "@/lib/fewer/platform";
+
+// Render the four navigation arrows with lucide icons so they all draw with
+// the same stroke/weight. Raw ←→ glyphs can render thinner than ↑↓ in mono.
+const ARROW_ICONS: Record<string, LucideIcon> = {
+  "↑": ArrowUp,
+  "↓": ArrowDown,
+  "←": ArrowLeft,
+  "→": ArrowRight,
+};
 
 interface Shortcut {
   keys: string[];
@@ -42,6 +59,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Alt", "Shift", "N"], action: "Clear canvas" },
       { keys: ["Alt", "P"], action: "Parent selected nodes" },
       { keys: ["Alt", "Shift", "P"], action: "Unparent selected nodes" },
+      { keys: ["Alt", "S"], action: "Save current graph (signed in)" },
     ],
   },
   {
@@ -72,17 +90,58 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   },
 ];
 
+// Platform check: Mac/iOS report ⌘ and ⌥ (Option); everyone else uses Ctrl and Alt.
 function Key({ kbd }: { kbd: string }) {
+  // A keycap may hold one or more arrow glyphs (e.g. the combined ↑↓←→),
+  // which are rendered as lucide icons for consistent weight/size.
+  const parts = kbd.split("");
+  const usesIcons = parts.some((c) => ARROW_ICONS[c]);
   return (
     <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] sm:text-[11px] font-semibold text-muted-foreground shadow-sm">
-      {kbd}
+      {usesIcons ? (
+        <span className="flex items-center gap-0.5">
+          {parts.map((c, i) => {
+            const Icon = ARROW_ICONS[c];
+            return Icon ? (
+              <Icon key={i} className="h-3 w-3" />
+            ) : (
+              <span key={i}>{c}</span>
+            );
+          })}
+        </span>
+      ) : (
+        kbd
+      )}
     </kbd>
   );
 }
 
 function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
   const { keys, action } = shortcut;
-  const hasMod = keys.includes("⌘");
+  // Pick the platform-native modifier label: ⌘/Ctrl for command, ⌥/Alt for option.
+  const isCmd = keys.includes("⌘");
+  const isAlt = !isCmd && keys[0] === "Alt";
+  const mod = isCmd
+    ? isMac()
+      ? "⌘"
+      : "Ctrl"
+    : isAlt
+      ? isMac()
+        ? "⌥"
+        : "Alt"
+      : null;
+  // The keys array carries the interchangeable modifier names (e.g. "⌘" and
+  // "Ctrl", or "Alt"). Only intermediate keys that are real extras (Shift)
+  // belong between the mod label and the final key — render just those.
+  const extraKeys = keys.filter(
+    (k) =>
+      k !== mod &&
+      k !== "⌘" &&
+      k !== "Ctrl" &&
+      k !== "Alt" &&
+      k !== "⌥" &&
+      k !== keys[keys.length - 1], // last key rendered separately
+  );
 
   return (
     <div className="flex items-start sm:items-center justify-between gap-4 py-2 px-1 rounded-sm transition-colors hover:bg-muted/50">
@@ -90,11 +149,15 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
         {action}
       </span>
       <div className="flex shrink-0 items-center gap-1 mt-0.5 sm:mt-0">
-        {hasMod ? (
+        {mod ? (
           <>
-            <Key kbd="⌘" />
-            <span className="text-[10px] font-medium text-muted-foreground/40">or</span>
-            <Key kbd="Ctrl" />
+            <Key kbd={mod} />
+            {extraKeys.map((k, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <span className="text-[10px] font-medium text-muted-foreground/40">+</span>
+                <Key kbd={k} />
+              </div>
+            ))}
             <span className="text-[10px] font-medium text-muted-foreground/40">+</span>
             <Key kbd={keys[keys.length - 1]} />
           </>

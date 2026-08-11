@@ -21,7 +21,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { useGraphStore } from "@/store/graphStore";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
@@ -98,7 +98,12 @@ interface CanvasMenuPosition {
   y: number;
 }
 
-function CanvasInner() {
+interface CanvasEmptyActionsProps {
+  onOpenImport: () => void;
+  onLoadSample: () => void;
+}
+
+function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -488,6 +493,16 @@ function CanvasInner() {
               <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">No directory loaded</div>
               <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">Use the sidebar to open a directory from your file system, or load one of the sample datasets to explore the visualization.</div>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <Button onClick={onOpenImport} data-tutorial="sample-button">
+                  <FolderOpen className="h-4 w-4" />
+                  Import
+                </Button>
+                <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Load sample
+                </Button>
+              </div>
             </div>
           </Panel>
         )}
@@ -549,6 +564,8 @@ function CanvasInner() {
                 <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } setCanvasMenu(null); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
               </>
             )}
+            <div className="my-1 h-px bg-border/40" />
+            <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); setCanvasMenu(null); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
           </div>
         </>
       )}
@@ -557,10 +574,15 @@ function CanvasInner() {
   );
 }
 
-export function GraphCanvas() {
+interface GraphCanvasProps {
+  onOpenImport: () => void;
+  onLoadSample: () => void;
+}
+
+export function GraphCanvas({ onOpenImport, onLoadSample }: GraphCanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
     </ReactFlowProvider>
   );
 }

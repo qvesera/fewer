@@ -21,6 +21,7 @@ const baseView: ViewState = {
   showFiles: true,
   maxDisplayDepth: 6,
   autoHideThreshold: 10,
+  autoHiddenIds: [],
 };
 
 function expectRoundTrip(nodes: FewerNode[], edges: FewerEdge[], op: Parameters<typeof applyOps>[2][number]) {

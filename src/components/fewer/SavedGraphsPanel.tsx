@@ -103,6 +103,22 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     }
   };
 
+  const openSaveDialog = () => {
+    if (!user) return onRequireAuth();
+    if (nodes.length === 0) {
+      toast({ title: "Nothing to save", description: "Add nodes to your canvas first." });
+      return;
+    }
+    setSavingOpen(true);
+  };
+
+  // Alt+S (KeyboardShortcuts) opens the same save dialog as the button.
+  useEffect(() => {
+    const trigger = () => openSaveDialog();
+    window.addEventListener("fewer-save-graph", trigger);
+    return () => window.removeEventListener("fewer-save-graph", trigger);
+  }, [user, nodes.length, onRequireAuth, toast]);
+
   const handleLoad = (graph: SavedGraph) => {
     try {
       applySnapshot(graph.data);
@@ -183,17 +199,10 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       {/* Save button */}
       <Button
         className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 h-10"
-        onClick={() => {
-          if (!user) return onRequireAuth();
-          if (nodes.length === 0) {
-            toast({ title: "Nothing to save", description: "Add nodes to your canvas first." });
-            return;
-          }
-          setSavingOpen(true);
-        }}
+        onClick={openSaveDialog}
       >
         <Save className="h-4 w-4 shrink-0" />
-        Save Current Graph
+        Save Graph
       </Button>
 
       {/* List */}

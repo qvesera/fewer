@@ -22,7 +22,7 @@ Open `http://localhost:3000`.
 
 1. Click **Load sample project** in the welcome dialog
 2. Use **arrow keys** (↑↓←→) to navigate the tree
-3. **Right-click** any node for context menu
+3. **Right-click** (or **long-press** on touch) any node for context menu
 4. Press **Ctrl+I** to see all keyboard shortcuts
 5. Click **Export** to save the graph
 

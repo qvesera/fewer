@@ -28,6 +28,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import { defaultDirection } from "@/store/slices/layoutSlice";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -388,6 +389,18 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       setDirection("TB");
     }
   }, [advancedModeEnabled, direction, setDirection]);
+
+  // On first client mount, apply the responsive default layout direction
+  // (LR on screens <1.5k, TB otherwise). The store starts as "TB" for an
+  // isomorphic SSR/hydration match, so this picks the right orientation here.
+  // Skip when a graph is already loaded (e.g. a shared URL) so a load's own
+  // direction is never clobbered.
+  useEffect(() => {
+    const def = defaultDirection();
+    if (def !== "TB" && useGraphStore.getState().nodes.length === 0) {
+      setDirection(def);
+    }
+  }, []);
 
   const availableEdgeStyles = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },

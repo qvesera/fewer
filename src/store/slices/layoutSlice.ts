@@ -29,12 +29,14 @@ export type LayoutSliceCreator = StateCreator<
 >;
 
 /**
- * Default layout direction: LR on screens smaller than 1.5k (2560×1440) so the
- * wide LR layout better fits the available horizontal space, TB otherwise.
- * Returns TB when there is no window (SSR/build), and can be overridden by
- * saved graphs / the sidebar control.
+ * Responsive default layout direction: LR on screens smaller than 1.5k
+ * (2560×1440) so the wide LR layout better fits the available horizontal
+ * space, TB otherwise. Returns TB when there is no window (SSR/build).
+ * The store initializes to the isomorphic "TB" to avoid an SSR/client
+ * hydration mismatch; the Sidebar applies this responsive default once on
+ * the client (see Sidebar). Saved graphs / the sidebar control can override.
  */
-function defaultDirection(): LayoutDirection {
+export function defaultDirection(): LayoutDirection {
   if (typeof window !== "undefined") {
     const { width, height } = window.screen;
     if (width > 0 && height > 0 && (width < 2560 || height < 1440)) return "LR";
@@ -43,7 +45,9 @@ function defaultDirection(): LayoutDirection {
 }
 
 export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
-  direction: defaultDirection(),
+  // Isomorphic default — the responsive LR default is applied client-side in
+  // the Sidebar so SSR and hydration render the same initial state.
+  direction: "TB",
   edgeStyle: "angled",
   edgeAnimated: false,
   edgeStrokeStyle: "solid",

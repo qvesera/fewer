@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { isMac } from "@/lib/fewer/platform";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,7 +75,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           }}
         />
         <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center rounded bg-muted-foreground/10 border border-border/40 px-1.5 font-mono text-[9px] text-muted-foreground pointer-events-none">
-          ⌘F
+          {isMac() ? "⌘F" : "Ctrl F"}
         </kbd>
       </div>
       
