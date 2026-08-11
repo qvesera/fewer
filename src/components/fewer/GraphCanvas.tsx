@@ -19,8 +19,9 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
+import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { useGraphStore } from "@/store/graphStore";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
@@ -97,7 +98,12 @@ interface CanvasMenuPosition {
   y: number;
 }
 
-function CanvasInner() {
+interface CanvasEmptyActionsProps {
+  onOpenImport: () => void;
+  onLoadSample: () => void;
+}
+
+function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -109,7 +115,8 @@ function CanvasInner() {
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const commitHistory = useGraphStore((s) => s.commitHistory);
+  const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
+  const recordResize = useGraphStore((s) => s.recordResize);
   const connectNodes = useGraphStore((s) => s.connectNodes);
   const loading = useGraphStore((s) => s.loading);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
@@ -172,10 +179,22 @@ function CanvasInner() {
     }
   }, [graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges]);
 
+  // Run the shared edge-dash clock only while animated edges are enabled.
+  // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
+  // inherit the current phase instead of restarting a CSS animation.
+  useEffect(() => {
+    if (!edgeAnimated) return;
+    startDashClock();
+    return stopDashClock;
+  }, [edgeAnimated]);
+
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
   const relayout = useGraphStore((s) => s.relayout);
   const hasMeasuredRef = useRef(false);
+  const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
+  const resizeTimerRef = useRef<number | null>(null);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
 
@@ -201,17 +220,6 @@ function CanvasInner() {
       return () => clearTimeout(t);
     }
   }, [zoomToNodeIds]);
-
-  const didInitialFit = useRef(false);
-  useEffect(() => {
-    if (rfNodes.length === 0) return;
-    if (!didInitialFit.current) { didInitialFit.current = true; return; }
-    const t = setTimeout(() => {
-      if (useGraphStore.getState().zoomToNode) return;
-      fitView({ duration: 500, padding: 0.2, maxZoom: 1.0 });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [direction, graphVersion, fitView]);
 
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
@@ -269,6 +277,12 @@ function CanvasInner() {
           nodes: s.nodes.map((n) => {
             const change = dimensionChanges.find((c) => c.id === n.id);
             if (change) {
+              // Record the pre-resize dimensions the first time we see this node resize.
+              if (!resizeStartDimensions.current.has(n.id)) {
+                const prev = n.style?.width ?? n.measured?.width ?? 0;
+                const prevH = n.style?.height ?? n.measured?.height ?? 0;
+                resizeStartDimensions.current.set(n.id, { w: prev, h: prevH });
+              }
               return {
                 ...n,
                 style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
@@ -281,11 +295,26 @@ function CanvasInner() {
 
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
-          setTimeout(() => { relayout(); fitView({ duration: 400, padding: 0.2, maxZoom: 1.0 }); }, 50);
+          setTimeout(() => { relayout(); }, 50);
         }
+
+        // Commit a resize op once the resize gesture settles (debounced).
+        if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
+        resizeTimerRef.current = window.setTimeout(() => {
+          const store = useGraphStore.getState();
+          const changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[] = [];
+          for (const [id, from] of resizeStartDimensions.current) {
+            const node = store.nodes.find((n) => n.id === id);
+            if (!node) continue;
+            const to = { w: (node.style?.width as number) ?? 0, h: (node.style?.height as number) ?? 0 };
+            if (from.w !== to.w || from.h !== to.h) changes.push({ nodeId: id, from, to });
+          }
+          if (changes.length > 0) recordResize(changes);
+          resizeStartDimensions.current.clear();
+        }, 300);
       }
     },
-    [onNodesChange, relayout, fitView],
+    [onNodesChange, relayout, fitView, recordResize],
   );
 
   const onConnect = useCallback(
@@ -324,8 +353,28 @@ function CanvasInner() {
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }, []);
-  const onNodeDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
-  const onSelectionDragStop = useCallback(() => { commitHistory(); }, [commitHistory]);
+  const onNodeDragStart = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
+    dragStartPositions.current.set(node.id, { x: node.position.x, y: node.position.y });
+  }, []);
+  const onNodeDragStop = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
+    const from = dragStartPositions.current.get(node.id);
+    const to = { x: node.position.x, y: node.position.y };
+    if (from) recordDragMoves([{ nodeId: node.id, from, to }]);
+    dragStartPositions.current.delete(node.id);
+  }, [recordDragMoves]);
+  const onSelectionDragStart = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
+    for (const n of nodes) dragStartPositions.current.set(n.id, { x: n.position.x, y: n.position.y });
+  }, []);
+  const onSelectionDragStop = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
+    const moves = nodes.map((n) => {
+      const from = dragStartPositions.current.get(n.id);
+      const to = { x: n.position.x, y: n.position.y };
+      return from ? { nodeId: n.id, from, to } : null;
+    }).filter((m): m is { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } } => !!m);
+    recordDragMoves(moves);
+    for (const n of nodes) dragStartPositions.current.delete(n.id);
+  }, [recordDragMoves]);
+  /* Resize is delivered as "dimensions" node changes (see handleNodesChange). */
 
   const fitToSelection = useCallback(() => {
     const selected = useGraphStore.getState().selectedNodeIds;
@@ -382,7 +431,8 @@ function CanvasInner() {
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
         onPaneClick={() => setRenamingId(null)}
-        onNodeDragStop={onNodeDragStop} onSelectionDragStop={onSelectionDragStop}
+        onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
+        onSelectionDragStart={onSelectionDragStart} onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
           useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
@@ -443,6 +493,16 @@ function CanvasInner() {
               <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">No directory loaded</div>
               <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">Use the sidebar to open a directory from your file system, or load one of the sample datasets to explore the visualization.</div>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <Button onClick={onOpenImport} data-tutorial="sample-button">
+                  <FolderOpen className="h-4 w-4" />
+                  Import
+                </Button>
+                <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Load sample
+                </Button>
+              </div>
             </div>
           </Panel>
         )}
@@ -504,6 +564,8 @@ function CanvasInner() {
                 <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } setCanvasMenu(null); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
               </>
             )}
+            <div className="my-1 h-px bg-border/40" />
+            <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); setCanvasMenu(null); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
           </div>
         </>
       )}
@@ -512,10 +574,15 @@ function CanvasInner() {
   );
 }
 
-export function GraphCanvas() {
+interface GraphCanvasProps {
+  onOpenImport: () => void;
+  onLoadSample: () => void;
+}
+
+export function GraphCanvas({ onOpenImport, onLoadSample }: GraphCanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
     </ReactFlowProvider>
   );
 }

@@ -205,12 +205,6 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     setShowWelcome(false);
   };
 
-  const handleResetTutorial = () => {
-    resetTutorial();
-    setOpen(true);
-    setShowWelcome(true);
-  };
-
   const handleMarkDone = (id: string) => {
     if (tutorialBeginnerDone.includes(id)) {
       store.unmarkTutorialBeginnerStep(id);
@@ -218,8 +212,6 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       store.markTutorialBeginnerStep(id);
     }
   };
-
-  const allDone = tutorialBeginnerDone.length >= beginnerItems.length && beginnerItems.length > 0;
 
   // If dismissed or local closed, show nothing
   if (!open || (useGraphStore.getState().tutorialDismissed && restartKey === 0)) {
@@ -274,7 +266,6 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   /* ── Checklist overlay ── */
   const items = beginnerItems;
   const doneList = tutorialBeginnerDone;
-  const progress = items.length > 0 ? (doneList.length / items.length) * 100 : 0;
 
   return (
     <Portal>
@@ -304,17 +295,16 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
           <div className="flex-1 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
             <div
               className="h-full rounded-full transition-[width] duration-500 bg-gradient-to-r from-primary to-primary"
-              style={{ width: `${isTouch ? ((mobileStep + 1) / items.length) * 100 : progress}%` }}
+              style={{ width: `${((mobileStep + 1) / items.length) * 100}%` }}
             />
           </div>
           <span className="text-[10px] tabular-nums text-muted-foreground">
-            {isTouch ? `${mobileStep + 1}/${items.length}` : `${doneList.length}/${items.length}`}
+            {`${mobileStep + 1}/${items.length}`}
           </span>
         </div>
 
-        {isTouch ? (
-          /* Mobile: step-through wizard */
-          <div className="space-y-3">
+        {/* Step-through wizard (used for all screens) */}
+        <div className="space-y-3">
             <ChecklistItem
               item={items[mobileStep]}
               done={doneList.includes(items[mobileStep].id)}
@@ -371,70 +361,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
               Skip tutorial
             </button>
           </div>
-        ) : (
-          /* Desktop: flat checklist */
-          <>
-            <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
-              {items.map((item) => (
-                <ChecklistItem
-                  key={item.id}
-                  item={item}
-                  done={doneList.includes(item.id)}
-                  onToggle={() => handleMarkDone(item.id)}
-                />
-              ))}
-            </div>
-
-            {allDone && (
-              <div className="mt-3 rounded-lg border border-green-400/30 bg-green-500/5 p-3 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Check className="h-4 w-4 text-green-400" />
-                  <span className="text-xs font-bold text-green-300">All done!</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-[10px]"
-                    onClick={handleResetTutorial}
-                  >
-                    Restart
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 text-[10px]"
-                    onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
-                  >
-                    Docs →
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
-                    onClick={handleDismiss}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    Done
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!allDone && (
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="mt-2 w-full text-center text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-              >
-                Skip tutorial
-              </button>
-            )}
-          </>
-        )}
-      </div>
+        </div>
     </Portal>
   );
 }

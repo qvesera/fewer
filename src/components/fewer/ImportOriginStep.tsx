@@ -18,7 +18,6 @@ import {
   BellRing,
   ChevronRight,
   Cloud,
-  Download,
   ExternalLink,
   FileIcon,
   FileJson,
@@ -62,6 +61,8 @@ export interface ImportOriginStepProps {
   signedIn: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
+  /** Advance to the next step (folder origin has no picky source → Enter advances). */
+  onAdvance: () => void;
 }
 
 const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
@@ -89,24 +90,108 @@ export function ImportOriginStep({
   signedIn,
   onRequireAuth,
   onOpenCloudSettings,
+  onAdvance,
 }: ImportOriginStepProps) {
+  const visibleOrigins = signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const sourceRef = useRef<HTMLDivElement>(null);
+
+  // Roving-tabindex arrow-key navigation across the origin cards (2-col grid,
+  // wraps on all edges). Selecting also focuses the target so focus follows
+  // the chosen source.
+  const focusOrigin = useCallback((index: number) => {
+    const el = gridRef.current?.querySelector<HTMLButtonElement>(
+      `[data-origin-index="${index}"]`,
+    );
+    el?.focus();
+  }, []);
+
+  // Focus the first interactive control of the currently active source picker:
+  // format tile (file), URL input, or first linked account (cloud).
+  const focusFirstInteractive = useCallback(() => {
+    const el = sourceRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]):not([type="hidden"]), textarea:not([disabled])',
+    );
+    el?.focus();
+  }, []);
+
+  const handleGridKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Let inputs/textareas keep their own Enter/arrows.
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      // Enter: folder advances, other origins focus their source picker.
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (origin === "folder") onAdvance();
+        else focusFirstInteractive();
+        return;
+      }
+      const selected = visibleOrigins.indexOf(origin);
+      if (selected < 0) return;
+      const n = visibleOrigins.length;
+      const cols = 2;
+      let next = -1;
+      switch (e.key) {
+        case "ArrowRight": next = (selected + 1) % n; break;
+        case "ArrowLeft": next = (selected - 1 + n) % n; break;
+        case "ArrowDown": next = (selected + cols) % n; break;
+        case "ArrowUp": next = (selected - cols + n) % n; break;
+        default: return;
+      }
+      e.preventDefault();
+      const chosen = visibleOrigins[next];
+      onOriginChange(chosen);
+      onSourceChange(defaultSourceFor(chosen));
+      focusOrigin(next);
+    },
+    [
+      visibleOrigins,
+      origin,
+      onOriginChange,
+      onSourceChange,
+      focusOrigin,
+      focusFirstInteractive,
+      onAdvance,
+    ],
+  );
+
+  // The three steps stay mounted (hidden via CSS), so focus the selected
+  // origin once when the dialog opens to enable instant arrow-key switching.
+  useEffect(() => {
+    const idx = visibleOrigins.indexOf(origin);
+    if (idx >= 0) focusOrigin(idx);
+    // Run once on mount only.
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* ── Origin selection ── */}
-      <div className="grid grid-cols-2 gap-2">
-        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o) => {
+      <div role="radiogroup" aria-label="Import source"
+        className="grid grid-cols-2 gap-2" ref={gridRef} onKeyDown={handleGridKeyDown}>
+        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o, idx) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
             <button
               key={o}
               type="button"
+              role="radio"
+              aria-checked={active}
+              data-origin-index={idx}
               onClick={() => {
                 if (!active) {
                   onOriginChange(o);
                   onSourceChange(defaultSourceFor(o));
                 }
               }}
+              tabIndex={active ? 0 : -1}
               className={cn(
                 "flex flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
@@ -135,10 +220,14 @@ export function ImportOriginStep({
           );
         })}
       </div>
+      <p className="text-[10px] text-muted-foreground/60">
+        Tip: use <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> to switch source,{" "}
+        <kbd>Tab</kbd> to continue.
+      </p>
 
       {/* ── Origin-specific source picking ── */}
       {signedIn || origin === "folder" || origin === "file" ? (
-        <>
+        <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
             <FileSource
@@ -164,7 +253,7 @@ export function ImportOriginStep({
               onOpenCloudSettings={onOpenCloudSettings}
             />
           )}
-        </>
+        </div>
       ) : (
         // Signed-out user holding a stale url/cloud origin (e.g. signed out
         // mid-flow) — fall back to the folder source; url/cloud are hidden.
@@ -235,9 +324,30 @@ function FileSource({
   advancedModeEnabled: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formatsRef = useRef<HTMLDivElement>(null);
   const formats = advancedModeEnabled
     ? FILE_FORMATS
     : FILE_FORMATS.filter((f) => f.value === "tree");
+
+  // Arrow-key navigation across the format tiles (a row; wraps at the ends).
+  const handleFormatsKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const current = source.format;
+      const idx = formats.findIndex((f) => f.value === current);
+      if (idx < 0) return;
+      let next = -1;
+      if (e.key === "ArrowRight") next = (idx + 1) % formats.length;
+      else if (e.key === "ArrowLeft") next = (idx - 1 + formats.length) % formats.length;
+      else return;
+      e.preventDefault();
+      const chosen = formats[next].value;
+      onSourceChange({ ...source, format: chosen });
+      formatsRef.current
+        ?.querySelector<HTMLButtonElement>(`[data-format-idx="${next}"]`)
+        ?.focus();
+    },
+    [source, formats, onSourceChange],
+  );
 
   // Advanced mode off → only ASCII tree is allowed.
   useEffect(() => {
@@ -272,14 +382,19 @@ function FileSource({
         <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
           Format
         </Label>
-        <div className={cn("grid gap-2", formats.length === 1 ? "grid-cols-1" : "grid-cols-3")}>
-          {formats.map((f) => {
+        <div
+          ref={formatsRef}
+          onKeyDown={handleFormatsKeyDown}
+          className={cn("grid gap-2", formats.length === 1 ? "grid-cols-1" : "grid-cols-3")}
+        >
+          {formats.map((f, i) => {
             const Icon = f.icon;
             const active = source.format === f.value;
             return (
               <button
                 key={f.value}
                 type="button"
+                data-format-idx={i}
                 onClick={() => onSourceChange({ ...source, format: f.value })}
                 className={cn(
                   "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -445,6 +560,33 @@ function CloudSource({
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [repoInput, setRepoInput] = useState("");
+  const accountsRef = useRef<HTMLDivElement>(null);
+
+  // Arrow-key navigation across the linked-account list (a vertical list).
+  const handleAccountsKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const items =
+        accountsRef.current?.querySelectorAll<HTMLButtonElement>(
+          "[data-account-idx]",
+        ) ?? [];
+      if (items.length === 0) return;
+      let idx = -1;
+      for (let i = 0; i < items.length; i++) {
+        if (document.activeElement === items[i]) {
+          idx = i;
+          break;
+        }
+      }
+      const base = idx === -1 ? 0 : idx;
+      let next = -1;
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (base + 1) % items.length;
+      else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = (base - 1 + items.length) % items.length;
+      else return;
+      e.preventDefault();
+      items[next]?.focus();
+    },
+    [],
+  );
 
   // The auth dialog stacks on top without closing the import flow — when the
   // user signs in, refetch connections (the mount-time fetch ran signed-out).
@@ -601,13 +743,14 @@ function CloudSource({
             </Button>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {connections.map((conn) => (
+          <div ref={accountsRef} onKeyDown={handleAccountsKeyDown} className="space-y-1.5">
+            {connections.map((conn, i) => (
               <button
                 key={conn.id}
                 type="button"
+                data-account-idx={i}
                 onClick={() => handleSelectConnection(conn)}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-border/40 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/20"
+                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-border/40 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Cloud className="h-4 w-4 text-primary/70" />
                 <div className="min-w-0 flex-1">
@@ -744,16 +887,6 @@ function CloudSource({
                     </span>
                   ) : null}
                 </div>
-              )}
-              {entry.type === "folder" && entry.ref && (
-                <button
-                  type="button"
-                  onClick={() => selectFolder(entry.ref!, entry.name)}
-                  className="shrink-0 cursor-pointer p-1 text-muted-foreground hover:text-foreground"
-                  title="Select this folder"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
               )}
               {entry.webUrl && (
                 <a

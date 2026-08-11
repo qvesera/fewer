@@ -4,8 +4,6 @@ description: The terms and conditions governing your use of the fewer web applic
 lastUpdated: August 10, 2026
 ---
 
-# Terms of Use
-
 **Last updated: August 10, 2026**
 
 <!-- NOTE FOR THE SITE OPERATOR: This is a generic template. Before publishing these terms as legally binding, have a qualified attorney review them for your jurisdiction and specific business model (accounts, saved graphs, share links, cloud OAuth connections). This is not legal advice. -->

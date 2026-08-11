@@ -3,6 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
+import { captureViewState, viewStateOp } from "./historySlice";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -140,9 +141,17 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
 
   toggleHidden: (id) => {
+    const before = captureViewState(get());
     const { hiddenIds } = get();
-    if (hiddenIds.includes(id)) set({ hiddenIds: hiddenIds.filter((h) => h !== id) });
-    else set({ hiddenIds: [...hiddenIds, id] });
+    const next = hiddenIds.includes(id)
+      ? hiddenIds.filter((h) => h !== id)
+      : [...hiddenIds, id];
+    const after = { ...before, hiddenIds: next };
+    if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")) get().pushOp(viewStateOp(before, after));
+    set((s) => ({
+      hiddenIds: next,
+      autoHiddenIds: hiddenIds.includes(id) ? s.autoHiddenIds.filter((h) => h !== id) : s.autoHiddenIds,
+    }));
   },
 
   hideSelected: () => {
@@ -156,11 +165,20 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
         for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } }
       }
     }
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], selectedNodeIds: [], graphVersion: graphVersion + 1 }));
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
+    get().pushOp(viewStateOp(before, after));
+    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
     setTimeout(() => get().relayout(), 50);
   },
 
-  showAll: () => set({ hiddenIds: [] }),
+  showAll: () => {
+    const before = captureViewState(get());
+    if (before.hiddenIds.length === 0) return;
+    const after = { ...before, hiddenIds: [] };
+    get().pushOp(viewStateOp(before, after));
+    set((s) => ({ hiddenIds: [], autoHiddenIds: [] }));
+  },
 
   setSearchOpen: (open) => set({ searchOpen: open }),
   setExportOpen: (open) => set({ exportOpen: open }),
@@ -179,19 +197,24 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   setShowFiles: (show) => {
     const { nodes, edges, graphVersion } = get();
+    const before = captureViewState(get());
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
       // Only reveal files whose parent folder is NOT hidden.
       // Files under hidden folders must remain hidden to avoid orphan rendering.
       const parentMap = new Map<string, string>();
       for (const e of edges) parentMap.set(e.target, e.source);
-      const hiddenSet = new Set(get().hiddenIds);
+      const hiddenSet = new Set(before.hiddenIds);
       const revealableFileIds = fileIds.filter((fid) => {
         const parentId = parentMap.get(fid);
         return !parentId || !hiddenSet.has(parentId);
       });
+      const after = { ...before, showFiles: true, hiddenIds: before.hiddenIds.filter((id) => !revealableFileIds.includes(id)) };
+      if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
       set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealableFileIds.includes(id)), graphVersion: graphVersion + 1 }));
     } else {
+      const after = { ...before, showFiles: false, hiddenIds: [...new Set([...before.hiddenIds, ...fileIds])] };
+      if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
       set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }
     setTimeout(() => get().relayout(), 50);

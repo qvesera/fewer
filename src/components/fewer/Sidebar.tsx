@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
@@ -27,6 +28,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import { defaultDirection } from "@/store/slices/layoutSlice";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -189,6 +191,12 @@ interface HiddenTreeNode {
   children: HiddenTreeNode[];
 }
 
+/** App-wide ordering convention: folders first, then labels A→Z. */
+function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
+  if (a.node.data.type !== b.node.data.type) return a.node.data.type === "folder" ? -1 : 1;
+  return a.node.data.label.localeCompare(b.node.data.label);
+}
+
 function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
   const idSet = new Set(hiddenIds);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -208,7 +216,8 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     const node = nodeMap.get(id)!;
     const children = (childrenMap.get(id) ?? [])
       .filter((cid) => idSet.has(cid))
-      .map((cid) => build(cid));
+      .map((cid) => build(cid))
+      .sort(hiddenTreeSort);
     return { node, children };
   }
 
@@ -219,7 +228,7 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     roots.push(build(id));
   }
 
-  return roots;
+  return roots.sort(hiddenTreeSort);
 }
 
 function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
@@ -380,6 +389,18 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       setDirection("TB");
     }
   }, [advancedModeEnabled, direction, setDirection]);
+
+  // On first client mount, apply the responsive default layout direction
+  // (LR on screens <1.5k, TB otherwise). The store starts as "TB" for an
+  // isomorphic SSR/hydration match, so this picks the right orientation here.
+  // Skip when a graph is already loaded (e.g. a shared URL) so a load's own
+  // direction is never clobbered.
+  useEffect(() => {
+    const def = defaultDirection();
+    if (def !== "TB" && useGraphStore.getState().nodes.length === 0) {
+      setDirection(def);
+    }
+  }, []);
 
   const availableEdgeStyles = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },
@@ -551,13 +572,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                       </TooltipProvider>
                     </div>
                     <span className="text-xs font-mono text-muted-foreground">
-                      {maxDisplayDepth === 0 ? "Unlimited" : `${maxDisplayDepth} lvl`}
+                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
                     </span>
                   </div>
                   <Slider
                     value={[maxDisplayDepth]}
                     onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={1}
+                    min={0}
                     max={10}
                     step={1}
                   />
@@ -578,7 +599,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground">{autoHideThreshold} items</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
                   </div>
                   <Slider
                     value={[autoHideThreshold]}
@@ -639,7 +660,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground">{cornerRadius}px</span>
+                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
                 </div>
                 <Slider
                   value={[cornerRadius]}
@@ -677,7 +698,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground">{edgeWidth}px</span>
+                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
                   </div>
                   <Slider
                     value={[edgeWidth]}

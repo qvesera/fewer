@@ -288,7 +288,7 @@ export function FewerApp() {
         </div>
         <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
-            <GraphCanvas />
+            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
           </ErrorBoundary>
           <BreadcrumbBar />
           <SearchPanel />

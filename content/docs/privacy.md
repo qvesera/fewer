@@ -4,8 +4,6 @@ description: How fewer collects, uses, and protects your data. Fewer is designed
 lastUpdated: August 10, 2026
 ---
 
-# Privacy Policy
-
 **Last updated: August 10, 2026**
 
 <!-- NOTE FOR THE SITE OPERATOR: This is a generic template. Before publishing this policy as legally binding, have a qualified attorney review it for your jurisdiction and specific business model (accounts, saved graphs, share links, cloud OAuth connections). This is not legal advice. -->

@@ -149,6 +149,42 @@ export async function openFile(handle: FileSystemFileHandle): Promise<void> {
 }
 
 /**
+ * Open a local file node in its dedicated OS app (the default app for that
+ * file type). For directory imports we POST the node's path to /api/open-file,
+ * which the dev server resolves to a real path and hands to `open` / `start` /
+ * `xdg-open`. Falls back to opening in the browser via a live file handle
+ * (object URL) when there's no server-resolvable path.
+ * Returns true if a file was opened somehow.
+ */
+export async function openNodeFile(
+  node: { id: string; data: { type: string; path?: string } },
+  dataSource: string,
+): Promise<boolean> {
+  // 1) Directory import with a path → open in the OS default app.
+  if (dataSource === "directory" && node.data.path) {
+    try {
+      const res = await fetch("/api/open-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: node.data.path }),
+      });
+      if (res.ok) return true;
+    } catch {
+      // fall through to browser fallback
+    }
+  }
+  // 2) Browser fallback when we hold a live file handle.
+  if (node.data.type === "file") {
+    const handle = fsHandleStore.get(node.id);
+    if (handle && handle.kind === "file") {
+      await openFile(handle as FileSystemFileHandle);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Get file metadata (size, type, last modified).
  */
 export async function getFileMetadata(handle: FileSystemFileHandle): Promise<{

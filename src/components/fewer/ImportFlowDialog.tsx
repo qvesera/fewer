@@ -183,9 +183,34 @@ export function ImportFlowDialog({
     onOpenChange(next);
   };
 
+  // Enter-to-advance on the options (2) and summary (3) steps. Only fires when
+  // focus is NOT on a button (buttons trigger their own Enter) or an editable
+  // field (inputs/textareas keep their own Enter). Step 1 is handled inside
+  // ImportOriginStep.
+  const handleStepKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (importing) return;
+    const t = e.target as HTMLElement;
+    if (
+      t.tagName === "INPUT" ||
+      t.tagName === "TEXTAREA" ||
+      t.tagName === "BUTTON" ||
+      t.tagName === "A" ||
+      t.isContentEditable
+    ) {
+      return;
+    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (step === 2) setStep(3);
+    else if (step === 3) handleImport();
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md">
+      <DialogContent
+        onKeyDown={handleStepKeyDown}
+        className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md"
+      >
         <DialogHeader className="border-b border-border/20 pb-3">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
             <OriginIcon className="h-5 w-5 text-muted-foreground/80" />
@@ -256,6 +281,7 @@ export function ImportFlowDialog({
               onOpenCloudSettings={() =>
                 useGraphStore.getState().setSettingsOpen(true)
               }
+              onAdvance={() => setStep(2)}
             />
           </div>
 
@@ -327,6 +353,12 @@ export function ImportFlowDialog({
               </p>
           </div>
         </div>
+
+        {(step === 2 || step === 3) && (
+          <p className="pb-1 text-right text-[10px] text-muted-foreground/60">
+            Press <kbd>Enter</kbd> to {step === 2 ? "continue" : "import"}
+          </p>
+        )}
 
         <DialogFooter className="mt-2 flex w-full flex-row items-center justify-end gap-3 border-t border-border/20 pt-4">
           {step === 1 && (

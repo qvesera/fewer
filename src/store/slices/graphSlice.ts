@@ -7,13 +7,16 @@ import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize"
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
 import { fsHandleStore } from "@/lib/fewer/types";
+import { captureViewState, viewStateOp } from "./historySlice";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
 /**
  * Pure helper: ids of nodes deeper than `maxDepth`.
+ * `maxDepth <= 0` means unlimited — no depth-based hiding.
  */
 function computeDisplayDepthHiddenIds(nodes: FewerNode[], maxDepth: number): string[] {
+  if (maxDepth <= 0) return [];
   return nodes
     .filter((n) => (n.data.depth ?? 0) > maxDepth)
     .map((n) => n.id);
@@ -50,6 +53,49 @@ function computeLargeFolderHiddenIds(
   return [...toHide];
 }
 
+/**
+ * Live-reconcile the large-folder auto-hide filter against the current threshold.
+ * Works both ways:
+ *   - children whose folder now exceeds the threshold are newly hidden;
+ *   - children that were auto-hidden but whose folder now falls under the threshold
+ *     are revealed (removed from hiddenIds), as long as they were not hidden by any
+ *     other mechanism (manual, depth, file) — only `autoHiddenIds` are ever revealed.
+ * Returns the reconciled hiddenIds + autoHiddenIds.
+ */
+export function reconcileAutoHide(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  hiddenIds: string[],
+  autoHiddenIds: string[],
+  revealedRootIds: string[],
+  threshold: number,
+): { hiddenIds: string[]; autoHiddenIds: string[] } {
+  // Compute the target auto-hidden set from scratch (never reveals manual/depth/file hides).
+  const target = computeLargeFolderHiddenIds(
+    nodes.filter((n) => !new Set(hiddenIds).has(n.id)),
+    edges,
+    threshold,
+    new Set(revealedRootIds),
+  );
+  const targetSet = new Set(target);
+  const revealedRoots = new Set(revealedRootIds);
+  const nextHidden = new Set(hiddenIds);
+  const nextAuto = new Set<string>();
+
+  // Reveal previously-auto-hidden nodes that are no longer in the target set.
+  for (const id of autoHiddenIds) {
+    if (!targetSet.has(id) && !revealedRoots.has(id)) {
+      nextHidden.delete(id);
+    }
+  }
+  // Hide + re-tag nodes that belong in the target set.
+  for (const id of targetSet) {
+    nextHidden.add(id);
+    nextAuto.add(id);
+  }
+  return { hiddenIds: [...nextHidden], autoHiddenIds: [...nextAuto] };
+}
+
 function edgeTypeFromStyle(style: string): FewerEdge["type"] {
   switch (style) {
     case "curved": return "default";
@@ -72,6 +118,68 @@ function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
     const bLabel = bNode?.data.label ?? "";
     return bLabel.localeCompare(aLabel);
   });
+}
+
+/**
+ * After removing edges, reset the path of any node that lost its last parent edge
+ * (and of its descendants) so breadcrumbs reflect the new root-level location.
+ * Returns the updated nodes plus the path changes for the history op.
+ */
+function unparentSubtree(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  removedEdges: FewerEdge[],
+): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
+  // Nodes whose last parent edge was removed.
+  const incoming = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!incoming.has(e.target)) incoming.set(e.target, []);
+    incoming.get(e.target)!.push(e.source);
+  }
+  const rootless = new Set<string>();
+  for (const e of removedEdges) {
+    const parents = (incoming.get(e.target) ?? []).filter((p) => !removedEdges.some((re) => re.source === p && re.target === e.target));
+    if (parents.length === 0) rootless.add(e.target);
+  }
+
+  const pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] = [];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const next = nodes.map((n) => ({ ...n }));
+
+  for (const rid of rootless) {
+    const label = byId.get(rid)?.data.label ?? rid;
+    const extension = byId.get(rid)?.data.extension ? `.${byId.get(rid)!.data.extension}` : "";
+    const newRootPath = `${label}${extension}`;
+    const cur = byId.get(rid);
+    if (!cur) continue;
+    const prevRootPath = cur.data.path;
+    // Reset the rootless node itself.
+    const idx = next.findIndex((n) => n.id === rid);
+    if (idx !== -1) {
+      pathChanges.push({ nodeId: rid, prevPath: prevRootPath, nextPath: newRootPath });
+      next[idx] = { ...next[idx], data: { ...next[idx].data, path: newRootPath, isRoot: true } };
+    }
+    // Reset descendants whose path was under the old root prefix.
+    const queue = [rid];
+    const seen = new Set<string>([rid]);
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source !== nid) continue;
+        if (seen.has(e.target)) continue;
+        seen.add(e.target);
+        const child = byId.get(e.target);
+        const childIdx = next.findIndex((n) => n.id === e.target);
+        if (child && child.data.path.startsWith(prevRootPath) && childIdx !== -1) {
+          const newPath = child.data.path.replace(prevRootPath, newRootPath);
+          pathChanges.push({ nodeId: e.target, prevPath: child.data.path, nextPath: newPath });
+          next[childIdx] = { ...next[childIdx], data: { ...next[childIdx].data, path: newPath } };
+        }
+        queue.push(e.target);
+      }
+    }
+  }
+  return { nodes: next, pathChanges };
 }
 
 export type GraphSliceCreator = StateCreator<
@@ -126,6 +234,8 @@ export type GraphSliceCreator = StateCreator<
     setMaxDisplayDepth: (depth: number) => void;
     autoHideCount: number;
     revealedRootIds: string[];
+    /** Ids hidden by the large-folder auto-hide filter (as opposed to manual/depth/file hides). */
+    autoHiddenIds: string[];
     revealSubtree: (id: string) => void;
     autoHideThreshold: number;
     setAutoHideThreshold: (threshold: number) => void;
@@ -142,6 +252,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   maxDisplayDepth: 6,
   autoHideCount: 0,
   revealedRootIds: [],
+  autoHiddenIds: [],
       revealedFromHidden: [],
   autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
@@ -186,7 +297,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
     const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
-    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [] });
+    const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
+    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
   },
 
   relayout: () => {
@@ -231,9 +343,21 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const newNodes = nodes.filter((n) => !toRemove.has(n.id));
     const newEdges = edges.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target));
-    // Store only the removed subtree (not the full array) for undo
+    // Store only the removed subtree (not the full array) for undo. Undo restores it.
     if (removedNodes.length > 0) {
-      get().pushOp({ type: "bulk-import", nodes: removedNodes, edges: removedEdges });
+      const root = nodes.find((n) => n.id === ids[0]);
+      const rootEdge = edges.find((e) => e.target === ids[0]) ?? null;
+      const before = captureViewState(get());
+      const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toRemove.has(h)) };
+      get().pushOp({
+        type: "remove-subtree",
+        node: removedNodes[0],
+        edge: rootEdge,
+        children: removedNodes.slice(1),
+        childEdges: removedEdges,
+        before,
+        after,
+      });
     }
     set({ nodes: applySearchInternal(newNodes, searchQuery), edges: newEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
@@ -444,8 +568,21 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const filteredNodes = nodes.filter((n) => !toRemove.has(n.id));
     const filteredEdges = edges.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target));
-    // Store only the removed subtree for undo
-    get().pushOp({ type: "bulk-import", nodes: removedNodes, edges: removedEdges });
+    // Store only the removed subtree for undo. Undo restores it.
+    if (removedNodes.length > 0) {
+      const rootEdge = edges.find((e) => e.target === id) ?? null;
+      const before = captureViewState(get());
+      const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toRemove.has(h)) };
+      get().pushOp({
+        type: "remove-subtree",
+        node: removedNodes[0],
+        edge: rootEdge,
+        children: removedNodes.slice(1),
+        childEdges: removedEdges,
+        before,
+        after,
+      });
+    }
     set({ nodes: applySearchInternal(filteredNodes, searchQuery), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
 
@@ -528,8 +665,14 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const changedNodeIds = child && child.data.type === "folder" 
       ? [connection.target, ...Array.from(descendantIds)] 
       : [connection.target];
-    // Store the new edge + changed nodes for undo
-    get().pushOp({ type: "bulk-import", nodes: updatedNodes.filter((n) => changedNodeIds.includes(n.id)), edges: [newEdge] });
+    // Capture the original paths so undo can restore them (without deleting the node).
+    const prevPaths = changedNodeIds
+      .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
+      .filter((p) => p.path !== "");
+    const nextPaths = changedNodeIds
+      .map((nid) => ({ nodeId: nid, path: updatedNodes.find((n) => n.id === nid)?.data.path ?? "" }))
+      .filter((p) => p.path !== "");
+    get().pushOp({ type: "connect", edge: newEdge, prevPaths, nextPaths });
     const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
     set({ nodes: applySearchInternal(updatedNodes, searchQuery), edges: nextEdges, graphVersion: get().graphVersion + 1 });
     return { ok: true };
@@ -540,8 +683,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const filteredEdges = edges.filter((e) => { if (handleType === "source") return e.source !== nodeId; if (handleType === "target") return e.target !== nodeId; return true; });
     if (filteredEdges.length === edges.length) return;
     const removedEdges = edges.filter((e) => !filteredEdges.includes(e));
-    get().pushOp({ type: "bulk-import", nodes: [], edges: removedEdges });
-    set({ edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
+    get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
   },
 
   deleteEdges: (ids) => {
@@ -550,17 +694,22 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const filtered = edges.filter((e) => !idSet.has(e.id));
     if (filtered.length === edges.length) return;
     const removedEdges = edges.filter((e) => idSet.has(e.id));
-    get().pushOp({ type: "bulk-import", nodes: [], edges: removedEdges });
-    set({ edges: filtered, graphVersion: get().graphVersion + 1 });
+    const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filtered, removedEdges);
+    get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filtered, graphVersion: get().graphVersion + 1 });
   },
 
   hideNode: (id) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
     if (hiddenIds.includes(id)) return;
     const toHide = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } }
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] };
+    get().pushOp(viewStateOp(before, after));
     set({
       hiddenIds: [...hiddenIds, ...toHide],
+      autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
       graphVersion: get().graphVersion + 1,
@@ -568,21 +717,31 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   hideNodes: (ids) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
     const toHide = new Set(ids);
     for (const id of ids) { const queue = [id]; while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } } }
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] };
+    get().pushOp(viewStateOp(before, after));
     set({
       hiddenIds: [...hiddenIds, ...toHide],
+      autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
     });
     setTimeout(() => get().relayout(), 50);
   },
 
-  showNode: (id) => { set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id) })); get().relayout(); },
+  showNode: (id) => {
+    const before = captureViewState(get());
+    if (!before.hiddenIds.includes(id)) return;
+    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
+    get().pushOp(viewStateOp(before, after));
+    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id) })); get().relayout();
+  },
 
   showAncestors: (id) => {
-    const { hiddenIds, edges, revealedFromHidden } = get();
+    const { hiddenIds, edges, revealedFromHidden, autoHiddenIds } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
@@ -590,17 +749,29 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     for (const e of edges) parentMap.set(e.target, e.source);
     const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
     while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
+    get().pushOp(viewStateOp(before, after));
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
   },
 
   showSubtree: (id) => {
-    const { hiddenIds, edges } = get();
+    const { hiddenIds, edges, autoHiddenIds } = get();
     const toShow = new Set([id]); const queue = [id];
     while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
-        set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
+    get().pushOp(viewStateOp(before, after));
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
   },
 
-  showAll: () => set((s) => ({ hiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 })),
+  showAll: () => {
+    const before = captureViewState(get());
+    if (before.hiddenIds.length === 0) return;
+    const after = { ...before, hiddenIds: [] };
+    get().pushOp(viewStateOp(before, after));
+    set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
+  },
 
   revealSubtree: (id) => {
     const { revealedRootIds } = get();
@@ -616,6 +787,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   setMaxDisplayDepth: (maxDepth) => {
     const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion, maxDisplayDepth: oldMaxDepth, revealedFromHidden } = get();
+    const before = captureViewState(get());
     // Recompute depth-hidden from scratch
     const depthHidden = new Set(computeDisplayDepthHiddenIds(nodes, maxDepth));
     // When depth increases, reveal nodes that were hidden by the old depth limit
@@ -628,7 +800,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const kept = hiddenIds.filter((id) => {
       if (depthHidden.has(id)) return false;
       const depth = nodes.find((n) => n.id === id)?.data.depth ?? 0;
-      if (depth > maxDepth) return false;
+      if (maxDepth > 0 && depth > maxDepth) return false;
       // If this node was hidden by old depth limit and is now within new limit, reveal it
       if (oldDepthHidden.has(id)) {
         // Check if any ancestor was hidden by non-depth reasons (manual/auto-hide)
@@ -651,32 +823,55 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
     const searched = applySearchInternal(laid, searchQuery);
+    const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
+    get().pushOp(viewStateOp(before, after));
+    const { autoHiddenIds: nextAutoHidden } = reconcileAutoHide(
+      nodes,
+      edges,
+      mergedIds,
+      get().autoHiddenIds,
+      get().revealedRootIds,
+      get().autoHideThreshold,
+    );
     set({
       maxDisplayDepth: maxDepth,
       hiddenIds: mergedIds,
+      autoHiddenIds: nextAutoHidden,
       nodes: searched,
       graphVersion: graphVersion + 1,
     });
   },
 
   autoHideLargeFolders: (threshold?) => {
-    const { nodes, edges, hiddenIds, revealedRootIds, autoHideThreshold } = get();
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds, autoHideThreshold } = get();
     const thresholdValue = threshold ?? autoHideThreshold;
-    const hiddenSet = new Set(hiddenIds);
-    const toHide = computeLargeFolderHiddenIds(
-      nodes.filter((n) => !hiddenSet.has(n.id)),
+    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+      nodes,
       edges,
+      hiddenIds,
+      autoHiddenIds,
+      revealedRootIds,
       thresholdValue,
-      new Set(revealedRootIds),
     );
-    const newIds = toHide.filter((id) => !hiddenSet.has(id));
-    if (newIds.length === 0) return;
-    get().hideNodes(newIds);
+    if (nextHidden.length !== hiddenIds.length || nextAuto.length !== autoHiddenIds.length) {
+      set({ hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
+    }
   },
 
   setAutoHideThreshold: (threshold) => {
-    set({ autoHideThreshold: threshold });
-    get().autoHideLargeFolders(threshold);
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds } = get();
+    const before = captureViewState(get());
+    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+      nodes,
+      edges,
+      hiddenIds,
+      autoHiddenIds,
+      revealedRootIds,
+      threshold,
+    );
+    const after = { ...before, autoHideThreshold: threshold, hiddenIds: nextHidden };
+    set({ autoHideThreshold: threshold, hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
+    get().pushOp(viewStateOp(before, after));
   },
 
   connect: (source, target) => {
@@ -696,14 +891,20 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   collapseAll: () => {
     const { nodes, searchQuery } = get();
+    const changes = nodes
+      .filter((n) => n.data.type === "folder")
+      .map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: true }));
     const newNodes = nodes.map((n) => n.data.type === "folder" ? { ...n, data: { ...n.data, collapsed: true } } : n);
+    get().pushOp({ type: "collapse-batch", changes });
     set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
 
   expandAll: () => {
     const { nodes, searchQuery } = get();
+    const changes = nodes.map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: false }));
     const newNodes = nodes.map((n) => ({ ...n, data: { ...n.data, collapsed: false } }));
+    get().pushOp({ type: "collapse-batch", changes });
     set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
@@ -722,7 +923,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
-      graphVersion: 0, revealedRootIds: [],
+      graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [],
     });
   },

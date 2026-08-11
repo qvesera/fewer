@@ -10,17 +10,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing path" }, { status: 400 });
     }
 
-    // The data.path includes the root directory name as the first component
-    // (e.g. "ssy-react/src/logic"), so we resolve from the parent of the
-    // app's root to handle sibling directories correctly.
-    // path.resolve("ssy-react/src/logic") would give /app/root/ssy-react/src/logic
-    // but we want /app/parent/ssy-react/src/logic
-    const baseDir = path.dirname(process.cwd());
-    const resolved = path.resolve(baseDir, rawPath);
+    const resolved = path.resolve(path.dirname(process.cwd()), rawPath);
 
-    // Check if the path exists
     if (!fs.existsSync(resolved)) {
       return NextResponse.json({ error: `Path does not exist: ${resolved}` }, { status: 404 });
+    }
+    if (!fs.statSync(resolved).isFile()) {
+      return NextResponse.json({ error: `Not a file: ${resolved}` }, { status: 400 });
     }
 
     await openInOs(resolved);

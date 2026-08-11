@@ -173,7 +173,7 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
 /** Default custom theme (Open Color gray + orange + grape palette) */
 export const DEFAULT_CUSTOM_THEME: CustomTheme = Object.fromEntries(
   THEME_COLOR_META.map((m) => [m.key, { color: m.defaultColor, opacity: m.defaultOpacity }]),
-) as CustomTheme;
+) as unknown as CustomTheme;
 
 /**
  * Operation-based history: each undo/redo step stores a diff instead of
@@ -219,13 +219,80 @@ export interface ToggleCollapseOp {
   wasCollapsed: boolean;
 }
 
+/** Auxiliary graph/view state some ops must restore on undo/redo (beyond nodes+edges). */
+export interface ViewState {
+  hiddenIds: string[];
+  showFiles: boolean;
+  maxDisplayDepth: number;
+  autoHideThreshold: number;
+  autoHiddenIds: string[];
+}
+
+/** Delete/cut a node + its subtree. Undo restores them. */
+export interface RemoveSubtreeOp {
+  type: "remove-subtree";
+  node: FewerNode;
+  edge: FewerEdge | null;
+  children: FewerNode[];
+  childEdges: FewerEdge[];
+  before: ViewState;
+  after: ViewState;
+}
+
+/** Connect two nodes (add edge + rewrite child/descendant paths). Undo removes edge + restores paths. */
+export interface ConnectOp {
+  type: "connect";
+  edge: FewerEdge;
+  prevPaths: { nodeId: string; path: string }[];
+  nextPaths: { nodeId: string; path: string }[];
+}
+
+/** Delete edges / remove edges from a handle. Undo re-adds them and restores paths. */
+export interface RemoveEdgesOp {
+  type: "remove-edges";
+  edges: FewerEdge[];
+  /** Path rewrites caused by unparenting (child + descendants). Undo restores prevPath. */
+  pathChanges?: { nodeId: string; prevPath: string; nextPath: string }[];
+}
+
+/** Node drag (single or multi-selection). Undo restores original positions. */
+export interface MovePositionsOp {
+  type: "move-positions";
+  moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[];
+}
+
+/** Node resize. Undo restores original dimensions. */
+export interface ResizeOp {
+  type: "resize";
+  changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[];
+}
+
+export interface CollapseBatchOp {
+  type: "collapse-batch";
+  changes: { nodeId: string; wasCollapsed: boolean; willCollapse: boolean }[];
+}
+
+/** Pure view-state change (hide/show, show-files, max-depth, auto-hide-threshold). */
+export interface ViewStateOp {
+  type: "view-state";
+  before: ViewState;
+  after: ViewState;
+}
+
 export type HistoryOp =
   | AddNodeOp
   | RemoveNodeOp
   | MoveNodeOp
   | RenameOp
   | BulkImportOp
-  | ToggleCollapseOp;
+  | ToggleCollapseOp
+  | RemoveSubtreeOp
+  | ConnectOp
+  | RemoveEdgesOp
+  | MovePositionsOp
+  | ResizeOp
+  | CollapseBatchOp
+  | ViewStateOp;
 
 /**
  * Separate store for FileSystem handles — these are live browser API objects

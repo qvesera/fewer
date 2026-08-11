@@ -1,4 +1,4 @@
-import type { FewerNode, FewerEdge, HistoryOp, BulkImportOp } from "./types";
+import type { FewerNode, FewerEdge, HistoryOp, BulkImportOp, ViewState } from "./types";
 
 /**
  * Apply a history operation forward (undo → redo or initial push).
@@ -66,6 +66,54 @@ export function applyOp(
           ...nd,
           data: { ...nd.data, collapsed: !op.wasCollapsed },
         };
+      });
+      return { nodes: n, edges };
+    }
+    case "remove-subtree": {
+      const removedIds = new Set([op.node.id, ...op.children.map((c) => c.id)]);
+      const n = nodes.filter((nd) => !removedIds.has(nd.id));
+      const edgeIds = new Set([op.edge, ...op.childEdges].filter(Boolean).map((e) => e!.id));
+      const e = edges.filter((ed) => !edgeIds.has(ed.id));
+      return { nodes: n, edges: e };
+    }
+    case "connect": {
+      const n = nodes.map((nd) => {
+        const p = op.nextPaths.find((x) => x.nodeId === nd.id);
+        return p ? { ...nd, data: { ...nd.data, path: p.path } } : nd;
+      });
+      return { nodes: n, edges: [...edges, op.edge] };
+    }
+    case "remove-edges": {
+      const removedIds = new Set(op.edges.map((e) => e.id));
+      const n = op.pathChanges?.length
+        ? nodes.map((nd) => {
+            const pc = op.pathChanges!.find((x) => x.nodeId === nd.id);
+            return pc ? { ...nd, data: { ...nd.data, path: pc.nextPath, isRoot: true } } : nd;
+          })
+        : nodes;
+      return { nodes: n, edges: edges.filter((e) => !removedIds.has(e.id)) };
+    }
+    case "move-positions": {
+      const n = nodes.map((nd) => {
+        const m = op.moves.find((x) => x.nodeId === nd.id);
+        return m ? { ...nd, position: { x: m.to.x, y: m.to.y } } : nd;
+      });
+      return { nodes: n, edges };
+    }
+    case "resize": {
+      const n = nodes.map((nd) => {
+        const c = op.changes.find((x) => x.nodeId === nd.id);
+        return c
+          ? { ...nd, style: { ...nd.style, width: c.to.w, height: c.to.h }, measured: undefined }
+          : nd;
+      });
+      return { nodes: n, edges };
+    }
+    case "collapse-batch": {
+      const byId = new Map(op.changes.map((c) => [c.nodeId, c.willCollapse]));
+      const n = nodes.map((nd) => {
+        if (!byId.has(nd.id)) return nd;
+        return { ...nd, data: { ...nd.data, collapsed: byId.get(nd.id) } };
       });
       return { nodes: n, edges };
     }
@@ -150,6 +198,51 @@ export function undoOp(
       });
       return { nodes: n, edges };
     }
+    case "remove-subtree": {
+      const n = [...nodes, op.node, ...op.children];
+      const e = [...edges, op.edge, ...op.childEdges].filter((ed): ed is FewerEdge => !!ed);
+      return { nodes: n, edges: e };
+    }
+    case "connect": {
+      const n = nodes.map((nd) => {
+        const p = op.prevPaths.find((x) => x.nodeId === nd.id);
+        return p ? { ...nd, data: { ...nd.data, path: p.path } } : nd;
+      });
+      return { nodes: n, edges: edges.filter((e) => e.id !== op.edge.id) };
+    }
+    case "remove-edges": {
+      const n = op.pathChanges?.length
+        ? nodes.map((nd) => {
+            const pc = op.pathChanges!.find((x) => x.nodeId === nd.id);
+            return pc ? { ...nd, data: { ...nd.data, path: pc.prevPath } } : nd;
+          })
+        : nodes;
+      return { nodes: n, edges: [...edges, ...op.edges] };
+    }
+    case "move-positions": {
+      const n = nodes.map((nd) => {
+        const m = op.moves.find((x) => x.nodeId === nd.id);
+        return m ? { ...nd, position: { x: m.from.x, y: m.from.y } } : nd;
+      });
+      return { nodes: n, edges };
+    }
+    case "resize": {
+      const n = nodes.map((nd) => {
+        const c = op.changes.find((x) => x.nodeId === nd.id);
+        return c
+          ? { ...nd, style: { ...nd.style, width: c.from.w, height: c.from.h }, measured: undefined }
+          : nd;
+      });
+      return { nodes: n, edges };
+    }
+    case "collapse-batch": {
+      const byId = new Map(op.changes.map((c) => [c.nodeId, c.wasCollapsed]));
+      const n = nodes.map((nd) => {
+        if (!byId.has(nd.id)) return nd;
+        return { ...nd, data: { ...nd.data, collapsed: byId.get(nd.id) } };
+      });
+      return { nodes: n, edges };
+    }
     default:
       return { nodes, edges };
   }
@@ -183,4 +276,25 @@ export function undoOps(
     result = undoOp(result.nodes, result.edges, ops[i]);
   }
   return result;
+}
+
+/**
+ * Extract the "before" view-state (hiddenIds/showFiles/maxDisplayDepth/autoHideThreshold)
+ * that a batched op wants restored on undo. Ops that carry explicit before/after
+ * sidecars (remove-subtree, view-state) take priority; otherwise the op restores
+ * nothing for the view state.
+ */
+export function getUndoViewState(op: HistoryOp): Partial<ViewState> | null {
+  if (op.type === "remove-subtree") return op.before;
+  if (op.type === "view-state") return op.before;
+  return null;
+}
+
+/**
+ * Extract the "after" view-state an op wants applied on redo.
+ */
+export function getRedoViewState(op: HistoryOp): Partial<ViewState> | null {
+  if (op.type === "remove-subtree") return op.after;
+  if (op.type === "view-state") return op.after;
+  return null;
 }

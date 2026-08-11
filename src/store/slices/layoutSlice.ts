@@ -25,20 +25,36 @@ export type LayoutSliceCreator = StateCreator<
     setEdgeWidth: (w: number) => void;
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
-    skipNextFitView: () => void;
   }
 >;
 
+/**
+ * Responsive default layout direction: LR on screens smaller than 1.5k
+ * (2560×1440) so the wide LR layout better fits the available horizontal
+ * space, TB otherwise. Returns TB when there is no window (SSR/build).
+ * The store initializes to the isomorphic "TB" to avoid an SSR/client
+ * hydration mismatch; the Sidebar applies this responsive default once on
+ * the client (see Sidebar). Saved graphs / the sidebar control can override.
+ */
+export function defaultDirection(): LayoutDirection {
+  if (typeof window !== "undefined") {
+    const { width, height } = window.screen;
+    if (width > 0 && height > 0 && (width < 2560 || height < 1440)) return "LR";
+  }
+  return "TB";
+}
+
 export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
+  // Isomorphic default — the responsive LR default is applied client-side in
+  // the Sidebar so SSR and hydration render the same initial state.
   direction: "TB",
-  edgeStyle: "curved",
+  edgeStyle: "angled",
   edgeAnimated: false,
   edgeStrokeStyle: "solid",
   edgeWidth: 2,
   cornerRadius: 8,
   nodeWidth: 240,
   nodeHeight: 200,
-  _skipNextFitView: false,
 
   setDirection: (direction) => {
     set({ direction });
@@ -55,24 +71,36 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeStyle: (style) => {
-    get().skipNextFitView();
     set({ edgeStyle: style });
     const edgeType = style === "curved" ? "default" : style === "angled" ? "smoothstep" : "straight";
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, type: edgeType as any })), graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeAnimated: (animated) => {
-    get().skipNextFitView();
     if (animated && get().edgeStrokeStyle === "solid") {
       set({ edgeAnimated: animated, edgeStrokeStyle: "dashed" });
     } else {
       set({ edgeAnimated: animated });
     }
-    set((s) => ({ edges: s.edges.map((e) => ({ ...e, animated })), graphVersion: s.graphVersion + 1 }));
+    set((s) => {
+      // Animated edges need an explicit dash pattern on the element itself.
+      // Without one, @xyflow/react's CSS falls back to `stroke-dasharray: 5`
+      // (period 10), which doesn't match the app's patterns and shows up as
+      // periodic jumps in the dash animation.
+      const strokeDasharray =
+        s.edgeStrokeStyle === "dashed" ? "8 4" : s.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
+      return {
+        edges: s.edges.map((e) => ({
+          ...e,
+          animated,
+          style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
+        })),
+        graphVersion: s.graphVersion + 1,
+      };
+    });
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {
-    get().skipNextFitView();
     set({ edgeStrokeStyle: strokeStyle });
     const strokeDasharray = strokeStyle === "dashed" ? "8 4" : strokeStyle === "dotted" ? "2 4" : undefined;
     set((s) => ({
@@ -85,21 +113,15 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeWidth: (width) => {
-    get().skipNextFitView();
     const clamped = Math.max(0.5, Math.min(6, width));
     set({ edgeWidth: clamped });
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, style: { ...e.style, strokeWidth: clamped } })), graphVersion: s.graphVersion + 1 }));
   },
 
   setCornerRadius: (radius) => {
-    get().skipNextFitView();
     const clamped = Math.max(0, Math.min(20, radius));
     set({ cornerRadius: clamped });
     set((s) => ({ edges: s.edges.map((e) => ({ ...e, pathOptions: { borderRadius: clamped } })), graphVersion: s.graphVersion + 1 }));
-  },
-
-  skipNextFitView: () => {
-    set({ _skipNextFitView: true });
   },
 
   setNodeDimensions: (w, h) => {

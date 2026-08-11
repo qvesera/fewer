@@ -48,10 +48,23 @@ export const useGraphStore = create<GraphState>()((set, get, api) => ({
       if (change.type === "select") { edges = edges.map((e) => e.id === change.id ? { ...e, selected: change.selected } : e); needsRebuild = true; }
       else if (change.type === "remove") { const edge = store.edges.find((e) => e.id === change.id); if (edge) { edges = edges.filter((e) => e.id !== change.id); needsRebuild = true; } }
     }
-    if (needsRebuild) { set({ edges }); get().pushOp({ type: "bulk-import", nodes: store.nodes, edges: store.edges }); }
+    if (needsRebuild) { set({ edges }); const removed = store.edges.filter((e) => !edges.some((ed) => ed.id === e.id)); if (removed.length > 0) get().pushOp({ type: "remove-edges", edges: removed }); }
   },
-  commitHistory: () => {
-    const store = get();
-    store.pushOp({ type: "bulk-import", nodes: store.nodes, edges: store.edges });
+  /**
+   * Record a completed drag operation so undo restores original positions.
+   * Called by GraphCanvas on drag stop (single node or multi-selection).
+   */
+  recordDragMoves: (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
+    const real = moves.filter((m) => m.from.x !== m.to.x || m.from.y !== m.to.y);
+    if (real.length === 0) return;
+    get().pushOp({ type: "move-positions", moves: real });
+  },
+  /**
+   * Record a completed resize operation so undo restores original dimensions.
+   */
+  recordResize: (changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[]) => {
+    const real = changes.filter((c) => c.from.w !== c.to.w || c.from.h !== c.to.h);
+    if (real.length === 0) return;
+    get().pushOp({ type: "resize", changes: real });
   },
 }));
