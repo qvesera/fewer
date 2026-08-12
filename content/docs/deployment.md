@@ -54,6 +54,15 @@ bunx netlify deploy --prod
 
 The `build:netlify` script skips the standalone output step (Netlify handles its own serverless output). The `COMMIT_REF` environment variable is injected automatically during Netlify builds to version the app.
 
+### Domains: homepage vs app
+
+Fewer splits its public surface across two domains on the same Netlify site:
+
+- **`fewer.directory`** — the marketing homepage, privacy policy, docs, and blog. The visitor does **not** need to sign in. `middleware.ts` rewrites `/` to the marketing page (`src/app/welcome`) when the `Host` is `fewer.directory` (or `www.fewer.directory`, which 308-redirects to the apex).
+- **`app.fewer.directory`** — the interactive app itself.
+
+In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback`, share links, and the scheduled function) must point at the **app** domain: `https://app.fewer.directory`.
+
 ## Caddy Reverse Proxy
 
 The repo includes a `Caddyfile` that proxies port 81 to the app on port 3000:
@@ -99,7 +108,7 @@ One-time settings to verify before real users arrive:
 
 1. **Supabase dashboard → Authentication → Providers → Email**: make sure **Email** is enabled (it is the only sign-in provider).
 2. **Supabase dashboard → Authentication → Sign In / Up**: turn on **Confirm email** so new accounts must verify their address (blocks fake sign-ups). The app's sign-up dialog already prompts "Check your email".
-3. **Supabase dashboard → Authentication → URL Configuration**: set **Site URL** to your production origin (e.g. `https://fewer.directory`) and add your origin + `https://your-domain.com/auth/callback` to **Redirect URLs** — required for password-reset and email-confirmation links.
+3. **Supabase dashboard → Authentication → URL Configuration**: set **Site URL** to your production app origin (e.g. `https://app.fewer.directory`) and add your origin + `https://app.fewer.directory/auth/callback` to **Redirect URLs** — required for password-reset and email-confirmation links.
 4. **Netlify env vars**: linking the Netlify ⇄ Supabase integration sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` automatically. Add the rest manually: `NEXT_PUBLIC_APP_URL` (production origin, used in emailed links), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `CONNECTIONS_ENCRYPTION_KEY` (`openssl rand -base64 32`), and the per-provider OAuth keys below.
 5. **Run migrations on the hosted project**: `supabase link --project-ref <ref>` then `supabase db push`, so hardening migrations (e.g. `0012_harden_share_rls.sql`) are applied before launch.
 6. **Verify invite-only sharing in an incognito window**: open an invite link signed out → 403 + sign-in prompt → sign in as the invited email → the graph loads.

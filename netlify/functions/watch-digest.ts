@@ -6,7 +6,7 @@ import type { Handler } from "@netlify/functions";
  */
 export const handler: Handler = async () => {
   const secret = process.env.CRON_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://fewer.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fewer.directory";
 
   if (!secret) {
     return { statusCode: 500, body: "CRON_SECRET not set" };

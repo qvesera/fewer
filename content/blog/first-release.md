@@ -61,7 +61,7 @@ Open `http://localhost:3000`, click **Load sample project**, and explore.
 
 ### If you want to try it out instantly
 
-Visit [fewer.directory](https://fewer.directory) and start exploring.
+Visit [app.fewer.directory](https://app.fewer.directory) and start exploring.
 
 All the same features, none of the installation. Still built for your privacy.
 

@@ -8,7 +8,7 @@ lastUpdated: August 10, 2026
 
 <!-- NOTE FOR THE SITE OPERATOR: This is a generic template. Before publishing this policy as legally binding, have a qualified attorney review it for your jurisdiction and specific business model (accounts, saved graphs, share links, cloud OAuth connections). This is not legal advice. -->
 
-This Privacy Policy explains how fewer ("we", "our", or "us") collects, uses, and protects information when you use the fewer web application at [fewer.directory](https://fewer.directory) and related services.
+This Privacy Policy explains how fewer ("we", "our", or "us") collects, uses, and protects information when you use the fewer web application at [app.fewer.directory](https://app.fewer.directory) (the homepage and public site are at [fewer.directory](https://fewer.directory)) and related services.
 
 By using fewer, you agree to the practices described in this policy.
 
