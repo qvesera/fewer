@@ -9,7 +9,7 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE = "https://www.googleapis.com/drive/v3";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
-const SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+const SCOPE = "https://www.googleapis.com/auth/drive.metadata.readonly";
 
 function headers(token: string) {
   return { Authorization: `Bearer ${token}`, "User-Agent": "fewer-app" };

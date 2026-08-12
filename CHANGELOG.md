@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - Unreleased
 
+### Fixed
+
+- **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
+
+
 ### Added
 
 - **Public marketing homepage at `fewer.directory`**: new static homepage (`src/app/welcome`, with content in `src/components/marketing/`) introducing the brand, describing the app's functionality (visualize, explore, edit, export, share, cloud import, watch digests, themes), and a "Your data stays yours" transparency section explaining exactly what data fewer requests and why (runs locally; optional sign-in for saved graphs/sharing; scoped OAuth cloud connections; opt-in watch URLs; no selling/trackers/telemetry). Served at the apex domain without requiring login.
