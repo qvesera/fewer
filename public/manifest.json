@@ -2,7 +2,7 @@
   "name": "fewer",
   "short_name": "fewer",
   "description": "Interactive Directory Graph Visualizer",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0a0a0b",

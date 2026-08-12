@@ -9,7 +9,7 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/app";
 
   if (code) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,6 +37,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // Return to home on error; the app handles the "not signed in" state gracefully.
-  return NextResponse.redirect(`${origin}/`);
+  // Return to the app on error; it handles the "not signed in" state gracefully.
+  return NextResponse.redirect(`${origin}/app`);
 }

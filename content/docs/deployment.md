@@ -56,12 +56,12 @@ The `build:netlify` script skips the standalone output step (Netlify handles its
 
 ### Domains: homepage vs app
 
-Fewer splits its public surface across two domains on the same Netlify site:
+Fewer splits its public surface across two domains on the same Netlify site, and the app lives at a sub-path:
 
-- **`fewer.directory`** — the marketing homepage, privacy policy, docs, and blog. The visitor does **not** need to sign in. `middleware.ts` rewrites `/` to the marketing page (`src/app/welcome`) when the `Host` is `fewer.directory` (or `www.fewer.directory`, which 308-redirects to the apex).
-- **`app.fewer.directory`** — the interactive app itself.
+- **`fewer.directory`** — the marketing homepage, privacy policy, docs, and blog. Visiting `/` on any host serves this page (`src/app/page.tsx`); the visitor does **not** need to sign in.
+- **`app.fewer.directory`** — the interactive app. The app itself lives at **`/app`** (`src/app/app/page.tsx`); `app.fewer.directory` and the Netlify `.app` subdomain redirect their root to `/app` (Netlify redirect rules with a `Host` header condition), so the app domain lands directly on the app.
 
-In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback`, share links, and the scheduled function) must point at the **app** domain: `https://app.fewer.directory`.
+In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback`, share links, and the scheduled function) must point at the **app** origin: `https://app.fewer.directory`.
 
 ## Caddy Reverse Proxy
 

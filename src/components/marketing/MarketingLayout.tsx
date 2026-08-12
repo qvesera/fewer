@@ -2,9 +2,12 @@ import Link from "next/link";
 import { Github, ShieldCheck, ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 
-/** Public app origin used by the CTA + share/cloud OAuth URLs. */
-export const APP_URL =
+/** Origin used by OAuth callbacks, share links, and the scheduled function. */
+export const APP_ORIGIN =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://app.fewer.directory";
+
+/** Public entry point to the interactive app (the app lives at `/app`). */
+export const APP_URL = `${APP_ORIGIN}/app`;
 
 const NAV = [
   { label: "Features", href: "/welcome#features" },
