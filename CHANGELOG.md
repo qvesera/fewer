@@ -5,7 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.1] - Unreleased
+## [0.6.0] - Unreleased
+
+### Fixed
+
+- **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
+
+
+### Added
+
+- **Public marketing homepage at `fewer.directory`**: new static homepage (`src/app/welcome`, with content in `src/components/marketing/`) introducing the brand, describing the app's functionality (visualize, explore, edit, export, share, cloud import, watch digests, themes), and a "Your data stays yours" transparency section explaining exactly what data fewer requests and why (runs locally; optional sign-in for saved graphs/sharing; scoped OAuth cloud connections; opt-in watch URLs; no selling/trackers/telemetry). Served at the apex domain without requiring login.
+- **Dedicated privacy policy page at `/privacy`**: renders the existing `content/docs/privacy.md` in the new marketing layout, giving a clean, crawlable URL for verification/consent screens (`https://fewer.directory/privacy`).
+- **App moved to `/app`**: the root route `/` now always serves the public marketing homepage (see `src/app/page.tsx`), and the interactive app lives at `/app` (see `src/app/app/page.tsx`). `app.fewer.directory`/`fewer-directory.netlify.app` redirect their root to `/app` (Netlify redirect rules with a `Host` header condition), so the app domain still lands on the app. `www.fewer.directory` redirects to `fewer.directory`. This path-based split is robust (it does not depend on middleware running for prerendered pages).
+- **`www.fewer.directory` → `fewer.directory` redirect**: handled in middleware (308) and via a Netlify redirect rule with a `Host` header condition.
+
+### Changed
+
+- `NEXT_PUBLIC_APP_URL` now points at `https://app.fewer.directory` (used by OAuth callbacks at `/api/cloud/callback`, share links, and the scheduled watch-digest function). Local `.env.local` stays `http://localhost:3000`.
+- `netlify/functions/watch-digest.ts` fallback app URL updated to `https://app.fewer.directory`.
+- Removed the `/* → /index.html` catch-all redirect from `netlify.toml` (the root page is now dynamic; the Next.js plugin handles routing/404s).
+- Docs, blog posts, README, and legal pages updated to reference `app.fewer.directory` as the app while keeping `fewer.directory` as the homepage. `content/docs/deployment.md` documents the homepage-vs-app domain split.
 
 ### Fixed
 

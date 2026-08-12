@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Search, Bell, Settings, LogIn, LogOut, User } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
@@ -51,10 +52,10 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
 
   return (
     <div className="relative w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
-      {/* Brand Group */}
-      <div className="z-10 flex items-center gap-2">
+      {/* Brand Group — clickable, goes to the homepage */}
+      <Link href="/" className="z-10 flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Fewer home">
         <Logo showText />
-      </div>
+      </Link>
 
       {/* Global Search Center Input Box */}
       <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-md hidden sm:block z-20">

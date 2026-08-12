@@ -51,7 +51,7 @@ We cut dead weight and made the app feel quicker.
 - PWA splash screen + manifest fixes
 - Theme-aware UI everywhere: buttons, sliders, switches, and icons follow your active theme
 
-Try it now at [fewer.directory](https://fewer.directory), or run it locally with:
+Try it now at [app.fewer.directory](https://app.fewer.directory), or run it locally with:
 
 ```bash
 git clone https://github.com/qvesera/fewer.git
