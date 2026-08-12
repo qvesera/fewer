@@ -8,7 +8,7 @@ lastUpdated: August 10, 2026
 
 <!-- NOTE FOR THE SITE OPERATOR: This is a generic template. Before publishing these terms as legally binding, have a qualified attorney review them for your jurisdiction and specific business model (accounts, saved graphs, share links, cloud OAuth connections). This is not legal advice. -->
 
-These Terms of Use ("Terms") govern your access to and use of the fewer web application available at [fewer.directory](https://fewer.directory) and related services (together, the "Service"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.
+These Terms of Use ("Terms") govern your access to and use of the fewer web application available at [app.fewer.directory](https://app.fewer.directory) and related services (together, the "Service"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, please do not use the Service.
 
 ## 1. Acceptance of Terms
 

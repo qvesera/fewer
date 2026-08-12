@@ -18,8 +18,8 @@ The link contains all nodes and edges with their positions, plus layout directio
 
 ### How it works
 
-- **Small graphs** are compressed into the URL hash using LZ-string (e.g. `https://fewer.directory/#N4IgDgTgpghgLmAXGB...`). Nothing is uploaded; the link is self-contained.
-- **Large graphs** (encoded hash over ~2000 characters, roughly a few hundred nodes) are stored on the server and shared via a short link like `https://fewer.directory/#s:abc123`. This keeps URLs shareable where long links get truncated. If the server store is unavailable, Fewer falls back to the long hash URL.
+- **Small graphs** are compressed into the URL hash using LZ-string (e.g. `https://app.fewer.directory/#N4IgDgTgpghgLmAXGB...`). Nothing is uploaded; the link is self-contained.
+- **Large graphs** (encoded hash over ~2000 characters, roughly a few hundred nodes) are stored on the server and shared via a short link like `https://app.fewer.directory/#s:abc123`. This keeps URLs shareable where long links get truncated. If the server store is unavailable, Fewer falls back to the long hash URL.
 
 ## Open a Shared Graph
 

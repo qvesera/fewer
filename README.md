@@ -349,7 +349,7 @@ A: No. Everything runs in your browser. The only network call is an optional Git
 
 **Q: Can I use fewer without installing anything?**
 
-A: Yes. The standalone version is available at [fewer.directory](https://fewer.directory). The self-hosted version requires `bun install && bun run dev`.
+A: Yes. The standalone version is available at [app.fewer.directory](https://app.fewer.directory). The self-hosted version requires `bun install && bun run dev`.
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
