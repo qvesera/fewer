@@ -167,7 +167,7 @@ https://your-domain.com/api/cloud/callback   (prod)
 ### Google Drive
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com) → your project → **APIs & Services → OAuth consent screen**.
-2. Set the app to **External** and add the `drive.readonly` scope in **Data Access**.
+2. Set the app to **External** and add the `drive.metadata.readonly` scope in **Data Access**.
 3. **APIs & Services → Credentials → Create Credentials → OAuth client ID → Web application**.
 4. Add the redirect URI: `https://your-domain.com/api/cloud/callback`.
 5. Copy the Client ID and Client Secret into:
