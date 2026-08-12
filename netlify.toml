@@ -11,7 +11,12 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Redirect the www subdomain to the apex domain (fewer.directory).
+# Only takes effect if www.fewer.directory is added as a domain/alias on this site.
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
+  to = "https://fewer.directory/:splat"
+  status = 301
+  [redirects.conditions]
+    [redirects.conditions.headers]
+      Host = "www.fewer.directory"

@@ -3,7 +3,7 @@ title: Getting Started with Fewer
 description: Install, import your first directory, and navigate the graph. Everything you need to start exploring directory structures visually.
 ---
 
-There is a web version available at [https://fewer.directory](https://fewer.directory).
+There is a web version available at [https://app.fewer.directory](https://app.fewer.directory).
 
 But if you want to run this locally, follow this quickstart guide.
 
