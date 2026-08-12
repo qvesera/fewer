@@ -15,7 +15,7 @@ async function loadSample(page: Page) {
 
 // Wait for the default sample graph to be on the canvas.
 async function openCanvas(page: Page) {
-  await page.goto("/");
+  await page.goto("/app");
   await loadSample(page);
   await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
 }
@@ -36,7 +36,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("loads the sample project and renders nodes", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/app");
   await loadSample(page);
 
   const nodes = page.locator(".react-flow__node");
