@@ -39,10 +39,23 @@ import {
   BellRing,
   Info,
   Cloud,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
@@ -57,6 +70,8 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 function AboutTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -64,6 +79,37 @@ function AboutTab() {
       toast({ title: "Signed out" });
     } catch {
       toast({ title: "Could not sign out", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/account", { method: "DELETE" });
+      if (!res.ok) {
+        let msg = "Could not delete account";
+        try {
+          const body = await res.json();
+          if (body?.error) msg = body.error;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+      // Sign out locally so the UI reflects the deleted session immediately.
+      try {
+        await getBrowserSupabase().auth.signOut();
+      } catch {
+        /* session may already be gone */
+      }
+      useGraphStore.getState().setSettingsOpen(false);
+      setConfirmOpen(false);
+      toast({ title: "Account deleted", description: "Your account and data have been removed." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not delete account";
+      toast({ title: "Could not delete account", description: msg, variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -111,6 +157,58 @@ function AboutTab() {
           )
         )}
       </div>
+{/* Danger Zone — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">Delete account</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                Permanently remove your account, saved graphs, and related data
+              </span>
+            </div>
+          </div>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={deleting}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes your account, saved graphs, watch lists, cloud
+                  connections, and any shared graphs you own. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="gap-1.5"
+                  disabled={deleting}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleDeleteAccount();
+                  }}
+                >
+                  {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {deleting ? "Deleting…" : "Delete my account"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
 
       {/* Brand Hero Card */}
         <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/50 p-4 shadow-sm transition-[colors,transform,box-shadow]">
