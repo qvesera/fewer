@@ -16,6 +16,9 @@ jobs:
 
       - name: Open or reuse main -> release/prod PR
         run: |
+          TOKEN="${{ secrets.RELEASE_PAT }}"
+          : "${TOKEN:?RELEASE_PAT secret is required: create a PAT with repo scope and add it in repo Settings -> Secrets}"
+
           existing() {
             gh pr list \
               --base release/prod \
@@ -37,4 +40,4 @@ jobs:
               --body "Automated: \`main\` was updated, so this PR promotes the current \`main\` into \`release/prod\`. Only \`main\` merges into \`release/prod\`."
           fi
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: "${{ secrets.RELEASE_PAT }}"
