@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
 - **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
 - ASCII tree imports are now header- and footer-aware: the "Directory Tree Structure" title, the "Created with fewer" credit line, and trailing "N directories, M files" style summaries are stripped instead of being imported as phantom nodes.
 - Selecting a node now highlights only its ancestor-path edges (from the node up to the root parent) instead of every incident edge — child edges are no longer colored when a folder is selected.
@@ -65,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
+
 ## [0.5.0] - 18th August 2026
 
 ### Added
