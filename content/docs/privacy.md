@@ -1,10 +1,10 @@
 ---
 title: Privacy Policy
 description: How fewer collects, uses, and protects your data. Fewer runs in your browser with no trackers, no ads, and no telemetry. This policy explains exactly what we handle, why, and how you can control it.
-lastUpdated: August 14, 2026
+lastUpdated: August 15, 2026
 ---
 
-**Last updated: August 14, 2026**
+**Last updated: August 15, 2026**
 
 <!-- NOTE FOR THE SITE OPERATOR: This policy is written to be transparent and easy to read, but it is still a template. Before publishing it as legally binding, have a qualified attorney confirm the operator identity, jurisdiction, and the named service providers below match your actual deployment. This is not legal advice. -->
 
@@ -34,6 +34,8 @@ Fewer runs entirely in your browser. Your imported directories, graphs, edits, a
 
 The only things that ever leave your browser are the optional actions you take, described throughout this policy (such as saving a graph, creating a share link, importing a public file index, or connecting a cloud service).
 
+**Transparency about environments.** We run separate non-production environments (local development, deploy previews, and test branches) against a separate database from production, so activity in a dev, preview, or stage build never writes to your production data. Those builds are for testing; use them at your own discretion and don't treat them as a permanent home for anything you care about.
+
 ## 2. Information We Collect
 
 Because fewer is a client-side application, we collect very little. What we handle depends entirely on which optional features you use.
@@ -45,6 +47,7 @@ Because fewer is a client-side application, we collect very little. What we hand
 - **Share links.** If you create a public share link, the graph data you choose to share is stored and served to anyone who has the link. Creating a shared link is a deliberate, visible action.
 - **Email share invites.** If you invite someone by email to view a shared graph, we store the recipient's email address and a one-time token that lets them open the graph without an account. We send that one invite email and do not use the address for anything else.
 - **Watch digests.** If you enable watch digests, we store the public file-index URLs you add and email you a daily digest when those indexes change. This only happens if you enable it.
+- **Bug reports.** If you submit an optional bug report, we collect the report text you write (description and steps), together with diagnostics about your browser/device and aggregate graph statistics. We use this to fix faults; bug reports are optional and you can review exactly what is sent before submitting.
 
 ### Data Collected Automatically (Minimal)
 
@@ -70,10 +73,11 @@ We share information only in these limited cases, and we name our service provid
 | **Supabase** | Authentication and the database that stores accounts, saved graphs, and share data | Your email, your saved/share data, auth session data |
 | **Netlify** | Hosting, content delivery, and serverless functions (e.g., the daily watch-digest check) | Service logs from traffic to the site |
 | **Resend** | Sending transactional email (share invites and watch digests) | The recipient email address and the email content for the emails you send or receive |
+| **Web3Forms** | Forwarding bug reports you choose to submit (delivered to us by email) | The report content you write, plus your browser/device and graph-diagnostics you opt into sending |
 | **GitHub / Google / Microsoft** | Optional cloud imports you initiate | Only what is needed to fetch the tree you asked for; contents are never stored wholesale |
 | **Legal process** | If the law requires it | Only what a valid legal request compels us to provide |
 
-Each provider processes data only to perform its functions for us, and is bound by its own terms and privacy policies, including: [Supabase](https://supabase.com/privacy), [Netlify](https://www.netlify.com/privacy-policy/), [Resend](https://resend.com/legal/privacy-policy), [GitHub](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement), [Google](https://policies.google.com/privacy), and [Microsoft](https://privacy.microsoft.com/en-us/privacystatement).
+Each provider processes data only to perform its functions for us, and is bound by its own terms and privacy policies, including: [Supabase](https://supabase.com/privacy), [Netlify](https://www.netlify.com/privacy-policy/), [Resend](https://resend.com/legal/privacy-policy), [Web3Forms](https://web3forms.com/privacy), [GitHub](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement), [Google](https://policies.google.com/privacy), and [Microsoft](https://privacy.microsoft.com/en-us/privacystatement).
 
 ## 4. How We Use Information
 

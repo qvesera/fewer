@@ -1,10 +1,10 @@
 ---
 title: Terms of Use
 description: The terms and conditions governing your use of the fewer web application and related services, written to be fair, clear, and easy to understand.
-lastUpdated: August 14, 2026
+lastUpdated: August 15, 2026
 ---
 
-**Last updated: August 14, 2026**
+**Last updated: August 15, 2026**
 
 <!-- NOTE FOR THE SITE OPERATOR: These terms are written to be fair and transparent, but they are still a template. Before publishing them as legally binding, have a qualified attorney confirm the operator identity, the governing law (currently India) in Section 15, and confirm they match your actual deployment. This is not legal advice. -->
 
@@ -79,7 +79,7 @@ Fewer, including its user interface, design, and original code, is licensed unde
 
 ## 8. Third-Party Services
 
-Some features rely on third-party services (for example, Supabase for authentication and storage, Netlify for hosting, Resend for email, and cloud providers such as GitHub, Google, and Microsoft for optional connectivity). Your use of those features is also subject to the respective third-party terms and privacy policies, which are linked from our [Privacy Policy](/docs/privacy).
+Some features rely on third-party services (for example, Supabase for authentication and storage, Netlify for hosting, Resend for email, Web3Forms for bug-report delivery, and cloud providers such as GitHub, Google, and Microsoft for optional connectivity). Your use of those features is also subject to the respective third-party terms and privacy policies, which are linked from our [Privacy Policy](/docs/privacy).
 
 ## 9. Disclaimer of Warranties
 

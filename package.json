@@ -21,7 +21,7 @@
     "test": "bun test src/lib/fewer",
     "build:netlify": "bun next build",
     "env": "bun run scripts/env-sync.ts",
-    "env:check": "bun run scripts/env-sync.ts check",
+    "env:check": "bun run scripts/env-sync.ts check"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

@@ -53,7 +53,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
   return (
     <div className="relative w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
       {/* Brand Group — clickable, goes to the homepage */}
-      <Link href="/" className="z-10 flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Fewer home">
+      <Link href={process.env.NEXT_PUBLIC_HOME_URL || "/"} className="z-10 flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Fewer home">
         <Logo showText />
       </Link>
 
