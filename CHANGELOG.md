@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Added
+- **Env sync tool (`scripts/env-sync.ts`)**: a zero-dependency dev script that treats `.env` (production) and `.env.local` (non-production) as the single source of truth for all 19 code-referenced environment variables. `bun run env:check` validates every variable against a registry (source file, secret/public, Netlify scope, GitHub target) and flags missing or placeholder values; `bun run env:sync` pushes to Netlify (`netlify env:set` per deploy context + scope, `--secret` for secrets) and GitHub (`gh secret set` / `gh variable set`). Added `env` and `env:check` npm scripts. Documents `NEXT_PUBLIC_HOME_URL` in `.env.example`.
+
 - **Separate non-production Supabase database**: dev/preview/local builds now use a dedicated `fewer-dev` Supabase project (`aorhvfihnjhpxgjiacfg`, ap-south-1) instead of sharing the production `fewer` project (`rzzbhboedvezamqjjuoe`). All 14 migrations run on both. `.env.local` (local dev) and Netlify **deploy previews + branch deploys** point at `fewer-dev`; production stays on `fewer`. Added `[context.deployment-preview]` and `[context.branch-deploy]` environment overrides to `netlify.toml`, plus an env table and guidance in `/docs/deployment`. This makes it impossible for a PR/preview to read or write real user data.
 
 
