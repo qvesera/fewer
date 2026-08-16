@@ -95,9 +95,10 @@ export function ImportFlowDialog({
   const [source, setSource] = useState<OriginSource>(
     defaultSourceFor(initialOrigin),
   );
-  const [options, setOptions] = useState<ImportOptions>({
-    ...DEFAULT_IMPORT_OPTIONS,
-  });
+  // Seed from the user's saved import preferences (cloud/db synced).
+  const [options, setOptions] = useState<ImportOptions>(() => ({
+    ...useGraphStore.getState().importOptions,
+  }));
   const [importing, setImporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -108,7 +109,7 @@ export function ImportFlowDialog({
     setStep(1);
     setOrigin(initialOrigin);
     setSource(defaultSourceFor(initialOrigin));
-    setOptions({ ...DEFAULT_IMPORT_OPTIONS });
+    setOptions({ ...useGraphStore.getState().importOptions });
     setActionError(null);
     setImporting(false);
   } else if (!open && wasOpen) {
@@ -129,6 +130,12 @@ export function ImportFlowDialog({
       }));
     }
   }, [advancedModeEnabled]);
+
+  // Persist the user's import preferences so the next session/dialog remembers
+  // them (and so they're synced to the account in the cloud).
+  useEffect(() => {
+    useGraphStore.setState((s) => ({ importOptions: { ...s.importOptions, ...options } }));
+  }, [options]);
 
   const handleImport = async () => {
     if (importing) return;

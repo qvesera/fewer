@@ -1,6 +1,7 @@
 "use client";
 
 import { fsHandleStore } from "./types";
+import { useGraphStore } from "@/store/graphStore";
 
 /**
  * Real file system operations using the File System Access API.
@@ -148,37 +149,140 @@ export async function openFile(handle: FileSystemFileHandle): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+/** Types browsers can render inline — opening a live handle for these in a new
+ *  tab is fine. Everything else should go through the OS default app, or we'd
+ *  silently trigger a download for the unsupported type. */
+const RENDERABLE_PREFIXES = ["image/", "text/", "video/", "audio/", "font/"];
+const RENDERABLE_TYPES = new Set([
+  "application/pdf",
+  "application/json",
+  "application/xml",
+  "application/javascript",
+  "application/x-javascript",
+  "application/svg+xml",
+]);
+const RENDERABLE_EXT =
+  /\.(?:png|jpe?g|gif|webp|avif|svg|bmp|ico|pdf|txt|md|json|xml|html?|css|js|mjs|mp3|wav|ogg|oga|m4a|flac|mp4|webm|ogv|mov|ttf|otf|woff2?)$/i;
+
+/** These look renderable (MIME starts with text/) but browsers simply download
+ *  them on navigation. Send them to the OS default app instead. */
+const DOWNLOAD_TYPES = new Set([
+  "text/csv",
+  "application/csv",
+  "text/tab-separated-values",
+  "application/vnd.ms-excel",
+]);
+
+function isBrowserRenderable(name: string, mime?: string): boolean {
+  const type = (mime || "").trim().toLowerCase().split(";")[0];
+  if (DOWNLOAD_TYPES.has(type) || /\.(?:csv|tsv|tab)$/i.test(name)) return false;
+  if (RENDERABLE_PREFIXES.some((p) => type.startsWith(p))) return true;
+  if (RENDERABLE_TYPES.has(type)) return true;
+  return RENDERABLE_EXT.test(name);
+}
+
+/**
+ * Absolute path of a node on the dev machine, given the graph's saved/known
+ * absolute root folder (`localRootPath`) and the root node's relative
+ * `data.path` (which is just the root folder's name). Returns null when the
+ * node doesn't live under the root (detached/renamed) — callers then fall back
+ * to the server's path-search.
+ */
+export function nodeAbsolutePath(
+  nodePath: string | undefined,
+  rootPath: string | undefined,
+  localRootPath: string | null | undefined,
+): string | null {
+  if (!nodePath || !rootPath || !localRootPath) return null;
+  if (nodePath === rootPath) return localRootPath;
+  if (nodePath.startsWith(`${rootPath}/`)) {
+    return `${localRootPath}/${nodePath.slice(rootPath.length + 1)}`;
+  }
+  return null;
+}
+
+/**
+ * Resolve the current graph's root folder to its absolute path on this dev
+ * machine (via /api/resolve-path) and stash it in the store. Called after a
+ * directory import and again at save time, so the path only has to be
+ * searched once — afterwards opens use it directly and saved graphs carry it.
+ * Returns the resolved path, or null when there's nothing to resolve here.
+ */
+export async function resolveRootLocalPath(): Promise<string | null> {
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot && n.data.type === "folder");
+  const rel = root?.data.path;
+  if (!rel) return st.localRootPath ?? null;
+  try {
+    const res = await fetch("/api/resolve-path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: rel }),
+    });
+    const json = await res.json().catch(() => null);
+    const resolved = json?.resolved;
+    if (typeof resolved === "string" && resolved) {
+      useGraphStore.getState().setLocalRootPath(resolved);
+      return resolved;
+    }
+  } catch {
+    // Not running on a machine with the dev server, or path unresolvable.
+  }
+  return st.localRootPath ?? null;
+}
+
 /**
  * Open a local file node in its dedicated OS app (the default app for that
- * file type). For directory imports we POST the node's path to /api/open-file,
- * which the dev server resolves to a real path and hands to `open` / `start` /
- * `xdg-open`. Falls back to opening in the browser via a live file handle
- * (object URL) when there's no server-resolvable path.
+ * file type). We POST the node's path to /api/open-file, which the dev server
+ * resolves to a real path and hands to `open` / `start` / `xdg-open`.
+ * This runs for any source that carries a path, so files of every type —
+ * including ones the browser can't render — open in their OS default app
+ * instead of silently downloading.
+ * Falls back to opening in the browser via a live file handle (object URL)
+ * only for types a browser can actually render, and only when no
+ * server-resolvable path is available.
  * Returns true if a file was opened somehow.
  */
 export async function openNodeFile(
   node: { id: string; data: { type: string; path?: string } },
   dataSource: string,
 ): Promise<boolean> {
-  // 1) Directory import with a path → open in the OS default app.
-  if (dataSource === "directory" && node.data.path) {
+  // 1) Open in the OS default app whenever we have a path — the only route
+  //    that hands the file to `xdg-open` / `open` / `start`. Not gated on
+  //    directory imports: any path-owning source opens in its default app.
+  if (node.data.path) {
+    // Prefer the exact, previously-resolved root location (saved with the
+    // graph as localRootPath) so we don't have to search the filesystem again.
+    const st = useGraphStore.getState();
+    const root = st.nodes.find((n) => n.data.isRoot);
+    const sendPath =
+      nodeAbsolutePath(node.data.path, root?.data.path, st.localRootPath) ??
+      node.data.path;
     try {
       const res = await fetch("/api/open-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: node.data.path }),
+        body: JSON.stringify({ path: sendPath }),
       });
       if (res.ok) return true;
     } catch {
       // fall through to browser fallback
     }
   }
-  // 2) Browser fallback when we hold a live file handle.
+  // 2) Browser fallback (live file handle → object URL) — only for types the
+  //    browser can render, lest we silently download an unsupported type.
   if (node.data.type === "file") {
     const handle = fsHandleStore.get(node.id);
     if (handle && handle.kind === "file") {
-      await openFile(handle as FileSystemFileHandle);
-      return true;
+      const fileHandle = handle as FileSystemFileHandle;
+      const file = await fileHandle.getFile();
+      if (isBrowserRenderable(file.name, file.type)) {
+        await openFile(fileHandle);
+        return true;
+      }
+      // Non-renderable type without a server path: we have no way to open the
+      // OS app, so fail cleanly (caller toasts) instead of force-downloading.
+      return false;
     }
   }
   return false;

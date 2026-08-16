@@ -295,7 +295,15 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
-          setTimeout(() => { relayout(); }, 50);
+          setTimeout(() => {
+            // If the graph was just loaded with saved positions, don't re-lay
+            // it out (that would scatter them). Skip and consume the flag.
+            if (useGraphStore.getState().skipNextAutoLayout) {
+              useGraphStore.setState({ skipNextAutoLayout: false });
+              return;
+            }
+            relayout();
+          }, 50);
         }
 
         // Commit a resize op once the resize gesture settles (debounced).

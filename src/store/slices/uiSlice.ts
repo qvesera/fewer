@@ -2,6 +2,8 @@
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ExportSettings } from "@/lib/fewer/types";
+import type { ImportOptions } from "@/lib/fewer/importOptions";
+import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 
@@ -34,9 +36,11 @@ export type UiSliceCreator = StateCreator<
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
     miniMapSize: number;
     advancedModeEnabled: boolean;
+    skipNextAutoLayout: boolean;
     showFiles: boolean;
     loading: boolean;
     exportSettings: ExportSettings;
+    importOptions: ImportOptions;
     tutorialBeginnerDone: string[];
     tutorialDismissed: boolean;
     tutorialDemoStep: number;
@@ -70,6 +74,7 @@ export type UiSliceCreator = StateCreator<
     setShowFiles: (show: boolean) => void;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
+    setImportOptions: (options: ImportOptions) => void;
     markTutorialBeginnerStep: (id: string) => void;
     unmarkTutorialBeginnerStep: (id: string) => void;
     setTutorialDismissed: () => void;
@@ -107,6 +112,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   showFiles: true,
   loading: false,
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true },
+  importOptions: { ...DEFAULT_IMPORT_OPTIONS },
 
   tutorialBeginnerDone: (() => {
     if (typeof window === "undefined") return [];
@@ -118,6 +124,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   })(),
   tutorialDemoStep: 0,
   rightClickDetected: false,
+  skipNextAutoLayout: false,
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
@@ -221,6 +228,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   },
 
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
+  setImportOptions: (options) => set({ importOptions: options }),
 
   markTutorialBeginnerStep: (id) => {
     const done = get().tutorialBeginnerDone;

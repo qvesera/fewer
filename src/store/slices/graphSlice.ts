@@ -190,12 +190,17 @@ export type GraphSliceCreator = StateCreator<
     nodes: FewerNode[];
     edges: FewerEdge[];
     dataSource: string | null;
+    /** Absolute path of the current graph's root folder on this dev machine
+     *  (optional). Populated when a directory import can be resolved, or when a
+     *  saved graph carries one. Enables direct OS opens instead of path-search. */
+    localRootPath: string | null;
     graphVersion: number;
     hiddenPanelExpandTrigger: number;
     clipboard: GraphState["clipboard"];
 
-    setGraph: (nodes: FewerNode[], edges: FewerEdge[], pushHistory?: boolean, hiddenFileIds?: string[]) => void;
+    setGraph: (nodes: FewerNode[], edges: FewerEdge[], pushHistory?: boolean, hiddenFileIds?: string[], options?: { preservePositions?: boolean }) => void;
     setDataSource: (v: string | null) => void;
+    setLocalRootPath: (v: string | null) => void;
     addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
     removeNode: (id: string) => void;
@@ -246,6 +251,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   nodes: [],
   edges: [],
   dataSource: null,
+  localRootPath: null,
   graphVersion: 0,
   hiddenPanelExpandTrigger: 0,
   clipboard: null,
@@ -257,12 +263,13 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   autoHideThreshold: DEFAULT_AUTO_HIDE_THRESHOLD,
 
   setDataSource: (v) => set({ dataSource: v }),
+  setLocalRootPath: (v) => set({ localRootPath: v }),
 
   triggerHiddenPanelExpand: () => {
     set((s) => ({ hiddenPanelExpandTrigger: s.hiddenPanelExpandTrigger + 1 }));
   },
 
-  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds) => {
+  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => {
     const state = get();
     if (pushHistory && state.nodes.length > 0) {
       get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
@@ -291,14 +298,16 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const displayDepthIds = computeDisplayDepthHiddenIds(nodes, state.maxDisplayDepth);
     idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...displayDepthIds])];
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
-    const laidFinal = layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal });
-    const searchedFinal = applySearchInternal(laidFinal, state.searchQuery);
-    const sortedEdges = sortEdges(styledEdges, searchedFinal);
+    // Keep saved positions (saved/graph loads) or lay out fresh (imports).
+    const laidFinal = options?.preservePositions
+      ? applySearchInternal(styledNodes, state.searchQuery)
+      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal }), state.searchQuery);
+    const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
     const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
     const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
-    set({ nodes: searchedFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
+    set({ nodes: laidFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
   },
 
   relayout: () => {
@@ -924,7 +933,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
-      revealedFromHidden: [],
+      revealedFromHidden: [], localRootPath: null,
     });
   },
 });

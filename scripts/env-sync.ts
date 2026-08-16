@@ -112,7 +112,7 @@ function cmdNetlify() {
     for (const [key, def] of Object.entries(REGISTRY)) {
       const val = src[key];
       if (val === undefined) continue;
-      const args = ["env:set", key, val, "--context", context, "--scope", def.scope];
+      const args = ["env:set", key, val, "--context", context, "--force"];
       if (def.secret) args.push("--secret");
       console.log("  " + context + "/" + key);
       run("netlify", args);

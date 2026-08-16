@@ -5,22 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - Unreleased
+## [0.5.0] - Unreleased
+
+### Added
+
+- **Cloud-synced user settings**: app-level preferences — theme (mode + custom theme), layout/appearance (direction, edge style/width, corner radius, node size), display (minimap, show-files, display depth, auto-hide threshold, file nodes), import options, export settings, and sidebar state — are now persisted per account (`user_settings` row, RLS owner-only) and auto-synced to the cloud for signed-in users; they're also kept in localStorage so guests and offline sessions still retain them. New `/api/settings` (GET/POST) and migration `0015_user_settings.sql`.
+- **Import options are now remembered**: the import-flow options were lifted out of dialog-local state into the store, so your last-used import preferences persist and sync across sessions/devices.
+- **Default theme follows the device**: on first load (no saved preference) the app uses the device's light/dark scheme (`prefers-color-scheme`), and the Settings → Appearance Light/Dark selection reflects the theme actually applied.
+
+### Changed
+
+- **Open local files in their OS default app**: a file of any type now opens in the OS app assigned to its type (via `open`/`start`/`xdg-open`) instead of downloading in the browser; the browser object-URL fallback is used only for types the browser can render inline. Previously unresolvable imported paths (saved/cloud graphs) now work because the root's absolute path is resolved once (searching sibling-of-app, app root, or home) and stored with the graph as `localRootPath` for direct reopening.
+- **Node positions are retained when loading**: loading a saved graph from the cloud or opening a shared link preserves the saved node positions. Graph/settings loads no longer re-run the tree layout, the settings-sync apply no longer re-lays out a loaded graph, and GraphCanvas' initial auto-relayout is skipped for position-preserved loads.
+- **Loading a saved/shared graph no longer overrides your theme**: theme is an account-level preference; custom-theme colors are only injected in Custom mode (fixes the dark-vs-custom orange/accent mismatch).
+- **Sidebar share icon**: the saved-graph Share action in "Your Directories" now uses the share icon instead of a link icon.
+
+### Fixed
+
+- **Opening an unsupported file type no longer downloads it**: it now opens in the OS default application, or fails cleanly with a toast when no local path is available.
+- **Custom-theme colors no longer leak into Light/Dark mode**: previously applying saved/graph settings injected custom CSS variables (e.g. a different folder-orange accent) on top of the built-in palettes.
 
 ### Fixed
 
 - **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
 - **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
 
-
 ### Added
+
 - **Env sync tool (`scripts/env-sync.ts`)**: a zero-dependency dev script that treats `.env` (production) and `.env.local` (non-production) as the single source of truth for all 19 code-referenced environment variables. `bun run env:check` validates every variable against a registry (source file, secret/public, Netlify scope, GitHub target) and flags missing or placeholder values; `bun run env:sync` pushes to Netlify (`netlify env:set` per deploy context + scope, `--secret` for secrets) and GitHub (`gh secret set` / `gh variable set`). Added `env` and `env:check` npm scripts. Documents `NEXT_PUBLIC_HOME_URL` in `.env.example`.
 
 - **Further privacy & terms transparency**: named **Web3Forms** (bug-report delivery) in the privacy policy's data-sharing table, provider-links list, and "Data You Provide" section, and in the Terms §8 third-party list — closing the one real transparency gap (bug reports send user report text + browser/graph diagnostics to a processor that wasn't disclosed). Added a "Transparency about environments" note disclosing that dev/preview/stage builds run on a separate non-production database. Bumped the "Last updated" date on both policies to August 15, 2026.
 - **Fixed `package.json` invalid JSON**: the `env`/`env:check` script additions left a trailing comma after the last script entry, which broke `bun next build` (`Expected double-quoted property name`). Removed the trailing comma; build passes again.
 
 - **Separate non-production Supabase database**: dev/preview/local builds now use a dedicated `fewer-dev` Supabase project (`aorhvfihnjhpxgjiacfg`, ap-south-1) instead of sharing the production `fewer` project (`rzzbhboedvezamqjjuoe`). All 14 migrations run on both. `.env.local` (local dev) and Netlify **deploy previews + branch deploys** point at `fewer-dev`; production stays on `fewer`. Added `[context.deployment-preview]` and `[context.branch-deploy]` environment overrides to `netlify.toml`, plus an env table and guidance in `/docs/deployment`. This makes it impossible for a PR/preview to read or write real user data.
-
 
 - **Delete account option**: signed-in users can now permanently delete their account and all related data from the Settings → About panel (a danger-zone card with a destructive confirmation dialog, shown only when signed in). A new server-only `DELETE /api/account` route authenticates the user from their session cookie, deletes their owned shared graphs (via the service-role client, cascading to share invites), then deletes the auth user via the Supabase admin API — `saved_graphs`, `watched_indexes`, and `cloud_connections` are removed automatically by their `ON DELETE CASCADE` foreign keys. Services without `SUPABASE_SERVICE_ROLE_KEY` configured return a clear error rather than silently failing. This makes the Privacy Policy's "delete your account" promise real, and the policy's listed retention/rights text now reflects an in-app self-serve path.
 - **Public marketing homepage at `fewer.directory`**: new static homepage (`src/app/welcome`, with content in `src/components/marketing/`) introducing the brand, describing the app's functionality (visualize, explore, edit, export, share, cloud import, watch digests, themes), and a "Your data stays yours" transparency section explaining exactly what data fewer requests and why (runs locally; optional sign-in for saved graphs/sharing; scoped OAuth cloud connections; opt-in watch URLs; no selling/trackers/telemetry). Served at the apex domain without requiring login.
@@ -90,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Animated edge dashes no longer reset/jerk**: the animated dashes ran a per-edge CSS animation that restarted from zero every time an edge (re)mounted — with `onlyRenderVisibleElements` on large graphs, edges crossing the viewport boundary remount constantly, so the dashes kept snapping back. The fixed keyframe cycle also visibly jumped every loop whenever the dash pattern period didn't divide it — notably for `@xyflow/react`'s fallback `stroke-dasharray: 5` (period 10), which edges get when they carry no inline dasharray (e.g. toggling animation on from solid stroke). Edges are now driven by one shared rAF clock (`src/lib/fewer/dashClock.ts`) writing `--gm-dash-offset` on `<html>`: remounted edges inherit the current phase, the offset wraps only at a common multiple of every dash period (12,000px ≈ every 10 minutes, invisible), and React Flow's own `dashdraw` animation is suppressed. `setEdgeAnimated` now writes an explicit dash pattern onto the edges so nothing falls back to the library's 5-5 dashes. The clock runs only while animation is enabled and respects `prefers-reduced-motion`.
 - **Undo/redo overhaul**: undo/redo now works correctly across every graph-mutating action. Previously node-drag undo deleted the whole graph, and delete/cut/connect/edge-delete undo were no-ops or worse (connect undo removed the child node). Each action now uses a dedicated history op: `remove-subtree` (delete/cut restores the subtree on undo), `connect` (removes the edge and restores paths without deleting the child), `remove-edges` (restores deleted edges), `move-positions` (restores dragged positions), `resize` (restores dimensions), `collapse-batch` (collapse/expand-all restores each folder's prior collapsed state), and `view-state` (hide/show, show-files, max-display-depth, auto-hide-threshold). Undo/redo also restores `hiddenIds`/`showFiles`/`maxDisplayDepth`/`autoHideThreshold` alongside nodes/edges. New `src/lib/fewer/history.test.ts` covers round-trips for all op types. Undo/redo no longer re-runs the graph layout, so restored nodes keep their exact positions and parent relationships.
 - **Fix crash on empty graph**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) crashed with `Cannot read properties of null (reading 'startsWith')`. `providerLabelFromSource` now accepts `null` and falls back to a generic "Provider" label.
-- **Fix delete→undo dropping surviving edges**: undoing a node delete restored the deleted subtree but replaced the whole edge list with only the restored edges, dropping every edge that belonged to nodes that were *not* deleted (so sibling folders/files lost their connections). `remove-subtree` undo now merges the restored edges back into the existing edge set. New `src/lib/fewer/deleteUndo.test.ts` covers a 3-level delete→undo round-trip plus delete→redo→undo.
+- **Fix delete→undo dropping surviving edges**: undoing a node delete restored the deleted subtree but replaced the whole edge list with only the restored edges, dropping every edge that belonged to nodes that were _not_ deleted (so sibling folders/files lost their connections). `remove-subtree` undo now merges the restored edges back into the existing edge set. New `src/lib/fewer/deleteUndo.test.ts` covers a 3-level delete→undo round-trip plus delete→redo→undo.
 - **Fix undo not re-rendering the canvas**: undo/redo restored nodes/edges in the store but did not bump `graphVersion`, and the React Flow canvas only re-syncs from the store when `graphVersion` changes — so a restored node was in the store but invisible on the canvas. Undo/redo now increment `graphVersion`, forcing the canvas to refresh.
 - **No automatic fit-zoom**: the canvas no longer auto-fits the view when the graph changes (parent/unparent, undo/redo, add/delete, or any layout/edge-style change). Previously a `graphVersion` change triggered a `fitView`, which was disruptive when parenting/unparenting nodes. Fit is now only applied on initial load and via explicit user actions (Fit View button/shortcut, zoom-to-selection). Removed the now-dead `_skipNextFitView`/`skipNextFitView` mechanism that existed only to suppress that auto-fit.
 - **Unparenting updates node paths**: removing a parent→child edge now rewrites the child's path (breadcrumb) back to a root-level path instead of leaving the stale `parent/child` breadcrumb behind. Descendants under the unparented node are rewritten too. Undo restores the original paths. `remove-edges` history ops now carry the path changes so redo/undo round-trip correctly.
@@ -101,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
 - **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
 
-## [0.4.0] - Unreleased
+## [0.4.0]
 
 ### Added
 
@@ -111,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme & settings sync**: saved graphs capture the full app state including theme mode, custom theme, layout, minimap, and advanced settings — restoring a saved graph restores everything.
 - **Accounts docs page**: new `/docs/accounts` covers sign in, save/load/rename/delete saved graphs, theme/settings sync; sign-in mentioned in getting-started + settings docs
 
-## [0.3.2] - Unreleased
+## [0.3.2]
 
 ### Added
 

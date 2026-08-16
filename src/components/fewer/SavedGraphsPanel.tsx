@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
+import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +25,7 @@ import {
   Globe,
   Mail,
   Star,
+  Share2,
 } from "lucide-react";
 import {
   Dialog,
@@ -83,6 +85,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     const name = saveName.trim() || "Untitled";
     setSaving(true);
     try {
+      // Refresh the graph's root local path (if resolvable) so it's persisted
+      // with the save and re-openable later without re-searching the system.
+      await resolveRootLocalPath();
       const data = buildSnapshot();
       const res = await fetch("/api/graphs", {
         method: "POST",
@@ -312,7 +317,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Share"
                   >
-                    <Link2 className="h-3 w-3" />
+                    <Share2 className="h-3 w-3" />
                   </button>
                   <button
                     type="button"

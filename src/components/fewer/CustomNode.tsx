@@ -29,6 +29,7 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
+import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -160,20 +161,31 @@ function providerLabelFromSource(dataSource: string | null): string {
   return "Provider";
 }
 
-const openFolderInExplorer = async (path: string) => {
+const openFolderInExplorer = async (path: string): Promise<boolean> => {
+  // Prefer the exact, previously-resolved root location (saved with the graph
+  // as localRootPath) so we don't search the filesystem again on every open.
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot);
+  const sendPath =
+    nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
   try {
     const res = await fetch("/api/open-folder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path: sendPath }),
     });
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || "Failed to open folder");
     }
+    return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    // The path may come from an import (CSV/JSON/saved graph) and not exist on
+    // this machine — that's not a crash. Log for diagnostics; callers surface a
+    // toast so the user sees why nothing opened.
     console.error("Open folder error:", msg);
+    return false;
   }
 };
 
@@ -192,6 +204,7 @@ function FolderContextMenu({
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
   const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
@@ -366,9 +379,18 @@ function FolderContextMenu({
           >
             Add Child Node
           </ContextMenuItem>
-          {dataSource === "directory" && (
+          {(dataSource === "directory" || localRootPath) && (
             <ContextMenuItem
-              onSelect={() => openFolderInExplorer(nodePath)}
+              onSelect={async () => {
+                const ok = await openFolderInExplorer(nodePath);
+                if (!ok) {
+                  toast({
+                    title: "Folder not found",
+                    description: nodePath,
+                    variant: "destructive",
+                  });
+                }
+              }}
               className="cursor-pointer"
             >
               Open in File Explorer
@@ -619,6 +641,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const renameNode = useGraphStore((s) => s.renameNode);
@@ -696,7 +719,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory"}
+      showOpenFile={dataSource === "directory" || !!localRootPath}
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -721,6 +744,7 @@ function CustomNodeImpl({
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -917,7 +941,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory"}
+      showOpenFile={dataSource === "directory" || !!localRootPath}
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >

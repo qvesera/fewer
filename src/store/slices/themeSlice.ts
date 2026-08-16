@@ -32,8 +32,17 @@ function loadCustomTheme(): CustomTheme {
   }
 }
 
+/** Default theme = the device's preference, resolved to light/dark. Falls back
+ *  to "dark" (SSR / no matchMedia) so store and DOM agree on first paint. */
+function initThemeMode(): ThemeMode {
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "dark";
+}
+
 export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
-  themeMode: "dark",
+  themeMode: initThemeMode(),
   customTheme: loadCustomTheme(),
 
   setThemeMode: (mode) => {
@@ -61,7 +70,9 @@ export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(next));
     }
-    applyCustomThemeToDOM(next);
+    // Only inject custom vars into the DOM while in "custom" mode — applying
+    // them otherwise would override the Light/Dark palettes.
+    if (get().themeMode === "custom") applyCustomThemeToDOM(next);
   },
 
   resetCustomTheme: () => {
@@ -70,7 +81,7 @@ export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_CUSTOM, JSON.stringify(next));
     }
-    applyCustomThemeToDOM(next);
+    if (get().themeMode === "custom") applyCustomThemeToDOM(next);
   },
 });
 
