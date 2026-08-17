@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - Unreleased
+## [0.6.9] - Unreleased
 
 ### Added
+
+- **Open URL/GitHub files & folders at their source**: files/folders imported from a GitHub repo or a public file index now carry a source `webUrl`, so the right-click menu's **"Open in GitHub"** (or **"Open in `<host>`"** for a public index) opens the real location in a new tab — the file-explorer analog for remote sources. Folders open GitHub's tree view, files the blob view; public-index entries point at their listing or direct item URL. `treeToGraph` already copied `webUrl` through, but the two importers (`/api/github-tree`, `crawl`) never populated it and the provider label fell back to "Provider"; both are fixed.
 
 - **Hide OneDrive & Google Drive linking in the UI**: the Cloud panel no longer offers to link **OneDrive** or **Google Drive**, because those providers require paid OAuth app certification that we aren't funding right now. The adapters and any already-linked accounts stay intact (existing connections still work and can be unlinked); re-enabling is a one-line filter change in `CloudPanel.tsx`.
 - **Custom minimap position**: the minimap's Position picker in Settings → Appearance now includes a **Custom** option alongside the four corners. Selecting it reveals **X** and **Y** sliders (each also clickable to type a precise pixel value) that pin the minimap to an exact spot on the canvas — the chosen coordinates are locked in place until you adjust them. The slider bounds track the live canvas size (max = canvas size minus the minimap, so it stays fully on-canvas) rather than a hardcoded pixel cap; the typed number input can always go beyond them. The custom offset is persisted alongside the existing minimap size/position, both in the synced account/machine settings (`user_settings` + localStorage) and in saved-graph snapshots.

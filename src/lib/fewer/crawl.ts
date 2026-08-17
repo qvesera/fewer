@@ -45,7 +45,7 @@ export async function crawlTree(
   // BFS queue of { url, depth }. We build the tree by walking the queue and
   // attaching children to a node map, so we can bound concurrency cleanly.
   const rootName = decodeURIComponent(rootUrl.split("/").filter(Boolean).pop() ?? "root");
-  const root: TreeEntry = { name: rootName, type: "folder", children: [] };
+  const root: TreeEntry = { name: rootName, type: "folder", children: [], webUrl: rootUrl };
   const nodeByUrl = new Map<string, TreeEntry>([[rootUrl, root]]);
   const queue: { url: string; depth: number }[] = [{ url: rootUrl, depth: 0 }];
   let truncated = false;
@@ -73,7 +73,12 @@ export async function crawlTree(
         if (entry.type === "folder") {
           const childUrl = new URL(entry.name + "/", url).href;
           if (state.visited.has(childUrl) || nodeByUrl.has(childUrl)) continue;
-          const child: TreeEntry = { name: entry.name, type: "folder", children: [] };
+          const child: TreeEntry = {
+            name: entry.name,
+            type: "folder",
+            children: [],
+            webUrl: childUrl,
+          };
           node.children!.push(child);
           nodeByUrl.set(childUrl, child);
           // Only enqueue if we haven't hit the depth cap.
@@ -81,7 +86,14 @@ export async function crawlTree(
             queue.push({ url: childUrl, depth: depth + 1 });
           }
         } else {
-          node.children!.push({ name: entry.name, type: "file", size: entry.size });
+          // A file has no listing page; point it at the direct item URL so
+          // "Open at source" still lands on the actual resource on the index.
+          node.children!.push({
+            name: entry.name,
+            type: "file",
+            size: entry.size,
+            webUrl: new URL(entry.name, url).href,
+          });
         }
       }
     }
