@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
-import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X } from "lucide-react";
+import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X, Eye, EyeOff } from "lucide-react";
 import {
   Tooltip,
   TooltipTrigger,
@@ -34,6 +34,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -42,6 +43,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setMode("signin");
     setEmail("");
     setPassword("");
+    setShowPassword(false);
     setEmailError(null);
   };
 
@@ -177,19 +179,31 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   </Tooltip>
                 )}
               </Label>
-              <Input
-                id="auth-password"
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                aria-invalid={
-                  mode === "signup" && password.length > 0 && PASSWORD_HINTS.some((h) => !h.test(password))
-                }
-              />
+              <div className="relative">
+                <Input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  aria-invalid={
+                    mode === "signup" && password.length > 0 && PASSWORD_HINTS.some((h) => !h.test(password))
+                  }
+                  className="pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground cursor-pointer"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {mode === "signup" && password.length > 0 && (
                 <ul className="space-y-0.5 pt-0.5" aria-live="polite">
                   {PASSWORD_HINTS.map((h) => {
