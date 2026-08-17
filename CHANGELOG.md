@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Typing continues in search after clicking the panel**: clicking the empty "Start typing to search files & directory structures..." area (or any non-interactive part) of the Ctrl+F search dropdown now refocuses the search input instead of dropping focus — so you can keep typing straight into the box (navbar input on desktop, in-panel input on mobile). Interactive elements like the clear button and result rows still work normally.
+
 - **Opening an unsupported file type no longer downloads it**: it now opens in the OS default application, or fails cleanly with a toast when no local path is available.
 - **Custom-theme colors no longer leak into Light/Dark mode**: previously applying saved/graph settings injected custom CSS variables (e.g. a different folder-orange accent) on top of the built-in palettes.
 

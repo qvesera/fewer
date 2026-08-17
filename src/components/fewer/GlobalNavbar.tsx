@@ -70,6 +70,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
         <input
           ref={inputRef}
           type="text"
+          data-search-input
           value={query}
           onFocus={() => setOpen(true)}
           onChange={(e) => setQuery(e.target.value)}
