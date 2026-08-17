@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { isGitHubUrl } from "@/lib/fewer/importFlow";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -490,6 +491,11 @@ function FileEntryContextMenu({
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const providerLabel = providerLabelFromSource(dataSource);
+  // A file imported from a public file index (via crawl) — not a GitHub repo.
+  // For these, "open" just downloads the raw file, so offer a Download action
+  // instead of navigation. Folders and GitHub files keep "Open in <provider>".
+  const isCrawledFile =
+    dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -579,12 +585,29 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         {nodeWebUrl && (
-          <ContextMenuItem
-            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
-            className="cursor-pointer"
-          >
-            Open in {providerLabel}
-          </ContextMenuItem>
+          isCrawledFile ? (
+            <ContextMenuItem
+              onSelect={async () => {
+                const { downloadRemoteFile } = await import("@/lib/fewer/fileOps");
+                const ok = await downloadRemoteFile(nodeWebUrl, nodeLabel);
+                toast({
+                  title: ok ? "Downloading" : "Could not download",
+                  description: nodeLabel,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
+              }}
+              className="cursor-pointer"
+            >
+              Download
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+              className="cursor-pointer"
+            >
+              Open in {providerLabel}
+            </ContextMenuItem>
+          )
         )}
         <ContextMenuItem
           onSelect={() => {

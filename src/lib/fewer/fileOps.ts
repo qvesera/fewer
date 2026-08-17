@@ -287,6 +287,44 @@ export async function openNodeFile(
   }
   return false;
 }
+/**
+ * Download a remote file (e.g. a crawled public-index item) straight to disk.
+ * Tries to read it as a blob first (so we control the saved filename); if the
+ * server doesn't send CORS headers and the body can't be read, falls back to a
+ * plain anchor click so the browser's native behavior applies — Apache/nginx
+ * auto-indexes send `Content-Disposition: attachment`, so that still downloads.
+ * Returns true once a download was started.
+ */
+export async function downloadRemoteFile(url: string, filename?: string): Promise<boolean> {
+  const name =
+    filename ||
+    decodeURIComponent(url.split("/").filter(Boolean).pop() || "download");
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) throw new Error("non-ok");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    return true;
+  } catch {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
+  }
+}
+
+
 
 /**
  * Get file metadata (size, type, last modified).
