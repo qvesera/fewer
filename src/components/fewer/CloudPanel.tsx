@@ -52,7 +52,13 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
   // we aren't paying right now, so don't offer to link them in the UI. The
   // adapters stay wired (already-linked accounts keep working / can be
   // unlinked); drop this filter to re-enable.
-  const HIDDEN_PROVIDERS = new Set<CloudProvider>(["google-drive", "onedrive"]);
+  const HIDDEN_PROVIDERS = new Set<CloudProvider>([
+    "google-drive",
+    "onedrive",
+    "sharepoint",
+    "azure-devops",
+    "azure-blob",
+  ]);
   const visibleProviders = AVAILABLE_PROVIDERS.filter((p) => !HIDDEN_PROVIDERS.has(p));
 
   return (
