@@ -83,6 +83,9 @@ export type UiSliceCreator = StateCreator<
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
     setMiniMapY: (y: number) => void;
+    /** Live canvas (viewer) dimensions — guides minimap X/Y slider bounds. */
+    canvasSize: { width: number; height: number };
+    setCanvasSize: (size: { width: number; height: number }) => void;
     setShowFiles: (show: boolean) => void;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
@@ -235,6 +238,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
+  canvasSize: { width: 0, height: 0 },
+  setCanvasSize: (size) => set({ canvasSize: size }),
   setLoading: (loading) => set({ loading }),
 
   setShowFiles: (show) => {

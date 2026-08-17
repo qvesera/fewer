@@ -355,6 +355,13 @@ function MinimapControls() {
   const setMiniMapX = useGraphStore((s) => s.setMiniMapX);
   const miniMapY = useGraphStore((s) => s.miniMapY);
   const setMiniMapY = useGraphStore((s) => s.setMiniMapY);
+  const canvasSize = useGraphStore((s) => s.canvasSize);
+
+  // Slider bounds track the live canvas size (never an arbitrary cap): the max
+  // keeps the minimap fully on-canvas (canvas size minus the minimap itself),
+  // with a floor so the slider stays usable before/if the canvas isn't measured.
+  const maxX = Math.max(canvasSize.width - miniMapSize, miniMapSize);
+  const maxY = Math.max(canvasSize.height - miniMapSize, miniMapSize);
 
   const positions = [
     { value: "top-left", label: "Top Left" },
@@ -421,7 +428,7 @@ function MinimapControls() {
                   value={[miniMapX]}
                   onValueChange={([v]) => setMiniMapX(v)}
                   min={0}
-                  max={800}
+                  max={maxX}
                   step={5}
                 />
               </div>
@@ -434,7 +441,7 @@ function MinimapControls() {
                   value={[miniMapY]}
                   onValueChange={([v]) => setMiniMapY(v)}
                   min={0}
-                  max={800}
+                  max={maxY}
                   step={5}
                 />
               </div>

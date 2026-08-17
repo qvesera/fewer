@@ -114,9 +114,22 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
+  const setCanvasSize = useGraphStore((s) => s.setCanvasSize);
   const themeMode = useGraphStore((s) => s.themeMode);
   const customTheme = useGraphStore((s) => s.customTheme);
   const isDark = themeMode === "dark";
+
+  // Keep the store's canvas dimensions in sync with the viewer so the
+  // minimap X/Y sliders in Settings scale to the actual canvas (no hard cap).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [setCanvasSize]);
 
   // Resolve theme colors once per theme change so edges, minimap, and the
   // background dots follow light/dark/custom without hard-coded values.
