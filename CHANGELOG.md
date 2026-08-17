@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Error toast text is always white**: destructive (error) toast notifications now render their title and description in pure white regardless of the active theme — the destructive variant no longer depends on the theme's `--destructive-foreground` token, and the description's opacity is lifted to 100% for that variant.
+
 - **Show/hide password toggle**: the auth dialog's password field now has a small eye icon to reveal or mask the password while typing.
 
 - **Typing continues in search after clicking the panel**: clicking the empty "Start typing to search files & directory structures..." area (or any non-interactive part) of the Ctrl+F search dropdown now refocuses the search input instead of dropping focus — so you can keep typing straight into the box (navbar input on desktop, in-panel input on mobile). Interactive elements like the clear button and result rows still work normally.

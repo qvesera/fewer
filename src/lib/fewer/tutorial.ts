@@ -40,8 +40,8 @@ export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
       id: "load-sample",
       label: "Load a sample project",
       description: isTouch
-        ? "Tap 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree"
-        : "Click 'Load Sample' in the toolbar on the top-right to explore a pre-built directory tree",
+        ? "Tap 'Load Sample' to explore a pre-built directory tree"
+        : "Click 'Load Sample' to explore a pre-built directory tree",
       icon: Sparkles,
       watchState: { key: "dataSource", value: "sample" },
       targetSelector: '[data-tutorial="sample-button"]',
