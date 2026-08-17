@@ -3,41 +3,10 @@
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats, formatBytes } from "@/lib/fewer/stats";
-import {
-  FileCode,
-  FileJson,
-  FileImage,
-  FileText,
-  FileArchive,
-  FileSpreadsheet,
-  FileVideo,
-  File as FileIcon,
-  FileType,
-  Folder,
-  HardDrive,
-} from "lucide-react";
+import { Folder, HardDrive, File as FileIcon } from "lucide-react";
+import { CATEGORY_META } from "@/lib/fewer/categoryMeta";
 import type { FileCategory } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
-
-const CATEGORY_META: Record<
-  FileCategory,
-  {
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    barColor: string;
-  }
-> = {
-  code: { label: "Code", icon: FileCode, color: "text-emerald-400", barColor: "bg-emerald-500" },
-  config: { label: "Config", icon: FileJson, color: "text-amber-400", barColor: "bg-amber-500" },
-  image: { label: "Images", icon: FileImage, color: "text-pink-400", barColor: "bg-pink-500" },
-  document: { label: "Docs", icon: FileText, color: "text-sky-400", barColor: "bg-sky-500" },
-  archive: { label: "Archives", icon: FileArchive, color: "text-yellow-400", barColor: "bg-yellow-500" },
-  data: { label: "Data", icon: FileSpreadsheet, color: "text-cyan-400", barColor: "bg-cyan-500" },
-  media: { label: "Media", icon: FileVideo, color: "text-rose-400", barColor: "bg-rose-500" },
-  binary: { label: "Binary", icon: FileIcon, color: "text-slate-400", barColor: "bg-slate-500" },
-  text: { label: "Text", icon: FileType, color: "text-violet-400", barColor: "bg-violet-500" },
-};
 
 export function StatsPanel() {
   const nodes = useGraphStore((s) => s.nodes);
