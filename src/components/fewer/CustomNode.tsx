@@ -143,6 +143,14 @@ function RenameInput({
       }}
       onBlur={() => {
         if (committedRef.current) return;
+        committedRef.current = true;
+        // Clicking/clicking-out commits the typed name directly (no Enter needed).
+        // If nothing changed, just close the editor without a commit.
+        if (value === initialValue) {
+          onCancel();
+          return;
+        }
+        onCommit(value);
       }}
       className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
     />
