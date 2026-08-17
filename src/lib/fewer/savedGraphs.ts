@@ -20,6 +20,9 @@ export interface SavedGraphData {
   showMiniMap: boolean;
   miniMapPosition: string;
   miniMapSize: number;
+  /** Free-form minimap offset (px from top-left) when miniMapPosition === "custom". */
+  miniMapX?: number;
+  miniMapY?: number;
   /** Absolute path of the graph's root folder on the originating dev machine
    *  (resolved at import time). Lets a graph opened later — including from the
    *  cloud — open files/folders directly when the path is still there, instead

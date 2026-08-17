@@ -39,8 +39,11 @@ export type UiSliceCreator = StateCreator<
     shareOpen: boolean;
     authOpen: boolean;
     showMiniMap: boolean;
-    miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+    miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
     miniMapSize: number;
+    /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
+    miniMapX: number;
+    miniMapY: number;
     advancedModeEnabled: boolean;
     skipNextAutoLayout: boolean;
     showFiles: boolean;
@@ -76,8 +79,10 @@ export type UiSliceCreator = StateCreator<
     setShareOpen: (open: boolean) => void;
     setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
-    setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right") => void;
+    setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
+    setMiniMapX: (x: number) => void;
+    setMiniMapY: (y: number) => void;
     setShowFiles: (show: boolean) => void;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
@@ -117,6 +122,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   showMiniMap: true,
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
+  miniMapX: 16,
+  miniMapY: 16,
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
@@ -226,6 +233,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
+  setMiniMapX: (x) => set({ miniMapX: x }),
+  setMiniMapY: (y) => set({ miniMapY: y }),
   setLoading: (loading) => set({ loading }),
 
   setShowFiles: (show) => {

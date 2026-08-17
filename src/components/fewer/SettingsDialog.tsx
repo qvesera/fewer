@@ -351,12 +351,17 @@ function MinimapControls() {
   const setMiniMapPosition = useGraphStore((s) => s.setMiniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
   const setMiniMapSize = useGraphStore((s) => s.setMiniMapSize);
+  const miniMapX = useGraphStore((s) => s.miniMapX);
+  const setMiniMapX = useGraphStore((s) => s.setMiniMapX);
+  const miniMapY = useGraphStore((s) => s.miniMapY);
+  const setMiniMapY = useGraphStore((s) => s.setMiniMapY);
 
   const positions = [
     { value: "top-left", label: "Top Left" },
     { value: "top-right", label: "Top Right" },
     { value: "bottom-left", label: "Bottom Left" },
     { value: "bottom-right", label: "Bottom Right" },
+    { value: "custom", label: "Custom" },
   ] as const;
 
   return (
@@ -404,6 +409,38 @@ function MinimapControls() {
               step={10}
             />
           </div>
+
+          {miniMapPosition === "custom" && (
+            <>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground font-medium">X Position</Label>
+                  <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapX} onCommit={(v) => setMiniMapX(v)} unit="px" /></span>
+                </div>
+                <Slider
+                  value={[miniMapX]}
+                  onValueChange={([v]) => setMiniMapX(v)}
+                  min={0}
+                  max={800}
+                  step={5}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground font-medium">Y Position</Label>
+                  <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapY} onCommit={(v) => setMiniMapY(v)} unit="px" /></span>
+                </div>
+                <Slider
+                  value={[miniMapY]}
+                  onValueChange={([v]) => setMiniMapY(v)}
+                  min={0}
+                  max={800}
+                  step={5}
+                />
+              </div>
+              <p className="pt-1 text-[11px] text-muted-foreground/70">Custom position is pinned in place and only moves when you adjust the X / Y sliders above.</p>
+            </>
+          )}
         </>
       )}
     </div>

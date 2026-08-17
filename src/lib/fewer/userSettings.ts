@@ -39,6 +39,8 @@ export interface UserSettings {
   showMiniMap: boolean;
   miniMapPosition: string;
   miniMapSize: number;
+  miniMapX: number;
+  miniMapY: number;
   showFiles: boolean;
   maxDisplayDepth: number;
   autoHideThreshold: number;
@@ -69,6 +71,8 @@ function pick(store: Record<string, unknown>): UserSettings {
     showMiniMap: store.showMiniMap as boolean,
     miniMapPosition: store.miniMapPosition as string,
     miniMapSize: store.miniMapSize as number,
+    miniMapX: store.miniMapX as number,
+    miniMapY: store.miniMapY as number,
     showFiles: store.showFiles as boolean,
     maxDisplayDepth: store.maxDisplayDepth as number,
     autoHideThreshold: store.autoHideThreshold as number,
@@ -118,6 +122,8 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     showMiniMap: data.showMiniMap ?? s.showMiniMap,
     miniMapPosition: data.miniMapPosition ?? s.miniMapPosition,
     miniMapSize: data.miniMapSize ?? s.miniMapSize,
+    miniMapX: data.miniMapX ?? s.miniMapX,
+    miniMapY: data.miniMapY ?? s.miniMapY,
     showFiles: data.showFiles ?? s.showFiles,
     maxDisplayDepth: data.maxDisplayDepth ?? s.maxDisplayDepth,
     autoHideThreshold: data.autoHideThreshold ?? s.autoHideThreshold,

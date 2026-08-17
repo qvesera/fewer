@@ -387,13 +387,29 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
+  const miniMapX = useGraphStore((s) => s.miniMapX);
+  const miniMapY = useGraphStore((s) => s.miniMapY);
 
-  const minimapStyle = useMemo(() => ({
-    width: miniMapSize, height: miniMapSize,
-    backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
-    borderRadius: "12px",
-    border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
-  }), [isDark, miniMapSize]);
+  const minimapStyle = useMemo<React.CSSProperties>(() => {
+    const base: React.CSSProperties = {
+      width: miniMapSize, height: miniMapSize,
+      backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
+      borderRadius: "12px",
+      border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
+    };
+    // Custom position: pin the minimap to a free-form x/y. Anchor to the
+    // top-left corner and override with explicit offsets + zero margin so the
+    // slider-chosen coordinates lock in place (the inline style beats the
+    // React Flow panel corner classes).
+    if (miniMapPosition === "custom") {
+      return { ...base, position: "absolute", top: miniMapY, left: miniMapX, margin: 0 };
+    }
+    return base;
+  }, [isDark, miniMapSize, miniMapPosition, miniMapX, miniMapY]);
+
+  // "custom" isn't a valid React Flow PanelPosition, so fall back to a real
+  // corner for the base placement (the inline style above overrides it).
+  const rfMiniMapPosition = miniMapPosition === "custom" ? "top-left" : miniMapPosition;
 
   // Compute a contrasting chip background from the canvas background color
   const hiddenChipStyle = useMemo(() => {
@@ -468,7 +484,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           color={themeColors.bgDot}
           className="transition-colors" />
         {showMiniMap && (
-          <MiniMap position={miniMapPosition} style={minimapStyle} pannable zoomable
+          <MiniMap position={rfMiniMapPosition} style={minimapStyle} pannable zoomable
             nodeColor={nodeColor} nodeStrokeColor={nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
         )}
         <Panel position="bottom-center">
