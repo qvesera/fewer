@@ -40,39 +40,29 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 /**
- * Highlight the ancestor path of EVERY selected node. Each path edge is
- * colored by its target node type (folder vs file) so multi-selection
- * shows every selected chain, not just the last-picked node.
- * Empty selection → all edges reset to default stroke. Highlighted edges
- * sort last so they render on top.
+ * Style the edges incident to EVERY selected node (source OR target). Each
+ * incident edge is colored by its target node type (folder vs file) so
+ * multi-selection shows every selected node's connections, not just the
+ * last-picked one. Empty selection → all edges reset to default stroke.
+ * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
+ * so they render on top.
  */
-function buildPathEdgeHighlight(
+function buildSelectedEdgeHighlight(
   selectedIds: string[],
   edges: FewerEdge[],
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
 ): FewerEdge[] {
-  const parentMap = new Map<string, string>();
-  const edgeIdByTarget = new Map<string, string>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    edgeIdByTarget.set(e.target, e.id);
-  }
+  const selected = new Set(selectedIds);
+  const typeByNodeId = new Map<string, "folder" | "file">();
+  for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
 
   const highlighted = new Map<string, { stroke: string; width: number }>();
-  for (const id of selectedIds) {
-    let currentId: string | undefined = id;
-    let guard = 0;
-    while (currentId && parentMap.has(currentId) && guard++ <= edges.length) {
-      const edgeId = edgeIdByTarget.get(currentId);
-      if (edgeId) {
-        const targetNode = nodes.find((n) => n.id === currentId);
-        const stroke = targetNode?.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-        highlighted.set(edgeId, { stroke, width: Math.max(edgeWidth, 3) });
-      }
-      currentId = parentMap.get(currentId);
-    }
+  for (const e of edges) {
+    if (!selected.has(e.source) && !selected.has(e.target)) continue;
+    const stroke = typeByNodeId.get(e.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
+    highlighted.set(e.id, { stroke, width: Math.max(edgeWidth, 3) });
   }
 
   const defaultStroke = themeColors.edge;
@@ -80,7 +70,7 @@ function buildPathEdgeHighlight(
     .map((e) => {
       const h = highlighted.get(e.id);
       return h
-        ? { ...e, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
+        ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
         : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
     })
     .sort((a, b) => (highlighted.has(b.id) ? 1 : -1) - (highlighted.has(a.id) ? 1 : -1));
@@ -224,7 +214,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
     const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
-    const updatedEdges = buildPathEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -241,7 +231,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       setSelectedNodeIds(newIds);
 
       const { edges, nodes, hiddenIds } = useGraphStore.getState();
-      const updatedEdges = buildPathEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
