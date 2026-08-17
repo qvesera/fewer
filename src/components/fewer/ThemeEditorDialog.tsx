@@ -105,11 +105,13 @@ export function ThemeEditorDialog() {
   const { toast } = useToast();
 
   // Saved-to-cloud custom themes (grouped under "Custom" in the preset list).
+  // Lazy-loaded only when the user opens the preset dropdown — not on mount.
   const [savedThemes, setSavedThemes] = useState<SavedTheme[]>([]);
   const [themesLoading, setThemesLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
 
   const loadThemes = useCallback(async () => {
     if (!user) {
@@ -133,10 +135,6 @@ export function ThemeEditorDialog() {
       setThemesLoading(false);
     }
   }, [user, toast]);
-
-  useEffect(() => {
-    loadThemes();
-  }, [loadThemes, themeEditorOpen]);
 
   const handleSaveTheme = async () => {
     if (!user) return;
@@ -421,7 +419,13 @@ export function ThemeEditorDialog() {
           <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
             Preset Themes
           </Label>
-          <Popover>
+          <Popover
+            open={presetOpen}
+            onOpenChange={(open) => {
+              setPresetOpen(open);
+              if (open) loadThemes();
+            }}
+          >
             <PopoverTrigger asChild>
               <button
                 type="button"
