@@ -48,6 +48,13 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
 
   const linked = new Set(connections.map((c) => c.provider));
 
+  // OAuth "verification / certification" for these providers costs money, which
+  // we aren't paying right now, so don't offer to link them in the UI. The
+  // adapters stay wired (already-linked accounts keep working / can be
+  // unlinked); drop this filter to re-enable.
+  const HIDDEN_PROVIDERS = new Set<CloudProvider>(["google-drive", "onedrive"]);
+  const visibleProviders = AVAILABLE_PROVIDERS.filter((p) => !HIDDEN_PROVIDERS.has(p));
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -63,7 +70,7 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
         <div className="flex items-center gap-2 text-xs text-muted-foreground py-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>
       ) : (
         <div className="space-y-1.5">
-          {AVAILABLE_PROVIDERS.map((provider) => {
+          {visibleProviders.map((provider) => {
             const isLinked = linked.has(provider);
             const conns = connections.filter((c) => c.provider === provider);
             const Icon = PROVIDER_ICON[provider];
