@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Scroll wheel now pans the canvas (Ctrl+scroll zooms)**: a plain mouse-wheel/trackpad scroll moves the graph vertically on the Y axis, and holding **Ctrl** while scrolling zooms in/out. This replaces the previous default where scrolling zoomed directly.
+
 - **Restarting the tutorial now truly resets progress**: restarting the interactive tutorial from Settings also resets the wizard's current step back to the beginning (and replays the animated node demo). Previously it cleared the completed-steps checklist and dismissal flag but kept the local step position — so the tutorial resumed from wherever you left off instead of starting over.
 
 - **Error toast text is always white**: destructive (error) toast notifications now render their title and description in pure white regardless of the active theme — the destructive variant no longer depends on the theme's `--destructive-foreground` token, and the description's opacity is lifted to 100% for that variant.

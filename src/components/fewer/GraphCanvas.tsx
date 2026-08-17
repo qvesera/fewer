@@ -462,6 +462,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
+        zoomOnScroll={false}
+        panOnScroll
+        zoomActivationKeyCode="Control"
         fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
