@@ -3,7 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { FewerNode, FewerEdge, HistoryOp, FileCategory } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
-import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
+import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
 import { fsHandleStore } from "@/lib/fewer/types";
@@ -297,28 +297,27 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Hide nodes beyond the max display depth
     const displayDepthIds = computeDisplayDepthHiddenIds(nodes, state.maxDisplayDepth);
     idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...displayDepthIds])];
+    // A persistent category filter survives imports: hide files that don't match.
+    const catHiddenIds = categoryHiddenNodeIds(nodes, state.categoryFilter);
+    idsToHide = [...new Set([...idsToHide, ...catHiddenIds])];
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
-    // Also exclude category-filtered files so the remaining tree lays out compactly.
-    const catHidden = computeCategoryHiddenIds(nodes, state.categoryFilter);
-    const excludeWithCategory = catHidden.length > 0 ? new Set([...(excludeFromLayoutFinal ?? []), ...catHidden]) : excludeFromLayoutFinal;
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeWithCategory }), state.searchQuery, state.categoryFilter);
+      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
     const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
     const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
-    set({ nodes: laidFinal, edges: sortedEdges, hiddenIds: idsToHide, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
+    set({ nodes: laidFinal, edges: sortedEdges, hiddenIds: idsToHide, categoryHiddenIds: catHiddenIds, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
   },
 
   relayout: () => {
     const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion } = get();
     if (nodes.length === 0) return;
-    const catHidden = computeCategoryHiddenIds(nodes, categoryFilter);
-    const excludeIds = [...new Set([...(hiddenIds as string[]), ...catHidden])];
-    const excludeFromLayout = excludeIds.length > 0 ? new Set(excludeIds) : undefined;
+    // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
+    const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
     const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
@@ -936,7 +935,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     fsHandleStore.clear();
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
-      searchQuery: "", categoryFilter: null, hiddenIds: [], renamingId: null, clipboard: null,
+      searchQuery: "", categoryFilter: null, categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], localRootPath: null,
     });
@@ -946,48 +945,22 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: FewerNode[],
   query: string,
-  categoryFilter: FileCategory | null,
+  _categoryFilter?: FileCategory | null,
 ): FewerNode[] {
-  const hasQuery = query.trim().length > 0;
-  const hasFilter = !!categoryFilter;
-  if (!hasQuery && !hasFilter) {
+  if (!query.trim()) {
     return nodes.map((n) => ({
       ...n,
-      hidden: false,
       data: { ...n.data, highlighted: false, dimmed: false },
     }));
   }
   const q = query.toLowerCase();
-  const cat = categoryFilter;
-  // Pure category filter (no search query): just hide non-matching files quietly.
-  if (hasFilter && !hasQuery) {
-    return nodes.map((n) => {
-      const isFolder = n.data.type === "folder";
-      const categoryMatches = isFolder || n.data.category === cat;
-      return { ...n, hidden: !categoryMatches, data: { ...n.data, highlighted: false, dimmed: false } };
-    });
-  }
   return nodes.map((n) => {
-    const isFolder = n.data.type === "folder";
-    const categoryMatches = !hasFilter || isFolder || n.data.category === cat;
-    const queryMatches =
-      !hasQuery ||
+    const matches =
       n.data.label.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
-    const matches = categoryMatches && queryMatches;
     return {
       ...n,
-      // Category filter actually hides non-matching files (folders stay to keep the tree).
-      hidden: hasFilter && !categoryMatches,
       data: { ...n.data, highlighted: matches, dimmed: !matches },
     };
   });
-}
-
-/** Ids of file nodes hidden by an active category filter (folders are never hidden). */
-function computeCategoryHiddenIds(nodes: FewerNode[], filter: FileCategory | null): string[] {
-  if (!filter) return [];
-  return nodes
-    .filter((n) => n.data.type !== "folder" && n.data.category !== filter)
-    .map((n) => n.id);
 }

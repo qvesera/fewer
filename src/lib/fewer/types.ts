@@ -226,6 +226,10 @@ export interface ViewState {
   maxDisplayDepth: number;
   autoHideThreshold: number;
   autoHiddenIds: string[];
+  /** Active file-type filter (null = none). Restored with the view state. */
+  categoryFilter: FileCategory | null;
+  /** Ids that the category filter added to hiddenIds in this view state. */
+  categoryHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */

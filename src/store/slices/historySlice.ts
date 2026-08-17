@@ -17,6 +17,8 @@ export function captureViewState(state: GraphState): ViewState {
     maxDisplayDepth: state.maxDisplayDepth as number,
     autoHideThreshold: state.autoHideThreshold as number,
     autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
+    categoryFilter: (state.categoryFilter ?? null) as FileCategory | null,
+    categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
   };
 }
 
@@ -36,6 +38,8 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.maxDisplayDepth !== undefined) patch.maxDisplayDepth = view.maxDisplayDepth;
   if (view.autoHideThreshold !== undefined) patch.autoHideThreshold = view.autoHideThreshold;
   if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
+  if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
+  if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
   return patch;
 }
 
@@ -103,38 +107,21 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: GraphState["nodes"],
   query: string,
-  categoryFilter: FileCategory | null,
+  _categoryFilter?: FileCategory | null,
 ): GraphState["nodes"] {
-  const hasQuery = query.trim().length > 0;
-  const hasFilter = !!categoryFilter;
-  if (!hasQuery && !hasFilter) {
+  if (!query.trim()) {
     return nodes.map((n) => ({
       ...n,
-      hidden: false,
       data: { ...n.data, highlighted: false, dimmed: false },
     }));
   }
   const q = query.toLowerCase();
-  const cat = categoryFilter;
-  // Pure category filter (no search query): just hide non-matching files quietly.
-  if (hasFilter && !hasQuery) {
-    return nodes.map((n) => {
-      const isFolder = n.data.type === "folder";
-      const categoryMatches = isFolder || n.data.category === cat;
-      return { ...n, hidden: !categoryMatches, data: { ...n.data, highlighted: false, dimmed: false } };
-    });
-  }
   return nodes.map((n) => {
-    const isFolder = n.data.type === "folder";
-    const categoryMatches = !hasFilter || isFolder || n.data.category === cat;
-    const queryMatches =
-      !hasQuery ||
+    const matches =
       n.data.label.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
-    const matches = categoryMatches && queryMatches;
     return {
       ...n,
-      hidden: hasFilter && !categoryMatches,
       data: { ...n.data, highlighted: matches, dimmed: !matches },
     };
   });

@@ -5,6 +5,7 @@ import type { ExportSettings } from "@/lib/fewer/types";
 import type { FileCategory } from "@/lib/fewer/types";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
+import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 
@@ -17,6 +18,8 @@ export type UiSliceCreator = StateCreator<
     searchQuery: string;
     /** Active file-type (extension category) filter. `null` = no filter. */
     categoryFilter: FileCategory | null;
+    /** Ids that the active category filter has added to hiddenIds. */
+    categoryHiddenIds: string[];
     hiddenIds: string[];
     renamingId: string | null;
     renameSource: "canvas" | "folder" | null;
@@ -92,6 +95,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
   searchQuery: "",
   categoryFilter: null,
+  categoryHiddenIds: [],
   hiddenIds: [],
   renamingId: null,
   renameSource: null,
@@ -133,9 +137,21 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   setCategoryFilter: (cat) => {
-    set({ categoryFilter: cat });
-    get().applySearch();
-    setTimeout(() => get().relayout(), 30);
+    const { nodes, hiddenIds, categoryHiddenIds } = get();
+    // Files to hide for this filter (folders are never hidden).
+    const nextCatHidden = categoryHiddenNodeIds(nodes, cat);
+    const prevCatSet = new Set(categoryHiddenIds);
+    // Drop the ids the previous filter hid, then add the ids this one hides.
+    // Manual hides are preserved because only the tracked category-hidden ids are touched.
+    const baseHidden = hiddenIds.filter((id) => !prevCatSet.has(id));
+    const finalHidden = [...new Set([...baseHidden, ...nextCatHidden])];
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: finalHidden, categoryFilter: cat, categoryHiddenIds: nextCatHidden };
+    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds) || after.categoryFilter !== before.categoryFilter) {
+      get().pushOp(viewStateOp(before, after));
+    }
+    set({ categoryFilter: cat, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
+    setTimeout(() => get().relayout(), 50);
   },
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
@@ -191,10 +207,10 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   showAll: () => {
     const before = captureViewState(get());
-    if (before.hiddenIds.length === 0) return;
-    const after = { ...before, hiddenIds: [] };
+    if (before.hiddenIds.length === 0 && !before.categoryFilter) return;
+    const after = { ...before, hiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], autoHiddenIds: [] }));
+    set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
   },
 
   setSearchOpen: (open) => set({ searchOpen: open }),
@@ -213,7 +229,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setLoading: (loading) => set({ loading }),
 
   setShowFiles: (show) => {
-    const { nodes, edges, graphVersion } = get();
+    const { nodes, edges, graphVersion, categoryFilter } = get();
     const before = captureViewState(get());
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
@@ -226,9 +242,16 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
         const parentId = parentMap.get(fid);
         return !parentId || !hiddenSet.has(parentId);
       });
-      const after = { ...before, showFiles: true, hiddenIds: before.hiddenIds.filter((id) => !revealableFileIds.includes(id)) };
+      // A category filter keeps non-matching files hidden even when "show files" reveals the rest.
+      const revealable = categoryFilter
+        ? revealableFileIds.filter((id) => {
+            const node = nodes.find((n) => n.id === id);
+            return node?.data.type === "folder" || node?.data.category === categoryFilter;
+          })
+        : revealableFileIds;
+      const after = { ...before, showFiles: true, hiddenIds: before.hiddenIds.filter((id) => !revealable.includes(id)) };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
-      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealableFileIds.includes(id)), graphVersion: graphVersion + 1 }));
+      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealable.includes(id)), graphVersion: graphVersion + 1 }));
     } else {
       const after = { ...before, showFiles: false, hiddenIds: [...new Set([...before.hiddenIds, ...fileIds])] };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
