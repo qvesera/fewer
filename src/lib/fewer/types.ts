@@ -141,6 +141,16 @@ export interface CustomTheme {
 
 export type ThemeMode = "light" | "dark" | "custom";
 
+/** A custom theme the signed-in user has saved to their Supabase account. */
+export interface SavedTheme {
+  id: string;
+  name: string;
+  theme: CustomTheme;
+  created_at: string;
+  updated_at: string;
+}
+
+
 /** Metadata for each editable color slot. */
 export interface ThemeColorMeta {
   key: keyof Omit<CustomTheme, "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent">;
