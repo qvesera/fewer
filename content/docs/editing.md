@@ -17,7 +17,7 @@ To add a child directly from the canvas, right-click a folder → **Add Child No
 ## Renaming
 
 - Double-click a node, or use the context menu → **Rename**, or press **F2**
-- Type the new name and press **Enter** to commit, **Escape** to cancel
+- Type the new name and press **Enter** to commit, **Escape** to cancel, or click away (e.g. on the canvas) to confirm and keep the typed name
 - Renaming a folder updates the paths of all of its descendants
 - Renaming a file auto-updates its extension and category icon
 
