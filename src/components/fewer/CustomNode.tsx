@@ -104,6 +104,28 @@ function RenameInput({
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
   const committedRef = useRef(false);
+  // Latest value, readable from the outside-click listener without re-binding.
+  const valueRef = useRef(initialValue);
+
+  // Commit only when the user clicks outside the field. Blur alone is ignored —
+  // it fires for unrelated reasons (the context menu closing / focus restore /
+  // canvas re-renders), which previously auto-closed the editor right after
+  // opening it. A genuine outside click always precedes blur, so we gate on it.
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (committedRef.current) return;
+      if (inputRef.current?.contains(e.target as Node)) return;
+      committedRef.current = true;
+      const v = valueRef.current;
+      if (v === initialValue) {
+        onCancel();
+        return;
+      }
+      onCommit(v);
+    };
+    document.addEventListener("mousedown", onMouseDown, true);
+    return () => document.removeEventListener("mousedown", onMouseDown, true);
+  }, [initialValue, onCancel, onCommit]);
 
   // Re-focus on every render (handles canvas re-renders losing focus)
   useEffect(() => {
@@ -123,7 +145,7 @@ function RenameInput({
     <input
       ref={inputRef}
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => { setValue(e.target.value); valueRef.current = e.target.value; }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => {
@@ -142,15 +164,10 @@ function RenameInput({
         }
       }}
       onBlur={() => {
+        // No-op: committing is handled by the document outside-click listener.
+        // Ignoring blur avoids a premature close when focus is restored elsewhere
+        // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
-        committedRef.current = true;
-        // Clicking/clicking-out commits the typed name directly (no Enter needed).
-        // If nothing changed, just close the editor without a commit.
-        if (value === initialValue) {
-          onCancel();
-          return;
-        }
-        onCommit(value);
       }}
       className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
     />
