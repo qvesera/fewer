@@ -382,7 +382,7 @@ export function ImportFlowDialog({
                 size="default"
                 onClick={() => setStep(2)}
                 disabled={!isSourceReady(source)}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 Continue
                 <ArrowRight className="h-4 w-4" />
@@ -404,7 +404,7 @@ export function ImportFlowDialog({
               <Button
                 size="default"
                 onClick={() => setStep(3)}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 Continue
                 <ArrowRight className="h-4 w-4" />
@@ -428,7 +428,7 @@ export function ImportFlowDialog({
                 size="default"
                 onClick={handleImport}
                 disabled={importing}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
