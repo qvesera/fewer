@@ -5,7 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2 } from "lucide-react";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
 import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
@@ -112,6 +112,8 @@ export function ThemeEditorDialog() {
   const [saveName, setSaveName] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const loadThemes = useCallback(async () => {
     if (!user) {
@@ -173,6 +175,33 @@ export function ThemeEditorDialog() {
       toast({ title: "Deleted", description: `"${name}" removed.` });
     } catch {
       toast({ title: "Could not delete", variant: "destructive" });
+    }
+  };
+
+  const handleRenameTheme = async (id: string) => {
+    if (!user) return;
+    const name = renameValue.trim();
+    const theme = savedThemes.find((t) => t.id === id);
+    if (!theme) return;
+    if (!name || name === theme.name) {
+      setRenamingId(null);
+      return;
+    }
+    try {
+      // Rename only (upsert with existing id) — preserve the saved theme data.
+      const res = await fetch("/api/themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name, theme: theme.theme }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Rename failed");
+      setSavedThemes((themes) => themes.map((t) => (t.id === id ? { ...t, ...json.theme } : t)));
+      setRenamingId(null);
+      toast({ title: "Renamed", description: `Theme renamed to "${name}".` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not rename theme";
+      toast({ title: "Could not rename", description: msg, variant: "destructive" });
     }
   };
 
@@ -446,26 +475,69 @@ export function ThemeEditorDialog() {
                   savedThemes.map((t) => (
                     <div
                       key={t.id}
-                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[10px] text-left"
+                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-[10px] text-left"
                     >
-                      <button
-                        onClick={() => setCustomTheme(t.theme)}
-                        className="flex flex-1 min-w-0 items-center gap-2 text-left hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors"
-                      >
-                        <div className="flex gap-0.5 shrink-0">
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.folderIcon?.color }} />
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.fileIcon?.color }} />
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.background?.color }} />
-                        </div>
-                        <span className="truncate text-foreground/80">{t.name}</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTheme(t.id, t.name)}
-                        className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors"
-                        title={`Delete "${t.name}"`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      <div className="flex gap-0.5 shrink-0">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.folderIcon?.color }} />
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.fileIcon?.color }} />
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.background?.color }} />
+                      </div>
+                      {renamingId === t.id ? (
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameTheme(t.id);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-6 flex-1 min-w-0 text-xs px-1.5"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setCustomTheme(t.theme)}
+                          className="flex flex-1 min-w-0 items-center gap-1 text-left"
+                          title={`Apply "${t.name}"`}
+                        >
+                          <span className="truncate text-foreground/80">{t.name}</span>
+                        </button>
+                      )}
+                      {renamingId === t.id ? (
+                        <>
+                          <button
+                            onClick={() => handleRenameTheme(t.id)}
+                            className="shrink-0 rounded p-0.5 text-green-500 hover:bg-foreground/10 transition-colors"
+                            title="Save name"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => setRenamingId(null)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/10 transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
+                            title="Rename"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTheme(t.id, t.name)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors"
+                            title={`Delete "${t.name}"`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))
                 ) : (
