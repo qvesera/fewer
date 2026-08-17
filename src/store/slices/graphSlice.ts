@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
+import type { FewerNode, FewerEdge, HistoryOp, FileCategory } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
@@ -298,10 +298,13 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const displayDepthIds = computeDisplayDepthHiddenIds(nodes, state.maxDisplayDepth);
     idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...displayDepthIds])];
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
+    // Also exclude category-filtered files so the remaining tree lays out compactly.
+    const catHidden = computeCategoryHiddenIds(nodes, state.categoryFilter);
+    const excludeWithCategory = catHidden.length > 0 ? new Set([...(excludeFromLayoutFinal ?? []), ...catHidden]) : excludeFromLayoutFinal;
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
-      ? applySearchInternal(styledNodes, state.searchQuery)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal }), state.searchQuery);
+      ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
+      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeWithCategory }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -311,17 +314,19 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, hiddenIds, graphVersion } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion } = get();
     if (nodes.length === 0) return;
-    const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
+    const catHidden = computeCategoryHiddenIds(nodes, categoryFilter);
+    const excludeIds = [...new Set([...(hiddenIds as string[]), ...catHidden])];
+    const excludeFromLayout = excludeIds.length > 0 ? new Set(excludeIds) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
-    const searched = applySearchInternal(laid, searchQuery);
+    const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
 
   applySearch: () => {
-    const { nodes, searchQuery, graphVersion } = get();
-    set({ nodes: applySearchInternal(nodes, searchQuery), graphVersion: graphVersion + 1 });
+    const { nodes, searchQuery, categoryFilter, graphVersion } = get();
+    set({ nodes: applySearchInternal(nodes, searchQuery, categoryFilter), graphVersion: graphVersion + 1 });
   },
 
   setClipboard: (mode, nodeIds) => {
@@ -368,7 +373,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         after,
       });
     }
-    set({ nodes: applySearchInternal(newNodes, searchQuery), edges: newEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: newEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
 
   renameNode: (id, newLabel) => {
@@ -425,7 +430,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     });
     // Targeted rename op — stores only the diff, not the full array
     get().pushOp({ type: "rename", nodeId: id, oldLabel, newLabel: newLabelOnly });
-    set({ nodes: applySearchInternal(newNodes, searchQuery), renamingId: null, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
     return true;
   },
 
@@ -474,7 +479,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   pasteNode: (id, parentFolderId?) => {
@@ -487,7 +492,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   _findFreePosition: (baseX, baseY, nodeWidth, nodeHeight) => {
@@ -564,7 +569,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
   },
 
   duplicateNode: (id) => { get().duplicateNodeUnderParent(id); },
@@ -592,7 +597,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         after,
       });
     }
-    set({ nodes: applySearchInternal(filteredNodes, searchQuery), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(filteredNodes, searchQuery, get().categoryFilter), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
 
   addNode: (parentId, label, type) => {
@@ -617,7 +622,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const sorted = sortEdges(newEdgesUnordered, newNodes);
     // Targeted add-node op — stores only the new node, not the full array
     get().pushOp({ type: "add-node", node: newNode, edge: newEdge as FewerEdge | null });
-    set({ nodes: applySearchInternal(newNodes, searchQuery), edges: sorted, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: sorted, graphVersion: get().graphVersion + 1 });
     get().relayout();
     return newNode.id;
   },
@@ -639,7 +644,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const newNodes = [...nodes, newNode];
     // Targeted add-node op — stores only the new node
     get().pushOp({ type: "add-node", node: newNode, edge: null });
-    set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     return newNode.id;
   },
 
@@ -683,7 +688,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       .filter((p) => p.path !== "");
     get().pushOp({ type: "connect", edge: newEdge, prevPaths, nextPaths });
     const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
-    set({ nodes: applySearchInternal(updatedNodes, searchQuery), edges: nextEdges, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(updatedNodes, searchQuery, get().categoryFilter), edges: nextEdges, graphVersion: get().graphVersion + 1 });
     return { ok: true };
   },
 
@@ -694,7 +699,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => !filteredEdges.includes(e));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
-    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
   },
 
   deleteEdges: (ids) => {
@@ -705,7 +710,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => idSet.has(e.id));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filtered, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
-    set({ nodes: applySearchInternal(nextNodes, searchQuery), edges: filtered, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filtered, graphVersion: get().graphVersion + 1 });
   },
 
   hideNode: (id) => {
@@ -831,7 +836,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
-    const searched = applySearchInternal(laid, searchQuery);
+    const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));
     const { autoHiddenIds: nextAutoHidden } = reconcileAutoHide(
@@ -894,7 +899,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const wasCollapsed = node.data.collapsed ?? false;
     get().pushOp({ type: "toggle-collapse", nodeId: id, wasCollapsed });
     const newNodes = nodes.map((n) => n.id === id ? { ...n, data: { ...n.data, collapsed: !wasCollapsed } } : n);
-    set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -905,7 +910,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       .map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: true }));
     const newNodes = nodes.map((n) => n.data.type === "folder" ? { ...n, data: { ...n.data, collapsed: true } } : n);
     get().pushOp({ type: "collapse-batch", changes });
-    set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -914,7 +919,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const changes = nodes.map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: false }));
     const newNodes = nodes.map((n) => ({ ...n, data: { ...n.data, collapsed: false } }));
     get().pushOp({ type: "collapse-batch", changes });
-    set({ nodes: applySearchInternal(newNodes, searchQuery), graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -931,7 +936,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     fsHandleStore.clear();
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
-      searchQuery: "", hiddenIds: [], renamingId: null, clipboard: null,
+      searchQuery: "", categoryFilter: null, hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], localRootPath: null,
     });
@@ -941,21 +946,48 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: FewerNode[],
   query: string,
+  categoryFilter: FileCategory | null,
 ): FewerNode[] {
-  if (!query.trim()) {
+  const hasQuery = query.trim().length > 0;
+  const hasFilter = !!categoryFilter;
+  if (!hasQuery && !hasFilter) {
     return nodes.map((n) => ({
       ...n,
+      hidden: false,
       data: { ...n.data, highlighted: false, dimmed: false },
     }));
   }
   const q = query.toLowerCase();
+  const cat = categoryFilter;
+  // Pure category filter (no search query): just hide non-matching files quietly.
+  if (hasFilter && !hasQuery) {
+    return nodes.map((n) => {
+      const isFolder = n.data.type === "folder";
+      const categoryMatches = isFolder || n.data.category === cat;
+      return { ...n, hidden: !categoryMatches, data: { ...n.data, highlighted: false, dimmed: false } };
+    });
+  }
   return nodes.map((n) => {
-    const matches =
+    const isFolder = n.data.type === "folder";
+    const categoryMatches = !hasFilter || isFolder || n.data.category === cat;
+    const queryMatches =
+      !hasQuery ||
       n.data.label.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
+    const matches = categoryMatches && queryMatches;
     return {
       ...n,
+      // Category filter actually hides non-matching files (folders stay to keep the tree).
+      hidden: hasFilter && !categoryMatches,
       data: { ...n.data, highlighted: matches, dimmed: !matches },
     };
   });
+}
+
+/** Ids of file nodes hidden by an active category filter (folders are never hidden). */
+function computeCategoryHiddenIds(nodes: FewerNode[], filter: FileCategory | null): string[] {
+  if (!filter) return [];
+  return nodes
+    .filter((n) => n.data.type !== "folder" && n.data.category !== filter)
+    .map((n) => n.id);
 }

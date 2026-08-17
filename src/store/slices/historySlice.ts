@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry } from "./types";
-import type { HistoryOp, ViewState } from "@/lib/fewer/types";
+import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
 import { applyOps, undoOps, getUndoViewState, getRedoViewState } from "@/lib/fewer/history";
 
 const MAX_HISTORY = 50;
@@ -61,7 +61,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -73,7 +73,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
-      nodes: applySearchInternal(prevNodes, searchQuery),
+      nodes: applySearchInternal(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -81,7 +81,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   redo: () => {
-    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (future.length === 0) return;
     const entry = future[0];
     const { nodes: nextNodes, edges: nextEdges } = applyOps(nodes, edges, entry.ops);
@@ -92,7 +92,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       future: future.slice(1),
       past: [...past, entry].slice(-MAX_HISTORY),
-      nodes: applySearchInternal(nextNodes, searchQuery),
+      nodes: applySearchInternal(nextNodes, searchQuery, categoryFilter),
       edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -103,20 +103,38 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: GraphState["nodes"],
   query: string,
+  categoryFilter: FileCategory | null,
 ): GraphState["nodes"] {
-  if (!query.trim()) {
+  const hasQuery = query.trim().length > 0;
+  const hasFilter = !!categoryFilter;
+  if (!hasQuery && !hasFilter) {
     return nodes.map((n) => ({
       ...n,
+      hidden: false,
       data: { ...n.data, highlighted: false, dimmed: false },
     }));
   }
   const q = query.toLowerCase();
+  const cat = categoryFilter;
+  // Pure category filter (no search query): just hide non-matching files quietly.
+  if (hasFilter && !hasQuery) {
+    return nodes.map((n) => {
+      const isFolder = n.data.type === "folder";
+      const categoryMatches = isFolder || n.data.category === cat;
+      return { ...n, hidden: !categoryMatches, data: { ...n.data, highlighted: false, dimmed: false } };
+    });
+  }
   return nodes.map((n) => {
-    const matches =
+    const isFolder = n.data.type === "folder";
+    const categoryMatches = !hasFilter || isFolder || n.data.category === cat;
+    const queryMatches =
+      !hasQuery ||
       n.data.label.toLowerCase().includes(q) ||
       (n.data.extension ?? "").toLowerCase().includes(q);
+    const matches = categoryMatches && queryMatches;
     return {
       ...n,
+      hidden: hasFilter && !categoryMatches,
       data: { ...n.data, highlighted: matches, dimmed: !matches },
     };
   });

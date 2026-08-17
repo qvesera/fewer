@@ -10,6 +10,8 @@ export function SearchPanel() {
   const open = useGraphStore((s) => s.searchOpen);
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const query = useGraphStore((s) => s.searchQuery);
+  const categoryFilter = useGraphStore((s) => s.categoryFilter);
+  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const nodes = useGraphStore((s) => s.nodes);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -40,14 +42,18 @@ export function SearchPanel() {
   };
 
   const matches = useMemo(() => {
-    if (!query) return [];
+    const hasQuery = !!query;
     const q = query.toLowerCase();
-    const filtered = nodes.filter(
-      (n) =>
+    const filtered = nodes.filter((n) => {
+      const categoryMatches =
+        !categoryFilter || n.data.type === "folder" || n.data.category === categoryFilter;
+      const queryMatches =
+        !hasQuery ||
         fuzzyMatch(query, n.data.label) ||
         fuzzyMatch(query, n.data.path) ||
-        (n.data.extension ?? "").toLowerCase().includes(q),
-    );
+        (n.data.extension ?? "").toLowerCase().includes(q);
+      return categoryMatches && queryMatches;
+    });
     return filtered.sort((a, b) => {
       const aLabel = a.data.label.toLowerCase();
       const bLabel = b.data.label.toLowerCase();
@@ -63,7 +69,7 @@ export function SearchPanel() {
       // Alphabetical
       return aLabel.localeCompare(bLabel);
     });
-  }, [query, nodes]);
+  }, [query, categoryFilter, nodes]);
 
   // Keyboard navigation window listener while panel is open
   useEffect(() => {
@@ -131,12 +137,26 @@ export function SearchPanel() {
           )}
         </div>
 
+        {categoryFilter && (
+          <div className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] text-primary">
+            <span className="font-semibold uppercase tracking-wide">Filter:</span>
+            <span>{categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)} files</span>
+            <button
+              onClick={() => setCategoryFilter(null)}
+              aria-label="Clear category filter"
+              className="ml-auto rounded p-0.5 hover:bg-primary/20"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
         {/* Match Tracker & View Container */}
         <div 
           ref={resultsContainerRef}
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
-          {!query ? (
+          {!query && !categoryFilter ? (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
               Start typing to search files & directory structures...
             </div>

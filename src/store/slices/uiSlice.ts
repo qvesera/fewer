@@ -2,6 +2,7 @@
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ExportSettings } from "@/lib/fewer/types";
+import type { FileCategory } from "@/lib/fewer/types";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
@@ -14,6 +15,8 @@ export type UiSliceCreator = StateCreator<
   {
     selectedNodeIds: string[];
     searchQuery: string;
+    /** Active file-type (extension category) filter. `null` = no filter. */
+    categoryFilter: FileCategory | null;
     hiddenIds: string[];
     renamingId: string | null;
     renameSource: "canvas" | "folder" | null;
@@ -47,6 +50,7 @@ export type UiSliceCreator = StateCreator<
     rightClickDetected: boolean;
 
     setSearchQuery: (q: string) => void;
+    setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
     setRenamingId: (id: string | null, source?: "canvas" | "folder") => void;
     setZoomToNode: (nodeId: string | null) => void;
@@ -87,6 +91,7 @@ export type UiSliceCreator = StateCreator<
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
   searchQuery: "",
+  categoryFilter: null,
   hiddenIds: [],
   renamingId: null,
   renameSource: null,
@@ -127,6 +132,11 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   skipNextAutoLayout: false,
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
+  setCategoryFilter: (cat) => {
+    set({ categoryFilter: cat });
+    get().applySearch();
+    setTimeout(() => get().relayout(), 30);
+  },
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
 
