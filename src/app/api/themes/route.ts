@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { isDangerousText } from "@/lib/fewer/textValidation";
 
 /**
  * Authed CRUD for a user's saved custom themes. Uses the session cookie so RLS
@@ -56,6 +57,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
+  if (body.name != null && (typeof body.name !== "string" || isDangerousText(body.name))) {
+    return NextResponse.json({ error: "Invalid theme name" }, { status: 400 });
+  }
   const name = (body.name ?? "").toString().trim().slice(0, 200);
   if (!name) {
     return NextResponse.json({ error: "Theme name is required" }, { status: 400 });

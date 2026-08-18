@@ -1,8 +1,9 @@
-"use client";
-
 /**
- * Client-side sanitisation for text the user types that is persisted to the
- * database.
+ * Shared, framework-agnostic sanitisation for text the user types that is
+ * persisted to the database. Pure logic — no browser globals — so it can be
+ * imported by BOTH client dialogs and server API route handlers. Used as the
+ * single source of truth: client dialogs validate before POSTing, and every
+ * API route that stores user text re-validates before writing.
  *
  * Guards against broken values ever reaching the DB — e.g. the literal strings
  * `"null"`, `"undefined"`, `"[object Object]"` that can show up when a value is

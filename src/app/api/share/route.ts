@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { Resend } from "resend";
+import { isDangerousText } from "@/lib/fewer/textValidation";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "fewer <onboarding@resend.dev>";
@@ -63,6 +64,12 @@ export async function POST(request: Request) {
       ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)
       : [];
     const savedGraphId = body?.saved_graph_id ?? null;
+
+    // Reject broken gallery text (e.g. "[object Object]") before it's stored.
+    const badGallery = (v: unknown) => v != null && isDangerousText(v);
+    if (badGallery(body?.gallery_title) || badGallery(body?.gallery_description)) {
+      return NextResponse.json({ error: "Invalid gallery text" }, { status: 400 });
+    }
 
     // Gallery opt-in (owned, public shares only). Metadata surfaced on /api/gallery.
     const inGallery = access === "public" && user?.id && body?.in_gallery === true;

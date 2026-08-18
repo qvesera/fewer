@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { isDangerousText, safeText } from "@/lib/fewer/textValidation";
 
 /**
  * Per-account profile info (first/last name, username) from Settings → Account.
@@ -58,12 +59,17 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
-  const first_name = str(body.first_name);
-  const last_name = str(body.last_name);
+  const first_name = safeText(body.first_name);
+  const last_name = safeText(body.last_name);
   // Store usernames normalized to lowercase so uniqueness is enforced
   // case-insensitively (matches the profiles_username_unique_idx index).
-  const username = str(body.username).toLowerCase();
+  const username = safeText(body.username).toLowerCase();
+
+  // First line of defence server-side: reject broken values before writing.
+  const rejectsNonNull = (v: unknown) => v !== undefined && v !== null && isDangerousText(v);
+  if (rejectsNonNull(body.first_name) || rejectsNonNull(body.last_name) || rejectsNonNull(body.username)) {
+    return NextResponse.json({ error: "Profile contains invalid text" }, { status: 400 });
+  }
 
   if (first_name.length > 100 || last_name.length > 100 || username.length > 100) {
     return NextResponse.json({ error: "Fields must be 100 characters or fewer" }, { status: 400 });

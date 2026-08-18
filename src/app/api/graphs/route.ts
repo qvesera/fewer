@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
+import { isDangerousText } from "@/lib/fewer/textValidation";
 
 /**
  * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
@@ -71,7 +72,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const name = (body.name ?? "Untitled").toString().slice(0, 200);
+  // Reject broken values (e.g. an object stringifying to "[object Object]").
+  if (body.name != null && (typeof body.name !== "string" || isDangerousText(body.name))) {
+    return NextResponse.json({ error: "Invalid graph name" }, { status: 400 });
+  }
+  const name = body.name && body.name.trim() ? body.name.trim().slice(0, 200) : "Untitled";
   if (!body.data || typeof body.data !== "object") {
     return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
   }
