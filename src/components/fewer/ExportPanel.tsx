@@ -95,6 +95,11 @@ export function ExportPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const nodeWidth = useGraphStore((s) => s.nodeWidth);
+  const nodeHeight = useGraphStore((s) => s.nodeHeight);
+  const edgeWidth = useGraphStore((s) => s.edgeWidth);
+  const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
   const [exportSelected, setExportSelected] = useState(false);
@@ -144,7 +149,14 @@ export function ExportPanel() {
       exportDirectoryTree(nodesToExport, edgesToExport, settings.includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, settings, stats);
+      exportGraph(nodesToExport, edgesToExport, settings, stats, {
+        selectedIds: selectedNodeIds,
+        hiddenIds,
+        nodeWidth,
+        nodeHeight,
+        edgeWidth,
+        cornerRadius,
+      });
     }
     setOpen(false);
     toast({
