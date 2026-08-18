@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { isDangerousText, safeText } from "@/lib/fewer/textValidation";
+import { isDangerousText, safeText, validateUsername } from "@/lib/fewer/textValidation";
 
 /**
  * Per-account profile info (first/last name, username) from Settings → Account.
@@ -65,9 +65,18 @@ export async function PUT(request: Request) {
   // case-insensitively (matches the profiles_username_unique_idx index).
   const username = safeText(body.username).toLowerCase();
 
-  // First line of defence server-side: reject broken values before writing.
-  const rejectsNonNull = (v: unknown) => v !== undefined && v !== null && isDangerousText(v);
-  if (rejectsNonNull(body.first_name) || rejectsNonNull(body.last_name) || rejectsNonNull(body.username)) {
+  // Server-side guard: reject broken values and usernames containing "@"
+  // (an "@" in a username would break email-vs-username login detection).
+  const bad = (v: unknown) => v !== undefined && v !== null && isDangerousText(v);
+  const usernameError = validateUsername(username, { label: "Username", max: 100 });
+  if (
+    bad(body.first_name) ||
+    bad(body.last_name) ||
+    bad(body.username) ||
+    first_name.length > 100 ||
+    last_name.length > 100 ||
+    usernameError
+  ) {
     return NextResponse.json({ error: "Profile contains invalid text" }, { status: 400 });
   }
 

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PNG/SVG exports now match the live canvas: theme colors (light/dark/custom), full node cards (folder header + child rows + footer, file icon + extension/size), per-style edge geometry (curved/angled/straight) with width/dash pattern and correct anchors for TB/LR/RL/BT layouts, and the selected-folder glow ring. Hidden nodes are no longer emitted into image exports.
 - Fixed a crash when deleting a parent node that had hidden children: the deleted subtree stayed in the hidden-nodes list, and building the Hidden panel read an undefined node and threw TypeError on hiddenTreeSort. Deleting a parent now also purges its children from the hidden/auto-hide/reveal view-state (they're removed, as expected), and the hidden-tree builder ignores stale ids defensively.
 - Client-side input validation: every user-text field saved to the database (account profile, saved-graph names, gallery title/description, custom-theme names) now rejects non-string / broken-interpolated values like "null", "undefined" and "[object Object]", trims surrounding whitespace, and enforces length caps before submitting.
+- Prevent '@' in usernames: a username containing '@' collided with the login flow's email-vs-username detection (which keys off '@') and could never be used to sign in. Usernames are now rejected on save (client and server) if they contain '@'.
 
 ### Added
 

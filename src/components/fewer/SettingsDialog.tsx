@@ -59,7 +59,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { validateTextField } from "@/lib/fewer/textValidation";
+import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -127,7 +127,7 @@ function AccountTab() {
     const invalid =
       validateTextField(firstName, { label: "First name", max: 100 }) ??
       validateTextField(lastName, { label: "Last name", max: 100 }) ??
-      validateTextField(username, { label: "Username", max: 100 });
+      validateUsername(username, { label: "Username", max: 100 });
     if (invalid) {
       toast({ title: "Could not save profile", description: invalid, variant: "destructive" });
       return;
@@ -261,7 +261,11 @@ function AccountTab() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="ada"
                 autoComplete="username"
+                maxLength={100}
               />
+              <p className="text-[11px] text-muted-foreground/70">
+                Letters, numbers, underscores &amp; dots — no "@".
+              </p>
             </div>
           </div>
           <div className="mt-3 flex justify-end">

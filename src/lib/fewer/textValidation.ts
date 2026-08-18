@@ -92,3 +92,25 @@ export function validateTextField(
   }
   return null;
 }
+
+/**
+ * Username-specific validation on top of `validateTextField`. Usernames are
+ * additionally banned from containing "@" — the login flow decides between an
+ * email and a username by the presence of "@" (`/api/login`), so a username
+ * with an "@" would be mis-read as an email and could never be used to sign in.
+ * Empty usernames are allowed (the account row can defer one, like the unique
+ * index permits).
+ */
+export function validateUsername(
+  value: unknown,
+  options: { max?: number; label?: string } = {},
+): string | null {
+  const { max = 100, label = "Username" } = options;
+  const base = validateTextField(value, { label, max });
+  if (base) return base;
+  const s = safeText(value);
+  if (s.includes("@")) {
+    return `${label} can't contain "@".`;
+  }
+  return null;
+}
