@@ -77,31 +77,76 @@ function AccountTab() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
+  // Last values persisted for this user — used to detect unsaved changes.
+  const [savedProfile, setSavedProfile] = useState({
+    first_name: "",
+    last_name: "",
+    username: "",
+  });
 
-  // Load any stored profile info once the user resolves.
+  // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    const m = user?.user_metadata ?? {};
-    setFirstName(typeof m.first_name === "string" ? m.first_name : "");
-    setLastName(typeof m.last_name === "string" ? m.last_name : "");
-    setUsername(typeof m.username === "string" ? m.username : "");
+    if (!user) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/profile");
+        const json = await res.json();
+        if (mounted && json.profile) {
+          const p = json.profile as {
+            first_name?: unknown;
+            last_name?: unknown;
+            username?: unknown;
+          };
+          const first_name = typeof p.first_name === "string" ? p.first_name : "";
+          const last_name = typeof p.last_name === "string" ? p.last_name : "";
+          const username = typeof p.username === "string" ? p.username : "";
+          setFirstName(first_name);
+          setLastName(last_name);
+          setUsername(username);
+          setSavedProfile({ first_name, last_name, username });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, [user?.id]);
 
   const profileUnchanged =
-    (user?.user_metadata?.first_name ?? "") === firstName.trim() &&
-    (user?.user_metadata?.last_name ?? "") === lastName.trim() &&
-    (user?.user_metadata?.username ?? "") === username.trim();
+    firstName.trim() === savedProfile.first_name &&
+    lastName.trim() === savedProfile.last_name &&
+    username.trim() === savedProfile.username;
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { error } = await getBrowserSupabase().auth.updateUser({
-        data: {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           username: username.trim(),
-        },
+        }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        let msg = "Could not save profile";
+        try {
+          const body = await res.json();
+          if (body?.error) msg = body.error;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+      setSavedProfile({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        username: username.trim(),
+      });
       toast({ title: "Profile updated" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save profile";
