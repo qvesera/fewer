@@ -1,4 +1,5 @@
 import type { TreeEntry } from "./types";
+import { FEWER_CREDIT_RE, TREE_HEADER, TREE_SUMMARY_RE } from "./branding";
 
 /**
  * Parse a JSON graph export back into a TreeEntry.
@@ -71,7 +72,16 @@ export function parseJSONGraph(json: string): TreeEntry {
  *   └── package.json
  */
 export function parseASCIITree(text: string): TreeEntry {
-  const lines = text.split("\n").filter((l) => l.trim() && !l.trim().startsWith("#"));
+  const lines = text
+    .split("\n")
+    .filter((l) => {
+      const t = l.trim();
+      if (!t || t.startsWith("#")) return false;
+      if (t === TREE_HEADER) return false;
+      if (FEWER_CREDIT_RE.test(t)) return false;
+      if (TREE_SUMMARY_RE.test(t)) return false;
+      return true;
+    });
 
   if (lines.length === 0) throw new Error("Empty tree text");
 

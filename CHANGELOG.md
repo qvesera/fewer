@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
+- ASCII tree imports are now header- and footer-aware: the "Directory Tree Structure" title, the "Created with fewer" credit line, and trailing "N directories, M files" style summaries are stripped instead of being imported as phantom nodes.
+
+### Added
+
+- Exports now carry a "Created with fewer — <url>" credit by default: a clickable watermark in corner of SVG/PNG, a comment line in CSV/DOT/sh/bat, a footer line in the ASCII directory tree, and a meta.generatedBy field in JSON. A toggle in the Export panel turns it off.
 ## [0.5.0] - 18th August 2026
 
 ### Added

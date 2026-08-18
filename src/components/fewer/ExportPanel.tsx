@@ -139,9 +139,9 @@ export function ExportPanel() {
     const edgesToExport = exportEdges;
 
     if (settings.format === "script") {
-      exportDirectoryScript(nodesToExport, edgesToExport);
+      exportDirectoryScript(nodesToExport, edgesToExport, settings.includeBranding);
     } else if (settings.format === "tree") {
-      exportDirectoryTree(nodesToExport, edgesToExport);
+      exportDirectoryTree(nodesToExport, edgesToExport, settings.includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
       exportGraph(nodesToExport, edgesToExport, settings, stats);
@@ -260,6 +260,19 @@ export function ExportPanel() {
               checked={exportSelected && canExportSelected}
               onCheckedChange={(v) => setExportSelected(v)}
               disabled={!canExportSelected}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-xs font-semibold">Include &quot;Created with fewer&quot; credit</Label>
+              <p className="text-xs text-muted-foreground">
+                Adds a link/watermark pointing back to fewer.
+              </p>
+            </div>
+            <Switch
+              checked={settings.includeBranding}
+              onCheckedChange={(v) => setSettings({ includeBranding: v })}
             />
           </div>
 

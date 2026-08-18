@@ -130,7 +130,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
-  exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true },
+  exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
 
   tutorialBeginnerDone: (() => {

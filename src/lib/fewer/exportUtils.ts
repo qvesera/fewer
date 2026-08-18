@@ -5,6 +5,7 @@ import type {
   DirectoryStats,
 } from "./types";
 import { LAYOUT_DIMENSIONS } from "./layout";
+import { FEWER_CREDIT, FEWER_HOME_URL } from "./branding";
 
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -92,6 +93,15 @@ export function exportSVG(
   }" />
   ${edgePaths}
 ${nodeRects}
+${
+    settings.includeBranding
+      ? `  <a href="${FEWER_HOME_URL}" target="_blank" rel="noopener">
+    <text x="${width - 14}" y="${height - 12}" text-anchor="end" font-family="sans-serif" font-size="11" fill="rgba(255,255,255,0.5)">${escape(
+        FEWER_CREDIT,
+      )}</text>
+  </a>`
+      : ""
+  }
 </svg>`;
 
   downloadBlob(svg, `fewer-${timestamp()}.svg`, "image/svg+xml");
@@ -174,6 +184,16 @@ export function exportPNG(
     ctx.globalAlpha = 1;
   }
 
+  if (settings.includeBranding) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(FEWER_CREDIT, width - 14, height - 12);
+    ctx.textAlign = "left";
+    ctx.globalAlpha = 1;
+  }
+
   canvas.toBlob(
     (blob) => {
       if (!blob) return;
@@ -215,13 +235,16 @@ export function exportJSON(
   nodes: FewerNode[],
   edges: FewerEdge[],
   stats?: DirectoryStats,
+  includeBranding = true,
 ) {
+  const meta: Record<string, unknown> = {
+    exportedAt: new Date().toISOString(),
+    application: "fewer",
+    version: "1.0.0",
+  };
+  if (includeBranding) meta.generatedBy = FEWER_CREDIT;
   const payload = {
-    meta: {
-      exportedAt: new Date().toISOString(),
-      application: "fewer",
-      version: "1.0.0",
-    },
+    meta,
     stats: stats ?? null,
     nodes: nodes.map((n) => ({
       id: n.id,
@@ -250,7 +273,11 @@ export function exportJSON(
 /*                                  CSV                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportCSV(nodes: FewerNode[], edges: FewerEdge[]) {
+export function exportCSV(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
   const lines: string[] = [];
   lines.push("id,label,path,type,extension,category,size_bytes");
   for (const n of nodes) {
@@ -271,6 +298,7 @@ export function exportCSV(nodes: FewerNode[], edges: FewerEdge[]) {
   for (const e of edges) {
     lines.push([e.id, e.source, e.target].join(","));
   }
+  if (includeBranding) lines.push(`# ${FEWER_CREDIT}`);
   downloadBlob(lines.join("\n"), `fewer-${timestamp()}.csv`, "text/csv");
 }
 
@@ -285,7 +313,11 @@ function csvEscape(value: string): string {
 /*                                  DOT                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportDOT(nodes: FewerNode[], edges: FewerEdge[]) {
+export function exportDOT(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
   const lines: string[] = [];
   lines.push("digraph fewer {");
   lines.push('  graph [rankdir="TB", bgcolor="transparent"];');
@@ -302,6 +334,7 @@ export function exportDOT(nodes: FewerNode[], edges: FewerEdge[]) {
   for (const e of edges) {
     lines.push(`  "${e.source}" -> "${e.target}";`);
   }
+  if (includeBranding) lines.push(`  // ${FEWER_CREDIT}`);
   lines.push("}");
   downloadBlob(lines.join("\n"), `fewer-${timestamp()}.dot`, "text/plain");
 }
@@ -322,10 +355,10 @@ export function exportGraph(
     case "png":
       return exportPNG(nodes, edges, settings);
     case "json":
-      return exportJSON(nodes, edges, stats);
+      return exportJSON(nodes, edges, stats, settings.includeBranding);
     case "csv":
-      return exportCSV(nodes, edges);
+      return exportCSV(nodes, edges, settings.includeBranding);
     case "dot":
-      return exportDOT(nodes, edges);
+      return exportDOT(nodes, edges, settings.includeBranding);
   }
 }
