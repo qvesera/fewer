@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
-import { cn } from "@/lib/utils";
 import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X, Eye, EyeOff } from "lucide-react";
 import {
   Tooltip,
@@ -34,7 +33,6 @@ interface AuthDialogProps {
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
-  const [identifierType, setIdentifierType] = useState<"email" | "username">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +42,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const close = () => {
     onOpenChange(false);
     setMode("signin");
-    setIdentifierType("email");
     setEmail("");
     setPassword("");
     setShowPassword(false);
@@ -54,12 +51,25 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Field-level email validation (all modes need a well-formed email, except
-    // username sign-in which just needs a non-empty identifier).
-    const isUsernameLogin = mode === "signin" && identifierType === "username";
-    if (!isUsernameLogin) {
-      const emailOk = EMAIL_RE.test(email.trim());
-      if (!emailOk) {
+    // Auto-detect email vs username: an "@" means an email, anything else is a
+    // username (usernames can't contain "@", so this is unambiguous).
+    const identifier = email.trim();
+    const isEmail = identifier.includes("@");
+
+    if (mode === "signin") {
+      if (!identifier) {
+        setEmailError("Enter an email or username.");
+        toast({ title: "Missing account", description: "Enter your email or username.", variant: "destructive" });
+        return;
+      }
+      if (isEmail && !EMAIL_RE.test(identifier)) {
+        setEmailError("Enter a valid email address.");
+        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+        return;
+      }
+    } else {
+      // Sign-up and password-reset always use a real email.
+      if (!EMAIL_RE.test(identifier)) {
         setEmailError("Enter a valid email address.");
         toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
         return;
@@ -113,7 +123,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         const res = await fetch("/api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier: email.trim(), password }),
+          body: JSON.stringify({ identifier, password }),
         });
         const json = (await res.json().catch(() => null)) as { error?: string; session?: Session } | null;
         if (!res.ok) {
@@ -155,53 +165,30 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            {mode === "signin" && (
-              <div
-                role="group"
-                aria-label="Log in with"
-                className="flex rounded-lg border border-border/50 bg-muted/60 p-0.5"
-              >
-                {(["email", "username"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setIdentifierType(t);
-                      setEmailError(null);
-                    }}
-                    className={cn(
-                      "flex-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all outline-none cursor-pointer",
-                      identifierType === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t === "email" ? "Email" : "Username"}
-                  </button>
-                ))}
-              </div>
-            )}
             <Label htmlFor="auth-email" className="text-xs font-medium">
-              {mode === "signin" && identifierType === "username" ? "Username" : "Email"}
+              {mode === "signin" ? "Email or username" : "Email"}
             </Label>
             <Input
               id="auth-email"
-              type={mode === "signin" && identifierType === "username" ? "text" : "email"}
+              type={mode === "signin" ? "text" : "email"}
               required
               value={email}
               onChange={(e) => {
                 const v = e.target.value;
                 setEmail(v);
                 if (emailError) {
-                  if (mode === "signin" && identifierType === "username") {
-                    setEmailError(null);
-                  } else {
+                  // For sign-in, only flag a malformed email when it actually
+                  // looks like one (contains "@"); otherwise it's a username.
+                  const looksEmail = v.trim().includes("@");
+                  if (mode !== "signin" || looksEmail) {
                     setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                  } else {
+                    setEmailError(null);
                   }
                 }
               }}
-              placeholder={mode === "signin" && identifierType === "username" ? "your_username" : "you@example.com"}
-              autoComplete={mode === "signin" && identifierType === "username" ? "username" : "email"}
+              placeholder={mode === "signin" ? "you@example.com or your_username" : "you@example.com"}
+              autoComplete={mode === "signin" ? "username" : "email"}
               aria-invalid={!!emailError}
             />
             {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
