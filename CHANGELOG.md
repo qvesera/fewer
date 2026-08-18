@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Share dialog: when 'List in the public gallery' is on, the action becomes 'Publish to gallery' and the manual copy-link field hides (the graph is live at /gallery instead); publishing shows a confirmation toast.
+- Share dialog: new 'Private  Only me' option is the default state so 'Anyone with the link' is no longer on by default and can be switched off; private mode hides the generate/publish action and copy-link field, and prompts Stop sharing when a link still exists.
 ## [0.5.0] - 18th August 2026
 
 ### Added

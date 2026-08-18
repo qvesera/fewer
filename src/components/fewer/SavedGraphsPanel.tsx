@@ -29,6 +29,7 @@ import {
   Share2,
   History,
   Globe2,
+  Lock,
 } from "lucide-react";
 import {
   Dialog,
@@ -421,7 +422,7 @@ function ShareGraphDialog({
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [access, setAccess] = useState<"public" | "invite">("public");
+  const [access, setAccess] = useState<"none" | "public" | "invite">("none");
   const [emails, setEmails] = useState("");
   const [building, setBuilding] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -520,7 +521,7 @@ function ShareGraphDialog({
       if (!res.ok) throw new Error("Unshare failed");
       setExistingId(null);
       setShareUrl("");
-      setAccess("public");
+      setAccess("none");
       setEmails("");
       setGallery(false);
       setGalleryTitle("");
@@ -564,6 +565,21 @@ function ShareGraphDialog({
             <div
               role="button"
               tabIndex={0}
+              onClick={() => setAccess("none")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("none"); } }}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "none" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
+            >
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium">Private · Only me</p>
+                <p className="text-[11px] text-muted-foreground/70">No one else can view this saved graph.</p>
+              </div>
+              <Switch checked={access === "none"} onCheckedChange={() => setAccess("none")} className="ml-auto shrink-0" />
+            </div>
+
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setAccess("public")}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("public"); } }}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "public" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
@@ -592,7 +608,9 @@ function ShareGraphDialog({
             </div>
           </div>
 
-          <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
+          {access !== "none" && (
+            <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
+          )}
 
           {/* Invite emails */}
           {access === "invite" && (
@@ -646,18 +664,26 @@ function ShareGraphDialog({
             </div>
           )}
 
-          {/* Generate link */}
-          <Button
-            className="w-full gap-1.5 cursor-pointer"
-            onClick={buildShare}
-            disabled={building}
-          >
-            {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gallery && access === "public" ? <Globe2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
-            {gallery && access === "public" ? "Publish to gallery" : "Generate link"}
-          </Button>
+          {/* Generate link (hidden when private) */}
+          {access === "none" ? (
+            <p className="text-[11px] text-muted-foreground/70">
+              {existingId
+                ? "A share link still exists — use Stop sharing below to make it fully private."
+                : "This saved graph is private and visible only to you."}
+            </p>
+          ) : (
+            <Button
+              className="w-full gap-1.5 cursor-pointer"
+              onClick={buildShare}
+              disabled={building}
+            >
+              {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gallery && access === "public" ? <Globe2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+              {gallery && access === "public" ? "Publish to gallery" : "Generate link"}
+            </Button>
+          )}
 
           {/* Manual share link — hidden in gallery mode (no link to copy; it's live at /gallery) */}
-          {shareUrl && !(gallery && access === "public") && (
+          {shareUrl && access !== "none" && !(gallery && access === "public") && (
             <div className="flex items-center gap-2">
               <Input value={shareUrl} readOnly className="text-xs font-mono flex-1" onClick={(e) => (e.target as HTMLInputElement).select()} />
               <Button variant="outline" size="sm" onClick={handleCopy} disabled={building} className="gap-1.5 shrink-0 cursor-pointer">
