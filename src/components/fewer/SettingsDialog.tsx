@@ -38,6 +38,7 @@ import {
   LogOut,
   User2,
   BellRing,
+  Info,
   Check,
   Cloud,
   Trash2,
@@ -360,6 +361,17 @@ function AccountTab() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  About tab                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function AboutTab() {
+  return (
+    <div className="flex flex-col gap-5 py-1">
       {/* Brand Hero Card */}
         <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/50 p-4 shadow-sm transition-[colors,transform,box-shadow]">
         <div className="flex items-center gap-3.5">
@@ -812,6 +824,13 @@ export function SettingsDialog() {
                 Account
               </TabsTrigger>
               <TabsTrigger
+                value="about"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+              >
+                <Info className="h-3.5 w-3.5" />
+                About
+              </TabsTrigger>
+              <TabsTrigger
                 value="appearance"
                 className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
@@ -856,6 +875,9 @@ export function SettingsDialog() {
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             <TabsContent value="account" className="m-0">
               <AccountTab />
+            </TabsContent>
+            <TabsContent value="about" className="m-0">
+              <AboutTab />
             </TabsContent>
             <TabsContent value="appearance" className="m-0">
               <AppearanceTab />
