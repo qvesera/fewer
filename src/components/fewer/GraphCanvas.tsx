@@ -40,10 +40,11 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 /**
- * Style the edges incident to EVERY selected node (source OR target). Each
- * incident edge is colored by its target node type (folder vs file) so
- * multi-selection shows every selected node's connections, not just the
- * last-picked one. Empty selection → all edges reset to default stroke.
+ * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
+ * from a selected node up to its root parent (child edges are NOT highlighted).
+ * Each path edge is colored by its target node type (folder vs file) so
+ * multi-selection shows every selected node's path, not just the last-picked
+ * one. Empty selection → all edges reset to default stroke.
  * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
  * so they render on top.
  */
@@ -54,15 +55,29 @@ function buildSelectedEdgeHighlight(
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
 ): FewerEdge[] {
-  const selected = new Set(selectedIds);
   const typeByNodeId = new Map<string, "folder" | "file">();
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
 
-  const highlighted = new Map<string, { stroke: string; width: number }>();
+  // Tree = at most one parent per node, so each node maps to a single parent
+  // edge (the child → source). Walking this map from a selected node up to the
+  // root gives exactly the ancestor path edges — child edges are NOT included.
+  const parentEdgeOf = new Map<string, FewerEdge>();
   for (const e of edges) {
-    if (!selected.has(e.source) && !selected.has(e.target)) continue;
-    const stroke = typeByNodeId.get(e.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-    highlighted.set(e.id, { stroke, width: Math.max(edgeWidth, 3) });
+    if (!parentEdgeOf.has(e.target)) parentEdgeOf.set(e.target, e);
+  }
+
+  const highlighted = new Map<string, { stroke: string; width: number }>();
+  for (const id of selectedIds) {
+    let nodeId = id;
+    const visited = new Set<string>();
+    while (nodeId && !visited.has(nodeId)) {
+      visited.add(nodeId);
+      const parentEdge = parentEdgeOf.get(nodeId);
+      if (!parentEdge) break;
+      const stroke = typeByNodeId.get(parentEdge.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
+      highlighted.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
+      nodeId = parentEdge.source;
+    }
   }
 
   const defaultStroke = themeColors.edge;
