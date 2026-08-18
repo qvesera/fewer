@@ -22,10 +22,22 @@ alter table public.content_pages enable row level security;
 
 -- Anyone can read published content. Writes are done via the service role (e.g.
 -- Supabase Studio / a future admin UI), which bypasses RLS.
-create policy "public read published content_pages"
-  on public.content_pages
-  for select
-  using (published = true);
+-- Guarded so the migration is safe to re-run (e.g. if the schema was already
+-- applied out-of-band; Postgres has no CREATE POLICY IF NOT EXISTS).
+do $$
+begin
+  if not exists (
+    select 1 from pg_policy
+    join pg_class on pg_class.oid = pg_policy.polrelid
+    where pg_class.relname = 'content_pages'
+      and pg_policy.polname = 'public read published content_pages'
+  ) then
+    create policy "public read published content_pages"
+      on public.content_pages
+      for select
+      using (published = true);
+  end if;
+end $$;
 
 create index if not exists content_pages_listing_idx
   on public.content_pages (type, published, date desc);
