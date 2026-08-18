@@ -376,7 +376,17 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         after,
       });
     }
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: newEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
+    set((s) => ({
+      nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter),
+      edges: newEdges,
+      selectedNodeIds: [],
+      // Purge the deleted subtree from the view-state so it no longer appears
+      // in the hidden list. Matches the op's `after` for consistent undo/redo.
+      hiddenIds: s.hiddenIds.filter((h) => !toRemove.has(h)),
+      autoHiddenIds: s.autoHiddenIds.filter((h) => !toRemove.has(h)),
+      revealedRootIds: s.revealedRootIds.filter((h) => !toRemove.has(h)),
+      graphVersion: s.graphVersion + 1,
+    }));
   },
 
   renameNode: (id, newLabel) => {
