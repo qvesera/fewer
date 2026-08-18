@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Github, ShieldCheck, ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 
-/** Origin used by OAuth callbacks, share links, and the scheduled function. */
+/** Origin used by OAuth callbacks and share links. */
 export const APP_ORIGIN =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://app.fewer.directory";
 

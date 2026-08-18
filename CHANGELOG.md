@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge motion controls are now independent: 'Animate Selected Edges Only' works standalone (no need to switch on 'Animated Edges' first) and only the selection-path edges animate. Animated edges get their own 'Animated Edge Pattern' (dashed or dotted) separate from the base pattern, so unselected/solid edges stay solid when motion is on instead of the whole edge set being forced dashed. Persists with user settings and saved graphs.
 - Edge motion controls separated: 'Animate Selected Edges Only' + its pattern live in Settings only; sidebar Motion/Pattern now control non-selected edges when that toggle is on, globally otherwise. Removed 'Animated Edges' toggle from Settings and 'Animated Pattern' from sidebar.
 - Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
+- Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 
 ### Security
 
