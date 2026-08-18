@@ -95,6 +95,11 @@ export function ExportPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const nodeWidth = useGraphStore((s) => s.nodeWidth);
+  const nodeHeight = useGraphStore((s) => s.nodeHeight);
+  const edgeWidth = useGraphStore((s) => s.edgeWidth);
+  const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
   const [exportSelected, setExportSelected] = useState(false);
@@ -139,12 +144,19 @@ export function ExportPanel() {
     const edgesToExport = exportEdges;
 
     if (settings.format === "script") {
-      exportDirectoryScript(nodesToExport, edgesToExport);
+      exportDirectoryScript(nodesToExport, edgesToExport, settings.includeBranding);
     } else if (settings.format === "tree") {
-      exportDirectoryTree(nodesToExport, edgesToExport);
+      exportDirectoryTree(nodesToExport, edgesToExport, settings.includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, settings, stats);
+      exportGraph(nodesToExport, edgesToExport, settings, stats, {
+        selectedIds: selectedNodeIds,
+        hiddenIds,
+        nodeWidth,
+        nodeHeight,
+        edgeWidth,
+        cornerRadius,
+      });
     }
     setOpen(false);
     toast({
@@ -155,6 +167,17 @@ export function ExportPanel() {
 
   const isRaster = settings.format === "png";
   const canExportSelected = selectedNodeIds.length > 0;
+
+  // SVG/PNG render only the non-hidden subset of the export selection (hidden
+  // nodes are filtered out by buildGraphSVG). If every exportable node is
+  // hidden the image would be blank, so block those two formats.
+  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  const imageExportableCount = useMemo(
+    () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
+    [exportNodes, hiddenSet],
+  );
+  const isImageFormat = settings.format === "png" || settings.format === "svg";
+  const imageBlocked = isImageFormat && imageExportableCount === 0;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -225,10 +248,17 @@ export function ExportPanel() {
           </div>
 
           {/* Action Buttons (Standard shadcn Button) */}
+          {imageBlocked && (
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
+              Every node that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide nodes
+              (Hidden panel → Reveal All) to export an image.
+            </div>
+          )}
           <Button
             className="w-full gap-2 text-sm font-semibold bg-gradient-to-r bg-fewer-file-icon text-white hover:opacity-90 shadow-sm active:scale-[0.96] transition-all h-11"
             onClick={handleExport}
-            disabled={nodes.length === 0}
+            disabled={nodes.length === 0 || imageBlocked}
+            data-all-nodes-hidden={imageBlocked ? "true" : undefined}
           >
             <Download className="h-4.5 w-4.5" />
             Download
@@ -260,6 +290,19 @@ export function ExportPanel() {
               checked={exportSelected && canExportSelected}
               onCheckedChange={(v) => setExportSelected(v)}
               disabled={!canExportSelected}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+            <div className="space-y-0.5">
+              <Label className="text-xs font-semibold">Include &quot;Created with fewer&quot; credit</Label>
+              <p className="text-xs text-muted-foreground">
+                Adds a link/watermark pointing back to fewer.
+              </p>
+            </div>
+            <Switch
+              checked={settings.includeBranding}
+              onCheckedChange={(v) => setSettings({ includeBranding: v })}
             />
           </div>
 

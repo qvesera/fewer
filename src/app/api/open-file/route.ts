@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import path from "path";
 import fs from "fs";
-import { openInOs } from "@/lib/fewer/openInOs";
+import { openInOs, resolveLocalPath } from "@/lib/fewer/openInOs";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing path" }, { status: 400 });
     }
 
-    const resolved = path.resolve(path.dirname(process.cwd()), rawPath);
+    const resolved = resolveLocalPath(rawPath);
 
     if (!fs.existsSync(resolved)) {
       return NextResponse.json({ error: `Path does not exist: ${resolved}` }, { status: 404 });

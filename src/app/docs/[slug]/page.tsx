@@ -1,40 +1,42 @@
-import fs from "fs";
-import path from "path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocsLayout } from "@/components/DocsLayout";
 import { renderMarkdown } from "@/lib/MarkdownRenderer";
+import { getSupabase } from "@/lib/supabase";
+
+// Serve from Supabase with a 60s revalidate so doc edits go live without a deploy.
+export const revalidate = 60;
 
 type DocMeta = {
   title: string;
   description: string;
 };
 
-function getDoc(slug: string): { content: string; meta: DocMeta } | null {
-  const filePath = path.join(process.cwd(), "content", "docs", `${slug}.md`);
-  if (!fs.existsSync(filePath)) return null;
-  const raw = fs.readFileSync(filePath, "utf8");
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  const frontmatter = match
-    ? Object.fromEntries(
-        match[1].split("\n").map((line) => {
-          const [key, ...rest] = line.split(":");
-          return [key.trim(), rest.join(":").trim()];
-        }),
-      )
-    : {};
-  return {
-    content: match ? match[2] : raw,
-    meta: {
-      title: (frontmatter["title"] as string) || slug,
-      description: (frontmatter["description"] as string) || "",
-    },
-  };
+async function getDoc(slug: string): Promise<{ content: string; meta: DocMeta } | null> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("content_pages")
+      .select("title,description,content")
+      .eq("type", "docs")
+      .eq("slug", slug)
+      .eq("published", true);
+    if (error || !data || data.length === 0) return null;
+    const d = data[0];
+    return {
+      content: d.content,
+      meta: {
+        title: d.title,
+        description: d.description ?? "",
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const doc = getDoc(slug);
+  const doc = await getDoc(slug);
   if (!doc) return { title: "Not Found" };
   return {
     title: `${doc.meta.title} | Docs | Fewer`,
@@ -44,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function DocPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const doc = getDoc(slug);
+  const doc = await getDoc(slug);
   if (!doc) notFound();
 
   return (

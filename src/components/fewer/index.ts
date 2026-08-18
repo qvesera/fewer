@@ -25,6 +25,7 @@ export { ThemeProvider } from "./ThemeProvider";
 export { Toolbar } from "./Toolbar";
 export { TutorialDialog } from "./TutorialDialog";
 export { SavedGraphsPanel } from "./SavedGraphsPanel";
+export { VersionHistoryDialog } from "./VersionHistoryDialog";
 export { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 export { AuthDialog } from "./AuthDialog";
 export { CloudPanel } from "./CloudPanel";

@@ -5,12 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { safeText, validateTextField } from "@/lib/fewer/textValidation";
+import { useProfile } from "@/hooks/use-profile";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
+import { graphDataEqual } from "@/lib/fewer/versions";
+import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
 import { useAuth } from "@/hooks/use-auth";
+import { VersionHistoryDialog } from "./VersionHistoryDialog";
 import {
   FolderOpen,
   Save,
@@ -24,6 +36,9 @@ import {
   Globe,
   Mail,
   Star,
+  Share2,
+  History,
+  Globe2,
 } from "lucide-react";
 import {
   Dialog,
@@ -47,9 +62,11 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [savingOpen, setSavingOpen] = useState(false);
+  const [saveTarget, setSaveTarget] = useState<"new" | SavedGraph>("new");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [sharing, setSharing] = useState<SavedGraph | null>(null);
+  const [historyFor, setHistoryFor] = useState<SavedGraph | null>(null);
 
   const loadGraphs = useCallback(async () => {
     if (!user) {
@@ -80,21 +97,50 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
   const handleSave = async () => {
     if (!user) return onRequireAuth();
-    const name = saveName.trim() || "Untitled";
+    const updating = saveTarget !== "new";
+    // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
+    const nameError = validateTextField(saveName, { label: "Name", max: 200 });
+    if (nameError) {
+      toast({ title: "Could not save", description: nameError, variant: "destructive" });
+      return;
+    }
+    const name = safeText(saveName) || (updating ? saveTarget.name : "Untitled");
     setSaving(true);
     try {
+      // Refresh the graph's root local path (if resolvable) so it's persisted
+      // with the save and re-openable later without re-searching the system.
+      await resolveRootLocalPath();
       const data = buildSnapshot();
+      // When updating an existing graph, validate against its saved data first:
+      // an identical snapshot means nothing changed, so skip the write (and skip
+      // creating a redundant version) and just tell the user.
+      if (updating && graphDataEqual(data, saveTarget.data)) {
+        setSavingOpen(false);
+        setSaveName("");
+        setSaveTarget("new");
+        toast({
+          title: "No changes",
+          description: `"${saveTarget.name}" is already up to date — no new version was added.`,
+        });
+        return;
+      }
       const res = await fetch("/api/graphs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, data }),
+        // Sending the existing graph's id makes the API update it in place
+        // (keeping its share link) and records a new version history snapshot.
+        body: JSON.stringify(updating ? { id: saveTarget.id, name, data } : { name, data }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
       setSavingOpen(false);
       setSaveName("");
+      setSaveTarget("new");
       await loadGraphs();
-      toast({ title: "Saved", description: `"${name}" saved to your account.` });
+      toast({
+        title: updating ? "Graph updated" : "Saved",
+        description: updating ? `"${name}" updated with a new version.` : `"${name}" saved to your account.`,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
@@ -109,6 +155,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       toast({ title: "Nothing to save", description: "Add nodes to your canvas first." });
       return;
     }
+    setSaveTarget("new");
     setSavingOpen(true);
   };
 
@@ -141,7 +188,12 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleRename = async (id: string) => {
-    const name = renameValue.trim();
+    const nameError = validateTextField(renameValue, { label: "Name", max: 200 });
+    if (nameError) {
+      toast({ title: "Could not rename", description: nameError, variant: "destructive" });
+      return;
+    }
+    const name = safeText(renameValue);
     if (!name) {
       setRenamingId(null);
       return;
@@ -308,11 +360,19 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setHistoryFor(g)}
+                    className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Version history"
+                  >
+                    <History className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSharing(g)}
                     className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Share"
                   >
-                    <Link2 className="h-3 w-3" />
+                    <Share2 className="h-3 w-3" />
                   </button>
                   <button
                     type="button"
@@ -341,16 +401,43 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
               Save the current graph to your account.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="save-name" className="text-xs font-medium">Name</Label>
-            <Input
-              id="save-name"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder="e.g. My Project"
-              autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-            />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="save-name" className="text-xs font-medium">Name</Label>
+              <Input
+                id="save-name"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="e.g. My Project"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Destination</Label>
+              <Select
+                value={saveTarget === "new" ? "__new__" : saveTarget.id}
+                onValueChange={(v) => {
+                  if (v === "__new__") { setSaveTarget("new"); return; }
+                  const g = graphs.find((x) => x.id === v);
+                  if (g) { setSaveTarget(g); setSaveName(g.name); }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__new__">Create a new graph</SelectItem>
+                  {graphs.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>Update “{g.name}”</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground/70">
+                Updating an existing graph keeps its share link and records a new version.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -368,6 +455,14 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* History dialog */}
+      {historyFor && (
+        <VersionHistoryDialog
+          graph={historyFor}
+          onClose={() => setHistoryFor(null)}
+        />
+      )}
 
       {/* Share dialog */}
       {sharing && (
@@ -396,13 +491,31 @@ function ShareGraphDialog({
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [access, setAccess] = useState<"public" | "invite">("public");
+  const [access, setAccess] = useState<"none" | "public" | "invite">("none");
   const [emails, setEmails] = useState("");
   const [building, setBuilding] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [unsharing, setUnsharing] = useState(false);
+  const [gallery, setGallery] = useState(false);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryDescription, setGalleryDescription] = useState("");
+  const profile = useProfile();
+
+  // Publishing to the gallery requires the user to have shared their name and a
+  // username (that's how gallery entries are attributed). If either is missing,
+  // bounce the user to Settings → Account to fill them in and block the publish.
+  const requireGalleryProfile = (): boolean => {
+    if (profile.first_name.trim() && profile.username.trim()) return true;
+    toast({
+      title: "Profile required",
+      description: "Add your first name and a username to list a graph in the gallery.",
+      variant: "destructive",
+    });
+    window.dispatchEvent(new Event("fewer-open-settings-account"));
+    return false;
+  };
 
   // Load any existing share link for this saved graph on open.
   useEffect(() => {
@@ -418,6 +531,9 @@ function ShareGraphDialog({
           setEmails(json.share.invited_emails.join(", "));
         }
         setShareUrl(buildDbShareUrl(json.share.id));
+        setGallery(json.share.in_gallery === true);
+        setGalleryTitle(json.share.gallery_title ?? "");
+        setGalleryDescription(json.share.gallery_description ?? "");
       })
       .catch(() => { /* no existing share */ });
     return () => { cancelled = true; };
@@ -444,6 +560,17 @@ function ShareGraphDialog({
       toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
       return;
     }
+    if (gallery && access === "public" && !requireGalleryProfile()) return;
+    const titleError = validateTextField(galleryTitle, { label: "Gallery title", max: 200 });
+    if (titleError) {
+      toast({ title: "Could not share", description: titleError, variant: "destructive" });
+      return;
+    }
+    const descError = validateTextField(galleryDescription, { label: "Gallery description", max: 1000 });
+    if (descError) {
+      toast({ title: "Could not share", description: descError, variant: "destructive" });
+      return;
+    }
     setBuilding(true);
     setShareUrl("");
     try {
@@ -456,13 +583,21 @@ function ShareGraphDialog({
           invited_emails,
           saved_graph_id: graph.id,
           name: graph.name,
+          in_gallery: gallery && access === "public",
+          gallery_title: safeText(galleryTitle),
+          gallery_description: safeText(galleryDescription),
         }),
       });
       const json = await res.json();
       if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
       setExistingId(json.id);
       setShareUrl(buildDbShareUrl(json.id));
-      if (access === "invite") {
+      if (gallery && access === "public") {
+        toast({
+          title: "Published to the gallery",
+          description: `"${galleryTitle.trim() || graph.name}" is now live in the community gallery.`,
+        });
+      } else if (access === "invite") {
         toast({ title: "Invites sent", description: `Emailed ${invited_emails.length} invitee${invited_emails.length === 1 ? "" : "s"} a private link.` });
       }
     } catch (err) {
@@ -481,8 +616,11 @@ function ShareGraphDialog({
       if (!res.ok) throw new Error("Unshare failed");
       setExistingId(null);
       setShareUrl("");
-      setAccess("public");
+      setAccess("none");
       setEmails("");
+      setGallery(false);
+      setGalleryTitle("");
+      setGalleryDescription("");
       toast({ title: "Share link removed" });
     } catch {
       toast({ title: "Could not remove share", variant: "destructive" });
@@ -531,7 +669,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Anyone with the link</p>
                 <p className="text-[11px] text-muted-foreground/70">Anyone can open this graph.</p>
               </div>
-              <Switch checked={access === "public"} onCheckedChange={() => setAccess("public")} className="ml-auto shrink-0" />
+              <Switch checked={access === "public"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => setAccess(checked ? "public" : "none")} className="ml-auto shrink-0" />
             </div>
 
             <div
@@ -546,11 +684,13 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Invite only</p>
                 <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
-              <Switch checked={access === "invite"} onCheckedChange={() => setAccess("invite")} className="ml-auto shrink-0" />
+              <Switch checked={access === "invite"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => { setAccess(checked ? "invite" : "none"); if (checked) setGallery(false); }} className="ml-auto shrink-0" />
             </div>
           </div>
 
-          <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
+          {access !== "none" && (
+            <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
+          )}
 
           {/* Invite emails */}
           {access === "invite" && (
@@ -568,18 +708,62 @@ function ShareGraphDialog({
             </div>
           )}
 
-          {/* Generate link */}
-          <Button
-            className="w-full gap-1.5 cursor-pointer"
-            onClick={buildShare}
-            disabled={building}
-          >
-            {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-            Generate link
-          </Button>
+          {/* Gallery opt-in */}
+          {user && access === "public" && (
+            <div className="space-y-1.5 rounded-xl border border-border/50 bg-muted/10 p-3">
+              <div className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium">List in the public gallery</p>
+                  <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
+                </div>
+                <Switch checked={gallery} onCheckedChange={(checked) => { if (checked && !requireGalleryProfile()) return; setGallery(checked); }} className="ml-auto shrink-0" />
+              </div>
+              {gallery && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gallery-title" className="text-xs font-medium">Gallery title</Label>
+                    <Input
+                      id="gallery-title"
+                      value={galleryTitle}
+                      onChange={(e) => setGalleryTitle(e.target.value)}
+                      placeholder={graph.name}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gallery-description" className="text-xs font-medium">Description (optional)</Label>
+                    <Input
+                      id="gallery-description"
+                      value={galleryDescription}
+                      onChange={(e) => setGalleryDescription(e.target.value)}
+                      placeholder="What makes this graph interesting?"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Link */}
-          {shareUrl && (
+          {/* Generate link (hidden when private) */}
+          {access === "none" ? (
+            <p className="text-[11px] text-muted-foreground/70">
+              {existingId
+                ? "A share link still exists — use Stop sharing below to make it fully private."
+                : "This saved graph is private and visible only to you."}
+            </p>
+          ) : (
+            <Button
+              className="w-full gap-1.5 cursor-pointer"
+              onClick={buildShare}
+              disabled={building}
+            >
+              {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gallery && access === "public" ? <Globe2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+              {gallery && access === "public" ? "Publish to gallery" : "Generate link"}
+            </Button>
+          )}
+
+          {/* Manual share link — hidden in gallery mode (no link to copy; it's live at /gallery) */}
+          {shareUrl && access !== "none" && !(gallery && access === "public") && (
             <div className="flex items-center gap-2">
               <Input value={shareUrl} readOnly className="text-xs font-mono flex-1" onClick={(e) => (e.target as HTMLInputElement).select()} />
               <Button variant="outline" size="sm" onClick={handleCopy} disabled={building} className="gap-1.5 shrink-0 cursor-pointer">
@@ -590,23 +774,20 @@ function ShareGraphDialog({
           )}
         </div>
 
-        <DialogFooter className="flex items-center justify-between gap-2">
-          {existingId && (
+        {existingId && (
+          <DialogFooter className="flex items-center">
             <Button
               variant="destructive"
               size="sm"
               onClick={handleUnshare}
               disabled={unsharing}
-              className="gap-1.5 cursor-pointer mr-auto"
+              className="gap-1.5 cursor-pointer"
             >
               {unsharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               Stop sharing
             </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer">
-            Close
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

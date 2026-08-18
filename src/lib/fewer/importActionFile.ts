@@ -47,6 +47,7 @@ export async function runFileImport(
       dataSource: "file",
       includeFiles: options.includeFiles,
       maxDisplayDepth: options.displayMaxDepth,
+      localRootPath: null,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
 
