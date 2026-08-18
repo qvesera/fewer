@@ -64,6 +64,25 @@ export async function POST(request: Request) {
       : [];
     const savedGraphId = body?.saved_graph_id ?? null;
 
+    // Gallery opt-in (owned, public shares only). Metadata surfaced on /api/gallery.
+    const inGallery = access === "public" && user?.id && body?.in_gallery === true;
+    const nodeCount =
+      typeof body?.data === "object" && body?.data !== null
+        && Array.isArray((body.data as { nodes?: unknown[] }).nodes)
+        ? (body.data as { nodes: unknown[] }).nodes.length
+        : 0;
+    const gallery_props = inGallery
+      ? {
+          in_gallery: true,
+          gallery_title: typeof body?.gallery_title === "string" && body.gallery_title.trim()
+            ? body.gallery_title.trim().slice(0, 200)
+            : null,
+          gallery_description: typeof body?.gallery_description === "string" && body.gallery_description.trim()
+            ? body.gallery_description.trim().slice(0, 500)
+            : null,
+        }
+      : { in_gallery: false, gallery_title: null, gallery_description: null };
+
     // Reuse existing share for this owner + saved graph (stable link).
     if (user && savedGraphId) {
       const { data: existing } = await supabase
@@ -76,10 +95,10 @@ export async function POST(request: Request) {
       if (existing) {
         const { error } = await supabase
           .from("shared_graphs")
-          .update({ data, access, invited_emails: invitedEmails, expires_at: user ? null : new Date(Date.now() + TTL_MS).toISOString() })
+          .update({ data, access, node_count: nodeCount, invited_emails: invitedEmails, expires_at: user ? null : new Date(Date.now() + TTL_MS).toISOString(), ...gallery_props })
           .eq("id", existing.id);
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-        return NextResponse.json({ id: existing.id, access, invited_emails: invitedEmails });
+        return NextResponse.json({ id: existing.id, access, invited_emails: invitedEmails, ...gallery_props });
       }
     }
 
@@ -90,8 +109,10 @@ export async function POST(request: Request) {
       owner_id: user?.id ?? null,
       saved_graph_id: savedGraphId,
       access,
+      node_count: nodeCount,
       invited_emails: invitedEmails,
       expires_at: user ? null : new Date(Date.now() + TTL_MS).toISOString(),
+      ...gallery_props,
     });
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -191,7 +212,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from("shared_graphs")
-      .select("id, access, invited_emails")
+      .select("id, access, invited_emails, in_gallery, gallery_title, gallery_description")
       .eq("owner_id", user.id)
       .eq("saved_graph_id", savedGraphId)
       .maybeSingle();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { recordVersion } from "@/lib/fewer/versions";
 
 /**
  * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
@@ -85,6 +86,8 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // Best-effort history snapshot; never blocks the save on failure.
+    await recordVersion(supabase, user.id, data.id, body.data);
     return NextResponse.json({ graph: data });
   }
 
@@ -94,5 +97,7 @@ export async function POST(request: Request) {
     .select("id, name, data, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Best-effort history snapshot; never blocks the save on failure.
+  await recordVersion(supabase, user.id, data.id, body.data);
   return NextResponse.json({ graph: data });
 }

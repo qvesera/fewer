@@ -12,6 +12,7 @@ import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
 import { useAuth } from "@/hooks/use-auth";
+import { VersionHistoryDialog } from "./VersionHistoryDialog";
 import {
   FolderOpen,
   Save,
@@ -26,6 +27,8 @@ import {
   Mail,
   Star,
   Share2,
+  History,
+  Globe2,
 } from "lucide-react";
 import {
   Dialog,
@@ -52,6 +55,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [sharing, setSharing] = useState<SavedGraph | null>(null);
+  const [historyFor, setHistoryFor] = useState<SavedGraph | null>(null);
 
   const loadGraphs = useCallback(async () => {
     if (!user) {
@@ -313,6 +317,14 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setHistoryFor(g)}
+                    className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Version history"
+                  >
+                    <History className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSharing(g)}
                     className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Share"
@@ -374,6 +386,14 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         </DialogContent>
       </Dialog>
 
+      {/* History dialog */}
+      {historyFor && (
+        <VersionHistoryDialog
+          graph={historyFor}
+          onClose={() => setHistoryFor(null)}
+        />
+      )}
+
       {/* Share dialog */}
       {sharing && (
         <ShareGraphDialog
@@ -408,6 +428,9 @@ function ShareGraphDialog({
   const [copied, setCopied] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [unsharing, setUnsharing] = useState(false);
+  const [gallery, setGallery] = useState(false);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryDescription, setGalleryDescription] = useState("");
 
   // Load any existing share link for this saved graph on open.
   useEffect(() => {
@@ -423,6 +446,9 @@ function ShareGraphDialog({
           setEmails(json.share.invited_emails.join(", "));
         }
         setShareUrl(buildDbShareUrl(json.share.id));
+        setGallery(json.share.in_gallery === true);
+        setGalleryTitle(json.share.gallery_title ?? "");
+        setGalleryDescription(json.share.gallery_description ?? "");
       })
       .catch(() => { /* no existing share */ });
     return () => { cancelled = true; };
@@ -461,6 +487,9 @@ function ShareGraphDialog({
           invited_emails,
           saved_graph_id: graph.id,
           name: graph.name,
+          in_gallery: gallery && access === "public",
+          gallery_title: galleryTitle,
+          gallery_description: galleryDescription,
         }),
       });
       const json = await res.json();
@@ -488,6 +517,9 @@ function ShareGraphDialog({
       setShareUrl("");
       setAccess("public");
       setEmails("");
+      setGallery(false);
+      setGalleryTitle("");
+      setGalleryDescription("");
       toast({ title: "Share link removed" });
     } catch {
       toast({ title: "Could not remove share", variant: "destructive" });
@@ -551,7 +583,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Invite only</p>
                 <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
-              <Switch checked={access === "invite"} onCheckedChange={() => setAccess("invite")} className="ml-auto shrink-0" />
+              <Switch checked={access === "invite"} onCheckedChange={() => { setAccess("invite"); setGallery(false); }} className="ml-auto shrink-0" />
             </div>
           </div>
 
@@ -570,6 +602,42 @@ function ShareGraphDialog({
               <p className="text-[11px] text-muted-foreground/70">
                 Comma-separated. Click "Generate link" to create the share link.
               </p>
+            </div>
+          )}
+
+          {/* Gallery opt-in */}
+          {user && access === "public" && (
+            <div className="space-y-1.5 rounded-xl border border-border/50 bg-muted/10 p-3">
+              <div className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium">List in the public gallery</p>
+                  <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
+                </div>
+                <Switch checked={gallery} onCheckedChange={setGallery} className="ml-auto shrink-0" />
+              </div>
+              {gallery && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gallery-title" className="text-xs font-medium">Gallery title</Label>
+                    <Input
+                      id="gallery-title"
+                      value={galleryTitle}
+                      onChange={(e) => setGalleryTitle(e.target.value)}
+                      placeholder={graph.name}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="gallery-description" className="text-xs font-medium">Description (optional)</Label>
+                    <Input
+                      id="gallery-description"
+                      value={galleryDescription}
+                      onChange={(e) => setGalleryDescription(e.target.value)}
+                      placeholder="What makes this graph interesting?"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
