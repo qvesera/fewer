@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Signing in with a username now logs the user in immediately: /api/login returns the signed-in session, and the login dialog pushes it into the browser auth client via setSession (firing onAuthStateChange) so the app reflects the signed-in state without a page refresh. The session is only returned after a successful password check, so it doesn't introduce account enumeration.
 - Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
 - SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
+- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 
 ### Added
 
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
 - Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
 - Blog and docs are now headless: posts/pages live in a Supabase content_pages table (migration 0021) and are read at request time with a 60s revalidate, so publishing a new blog post or fixing a doc typo no longer needs a deploy. Read via supabase from /blog, /blog/[slug], /docs and /docs/[slug]; the markdown in content/blog/ and content/docs/ stays in-repo as a source-of-record backup. Writes are done via Supabase Studio (service role), gated by a public-read-only RLS policy.
+- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and _meta.xml files are filtered out; results are cached 24h like other URL imports.
 
 ### Changed
 
@@ -43,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
 - Sign-in field now auto-detects email vs username: the Email/Username split is gone — one 'Email or username' field. Input containing '@' is an email, otherwise a username, matching /api/login's existing logic (usernames can't contain '@').
 - The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
+- Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 
 ### Security
 

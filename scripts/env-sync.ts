@@ -129,13 +129,18 @@ function cmdNetlify() {
 async function cmdGitHub() {
   console.log("\n-- Syncing to GitHub (qvesera/fewer) --");
   for (const [key, def] of Object.entries(REGISTRY)) {
-    if (!def.github) continue;
     const val = PROD[key];
-    if (val === undefined && !def.placeholder) { warn(key + " not set in .env, skipping"); continue; }
+    // Skip unset/empty values: `gh` falls back to an interactive paste prompt
+    // when --body is empty, which hangs non-interactive runs.
+    if (val === undefined || val === "") { warn(key + " empty or not set in .env, skipping"); continue; }
+    // GitHub API forbids secret/variable names starting with "GITHUB_".
+    // The GitHub OAuth credentials are only used by the Netlify app, never by
+    // Actions workflows, so skip them rather than fail on every sync.
+    if (key.startsWith("GITHUB_")) { warn(key + " starts with GITHUB_ (reserved by GitHub Actions) — Netlify-only, skipping"); continue; }
     const kind = def.github === "secret" ? "secret" : "variable";
     const args = def.github === "secret"
-      ? ["secret", "set", key, "--body", val || ""]
-      : ["variable", "set", key, "--body", val || ""];
+      ? ["secret", "set", key, "--body", val]
+      : ["variable", "set", key, "--body", val];
     console.log("  " + kind + "/" + key);
     run("gh", args);
   }

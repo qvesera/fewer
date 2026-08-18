@@ -28,6 +28,7 @@ bun run lint           # Run ESLint
 | `src/lib/fewer/validation.ts`               | Connection validation + ancestor/descendant utils                                 |
 | `src/lib/fewer/navigation.ts`               | Arrow key tree navigation                                                         |
 | `src/lib/fewer/autoIndex.ts`                | Apache/nginx auto-index HTML parser + tree builder                                |
+| `src/lib/fewer/archive.ts`                  | Internet Archive item import (metadata API → tree)                                |
 | `src/lib/fewer/savedGraphs.ts`              | Saved-graph types + DB share URL helpers                                          |
 | `src/lib/fewer/snapshot.ts`                 | Graph snapshot build/apply for saved graphs                                       |
 | `src/lib/supabase.ts`                       | Supabase client (server + browser)                                                |
