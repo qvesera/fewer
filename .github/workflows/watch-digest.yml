@@ -1,0 +1,38 @@
+name: Watch digest
+
+# Nightly watch-index digest job. Moved off Netlify scheduled functions:
+# the free-tier 10s function timeout can't fit a multi-index crawl, while
+# Actions jobs (free for public repos) get minutes.
+on:
+  schedule:
+    - cron: "59 23 * * *" # daily at 23:59 UTC
+  workflow_dispatch: # manual trigger for testing
+
+concurrency:
+  group: watch-digest
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - name: Run watch digest
+        run: bun scripts/watch-digest.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}

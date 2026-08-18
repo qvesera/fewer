@@ -159,7 +159,7 @@ docker run -p 3000:3000 fewer
 
 - **File System Access API** (Chrome/Edge): real directory read with depth, hidden file, and extension filters
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
-- **Import from URL**: GitHub repo tree (public repos) or any public Apache/nginx file index
+- **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Brave browser** detection with flag workaround instructions
 
