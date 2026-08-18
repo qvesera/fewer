@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
 - The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
+- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 
 ### Added
 
