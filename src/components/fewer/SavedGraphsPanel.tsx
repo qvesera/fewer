@@ -573,7 +573,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Anyone with the link</p>
                 <p className="text-[11px] text-muted-foreground/70">Anyone can open this graph.</p>
               </div>
-              <Switch checked={access === "public"} onCheckedChange={(checked) => setAccess(checked ? "public" : "none")} className="ml-auto shrink-0" />
+              <Switch checked={access === "public"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => setAccess(checked ? "public" : "none")} className="ml-auto shrink-0" />
             </div>
 
             <div
@@ -588,7 +588,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Invite only</p>
                 <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
-              <Switch checked={access === "invite"} onCheckedChange={(checked) => { setAccess(checked ? "invite" : "none"); if (checked) setGallery(false); }} className="ml-auto shrink-0" />
+              <Switch checked={access === "invite"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => { setAccess(checked ? "invite" : "none"); if (checked) setGallery(false); }} className="ml-auto shrink-0" />
             </div>
           </div>
 
@@ -678,23 +678,20 @@ function ShareGraphDialog({
           )}
         </div>
 
-        <DialogFooter className="flex items-center justify-between gap-2">
-          {existingId && (
+        {existingId && (
+          <DialogFooter className="flex items-center">
             <Button
               variant="destructive"
               size="sm"
               onClick={handleUnshare}
               disabled={unsharing}
-              className="gap-1.5 cursor-pointer mr-auto"
+              className="gap-1.5 cursor-pointer"
             >
               {unsharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
               Stop sharing
             </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer">
-            Close
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
