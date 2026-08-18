@@ -10,6 +10,7 @@ interface TreeEntry {
   name: string;
   type: "folder" | "file";
   size?: number;
+  webUrl?: string;
   children?: TreeEntry[];
 }
 

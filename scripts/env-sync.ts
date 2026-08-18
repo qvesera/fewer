@@ -36,7 +36,13 @@ const PROD = readEnvFile(".env");
 const DEV = readEnvFile(".env.local");
 
 /* Registry: every var the code reads, its source(s), and its targets. */
-const REGISTRY = {
+const REGISTRY: Record<string, {
+  env: "prod" | "both";
+  secret: boolean;
+  scope: "builds" | "functions" | "runtime";
+  github: "var" | "secret";
+  placeholder?: string;
+}> = {
   NEXT_PUBLIC_SUPABASE_URL:             { env: "prod", secret: false, scope: "builds",    github: "var" },
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: { env: "prod", secret: false, scope: "builds",    github: "var" },
   SUPABASE_SERVICE_ROLE_KEY:            { env: "prod", secret: true,  scope: "functions", github: "secret", placeholder: "YOUR_SUPABASE_SERVICE_ROLE_KEY" },
