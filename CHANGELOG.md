@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
+- ASCII tree imports are now header- and footer-aware: the "Directory Tree Structure" title, the "Created with fewer" credit line, and trailing "N directories, M files" style summaries are stripped instead of being imported as phantom nodes.
+- Selecting a node now highlights only its ancestor-path edges (from the node up to the root parent) instead of every incident edge — child edges are no longer colored when a folder is selected.
+- Highlighted ancestor-path edges now render on top of crossing default edges again — the sort comparator was inverted, so highlighted edges were ordered at the front of the array and painted underneath grey edges at intersection points. The highlight sort is corrected and the tree sort (relayout/connect/import) now keeps raised edges last.
+- PNG/SVG exports now match the live canvas: theme colors (light/dark/custom), full node cards (folder header + child rows + footer, file icon + extension/size), per-style edge geometry (curved/angled/straight) with width/dash pattern and correct anchors for TB/LR/RL/BT layouts, and the selected-folder glow ring. Hidden nodes are no longer emitted into image exports.
+- Fixed a crash when deleting a parent node that had hidden children: the deleted subtree stayed in the hidden-nodes list, and building the Hidden panel read an undefined node and threw TypeError on hiddenTreeSort. Deleting a parent now also purges its children from the hidden/auto-hide/reveal view-state (they're removed, as expected), and the hidden-tree builder ignores stale ids defensively.
+- Client-side input validation: every user-text field saved to the database (account profile, saved-graph names, gallery title/description, custom-theme names) now rejects non-string / broken-interpolated values like "null", "undefined" and "[object Object]", trims surrounding whitespace, and enforces length caps before submitting.
+- Prevent '@' in usernames: a username containing '@' collided with the login flow's email-vs-username detection (which keys off '@') and could never be used to sign in. Usernames are now rejected on save (client and server) if they contain '@'.
+- Signing in with a username now logs the user in immediately: /api/login returns the signed-in session, and the login dialog pushes it into the browser auth client via setSession (firing onAuthStateChange) so the app reflects the signed-in state without a page refresh. The session is only returned after a successful password check, so it doesn't introduce account enumeration.
+- Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
+- SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
+
+### Added
+
+- Exports now carry a "Created with fewer — <url>" credit by default: a clickable watermark in corner of SVG/PNG, a comment line in CSV/DOT/sh/bat, a footer line in the ASCII directory tree, and a meta.generatedBy field in JSON. A toggle in the Export panel turns it off.
+- Version history for saved graphs: each save keeps an automatic snapshot of the graph (deduped + capped at 50 per graph), restored or deleted from a new History button on each saved graph. Restore loads the version as unsaved changes - hit Save to keep it. New graph_versions table (migration 0017) + /api/graphs/[id]/versions routes.
+- Public community gallery: signed-in owners can opt a public share into the gallery (toggle + title/description in the Share dialog). Browsed logged-out at /gallery (new /api/gallery listing with pagination); clicking a card opens the graph in the app. Unshare instantly delists. Migration 0018_gallery.sql adds in_gallery/gallery_title/gallery_description/node_count to shared_graphs.
+- Save dialog now has a Destination picker: create a new saved graph, or update an existing one by selecting it - updating keeps the graph's share link and records a fresh version history snapshot instead of always making a new graph.
+- Settings gains a dedicated Account tab (separate from About): signed-in users can save a first name, last name, and username — stored per account in the new owner-only `profiles` DB table (migration `0019_profiles.sql`, `/api/profile`) — and it keeps the Sign out and Delete account actions in the same tab. Usernames are unique (case-insensitive) — enforced by a partial unique index (migration `0020`) and a friendly "already taken" error in `/api/profile`.
+- Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
+- Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
+
+### Changed
+
+- Share dialog: when 'List in the public gallery' is on, the action becomes 'Publish to gallery' and the manual copy-link field hides (the graph is live at /gallery instead); publishing shows a confirmation toast.
+- Share dialog: 'Anyone with the link' is now a switch you can toggle off, and sharing defaults to off - so the default state is private (no sharing) without a separate 'Private' option. Both 'Anyone with the link' and 'Invite only' switches are mutually exclusive toggles; turning both off makes the graph private.
+- Share dialog: the access toggles now switch off when clicked (clicking the row no longer overrides the toggle, so you can turn a toggle back off), and the redundant footer Close button is removed - the dialog still closes via the corner X or clicking outside.
+- Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
+- Sign-in field now auto-detects email vs username: the Email/Username split is gone — one 'Email or username' field. Input containing '@' is an email, otherwise a username, matching /api/login's existing logic (usernames can't contain '@').
+- The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
+
+### Security
+
+- Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
 ## [0.5.0] - 18th August 2026
 
 ### Added
@@ -101,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Right-click "Add Child Node" opens the Add Node dialog**: the folder context menu's "Add Child Node" no longer adds a "New Folder" node immediately. It now selects the folder and opens the same Add Node dialog that Alt+N opens (in child mode), so you can name the node and pick folder/file before it's created.
 - **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
 - **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
+- Fix crash on New File button: right-clicking a folder/file with no data source loaded (dataSource is null) still called startsWith on null. The earlier empty-graph fix only guarded providerLabelFromSource; FileEntryContextMenu's crawled-file check now null-guards too.
 
 ### Docs
 

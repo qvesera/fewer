@@ -11,6 +11,7 @@ export const APP_URL = `${APP_ORIGIN}/app`;
 
 const NAV = [
   { label: "Features", href: "/welcome#features" },
+  { label: "Gallery", href: "/gallery" },
   { label: "Privacy", href: "/privacy" },
   { label: "Docs", href: "/docs" },
   { label: "Blog", href: "/blog" },

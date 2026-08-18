@@ -116,7 +116,11 @@ function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
     if (typeDiff !== 0) return typeDiff;
     const aLabel = aNode?.data.label ?? "";
     const bLabel = bNode?.data.label ?? "";
-    return bLabel.localeCompare(aLabel);
+    const labelDiff = bLabel.localeCompare(aLabel);
+    if (labelDiff !== 0) return labelDiff;
+    // Keep highlighted/raised edges last so store re-sorts (relayout, connect,
+    // import) can't bury them under default edges while a selection is active.
+    return (a.zIndex ?? 0) - (b.zIndex ?? 0);
   });
 }
 
@@ -372,7 +376,17 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         after,
       });
     }
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: newEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
+    set((s) => ({
+      nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter),
+      edges: newEdges,
+      selectedNodeIds: [],
+      // Purge the deleted subtree from the view-state so it no longer appears
+      // in the hidden list. Matches the op's `after` for consistent undo/redo.
+      hiddenIds: s.hiddenIds.filter((h) => !toRemove.has(h)),
+      autoHiddenIds: s.autoHiddenIds.filter((h) => !toRemove.has(h)),
+      revealedRootIds: s.revealedRootIds.filter((h) => !toRemove.has(h)),
+      graphVersion: s.graphVersion + 1,
+    }));
   },
 
   renameNode: (id, newLabel) => {

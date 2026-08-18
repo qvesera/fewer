@@ -10,6 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { RotateCcw, Palette, Save, Loader2 } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
+import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -100,11 +101,12 @@ export function CustomThemeEditor() {
       toast({ title: "Sign in required", description: "Sign in to save themes to your account." });
       return;
     }
-    const name = saveName.trim();
-    if (!name) {
-      toast({ title: "Name required", description: "Give your theme a name to save it." });
+    const nameError = validateTextField(saveName, { label: "Name", max: 200, required: true });
+    if (nameError) {
+      toast({ title: "Name required", description: nameError, variant: "destructive" });
       return;
     }
+    const name = safeText(saveName);
     setSaving(true);
     try {
       const res = await fetch("/api/themes", {

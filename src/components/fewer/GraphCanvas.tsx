@@ -21,7 +21,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { useGraphStore } from "@/store/graphStore";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
@@ -40,10 +40,11 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 /**
- * Style the edges incident to EVERY selected node (source OR target). Each
- * incident edge is colored by its target node type (folder vs file) so
- * multi-selection shows every selected node's connections, not just the
- * last-picked one. Empty selection → all edges reset to default stroke.
+ * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
+ * from a selected node up to its root parent (child edges are NOT highlighted).
+ * Each path edge is colored by its target node type (folder vs file) so
+ * multi-selection shows every selected node's path, not just the last-picked
+ * one. Empty selection → all edges reset to default stroke.
  * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
  * so they render on top.
  */
@@ -54,15 +55,29 @@ function buildSelectedEdgeHighlight(
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
 ): FewerEdge[] {
-  const selected = new Set(selectedIds);
   const typeByNodeId = new Map<string, "folder" | "file">();
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
 
-  const highlighted = new Map<string, { stroke: string; width: number }>();
+  // Tree = at most one parent per node, so each node maps to a single parent
+  // edge (the child → source). Walking this map from a selected node up to the
+  // root gives exactly the ancestor path edges — child edges are NOT included.
+  const parentEdgeOf = new Map<string, FewerEdge>();
   for (const e of edges) {
-    if (!selected.has(e.source) && !selected.has(e.target)) continue;
-    const stroke = typeByNodeId.get(e.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-    highlighted.set(e.id, { stroke, width: Math.max(edgeWidth, 3) });
+    if (!parentEdgeOf.has(e.target)) parentEdgeOf.set(e.target, e);
+  }
+
+  const highlighted = new Map<string, { stroke: string; width: number }>();
+  for (const id of selectedIds) {
+    let nodeId = id;
+    const visited = new Set<string>();
+    while (nodeId && !visited.has(nodeId)) {
+      visited.add(nodeId);
+      const parentEdge = parentEdgeOf.get(nodeId);
+      if (!parentEdge) break;
+      const stroke = typeByNodeId.get(parentEdge.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
+      highlighted.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
+      nodeId = parentEdge.source;
+    }
   }
 
   const defaultStroke = themeColors.edge;
@@ -73,7 +88,7 @@ function buildSelectedEdgeHighlight(
         ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
         : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
     })
-    .sort((a, b) => (highlighted.has(b.id) ? 1 : -1) - (highlighted.has(a.id) ? 1 : -1));
+    .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
 }
 
 /** Read a CSS variable from :root (falling back to the bare var name). */
@@ -96,6 +111,8 @@ interface CanvasEmptyActionsProps {
 function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
+  const showFiles = useGraphStore((s) => s.showFiles);
+  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const direction = useGraphStore((s) => s.direction);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
@@ -168,6 +185,12 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [allEdges, hiddenIds]);
 
   const hiddenCount = hiddenIds.length;
+
+  // True when any nodes were loaded at all. Distinct from rfNodes.length === 0,
+  // which also becomes 0 when every node is hidden (e.g. a graph made only of
+  // file nodes with "Show Files" turned off). In that case we must NOT show the
+  // "No directory loaded" import/sample actions — a graph exists.
+  const graphsExists = allNodes.length > 0;
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
@@ -517,7 +540,26 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
             </div>
           </Panel>
         )}
-        {!loading && rfNodes.length === 0 && (
+        {!loading && rfNodes.length === 0 && graphsExists && (
+          <Panel position="top-center" className="!top-[15%]">
+            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
+              <EyeOff className="h-12 w-12 text-muted-foreground/60" />
+              <div className="text-lg font-semibold">Everything is hidden</div>
+              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
+                {showFiles
+                  ? "All nodes on this graph are currently hidden on the canvas."
+                  : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
+              </div>
+              {!showFiles && (
+                <Button variant="outline" onClick={() => setShowFiles(true)} data-tutorial="show-files-button">
+                  <FolderOpen className="h-4 w-4" />
+                  Show Files
+                </Button>
+              )}
+            </div>
+          </Panel>
+        )}
+        {!loading && rfNodes.length === 0 && !graphsExists && (
           <Panel position="top-center" className="!top-[15%]">
             <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
               <FolderOpen className="h-12 w-12 text-muted-foreground/60" />

@@ -76,6 +76,7 @@ export interface ExportSettings {
   quality: number; // 1-100
   transparentBackground: boolean;
   includeStats: boolean;
+  includeBranding: boolean; // append "Created with fewer" credit / watermark
 }
 
 /** A simplified serializable file-tree entry used to build the graph */

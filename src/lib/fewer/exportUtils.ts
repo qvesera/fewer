@@ -4,8 +4,14 @@ import type {
   ExportSettings,
   DirectoryStats,
 } from "./types";
-import { LAYOUT_DIMENSIONS } from "./layout";
-
+import {
+  buildGraphSVG,
+  readThemePalette,
+  readBodyFont,
+  readDashOffset,
+} from "./graphRenderer";
+import { FEWER_CREDIT } from "./branding";
+  
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -30,6 +36,19 @@ function timestamp(): string {
   )}${pad(d.getMinutes())}`;
 }
 
+/**
+ * Extra image-export options passed from the ExportPanel so the renderer can
+ * mirror the live canvas (selection, hidden nodes, edge + node settings).
+ */
+export interface ImageExportOptions {
+  selectedIds?: string[];
+  hiddenIds?: string[];
+  nodeWidth?: number;
+  nodeHeight?: number;
+  edgeWidth?: number;
+  cornerRadius?: number;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  SVG                                       */
 /* -------------------------------------------------------------------------- */
@@ -38,62 +57,23 @@ export function exportSVG(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
+  opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const padding = 40;
-  const xs = nodes.map((n) => n.position.x);
-  const ys = nodes.map((n) => n.position.y);
-  const minX = Math.min(...xs) - padding;
-  const minY = Math.min(...ys) - padding;
-  const maxX = Math.max(...xs) + LAYOUT_DIMENSIONS.width + padding;
-  const maxY = Math.max(...ys) + LAYOUT_DIMENSIONS.height + padding;
-  const width = maxX - minX;
-  const height = maxY - minY;
-
-  const escape = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const edgePaths = edges
-    .map((e) => {
-      const s = nodes.find((n) => n.id === e.source);
-      const t = nodes.find((n) => n.id === e.target);
-      if (!s || !t) return "";
-      const sx = s.position.x - minX + LAYOUT_DIMENSIONS.width / 2;
-      const sy = s.position.y - minY + LAYOUT_DIMENSIONS.height;
-      const tx = t.position.x - minX + LAYOUT_DIMENSIONS.width / 2;
-      const ty = t.position.y - minY;
-      const my = (sy + ty) / 2;
-      return `<path d="M ${sx} ${sy} C ${sx} ${my}, ${tx} ${my}, ${tx} ${ty}" stroke="rgba(120,120,140,0.6)" stroke-width="1.5" fill="none" />`;
-    })
-    .join("\n  ");
-
-  const nodeRects = nodes
-    .map((n) => {
-      const x = n.position.x - minX;
-      const y = n.position.y - minY;
-      const isFolder = n.data.type === "folder";
-      const fill = isFolder ? "#f97316" : "#a855f7";
-      const textFill = "white";
-      return `  <g transform="translate(${x}, ${y})">
-    <rect width="${LAYOUT_DIMENSIONS.width}" height="${LAYOUT_DIMENSIONS.height}" rx="10" fill="${fill}" stroke="rgba(255,255,255,0.15)" />
-    <text x="14" y="26" font-family="sans-serif" font-size="14" font-weight="600" fill="${textFill}">${escape(
-      n.data.label,
-    )}</text>
-    <text x="14" y="46" font-family="sans-serif" font-size="11" fill="${textFill}" opacity="0.85">${escape(
-      n.data.extension ? `.${n.data.extension}` : n.data.type,
-    )}</text>
-  </g>`;
-    })
-    .join("\n");
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect width="100%" height="100%" fill="${
-    settings.transparentBackground ? "none" : "#0b0b13"
-  }" />
-  ${edgePaths}
-${nodeRects}
-</svg>`;
-
+  const { svg, width } = buildGraphSVG(nodes, edges, {
+    palette: readThemePalette(),
+    fontFamily: readBodyFont(),
+    selectedIds: new Set(opts.selectedIds ?? []),
+    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
+    transparentBackground: settings.transparentBackground,
+    includeBranding: settings.includeBranding,
+    nodeWidth: opts.nodeWidth,
+    nodeHeight: opts.nodeHeight,
+    defaultEdgeWidth: opts.edgeWidth,
+    cornerRadius: opts.cornerRadius,
+    dashOffset: readDashOffset(),
+  });
+  if (width === 0) return;
   downloadBlob(svg, `fewer-${timestamp()}.svg`, "image/svg+xml");
 }
 
@@ -105,106 +85,48 @@ export function exportPNG(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
+  opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const padding = 40;
-  const xs = nodes.map((n) => n.position.x);
-  const ys = nodes.map((n) => n.position.y);
-  const minX = Math.min(...xs) - padding;
-  const minY = Math.min(...ys) - padding;
-  const maxX = Math.max(...xs) + LAYOUT_DIMENSIONS.width + padding;
-  const maxY = Math.max(...ys) + LAYOUT_DIMENSIONS.height + padding;
-  const width = maxX - minX;
-  const height = maxY - minY;
+  const scene = buildGraphSVG(nodes, edges, {
+    palette: readThemePalette(),
+    fontFamily: readBodyFont(),
+    selectedIds: new Set(opts.selectedIds ?? []),
+    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
+    transparentBackground: settings.transparentBackground,
+    includeBranding: settings.includeBranding,
+    nodeWidth: opts.nodeWidth,
+    nodeHeight: opts.nodeHeight,
+    defaultEdgeWidth: opts.edgeWidth,
+    cornerRadius: opts.cornerRadius,
+    dashOffset: readDashOffset(),
+  });
+  if (scene.width === 0 || scene.height === 0) return;
 
   const scale = Math.max(1, settings.quality / 50);
-  const canvas = document.createElement("canvas");
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.scale(scale, scale);
-
-  if (!settings.transparentBackground) {
-    ctx.fillStyle = "#0b0b13";
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  ctx.strokeStyle = "rgba(255,255,255,0.25)";
-  ctx.lineWidth = 1.5;
-  for (const e of edges) {
-    const s = nodes.find((n) => n.id === e.source);
-    const t = nodes.find((n) => n.id === e.target);
-    if (!s || !t) continue;
-    const sx = s.position.x - minX + LAYOUT_DIMENSIONS.width / 2;
-    const sy = s.position.y - minY + LAYOUT_DIMENSIONS.height;
-    const tx = t.position.x - minX + LAYOUT_DIMENSIONS.width / 2;
-    const ty = t.position.y - minY;
-    const my = (sy + ty) / 2;
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.bezierCurveTo(sx, my, tx, my, tx, ty);
-    ctx.stroke();
-  }
-
-  for (const n of nodes) {
-    const x = n.position.x - minX;
-    const y = n.position.y - minY;
-    const isFolder = n.data.type === "folder";
-    ctx.fillStyle = isFolder ? "#f97316" : "#a855f7";
-    roundedRect(
-      ctx,
-      x,
-      y,
-      LAYOUT_DIMENSIONS.width,
-      LAYOUT_DIMENSIONS.height,
-      10,
+  const blobUrl = URL.createObjectURL(new Blob([scene.svg], { type: "image/svg+xml" }));
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(scene.width * scale);
+    canvas.height = Math.round(scene.height * scale);
+    const ctx = canvas.getContext("2d");
+    URL.revokeObjectURL(blobUrl);
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, `fewer-${timestamp()}.png`);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      "image/png",
+      settings.quality / 100,
     );
-    ctx.fill();
-    ctx.fillStyle = "white";
-    ctx.font = "600 14px sans-serif";
-    ctx.fillText(truncate(n.data.label, 22), x + 14, y + 26);
-    ctx.font = "11px sans-serif";
-    ctx.globalAlpha = 0.85;
-    ctx.fillText(
-      n.data.extension ? `.${n.data.extension}` : n.data.type,
-      x + 14,
-      y + 46,
-    );
-    ctx.globalAlpha = 1;
-  }
-
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      triggerDownload(url, `fewer-${timestamp()}.png`);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    },
-    "image/png",
-    settings.quality / 100,
-  );
-}
-
-function roundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+  };
+  img.onerror = () => URL.revokeObjectURL(blobUrl);
+  img.src = blobUrl;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -215,13 +137,16 @@ export function exportJSON(
   nodes: FewerNode[],
   edges: FewerEdge[],
   stats?: DirectoryStats,
+  includeBranding = true,
 ) {
+  const meta: Record<string, unknown> = {
+    exportedAt: new Date().toISOString(),
+    application: "fewer",
+    version: "1.0.0",
+  };
+  if (includeBranding) meta.generatedBy = FEWER_CREDIT;
   const payload = {
-    meta: {
-      exportedAt: new Date().toISOString(),
-      application: "fewer",
-      version: "1.0.0",
-    },
+    meta,
     stats: stats ?? null,
     nodes: nodes.map((n) => ({
       id: n.id,
@@ -250,7 +175,11 @@ export function exportJSON(
 /*                                  CSV                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportCSV(nodes: FewerNode[], edges: FewerEdge[]) {
+export function exportCSV(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
   const lines: string[] = [];
   lines.push("id,label,path,type,extension,category,size_bytes");
   for (const n of nodes) {
@@ -271,6 +200,7 @@ export function exportCSV(nodes: FewerNode[], edges: FewerEdge[]) {
   for (const e of edges) {
     lines.push([e.id, e.source, e.target].join(","));
   }
+  if (includeBranding) lines.push(`# ${FEWER_CREDIT}`);
   downloadBlob(lines.join("\n"), `fewer-${timestamp()}.csv`, "text/csv");
 }
 
@@ -285,7 +215,11 @@ function csvEscape(value: string): string {
 /*                                  DOT                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportDOT(nodes: FewerNode[], edges: FewerEdge[]) {
+export function exportDOT(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
   const lines: string[] = [];
   lines.push("digraph fewer {");
   lines.push('  graph [rankdir="TB", bgcolor="transparent"];');
@@ -302,6 +236,7 @@ export function exportDOT(nodes: FewerNode[], edges: FewerEdge[]) {
   for (const e of edges) {
     lines.push(`  "${e.source}" -> "${e.target}";`);
   }
+  if (includeBranding) lines.push(`  // ${FEWER_CREDIT}`);
   lines.push("}");
   downloadBlob(lines.join("\n"), `fewer-${timestamp()}.dot`, "text/plain");
 }
@@ -315,17 +250,18 @@ export function exportGraph(
   edges: FewerEdge[],
   settings: ExportSettings,
   stats?: DirectoryStats,
+  opts: ImageExportOptions = {},
 ) {
   switch (settings.format) {
     case "svg":
-      return exportSVG(nodes, edges, settings);
+      return exportSVG(nodes, edges, settings, opts);
     case "png":
-      return exportPNG(nodes, edges, settings);
+      return exportPNG(nodes, edges, settings, opts);
     case "json":
-      return exportJSON(nodes, edges, stats);
+      return exportJSON(nodes, edges, stats, settings.includeBranding);
     case "csv":
-      return exportCSV(nodes, edges);
+      return exportCSV(nodes, edges, settings.includeBranding);
     case "dot":
-      return exportDOT(nodes, edges);
+      return exportDOT(nodes, edges, settings.includeBranding);
   }
 }

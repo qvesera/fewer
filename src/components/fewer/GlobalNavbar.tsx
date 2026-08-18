@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo, useRef } from "react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile, userDisplayName } from "@/hooks/use-profile";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { computeStats } from "@/lib/fewer/stats";
 import { CATEGORY_META, FILE_CATEGORIES } from "@/lib/fewer/categoryMeta";
@@ -42,6 +43,8 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
   const inputRef = useRef<HTMLInputElement>(null);
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const profile = useProfile();
+  const displayName = userDisplayName(profile, user);
 
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
@@ -197,7 +200,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="text-xs font-medium truncate">
-                {user.email}
+                {displayName || user.email}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="text-xs cursor-pointer">

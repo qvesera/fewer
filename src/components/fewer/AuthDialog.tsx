@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
 import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X, Eye, EyeOff } from "lucide-react";
 import {
   Tooltip,
@@ -50,12 +51,29 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Field-level email validation (all modes need a well-formed email).
-    const emailOk = EMAIL_RE.test(email.trim());
-    if (!emailOk) {
-      setEmailError("Enter a valid email address.");
-      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
-      return;
+    // Auto-detect email vs username: an "@" means an email, anything else is a
+    // username (usernames can't contain "@", so this is unambiguous).
+    const identifier = email.trim();
+    const isEmail = identifier.includes("@");
+
+    if (mode === "signin") {
+      if (!identifier) {
+        setEmailError("Enter an email or username.");
+        toast({ title: "Missing account", description: "Enter your email or username.", variant: "destructive" });
+        return;
+      }
+      if (isEmail && !EMAIL_RE.test(identifier)) {
+        setEmailError("Enter a valid email address.");
+        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+        return;
+      }
+    } else {
+      // Sign-up and password-reset always use a real email.
+      if (!EMAIL_RE.test(identifier)) {
+        setEmailError("Enter a valid email address.");
+        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+        return;
+      }
     }
     if (emailError) setEmailError(null);
 
@@ -93,15 +111,30 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
     setLoading(true);
     try {
-      const supabase = getBrowserSupabase();
       if (mode === "signup") {
+        const supabase = getBrowserSupabase();
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast({ title: "Check your email", description: "Confirm your email to finish signing up." });
         close();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        // Sign in goes through the server so usernames can be resolved to an
+        // email (Supabase password login only accepts an email/phone).
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password }),
+        });
+        const json = (await res.json().catch(() => null)) as { error?: string; session?: Session } | null;
+        if (!res.ok) {
+          throw new Error(json?.error ?? "Invalid username or password");
+        }
+        // The server already set the session cookie (for middleware/SSR). Pushing
+        // the returned session into the browser auth client lets onAuthStateChange
+        // fire immediately, so the app shows signed-in without a page reload.
+        if (json?.session) {
+          await getBrowserSupabase().auth.setSession(json.session);
+        }
         toast({ title: "Signed in", description: "Welcome back!" });
         close();
       }
@@ -132,21 +165,30 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="auth-email" className="text-xs font-medium">Email</Label>
+            <Label htmlFor="auth-email" className="text-xs font-medium">
+              {mode === "signin" ? "Email or username" : "Email"}
+            </Label>
             <Input
               id="auth-email"
-              type="email"
+              type={mode === "signin" ? "text" : "email"}
               required
               value={email}
               onChange={(e) => {
                 const v = e.target.value;
                 setEmail(v);
                 if (emailError) {
-                  setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                  // For sign-in, only flag a malformed email when it actually
+                  // looks like one (contains "@"); otherwise it's a username.
+                  const looksEmail = v.trim().includes("@");
+                  if (mode !== "signin" || looksEmail) {
+                    setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                  } else {
+                    setEmailError(null);
+                  }
                 }
               }}
-              placeholder="you@example.com"
-              autoComplete="email"
+              placeholder={mode === "signin" ? "you@example.com or your_username" : "you@example.com"}
+              autoComplete={mode === "signin" ? "username" : "email"}
               aria-invalid={!!emailError}
             />
             {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
