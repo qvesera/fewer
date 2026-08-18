@@ -95,9 +95,10 @@ export function ImportFlowDialog({
   const [source, setSource] = useState<OriginSource>(
     defaultSourceFor(initialOrigin),
   );
-  const [options, setOptions] = useState<ImportOptions>({
-    ...DEFAULT_IMPORT_OPTIONS,
-  });
+  // Seed from the user's saved import preferences (cloud/db synced).
+  const [options, setOptions] = useState<ImportOptions>(() => ({
+    ...useGraphStore.getState().importOptions,
+  }));
   const [importing, setImporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -108,7 +109,7 @@ export function ImportFlowDialog({
     setStep(1);
     setOrigin(initialOrigin);
     setSource(defaultSourceFor(initialOrigin));
-    setOptions({ ...DEFAULT_IMPORT_OPTIONS });
+    setOptions({ ...useGraphStore.getState().importOptions });
     setActionError(null);
     setImporting(false);
   } else if (!open && wasOpen) {
@@ -129,6 +130,12 @@ export function ImportFlowDialog({
       }));
     }
   }, [advancedModeEnabled]);
+
+  // Persist the user's import preferences so the next session/dialog remembers
+  // them (and so they're synced to the account in the cloud).
+  useEffect(() => {
+    useGraphStore.setState((s) => ({ importOptions: { ...s.importOptions, ...options } }));
+  }, [options]);
 
   const handleImport = async () => {
     if (importing) return;
@@ -375,7 +382,7 @@ export function ImportFlowDialog({
                 size="default"
                 onClick={() => setStep(2)}
                 disabled={!isSourceReady(source)}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 Continue
                 <ArrowRight className="h-4 w-4" />
@@ -397,7 +404,7 @@ export function ImportFlowDialog({
               <Button
                 size="default"
                 onClick={() => setStep(3)}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 Continue
                 <ArrowRight className="h-4 w-4" />
@@ -421,7 +428,7 @@ export function ImportFlowDialog({
                 size="default"
                 onClick={handleImport}
                 disabled={importing}
-                className="h-10 flex-1 gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-xs font-medium text-white shadow-sm shadow-orange-500/10 transition-[colors,transform] hover:from-orange-600 hover:to-amber-600 active:scale-[0.96] sm:flex-initial"
+                className="h-10 flex-1 gap-1.5 text-xs font-medium sm:flex-initial"
               >
                 {importing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

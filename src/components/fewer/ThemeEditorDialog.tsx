@@ -4,13 +4,16 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Palette, Download, Upload, X, GripVertical, Minus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
-import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta } from "@/lib/fewer/types";
+import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 const DIALOG_WIDTH = 360;
 const TOP_OFFSET = 80; // navbar + toolbar
@@ -97,8 +100,110 @@ export function ThemeEditorDialog() {
   const customTheme = useGraphStore((s) => s.customTheme);
   const setCustomTheme = useGraphStore((s) => s.setCustomTheme);
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedPicker, setExpandedPicker] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Saved-to-cloud custom themes (grouped under "Custom" in the preset list).
+  // Lazy-loaded only when the user opens the preset dropdown — not on mount.
+  const [savedThemes, setSavedThemes] = useState<SavedTheme[]>([]);
+  const [themesLoading, setThemesLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const loadThemes = useCallback(async () => {
+    if (!user) {
+      setSavedThemes([]);
+      return;
+    }
+    setThemesLoading(true);
+    try {
+      const res = await fetch("/api/themes");
+      if (res.status === 401) {
+        setSavedThemes([]);
+        return;
+      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
+      if (Array.isArray(json.themes)) setSavedThemes(json.themes);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not load saved themes";
+      toast({ title: "Could not load saved themes", description: msg, variant: "destructive" });
+    } finally {
+      setThemesLoading(false);
+    }
+  }, [user, toast]);
+
+  const handleSaveTheme = async () => {
+    if (!user) return;
+    const name = saveName.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Give your theme a name to save it." });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, theme: customTheme }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Save failed");
+      setSaveOpen(false);
+      setSaveName("");
+      await loadThemes();
+      toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save theme";
+      toast({ title: "Could not save", description: msg, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteTheme = async (id: string, name: string) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/themes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setSavedThemes((themes) => themes.filter((t) => t.id !== id));
+      toast({ title: "Deleted", description: `"${name}" removed.` });
+    } catch {
+      toast({ title: "Could not delete", variant: "destructive" });
+    }
+  };
+
+  const handleRenameTheme = async (id: string) => {
+    if (!user) return;
+    const name = renameValue.trim();
+    const theme = savedThemes.find((t) => t.id === id);
+    if (!theme) return;
+    if (!name || name === theme.name) {
+      setRenamingId(null);
+      return;
+    }
+    try {
+      // Rename only (upsert with existing id) — preserve the saved theme data.
+      const res = await fetch("/api/themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name, theme: theme.theme }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Rename failed");
+      setSavedThemes((themes) => themes.map((t) => (t.id === id ? { ...t, ...json.theme } : t)));
+      setRenamingId(null);
+      toast({ title: "Renamed", description: `Theme renamed to "${name}".` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not rename theme";
+      toast({ title: "Could not rename", description: msg, variant: "destructive" });
+    }
+  };
 
   const handleChange = (key: keyof CustomTheme, value: CustomThemeColor) => {
     setCustomTheme({ [key]: value } as Partial<CustomTheme>);
@@ -272,49 +377,42 @@ export function ThemeEditorDialog() {
           </Label>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(customTheme, null, 2)], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "fewer-theme.json";
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-3 w-3" />
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                try {
-                  const imported = JSON.parse(ev.target?.result as string) as Partial<CustomTheme>;
-                  setCustomTheme(imported);
-                } catch { /* invalid JSON */ }
-              };
-              reader.readAsText(file);
-              e.target.value = "";
-            }}
-          />
+          <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-[10px]"
+                disabled={saving}
+                title="Save this theme to your account"
+              >
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-60 p-2 space-y-2" align="start" sideOffset={4}>
+              <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Save custom theme
+              </Label>
+              <Input
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveTheme();
+                  }
+                }}
+                placeholder="Theme name…"
+                className="h-8 text-xs"
+                autoFocus
+              />
+              <Button size="sm" className="w-full h-8 text-xs" disabled={saving} onClick={handleSaveTheme}>
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save to account
+              </Button>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost"
             size="sm"
@@ -350,7 +448,13 @@ export function ThemeEditorDialog() {
           <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
             Preset Themes
           </Label>
-          <Popover>
+          <Popover
+            open={presetOpen}
+            onOpenChange={(open) => {
+              setPresetOpen(open);
+              if (open) loadThemes();
+            }}
+          >
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -361,6 +465,87 @@ export function ThemeEditorDialog() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-[calc(min(360px,100vw-16px)-24px)] p-1.5 max-h-[300px] overflow-y-auto" align="start">
+              {/* Saved-to-cloud themes, grouped under "Custom" */}
+              <div key="custom" className="mb-1.5">
+                <div className="flex items-center justify-between px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+                  <span>Custom</span>
+                  {themesLoading && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                </div>
+                {user && savedThemes.length > 0 ? (
+                  savedThemes.map((t) => (
+                    <div
+                      key={t.id}
+                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-[10px] text-left"
+                    >
+                      <div className="flex gap-0.5 shrink-0">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.folderIcon?.color }} />
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.fileIcon?.color }} />
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.background?.color }} />
+                      </div>
+                      {renamingId === t.id ? (
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameTheme(t.id);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-6 flex-1 min-w-0 text-xs px-1.5"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setCustomTheme(t.theme)}
+                          className="flex flex-1 min-w-0 items-center gap-1 text-left"
+                          title={`Apply "${t.name}"`}
+                        >
+                          <span className="truncate text-foreground/80">{t.name}</span>
+                        </button>
+                      )}
+                      {renamingId === t.id ? (
+                        <>
+                          <button
+                            onClick={() => handleRenameTheme(t.id)}
+                            className="shrink-0 rounded p-0.5 text-green-500 hover:bg-foreground/10 transition-colors"
+                            title="Save name"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => setRenamingId(null)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-foreground/10 transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
+                            title="Rename"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTheme(t.id, t.name)}
+                            className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors"
+                            title={`Delete "${t.name}"`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground/60">
+                    {user ? "No saved themes yet. Use Save to store one." : "Sign in to sync custom themes to your account."}
+                  </div>
+                )}
+              </div>
               {Object.entries(groupedPresets).map(([category, presets]) => (
                 <div key={category} className="mb-1.5">
                   <div className="px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">

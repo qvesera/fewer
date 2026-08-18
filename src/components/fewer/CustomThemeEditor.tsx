@@ -1,14 +1,17 @@
 "use client";
 
-import { useRef } from "react";
+import { useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta } from "@/lib/fewer/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { RotateCcw, Palette, Download, Upload } from "lucide-react";
+import { RotateCcw, Palette, Save, Loader2 } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface ColorPickerProps {
   meta: ThemeColorMeta;
@@ -82,10 +85,44 @@ export function CustomThemeEditor() {
   const customTheme = useGraphStore((s) => s.customTheme);
   const setCustomTheme = useGraphStore((s) => s.setCustomTheme);
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (key: keyof CustomTheme, value: CustomThemeColor) => {
     setCustomTheme({ [key]: value } as Partial<CustomTheme>);
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to save themes to your account." });
+      return;
+    }
+    const name = saveName.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Give your theme a name to save it." });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, theme: customTheme }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Save failed");
+      setSaveOpen(false);
+      setSaveName("");
+      toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save theme";
+      toast({ title: "Could not save", description: msg, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -96,51 +133,42 @@ export function CustomThemeEditor() {
           Custom Theme
         </Label>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(customTheme, null, 2)], { type: "application/json" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "fewer-theme.json";
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="h-3 w-3" />
-            Export
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-3 w-3" />
-            Import
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                try {
-                  const imported = JSON.parse(ev.target?.result as string) as Partial<CustomTheme>;
-                  setCustomTheme(imported);
-                } catch { /* invalid JSON */ }
-              };
-              reader.readAsText(file);
-              e.target.value = "";
-            }}
-          />
+          <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-[10px]"
+                disabled={saving}
+                title="Save this theme to your account"
+              >
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-60 p-2 space-y-2" align="start" sideOffset={4}>
+              <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Save custom theme
+              </Label>
+              <Input
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSave();
+                  }
+                }}
+                placeholder="Theme name…"
+                className="h-8 text-xs"
+                autoFocus
+              />
+              <Button size="sm" className="w-full h-8 text-xs" disabled={saving} onClick={handleSave}>
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save to account
+              </Button>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost"
             size="sm"

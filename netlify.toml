@@ -11,6 +11,35 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Non-production builds must NOT touch the production database.
+# Production (main) deploys inherit the dashboard env vars and use the "fewer"
+# project (rzzbhboedvezamqjjuoe). Deploy previews and branch deploys are
+# pointed at the separate "fewer-dev" project (aorhvfihnjhpxgjiacfg) so PRs and
+# staging can never read/write real user data.
+#
+# NOTE: only the values that differ per project are overridden here. Shared
+# secrets (RESEND_*, CONNECTIONS_ENCRYPTION_KEY, per-provider OAuth keys,
+# SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET) come from the dashboard and are
+# inherited. If you want previews to be able to send email or delete accounts,
+# add the fewer-dev service-role key + a per-project CONNECTIONS_ENCRYPTION_KEY
+# in the Netlify dashboard under "Deploy contexts".
+#
+# NEXT_PUBLIC_APP_URL is set to the preview's own domain (DEPLOY_PRIME_URL) so
+# emailed invite links and OAuth redirects resolve to the preview instead of
+# bouncing users to production.
+
+# Deploy previews (open pull requests)
+[context.deployment-preview.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://aorhvfihnjhpxgjiacfg.supabase.co"
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5-gcUGzl8v5xvjqM-3SPBA_dcm0wzsy"
+  NEXT_PUBLIC_APP_URL = "${DEPLOY_PRIME_URL}"
+
+# Branch deploys (non-production branches pushed to Netlify)
+[context.branch-deploy.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://aorhvfihnjhpxgjiacfg.supabase.co"
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5-gcUGzl8v5xvjqM-3SPBA_dcm0wzsy"
+  NEXT_PUBLIC_APP_URL = "${DEPLOY_PRIME_URL}"
+
 # The interactive app lives at `/app`. Send the app-domain root there so
 # visiting app.fewer.directory lands on the app (not the marketing homepage).
 [[redirects]]

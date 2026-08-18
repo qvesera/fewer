@@ -1,4 +1,4 @@
-import type { FileCategory } from "./types";
+import type { FileCategory, FewerNode } from "./types";
 
 const EXTENSION_MAP: Record<string, FileCategory> = {
   // code
@@ -94,6 +94,18 @@ export function getFileExtension(name: string): string {
   const lastDot = name.lastIndexOf(".");
   if (lastDot <= 0 || lastDot === name.length - 1) return "";
   return name.slice(lastDot + 1).toLowerCase();
+}
+
+/**
+ * Ids of file nodes to hide when a category filter is active — every file whose
+ * category does NOT match (folders are never hidden, so the tree stays intact).
+ * Returns [] when no filter.
+ */
+export function categoryHiddenNodeIds(nodes: FewerNode[], filter: FileCategory | null): string[] {
+  if (!filter) return [];
+  return nodes
+    .filter((n) => n.data.type !== "folder" && n.data.category !== filter)
+    .map((n) => n.id);
 }
 
 export function isHiddenName(name: string): boolean {

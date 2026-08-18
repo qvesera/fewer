@@ -159,6 +159,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       resetTutorial();
       setOpen(true);
       setShowWelcome(true);
+      setMobileStep(0);
+      demoPlayedRef.current = false;
     }
   }, [restartKey, resetTutorial]);
 

@@ -102,6 +102,21 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 2. Run the migrations in `supabase/migrations/` (via the Supabase CLI: `supabase db push`, or the SQL editor)
 3. Set the two environment variables below
 
+> **Production vs non-production databases.** Fewer ships with **two** Supabase projects so developers never touch production data from a local or preview build:
+>
+> | Environment | Project | Env file | `NEXT_PUBLIC_SUPABASE_URL` |
+> | ----------- | ------- | -------- | --------------------------- |
+> | **Production** | `fewer` (`rzzbhboedvezamqjjuoe`, eu-west-1) | `.env` | `https://rzzbhboedvezamqjjuoe.supabase.co` |
+> | **Dev / previews / local** | `fewer-dev` (`aorhvfihnjhpxgjiacfg`, ap-south-1) | `.env.local` | `https://aorhvfihnjhpxgjiacfg.supabase.co` |
+>
+> The **dev** project must run the same `supabase/migrations/` so its schema stays in lock-step with prod.
+>
+> **Never put the service-role key in a client file.** Each project needs its own, server-side only:
+> - **Prod** `SUPABASE_SERVICE_ROLE_KEY` → Netlify env (accounts, watch digest, account deletion).
+> - **Dev** `SUPABASE_SERVICE_ROLE_KEY` → only your local `.env.local` (never commit it) or the non-prod deploy environment.
+>
+> Both projects need their own dashboard auth settings (Email provider, confirm-email, Site URL + redirect URLs) — the values below are production-specific.
+
 ### Production go-live checklist
 
 One-time settings to verify before real users arrive:

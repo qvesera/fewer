@@ -40,39 +40,29 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 /**
- * Highlight the ancestor path of EVERY selected node. Each path edge is
- * colored by its target node type (folder vs file) so multi-selection
- * shows every selected chain, not just the last-picked node.
- * Empty selection → all edges reset to default stroke. Highlighted edges
- * sort last so they render on top.
+ * Style the edges incident to EVERY selected node (source OR target). Each
+ * incident edge is colored by its target node type (folder vs file) so
+ * multi-selection shows every selected node's connections, not just the
+ * last-picked one. Empty selection → all edges reset to default stroke.
+ * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
+ * so they render on top.
  */
-function buildPathEdgeHighlight(
+function buildSelectedEdgeHighlight(
   selectedIds: string[],
   edges: FewerEdge[],
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
 ): FewerEdge[] {
-  const parentMap = new Map<string, string>();
-  const edgeIdByTarget = new Map<string, string>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    edgeIdByTarget.set(e.target, e.id);
-  }
+  const selected = new Set(selectedIds);
+  const typeByNodeId = new Map<string, "folder" | "file">();
+  for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
 
   const highlighted = new Map<string, { stroke: string; width: number }>();
-  for (const id of selectedIds) {
-    let currentId: string | undefined = id;
-    let guard = 0;
-    while (currentId && parentMap.has(currentId) && guard++ <= edges.length) {
-      const edgeId = edgeIdByTarget.get(currentId);
-      if (edgeId) {
-        const targetNode = nodes.find((n) => n.id === currentId);
-        const stroke = targetNode?.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-        highlighted.set(edgeId, { stroke, width: Math.max(edgeWidth, 3) });
-      }
-      currentId = parentMap.get(currentId);
-    }
+  for (const e of edges) {
+    if (!selected.has(e.source) && !selected.has(e.target)) continue;
+    const stroke = typeByNodeId.get(e.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
+    highlighted.set(e.id, { stroke, width: Math.max(edgeWidth, 3) });
   }
 
   const defaultStroke = themeColors.edge;
@@ -80,7 +70,7 @@ function buildPathEdgeHighlight(
     .map((e) => {
       const h = highlighted.get(e.id);
       return h
-        ? { ...e, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
+        ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
         : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
     })
     .sort((a, b) => (highlighted.has(b.id) ? 1 : -1) - (highlighted.has(a.id) ? 1 : -1));
@@ -124,9 +114,22 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
+  const setCanvasSize = useGraphStore((s) => s.setCanvasSize);
   const themeMode = useGraphStore((s) => s.themeMode);
   const customTheme = useGraphStore((s) => s.customTheme);
   const isDark = themeMode === "dark";
+
+  // Keep the store's canvas dimensions in sync with the viewer so the
+  // minimap X/Y sliders in Settings scale to the actual canvas (no hard cap).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [setCanvasSize]);
 
   // Resolve theme colors once per theme change so edges, minimap, and the
   // background dots follow light/dark/custom without hard-coded values.
@@ -224,7 +227,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // ── Re-apply edge colors when theme changes ──
   useEffect(() => {
     const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
-    const updatedEdges = buildPathEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -241,7 +244,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       setSelectedNodeIds(newIds);
 
       const { edges, nodes, hiddenIds } = useGraphStore.getState();
-      const updatedEdges = buildPathEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -295,7 +298,15 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
         if (!hasMeasuredRef.current) {
           hasMeasuredRef.current = true;
-          setTimeout(() => { relayout(); }, 50);
+          setTimeout(() => {
+            // If the graph was just loaded with saved positions, don't re-lay
+            // it out (that would scatter them). Skip and consume the flag.
+            if (useGraphStore.getState().skipNextAutoLayout) {
+              useGraphStore.setState({ skipNextAutoLayout: false });
+              return;
+            }
+            relayout();
+          }, 50);
         }
 
         // Commit a resize op once the resize gesture settles (debounced).
@@ -389,13 +400,29 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
+  const miniMapX = useGraphStore((s) => s.miniMapX);
+  const miniMapY = useGraphStore((s) => s.miniMapY);
 
-  const minimapStyle = useMemo(() => ({
-    width: miniMapSize, height: miniMapSize,
-    backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
-    borderRadius: "12px",
-    border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
-  }), [isDark, miniMapSize]);
+  const minimapStyle = useMemo<React.CSSProperties>(() => {
+    const base: React.CSSProperties = {
+      width: miniMapSize, height: miniMapSize,
+      backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
+      borderRadius: "12px",
+      border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
+    };
+    // Custom position: pin the minimap to a free-form x/y. Anchor to the
+    // top-left corner and override with explicit offsets + zero margin so the
+    // slider-chosen coordinates lock in place (the inline style beats the
+    // React Flow panel corner classes).
+    if (miniMapPosition === "custom") {
+      return { ...base, position: "absolute", top: miniMapY, left: miniMapX, margin: 0 };
+    }
+    return base;
+  }, [isDark, miniMapSize, miniMapPosition, miniMapX, miniMapY]);
+
+  // "custom" isn't a valid React Flow PanelPosition, so fall back to a real
+  // corner for the base placement (the inline style above overrides it).
+  const rfMiniMapPosition = miniMapPosition === "custom" ? "top-left" : miniMapPosition;
 
   // Compute a contrasting chip background from the canvas background color
   const hiddenChipStyle = useMemo(() => {
@@ -454,6 +481,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
+        zoomOnScroll={false}
+        panOnScroll
+        zoomActivationKeyCode="Control"
         fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
@@ -467,7 +497,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           color={themeColors.bgDot}
           className="transition-colors" />
         {showMiniMap && (
-          <MiniMap position={miniMapPosition} style={minimapStyle} pannable zoomable
+          <MiniMap position={rfMiniMapPosition} style={minimapStyle} pannable zoomable
             nodeColor={nodeColor} nodeStrokeColor={nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
         )}
         <Panel position="bottom-center">

@@ -51,6 +51,7 @@ export async function runCloudImport(
     useGraphStore.setState({
       dataSource: `cloud:${source.provider}`,
       maxDisplayDepth: options.displayMaxDepth,
+      localRootPath: null,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
 

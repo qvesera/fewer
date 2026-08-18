@@ -141,6 +141,16 @@ export interface CustomTheme {
 
 export type ThemeMode = "light" | "dark" | "custom";
 
+/** A custom theme the signed-in user has saved to their Supabase account. */
+export interface SavedTheme {
+  id: string;
+  name: string;
+  theme: CustomTheme;
+  created_at: string;
+  updated_at: string;
+}
+
+
 /** Metadata for each editable color slot. */
 export interface ThemeColorMeta {
   key: keyof Omit<CustomTheme, "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent">;
@@ -226,6 +236,10 @@ export interface ViewState {
   maxDisplayDepth: number;
   autoHideThreshold: number;
   autoHiddenIds: string[];
+  /** Active file-type filter (null = none). Restored with the view state. */
+  categoryFilter: FileCategory | null;
+  /** Ids that the category filter added to hiddenIds in this view state. */
+  categoryHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
