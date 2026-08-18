@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
 ## [0.5.0] - 18th August 2026
 
 ### Added
@@ -101,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Right-click "Add Child Node" opens the Add Node dialog**: the folder context menu's "Add Child Node" no longer adds a "New Folder" node immediately. It now selects the folder and opens the same Add Node dialog that Alt+N opens (in child mode), so you can name the node and pick folder/file before it's created.
 - **`shared_graphs` RLS hardening (security)**: the UPDATE and DELETE policies were `using (true)` for every role — and the publishable (anon) key ships in the browser bundle, so anyone could overwrite or delete any share row directly via Supabase REST. Policies now restrict UPDATE/DELETE to the row owner (`auth.uid()`) or anonymous rows. Migration `0012_harden_share_rls.sql`.
 - **Email confirmation required on sign-up**: `enable_confirmations = true` in `supabase/config.toml` — new accounts must verify their email before signing in (matches the sign-up dialog prompt). Documented as a recommended hosted-project setting in `/docs/deployment`.
+- Fix crash on New File button: right-clicking a folder/file with no data source loaded (dataSource is null) still called startsWith on null. The earlier empty-graph fix only guarded providerLabelFromSource; FileEntryContextMenu's crawled-file check now null-guards too.
 
 ### Docs
 

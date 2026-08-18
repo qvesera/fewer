@@ -495,7 +495,7 @@ function FileEntryContextMenu({
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
   const isCrawledFile =
-    dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
+    !!dataSource && dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
