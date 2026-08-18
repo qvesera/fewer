@@ -1,12 +1,15 @@
-import fs from "fs";
-import path from "path";
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
+import { getSupabase } from "@/lib/supabase";
 
 export const metadata = {
   title: "Docs | Fewer",
   description: "Feature guides, tutorials, and technical references for Fewer.",
 };
+
+// Serve from Supabase with a 60s revalidate so doc edits go live without a deploy.
+// ponytail: DB outage => empty docs list (no crash); upgrade path is on-disk cache.
+export const revalidate = 60;
 
 type DocMeta = {
   slug: string;
@@ -14,27 +17,23 @@ type DocMeta = {
   description: string;
 };
 
-function getDocs(): DocMeta[] {
-  const dir = path.join(process.cwd(), "content", "docs");
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
-  const docs = files.map((file) => {
-    const raw = fs.readFileSync(path.join(dir, file), "utf8");
-    const match = raw.match(/^---\n([\s\S]*?)\n---/);
-    const frontmatter = match
-      ? Object.fromEntries(
-          match[1].split("\n").map((line) => {
-            const [key, ...rest] = line.split(":");
-            return [key.trim(), rest.join(":").trim()];
-          }),
-        )
-      : {};
-    return {
-      slug: file.replace(/\.md$/, ""),
-      title: (frontmatter["title"] as string) || file,
-      description: (frontmatter["description"] as string) || "",
-    };
-  });
-  return docs.sort((a, b) => a.title.localeCompare(b.title));
+async function getDocs(): Promise<DocMeta[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("content_pages")
+      .select("slug,title,description")
+      .eq("type", "docs")
+      .eq("published", true)
+      .order("title", { ascending: true });
+    if (error) return [];
+    return (data ?? []).map((d) => ({
+      slug: d.slug,
+      title: d.title,
+      description: d.description ?? "",
+    }));
+  } catch {
+    return [];
+  }
 }
 
 const sections = [
@@ -56,8 +55,8 @@ const sections = [
   },
 ];
 
-export default function DocsPage() {
-  const docs = getDocs();
+export default async function DocsPage() {
+  const docs = await getDocs();
   const docsBySlug = new Map(docs.map((d) => [d.slug, d]));
 
   return (
