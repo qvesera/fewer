@@ -168,6 +168,17 @@ export function ExportPanel() {
   const isRaster = settings.format === "png";
   const canExportSelected = selectedNodeIds.length > 0;
 
+  // SVG/PNG render only the non-hidden subset of the export selection (hidden
+  // nodes are filtered out by buildGraphSVG). If every exportable node is
+  // hidden the image would be blank, so block those two formats.
+  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  const imageExportableCount = useMemo(
+    () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
+    [exportNodes, hiddenSet],
+  );
+  const isImageFormat = settings.format === "png" || settings.format === "svg";
+  const imageBlocked = isImageFormat && imageExportableCount === 0;
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent className="export-panel w-full sm:max-w-md overflow-y-auto gm-scroll bg-background/95 backdrop-blur-md border-l border-border/40 p-6">
@@ -237,10 +248,17 @@ export function ExportPanel() {
           </div>
 
           {/* Action Buttons (Standard shadcn Button) */}
+          {imageBlocked && (
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
+              Every node that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide nodes
+              (Hidden panel → Reveal All) to export an image.
+            </div>
+          )}
           <Button
             className="w-full gap-2 text-sm font-semibold bg-gradient-to-r bg-fewer-file-icon text-white hover:opacity-90 shadow-sm active:scale-[0.96] transition-all h-11"
             onClick={handleExport}
-            disabled={nodes.length === 0}
+            disabled={nodes.length === 0 || imageBlocked}
+            data-all-nodes-hidden={imageBlocked ? "true" : undefined}
           >
             <Download className="h-4.5 w-4.5" />
             Download
