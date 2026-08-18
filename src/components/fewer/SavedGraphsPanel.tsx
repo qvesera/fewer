@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
+import { useProfile } from "@/hooks/use-profile";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
 import { graphDataEqual } from "@/lib/fewer/versions";
@@ -500,6 +501,21 @@ function ShareGraphDialog({
   const [gallery, setGallery] = useState(false);
   const [galleryTitle, setGalleryTitle] = useState("");
   const [galleryDescription, setGalleryDescription] = useState("");
+  const profile = useProfile();
+
+  // Publishing to the gallery requires the user to have shared their name and a
+  // username (that's how gallery entries are attributed). If either is missing,
+  // bounce the user to Settings → Account to fill them in and block the publish.
+  const requireGalleryProfile = (): boolean => {
+    if (profile.first_name.trim() && profile.username.trim()) return true;
+    toast({
+      title: "Profile required",
+      description: "Add your first name and a username to list a graph in the gallery.",
+      variant: "destructive",
+    });
+    window.dispatchEvent(new Event("fewer-open-settings-account"));
+    return false;
+  };
 
   // Load any existing share link for this saved graph on open.
   useEffect(() => {
@@ -544,6 +560,7 @@ function ShareGraphDialog({
       toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
       return;
     }
+    if (gallery && access === "public" && !requireGalleryProfile()) return;
     const titleError = validateTextField(galleryTitle, { label: "Gallery title", max: 200 });
     if (titleError) {
       toast({ title: "Could not share", description: titleError, variant: "destructive" });
@@ -700,7 +717,7 @@ function ShareGraphDialog({
                   <p className="text-xs font-medium">List in the public gallery</p>
                   <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
                 </div>
-                <Switch checked={gallery} onCheckedChange={setGallery} className="ml-auto shrink-0" />
+                <Switch checked={gallery} onCheckedChange={(checked) => { if (checked && !requireGalleryProfile()) return; setGallery(checked); }} className="ml-auto shrink-0" />
               </div>
               {gallery && (
                 <div className="space-y-1.5 pt-1">

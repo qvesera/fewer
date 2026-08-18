@@ -804,6 +804,17 @@ export function SettingsDialog() {
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Open straight to the Account (profile) tab when the share/gallery flow asks
+  // the user to fill in their name + username before publishing to the gallery.
+  useEffect(() => {
+    const onOpenAccount = () => {
+      setSettingsOpen(true);
+      setTab("account");
+    };
+    window.addEventListener("fewer-open-settings-account", onOpenAccount);
+    return () => window.removeEventListener("fewer-open-settings-account", onOpenAccount);
+  }, []);
+
   // Keep the active tab visible: scroll it toward the center of the list so
   // selecting a tab near either end reveals its hidden neighbours.
   // Runs after commit so data-state is already updated.

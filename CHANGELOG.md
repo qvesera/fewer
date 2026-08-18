@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Save dialog now has a Destination picker: create a new saved graph, or update an existing one by selecting it - updating keeps the graph's share link and records a fresh version history snapshot instead of always making a new graph.
 - Settings gains a dedicated Account tab (separate from About): signed-in users can save a first name, last name, and username — stored per account in the new owner-only `profiles` DB table (migration `0019_profiles.sql`, `/api/profile`) — and it keeps the Sign out and Delete account actions in the same tab. Usernames are unique (case-insensitive) — enforced by a partial unique index (migration `0020`) and a friendly "already taken" error in `/api/profile`.
 - Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
+- Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
 
 ### Changed
 
