@@ -10,6 +10,7 @@ import { toCssColor } from "@/lib/fewer/themeColors";
 import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
+import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -140,11 +141,12 @@ export function ThemeEditorDialog() {
 
   const handleSaveTheme = async () => {
     if (!user) return;
-    const name = saveName.trim();
-    if (!name) {
-      toast({ title: "Name required", description: "Give your theme a name to save it." });
+    const nameError = validateTextField(saveName, { label: "Name", max: 200, required: true });
+    if (nameError) {
+      toast({ title: "Could not save theme", description: nameError, variant: "destructive" });
       return;
     }
+    const name = safeText(saveName);
     setSaving(true);
     try {
       const res = await fetch("/api/themes", {
@@ -180,7 +182,12 @@ export function ThemeEditorDialog() {
 
   const handleRenameTheme = async (id: string) => {
     if (!user) return;
-    const name = renameValue.trim();
+    const nameError = validateTextField(renameValue, { label: "Name", max: 200 });
+    if (nameError) {
+      toast({ title: "Could not rename theme", description: nameError, variant: "destructive" });
+      return;
+    }
+    const name = safeText(renameValue);
     const theme = savedThemes.find((t) => t.id === id);
     if (!theme) return;
     if (!name || name === theme.name) {

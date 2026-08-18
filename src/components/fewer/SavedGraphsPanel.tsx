@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
 import { graphDataEqual } from "@/lib/fewer/versions";
@@ -96,7 +97,13 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const handleSave = async () => {
     if (!user) return onRequireAuth();
     const updating = saveTarget !== "new";
-    const name = saveName.trim() || (updating ? saveTarget.name : "Untitled");
+    // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
+    const nameError = validateTextField(saveName, { label: "Name", max: 200 });
+    if (nameError) {
+      toast({ title: "Could not save", description: nameError, variant: "destructive" });
+      return;
+    }
+    const name = safeText(saveName) || (updating ? saveTarget.name : "Untitled");
     setSaving(true);
     try {
       // Refresh the graph's root local path (if resolvable) so it's persisted
@@ -180,7 +187,12 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleRename = async (id: string) => {
-    const name = renameValue.trim();
+    const nameError = validateTextField(renameValue, { label: "Name", max: 200 });
+    if (nameError) {
+      toast({ title: "Could not rename", description: nameError, variant: "destructive" });
+      return;
+    }
+    const name = safeText(renameValue);
     if (!name) {
       setRenamingId(null);
       return;
@@ -532,6 +544,16 @@ function ShareGraphDialog({
       toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
       return;
     }
+    const titleError = validateTextField(galleryTitle, { label: "Gallery title", max: 200 });
+    if (titleError) {
+      toast({ title: "Could not share", description: titleError, variant: "destructive" });
+      return;
+    }
+    const descError = validateTextField(galleryDescription, { label: "Gallery description", max: 1000 });
+    if (descError) {
+      toast({ title: "Could not share", description: descError, variant: "destructive" });
+      return;
+    }
     setBuilding(true);
     setShareUrl("");
     try {
@@ -545,8 +567,8 @@ function ShareGraphDialog({
           saved_graph_id: graph.id,
           name: graph.name,
           in_gallery: gallery && access === "public",
-          gallery_title: galleryTitle,
-          gallery_description: galleryDescription,
+          gallery_title: safeText(galleryTitle),
+          gallery_description: safeText(galleryDescription),
         }),
       });
       const json = await res.json();

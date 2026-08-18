@@ -59,6 +59,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { validateTextField } from "@/lib/fewer/textValidation";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -122,6 +123,15 @@ function AccountTab() {
     username.trim() === savedProfile.username;
 
   const handleSaveProfile = async () => {
+    // Client-side guard: refuse dangerous/oversized values before POSTing.
+    const invalid =
+      validateTextField(firstName, { label: "First name", max: 100 }) ??
+      validateTextField(lastName, { label: "Last name", max: 100 }) ??
+      validateTextField(username, { label: "Username", max: 100 });
+    if (invalid) {
+      toast({ title: "Could not save profile", description: invalid, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       // Normalized the same way the server stores it (case-insensitive uniqueness).
