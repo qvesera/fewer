@@ -98,6 +98,23 @@ test("LR layout places source anchor on the right edge", () => {
   expect(scene.svg).toContain('d="M 240,100');
 });
 
+test("file card text is aligned to the icon box and vertically centered", () => {
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  const scene = buildGraphSVG([file], [], opts());
+  // Icon sits flush (centered in 36px box) at x=9; text column starts after gap.
+  expect(scene.svg).toContain('<g transform="translate(9, 8)">');
+  const labelY = scene.svg.match(/<text x="49" y="(\d+)"/)?.[1];
+  const metaY = scene.svg.match(/<text x="49" y="(\d+)"[^>]*style="text-transform:uppercase/)?.[1];
+  const lY = Number(labelY);
+  const mY = Number(metaY);
+  expect(Number.isInteger(lY) && Number.isInteger(mY)).toBe(true);
+  expect(lY).toBeLessThan(mY);
+  // Both lines sit inside a 36px card.
+  expect(lY).toBeGreaterThan(0);
+  expect(mY).toBeLessThan(36);
+});
+
 test("hidden nodes are excluded from the scene, kept as folder rows", () => {
   const nodes = [
     makeNode("r", "root"),

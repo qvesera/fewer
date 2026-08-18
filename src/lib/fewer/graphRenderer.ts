@@ -328,6 +328,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const x = n.position.x;
   const y = n.position.y;
   const w = size.w;
+  const h = size.h;
   const selected = o.selectedIds?.has(n.id) ?? false;
   const filterId = selected ? "filter-glow" : "filter-file-shadow";
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
@@ -335,14 +336,30 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const subtleColor = selected ? p.subtle : p.fileSubtle;
   const stroke = n.data.highlighted ? "#fbbf24" : p.fileBorder;
   const strokeWidth = n.data.highlighted ? 2 : 1;
-  const label = truncate(n.data.label, Math.max(8, Math.floor((w - 96) / 8)));
+  const label = truncate(n.data.label, Math.max(6, Math.floor((w - 56) / 8)));
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
+  // Mirror the canvas file card layout: no horizontal padding (icon box sits
+  // flush against the border), gap-3, and the two text lines vertically
+  // centered as a block against the icon. Derived from measured height `h` so
+  // it adapts instead of assuming a fixed 58px card.
+  const boxX = 1;
+  const boxW = 36;
+  const gap = 12;
+  const iconX = x + boxX + (boxW - 20) / 2; // icon (20px) centered in the 36px box
+  const iconY = y + (h - 20) / 2;
+  const textX = x + boxX + boxW + gap;
+  const labelLH = 20;
+  const metaLH = 14;
+  const colTop = y + (h - (labelLH + metaLH)) / 2;
+  const labelBaseline = colTop + 13;
+  const metaBaseline = colTop + labelLH + 10;
+
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
-    <rect x="${x}" y="${y}" width="${w}" height="${size.h}" rx="${FILE_RADIUS}" fill="${p.fileBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
-    <g transform="translate(${x + 16}, ${y + 19})">${iconSvg(icon, 20, p.fileIcon)}</g>
-    <text x="${x + 56}" y="${y + 26}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
-    <text x="${x + 56}" y="${y + 43}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(meta)}</text>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.fileBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
+    <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
+    <text x="${textX}" y="${labelBaseline}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
+    <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(meta)}</text>
   </g>`;
 }
 
