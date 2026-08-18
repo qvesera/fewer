@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scroll action setting: the mouse wheel now pans the canvas vertically by default (Ctrl/⌘+scroll zooms), and a new Settings → Advanced toggle switches plain scrolling to zoom. Preference persists in synced/local user settings and saved-graph snapshots.
 - Animate Selected Edges Only: a Settings → Appearance toggle that limits edge-motion animation to the edges along the selected nodes' ancestor path (the selection-highlighted edges) instead of every edge. Persists with user settings and saved graphs.
 - Drag edge to empty canvas opens Add Node dialog (same as Alt+N) for the source folder
+- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and \_meta.xml files are filtered out; results are cached 24h like other URL imports.
 
 ### Changed
 

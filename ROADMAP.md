@@ -32,7 +32,7 @@
 - [ ] **Multi-directory visualization**: view and compare multiple directories from cloud storage on the same graph
 - [ ] **Public link support**: import from public cloud drive links
 - [x] **Indexed directory support**: add support for visualizing indexed directories on the internet
-- [ ] Internet Archive Support
+- [x] Internet Archive Support
 
 ## ⚡ Architecture & Performance
 
