@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
@@ -52,6 +59,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [savingOpen, setSavingOpen] = useState(false);
+  const [saveTarget, setSaveTarget] = useState<"new" | SavedGraph>("new");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [sharing, setSharing] = useState<SavedGraph | null>(null);
@@ -86,7 +94,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
   const handleSave = async () => {
     if (!user) return onRequireAuth();
-    const name = saveName.trim() || "Untitled";
+    const updating = saveTarget !== "new";
+    const name = saveName.trim() || (updating ? saveTarget.name : "Untitled");
     setSaving(true);
     try {
       // Refresh the graph's root local path (if resolvable) so it's persisted
@@ -96,14 +105,20 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       const res = await fetch("/api/graphs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, data }),
+        // Sending the existing graph's id makes the API update it in place
+        // (keeping its share link) and records a new version history snapshot.
+        body: JSON.stringify(updating ? { id: saveTarget.id, name, data } : { name, data }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
       setSavingOpen(false);
       setSaveName("");
+      setSaveTarget("new");
       await loadGraphs();
-      toast({ title: "Saved", description: `"${name}" saved to your account.` });
+      toast({
+        title: updating ? "Graph updated" : "Saved",
+        description: updating ? `"${name}" updated with a new version.` : `"${name}" saved to your account.`,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
@@ -118,6 +133,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       toast({ title: "Nothing to save", description: "Add nodes to your canvas first." });
       return;
     }
+    setSaveTarget("new");
     setSavingOpen(true);
   };
 
@@ -358,16 +374,43 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
               Save the current graph to your account.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="save-name" className="text-xs font-medium">Name</Label>
-            <Input
-              id="save-name"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder="e.g. My Project"
-              autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-            />
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="save-name" className="text-xs font-medium">Name</Label>
+              <Input
+                id="save-name"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="e.g. My Project"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Destination</Label>
+              <Select
+                value={saveTarget === "new" ? "__new__" : saveTarget.id}
+                onValueChange={(v) => {
+                  if (v === "__new__") { setSaveTarget("new"); return; }
+                  const g = graphs.find((x) => x.id === v);
+                  if (g) { setSaveTarget(g); setSaveName(g.name); }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a destination" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__new__">Create a new graph</SelectItem>
+                  {graphs.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>Update “{g.name}”</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground/70">
+                Updating an existing graph keeps its share link and records a new version.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
