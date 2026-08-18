@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
+import { graphDataEqual } from "@/lib/fewer/versions";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
@@ -102,6 +103,19 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       // with the save and re-openable later without re-searching the system.
       await resolveRootLocalPath();
       const data = buildSnapshot();
+      // When updating an existing graph, validate against its saved data first:
+      // an identical snapshot means nothing changed, so skip the write (and skip
+      // creating a redundant version) and just tell the user.
+      if (updating && graphDataEqual(data, saveTarget.data)) {
+        setSavingOpen(false);
+        setSaveName("");
+        setSaveTarget("new");
+        toast({
+          title: "No changes",
+          description: `"${saveTarget.name}" is already up to date — no new version was added.`,
+        });
+        return;
+      }
       const res = await fetch("/api/graphs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

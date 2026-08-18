@@ -6,6 +6,32 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const MAX_VERSIONS_PER_GRAPH = 50;
 
+/**
+ * Order-independent deep equality for graph snapshots. Compares object keys by
+ * name (not insertion order) and arrays index-wise. Needed because the server
+ * stores `data` as Postgres `jsonb`, which does not preserve object key order,
+ * so `JSON.stringify` comparisons would mismatch identical snapshots.
+ */
+export function graphDataEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    const arrB = b as unknown[];
+    if (a.length !== arrB.length) return false;
+    return a.every((item, i) => graphDataEqual(item, arrB[i]));
+  }
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const aKeys = Object.keys(objA);
+  if (aKeys.length !== Object.keys(objB).length) return false;
+  for (const k of aKeys) {
+    if (!Object.prototype.hasOwnProperty.call(objB, k)) return false;
+    if (!graphDataEqual(objA[k], objB[k])) return false;
+  }
+  return true;
+}
+
 export interface GraphVersionMeta {
   id: string;
   saved_graph_id: string;
@@ -38,7 +64,7 @@ export async function recordVersion(
     .limit(1)
     .maybeSingle();
 
-  if (latest && JSON.stringify(latest.data) === JSON.stringify(data)) {
+  if (latest && graphDataEqual(latest.data, data)) {
     return { recorded: false };
   }
 

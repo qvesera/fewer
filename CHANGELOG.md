@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Share dialog: when 'List in the public gallery' is on, the action becomes 'Publish to gallery' and the manual copy-link field hides (the graph is live at /gallery instead); publishing shows a confirmation toast.
 - Share dialog: 'Anyone with the link' is now a switch you can toggle off, and sharing defaults to off - so the default state is private (no sharing) without a separate 'Private' option. Both 'Anyone with the link' and 'Invite only' switches are mutually exclusive toggles; turning both off makes the graph private.
 - Share dialog: the access toggles now switch off when clicked (clicking the row no longer overrides the toggle, so you can turn a toggle back off), and the redundant footer Close button is removed - the dialog still closes via the corner X or clicking outside.
+- Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
 ## [0.5.0] - 18th August 2026
 
 ### Added
