@@ -61,7 +61,9 @@ export async function PUT(request: Request) {
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const first_name = str(body.first_name);
   const last_name = str(body.last_name);
-  const username = str(body.username);
+  // Store usernames normalized to lowercase so uniqueness is enforced
+  // case-insensitively (matches the profiles_username_unique_idx index).
+  const username = str(body.username).toLowerCase();
 
   if (first_name.length > 100 || last_name.length > 100 || username.length > 100) {
     return NextResponse.json({ error: "Fields must be 100 characters or fewer" }, { status: 400 });
@@ -71,6 +73,12 @@ export async function PUT(request: Request) {
     .from("profiles")
     .upsert({ user_id: user.id, first_name, last_name, username }, { onConflict: "user_id" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // 23505 = unique_violation, from the profiles_username_unique_idx index.
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "That username is already taken" }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

@@ -124,13 +124,15 @@ function AccountTab() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
+      // Normalized the same way the server stores it (case-insensitive uniqueness).
+      const uname = username.trim().toLowerCase();
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          username: username.trim(),
+          username: uname,
         }),
       });
       if (!res.ok) {
@@ -143,10 +145,11 @@ function AccountTab() {
         }
         throw new Error(msg);
       }
+      setUsername(uname);
       setSavedProfile({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        username: username.trim(),
+        username: uname,
       });
       toast({ title: "Profile updated" });
     } catch (err) {
