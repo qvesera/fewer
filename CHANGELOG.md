@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Client-side input validation: every user-text field saved to the database (account profile, saved-graph names, gallery title/description, custom-theme names) now rejects non-string / broken-interpolated values like "null", "undefined" and "[object Object]", trims surrounding whitespace, and enforces length caps before submitting.
 - Prevent '@' in usernames: a username containing '@' collided with the login flow's email-vs-username detection (which keys off '@') and could never be used to sign in. Usernames are now rejected on save (client and server) if they contain '@'.
 - Signing in with a username now logs the user in immediately: /api/login returns the signed-in session, and the login dialog pushes it into the browser auth client via setSession (firing onAuthStateChange) so the app reflects the signed-in state without a page refresh. The session is only returned after a successful password check, so it doesn't introduce account enumeration.
+- Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
 
 ### Added
 
