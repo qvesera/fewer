@@ -29,7 +29,6 @@ import {
   Share2,
   History,
   Globe2,
-  Lock,
 } from "lucide-react";
 import {
   Dialog,
@@ -565,21 +564,6 @@ function ShareGraphDialog({
             <div
               role="button"
               tabIndex={0}
-              onClick={() => setAccess("none")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("none"); } }}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "none" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
-            >
-              <Lock className="h-4 w-4 text-muted-foreground" />
-              <div className="min-w-0">
-                <p className="text-xs font-medium">Private · Only me</p>
-                <p className="text-[11px] text-muted-foreground/70">No one else can view this saved graph.</p>
-              </div>
-              <Switch checked={access === "none"} onCheckedChange={() => setAccess("none")} className="ml-auto shrink-0" />
-            </div>
-
-            <div
-              role="button"
-              tabIndex={0}
               onClick={() => setAccess("public")}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAccess("public"); } }}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left cursor-pointer transition-all ${access === "public" ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-accent/40"}`}
@@ -589,7 +573,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Anyone with the link</p>
                 <p className="text-[11px] text-muted-foreground/70">Anyone can open this graph.</p>
               </div>
-              <Switch checked={access === "public"} onCheckedChange={() => setAccess("public")} className="ml-auto shrink-0" />
+              <Switch checked={access === "public"} onCheckedChange={(checked) => setAccess(checked ? "public" : "none")} className="ml-auto shrink-0" />
             </div>
 
             <div
@@ -604,7 +588,7 @@ function ShareGraphDialog({
                 <p className="text-xs font-medium">Invite only</p>
                 <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
-              <Switch checked={access === "invite"} onCheckedChange={() => { setAccess("invite"); setGallery(false); }} className="ml-auto shrink-0" />
+              <Switch checked={access === "invite"} onCheckedChange={(checked) => { setAccess(checked ? "invite" : "none"); if (checked) setGallery(false); }} className="ml-auto shrink-0" />
             </div>
           </div>
 
