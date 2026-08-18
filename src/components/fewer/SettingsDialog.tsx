@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { EditableNumber } from "@/components/ui/editable-number";
@@ -37,7 +38,7 @@ import {
   LogOut,
   User2,
   BellRing,
-  Info,
+  Check,
   Cloud,
   Trash2,
   Loader2,
@@ -67,11 +68,48 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function AboutTab() {
+function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+
+  // Load any stored profile info once the user resolves.
+  useEffect(() => {
+    const m = user?.user_metadata ?? {};
+    setFirstName(typeof m.first_name === "string" ? m.first_name : "");
+    setLastName(typeof m.last_name === "string" ? m.last_name : "");
+    setUsername(typeof m.username === "string" ? m.username : "");
+  }, [user?.id]);
+
+  const profileUnchanged =
+    (user?.user_metadata?.first_name ?? "") === firstName.trim() &&
+    (user?.user_metadata?.last_name ?? "") === lastName.trim() &&
+    (user?.user_metadata?.username ?? "") === username.trim();
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const { error } = await getBrowserSupabase().auth.updateUser({
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          username: username.trim(),
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Profile updated" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save profile";
+      toast({ title: "Could not save profile", description: msg, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -115,6 +153,73 @@ function AboutTab() {
 
   return (
     <div className="flex flex-col gap-5 py-1">
+      {/* Profile Card — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <User2 className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">Profile</span>
+              <span className="block text-[11px] text-muted-foreground/70">
+                Your name and username, stored with your account
+              </span>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-first-name" className="text-xs font-medium text-muted-foreground">
+                First name
+              </Label>
+              <Input
+                id="profile-first-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Ada"
+                autoComplete="given-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-last-name" className="text-xs font-medium text-muted-foreground">
+                Last name
+              </Label>
+              <Input
+                id="profile-last-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Lovelace"
+                autoComplete="family-name"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="profile-username" className="text-xs font-medium text-muted-foreground">
+                Username
+              </Label>
+              <Input
+                id="profile-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="ada"
+                autoComplete="username"
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button
+              onClick={handleSaveProfile}
+              disabled={saving || profileUnchanged}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <Check className="h-3.5 w-3.5" />
+              {saving ? "Saving…" : "Save profile"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Account Card */}
       <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/40 p-3.5">
         <div className="flex items-center gap-3">
@@ -655,11 +760,11 @@ export function SettingsDialog() {
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
             <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsTrigger
-                value="about"
+                value="account"
                 className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
               >
-                <Info className="h-3.5 w-3.5" />
-                About
+                <User2 className="h-3.5 w-3.5" />
+                Account
               </TabsTrigger>
               <TabsTrigger
                 value="appearance"
@@ -704,8 +809,8 @@ export function SettingsDialog() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            <TabsContent value="about" className="m-0">
-              <AboutTab />
+            <TabsContent value="account" className="m-0">
+              <AccountTab />
             </TabsContent>
             <TabsContent value="appearance" className="m-0">
               <AppearanceTab />
