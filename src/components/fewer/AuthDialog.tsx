@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
+import type { Session } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X, Eye, EyeOff } from "lucide-react";
 import {
@@ -114,25 +115,18 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ identifier: email.trim(), password }),
         });
+        const json = (await res.json().catch(() => null)) as { error?: string; session?: Session } | null;
         if (!res.ok) {
-          let msg = "Invalid username or password";
-          try {
-            const body = await res.json();
-            if (body?.error) msg = body.error;
-          } catch {
-            /* ignore */
-          }
-          throw new Error(msg);
+          throw new Error(json?.error ?? "Invalid username or password");
         }
-        // The server just set the session cookie; re-read it so the in-memory
-        // session updates without a full page reload.
-        const { data: sessionData } = await getBrowserSupabase().auth.getSession();
+        // The server already set the session cookie (for middleware/SSR). Pushing
+        // the returned session into the browser auth client lets onAuthStateChange
+        // fire immediately, so the app shows signed-in without a page reload.
+        if (json?.session) {
+          await getBrowserSupabase().auth.setSession(json.session);
+        }
         toast({ title: "Signed in", description: "Welcome back!" });
         close();
-        if (!sessionData.session) {
-          // Fallback: let middleware establish the session on the next load.
-          window.location.reload();
-        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Authentication failed";

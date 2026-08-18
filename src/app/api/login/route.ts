@@ -88,9 +88,14 @@ export async function POST(request: Request) {
     },
   });
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password: body.password });
-  if (error) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: body.password });
+  if (error || !data.session) {
+    // Always the same generic message so the endpoint can't enumerate accounts.
     return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
   }
-  return NextResponse.json({ ok: true });
+  // The response already sets the session cookie (middleware/SSR). Returning the
+  // session here too lets the client push it into the browser auth client so the
+  // UI flips to signed-in immediately, without a page refresh. It's safe to
+  // send: it's only produced after the password check succeeded.
+  return NextResponse.json({ ok: true, session: data.session });
 }
