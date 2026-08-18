@@ -88,7 +88,7 @@ function buildSelectedEdgeHighlight(
         ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
         : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
     })
-    .sort((a, b) => (highlighted.has(b.id) ? 1 : -1) - (highlighted.has(a.id) ? 1 : -1));
+    .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
 }
 
 /** Read a CSS variable from :root (falling back to the bare var name). */

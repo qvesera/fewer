@@ -116,7 +116,11 @@ function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
     if (typeDiff !== 0) return typeDiff;
     const aLabel = aNode?.data.label ?? "";
     const bLabel = bNode?.data.label ?? "";
-    return bLabel.localeCompare(aLabel);
+    const labelDiff = bLabel.localeCompare(aLabel);
+    if (labelDiff !== 0) return labelDiff;
+    // Keep highlighted/raised edges last so store re-sorts (relayout, connect,
+    // import) can't bury them under default edges while a selection is active.
+    return (a.zIndex ?? 0) - (b.zIndex ?? 0);
   });
 }
 
