@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import { Loader2, LogIn, UserPlus, KeyRound, Info, Check, X, Eye, EyeOff } from "lucide-react";
 import {
   Tooltip,
@@ -32,6 +33,7 @@ interface AuthDialogProps {
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const { toast } = useToast();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
+  const [identifierType, setIdentifierType] = useState<"email" | "username">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +43,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const close = () => {
     onOpenChange(false);
     setMode("signin");
+    setIdentifierType("email");
     setEmail("");
     setPassword("");
     setShowPassword(false);
@@ -50,12 +53,16 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Field-level email validation (all modes need a well-formed email).
-    const emailOk = EMAIL_RE.test(email.trim());
-    if (!emailOk) {
-      setEmailError("Enter a valid email address.");
-      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
-      return;
+    // Field-level email validation (all modes need a well-formed email, except
+    // username sign-in which just needs a non-empty identifier).
+    const isUsernameLogin = mode === "signin" && identifierType === "username";
+    if (!isUsernameLogin) {
+      const emailOk = EMAIL_RE.test(email.trim());
+      if (!emailOk) {
+        setEmailError("Enter a valid email address.");
+        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+        return;
+      }
     }
     if (emailError) setEmailError(null);
 
@@ -93,17 +100,39 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
     setLoading(true);
     try {
-      const supabase = getBrowserSupabase();
       if (mode === "signup") {
+        const supabase = getBrowserSupabase();
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast({ title: "Check your email", description: "Confirm your email to finish signing up." });
         close();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        // Sign in goes through the server so usernames can be resolved to an
+        // email (Supabase password login only accepts an email/phone).
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: email.trim(), password }),
+        });
+        if (!res.ok) {
+          let msg = "Invalid username or password";
+          try {
+            const body = await res.json();
+            if (body?.error) msg = body.error;
+          } catch {
+            /* ignore */
+          }
+          throw new Error(msg);
+        }
+        // The server just set the session cookie; re-read it so the in-memory
+        // session updates without a full page reload.
+        const { data: sessionData } = await getBrowserSupabase().auth.getSession();
         toast({ title: "Signed in", description: "Welcome back!" });
         close();
+        if (!sessionData.session) {
+          // Fallback: let middleware establish the session on the next load.
+          window.location.reload();
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
@@ -132,21 +161,53 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="auth-email" className="text-xs font-medium">Email</Label>
+            {mode === "signin" && (
+              <div
+                role="group"
+                aria-label="Log in with"
+                className="flex rounded-lg border border-border/50 bg-muted/60 p-0.5"
+              >
+                {(["email", "username"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setIdentifierType(t);
+                      setEmailError(null);
+                    }}
+                    className={cn(
+                      "flex-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all outline-none cursor-pointer",
+                      identifierType === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t === "email" ? "Email" : "Username"}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Label htmlFor="auth-email" className="text-xs font-medium">
+              {mode === "signin" && identifierType === "username" ? "Username" : "Email"}
+            </Label>
             <Input
               id="auth-email"
-              type="email"
+              type={mode === "signin" && identifierType === "username" ? "text" : "email"}
               required
               value={email}
               onChange={(e) => {
                 const v = e.target.value;
                 setEmail(v);
                 if (emailError) {
-                  setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                  if (mode === "signin" && identifierType === "username") {
+                    setEmailError(null);
+                  } else {
+                    setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                  }
                 }
               }}
-              placeholder="you@example.com"
-              autoComplete="email"
+              placeholder={mode === "signin" && identifierType === "username" ? "your_username" : "you@example.com"}
+              autoComplete={mode === "signin" && identifierType === "username" ? "username" : "email"}
               aria-invalid={!!emailError}
             />
             {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
