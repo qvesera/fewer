@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exports now carry a "Created with fewer — <url>" credit by default: a clickable watermark in corner of SVG/PNG, a comment line in CSV/DOT/sh/bat, a footer line in the ASCII directory tree, and a meta.generatedBy field in JSON. A toggle in the Export panel turns it off.
 - Version history for saved graphs: each save keeps an automatic snapshot of the graph (deduped + capped at 50 per graph), restored or deleted from a new History button on each saved graph. Restore loads the version as unsaved changes - hit Save to keep it. New graph_versions table (migration 0017) + /api/graphs/[id]/versions routes.
 - Public community gallery: signed-in owners can opt a public share into the gallery (toggle + title/description in the Share dialog). Browsed logged-out at /gallery (new /api/gallery listing with pagination); clicking a card opens the graph in the app. Unshare instantly delists. Migration 0018_gallery.sql adds in_gallery/gallery_title/gallery_description/node_count to shared_graphs.
+
+### Changed
+
+- Share dialog: when 'List in the public gallery' is on, the action becomes 'Publish to gallery' and the manual copy-link field hides (the graph is live at /gallery instead); publishing shows a confirmation toast.
 ## [0.5.0] - 18th August 2026
 
 ### Added

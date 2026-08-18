@@ -496,7 +496,12 @@ function ShareGraphDialog({
       if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
       setExistingId(json.id);
       setShareUrl(buildDbShareUrl(json.id));
-      if (access === "invite") {
+      if (gallery && access === "public") {
+        toast({
+          title: "Published to the gallery",
+          description: `"${galleryTitle.trim() || graph.name}" is now live in the community gallery.`,
+        });
+      } else if (access === "invite") {
         toast({ title: "Invites sent", description: `Emailed ${invited_emails.length} invitee${invited_emails.length === 1 ? "" : "s"} a private link.` });
       }
     } catch (err) {
@@ -647,12 +652,12 @@ function ShareGraphDialog({
             onClick={buildShare}
             disabled={building}
           >
-            {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-            Generate link
+            {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gallery && access === "public" ? <Globe2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+            {gallery && access === "public" ? "Publish to gallery" : "Generate link"}
           </Button>
 
-          {/* Link */}
-          {shareUrl && (
+          {/* Manual share link — hidden in gallery mode (no link to copy; it's live at /gallery) */}
+          {shareUrl && !(gallery && access === "public") && (
             <div className="flex items-center gap-2">
               <Input value={shareUrl} readOnly className="text-xs font-mono flex-1" onClick={(e) => (e.target as HTMLInputElement).select()} />
               <Button variant="outline" size="sm" onClick={handleCopy} disabled={building} className="gap-1.5 shrink-0 cursor-pointer">
