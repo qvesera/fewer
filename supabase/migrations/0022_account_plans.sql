@@ -11,5 +11,10 @@ alter table public.profiles
 alter table public.profiles
   add constraint profiles_plan_check check (plan in ('free', 'pro'));
 
-revoke insert (plan) on public.profiles from anon, authenticated;
-revoke update (plan) on public.profiles from anon, authenticated;
+-- Make plan service-role-only. Plain column revokes don't work here: Supabase
+-- grants table-level ALL to anon/authenticated, and table-level privileges
+-- override nothing (privileges are additive). So: revoke table-level
+-- INSERT/UPDATE, then grant column-level on every column except plan.
+revoke insert, update on public.profiles from anon, authenticated;
+grant insert (user_id, first_name, last_name, username) on public.profiles to anon, authenticated;
+grant update (first_name, last_name, username) on public.profiles to anon, authenticated;
