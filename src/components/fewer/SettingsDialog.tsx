@@ -43,6 +43,7 @@ import {
   Cloud,
   Trash2,
   Loader2,
+  CreditCard,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
@@ -61,6 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
 import { useAuth } from "@/hooks/use-auth";
+import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -73,9 +75,11 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const { loading: billingBusy, startCheckout, openPortal } = useBilling();
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [plan, setPlan] = useState<"free" | "pro">("free");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -88,7 +92,10 @@ function AccountTab() {
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPlan("free");
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
@@ -99,6 +106,7 @@ function AccountTab() {
             first_name?: unknown;
             last_name?: unknown;
             username?: unknown;
+            plan?: unknown;
           };
           const first_name = typeof p.first_name === "string" ? p.first_name : "";
           const last_name = typeof p.last_name === "string" ? p.last_name : "";
@@ -106,6 +114,7 @@ function AccountTab() {
           setFirstName(first_name);
           setLastName(last_name);
           setUsername(username);
+          setPlan(p.plan === "pro" || p.plan === "team" ? "pro" : "free");
           setSavedProfile({ first_name, last_name, username });
         }
       } catch {
@@ -167,6 +176,15 @@ function AccountTab() {
       toast({ title: "Could not save profile", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBilling = async (action: () => Promise<boolean>) => {
+    try {
+      await action(); // navigates away to Stripe on success
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Billing is unavailable";
+      toast({ title: "Could not open billing", description: msg, variant: "destructive" });
     }
   };
 
@@ -280,6 +298,37 @@ function AccountTab() {
               {saving ? "Saving…" : "Save profile"}
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Plan & Billing Card — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/40 p-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <CreditCard className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">
+                {plan === "pro" ? "Pro — €7/month" : "Free plan"}
+              </span>
+              <span className="text-[11px] text-muted-foreground/70">
+                {plan === "pro"
+                  ? "Update card, view invoices, or cancel anytime"
+                  : "5 saved graphs, 3 watched indexes — Pro unlocks more"}
+              </span>
+            </div>
+          </div>
+          <Button
+            variant={plan === "pro" ? "outline" : "default"}
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            disabled={billingBusy}
+            onClick={() => handleBilling(plan === "pro" ? openPortal : startCheckout)}
+          >
+            {billingBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {plan === "pro" ? "Manage subscription" : "Upgrade to Pro"}
+          </Button>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 async function getAuthedClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,8 +39,16 @@ export async function GET(
 ) {
   const authed = await getAuthedClient();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  const { supabase } = authed;
+  const { supabase, user } = authed;
   const { id } = await params;
+
+  // Version history is a Pro feature (per-save storage cost).
+  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+    return NextResponse.json(
+      { error: "Version history is a Pro feature. Upgrade to restore past versions.", code: "plan_limit" },
+      { status: 403 },
+    );
+  }
 
   const { data, error } = await supabase
     .from("graph_versions")
@@ -72,6 +81,14 @@ export async function POST(
   }
   if (!body.data || typeof body.data !== "object") {
     return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
+  }
+
+  // Version history is a Pro feature (per-save storage cost).
+  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+    return NextResponse.json(
+      { error: "Version history is a Pro feature. Upgrade to keep snapshots of every save.", code: "plan_limit" },
+      { status: 403 },
+    );
   }
 
   const result = await recordVersion(supabase, user.id, id, body.data);
