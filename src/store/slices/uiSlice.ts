@@ -167,7 +167,20 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     set({ categoryFilter: cat, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
-  setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+  // Keep the per-node `selected` mirror in sync with the canonical id list.
+  // React Flow-driven selection changes (which #setSelectedNodeIds) don't flow
+  // back into the store through onNodesChange, so a stale `selected: true`
+  // flag used to resurrect the selection on the next node rebuild (cut, copy,
+  // paste, delete edge, hide, …). Mirroring the flags here means the store is
+  // always self-consistent regardless of which rebuild path runs.
+  setSelectedNodeIds: (ids) =>
+    set((s) => {
+      const idSet = new Set(ids);
+      const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+      return changed
+        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) }
+        : { selectedNodeIds: ids };
+    }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
 
   setRenamingId: (id, source) => {
