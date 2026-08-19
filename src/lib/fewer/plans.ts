@@ -3,7 +3,7 @@
 // Client-side checks would be cosmetic: the API routes are the enforcement.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Plan = "free" | "pro";
+export type Plan = "free" | "pro" | "team";
 
 export interface PlanLimits {
   /** Max saved graphs (Infinity = unlimited). */
@@ -31,7 +31,10 @@ export const PRO_LIMITS: PlanLimits = {
 };
 
 export function limitsFor(plan: Plan | null | undefined): PlanLimits {
-  return plan === "pro" ? PRO_LIMITS : FREE_LIMITS;
+  // team shares pro limits for now; team-specific quotas come later.
+  // Fail-safe: anything unrecognized → free (the enum makes this unreachable
+  // from the DB, but keeps the default restrictive).
+  return plan === "pro" || plan === "team" ? PRO_LIMITS : FREE_LIMITS;
 }
 
 /** Read the user's plan. Missing row / read error → free (fail-safe). */
@@ -41,7 +44,7 @@ export async function getUserPlan(supabase: SupabaseClient, userId: string): Pro
     .select("plan")
     .eq("user_id", userId)
     .maybeSingle();
-  return data?.plan === "pro" ? "pro" : "free";
+  return data?.plan === "pro" || data?.plan === "team" ? data.plan : "free";
 }
 
 /**

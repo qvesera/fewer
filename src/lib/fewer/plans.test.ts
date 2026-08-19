@@ -7,7 +7,8 @@ describe("plans", () => {
     expect(limitsFor("free")).toBe(FREE_LIMITS);
     expect(limitsFor(null)).toBe(FREE_LIMITS);
     expect(limitsFor(undefined)).toBe(FREE_LIMITS);
-    expect(limitsFor("team" as "free")).toBe(FREE_LIMITS);
+    expect(limitsFor("team")).toBe(PRO_LIMITS);
+    expect(limitsFor("bogus" as "free")).toBe(FREE_LIMITS);
   });
 
   test("overLimit respects the exact boundary and ignores failed counts", () => {
