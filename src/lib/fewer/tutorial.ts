@@ -31,6 +31,7 @@ import {
   Layers,
   MousePointerClick,
   Search,
+  Keyboard,
   Download,
 } from "lucide-react";
 
@@ -74,6 +75,16 @@ export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
         : "Press Ctrl+F to find nodes by name or path",
       icon: Search,
       watchState: { key: "searchOpen", value: true },
+      targetSelector: null,
+    },
+    {
+      id: "shortcuts",
+      label: "View keyboard shortcuts",
+      description: isTouch
+        ? "Tap the keyboard icon in the toolbar to see all shortcuts"
+        : "Press Ctrl+I to view all keyboard shortcuts",
+      icon: Keyboard,
+      watchState: { key: "shortcutsOpen", value: true },
       targetSelector: null,
     },
     {
