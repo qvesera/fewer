@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
 - SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
+- Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
 
 ### Added
 
