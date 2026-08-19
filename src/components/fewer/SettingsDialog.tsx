@@ -46,7 +46,8 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import type { ThemeMode } from "@/lib/fewer/types";
+import type { ThemeMode, EdgeStrokeStyle } from "@/lib/fewer/types";
+import { SlidingToggle } from "../ui/sliding-toggle";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
@@ -463,10 +464,10 @@ function AppearanceTab() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
-  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
   const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
+  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
+  const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -519,16 +520,6 @@ function AppearanceTab() {
         </div>
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-foreground" htmlFor="edge-motion-toggle">
-              Animated Edges
-            </Label>
-            <Switch
-              id="edge-motion-toggle"
-              checked={edgeAnimated}
-              onCheckedChange={setEdgeAnimated}
-            />
-          </div>
-          <div className="flex items-center justify-between">
             <Label
               className="text-xs font-medium text-foreground"
               htmlFor="edge-motion-selected-toggle"
@@ -539,15 +530,27 @@ function AppearanceTab() {
               id="edge-motion-selected-toggle"
               checked={edgeAnimatedSelectedOnly}
               onCheckedChange={setEdgeAnimatedSelectedOnly}
-              disabled={!edgeAnimated}
             />
           </div>
+          {edgeAnimatedSelectedOnly && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Selected Edge Pattern
+              </Label>
+              <SlidingToggle
+                options={[
+                  { value: "dashed" as const, label: "Dashed" },
+                  { value: "dotted" as const, label: "Dotted" },
+                ]}
+                value={edgeAnimatedStrokeStyle}
+                onValueChange={(v) => setEdgeAnimatedStrokeStyle(v as EdgeStrokeStyle)}
+              />
+            </div>
+          )}
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            {edgeAnimated
-              ? edgeAnimatedSelectedOnly
-                ? "Only the edges along the selected nodes' path to the root are animated."
-                : "All edges are animated. Enable the toggle above to animate only the selected path."
-              : "Enable animated edges first, then optionally limit animation to the selected path."}
+            {edgeAnimatedSelectedOnly
+              ? "Only the edges along the selected nodes' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the sidebar's motion & pattern controls."
+              : "Turn this on to animate just the selection path; every other edge follows the sidebar's Edge controls."}
           </p>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
-import { fsHandleStore } from "@/lib/fewer/types";
+import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
 import { captureViewState, viewStateOp } from "./historySlice";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
@@ -288,13 +288,16 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       idsToHide = [...new Set([...idsToHide, ...fileIds])];
     }
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
-    const strokeDasharray = state.edgeStrokeStyle === "dashed" ? "8 4" : state.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
+    // Animated edges use the dedicated animated pattern; everything else uses
+    // the base pattern (solid stays solid when edge motion is on).
+    const animated = state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
     const styledEdges = edges.map((e) => ({
       ...e,
       type: edgeType,
       // Fresh graph has no selection yet — with "selected only" animation on,
       // nothing animates until the user selects a node.
-      animated: state.edgeAnimated && !state.edgeAnimatedSelectedOnly,
+      animated,
       style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
     }));
     // Fresh import resets reveal memory

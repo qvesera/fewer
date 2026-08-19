@@ -26,6 +26,7 @@ import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } f
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
+import { edgeDashPattern } from "@/lib/fewer/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -48,9 +49,11 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
  * one. Empty selection → all edges reset to default stroke.
  * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
  * so they render on top.
- * Also recomputes each edge's `animated` flag: with edge motion on, either all
- * edges animate, or — when `edgeAnimation.selectedOnly` is set — only the
- * highlighted (ancestor-path) edges of the current selection do.
+ * 
+ * Animation semantics:
+ *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
+ *     and non-selected edges animate only when `animated` (sidebar motion).
+ *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
  */
 function buildSelectedEdgeHighlight(
   selectedIds: string[],
@@ -58,7 +61,12 @@ function buildSelectedEdgeHighlight(
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
-  edgeAnimation: { animated: boolean; selectedOnly: boolean },
+  edgeAnimation: {
+    animated: boolean;
+    selectedOnly: boolean;
+    animatedStrokeStyle: EdgeStrokeStyle;
+    baseStrokeStyle: EdgeStrokeStyle;
+  },
 ): FewerEdge[] {
   const typeByNodeId = new Map<string, "folder" | "file">();
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
@@ -89,12 +97,26 @@ function buildSelectedEdgeHighlight(
   return edges
     .map((e) => {
       const h = highlighted.get(e.id);
-      // Per-edge animation: all edges when motion is on, else only the
-      // selected ancestor-path edges (matches the selection highlight).
-      const animated = edgeAnimation.animated && (!edgeAnimation.selectedOnly || !!h);
+      // Per-edge animation: selected-path edges always animate when selectedOnly
+      // is on; non-selected edges animate only when the global motion toggle is on.
+      const selectedPath = edgeAnimation.selectedOnly && !!h;
+      const anim = selectedPath || edgeAnimation.animated;
+      // Selected-path edges use the dialog-chosen pattern; everything else uses
+      // the sidebar base pattern (so unselected edges stay solid/static when
+      // motion is off).
+      const dash = anim ? edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle) : edgeDashPattern(edgeAnimation.baseStrokeStyle);
       return h
-        ? { ...e, zIndex: 1, animated, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
-        : { ...e, animated, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+        ? {
+            ...e,
+            zIndex: 1,
+            animated: anim,
+            style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+          }
+        : {
+            ...e,
+            animated: anim,
+            style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+          };
     })
     .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
 }
@@ -127,6 +149,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
   const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
@@ -225,10 +248,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
   // inherit the current phase instead of restarting a CSS animation.
   useEffect(() => {
-    if (!edgeAnimated) return;
+    if (!(edgeAnimated || edgeAnimatedSelectedOnly)) return;
     startDashClock();
     return stopDashClock;
-  }, [edgeAnimated]);
+  }, [edgeAnimated, edgeAnimatedSelectedOnly]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
@@ -284,14 +307,21 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     }
   }, [zoomToNodeIds]);
 
-  // ── Re-apply edge colors + per-edge animation when theme/edge settings change ──
+  // ── Re-apply edge colors + per-edge animation when the graph or its
+  // theme/edge settings change ──. `graphVersion` is included so the ancestor
+  // path highlight is recomputed against the LIVE structure every time the graph
+  // mutates (parent/unparent, delete, cut/paste, …). Without it, a leftover
+  // highlighted stroke survives on edges that were on a selected node's path
+  // before an edit (e.g. unparenting `utils` leaves the now-irrelevant
+  // `fewer→src` edge highlighted), because the old styled edges stay in the
+  // store and are pushed to the canvas on the graph rebuild.
   useEffect(() => {
-    const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly } = useGraphStore.getState();
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly });
+    const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly]);
+  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion]);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
@@ -303,8 +333,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       const newIds = [...kept, ...added];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly });
+      const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -537,8 +567,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           }
         }}
         onNodeContextMenu={(event) => event.preventDefault()}
-        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); const rect = containerRef.current?.getBoundingClientRect(); if (rect) setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }); }}
-        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); useGraphStore.getState().setRightClickDetected(); }}
+        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); setCanvasMenu({ x: event.clientX, y: event.clientY }); }}
+        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
@@ -640,7 +670,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
             <button onClick={() => { zoomOut({ duration: 250 }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
             {(() => {
               const edgeId = lastClickedEdgeId;
-              if (edgeId) return (
+              const edgeExists = edgeId ? useGraphStore.getState().edges.some((e) => e.id === edgeId) : false;
+              if (edgeId && edgeExists) return (
                 <>
                   <div className="my-1 h-px bg-border/40" />
                   <button onClick={() => { useGraphStore.getState().deleteEdges([edgeId]); toast({ title: "Edge deleted", description: "1 edge removed" }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>

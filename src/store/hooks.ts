@@ -29,6 +29,7 @@ export function useLayoutConfig() {
       edgeAnimated: s.edgeAnimated,
       edgeAnimatedSelectedOnly: s.edgeAnimatedSelectedOnly,
       edgeStrokeStyle: s.edgeStrokeStyle,
+      edgeAnimatedStrokeStyle: s.edgeAnimatedStrokeStyle,
       edgeWidth: s.edgeWidth,
       cornerRadius: s.cornerRadius,
       nodeWidth: s.nodeWidth,

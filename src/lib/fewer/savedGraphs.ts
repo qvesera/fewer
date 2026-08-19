@@ -7,9 +7,11 @@ export interface SavedGraphData {
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   edgeAnimated: boolean;
-  /** When true (and edgeAnimated), only ancestor-path edges of selected nodes animate. */
+  /** When true, only ancestor-path edges of selected nodes animate (works standalone). */
   edgeAnimatedSelectedOnly?: boolean;
   edgeStrokeStyle: string;
+  /** Dash pattern for animated edges only (dashed | dotted); defaults to dashed. */
+  edgeAnimatedStrokeStyle?: string;
   edgeWidth: number;
   cornerRadius: number;
   nodeWidth: number;

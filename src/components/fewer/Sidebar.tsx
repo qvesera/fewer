@@ -350,6 +350,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
   const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
   const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
   const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
@@ -414,7 +415,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   const availableStrokeStyles = useMemo(() => {
     const list: { value: EdgeStrokeStyle; label: string }[] = [];
-    if (!edgeAnimated) {
+    // "Solid" only makes sense when at least some edges keep a solid base —
+    // i.e. not when ALL edges are animated.
+    const allAnimated = edgeAnimated;
+    if (!allAnimated) {
       list.push({ value: "solid", label: "Solid" });
     }
     list.push({ value: "dashed", label: "Dashed" });
@@ -698,6 +702,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                     onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
                   />
                 </div>
+
+                {edgeAnimatedSelectedOnly && (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    Applies to non-selected edges only — the selected path&apos;s motion
+                    &amp; pattern are set in Settings.
+                  </p>
+                )}
 
                 <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
                   <div className="flex items-center justify-between">
