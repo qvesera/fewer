@@ -93,7 +93,10 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
-    await recordVersion(supabase, user.id, data.id, body.data);
+    // Pro-only: version history is a metered feature (storage cost per save).
+    if (limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+      await recordVersion(supabase, user.id, data.id, body.data);
+    }
     return NextResponse.json({ graph: data });
   }
 
@@ -119,7 +122,9 @@ export async function POST(request: Request) {
     .select("id, name, data, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  // Best-effort history snapshot; never blocks the save on failure.
-  await recordVersion(supabase, user.id, data.id, body.data);
+  // Best-effort history snapshot; never blocks the save on failure. Pro-only.
+  if (limits.versionHistory) {
+    await recordVersion(supabase, user.id, data.id, body.data);
+  }
   return NextResponse.json({ graph: data });
 }

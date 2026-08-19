@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { countOwned, getUserPlan, limitsFor, overLimit } from "@/lib/fewer/plans";
+import { countOwned, getUserPlan, limitsFor, overLimit, PRO_LIMITS } from "@/lib/fewer/plans";
 
 /**
  * Build an authed Supabase client from the session cookie and return it with
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       ) {
         return NextResponse.json(
           {
-            error: `Free plan watches up to ${limits.watchedIndexes} indexes. Upgrade to Pro for unlimited watches.`,
+            error: `Free plan watches up to ${limits.watchedIndexes} indexes. Upgrade to Pro for up to ${PRO_LIMITS.watchedIndexes}.`,
             code: "plan_limit",
           },
           { status: 403 },

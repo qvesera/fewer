@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
+
+/** Version-history endpoints are Pro-only (per-save storage cost). */
+const planLimitResponse = () =>
+  NextResponse.json(
+    { error: "Version history is a Pro feature. Upgrade to restore past versions.", code: "plan_limit" },
+    { status: 403 },
+  );
 
 async function getAuthedClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -23,7 +31,7 @@ async function getAuthedClient() {
   });
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
-  return supabase;
+  return { supabase, user: data.user };
 }
 
 /**
@@ -34,9 +42,15 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; versionId: string }> }
 ) {
-  const supabase = await getAuthedClient();
-  if (!supabase) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const authed = await getAuthedClient();
+  if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const { supabase, user } = authed;
   const { id, versionId } = await params;
+
+  // Version history is a Pro feature (per-save storage cost).
+  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+    return planLimitResponse();
+  }
 
   const { data, error } = await supabase
     .from("graph_versions")
@@ -58,9 +72,15 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string; versionId: string }> }
 ) {
-  const supabase = await getAuthedClient();
-  if (!supabase) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const authed = await getAuthedClient();
+  if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const { supabase, user } = authed;
   const { id, versionId } = await params;
+
+  // Version history is a Pro feature (per-save storage cost).
+  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+    return planLimitResponse();
+  }
 
   const { error } = await supabase
     .from("graph_versions")

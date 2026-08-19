@@ -19,9 +19,9 @@ Everything local, plus a taste of the account features:
 
 For people who live in the app:
 
-- **Unlimited saved graphs** and version history
+- **Unlimited saved graphs** and version history (automatic snapshot every save, restore any past version)
 - **Cloud connectors**: private GitHub repos, Google Drive, OneDrive, SharePoint, Azure DevOps, Azure Blob
-- **Unlimited watched indexes** with the daily change digest email
+- **Up to 10 watched indexes** with the daily change digest email
 - **Invite-only sharing** with per-email access control
 
 ## How limits work

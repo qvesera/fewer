@@ -43,16 +43,24 @@ export function VersionHistoryDialog({
   const { toast } = useToast();
   const [versions, setVersions] = useState<GraphVersionMeta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [proLocked, setProLocked] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
+    setProLocked(false);
     setVersions(null);
     try {
       const res = await fetch(`/api/graphs/${graph.id}/versions`);
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
+      if (!res.ok) {
+        if (json.code === "plan_limit") {
+          setProLocked(true);
+          return;
+        }
+        throw new Error(json.error || `Failed to load (${res.status})`);
+      }
       setVersions(Array.isArray(json.versions) ? json.versions : []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not load history";
@@ -112,7 +120,15 @@ export function VersionHistoryDialog({
         </DialogHeader>
 
         <div className="max-h-80 overflow-y-auto space-y-1.5">
-          {error ? (
+          {proLocked ? (
+            <div className="px-1 py-2 space-y-1">
+              <p className="text-[11px] text-foreground/90 font-medium">Version history is a Pro feature.</p>
+              <p className="text-[11px] text-muted-foreground/70">
+                Pro keeps an automatic snapshot every time you save a graph, so you can restore any past version.
+                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> to upgrade.
+              </p>
+            </div>
+          ) : error ? (
             <p className="px-1 py-2 text-[11px] text-muted-foreground/70">{error}</p>
           ) : versions === null ? (
             <div className="flex items-center justify-center py-4 text-muted-foreground">

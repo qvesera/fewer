@@ -17,4 +17,12 @@ describe("plans", () => {
     expect(overLimit(-1, FREE_LIMITS.savedGraphs)).toBe(false);
     expect(overLimit(1000, PRO_LIMITS.savedGraphs)).toBe(false); // Infinity = never over
   });
+
+  test("version history is pro-only; pro watches are metered at 10", () => {
+    expect(FREE_LIMITS.versionHistory).toBe(false);
+    expect(PRO_LIMITS.versionHistory).toBe(true);
+    expect(PRO_LIMITS.watchedIndexes).toBe(10);
+    expect(overLimit(PRO_LIMITS.watchedIndexes, PRO_LIMITS.watchedIndexes)).toBe(true);
+    expect(overLimit(PRO_LIMITS.watchedIndexes - 1, PRO_LIMITS.watchedIndexes)).toBe(false);
+  });
 });

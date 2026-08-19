@@ -10,6 +10,8 @@ export interface PlanLimits {
   savedGraphs: number;
   /** Max watched indexes (Infinity = unlimited). */
   watchedIndexes: number;
+  /** Automatic version history for saved graphs. */
+  versionHistory: boolean;
   /** Cloud storage connectors (OAuth account linking). */
   cloudConnections: boolean;
   /** Invite-only share links (public links stay free). */
@@ -19,13 +21,17 @@ export interface PlanLimits {
 export const FREE_LIMITS: PlanLimits = {
   savedGraphs: 5,
   watchedIndexes: 3,
+  versionHistory: false,
   cloudConnections: false,
   inviteSharing: false,
 };
 
 export const PRO_LIMITS: PlanLimits = {
   savedGraphs: Infinity,
-  watchedIndexes: Infinity,
+  // ponytail: 10 not Infinity — watch crawls have per-index marginal cost
+  // (GH Actions minutes + digest email). Team raises this later.
+  watchedIndexes: 10,
+  versionHistory: true,
   cloudConnections: true,
   inviteSharing: true,
 };
