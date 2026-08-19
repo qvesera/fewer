@@ -3,7 +3,7 @@ import { getStripe, getProPriceId, getAppUrl, getServiceSupabase, getAuthedUser,
 
 /**
  * POST /api/billing/checkout
- * Creates a Stripe Checkout session for the Pro subscription ($7/mo) and
+ * Creates a Stripe Checkout session for the Pro subscription (€7/mo) and
  * returns { url } for the client to redirect to. Creates + stores the
  * Stripe Customer on first upgrade (profiles.stripe_customer_id).
  * Plan changes happen ONLY via the webhook — the success redirect proves

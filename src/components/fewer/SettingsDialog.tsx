@@ -310,7 +310,7 @@ function AccountTab() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">
-                {plan === "pro" ? "Pro — $7/month" : "Free plan"}
+                {plan === "pro" ? "Pro — €7/month" : "Free plan"}
               </span>
               <span className="text-[11px] text-muted-foreground/70">
                 {plan === "pro"

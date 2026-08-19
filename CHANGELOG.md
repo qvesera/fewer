@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 - Plan metering: version history (automatic save snapshots, restore, delete) is now a Pro feature - free accounts save and update graphs as before but no longer record snapshots, and the History dialog shows a Pro upgrade note instead. Pro watched indexes are now capped at 10 (was unlimited; free stays 3) to match crawl/digest costs - the /docs/plans page reflects both.
+- Pro subscription now billed in EUR (€7/mo); currency switch is a single env var (STRIPE_PRO_PRICE_ID) per deployment
 
 ### Security
 
