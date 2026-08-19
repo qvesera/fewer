@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unparenting could leave a stale highlighted edge: the ancestor-path highlight (designed so the selected node's path glows) was only recomputed on selection/theme changes, so editing the graph (unparent/delete/cut/paste) kept a leftover highlight on edges that used to be on the selected node's path — e.g. unparenting 'utils' in fewer → src → utils left the fewer → src edge glowing. The highlight is now recomputed on every graph change, so it always reflects the live structure.
 - Right-clicking an edge opened the context menu at the center of the canvas instead of at the mouse pointer (edge menu used the container's center point; the pane menu already used the cursor). The edge context menu now opens at the mouse position.
 - Delete Edge no longer appears in the canvas context menu when no edge is the target: opening the pane context menu (or any context menu not on an edge) now clears the remembered edge, and the item is hidden if the previously remembered edge no longer exists.
+- Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
 
 ### Added
 

@@ -47,8 +47,8 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
  * Each path edge is colored by its target node type (folder vs file) so
  * multi-selection shows every selected node's path, not just the last-picked
  * one. Empty selection → all edges reset to default stroke.
- * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
- * so they render on top.
+ * Highlighted edges get zIndex 1 (above other edges but below every node,
+ * which is locked at zIndex 1000 in visibleNodes).
  * 
  * Animation semantics:
  *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
@@ -205,9 +205,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [edgeStrokeStyle]);
 
   const visibleNodes = useMemo(() => {
-    if (hiddenIds.length === 0) return allNodes;
-    const hidden = new Set(hiddenIds);
-    return allNodes.filter((n) => !hidden.has(n.id));
+    let nodes = hiddenIds.length === 0 ? allNodes : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n) => !hidden.has(n.id)); })();
+    // Guarantee nodes always render above edges (React Flow defaults edges to 0,
+    // nodes to 1000; we lock this explicitly so no edge can ever overlap a node).
+    return nodes.map((n) => ({ ...n, zIndex: 1000 }));
   }, [allNodes, hiddenIds]);
 
   const visibleEdges = useMemo(() => {
@@ -581,7 +582,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         defaultEdgeOptions={{
           type: edgeTypeFor(edgeStyle), animated: edgeAnimated && !edgeAnimatedSelectedOnly,
           style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+          zIndex: 0,
         }}
+        elevateNodesOnSelect
         proOptions={{ hideAttribution: true }}
         className="bg-transparent h-full w-full"
       >
