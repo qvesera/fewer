@@ -760,8 +760,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
+      graphVersion: get().graphVersion + 1,
     });
-    setTimeout(() => get().relayout(), 50);
   },
 
   showNode: (id) => {
@@ -769,7 +769,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!before.hiddenIds.includes(id)) return;
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id) })); get().relayout();
+    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id), graphVersion: s.graphVersion + 1 }));
   },
 
   showAncestors: (id) => {
@@ -784,7 +784,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])] }); get().relayout();
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
   },
 
   showSubtree: (id) => {
@@ -794,7 +794,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)) }); get().relayout();
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
   },
 
   showAll: () => {

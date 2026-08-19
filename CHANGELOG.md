@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Right-clicking an edge opened the context menu at the center of the canvas instead of at the mouse pointer (edge menu used the container's center point; the pane menu already used the cursor). The edge context menu now opens at the mouse position.
 - Delete Edge no longer appears in the canvas context menu when no edge is the target: opening the pane context menu (or any context menu not on an edge) now clears the remembered edge, and the item is hidden if the previously remembered edge no longer exists.
 - Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
+- Hide/show nodes no longer triggers graph relayout — visibility changes only
 
 ### Added
 
