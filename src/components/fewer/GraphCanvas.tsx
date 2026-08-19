@@ -431,6 +431,18 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     [connectNodes, toast, setRfEdges, edgeStyle],
   );
 
+  const onConnectEnd = useCallback(
+    (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } } }) => {
+      // Dropped on empty canvas from a folder's output handle → open Add Node dialog
+      if (!connectionState.isValid && connectionState.fromNode?.data?.type === "folder") {
+        const store = useGraphStore.getState();
+        store.setSelectedNodeIds([connectionState.fromNode.id]);
+        window.dispatchEvent(new CustomEvent("fewer-add-node"));
+      }
+    },
+    [],
+  );
+
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
@@ -552,6 +564,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
         onPaneClick={() => setRenamingId(null)}
         onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
         onSelectionDragStart={onSelectionDragStart} onSelectionDragStop={onSelectionDragStop}
