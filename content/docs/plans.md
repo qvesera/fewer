@@ -30,7 +30,7 @@ Limits are enforced server-side in the API routes — the app shows a clear erro
 
 ## Managing your plan
 
-Plans live on your account (`profiles.plan`). To upgrade or check your current plan, contact us or visit your account settings. Self-serve checkout is on the way.
+Plans live on your account (`profiles.plan`). **Upgrade to Pro** from any upgrade prompt in the app (for example, the History dialog) — checkout and payment run on Stripe, and fewer never sees your card. You can change your payment method, download invoices, or cancel anytime from the same Stripe-hosted billing portal; cancellation takes effect at the end of the current period.
 
 ## Why this split?
 

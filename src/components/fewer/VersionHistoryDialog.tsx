@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useBilling } from "@/hooks/use-billing";
 import { applySnapshot } from "@/lib/fewer/snapshot";
 import { Loader2, History, RotateCcw, Trash2 } from "lucide-react";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
@@ -41,6 +42,7 @@ export function VersionHistoryDialog({
   onClose: () => void;
 }) {
   const { toast } = useToast();
+  const { loading: upgrading, startCheckout } = useBilling();
   const [versions, setVersions] = useState<GraphVersionMeta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [proLocked, setProLocked] = useState(false);
@@ -106,6 +108,15 @@ export function VersionHistoryDialog({
       setDeletingId(null);
     }
   };
+  const handleUpgrade = async () => {
+    try {
+      await startCheckout();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Checkout is unavailable";
+      toast({ title: "Could not start checkout", description: msg, variant: "destructive" });
+    }
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -125,8 +136,17 @@ export function VersionHistoryDialog({
               <p className="text-[11px] text-foreground/90 font-medium">Version history is a Pro feature.</p>
               <p className="text-[11px] text-muted-foreground/70">
                 Pro keeps an automatic snapshot every time you save a graph, so you can restore any past version.
-                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> to upgrade.
+                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> for details.
               </p>
+              <Button
+                size="sm"
+                onClick={handleUpgrade}
+                disabled={upgrading}
+                className="mt-1.5 gap-1 cursor-pointer"
+              >
+                {upgrading && <Loader2 className="h-3 w-3 animate-spin" />}
+                Upgrade to Pro
+              </Button>
             </div>
           ) : error ? (
             <p className="px-1 py-2 text-[11px] text-muted-foreground/70">{error}</p>
