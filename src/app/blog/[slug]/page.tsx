@@ -1,9 +1,11 @@
-import fs from "fs";
-import path from "path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DocsLayout } from "@/components/DocsLayout";
 import { renderMarkdown } from "@/lib/MarkdownRenderer";
+import { getSupabase } from "@/lib/supabase";
+
+// Serve from Supabase with a 60s revalidate so edits go live without a deploy.
+export const revalidate = 60;
 
 type PostMeta = {
   title: string;
@@ -13,29 +15,29 @@ type PostMeta = {
   tags: string;
 };
 
-function getPost(slug: string): { content: string; meta: PostMeta } | null {
-  const filePath = path.join(process.cwd(), "content", "blog", `${slug}.md`);
-  if (!fs.existsSync(filePath)) return null;
-  const raw = fs.readFileSync(filePath, "utf8");
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  const frontmatter = match
-    ? Object.fromEntries(
-        match[1].split("\n").map((line) => {
-          const [key, ...rest] = line.split(":");
-          return [key.trim(), rest.join(":").trim()];
-        }),
-      )
-    : {};
-  return {
-    content: match ? match[2] : raw,
-    meta: {
-      title: (frontmatter["title"] as string) || slug,
-      date: (frontmatter["date"] as string) || "",
-      description: (frontmatter["description"] as string) || "",
-      author: (frontmatter["author"] as string) || "",
-      tags: (frontmatter["tags"] as string) || "",
-    },
-  };
+async function getPost(slug: string): Promise<{ content: string; meta: PostMeta } | null> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("content_pages")
+      .select("title,date,description,author,tags,content")
+      .eq("type", "blog")
+      .eq("slug", slug)
+      .eq("published", true);
+    if (error || !data || data.length === 0) return null;
+    const p = data[0];
+    return {
+      content: p.content,
+      meta: {
+        title: p.title,
+        date: p.date ?? "",
+        description: p.description ?? "",
+        author: p.author ?? "",
+        tags: p.tags ?? "",
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 function formatDate(dateStr: string) {
@@ -49,7 +51,7 @@ function formatDate(dateStr: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) return { title: "Not Found" };
   return {
     title: `${post.meta.title} | Blog | Fewer`,
@@ -63,7 +65,7 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) notFound();
 
   return (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { TreeEntry } from "@/lib/fewer/types";
 import { getSupabase } from "@/lib/supabase";
 import { crawlTree, MAX_DEPTH, MAX_PAGES } from "@/lib/fewer/crawl";
+import { fetchArchiveTree, parseArchiveUrl, archiveDetailsUrl } from "@/lib/fewer/archive";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -33,6 +34,21 @@ export async function POST(request: Request) {
 
     const maxDepth = Math.min(Math.max(body.maxDepth ?? MAX_DEPTH, 0), MAX_DEPTH);
     const maxPages = Math.min(Math.max(body.maxPages ?? MAX_PAGES, 1), MAX_PAGES);
+
+    // Internet Archive items: build the tree from the metadata API (single
+    // JSON request) instead of HTML-crawling the rate-limited download pages.
+    // Depth/page limits don't apply — the response is always the full tree.
+    const archiveId = parseArchiveUrl(rawUrl);
+    if (archiveId) {
+      const cacheKey = archiveDetailsUrl(archiveId);
+      const cached = await readCache(cacheKey);
+      if (cached) {
+        return NextResponse.json({ tree: cached.tree, source: cacheKey, truncated: cached.truncated, cached: true });
+      }
+      const { tree, truncated } = await fetchArchiveTree(archiveId);
+      await writeCache(cacheKey, tree, truncated);
+      return NextResponse.json({ tree, source: cacheKey, truncated, cached: false });
+    }
 
     // Try cache first. Only cache the default-depth crawl so a cached tree
     // is always comparable; custom depth/page requests bypass the cache.

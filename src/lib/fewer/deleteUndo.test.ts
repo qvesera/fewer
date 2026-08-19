@@ -17,7 +17,7 @@ function makeEdge(id: string, source: string, target: string): FewerEdge {
   return { id, source, target, type: "smoothstep" } as FewerEdge;
 }
 
-const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [] };
+const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
 
 /**
  * Mirror the exact subtree-collection + op-building logic used by graphSlice.deleteNodes

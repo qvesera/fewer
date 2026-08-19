@@ -170,10 +170,16 @@ export function KeyboardShortcuts() {
         const selected = useGraphStore.getState().selectedNodeIds;
         if (selected.length === 1) {
           const node = useGraphStore.getState().nodes.find((n) => n.id === selected[0]);
-          if (node && node.data.type === "folder" && useGraphStore.getState().dataSource === "directory") {
+          if (node && node.data.type === "folder" && (useGraphStore.getState().dataSource === "directory" || useGraphStore.getState().localRootPath)) {
             // Import and call openFolderInExplorer dynamically
-            import("./CustomNode").then(({ openFolderInExplorer }) => {
-              openFolderInExplorer(node.data.path);
+            import("./CustomNode").then(async ({ openFolderInExplorer }) => {
+              const label = node.data.label;
+              const ok = await openFolderInExplorer(node.data.path);
+              toast({
+                title: ok ? "Opening folder" : "Folder not found",
+                description: label,
+                ...(ok ? {} : { variant: "destructive" }),
+              });
             });
           }
         }

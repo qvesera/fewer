@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import path from "path";
 import fs from "fs";
-import { openInOs } from "@/lib/fewer/openInOs";
+import { openInOs, resolveLocalPath } from "@/lib/fewer/openInOs";
 
 export async function POST(request: Request) {
   try {
@@ -10,13 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing path" }, { status: 400 });
     }
 
-    // The data.path includes the root directory name as the first component
-    // (e.g. "ssy-react/src/logic"), so we resolve from the parent of the
-    // app's root to handle sibling directories correctly.
-    // path.resolve("ssy-react/src/logic") would give /app/root/ssy-react/src/logic
-    // but we want /app/parent/ssy-react/src/logic
-    const baseDir = path.dirname(process.cwd());
-    const resolved = path.resolve(baseDir, rawPath);
+    const resolved = resolveLocalPath(rawPath);
 
     // Check if the path exists
     if (!fs.existsSync(resolved)) {

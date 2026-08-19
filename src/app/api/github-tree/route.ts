@@ -10,6 +10,7 @@ interface TreeEntry {
   name: string;
   type: "folder" | "file";
   size?: number;
+  webUrl?: string;
   children?: TreeEntry[];
 }
 
@@ -136,7 +137,23 @@ export async function POST(request: Request) {
     })) : filtered;
 
     const rootName = actualPath ? actualPath.split("/").pop()! : repo;
-    const root: TreeEntry = { name: rootName, type: "folder", children: [] };
+
+    // Build a GitHub web URL (tree view for folders, blob view for files) rooted
+    // at the requested branch/folder. Branch names can contain "/" and arbitrary
+    // chars, so each segment is encoded individually to keep the paths valid.
+    const enc = (s: string) => s.split("/").map(encodeURIComponent).join("/");
+    const encBranch = enc(actualBranch);
+    const repoRelPath = (p: string) =>
+      actualPath ? [actualPath, p].filter(Boolean).join("/") : p;
+
+    const root: TreeEntry = {
+      name: rootName,
+      type: "folder",
+      children: [],
+      webUrl: `https://github.com/${owner}/${repo}/tree/${encBranch}${
+        actualPath ? "/" + enc(actualPath) : ""
+      }`,
+    };
     const map = new Map<string, TreeEntry>();
     map.set("", root);
 
@@ -150,14 +167,27 @@ export async function POST(request: Request) {
       const parent = map.get(parentPath);
       if (!parent) continue;
 
+      // item.path is relative to the requested subfolder; the GitHub URL needs
+      // the path relative to the repo root.
+      const relPath = repoRelPath(item.path);
       if (item.type === "tree") {
-        const dir: TreeEntry = { name, type: "folder", children: [] };
+        const dir: TreeEntry = {
+          name,
+          type: "folder",
+          children: [],
+          webUrl: `https://github.com/${owner}/${repo}/tree/${encBranch}/${enc(relPath)}`,
+        };
         parent.children = parent.children || [];
         parent.children.push(dir);
         map.set(item.path, dir);
       } else {
         parent.children = parent.children || [];
-        parent.children.push({ name, type: "file", size: item.size ?? 0 });
+        parent.children.push({
+          name,
+          type: "file",
+          size: item.size ?? 0,
+          webUrl: `https://github.com/${owner}/${repo}/blob/${encBranch}/${enc(relPath)}`,
+        });
       }
     }
 

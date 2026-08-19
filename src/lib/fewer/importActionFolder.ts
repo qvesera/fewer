@@ -8,6 +8,7 @@ import type { ImportActionResult } from "@/lib/fewer/importFlow";
 import { collectAutoHideNotes } from "@/lib/fewer/importFlow";
 import { pickDirectoryTree } from "@/lib/fewer/fileSystem";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
+import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runFolderImport(
@@ -29,6 +30,10 @@ export async function runFolderImport(
       maxDisplayDepth: options.displayMaxDepth,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
+
+    // Resolve the imported root to its absolute path on the dev machine once,
+    // so later opens (and saved graphs) use it directly instead of searching.
+    await resolveRootLocalPath();
 
     const notes = await collectAutoHideNotes();
 

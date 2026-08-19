@@ -1,0 +1,175 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { applySnapshot } from "@/lib/fewer/snapshot";
+import { Loader2, History, RotateCcw, Trash2 } from "lucide-react";
+import type { SavedGraph } from "@/lib/fewer/savedGraphs";
+import type { SavedGraphData } from "@/lib/fewer/savedGraphs";
+
+interface GraphVersionMeta {
+  id: string;
+  saved_graph_id: string;
+  node_count: number;
+  created_at: string;
+}
+
+function prettyDate(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function VersionHistoryDialog({
+  graph,
+  onClose,
+}: {
+  graph: SavedGraph;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [versions, setVersions] = useState<GraphVersionMeta[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    setVersions(null);
+    try {
+      const res = await fetch(`/api/graphs/${graph.id}/versions`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
+      setVersions(Array.isArray(json.versions) ? json.versions : []);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not load history";
+      setError(msg);
+    }
+  }, [graph.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleRestore = async (v: GraphVersionMeta) => {
+    setRestoringId(v.id);
+    try {
+      const res = await fetch(`/api/graphs/${graph.id}/versions/${v.id}`);
+      const json = await res.json();
+      if (!res.ok || !json.version) throw new Error(json.error || "Restore failed");
+      const full = json.version as { data: SavedGraphData };
+      applySnapshot(full.data);
+      toast({
+        title: "Version restored",
+        description: "Loaded as unsaved changes — hit Save to keep it.",
+      });
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Restore failed";
+      toast({ title: "Could not restore", description: msg, variant: "destructive" });
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  const handleDelete = async (v: GraphVersionMeta) => {
+    setDeletingId(v.id);
+    try {
+      const res = await fetch(`/api/graphs/${graph.id}/versions/${v.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setVersions((vs) => (vs ?? []).filter((x) => x.id !== v.id));
+      toast({ title: "Version deleted" });
+    } catch {
+      toast({ title: "Could not delete version", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-4 w-4 text-amber-500" />
+            History — &quot;{graph.name}&quot;
+          </DialogTitle>
+          <DialogDescription>
+            Saved snapshots of this graph. Restore any version, or delete one.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-80 overflow-y-auto space-y-1.5">
+          {error ? (
+            <p className="px-1 py-2 text-[11px] text-muted-foreground/70">{error}</p>
+          ) : versions === null ? (
+            <div className="flex items-center justify-center py-4 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : versions.length === 0 ? (
+            <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+              No versions yet. Each time you save this graph, an automatic snapshot is kept.
+            </p>
+          ) : (
+            versions.map((v) => (
+              <div
+                key={v.id}
+                className="flex items-center gap-2 rounded-lg border border-border/30 bg-muted/10 p-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] text-foreground/90">{prettyDate(v.created_at)}</p>
+                  <p className="text-[10px] text-muted-foreground/60">{v.node_count} nodes</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRestore(v)}
+                  disabled={restoringId === v.id || deletingId === v.id}
+                  className="gap-1 cursor-pointer shrink-0"
+                >
+                  {restoringId === v.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3 w-3" />
+                  )}
+                  Restore
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(v)}
+                  disabled={deletingId === v.id || restoringId === v.id}
+                  className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                  title="Delete this version"
+                >
+                  {deletingId === v.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer">
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
