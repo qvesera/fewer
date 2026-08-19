@@ -8,6 +8,7 @@ import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
+import { reconcileAutoHide } from "./graphSlice";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -261,7 +262,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setLoading: (loading) => set({ loading }),
 
   setShowFiles: (show) => {
-    const { nodes, edges, graphVersion, categoryFilter } = get();
+    const { nodes, edges, graphVersion, categoryFilter, maxDisplayDepth, autoHideThreshold, revealedRootIds, autoHiddenIds } = get();
     const before = captureViewState(get());
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
@@ -281,9 +282,26 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
             return node?.data.type === "folder" || node?.data.category === categoryFilter;
           })
         : revealableFileIds;
-      const after = { ...before, showFiles: true, hiddenIds: before.hiddenIds.filter((id) => !revealable.includes(id)) };
+      // The toggle must not bypass other hide mechanisms: keep files beyond the
+      // display-depth limit hidden...
+      const nodeDepth = new Map(nodes.map((n) => [n.id, n.data.depth ?? 0]));
+      const revealSet = new Set(
+        revealable.filter((id) => maxDisplayDepth <= 0 || (nodeDepth.get(id) ?? 0) <= maxDisplayDepth),
+      );
+      // ...and re-apply the large-folder auto-hide limit after revealing, so
+      // files under over-threshold folders stay hidden (and tagged autoHiddenIds).
+      const revealedHidden = before.hiddenIds.filter((id) => !revealSet.has(id));
+      const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+        nodes,
+        edges,
+        revealedHidden,
+        autoHiddenIds,
+        revealedRootIds,
+        autoHideThreshold,
+      );
+      const after = { ...before, showFiles: true, hiddenIds: nextHidden, autoHiddenIds: nextAuto };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
-      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealable.includes(id)), graphVersion: graphVersion + 1 }));
+      set((s) => ({ showFiles: true, hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: graphVersion + 1 }));
     } else {
       const after = { ...before, showFiles: false, hiddenIds: [...new Set([...before.hiddenIds, ...fileIds])] };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));

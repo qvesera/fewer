@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
+
 ### Fixed
 
 - **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
@@ -27,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
 - Hide/show nodes no longer triggers graph relayout — visibility changes only
 - File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
+- The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
+- The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 
 ### Added
 
@@ -53,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Relayout no longer triggers an auto-fit zoom: the automatic fit (React Flow mount-time `fitView` prop) is now a guarded one-shot that fires once when a graph first appears and resets only when the canvas empties, so relayout (parent/unparent, cut/paste, edge-style, beautify) never jumps the viewport. Manual Fit View / Zoom-to-selection are unchanged.
 - Edge motion controls are now independent: 'Animate Selected Edges Only' works standalone (no need to switch on 'Animated Edges' first) and only the selection-path edges animate. Animated edges get their own 'Animated Edge Pattern' (dashed or dotted) separate from the base pattern, so unselected/solid edges stay solid when motion is on instead of the whole edge set being forced dashed. Persists with user settings and saved graphs.
 - Edge motion controls separated: 'Animate Selected Edges Only' + its pattern live in Settings only; sidebar Motion/Pattern now control non-selected edges when that toggle is on, globally otherwise. Removed 'Animated Edges' toggle from Settings and 'Animated Pattern' from sidebar.
+- Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
 
 ### Security
 

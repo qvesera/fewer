@@ -888,9 +888,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   autoHideLargeFolders: (threshold?) => {
-    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds, autoHideThreshold } = get();
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds, autoHideThreshold, showFiles } = get();
     const thresholdValue = threshold ?? autoHideThreshold;
-    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+    const { hiddenIds: reconciled, autoHiddenIds: nextAuto } = reconcileAutoHide(
       nodes,
       edges,
       hiddenIds,
@@ -898,15 +898,24 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       revealedRootIds,
       thresholdValue,
     );
-    if (nextHidden.length !== hiddenIds.length || nextAuto.length !== autoHiddenIds.length) {
-      set({ hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
+    // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
+    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // regardless of the auto-hide calculation — re-hide them.
+    const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
+    const nextHidden: string[] = fileIds
+      ? [...new Set<string>([...reconciled, ...fileIds])]
+      : reconciled;
+    const fileIdSet = fileIds ? new Set(fileIds) : null;
+    const nextAutoFiltered = fileIdSet ? nextAuto.filter((id) => !fileIdSet.has(id)) : nextAuto;
+    if (nextHidden.length !== hiddenIds.length || nextAutoFiltered.length !== autoHiddenIds.length) {
+      set({ hiddenIds: nextHidden, autoHiddenIds: nextAutoFiltered, graphVersion: get().graphVersion + 1 });
     }
   },
 
   setAutoHideThreshold: (threshold) => {
-    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds } = get();
+    const { nodes, edges, hiddenIds, revealedRootIds, autoHiddenIds, showFiles } = get();
     const before = captureViewState(get());
-    const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+    const { hiddenIds: reconciled, autoHiddenIds: nextAuto } = reconcileAutoHide(
       nodes,
       edges,
       hiddenIds,
@@ -914,8 +923,17 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       revealedRootIds,
       threshold,
     );
-    const after = { ...before, autoHideThreshold: threshold, hiddenIds: nextHidden };
-    set({ autoHideThreshold: threshold, hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: get().graphVersion + 1 });
+    // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
+    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // regardless of the auto-hide calculation — re-hide them.
+    const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
+    const nextHidden: string[] = fileIds
+      ? [...new Set<string>([...reconciled, ...fileIds])]
+      : reconciled;
+    const fileIdSet = fileIds ? new Set(fileIds) : null;
+    const nextAutoFiltered = fileIdSet ? nextAuto.filter((id) => !fileIdSet.has(id)) : nextAuto;
+    const after = { ...before, autoHideThreshold: threshold, hiddenIds: nextHidden, autoHiddenIds: nextAutoFiltered };
+    set({ autoHideThreshold: threshold, hiddenIds: nextHidden, autoHiddenIds: nextAutoFiltered, graphVersion: get().graphVersion + 1 });
     get().pushOp(viewStateOp(before, after));
   },
 

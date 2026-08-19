@@ -174,3 +174,25 @@ test("auto-hide does not reveal manually-hidden nodes when threshold rises", () 
   expect(high.hiddenIds).toEqual(["c2"]);
   expect(high.autoHiddenIds).toEqual([]);
 });
+
+test("setShowFiles(true) reveal re-applies the auto-hide limit (files under over-threshold folders stay hidden)", () => {
+  // One folder with 12 file children, auto-hide threshold 10 — mirrors the
+  // reveal-then-reconcile composition uiSlice.setShowFiles(true) now uses.
+  const folder = makeNode("folder", "folder", null, { isRoot: true });
+  const files = Array.from({ length: 12 }, (_, i) =>
+    makeNode(`f${i}`, `f${i}`, "folder", { type: "file" })
+  );
+  const nodes = [folder, ...files];
+  const edges = files.map((f) => makeEdge(`e-${f.id}`, "folder", f.id));
+
+  // Naive reveal removed every file from hiddenIds — reconcile must re-hide
+  // them (folder exceeds the threshold) and tag them as auto-hidden.
+  const { hiddenIds, autoHiddenIds } = reconcileAutoHide(nodes, edges, [], [], [], 10);
+  expect(new Set(hiddenIds)).toEqual(new Set(files.map((f) => f.id)));
+  expect(new Set(autoHiddenIds)).toEqual(new Set(files.map((f) => f.id)));
+
+  // Under the threshold the same reveal keeps all files visible.
+  const under = reconcileAutoHide(nodes, edges, [], [], [], 12);
+  expect(under.hiddenIds).toEqual([]);
+  expect(under.autoHiddenIds).toEqual([]);
+});
