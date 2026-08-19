@@ -8,6 +8,7 @@ import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
+import { reconcileAutoHide } from "./graphSlice";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -44,6 +45,8 @@ export type UiSliceCreator = StateCreator<
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
     miniMapX: number;
     miniMapY: number;
+    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly. */
+    scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     skipNextAutoLayout: boolean;
     showFiles: boolean;
@@ -83,6 +86,7 @@ export type UiSliceCreator = StateCreator<
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
     setMiniMapY: (y: number) => void;
+    setScrollAction: (action: "pan" | "zoom") => void;
     /** Live canvas (viewer) dimensions — guides minimap X/Y slider bounds. */
     canvasSize: { width: number; height: number };
     setCanvasSize: (size: { width: number; height: number }) => void;
@@ -105,6 +109,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   categoryFilter: null,
   categoryHiddenIds: [],
   hiddenIds: [],
+  independentlyHiddenIds: [],
   renamingId: null,
   renameSource: null,
   zoomToNode: null,
@@ -127,6 +132,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   miniMapSize: 160,
   miniMapX: 16,
   miniMapY: 16,
+  scrollAction: "pan",
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
@@ -163,7 +169,20 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     set({ categoryFilter: cat, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
   },
-  setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+  // Keep the per-node `selected` mirror in sync with the canonical id list.
+  // React Flow-driven selection changes (which #setSelectedNodeIds) don't flow
+  // back into the store through onNodesChange, so a stale `selected: true`
+  // flag used to resurrect the selection on the next node rebuild (cut, copy,
+  // paste, delete edge, hide, …). Mirroring the flags here means the store is
+  // always self-consistent regardless of which rebuild path runs.
+  setSelectedNodeIds: (ids) =>
+    set((s) => {
+      const idSet = new Set(ids);
+      const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+      return changed
+        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) }
+        : { selectedNodeIds: ids };
+    }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
 
   setRenamingId: (id, source) => {
@@ -185,14 +204,24 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   toggleHidden: (id) => {
     const before = captureViewState(get());
-    const { hiddenIds } = get();
-    const next = hiddenIds.includes(id)
-      ? hiddenIds.filter((h) => h !== id)
-      : [...hiddenIds, id];
-    const after = { ...before, hiddenIds: next };
-    if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")) get().pushOp(viewStateOp(before, after));
+    const { hiddenIds, independentlyHiddenIds } = get();
+    const hiding = !hiddenIds.includes(id);
+    const next = hiding
+      ? [...hiddenIds, id]
+      : hiddenIds.filter((h) => h !== id);
+    // User toggled this node directly — track it as independently hidden
+    // so showSubtree won't auto-reveal it when a parent is shown.
+    const nextIndie = hiding
+      ? [...new Set([...independentlyHiddenIds, id])]
+      : independentlyHiddenIds.filter((h) => h !== id);
+    const after = { ...before, hiddenIds: next, independentlyHiddenIds: nextIndie };
+    if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")
+        || before.independentlyHiddenIds.join(",") !== after.independentlyHiddenIds.join(",")) {
+      get().pushOp(viewStateOp(before, after));
+    }
     set((s) => ({
       hiddenIds: next,
+      independentlyHiddenIds: nextIndie,
       autoHiddenIds: hiddenIds.includes(id) ? s.autoHiddenIds.filter((h) => h !== id) : s.autoHiddenIds,
     }));
   },
@@ -211,7 +240,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], independentlyHiddenIds: [...new Set([...s.independentlyHiddenIds, ...selectedNodeIds])], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -220,7 +249,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (before.hiddenIds.length === 0 && !before.categoryFilter) return;
     const after = { ...before, hiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [], independentlyHiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
   },
 
   setSearchOpen: (open) => set({ searchOpen: open }),
@@ -238,12 +267,13 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
+  setScrollAction: (action) => set({ scrollAction: action }),
   canvasSize: { width: 0, height: 0 },
   setCanvasSize: (size) => set({ canvasSize: size }),
   setLoading: (loading) => set({ loading }),
 
   setShowFiles: (show) => {
-    const { nodes, edges, graphVersion, categoryFilter } = get();
+    const { nodes, edges, graphVersion, categoryFilter, maxDisplayDepth, autoHideThreshold, revealedRootIds, autoHiddenIds } = get();
     const before = captureViewState(get());
     const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     if (show) {
@@ -263,9 +293,29 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
             return node?.data.type === "folder" || node?.data.category === categoryFilter;
           })
         : revealableFileIds;
-      const after = { ...before, showFiles: true, hiddenIds: before.hiddenIds.filter((id) => !revealable.includes(id)) };
+      // The toggle must not bypass other hide mechanisms: keep files beyond the
+      // display-depth limit hidden...
+      const nodeDepth = new Map(nodes.map((n) => [n.id, n.data.depth ?? 0]));
+      const indieSet = new Set(get().independentlyHiddenIds);
+      const revealSet = new Set(
+        revealable
+          .filter((id) => maxDisplayDepth <= 0 || (nodeDepth.get(id) ?? 0) <= maxDisplayDepth)
+          .filter((id) => !indieSet.has(id)),
+      );
+      // ...and re-apply the large-folder auto-hide limit after revealing, so
+      // files under over-threshold folders stay hidden (and tagged autoHiddenIds).
+      const revealedHidden = before.hiddenIds.filter((id) => !revealSet.has(id));
+      const { hiddenIds: nextHidden, autoHiddenIds: nextAuto } = reconcileAutoHide(
+        nodes,
+        edges,
+        revealedHidden,
+        autoHiddenIds,
+        revealedRootIds,
+        autoHideThreshold,
+      );
+      const after = { ...before, showFiles: true, hiddenIds: nextHidden, autoHiddenIds: nextAuto };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
-      set((s) => ({ showFiles: true, hiddenIds: s.hiddenIds.filter((id) => !revealable.includes(id)), graphVersion: graphVersion + 1 }));
+      set((s) => ({ showFiles: true, hiddenIds: nextHidden, autoHiddenIds: nextAuto, graphVersion: graphVersion + 1 }));
     } else {
       const after = { ...before, showFiles: false, hiddenIds: [...new Set([...before.hiddenIds, ...fileIds])] };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));

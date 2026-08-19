@@ -724,6 +724,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const { toast } = useToast();
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
+  const isHidden = hiddenIds.includes(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -742,7 +743,9 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         "hover:bg-fewer-item-hover hover:pl-3",
         isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
         isDimmed && "opacity-40",
+        isHidden && "opacity-50 saturate-50",
       )}
+      title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
       onDoubleClick={() => {
         const isHidden = hiddenIds.includes(child.id);
         setZoomToNode(isHidden ? parentId : child.id);

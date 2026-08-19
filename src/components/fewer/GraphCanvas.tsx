@@ -6,6 +6,7 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
+  PanOnScrollMode,
   useReactFlow,
   useNodesState,
   useEdgesState,
@@ -25,6 +26,7 @@ import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } f
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
+import { edgeDashPattern } from "@/lib/fewer/types";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -45,8 +47,13 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
  * Each path edge is colored by its target node type (folder vs file) so
  * multi-selection shows every selected node's path, not just the last-picked
  * one. Empty selection → all edges reset to default stroke.
- * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
- * so they render on top.
+ * Highlighted edges get zIndex 1 (above other edges but below every node,
+ * which is locked at zIndex 1000 in visibleNodes).
+ * 
+ * Animation semantics:
+ *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
+ *     and non-selected edges animate only when `animated` (sidebar motion).
+ *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
  */
 function buildSelectedEdgeHighlight(
   selectedIds: string[],
@@ -54,6 +61,12 @@ function buildSelectedEdgeHighlight(
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
+  edgeAnimation: {
+    animated: boolean;
+    selectedOnly: boolean;
+    animatedStrokeStyle: EdgeStrokeStyle;
+    baseStrokeStyle: EdgeStrokeStyle;
+  },
 ): FewerEdge[] {
   const typeByNodeId = new Map<string, "folder" | "file">();
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
@@ -84,9 +97,26 @@ function buildSelectedEdgeHighlight(
   return edges
     .map((e) => {
       const h = highlighted.get(e.id);
+      // Per-edge animation: selected-path edges always animate when selectedOnly
+      // is on; non-selected edges animate only when the global motion toggle is on.
+      const selectedPath = edgeAnimation.selectedOnly && !!h;
+      const anim = selectedPath || edgeAnimation.animated;
+      // Selected-path edges use the dialog-chosen pattern; everything else uses
+      // the sidebar base pattern (so unselected edges stay solid/static when
+      // motion is off).
+      const dash = anim ? edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle) : edgeDashPattern(edgeAnimation.baseStrokeStyle);
       return h
-        ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
-        : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+        ? {
+            ...e,
+            zIndex: 1,
+            animated: anim,
+            style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+          }
+        : {
+            ...e,
+            animated: anim,
+            style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+          };
     })
     .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
 }
@@ -117,7 +147,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const direction = useGraphStore((s) => s.direction);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
@@ -173,9 +205,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [edgeStrokeStyle]);
 
   const visibleNodes = useMemo(() => {
-    if (hiddenIds.length === 0) return allNodes;
-    const hidden = new Set(hiddenIds);
-    return allNodes.filter((n) => !hidden.has(n.id));
+    let nodes = hiddenIds.length === 0 ? allNodes : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n) => !hidden.has(n.id)); })();
+    // Guarantee nodes always render above edges (React Flow defaults edges to 0,
+    // nodes to 1000; we lock this explicitly so no edge can ever overlap a node).
+    return nodes.map((n) => ({ ...n, zIndex: 1000 }));
   }, [allNodes, hiddenIds]);
 
   const visibleEdges = useMemo(() => {
@@ -199,7 +232,14 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const prevGraphVersion = useRef(graphVersion);
   useEffect(() => {
     if (graphVersion !== prevGraphVersion.current) {
-      setRfNodes(visibleNodes);
+      // Rebuild RF nodes from the store. Selection is authoritative in
+      // `selectedNodeIds` (kept in sync by onSelectionChange); the per-node
+      // `selected` flags on the store are NOT updated for RF-driven clicks, so
+      // trusting them here would resurrect a stale selection (e.g. a node that
+      // was deselected when clicking an edge comes back as selected after any
+      // graph edit). Force `selected` from the canonical id list instead.
+      const selectedSet = new Set(useGraphStore.getState().selectedNodeIds);
+      setRfNodes(visibleNodes.map((n) => (selectedSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
       setRfEdges(visibleEdges);
       prevGraphVersion.current = graphVersion;
     }
@@ -209,12 +249,33 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
   // inherit the current phase instead of restarting a CSS animation.
   useEffect(() => {
-    if (!edgeAnimated) return;
+    if (!(edgeAnimated || edgeAnimatedSelectedOnly)) return;
     startDashClock();
     return stopDashClock;
-  }, [edgeAnimated]);
+  }, [edgeAnimated, edgeAnimatedSelectedOnly]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
+
+  // Fit the view exactly once per loaded graph — when nodes first appear — and
+  // never on relayout. React Flow's `fitView` boolean prop only fits at mount
+  // (so an import that happens after the canvas mounts would never fit), and a
+  // `graphVersion`-driven fitView would zoom/jump the user's viewport on every
+  // relayout (parent/unparent, cut/paste, edge-style, beautify, …). Guarding on
+  // "nodes went from empty to non-empty" gives a fit on initial load, and
+  // resetting the guard when the canvas empties fits again on the next import.
+  // The small delay lets the initial dimension-measure → relayout settle so the
+  // fit targets real positions, not the raw stacked layout.
+  const didInitialFitRef = useRef(false);
+  useEffect(() => {
+    if (visibleNodes.length === 0) {
+      didInitialFitRef.current = false;
+      return;
+    }
+    if (didInitialFitRef.current) return;
+    didInitialFitRef.current = true;
+    const t = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }), 120);
+    return () => clearTimeout(t);
+  }, [visibleNodes, fitView]);
 
   const relayout = useGraphStore((s) => s.relayout);
   const hasMeasuredRef = useRef(false);
@@ -247,14 +308,21 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     }
   }, [zoomToNodeIds]);
 
-  // ── Re-apply edge colors when theme changes ──
+  // ── Re-apply edge colors + per-edge animation when the graph or its
+  // theme/edge settings change ──. `graphVersion` is included so the ancestor
+  // path highlight is recomputed against the LIVE structure every time the graph
+  // mutates (parent/unparent, delete, cut/paste, …). Without it, a leftover
+  // highlighted stroke survives on edges that were on a selected node's path
+  // before an edit (e.g. unparenting `utils` leaves the now-irrelevant
+  // `fewer→src` edge highlighted), because the old styled edges stay in the
+  // store and are pushed to the canvas on the graph rebuild.
   useEffect(() => {
-    const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
+    const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth, themeColors]);
+  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion]);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
@@ -266,8 +334,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       const newIds = [...kept, ...added];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
+      const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -363,6 +431,18 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     [connectNodes, toast, setRfEdges, edgeStyle],
   );
 
+  const onConnectEnd = useCallback(
+    (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } } }) => {
+      // Dropped on empty canvas from a folder's output handle → open Add Node dialog
+      if (!connectionState.isValid && connectionState.fromNode?.data?.type === "folder") {
+        const store = useGraphStore.getState();
+        store.setSelectedNodeIds([connectionState.fromNode.id]);
+        window.dispatchEvent(new CustomEvent("fewer-add-node"));
+      }
+    },
+    [],
+  );
+
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
       event.preventDefault();
@@ -417,10 +497,14 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [fitView]);
 
   const selectAll = useCallback(() => {
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: s.nodes.map((n) => n.id) }));
-  }, []);
+    const ids = useGraphStore.getState().nodes.map((n) => n.id);
+    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: ids }));
+    // Also update React Flow's internal node state so the selection is visible
+    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
+  }, [setRfNodes]);
 
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
+  const scrollAction = useGraphStore((s) => s.scrollAction);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
   const miniMapX = useGraphStore((s) => s.miniMapX);
@@ -480,13 +564,16 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
         onConnect={onConnect}
+        onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
         onPaneClick={() => setRenamingId(null)}
         onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
         onSelectionDragStart={onSelectionDragStart} onSelectionDragStop={onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
           useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
-          fitToSelection();
+          // Defer so the selection state update processes before the fitView
+          // animation starts — avoids React Flow stepping on the viewport change.
+          requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
           if (deletedNodes.length > 0) {
@@ -499,20 +586,23 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           }
         }}
         onNodeContextMenu={(event) => event.preventDefault()}
-        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); const rect = containerRef.current?.getBoundingClientRect(); if (rect) setCanvasMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }); }}
-        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); useGraphStore.getState().setRightClickDetected(); }}
+        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); setCanvasMenu({ x: event.clientX, y: event.clientY }); }}
+        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
-        zoomOnScroll={false}
-        panOnScroll
-        zoomActivationKeyCode="Control"
-        fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        zoomOnScroll={scrollAction === "zoom"}
+        panOnScroll={scrollAction === "pan"}
+        panOnScrollMode={PanOnScrollMode.Vertical}
+        zoomActivationKeyCode={scrollAction === "pan" ? "Control" : null}
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(edgeStyle), animated: edgeAnimated,
+          type: edgeTypeFor(edgeStyle), animated: edgeAnimated && !edgeAnimatedSelectedOnly,
           style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+          zIndex: 0,
         }}
+        elevateNodesOnSelect
         proOptions={{ hideAttribution: true }}
         className="bg-transparent h-full w-full"
       >
@@ -601,7 +691,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
             <button onClick={() => { zoomOut({ duration: 250 }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
             {(() => {
               const edgeId = lastClickedEdgeId;
-              if (edgeId) return (
+              const edgeExists = edgeId ? useGraphStore.getState().edges.some((e) => e.id === edgeId) : false;
+              if (edgeId && edgeExists) return (
                 <>
                   <div className="my-1 h-px bg-border/40" />
                   <button onClick={() => { useGraphStore.getState().deleteEdges([edgeId]); toast({ title: "Edge deleted", description: "1 edge removed" }); setCanvasMenu(null); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>

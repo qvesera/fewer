@@ -59,6 +59,20 @@ export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 export type EdgeStyle = "curved" | "angled" | "straight";
 export type EdgeStrokeStyle = "solid" | "dashed" | "dotted";
 
+/**
+ * SVG `stroke-dasharray` for a stroke style. Used for BOTH the plain edges and
+ * the animated edges (which need an explicit pattern so the shared dash clock's
+ * wrap distance is a common multiple of every period in play — see dashClock).
+ */
+export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
+  switch (style) {
+    case "dashed": return "8 4";
+    case "dotted": return "2 4";
+    case "solid":
+    default: return undefined;
+  }
+}
+
 export interface GraphSnapshot {
   nodes: FewerNode[];
   edges: FewerEdge[];
@@ -241,6 +255,9 @@ export interface ViewState {
   categoryFilter: FileCategory | null;
   /** Ids that the category filter added to hiddenIds in this view state. */
   categoryHiddenIds: string[];
+  /** Ids the user hid directly (toggleHidden / hideSelected roots) —
+   *  showSubtree must not reveal them or their descendants. */
+  independentlyHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */

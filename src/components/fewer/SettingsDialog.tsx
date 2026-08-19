@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Github,
   Globe,
+  Mouse,
   HelpCircle,
+  Zap,
   Map as MinimapIcon,
   Maximize2,
   BookOpen,
@@ -44,7 +46,8 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import type { ThemeMode } from "@/lib/fewer/types";
+import type { ThemeMode, EdgeStrokeStyle } from "@/lib/fewer/types";
+import { SlidingToggle } from "../ui/sliding-toggle";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
@@ -461,6 +464,10 @@ function AppearanceTab() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
+  const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
+  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
+  const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -501,6 +508,50 @@ function AppearanceTab() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Edge Motion
+          </Label>
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <Label
+              className="text-xs font-medium text-foreground"
+              htmlFor="edge-motion-selected-toggle"
+            >
+              Animate Selected Edges Only
+            </Label>
+            <Switch
+              id="edge-motion-selected-toggle"
+              checked={edgeAnimatedSelectedOnly}
+              onCheckedChange={setEdgeAnimatedSelectedOnly}
+            />
+          </div>
+          {edgeAnimatedSelectedOnly && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Selected Edge Pattern
+              </Label>
+              <SlidingToggle
+                options={[
+                  { value: "dashed" as const, label: "Dashed" },
+                  { value: "dotted" as const, label: "Dotted" },
+                ]}
+                value={edgeAnimatedStrokeStyle}
+                onValueChange={(v) => setEdgeAnimatedStrokeStyle(v as EdgeStrokeStyle)}
+              />
+            </div>
+          )}
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            {edgeAnimatedSelectedOnly
+              ? "Only the edges along the selected nodes' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the sidebar's motion & pattern controls."
+              : "Turn this on to animate just the selection path; every other edge follows the sidebar's Edge controls."}
+          </p>
         </div>
       </div>
 
@@ -642,9 +693,32 @@ function AdvancedTab() {
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const scrollAction = useGraphStore((s) => s.scrollAction);
+  const setScrollAction = useGraphStore((s) => s.setScrollAction);
 
   return (
     <div className="flex flex-col gap-5 py-1">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
+          <Mouse className="h-3.5 w-3.5 text-primary" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            Canvas Navigation
+          </Label>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
+          <Switch
+            checked={scrollAction === "zoom"}
+            onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+          />
+        </div>
+        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+          {scrollAction === "zoom"
+            ? "The mouse wheel zooms the canvas directly."
+            : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
+        </p>
+      </div>
+
       {advancedModeEnabled && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">

@@ -30,7 +30,9 @@ export interface UserSettings {
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   edgeAnimated: boolean;
+  edgeAnimatedSelectedOnly: boolean;
   edgeStrokeStyle: EdgeStrokeStyle;
+  edgeAnimatedStrokeStyle: EdgeStrokeStyle;
   edgeWidth: number;
   cornerRadius: number;
   nodeWidth: number;
@@ -41,6 +43,7 @@ export interface UserSettings {
   miniMapSize: number;
   miniMapX: number;
   miniMapY: number;
+  scrollAction: "pan" | "zoom";
   showFiles: boolean;
   maxDisplayDepth: number;
   autoHideThreshold: number;
@@ -63,7 +66,9 @@ function pick(store: Record<string, unknown>): UserSettings {
     direction: store.direction as LayoutDirection,
     edgeStyle: store.edgeStyle as EdgeStyle,
     edgeAnimated: store.edgeAnimated as boolean,
+    edgeAnimatedSelectedOnly: store.edgeAnimatedSelectedOnly as boolean,
     edgeStrokeStyle: store.edgeStrokeStyle as EdgeStrokeStyle,
+    edgeAnimatedStrokeStyle: store.edgeAnimatedStrokeStyle as EdgeStrokeStyle,
     edgeWidth: store.edgeWidth as number,
     cornerRadius: store.cornerRadius as number,
     nodeWidth: store.nodeWidth as number,
@@ -73,6 +78,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     miniMapSize: store.miniMapSize as number,
     miniMapX: store.miniMapX as number,
     miniMapY: store.miniMapY as number,
+    scrollAction: store.scrollAction as "pan" | "zoom",
     showFiles: store.showFiles as boolean,
     maxDisplayDepth: store.maxDisplayDepth as number,
     autoHideThreshold: store.autoHideThreshold as number,
@@ -124,6 +130,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     miniMapSize: data.miniMapSize ?? s.miniMapSize,
     miniMapX: data.miniMapX ?? s.miniMapX,
     miniMapY: data.miniMapY ?? s.miniMapY,
+    scrollAction: data.scrollAction ?? s.scrollAction,
     showFiles: data.showFiles ?? s.showFiles,
     maxDisplayDepth: data.maxDisplayDepth ?? s.maxDisplayDepth,
     autoHideThreshold: data.autoHideThreshold ?? s.autoHideThreshold,
@@ -137,6 +144,10 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   // Edge-affecting styling: these touch live edges but never re-lay out.
   if (data.edgeStyle) s.setEdgeStyle(data.edgeStyle);
   if (data.edgeAnimated !== undefined) s.setEdgeAnimated(data.edgeAnimated);
+  // The selected-only flag is read by the canvas when (re)styling edges, so a
+  // plain state set is enough — no edge rewrite needed here.
+  useGraphStore.setState((s) => ({ edgeAnimatedSelectedOnly: data.edgeAnimatedSelectedOnly ?? s.edgeAnimatedSelectedOnly }));
+  if (data.edgeAnimatedStrokeStyle) s.setEdgeAnimatedStrokeStyle(data.edgeAnimatedStrokeStyle);
   if (data.edgeStrokeStyle) s.setEdgeStrokeStyle(data.edgeStrokeStyle);
   if (data.edgeWidth !== undefined) s.setEdgeWidth(data.edgeWidth);
   if (data.cornerRadius !== undefined) s.setCornerRadius(data.cornerRadius);

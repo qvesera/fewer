@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
+
 ### Fixed
 
 - **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
@@ -23,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Signing in with a username now logs the user in immediately: /api/login returns the signed-in session, and the login dialog pushes it into the browser auth client via setSession (firing onAuthStateChange) so the app reflects the signed-in state without a page refresh. The session is only returned after a successful password check, so it doesn't introduce account enumeration.
 - Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
 - SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
+- **Edge delete could re-select a previously-selected node** (e.g. "A copy"): React Flow-driven selection changes never sync back to the store's per-node `selected` flags, so a stale flag resurrected the selection whenever the canvas rebuilt nodes on a graph edit — deleting an edge, cut/copy/paste, hide, and similar. Selection flags are now mirrored from the canonical `selectedNodeIds` (both when selection changes and when nodes are rebuilt for React Flow), so the store stays self-consistent on every path.
+- Unparenting could leave a stale highlighted edge: the ancestor-path highlight (designed so the selected node's path glows) was only recomputed on selection/theme changes, so editing the graph (unparent/delete/cut/paste) kept a leftover highlight on edges that used to be on the selected node's path — e.g. unparenting 'utils' in fewer → src → utils left the fewer → src edge glowing. The highlight is now recomputed on every graph change, so it always reflects the live structure.
+- Right-clicking an edge opened the context menu at the center of the canvas instead of at the mouse pointer (edge menu used the container's center point; the pane menu already used the cursor). The edge context menu now opens at the mouse position.
+- Delete Edge no longer appears in the canvas context menu when no edge is the target: opening the pane context menu (or any context menu not on an edge) now clears the remembered edge, and the item is hidden if the previously remembered edge no longer exists.
+- Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
+- Hide/show nodes no longer triggers graph relayout — visibility changes only
+- File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
+- The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
+- The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
+- Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
 
@@ -36,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
 - Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
 - Blog and docs are now headless: posts/pages live in a Supabase content_pages table (migration 0021) and are read at request time with a 60s revalidate, so publishing a new blog post or fixing a doc typo no longer needs a deploy. Read via supabase from /blog, /blog/[slug], /docs and /docs/[slug]; the markdown in content/blog/ and content/docs/ stays in-repo as a source-of-record backup. Writes are done via Supabase Studio (service role), gated by a public-read-only RLS policy.
+- Scroll action setting: the mouse wheel now pans the canvas vertically by default (Ctrl/⌘+scroll zooms), and a new Settings → Advanced toggle switches plain scrolling to zoom. Preference persists in synced/local user settings and saved-graph snapshots.
+- Animate Selected Edges Only: a Settings → Appearance toggle that limits edge-motion animation to the edges along the selected nodes' ancestor path (the selection-highlighted edges) instead of every edge. Persists with user settings and saved graphs.
+- Drag edge to empty canvas opens Add Node dialog (same as Alt+N) for the source folder
 - Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and _meta.xml files are filtered out; results are cached 24h like other URL imports.
 - Select Children in folder context menu: select all child nodes of a folder with one click
 
@@ -47,11 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
 - Sign-in field now auto-detects email vs username: the Email/Username split is gone — one 'Email or username' field. Input containing '@' is an email, otherwise a username, matching /api/login's existing logic (usernames can't contain '@').
 - The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
+- Relayout no longer triggers an auto-fit zoom: the automatic fit (React Flow mount-time `fitView` prop) is now a guarded one-shot that fires once when a graph first appears and resets only when the canvas empties, so relayout (parent/unparent, cut/paste, edge-style, beautify) never jumps the viewport. Manual Fit View / Zoom-to-selection are unchanged.
+- Edge motion controls are now independent: 'Animate Selected Edges Only' works standalone (no need to switch on 'Animated Edges' first) and only the selection-path edges animate. Animated edges get their own 'Animated Edge Pattern' (dashed or dotted) separate from the base pattern, so unselected/solid edges stay solid when motion is on instead of the whole edge set being forced dashed. Persists with user settings and saved graphs.
+- Edge motion controls separated: 'Animate Selected Edges Only' + its pattern live in Settings only; sidebar Motion/Pattern now control non-selected edges when that toggle is on, globally otherwise. Removed 'Animated Edges' toggle from Settings and 'Animated Pattern' from sidebar.
+- Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 
 ### Security
 
 - Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
+
 ## [0.5.0] - 18th August 2026
 
 ### Added

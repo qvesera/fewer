@@ -256,10 +256,13 @@ export function KeyboardShortcuts() {
       // Ctrl+A
       if (mod && e.key.toLowerCase() === "a" && !inEditable) {
         e.preventDefault();
+        // Set Zustand selection state
         setSelectedNodeIds(nodes.map((n) => n.id));
         useGraphStore.setState((s) => ({
           nodes: s.nodes.map((n) => ({ ...n, selected: true })),
         }));
+        // Also set React Flow's internal node state so selection renders immediately
+        reactFlow.setNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
         return;
       }
 
