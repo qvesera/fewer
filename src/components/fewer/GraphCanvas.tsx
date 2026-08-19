@@ -6,6 +6,7 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
+  PanOnScrollMode,
   useReactFlow,
   useNodesState,
   useEdgesState,
@@ -421,6 +422,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, []);
 
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
+  const scrollAction = useGraphStore((s) => s.scrollAction);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
   const miniMapX = useGraphStore((s) => s.miniMapX);
@@ -504,9 +506,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
-        zoomOnScroll={false}
-        panOnScroll
-        zoomActivationKeyCode="Control"
+        zoomOnScroll={scrollAction === "zoom"}
+        panOnScroll={scrollAction === "pan"}
+        panOnScrollMode={PanOnScrollMode.Vertical}
+        zoomActivationKeyCode={scrollAction === "pan" ? "Control" : null}
         fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{

@@ -28,6 +28,7 @@ export function buildSnapshot(): SavedGraphData {
     miniMapSize: s.miniMapSize,
     miniMapX: s.miniMapX,
     miniMapY: s.miniMapY,
+    scrollAction: s.scrollAction,
     localRootPath: s.localRootPath,
   };
 }
@@ -58,6 +59,7 @@ export function applySnapshot(data: SavedGraphData) {
     miniMapSize: data.miniMapSize,
     miniMapX: data.miniMapX ?? s.miniMapX,
     miniMapY: data.miniMapY ?? s.miniMapY,
+    scrollAction: data.scrollAction ?? s.scrollAction,
   });
 
   s.setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });

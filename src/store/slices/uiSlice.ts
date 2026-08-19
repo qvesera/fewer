@@ -44,6 +44,8 @@ export type UiSliceCreator = StateCreator<
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
     miniMapX: number;
     miniMapY: number;
+    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly. */
+    scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     skipNextAutoLayout: boolean;
     showFiles: boolean;
@@ -83,6 +85,7 @@ export type UiSliceCreator = StateCreator<
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
     setMiniMapY: (y: number) => void;
+    setScrollAction: (action: "pan" | "zoom") => void;
     /** Live canvas (viewer) dimensions — guides minimap X/Y slider bounds. */
     canvasSize: { width: number; height: number };
     setCanvasSize: (size: { width: number; height: number }) => void;
@@ -127,6 +130,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   miniMapSize: 160,
   miniMapX: 16,
   miniMapY: 16,
+  scrollAction: "pan",
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
@@ -238,6 +242,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
+  setScrollAction: (action) => set({ scrollAction: action }),
   canvasSize: { width: 0, height: 0 },
   setCanvasSize: (size) => set({ canvasSize: size }),
   setLoading: (loading) => set({ loading }),

@@ -41,6 +41,7 @@ export interface UserSettings {
   miniMapSize: number;
   miniMapX: number;
   miniMapY: number;
+  scrollAction: "pan" | "zoom";
   showFiles: boolean;
   maxDisplayDepth: number;
   autoHideThreshold: number;
@@ -73,6 +74,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     miniMapSize: store.miniMapSize as number,
     miniMapX: store.miniMapX as number,
     miniMapY: store.miniMapY as number,
+    scrollAction: store.scrollAction as "pan" | "zoom",
     showFiles: store.showFiles as boolean,
     maxDisplayDepth: store.maxDisplayDepth as number,
     autoHideThreshold: store.autoHideThreshold as number,
@@ -124,6 +126,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     miniMapSize: data.miniMapSize ?? s.miniMapSize,
     miniMapX: data.miniMapX ?? s.miniMapX,
     miniMapY: data.miniMapY ?? s.miniMapY,
+    scrollAction: data.scrollAction ?? s.scrollAction,
     showFiles: data.showFiles ?? s.showFiles,
     maxDisplayDepth: data.maxDisplayDepth ?? s.maxDisplayDepth,
     autoHideThreshold: data.autoHideThreshold ?? s.autoHideThreshold,

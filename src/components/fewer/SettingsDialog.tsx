@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Github,
   Globe,
+  Mouse,
   HelpCircle,
   Map as MinimapIcon,
   Maximize2,
@@ -642,9 +643,32 @@ function AdvancedTab() {
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const scrollAction = useGraphStore((s) => s.scrollAction);
+  const setScrollAction = useGraphStore((s) => s.setScrollAction);
 
   return (
     <div className="flex flex-col gap-5 py-1">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
+          <Mouse className="h-3.5 w-3.5 text-primary" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            Canvas Navigation
+          </Label>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
+          <Switch
+            checked={scrollAction === "zoom"}
+            onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+          />
+        </div>
+        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+          {scrollAction === "zoom"
+            ? "The mouse wheel zooms the canvas directly."
+            : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
+        </p>
+      </div>
+
       {advancedModeEnabled && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">

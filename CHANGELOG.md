@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
 - Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
 - Blog and docs are now headless: posts/pages live in a Supabase content_pages table (migration 0021) and are read at request time with a 60s revalidate, so publishing a new blog post or fixing a doc typo no longer needs a deploy. Read via supabase from /blog, /blog/[slug], /docs and /docs/[slug]; the markdown in content/blog/ and content/docs/ stays in-repo as a source-of-record backup. Writes are done via Supabase Studio (service role), gated by a public-read-only RLS policy.
+- Scroll action setting: the mouse wheel now pans the canvas vertically by default (Ctrl/⌘+scroll zooms), and a new Settings → Advanced toggle switches plain scrolling to zoom. Preference persists in synced/local user settings and saved-graph snapshots.
 
 ### Changed
 

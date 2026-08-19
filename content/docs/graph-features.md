@@ -11,6 +11,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 - Pan (drag empty space)
 - Zoom (scroll wheel or +/- keys)
+- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming
 - Fit view (Space key)
 - Minimap (bottom-right, configurable)
 - Controls (zoom in/out, fit view buttons)

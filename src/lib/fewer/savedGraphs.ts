@@ -23,6 +23,8 @@ export interface SavedGraphData {
   /** Free-form minimap offset (px from top-left) when miniMapPosition === "custom". */
   miniMapX?: number;
   miniMapY?: number;
+  /** Wheel behavior saved with the graph: "pan" (vertical pan, Ctrl+wheel zoom) or "zoom". */
+  scrollAction?: "pan" | "zoom";
   /** Absolute path of the graph's root folder on the originating dev machine
    *  (resolved at import time). Lets a graph opened later — including from the
    *  cloud — open files/folders directly when the path is still there, instead
