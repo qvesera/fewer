@@ -198,7 +198,6 @@ function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
 }
 
 function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
-  const idSet = new Set(hiddenIds);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const parentMap = new Map<string, string>();
   const childrenMap = new Map<string, string[]>();
@@ -208,6 +207,11 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     childrenMap.get(e.source)!.push(e.target);
   }
 
+  // Only consider hidden ids that still map to a live node. A stale id (e.g. a
+  // node deleted while hidden) must never be dereferenced below — nodeMap.get
+  // would return undefined and hiddenTreeSort would throw on `.node.data`.
+  const liveHiddenIds = hiddenIds.filter((id) => nodeMap.has(id));
+  const idSet = new Set(liveHiddenIds);
   const roots: HiddenTreeNode[] = [];
   const processed = new Set<string>();
 
@@ -221,7 +225,7 @@ function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: s
     return { node, children };
   }
 
-  for (const id of hiddenIds) {
+  for (const id of liveHiddenIds) {
     if (processed.has(id)) continue;
     const parentId = parentMap.get(id);
     if (parentId && idSet.has(parentId)) continue;

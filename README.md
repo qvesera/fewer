@@ -159,7 +159,7 @@ docker run -p 3000:3000 fewer
 
 - **File System Access API** (Chrome/Edge): real directory read with depth, hidden file, and extension filters
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
-- **Import from URL**: GitHub repo tree (public repos) or any public Apache/nginx file index
+- **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Brave browser** detection with flag workaround instructions
 
@@ -247,6 +247,16 @@ Toggle **Export Selected** to export only the selected subtree.
 - [Docs](/docs): feature guides, tutorials, and technical references
 - [Blog](/blog): release notes, feature deep-dives, and behind-the-scenes stories
 
+**Docs & Blog are headless.** Blog posts and doc pages live in a Supabase `content_pages` table and are rendered at request time with a 60-second revalidate, so publishing a post or fixing a doc typo goes live in under a minute — no code release needed.
+
+To publish or edit:
+
+1. Open Supabase Studio → **Table Editor** → `content_pages`
+2. Insert a new row (or edit an existing one): `type` = `blog` or `docs`, `slug`, `title`, `description`, `content` (markdown body), plus `author`/`date`/`tags` for blog rows
+3. Set `published = true` → live within ~60 seconds
+
+Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is kept in-repo as a source-of-record backup and seeded into `content_pages` by `supabase/migrations/0021_content_pages.sql`.
+
 ## How It Works
 
 ```
@@ -321,7 +331,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links) |
+| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links, headless blog/docs) |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 

@@ -29,6 +29,8 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
+import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { isGitHubUrl } from "@/lib/fewer/importFlow";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -103,6 +105,28 @@ function RenameInput({
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
   const committedRef = useRef(false);
+  // Latest value, readable from the outside-click listener without re-binding.
+  const valueRef = useRef(initialValue);
+
+  // Commit only when the user clicks outside the field. Blur alone is ignored —
+  // it fires for unrelated reasons (the context menu closing / focus restore /
+  // canvas re-renders), which previously auto-closed the editor right after
+  // opening it. A genuine outside click always precedes blur, so we gate on it.
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (committedRef.current) return;
+      if (inputRef.current?.contains(e.target as Node)) return;
+      committedRef.current = true;
+      const v = valueRef.current;
+      if (v === initialValue) {
+        onCancel();
+        return;
+      }
+      onCommit(v);
+    };
+    document.addEventListener("mousedown", onMouseDown, true);
+    return () => document.removeEventListener("mousedown", onMouseDown, true);
+  }, [initialValue, onCancel, onCommit]);
 
   // Re-focus on every render (handles canvas re-renders losing focus)
   useEffect(() => {
@@ -122,7 +146,7 @@ function RenameInput({
     <input
       ref={inputRef}
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => { setValue(e.target.value); valueRef.current = e.target.value; }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => {
@@ -141,6 +165,9 @@ function RenameInput({
         }
       }}
       onBlur={() => {
+        // No-op: committing is handled by the document outside-click listener.
+        // Ignoring blur avoids a premature close when focus is restored elsewhere
+        // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
       }}
       className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
@@ -157,23 +184,44 @@ function providerLabelFromSource(dataSource: string | null): string {
   if (dataSource.startsWith("cloud:sharepoint")) return "SharePoint";
   if (dataSource.startsWith("cloud:azure-devops")) return "Azure DevOps";
   if (dataSource.startsWith("cloud:azure-blob")) return "Azure Blob";
+  // URL imports (GitHub repo or a public file index) carry real source URLs.
+  if (dataSource.startsWith("url:")) {
+    try {
+      const u = new URL(dataSource.slice(4));
+      if (u.hostname === "github.com") return "GitHub";
+      return u.hostname.replace(/^www\./, "");
+    } catch {
+      return "Site";
+    }
+  }
   return "Provider";
 }
 
-const openFolderInExplorer = async (path: string) => {
+const openFolderInExplorer = async (path: string): Promise<boolean> => {
+  // Prefer the exact, previously-resolved root location (saved with the graph
+  // as localRootPath) so we don't search the filesystem again on every open.
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot);
+  const sendPath =
+    nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
   try {
     const res = await fetch("/api/open-folder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path: sendPath }),
     });
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || "Failed to open folder");
     }
+    return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    // The path may come from an import (CSV/JSON/saved graph) and not exist on
+    // this machine — that's not a crash. Log for diagnostics; callers surface a
+    // toast so the user sees why nothing opened.
     console.error("Open folder error:", msg);
+    return false;
   }
 };
 
@@ -192,6 +240,7 @@ function FolderContextMenu({
 }) {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
   const deleteNode = useGraphStore((s) => s.deleteNodes);
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
@@ -366,9 +415,18 @@ function FolderContextMenu({
           >
             Add Child Node
           </ContextMenuItem>
-          {dataSource === "directory" && (
+          {(dataSource === "directory" || localRootPath) && (
             <ContextMenuItem
-              onSelect={() => openFolderInExplorer(nodePath)}
+              onSelect={async () => {
+                const ok = await openFolderInExplorer(nodePath);
+                if (!ok) {
+                  toast({
+                    title: "Folder not found",
+                    description: nodePath,
+                    variant: "destructive",
+                  });
+                }
+              }}
               className="cursor-pointer"
             >
               Open in File Explorer
@@ -433,6 +491,11 @@ function FileEntryContextMenu({
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const providerLabel = providerLabelFromSource(dataSource);
+  // A file imported from a public file index (via crawl) — not a GitHub repo.
+  // For these, "open" just downloads the raw file, so offer a Download action
+  // instead of navigation. Folders and GitHub files keep "Open in <provider>".
+  const isCrawledFile =
+    !!dataSource && dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
   const setRenamingId = useGraphStore((s) => s.setRenamingId);
   const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
@@ -522,12 +585,29 @@ function FileEntryContextMenu({
           </ContextMenuItem>
         )}
         {nodeWebUrl && (
-          <ContextMenuItem
-            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
-            className="cursor-pointer"
-          >
-            Open in {providerLabel}
-          </ContextMenuItem>
+          isCrawledFile ? (
+            <ContextMenuItem
+              onSelect={async () => {
+                const { downloadRemoteFile } = await import("@/lib/fewer/fileOps");
+                const ok = await downloadRemoteFile(nodeWebUrl, nodeLabel);
+                toast({
+                  title: ok ? "Downloading" : "Could not download",
+                  description: nodeLabel,
+                  ...(ok ? {} : { variant: "destructive" }),
+                });
+              }}
+              className="cursor-pointer"
+            >
+              Download
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+              className="cursor-pointer"
+            >
+              Open in {providerLabel}
+            </ContextMenuItem>
+          )
         )}
         <ContextMenuItem
           onSelect={() => {
@@ -619,6 +699,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const renameNode = useGraphStore((s) => s.renameNode);
@@ -696,7 +777,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory"}
+      showOpenFile={dataSource === "directory" || !!localRootPath}
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -721,6 +802,7 @@ function CustomNodeImpl({
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
@@ -917,7 +999,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory"}
+      showOpenFile={dataSource === "directory" || !!localRootPath}
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >

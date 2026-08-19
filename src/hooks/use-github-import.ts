@@ -70,6 +70,7 @@ export function useImport() {
         useGraphStore.setState({
           dataSource: `url:${url.trim()}`,
           maxDisplayDepth: opts.displayMaxDepth,
+          localRootPath: null,
         });
         useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
         return true;

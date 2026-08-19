@@ -10,6 +10,8 @@ export function SearchPanel() {
   const open = useGraphStore((s) => s.searchOpen);
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const query = useGraphStore((s) => s.searchQuery);
+  const categoryFilter = useGraphStore((s) => s.categoryFilter);
+  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const nodes = useGraphStore((s) => s.nodes);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -39,15 +41,26 @@ export function SearchPanel() {
     setOpen(false);
   };
 
+  // Refocus the active search input (navbar on desktop, in-panel on mobile)
+  // when the user clicks a non-interactive area of the panel, so typing
+  // continues to flow straight into the search box instead of being lost.
+  const refocusSearchInput = () => {
+    document.querySelector<HTMLInputElement>("input[data-search-input]")?.focus();
+  };
+
   const matches = useMemo(() => {
-    if (!query) return [];
+    const hasQuery = !!query;
     const q = query.toLowerCase();
-    const filtered = nodes.filter(
-      (n) =>
+    const filtered = nodes.filter((n) => {
+      const categoryMatches =
+        !categoryFilter || n.data.type === "folder" || n.data.category === categoryFilter;
+      const queryMatches =
+        !hasQuery ||
         fuzzyMatch(query, n.data.label) ||
         fuzzyMatch(query, n.data.path) ||
-        (n.data.extension ?? "").toLowerCase().includes(q),
-    );
+        (n.data.extension ?? "").toLowerCase().includes(q);
+      return categoryMatches && queryMatches;
+    });
     return filtered.sort((a, b) => {
       const aLabel = a.data.label.toLowerCase();
       const bLabel = b.data.label.toLowerCase();
@@ -63,7 +76,7 @@ export function SearchPanel() {
       // Alphabetical
       return aLabel.localeCompare(bLabel);
     });
-  }, [query, nodes]);
+  }, [query, categoryFilter, nodes]);
 
   // Keyboard navigation window listener while panel is open
   useEffect(() => {
@@ -108,13 +121,23 @@ export function SearchPanel() {
       <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
 
       {/* CLEAN OVERLAY PANEL: Placed below top center omnibar */}
-      <div className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5 max-h-[calc(100vh-140px)] overflow-hidden">
+      <div
+        className="fixed left-1/2 top-[120px] z-30 w-[min(448px,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-border/45 bg-background/95 backdrop-blur-md p-3 shadow-xl flex flex-col gap-2.5 max-h-[calc(100vh-140px)] overflow-hidden"
+        onClick={(e) => {
+          // Keep typing directed into the search box even when clicking on the
+          // panel's empty/placeholder areas (unless an interactive control was hit).
+          const target = e.target as HTMLElement;
+          if (target.closest("button, a, input, li[role='option'], [role='menuitem']")) return;
+          refocusSearchInput();
+        }}
+      >
         {/* Search Input: only on mobile, desktop has search bar in navbar */}
         <div className="relative sm:hidden">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
           <input
             ref={inputRef}
             type="text"
+            data-search-input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search files & directories..."
@@ -131,12 +154,26 @@ export function SearchPanel() {
           )}
         </div>
 
+        {categoryFilter && (
+          <div className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] text-primary">
+            <span className="font-semibold uppercase tracking-wide">Filter:</span>
+            <span>{categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)} files</span>
+            <button
+              onClick={() => setCategoryFilter(null)}
+              aria-label="Clear category filter"
+              className="ml-auto rounded p-0.5 hover:bg-primary/20"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
         {/* Match Tracker & View Container */}
         <div 
           ref={resultsContainerRef}
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
-          {!query ? (
+          {!query && !categoryFilter ? (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
               Start typing to search files & directory structures...
             </div>

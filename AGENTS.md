@@ -15,28 +15,29 @@ bun run lint           # Run ESLint
 
 ### Key Files
 
-| File                                   | Purpose                                                                            |
-| -------------------------------------- | ---------------------------------------------------------------------------------- |
-| `src/store/graphStore.ts`              | Zustand store: single source of truth for nodes, edges, history, theme, clipboard |
-| `src/components/fewer/GraphCanvas.tsx` | React Flow canvas with minimap + controls                                          |
-| `src/components/fewer/CustomNode.tsx`  | Folder/file card rendering with context menus                                      |
-| `src/components/fewer/FewerApp.tsx`    | Main app shell orchestrating all dialogs                                           |
-| `src/lib/fewer/types.ts`               | All TypeScript types + theme metadata                                              |
-| `src/lib/fewer/layout.ts`              | Custom tree layout with type-aware dimensions                                      |
-| `src/lib/fewer/exportUtils.ts`         | SVG/PNG/JSON/CSV/DOT exporters                                                     |
-| `src/lib/fewer/parsers.ts`             | JSON/ASCII tree/script parsers                                                     |
-| `src/lib/fewer/validation.ts`          | Connection validation + ancestor/descendant utils                                  |
-| `src/lib/fewer/navigation.ts`          | Arrow key tree navigation                                                          |
-| `src/lib/fewer/autoIndex.ts`           | Apache/nginx auto-index HTML parser + tree builder                                 |
-| `src/lib/fewer/savedGraphs.ts`         | Saved-graph types + DB share URL helpers                                           |
-| `src/lib/fewer/snapshot.ts`            | Graph snapshot build/apply for saved graphs                                        |
-| `src/lib/supabase.ts`                  | Supabase client (server + browser)                                                 |
-| `src/hooks/use-auth.ts`                | Auth state hook                                                                    |
-| `src/components/fewer/AuthDialog.tsx`  | Sign in / sign up / password reset dialog                                          |
-| `src/components/fewer/SavedGraphsPanel.tsx` | Save/load/rename/share/delete saved graphs                                   |
-| `src/app/api/crawl/route.ts`           | Crawl public file index URLs                                                       |
-| `src/app/api/graphs/route.ts`          | Saved-graph CRUD (GET/POST)                                                        |
-| `src/app/api/share/route.ts`           | Create share links (hash or DB-backed)                                             |
+| File                                        | Purpose                                                                           |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `src/store/graphStore.ts`                   | Zustand store: single source of truth for nodes, edges, history, theme, clipboard |
+| `src/components/fewer/GraphCanvas.tsx`      | React Flow canvas with minimap + controls                                         |
+| `src/components/fewer/CustomNode.tsx`       | Folder/file card rendering with context menus                                     |
+| `src/components/fewer/FewerApp.tsx`         | Main app shell orchestrating all dialogs                                          |
+| `src/lib/fewer/types.ts`                    | All TypeScript types + theme metadata                                             |
+| `src/lib/fewer/layout.ts`                   | Custom tree layout with type-aware dimensions                                     |
+| `src/lib/fewer/exportUtils.ts`              | SVG/PNG/JSON/CSV/DOT exporters                                                    |
+| `src/lib/fewer/parsers.ts`                  | JSON/ASCII tree/script parsers                                                    |
+| `src/lib/fewer/validation.ts`               | Connection validation + ancestor/descendant utils                                 |
+| `src/lib/fewer/navigation.ts`               | Arrow key tree navigation                                                         |
+| `src/lib/fewer/autoIndex.ts`                | Apache/nginx auto-index HTML parser + tree builder                                |
+| `src/lib/fewer/archive.ts`                  | Internet Archive item import (metadata API → tree)                                |
+| `src/lib/fewer/savedGraphs.ts`              | Saved-graph types + DB share URL helpers                                          |
+| `src/lib/fewer/snapshot.ts`                 | Graph snapshot build/apply for saved graphs                                       |
+| `src/lib/supabase.ts`                       | Supabase client (server + browser)                                                |
+| `src/hooks/use-auth.ts`                     | Auth state hook                                                                   |
+| `src/components/fewer/AuthDialog.tsx`       | Sign in / sign up / password reset dialog                                         |
+| `src/components/fewer/SavedGraphsPanel.tsx` | Save/load/rename/share/delete saved graphs                                        |
+| `src/app/api/crawl/route.ts`                | Crawl public file index URLs                                                      |
+| `src/app/api/graphs/route.ts`               | Saved-graph CRUD (GET/POST)                                                       |
+| `src/app/api/share/route.ts`                | Create share links (hash or DB-backed)                                            |
 
 ### State Flow
 
@@ -90,15 +91,30 @@ FewerApp
 ```bash
 bun run lint           # Must pass before commit
 bun run build          # Must succeed
+python3 scripts/changelog.py validate   # Must exit 0 before committing changelog changes
 ```
+
+## Changelog
+
+`CHANGELOG.md` is Keep a Changelog + SemVer. The `## [Unreleased]` section at the top is the live accumulation point — add every user-facing change there the moment it lands (module: the `changelog` workspace skill).
+
+```bash
+python3 scripts/changelog.py add <added|changed|fixed|performance|security|pwa> "<entry text>"
+python3 scripts/changelog.py current        # Unreleased version + per-group counts
+python3 scripts/changelog.py backfill       # commits not yet reflected in changelog
+python3 scripts/changelog.py release 0.7.0  # finalize Unreleased + open a fresh section
+python3 scripts/changelog.py validate       # gate: format + package.json sync
+```
+
+Map Conventional Commits → group: `feat`→Added, `fix`→Fixed, `perf`→Performance, `refactor`/`style`/`docs` (user-visible)→Changed, `security`→Security, `pwa`→PWA. Skip `chore`/`build`/`ci`/`test` with no user impact. Full rules live in `.agents/skills/changelog/SKILL.md`.
 
 ## Landing the Plane (Session Completion)
 
 **MANDATORY WORKFLOW:**
 
 1. **Run quality gates**: `bun run lint && bun run build`
-2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes), following existing format. The changelog must be updated before committing.
-3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog.
+2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes) to the Unreleased section via `python3 scripts/changelog.py add <group> "..."`. The changelog must be updated before committing.
+3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog (verify with `python3 scripts/changelog.py validate`).
 4. **Commit changes**: Meaningful commit message (conventional commits)
 5. **PUSH TO REMOTE**: This is MANDATORY
 6. **Verify**: All changes committed AND pushed

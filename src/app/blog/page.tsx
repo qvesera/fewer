@@ -1,12 +1,16 @@
-import fs from "fs";
-import path from "path";
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
+import { getSupabase } from "@/lib/supabase";
 
 export const metadata = {
   title: "Blog | Fewer",
   description: "Release notes, feature deep-dives, and behind-the-scenes stories from the Fewer project.",
 };
+
+// Serve from Supabase with a 60s revalidate so unpublished/edited posts go live
+// without a deploy. ponytail: DB outage => empty blog list (no crash); upgrade
+// path is caching the last-known-good list on disk.
+export const revalidate = 60;
 
 type PostMeta = {
   slug: string;
@@ -17,35 +21,30 @@ type PostMeta = {
   tags: string;
 };
 
-function getPosts(): PostMeta[] {
-  const dir = path.join(process.cwd(), "content", "blog");
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
-  const posts = files.map((file) => {
-    const raw = fs.readFileSync(path.join(dir, file), "utf8");
-    const match = raw.match(/^---\n([\s\S]*?)\n---/);
-    const frontmatter = match
-      ? Object.fromEntries(
-          match[1].split("\n").map((line) => {
-            const [key, ...rest] = line.split(":");
-            return [key.trim(), rest.join(":").trim()];
-          }),
-        )
-      : {};
-    return {
-      slug: file.replace(/\.md$/, ""),
-      title: (frontmatter["title"] as string) || file,
-      date: (frontmatter["date"] as string) || "",
-      description: (frontmatter["description"] as string) || "",
-      author: (frontmatter["author"] as string) || "",
-      tags: (frontmatter["tags"] as string) || "",
-    };
-  });
-  posts.sort((a, b) => b.date.localeCompare(a.date));
-  return posts;
+async function getPosts(): Promise<PostMeta[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("content_pages")
+      .select("slug,title,date,description,author,tags")
+      .eq("type", "blog")
+      .eq("published", true)
+      .order("date", { ascending: false });
+    if (error) return [];
+    return (data ?? []).map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      date: p.date ?? "",
+      description: p.description ?? "",
+      author: p.author ?? "",
+      tags: p.tags ?? "",
+    }));
+  } catch {
+    return [];
+  }
 }
 
-export default function BlogPage() {
-  const posts = getPosts();
+export default async function BlogPage() {
+  const posts = await getPosts();
   return (
     <DocsLayout type="blog" title="Blog">
       <h1 className="text-4xl font-bold tracking-tight text-foreground">

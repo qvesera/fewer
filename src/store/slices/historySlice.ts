@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry } from "./types";
-import type { HistoryOp, ViewState } from "@/lib/fewer/types";
+import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
 import { applyOps, undoOps, getUndoViewState, getRedoViewState } from "@/lib/fewer/history";
 
 const MAX_HISTORY = 50;
@@ -17,6 +17,8 @@ export function captureViewState(state: GraphState): ViewState {
     maxDisplayDepth: state.maxDisplayDepth as number,
     autoHideThreshold: state.autoHideThreshold as number,
     autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
+    categoryFilter: (state.categoryFilter ?? null) as FileCategory | null,
+    categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
   };
 }
 
@@ -36,6 +38,8 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.maxDisplayDepth !== undefined) patch.maxDisplayDepth = view.maxDisplayDepth;
   if (view.autoHideThreshold !== undefined) patch.autoHideThreshold = view.autoHideThreshold;
   if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
+  if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
+  if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
   return patch;
 }
 
@@ -61,7 +65,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -73,7 +77,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
-      nodes: applySearchInternal(prevNodes, searchQuery),
+      nodes: applySearchInternal(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -81,7 +85,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   redo: () => {
-    const { past, future, nodes, edges, searchQuery, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (future.length === 0) return;
     const entry = future[0];
     const { nodes: nextNodes, edges: nextEdges } = applyOps(nodes, edges, entry.ops);
@@ -92,7 +96,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       future: future.slice(1),
       past: [...past, entry].slice(-MAX_HISTORY),
-      nodes: applySearchInternal(nextNodes, searchQuery),
+      nodes: applySearchInternal(nextNodes, searchQuery, categoryFilter),
       edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -103,6 +107,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: GraphState["nodes"],
   query: string,
+  _categoryFilter?: FileCategory | null,
 ): GraphState["nodes"] {
   if (!query.trim()) {
     return nodes.map((n) => ({

@@ -3,47 +3,18 @@
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats, formatBytes } from "@/lib/fewer/stats";
-import {
-  FileCode,
-  FileJson,
-  FileImage,
-  FileText,
-  FileArchive,
-  FileSpreadsheet,
-  FileVideo,
-  File as FileIcon,
-  FileType,
-  Folder,
-  HardDrive,
-} from "lucide-react";
+import { Folder, HardDrive, File as FileIcon } from "lucide-react";
+import { CATEGORY_META } from "@/lib/fewer/categoryMeta";
 import type { FileCategory } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
-
-const CATEGORY_META: Record<
-  FileCategory,
-  {
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    barColor: string;
-  }
-> = {
-  code: { label: "Code", icon: FileCode, color: "text-emerald-400", barColor: "bg-emerald-500" },
-  config: { label: "Config", icon: FileJson, color: "text-amber-400", barColor: "bg-amber-500" },
-  image: { label: "Images", icon: FileImage, color: "text-pink-400", barColor: "bg-pink-500" },
-  document: { label: "Docs", icon: FileText, color: "text-sky-400", barColor: "bg-sky-500" },
-  archive: { label: "Archives", icon: FileArchive, color: "text-yellow-400", barColor: "bg-yellow-500" },
-  data: { label: "Data", icon: FileSpreadsheet, color: "text-cyan-400", barColor: "bg-cyan-500" },
-  media: { label: "Media", icon: FileVideo, color: "text-rose-400", barColor: "bg-rose-500" },
-  binary: { label: "Binary", icon: FileIcon, color: "text-slate-400", barColor: "bg-slate-500" },
-  text: { label: "Text", icon: FileType, color: "text-violet-400", barColor: "bg-violet-500" },
-};
 
 export function StatsPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenCount = useGraphStore((s) => s.hiddenIds.length);
   const selectedCount = useGraphStore((s) => s.selectedNodeIds.length);
+  const categoryFilter = useGraphStore((s) => s.categoryFilter);
+  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
   const stats = useMemo(() => computeStats(nodes, edges), [nodes, edges]);
 
   if (nodes.length === 0) return null;
@@ -91,20 +62,40 @@ export function StatsPanel() {
 
       {sortedCategories.length > 0 && (
         <div className="rounded-xl border border-border/40 bg-card/40 p-3">
-          <div className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-            By category
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              By category
+            </span>
+            {categoryFilter && (
+              <button
+                onClick={() => setCategoryFilter(null)}
+                className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
+              >
+                Clear filter
+              </button>
+            )}
           </div>
           <div className="space-y-2">
             {sortedCategories.map(([cat, count]) => {
               const meta = CATEGORY_META[cat];
               const Icon = meta.icon;
               const pct = (count / total) * 100;
+              const active = categoryFilter === cat;
               return (
-                <div key={cat} className="space-y-1">
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(active ? null : cat)}
+                  title={active ? `Showing only ${meta.label} — click to clear` : `Show only ${meta.label} files`}
+                  className={cn(
+                    "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
+                    active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",
+                  )}
+                >
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5">
                       <Icon className={cn("h-3.5 w-3.5", meta.color)} />
-                      <span className="font-medium">{meta.label}</span>
+                      <span className={cn("font-medium", active && "text-foreground")}>{meta.label}</span>
+                      {active && <span className="text-[9px] font-semibold uppercase tracking-wide text-primary">Filtering</span>}
                     </span>
                     <span className="tabular-nums text-muted-foreground">
                       {count}
@@ -116,7 +107,7 @@ export function StatsPanel() {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

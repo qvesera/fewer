@@ -61,7 +61,7 @@ Fewer splits its public surface across two domains on the same Netlify site, and
 - **`fewer.directory`** — the marketing homepage, privacy policy, docs, and blog. Visiting `/` on any host serves this page (`src/app/page.tsx`); the visitor does **not** need to sign in.
 - **`app.fewer.directory`** — the interactive app. The app itself lives at **`/app`** (`src/app/app/page.tsx`); `app.fewer.directory` and the Netlify `.app` subdomain redirect their root to `/app` (Netlify redirect rules with a `Host` header condition), so the app domain lands directly on the app.
 
-In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback`, share links, and the scheduled function) must point at the **app** origin: `https://app.fewer.directory`.
+In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback` and share links) must point at the **app** origin: `https://app.fewer.directory`.
 
 ## Caddy Reverse Proxy
 
@@ -102,6 +102,21 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 2. Run the migrations in `supabase/migrations/` (via the Supabase CLI: `supabase db push`, or the SQL editor)
 3. Set the two environment variables below
 
+> **Production vs non-production databases.** Fewer ships with **two** Supabase projects so developers never touch production data from a local or preview build:
+>
+> | Environment | Project | Env file | `NEXT_PUBLIC_SUPABASE_URL` |
+> | ----------- | ------- | -------- | --------------------------- |
+> | **Production** | `fewer` (`rzzbhboedvezamqjjuoe`, eu-west-1) | `.env` | `https://rzzbhboedvezamqjjuoe.supabase.co` |
+> | **Dev / previews / local** | `fewer-dev` (`aorhvfihnjhpxgjiacfg`, ap-south-1) | `.env.local` | `https://aorhvfihnjhpxgjiacfg.supabase.co` |
+>
+> The **dev** project must run the same `supabase/migrations/` so its schema stays in lock-step with prod.
+>
+> **Never put the service-role key in a client file.** Each project needs its own, server-side only:
+> - **Prod** `SUPABASE_SERVICE_ROLE_KEY` → Netlify env (accounts, watch digest, account deletion).
+> - **Dev** `SUPABASE_SERVICE_ROLE_KEY` → only your local `.env.local` (never commit it) or the non-prod deploy environment.
+>
+> Both projects need their own dashboard auth settings (Email provider, confirm-email, Site URL + redirect URLs) — the values below are production-specific.
+
 ### Production go-live checklist
 
 One-time settings to verify before real users arrive:
@@ -128,16 +143,16 @@ One-time settings to verify before real users arrive:
 
 ### Mail & scheduled digests (Watch File Indexes)
 
-Watching file indexes and emailing daily change digests uses **Resend** for email and a scheduled Netlify function for the nightly crawl.
+Watching file indexes and emailing daily change digests uses **Resend** for email and a nightly **GitHub Actions** cron workflow for the crawl.
 
 | Variable | Purpose |
 | -------- | ------- |
 | `RESEND_API_KEY` | Resend API key for sending digest emails |
 | `RESEND_FROM_EMAIL` | Sender address for digest emails (defaults to `fewer <onboarding@resend.dev>`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-side only) so the nightly job can read every user's watchlist |
-| `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` job |
+| `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` route (manual/debug trigger) |
 
-The nightly job is triggered by the Netlify scheduled function in `netlify/functions/watch-digest.ts`. It crawls watched indexes, diffs against the previous crawl, and sends one consolidated email per user only when something changed.
+The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts` — crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables — same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
 
 ## Cloud Connections (OAuth)
 

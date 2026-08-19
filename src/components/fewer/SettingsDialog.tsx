@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { EditableNumber } from "@/components/ui/editable-number";
@@ -38,12 +39,27 @@ import {
   User2,
   BellRing,
   Info,
+  Check,
   Cloud,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import type { ThemeMode } from "@/lib/fewer/types";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
 import { useAuth } from "@/hooks/use-auth";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -54,9 +70,105 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function AboutTab() {
+function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  // Last values persisted for this user — used to detect unsaved changes.
+  const [savedProfile, setSavedProfile] = useState({
+    first_name: "",
+    last_name: "",
+    username: "",
+  });
+
+  // Load the stored profile for the signed-in user, if any.
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/profile");
+        const json = await res.json();
+        if (mounted && json.profile) {
+          const p = json.profile as {
+            first_name?: unknown;
+            last_name?: unknown;
+            username?: unknown;
+          };
+          const first_name = typeof p.first_name === "string" ? p.first_name : "";
+          const last_name = typeof p.last_name === "string" ? p.last_name : "";
+          const username = typeof p.username === "string" ? p.username : "";
+          setFirstName(first_name);
+          setLastName(last_name);
+          setUsername(username);
+          setSavedProfile({ first_name, last_name, username });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
+  const profileUnchanged =
+    firstName.trim() === savedProfile.first_name &&
+    lastName.trim() === savedProfile.last_name &&
+    username.trim() === savedProfile.username;
+
+  const handleSaveProfile = async () => {
+    // Client-side guard: refuse dangerous/oversized values before POSTing.
+    const invalid =
+      validateTextField(firstName, { label: "First name", max: 100 }) ??
+      validateTextField(lastName, { label: "Last name", max: 100 }) ??
+      validateUsername(username, { label: "Username", max: 100 });
+    if (invalid) {
+      toast({ title: "Could not save profile", description: invalid, variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      // Normalized the same way the server stores it (case-insensitive uniqueness).
+      const uname = username.trim().toLowerCase();
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          username: uname,
+        }),
+      });
+      if (!res.ok) {
+        let msg = "Could not save profile";
+        try {
+          const body = await res.json();
+          if (body?.error) msg = body.error;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+      setUsername(uname);
+      setSavedProfile({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        username: uname,
+      });
+      toast({ title: "Profile updated" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save profile";
+      toast({ title: "Could not save profile", description: msg, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -67,8 +179,110 @@ function AboutTab() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/account", { method: "DELETE" });
+      if (!res.ok) {
+        let msg = "Could not delete account";
+        try {
+          const body = await res.json();
+          if (body?.error) msg = body.error;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+      // Sign out locally so the UI reflects the deleted session immediately.
+      try {
+        await getBrowserSupabase().auth.signOut();
+      } catch {
+        /* session may already be gone */
+      }
+      useGraphStore.getState().setSettingsOpen(false);
+      setConfirmOpen(false);
+      toast({ title: "Account deleted", description: "Your account and data have been removed." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not delete account";
+      toast({ title: "Could not delete account", description: msg, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5 py-1">
+      {/* Profile Card — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <User2 className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-foreground">Profile</span>
+              <span className="block text-[11px] text-muted-foreground/70">
+                Your name and username, stored with your account
+              </span>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-first-name" className="text-xs font-medium text-muted-foreground">
+                First name
+              </Label>
+              <Input
+                id="profile-first-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Ada"
+                autoComplete="given-name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-last-name" className="text-xs font-medium text-muted-foreground">
+                Last name
+              </Label>
+              <Input
+                id="profile-last-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Lovelace"
+                autoComplete="family-name"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="profile-username" className="text-xs font-medium text-muted-foreground">
+                Username
+              </Label>
+              <Input
+                id="profile-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="ada"
+                autoComplete="username"
+                maxLength={100}
+              />
+              <p className="text-[11px] text-muted-foreground/70">
+                Letters, numbers, underscores &amp; dots — no "@".
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button
+              onClick={handleSaveProfile}
+              disabled={saving || profileUnchanged}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <Check className="h-3.5 w-3.5" />
+              {saving ? "Saving…" : "Save profile"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Account Card */}
       <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/40 p-3.5">
         <div className="flex items-center gap-3">
@@ -111,7 +325,70 @@ function AboutTab() {
           )
         )}
       </div>
+{/* Danger Zone — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">Delete account</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                Permanently remove your account, saved graphs, and related data
+              </span>
+            </div>
+          </div>
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={deleting}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes your account, saved graphs, watch lists, cloud
+                  connections, and any shared graphs you own. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="gap-1.5"
+                  disabled={deleting}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleDeleteAccount();
+                  }}
+                >
+                  {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {deleting ? "Deleting…" : "Delete my account"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
 
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  About tab                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function AboutTab() {
+  return (
+    <div className="flex flex-col gap-5 py-1">
       {/* Brand Hero Card */}
         <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card to-card/50 p-4 shadow-sm transition-[colors,transform,box-shadow]">
         <div className="flex items-center gap-3.5">
@@ -253,12 +530,24 @@ function MinimapControls() {
   const setMiniMapPosition = useGraphStore((s) => s.setMiniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);
   const setMiniMapSize = useGraphStore((s) => s.setMiniMapSize);
+  const miniMapX = useGraphStore((s) => s.miniMapX);
+  const setMiniMapX = useGraphStore((s) => s.setMiniMapX);
+  const miniMapY = useGraphStore((s) => s.miniMapY);
+  const setMiniMapY = useGraphStore((s) => s.setMiniMapY);
+  const canvasSize = useGraphStore((s) => s.canvasSize);
+
+  // Slider bounds track the live canvas size (never an arbitrary cap): the max
+  // keeps the minimap fully on-canvas (canvas size minus the minimap itself),
+  // with a floor so the slider stays usable before/if the canvas isn't measured.
+  const maxX = Math.max(canvasSize.width - miniMapSize, miniMapSize);
+  const maxY = Math.max(canvasSize.height - miniMapSize, miniMapSize);
 
   const positions = [
     { value: "top-left", label: "Top Left" },
     { value: "top-right", label: "Top Right" },
     { value: "bottom-left", label: "Bottom Left" },
     { value: "bottom-right", label: "Bottom Right" },
+    { value: "custom", label: "Custom" },
   ] as const;
 
   return (
@@ -306,6 +595,38 @@ function MinimapControls() {
               step={10}
             />
           </div>
+
+          {miniMapPosition === "custom" && (
+            <>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground font-medium">X Position</Label>
+                  <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapX} onCommit={(v) => setMiniMapX(v)} unit="px" /></span>
+                </div>
+                <Slider
+                  value={[miniMapX]}
+                  onValueChange={([v]) => setMiniMapX(v)}
+                  min={0}
+                  max={maxX}
+                  step={5}
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-muted-foreground font-medium">Y Position</Label>
+                  <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapY} onCommit={(v) => setMiniMapY(v)} unit="px" /></span>
+                </div>
+                <Slider
+                  value={[miniMapY]}
+                  onValueChange={([v]) => setMiniMapY(v)}
+                  min={0}
+                  max={maxY}
+                  step={5}
+                />
+              </div>
+              <p className="pt-1 text-[11px] text-muted-foreground/70">Custom position is pinned in place and only moves when you adjust the X / Y sliders above.</p>
+            </>
+          )}
         </>
       )}
     </div>
@@ -483,6 +804,17 @@ export function SettingsDialog() {
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Open straight to the Account (profile) tab when the share/gallery flow asks
+  // the user to fill in their name + username before publishing to the gallery.
+  useEffect(() => {
+    const onOpenAccount = () => {
+      setSettingsOpen(true);
+      setTab("account");
+    };
+    window.addEventListener("fewer-open-settings-account", onOpenAccount);
+    return () => window.removeEventListener("fewer-open-settings-account", onOpenAccount);
+  }, []);
+
   // Keep the active tab visible: scroll it toward the center of the list so
   // selecting a tab near either end reveals its hidden neighbours.
   // Runs after commit so data-state is already updated.
@@ -512,6 +844,13 @@ export function SettingsDialog() {
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
             <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsTrigger
+                value="account"
+                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+              >
+                <User2 className="h-3.5 w-3.5" />
+                Account
+              </TabsTrigger>
               <TabsTrigger
                 value="about"
                 className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
@@ -562,6 +901,9 @@ export function SettingsDialog() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <TabsContent value="account" className="m-0">
+              <AccountTab />
+            </TabsContent>
             <TabsContent value="about" className="m-0">
               <AboutTab />
             </TabsContent>

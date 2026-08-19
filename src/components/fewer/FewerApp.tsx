@@ -16,6 +16,7 @@ import type { ImportOrigin } from "@/lib/fewer/importFlow";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
+import { useSettingsSync } from "@/hooks/use-settings";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -35,6 +36,9 @@ const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) =
 const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
 
 export function FewerApp() {
+  // Cloud + local persistence of the user's app settings (theme, layout,
+  // display, import/export prefs, sidebar).
+  useSettingsSync();
   const setGraph = useGraphStore((s) => s.setGraph);
   const sidebarOpen = useGraphStore((s) => s.sidebarOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
@@ -61,11 +65,19 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
-  // Initialize theme from localStorage on mount
+  // Initialize theme on mount: respect a saved preference, otherwise follow the
+  // device scheme (resolved to light/dark). Syncing the store keeps the
+  // Appearance selector matched to the theme actually applied.
   useEffect(() => {
-    const savedTheme = localStorage.getItem("fewer-theme") as string | null;
-    if (savedTheme) {
-      useGraphStore.getState().setThemeMode(savedTheme as any);
+    const saved = localStorage.getItem("fewer-theme") as string | null;
+    if (saved === "light" || saved === "dark" || saved === "custom") {
+      useGraphStore.getState().setThemeMode(saved);
+    } else if (typeof window !== "undefined") {
+      const deviceMode =
+        window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      // Derive but don't persist: keep following the device until the user
+      // explicitly picks a theme in Settings.
+      useGraphStore.setState({ themeMode: deviceMode });
     }
   }, []);
 
@@ -110,16 +122,24 @@ export function FewerApp() {
     if (!hash) return;
 
     const applyData = (data: { nodes: unknown[]; edges: unknown[]; direction: unknown; edgeStyle: unknown; customTheme?: unknown; themeMode: unknown; cornerRadius: unknown; nodeWidth: unknown; nodeHeight: unknown }) => {
-      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false);
-      useGraphStore.getState().setDirection(data.direction as never);
-      useGraphStore.getState().setEdgeStyle(data.edgeStyle as never);
-      if (data.customTheme) {
-        useGraphStore.getState().setCustomTheme(data.customTheme as never);
-      }
-      useGraphStore.getState().setThemeMode(data.themeMode as never);
+      // Apply appearance scalars without the layout setters (they re-run layout
+      // and would discard the saved node positions). setGraph below honours them
+      // while preserving positions.
+      useGraphStore.setState((s) => ({
+        direction: (data.direction as never) ?? s.direction,
+        edgeStyle: (data.edgeStyle as never) ?? s.edgeStyle,
+        nodeWidth: (data.nodeWidth as never) ?? s.nodeWidth,
+        nodeHeight: (data.nodeHeight as never) ?? s.nodeHeight,
+      }));
+      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
+      // Corner radius is applied after edges load (no re-layout).
       useGraphStore.getState().setCornerRadius(data.cornerRadius as never);
-      useGraphStore.getState().setNodeDimensions(data.nodeWidth as never, data.nodeHeight as never);
-      useGraphStore.setState({ dataSource: "shared" });
+      // Theme is an account-level preference; shared loads keep the viewer's theme.
+      useGraphStore.setState({
+        dataSource: "shared",
+        localRootPath: (data as { localRootPath?: string | null }).localRootPath ?? null,
+        skipNextAutoLayout: true,
+      });
       setHashLoaded(true);
       // Clear hash from address bar
       window.history.replaceState(null, "", window.location.pathname);
@@ -230,7 +250,7 @@ export function FewerApp() {
 
   const handleLoadSample = useCallback(() => {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" });
-    useGraphStore.setState({ dataSource: "sample", maxDisplayDepth: 6 });
+    useGraphStore.setState({ dataSource: "sample", maxDisplayDepth: 6, localRootPath: null });
     setGraph(nodes, edges, false);
     toast({
       title: "Sample project loaded",

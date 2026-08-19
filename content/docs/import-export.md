@@ -72,6 +72,15 @@ Fewer can also visualize any public directory listing that uses Apache or nginx 
 
 The server crawls the index (breadth-first, up to 200 pages and 6 levels deep), parses folder/file entries and sizes, and builds the graph. Large listings are truncated with a notice. Results are cached for 24 hours, so repeat imports of the same URL load instantly.
 
+### Internet Archive URLs
+
+[Internet Archive](https://archive.org) items are imported via the archive.org metadata API — a single request returns the item's complete file tree, so there is no page/depth limit and no truncation:
+
+- `https://archive.org/details/msdos_Prince_of_Persia_1990`
+- `https://archive.org/download/<identifier>/...`
+
+Auto-generated files (thumbnails, item tiles, `_meta.xml`) are filtered out. Every file and folder carries its archive.org URL, so the right-click **Download** / **Open in archive.org** actions work as usual. Results are cached for 24 hours like other URL imports.
+
 ## Import from File
 
 Supported formats:

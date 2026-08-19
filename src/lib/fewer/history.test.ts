@@ -22,6 +22,8 @@ const baseView: ViewState = {
   maxDisplayDepth: 6,
   autoHideThreshold: 10,
   autoHiddenIds: [],
+  categoryFilter: null,
+  categoryHiddenIds: [],
 };
 
 function expectRoundTrip(nodes: FewerNode[], edges: FewerEdge[], op: Parameters<typeof applyOps>[2][number]) {
