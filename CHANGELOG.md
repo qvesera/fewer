@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
 - Blog and docs are now headless: posts/pages live in a Supabase content_pages table (migration 0021) and are read at request time with a 60s revalidate, so publishing a new blog post or fixing a doc typo no longer needs a deploy. Read via supabase from /blog, /blog/[slug], /docs and /docs/[slug]; the markdown in content/blog/ and content/docs/ stays in-repo as a source-of-record backup. Writes are done via Supabase Studio (service role), gated by a public-read-only RLS policy.
 - Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and _meta.xml files are filtered out; results are cached 24h like other URL imports.
+- Select Children in folder context menu: select all child nodes of a folder with one click
 
 ### Changed
 
