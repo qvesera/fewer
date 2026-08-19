@@ -39,7 +39,8 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("first_name, last_name, username")
+    // plan is SELECT-able by its owner (0022 only column-revoked INSERT/UPDATE)
+    .select("first_name, last_name, username, plan")
     .eq("user_id", user.id)
     .maybeSingle();
 

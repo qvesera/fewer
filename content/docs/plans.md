@@ -30,7 +30,7 @@ Limits are enforced server-side in the API routes — the app shows a clear erro
 
 ## Managing your plan
 
-Plans live on your account (`profiles.plan`). **Upgrade to Pro** from any upgrade prompt in the app (for example, the History dialog) — checkout and payment run on Stripe, and fewer never sees your card. You can change your payment method, download invoices, or cancel anytime from the same Stripe-hosted billing portal; cancellation takes effect at the end of the current period.
+Plans live on your account (`profiles.plan`). **Upgrade to Pro** from any upgrade prompt in the app (for example, the History dialog) or from **Settings → Account** — checkout and payment run on Stripe, and fewer never sees your card. Once subscribed, **Settings → Account → Manage subscription** opens the same Stripe-hosted billing portal, where you can change your payment method, download invoices, or cancel anytime; cancellation takes effect at the end of the current period.
 
 ## Why this split?
 
