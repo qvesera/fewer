@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
 - Sign-in field now auto-detects email vs username: the Email/Username split is gone — one 'Email or username' field. Input containing '@' is an email, otherwise a username, matching /api/login's existing logic (usernames can't contain '@').
 - The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
+- Relayout no longer triggers an auto-fit zoom: the automatic fit (React Flow mount-time `fitView` prop) is now a guarded one-shot that fires once when a graph first appears and resets only when the canvas empties, so relayout (parent/unparent, cut/paste, edge-style, beautify) never jumps the viewport. Manual Fit View / Zoom-to-selection are unchanged.
 
 ### Security
 

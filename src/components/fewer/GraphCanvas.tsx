@@ -232,6 +232,27 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
 
+  // Fit the view exactly once per loaded graph — when nodes first appear — and
+  // never on relayout. React Flow's `fitView` boolean prop only fits at mount
+  // (so an import that happens after the canvas mounts would never fit), and a
+  // `graphVersion`-driven fitView would zoom/jump the user's viewport on every
+  // relayout (parent/unparent, cut/paste, edge-style, beautify, …). Guarding on
+  // "nodes went from empty to non-empty" gives a fit on initial load, and
+  // resetting the guard when the canvas empties fits again on the next import.
+  // The small delay lets the initial dimension-measure → relayout settle so the
+  // fit targets real positions, not the raw stacked layout.
+  const didInitialFitRef = useRef(false);
+  useEffect(() => {
+    if (visibleNodes.length === 0) {
+      didInitialFitRef.current = false;
+      return;
+    }
+    if (didInitialFitRef.current) return;
+    didInitialFitRef.current = true;
+    const t = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }), 120);
+    return () => clearTimeout(t);
+  }, [visibleNodes, fitView]);
+
   const relayout = useGraphStore((s) => s.relayout);
   const hasMeasuredRef = useRef(false);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
@@ -525,7 +546,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         panOnScroll={scrollAction === "pan"}
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={scrollAction === "pan" ? "Control" : null}
-        fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
           type: edgeTypeFor(edgeStyle), animated: edgeAnimated && !edgeAnimatedSelectedOnly,
