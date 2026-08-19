@@ -555,7 +555,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
           useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
-          fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 });
+          // Defer so the selection state update processes before the fitView
+          // animation starts — avoids React Flow stepping on the viewport change.
+          requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
           if (deletedNodes.length > 0) {
