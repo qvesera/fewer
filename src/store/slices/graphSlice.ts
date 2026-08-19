@@ -395,6 +395,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       hiddenIds: s.hiddenIds.filter((h) => !toRemove.has(h)),
       autoHiddenIds: s.autoHiddenIds.filter((h) => !toRemove.has(h)),
       revealedRootIds: s.revealedRootIds.filter((h) => !toRemove.has(h)),
+      independentlyHiddenIds: s.independentlyHiddenIds.filter((h) => !toRemove.has(h)),
       graphVersion: s.graphVersion + 1,
     }));
   },
@@ -987,7 +988,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
       searchQuery: "", categoryFilter: null, categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
-      revealedFromHidden: [], localRootPath: null,
+      revealedFromHidden: [], independentlyHiddenIds: [], localRootPath: null,
     });
   },
 });

@@ -255,6 +255,9 @@ export interface ViewState {
   categoryFilter: FileCategory | null;
   /** Ids that the category filter added to hiddenIds in this view state. */
   categoryHiddenIds: string[];
+  /** Ids the user hid directly (toggleHidden / hideSelected roots) —
+   *  showSubtree must not reveal them or their descendants. */
+  independentlyHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */

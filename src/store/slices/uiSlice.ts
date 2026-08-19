@@ -109,6 +109,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   categoryFilter: null,
   categoryHiddenIds: [],
   hiddenIds: [],
+  independentlyHiddenIds: [],
   renamingId: null,
   renameSource: null,
   zoomToNode: null,
@@ -203,14 +204,24 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   toggleHidden: (id) => {
     const before = captureViewState(get());
-    const { hiddenIds } = get();
-    const next = hiddenIds.includes(id)
-      ? hiddenIds.filter((h) => h !== id)
-      : [...hiddenIds, id];
-    const after = { ...before, hiddenIds: next };
-    if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")) get().pushOp(viewStateOp(before, after));
+    const { hiddenIds, independentlyHiddenIds } = get();
+    const hiding = !hiddenIds.includes(id);
+    const next = hiding
+      ? [...hiddenIds, id]
+      : hiddenIds.filter((h) => h !== id);
+    // User toggled this node directly — track it as independently hidden
+    // so showSubtree won't auto-reveal it when a parent is shown.
+    const nextIndie = hiding
+      ? [...new Set([...independentlyHiddenIds, id])]
+      : independentlyHiddenIds.filter((h) => h !== id);
+    const after = { ...before, hiddenIds: next, independentlyHiddenIds: nextIndie };
+    if (before.hiddenIds.join(",") !== after.hiddenIds.join(",")
+        || before.independentlyHiddenIds.join(",") !== after.independentlyHiddenIds.join(",")) {
+      get().pushOp(viewStateOp(before, after));
+    }
     set((s) => ({
       hiddenIds: next,
+      independentlyHiddenIds: nextIndie,
       autoHiddenIds: hiddenIds.includes(id) ? s.autoHiddenIds.filter((h) => h !== id) : s.autoHiddenIds,
     }));
   },
@@ -229,7 +240,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], independentlyHiddenIds: [...new Set([...s.independentlyHiddenIds, ...selectedNodeIds])], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
     setTimeout(() => get().relayout(), 50);
   },
 
@@ -238,7 +249,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (before.hiddenIds.length === 0 && !before.categoryFilter) return;
     const after = { ...before, hiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [], independentlyHiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
   },
 
   setSearchOpen: (open) => set({ searchOpen: open }),
@@ -285,8 +296,11 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       // The toggle must not bypass other hide mechanisms: keep files beyond the
       // display-depth limit hidden...
       const nodeDepth = new Map(nodes.map((n) => [n.id, n.data.depth ?? 0]));
+      const indieSet = new Set(get().independentlyHiddenIds);
       const revealSet = new Set(
-        revealable.filter((id) => maxDisplayDepth <= 0 || (nodeDepth.get(id) ?? 0) <= maxDisplayDepth),
+        revealable
+          .filter((id) => maxDisplayDepth <= 0 || (nodeDepth.get(id) ?? 0) <= maxDisplayDepth)
+          .filter((id) => !indieSet.has(id)),
       );
       // ...and re-apply the large-folder auto-hide limit after revealing, so
       // files under over-threshold folders stay hidden (and tagged autoHiddenIds).

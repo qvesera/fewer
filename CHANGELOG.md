@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
 - The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
 - The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
+- Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
 
 ### Added
 
