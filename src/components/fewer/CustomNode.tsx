@@ -170,7 +170,7 @@ function RenameInput({
         // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
       }}
-      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
+      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text"
     />
   );
 }

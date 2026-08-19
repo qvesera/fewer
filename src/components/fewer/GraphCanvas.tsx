@@ -557,7 +557,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   );
 
   return (
-    <div ref={containerRef} className="relative h-full w-full" style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
+    <div ref={containerRef} className="relative h-full w-full select-none" style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
       onContextMenu={(e) => e.preventDefault()}>
       <ReactFlow
         key={`flow-${direction}`}
