@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { Resend } from "resend";
 import { isDangerousText } from "@/lib/fewer/textValidation";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "fewer <onboarding@resend.dev>";
@@ -64,6 +65,18 @@ export async function POST(request: Request) {
       ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)
       : [];
     const savedGraphId = body?.saved_graph_id ?? null;
+
+    // Invite-only sharing is a Pro feature (Resend emails per invitee have
+    // real cost). Public "anyone with the link" sharing stays free.
+    if (access === "invite" && user && !limitsFor(await getUserPlan(supabase, user.id)).inviteSharing) {
+      return NextResponse.json(
+        {
+          error: "Invite-only sharing is a Pro feature. Public links stay free.",
+          code: "plan_limit",
+        },
+        { status: 403 },
+      );
+    }
 
     // Reject broken gallery text (e.g. "[object Object]") before it's stored.
     const badGallery = (v: unknown) => v != null && isDangerousText(v);

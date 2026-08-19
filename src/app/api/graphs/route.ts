@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
+import { countOwned, limitsFor, getUserPlan, overLimit } from "@/lib/fewer/plans";
 
 /**
  * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
@@ -94,6 +95,22 @@ export async function POST(request: Request) {
     // Best-effort history snapshot; never blocks the save on failure.
     await recordVersion(supabase, user.id, data.id, body.data);
     return NextResponse.json({ graph: data });
+  }
+
+  // Plan cap: creating a new saved graph is metered (updating an existing one
+  // isn't). Upserts to an existing id never reach this branch.
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (
+    limits.savedGraphs !== Infinity &&
+    overLimit(await countOwned(supabase, "saved_graphs", user.id), limits.savedGraphs)
+  ) {
+    return NextResponse.json(
+      {
+        error: `Free plan saves up to ${limits.savedGraphs} graphs. Upgrade to Pro for unlimited saves.`,
+        code: "plan_limit",
+      },
+      { status: 403 },
+    );
   }
 
   const { data, error } = await supabase
