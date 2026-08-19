@@ -324,7 +324,11 @@ function FolderContextMenu({
           onSelect={() => {
             const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
             if (childIds.length > 0) {
-              setSelectedNodeIds(childIds);
+              useGraphStore.setState((s) => ({
+                selectedNodeIds: childIds,
+                nodes: s.nodes.map((n) => ({ ...n, selected: childIds.includes(n.id) })),
+                graphVersion: s.graphVersion + 1,
+              }));
               toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
             } else {
               toast({ title: "No children", description: "This folder has no children" });
