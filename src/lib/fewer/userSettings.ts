@@ -30,6 +30,7 @@ export interface UserSettings {
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   edgeAnimated: boolean;
+  edgeAnimatedSelectedOnly: boolean;
   edgeStrokeStyle: EdgeStrokeStyle;
   edgeWidth: number;
   cornerRadius: number;
@@ -64,6 +65,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     direction: store.direction as LayoutDirection,
     edgeStyle: store.edgeStyle as EdgeStyle,
     edgeAnimated: store.edgeAnimated as boolean,
+    edgeAnimatedSelectedOnly: store.edgeAnimatedSelectedOnly as boolean,
     edgeStrokeStyle: store.edgeStrokeStyle as EdgeStrokeStyle,
     edgeWidth: store.edgeWidth as number,
     cornerRadius: store.cornerRadius as number,
@@ -140,6 +142,9 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   // Edge-affecting styling: these touch live edges but never re-lay out.
   if (data.edgeStyle) s.setEdgeStyle(data.edgeStyle);
   if (data.edgeAnimated !== undefined) s.setEdgeAnimated(data.edgeAnimated);
+  // The selected-only flag is read by the canvas when (re)styling edges, so a
+  // plain state set is enough — no edge rewrite needed here.
+  useGraphStore.setState((s) => ({ edgeAnimatedSelectedOnly: data.edgeAnimatedSelectedOnly ?? s.edgeAnimatedSelectedOnly }));
   if (data.edgeStrokeStyle) s.setEdgeStrokeStyle(data.edgeStrokeStyle);
   if (data.edgeWidth !== undefined) s.setEdgeWidth(data.edgeWidth);
   if (data.cornerRadius !== undefined) s.setCornerRadius(data.cornerRadius);

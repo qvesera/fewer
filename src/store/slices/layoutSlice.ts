@@ -12,6 +12,8 @@ export type LayoutSliceCreator = StateCreator<
     direction: LayoutDirection;
     edgeStyle: EdgeStyle;
     edgeAnimated: boolean;
+    /** When true (and edgeAnimated), only the ancestor-path edges of selected nodes animate. */
+    edgeAnimatedSelectedOnly: boolean;
     edgeStrokeStyle: EdgeStrokeStyle;
     edgeWidth: number;
     cornerRadius: number;
@@ -21,6 +23,7 @@ export type LayoutSliceCreator = StateCreator<
     setDirection: (d: LayoutDirection) => void;
     setEdgeStyle: (s: EdgeStyle) => void;
     setEdgeAnimated: (v: boolean) => void;
+    setEdgeAnimatedSelectedOnly: (v: boolean) => void;
     setEdgeStrokeStyle: (s: EdgeStrokeStyle) => void;
     setEdgeWidth: (w: number) => void;
     setCornerRadius: (r: number) => void;
@@ -50,6 +53,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   direction: "TB",
   edgeStyle: "angled",
   edgeAnimated: false,
+  edgeAnimatedSelectedOnly: false,
   edgeStrokeStyle: "solid",
   edgeWidth: 2,
   cornerRadius: 8,
@@ -98,6 +102,13 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
         graphVersion: s.graphVersion + 1,
       };
     });
+  },
+
+  // Only flips the flag: the per-edge `animated` values are recomputed by the
+  // canvas's edge-styling effect (which knows the current selection), so the
+  // tree-walk logic lives in exactly one place.
+  setEdgeAnimatedSelectedOnly: (selectedOnly) => {
+    set((s) => ({ edgeAnimatedSelectedOnly: selectedOnly, graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {

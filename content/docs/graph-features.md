@@ -115,6 +115,10 @@ Optional motion effects:
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
+A Settings → Appearance toggle, **Animate Selected Edges Only**, limits the
+animation to the edges along the selected nodes' path to the root (the same
+edges that get the selection highlight) instead of every edge on the canvas.
+
 ## Edge Pattern & Weight
 
 In Power User mode, the sidebar Edges section controls:

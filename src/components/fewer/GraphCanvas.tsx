@@ -48,6 +48,9 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
  * one. Empty selection → all edges reset to default stroke.
  * Highlighted edges get zIndex 1 (z-priority above all others) and sort last
  * so they render on top.
+ * Also recomputes each edge's `animated` flag: with edge motion on, either all
+ * edges animate, or — when `edgeAnimation.selectedOnly` is set — only the
+ * highlighted (ancestor-path) edges of the current selection do.
  */
 function buildSelectedEdgeHighlight(
   selectedIds: string[],
@@ -55,6 +58,7 @@ function buildSelectedEdgeHighlight(
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
   edgeWidth: number,
+  edgeAnimation: { animated: boolean; selectedOnly: boolean },
 ): FewerEdge[] {
   const typeByNodeId = new Map<string, "folder" | "file">();
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
@@ -85,9 +89,12 @@ function buildSelectedEdgeHighlight(
   return edges
     .map((e) => {
       const h = highlighted.get(e.id);
+      // Per-edge animation: all edges when motion is on, else only the
+      // selected ancestor-path edges (matches the selection highlight).
+      const animated = edgeAnimation.animated && (!edgeAnimation.selectedOnly || !!h);
       return h
-        ? { ...e, zIndex: 1, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
-        : { ...e, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
+        ? { ...e, zIndex: 1, animated, style: { ...e.style, stroke: h.stroke, strokeWidth: h.width } }
+        : { ...e, animated, style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth } };
     })
     .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
 }
@@ -118,6 +125,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const direction = useGraphStore((s) => s.direction);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
@@ -248,14 +256,14 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     }
   }, [zoomToNodeIds]);
 
-  // ── Re-apply edge colors when theme changes ──
+  // ── Re-apply edge colors + per-edge animation when theme/edge settings change ──
   useEffect(() => {
-    const { selectedNodeIds, edges, nodes, hiddenIds } = useGraphStore.getState();
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth);
+    const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly } = useGraphStore.getState();
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly });
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth, themeColors]);
+  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly]);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
@@ -267,8 +275,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       const newIds = [...kept, ...added];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth);
+      const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly } = useGraphStore.getState();
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly });
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -513,7 +521,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         fitView fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(edgeStyle), animated: edgeAnimated,
+          type: edgeTypeFor(edgeStyle), animated: edgeAnimated && !edgeAnimatedSelectedOnly,
           style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
         }}
         proOptions={{ hideAttribution: true }}

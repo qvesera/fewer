@@ -28,6 +28,7 @@ import {
   Globe,
   Mouse,
   HelpCircle,
+  Zap,
   Map as MinimapIcon,
   Maximize2,
   BookOpen,
@@ -462,6 +463,10 @@ function AppearanceTab() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
+  const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -502,6 +507,48 @@ function AppearanceTab() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Edge Motion
+          </Label>
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-foreground" htmlFor="edge-motion-toggle">
+              Animated Edges
+            </Label>
+            <Switch
+              id="edge-motion-toggle"
+              checked={edgeAnimated}
+              onCheckedChange={setEdgeAnimated}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label
+              className="text-xs font-medium text-foreground"
+              htmlFor="edge-motion-selected-toggle"
+            >
+              Animate Selected Edges Only
+            </Label>
+            <Switch
+              id="edge-motion-selected-toggle"
+              checked={edgeAnimatedSelectedOnly}
+              onCheckedChange={setEdgeAnimatedSelectedOnly}
+              disabled={!edgeAnimated}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            {edgeAnimated
+              ? edgeAnimatedSelectedOnly
+                ? "Only the edges along the selected nodes' path to the root are animated."
+                : "All edges are animated. Enable the toggle above to animate only the selected path."
+              : "Enable animated edges first, then optionally limit animation to the selected path."}
+          </p>
         </div>
       </div>
 

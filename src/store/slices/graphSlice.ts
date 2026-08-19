@@ -292,7 +292,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const styledEdges = edges.map((e) => ({
       ...e,
       type: edgeType,
-      animated: state.edgeAnimated,
+      // Fresh graph has no selection yet — with "selected only" animation on,
+      // nothing animates until the user selects a node.
+      animated: state.edgeAnimated && !state.edgeAnimatedSelectedOnly,
       style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
     }));
     // Fresh import resets reveal memory

@@ -18,6 +18,7 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level nodes on the canvas (folders only)
+- **Edge Motion**: toggle animated edges, and optionally **Animate Selected Edges Only** — animation is limited to the edges along the selected nodes' path to the root
 
 ## Advanced
 

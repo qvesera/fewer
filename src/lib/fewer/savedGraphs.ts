@@ -7,6 +7,8 @@ export interface SavedGraphData {
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   edgeAnimated: boolean;
+  /** When true (and edgeAnimated), only ancestor-path edges of selected nodes animate. */
+  edgeAnimatedSelectedOnly?: boolean;
   edgeStrokeStyle: string;
   edgeWidth: number;
   cornerRadius: number;
