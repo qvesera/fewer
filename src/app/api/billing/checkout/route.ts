@@ -53,8 +53,8 @@ export async function POST() {
     client_reference_id: user.id,
     subscription_data: { metadata: { user_id: user.id } },
     allow_promotion_codes: true,
-    success_url: `${appUrl}/?billing=success`,
-    cancel_url: `${appUrl}/?billing=cancelled`,
+    success_url: `${appUrl}/app?billing=success`,
+    cancel_url: `${appUrl}/app?billing=cancelled`,
   });
 
   return NextResponse.json({ url: session.url });
