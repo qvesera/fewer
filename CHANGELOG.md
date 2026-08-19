@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delete Edge no longer appears in the canvas context menu when no edge is the target: opening the pane context menu (or any context menu not on an edge) now clears the remembered edge, and the item is hidden if the previously remembered edge no longer exists.
 - Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
 - Hide/show nodes no longer triggers graph relayout — visibility changes only
+- File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
 
 ### Added
 

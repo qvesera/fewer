@@ -7,6 +7,11 @@ import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
+
+/** Full display name for a node: label.ext for files, label for folders. */
+const fullName = (n: { data: { label: string; extension?: string } }) =>
+  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+
 import { captureViewState, viewStateOp } from "./historySlice";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
@@ -624,16 +629,16 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const ext = type === "file" ? getFileExtension(label) : "";
     const baseLabel = ext ? label.slice(0, -(ext.length + 1)) : label;
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : [];
-    const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    let displayLabel = baseLabel;
-    if (siblingLabels.has(displayLabel)) {
+    const siblingFullNames = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName));
+    let finalLabel = ext ? `${baseLabel}.${ext}` : baseLabel;
+    if (siblingFullNames.has(finalLabel)) {
       let counter = 1;
-      while (siblingLabels.has(`${baseLabel} (${counter})`)) counter++;
-      displayLabel = `${baseLabel} (${counter})`;
+      while (siblingFullNames.has(`${baseLabel} (${counter})${ext ? `.${ext}` : ""}`)) counter++;
+      finalLabel = `${baseLabel} (${counter})${ext ? `.${ext}` : ""}`;
     }
-    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
     const newPath = parent ? `${parent.data.path}/${finalLabel}` : finalLabel;
-    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: displayLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
+    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge: { id: string; source: string; target: string; type?: string } | null = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
@@ -650,15 +655,15 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const trimmed = label.trim() || (type === "folder" ? "New Folder" : "new-file.txt");
     const ext = type === "file" ? getFileExtension(trimmed) : "";
     const baseLabel = ext ? trimmed.slice(0, -(ext.length + 1)) : trimmed;
-    const rootNodeLabels = new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.data.label));
-    let displayLabel = baseLabel;
-    if (rootNodeLabels.has(displayLabel)) {
+    const rootNodeLabels = new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map(fullName));
+    let finalLabel = ext ? `${baseLabel}.${ext}` : baseLabel;
+    if (rootNodeLabels.has(finalLabel)) {
       let counter = 1;
-      while (rootNodeLabels.has(`${baseLabel} (${counter})`)) counter++;
-      displayLabel = `${baseLabel} (${counter})`;
+      while (rootNodeLabels.has(`${baseLabel} (${counter})${ext ? `.${ext}` : ""}`)) counter++;
+      finalLabel = `${baseLabel} (${counter})${ext ? `.${ext}` : ""}`;
     }
-    const finalLabel = ext ? `${displayLabel}.${ext}` : displayLabel;
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: displayLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     // Targeted add-node op — stores only the new node
     get().pushOp({ type: "add-node", node: newNode, edge: null });
