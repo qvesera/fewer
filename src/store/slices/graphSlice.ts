@@ -787,7 +787,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   showAncestors: (id) => {
-    const { hiddenIds, edges, revealedFromHidden, autoHiddenIds } = get();
+    const { hiddenIds, edges, revealedFromHidden, autoHiddenIds, independentlyHiddenIds } = get();
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
@@ -796,15 +796,26 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
     while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
     const before = captureViewState(get());
-    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
+    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
   },
 
   showSubtree: (id) => {
-    const { hiddenIds, edges, autoHiddenIds } = get();
-    const toShow = new Set([id]); const queue = [id];
-    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && hiddenIds.includes(e.target)) { toShow.add(e.target); queue.push(e.target); } } }
+    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const indieSet = new Set(independentlyHiddenIds);
+    const toShow = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const nid = queue.shift()!;
+      for (const e of edges) {
+        if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
+        // Nodes the user hid directly and all descendants stay hidden.
+        if (indieSet.has(e.target)) continue;
+        toShow.add(e.target);
+        queue.push(e.target);
+      }
+    }
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
