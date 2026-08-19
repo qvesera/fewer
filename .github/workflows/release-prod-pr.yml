@@ -1,0 +1,81 @@
+name: Open release/prod + dev sync PRs on main update
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-or-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for the dev ancestor check below
+
+      - name: Open or reuse main -> release/prod PR
+        run: |
+          TOKEN="${{ secrets.RELEASE_PAT }}"
+          : "${TOKEN:?RELEASE_PAT secret is required: create a PAT with repo scope and add it in repo Settings -> Secrets}"
+
+          existing() {
+            gh pr list \
+              --base release/prod \
+              --head main \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          }
+
+          PR=$(existing)
+          if [ -n "$PR" ]; then
+            echo "PR #$PR already open for main -> release/prod."
+            echo "Because the head is 'main', it auto-updates as main advances."
+          else
+            gh pr create \
+              --base release/prod \
+              --head main \
+              --title "Release: main → release/prod" \
+              --body "Automated: \`main\` was updated, so this PR promotes the current \`main\` into \`release/prod\`. Only \`main\` merges into \`release/prod\`."
+          fi
+        env:
+          GH_TOKEN: "${{ secrets.RELEASE_PAT }}"
+
+      - name: Open or reuse main -> dev sync PR
+        run: |
+          TOKEN="${{ secrets.RELEASE_PAT }}"
+          : "${TOKEN:?RELEASE_PAT secret is required: create a PAT with repo scope and add it in repo Settings -> Secrets}"
+
+          # Nothing to sync when dev already contains everything on main.
+          git fetch origin dev
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "dev is already up to date with main — no sync PR needed."
+            exit 0
+          fi
+
+          existing() {
+            gh pr list \
+              --base dev \
+              --head main \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty'
+          }
+
+          PR=$(existing)
+          if [ -n "$PR" ]; then
+            echo "PR #$PR already open for main -> dev."
+            echo "Because the head is 'main', it auto-updates as main advances."
+          else
+            gh pr create \
+              --base dev \
+              --head main \
+              --title "Sync: main → dev" \
+              --body "Automated: \`main\` was updated (release flow), so this PR syncs \`main\` back into \`dev\` to keep the integration branch current. If this PR shows conflicts, \`dev\` and \`main\` diverged — merge \`main\` into \`dev\` locally and push." \
+              || echo "WARN: could not open main -> dev PR (likely conflicts); sync manually."
+          fi
+        env:
+          GH_TOKEN: "${{ secrets.RELEASE_PAT }}"

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
+- **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
+
 - **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
 - ASCII tree imports are now header- and footer-aware: the "Directory Tree Structure" title, the "Created with fewer" credit line, and trailing "N directories, M files" style summaries are stripped instead of being imported as phantom nodes.
 - Selecting a node now highlights only its ancestor-path edges (from the node up to the root parent) instead of every incident edge — child edges are no longer colored when a folder is selected.
