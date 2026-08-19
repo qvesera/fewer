@@ -485,8 +485,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [fitView]);
 
   const selectAll = useCallback(() => {
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: s.nodes.map((n) => n.id) }));
-  }, []);
+    const ids = useGraphStore.getState().nodes.map((n) => n.id);
+    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: ids }));
+    // Also update React Flow's internal node state so the selection is visible
+    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
+  }, [setRfNodes]);
 
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const scrollAction = useGraphStore((s) => s.scrollAction);
