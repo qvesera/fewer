@@ -208,7 +208,14 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const prevGraphVersion = useRef(graphVersion);
   useEffect(() => {
     if (graphVersion !== prevGraphVersion.current) {
-      setRfNodes(visibleNodes);
+      // Rebuild RF nodes from the store. Selection is authoritative in
+      // `selectedNodeIds` (kept in sync by onSelectionChange); the per-node
+      // `selected` flags on the store are NOT updated for RF-driven clicks, so
+      // trusting them here would resurrect a stale selection (e.g. a node that
+      // was deselected when clicking an edge comes back as selected after any
+      // graph edit). Force `selected` from the canonical id list instead.
+      const selectedSet = new Set(useGraphStore.getState().selectedNodeIds);
+      setRfNodes(visibleNodes.map((n) => (selectedSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
       setRfEdges(visibleEdges);
       prevGraphVersion.current = graphVersion;
     }
