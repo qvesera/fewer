@@ -460,9 +460,12 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   _makeCopyNode: (sourceNode, parentId) => {
     const { nodes, edges, nodeWidth, nodeHeight } = get();
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
-    const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    let copyLabel = `${sourceNode.data.label} copy`;
-    if (siblingLabels.has(copyLabel)) { let counter = 2; while (siblingLabels.has(`${sourceNode.data.label} copy ${counter}`)) counter++; copyLabel = `${sourceNode.data.label} copy ${counter}`; }
+    const siblingFullNames = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName));
+    const sourceExt = sourceNode.data.extension || "";
+    const baseStem = sourceNode.data.label;
+    let copyFullLabel = sourceExt ? `${baseStem} copy.${sourceExt}` : `${baseStem} copy`;
+    if (siblingFullNames.has(copyFullLabel)) { let counter = 2; while (siblingFullNames.has(`${baseStem} copy ${counter}${sourceExt ? `.${sourceExt}` : ""}`)) counter++; copyFullLabel = `${baseStem} copy ${counter}${sourceExt ? `.${sourceExt}` : ""}`; }
+    const copyLabel = sourceExt ? copyFullLabel.slice(0, -(sourceExt.length + 1)) : copyFullLabel;
     const newId = `n-dup-${uuid().slice(0, 8)}`;
     return { newNode: { id: newId, type: sourceNode.type, position: { x: sourceNode.position.x + 40, y: sourceNode.position.y + 40 }, data: { ...sourceNode.data, label: copyLabel, extension: sourceNode.data.extension || "", path: parentId ? `${sourceNode.data.path.replace(sourceNode.data.label, copyLabel)}` : copyLabel, isRoot: parentId === null, selected: true }, style: { ...sourceNode.style, width: nodeWidth, height: sourceNode.data.type === "folder" ? nodeHeight : undefined } } as FewerNode, newId };
   },
@@ -476,9 +479,12 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const idMap = new Map<string, string>();
     for (const oid of allIds) idMap.set(oid, `n-dup-${uuid().slice(0, 8)}`);
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
-    const siblingLabels = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map((n) => n.data.label));
-    let copyLabel = `${sourceNode.data.label} copy`;
-    if (siblingLabels.has(copyLabel)) { let counter = 2; while (siblingLabels.has(`${sourceNode.data.label} copy ${counter}`)) counter++; copyLabel = `${sourceNode.data.label} copy ${counter}`; }
+    const siblingFullNames = new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName));
+    const sourceExt = sourceNode.data.extension || "";
+    const baseStem = sourceNode.data.label;
+    let copyFullLabel = sourceExt ? `${baseStem} copy.${sourceExt}` : `${baseStem} copy`;
+    if (siblingFullNames.has(copyFullLabel)) { let counter = 2; while (siblingFullNames.has(`${baseStem} copy ${counter}${sourceExt ? `.${sourceExt}` : ""}`)) counter++; copyFullLabel = `${baseStem} copy ${counter}${sourceExt ? `.${sourceExt}` : ""}`; }
+    const copyLabel = sourceExt ? copyFullLabel.slice(0, -(sourceExt.length + 1)) : copyFullLabel;
     const { nodeWidth, nodeHeight } = get();
     const newNodes: FewerNode[] = [];
     for (const oid of allIds) {
@@ -562,9 +568,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       let copyLabel = orig.data.label;
       if (isRoot) {
         const stem = orig.data.label;
+        const origExt = orig.data.extension || "";
+        const origFull = origExt ? `${stem}.${origExt}` : stem;
         const parentSiblingIds = effectiveParentId ? edges.filter((e) => e.source === effectiveParentId).map((e) => e.target) : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
-        const parentSiblingLabels = new Set(nodes.filter((n) => parentSiblingIds.includes(n.id)).map((n) => n.data.label));
-        if (parentSiblingLabels.has(orig.data.label)) { let cl = `${stem} copy`; if (parentSiblingLabels.has(cl)) { let counter = 2; while (parentSiblingLabels.has(`${stem} copy ${counter}`)) counter++; cl = `${stem} copy ${counter}`; } copyLabel = cl; }
+        const parentSiblingFullNames = new Set(nodes.filter((n) => parentSiblingIds.includes(n.id)).map(fullName));
+        if (parentSiblingFullNames.has(origFull)) { let cl = `${stem} copy`; let clFull = origExt ? `${cl}.${origExt}` : cl; if (parentSiblingFullNames.has(clFull)) { let counter = 2; while (parentSiblingFullNames.has(`${stem} copy ${counter}${origExt ? `.${origExt}` : ""}`)) counter++; cl = `${stem} copy ${counter}`; } copyLabel = cl; }
       }
       const pos = isRoot ? rootBase : { x: orig.position.x + rootDelta.x, y: orig.position.y + rootDelta.y };
       newNodes.push({ ...orig, id: nid, position: pos, data: { ...orig.data, label: copyLabel, path: isRoot ? copyLabel : orig.data.path, isRoot: isRoot && effectiveParentId === null, selected: isRoot }, style: { ...orig.style, width: nodeWidth, height: orig.data.type === "folder" ? nodeHeight : undefined }, selected: isRoot });

@@ -73,22 +73,26 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
   const isDuplicate = useMemo(() => {
     const trimmed = name.trim();
     if (!trimmed) return false;
-    const ext = type === "file" ? "" : "";
-    const label = type === "file"
-      ? (trimmed.includes(".") ? trimmed.slice(0, trimmed.lastIndexOf(".")) : trimmed)
-      : trimmed;
+    // Compare full display names (with extension for files)
+    const inputFullName = trimmed.toLowerCase();
 
     if (mode === "child") {
       const parentId = selectedNodeIds[0] ?? null;
       if (!parentId) return false;
       const siblingIds = edges.filter((e) => e.source === parentId).map((e) => e.target);
-      return nodes.some((n) => siblingIds.includes(n.id) && n.data.label.toLowerCase() === label.toLowerCase());
+      return nodes.some((n) => {
+        if (!siblingIds.includes(n.id)) return false;
+        const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+        return nFull.toLowerCase() === inputFullName;
+      });
     } else {
       // Standalone: check root-level nodes
-      const rootNodeLabels = nodes
+      return nodes
         .filter((n) => !edges.some((e) => e.target === n.id))
-        .map((n) => n.data.label.toLowerCase());
-      return rootNodeLabels.includes(label.toLowerCase());
+        .some((n) => {
+          const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+          return nFull.toLowerCase() === inputFullName;
+        });
     }
   }, [name, type, mode, selectedNodeIds, nodes, edges]);
 
