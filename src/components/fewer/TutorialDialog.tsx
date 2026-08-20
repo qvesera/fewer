@@ -77,10 +77,13 @@ function DemoStage({ step }: { step: number }) {
 function ChecklistItem({
   item,
   done,
+  darkCard,
   onToggle,
 }: {
   item: import("@/lib/fewer/tutorial").TutorialChecklistItem;
   done: boolean;
+  /** Overlay renders a dark inverted card (light page background). */
+  darkCard: boolean;
   onToggle: () => void;
 }) {
   const Icon = item.icon;
@@ -92,7 +95,9 @@ function ChecklistItem({
         "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
         done
           ? "border-green-400/30 bg-green-500/10"
-          : "border-white/10 bg-white/5 hover:bg-white/10 dark:border-zinc-950/10 dark:bg-zinc-950/5 dark:hover:bg-zinc-950/10",
+          : darkCard
+            ? "border-white/10 bg-white/5 hover:bg-white/10"
+            : "border-zinc-950/10 bg-zinc-950/5 hover:bg-zinc-950/10",
       )}
     >
       <div
@@ -100,7 +105,9 @@ function ChecklistItem({
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
           done
             ? "border-green-400/30 bg-green-500/10"
-            : "border-white/10 bg-white/5 dark:border-zinc-950/10 dark:bg-zinc-950/5",
+            : darkCard
+              ? "border-white/10 bg-white/5"
+              : "border-zinc-950/10 bg-zinc-950/5",
         )}
       >
         {done ? (
@@ -113,12 +120,18 @@ function ChecklistItem({
         <div
           className={cn(
             "text-xs font-medium",
-            done && "line-through text-green-600 dark:text-green-300",
+            done && "line-through",
+            done && (darkCard ? "text-green-300" : "text-green-600"),
           )}
         >
           {item.label}
         </div>
-        <div className="text-[10px] text-zinc-100/60 dark:text-zinc-900/60 mt-0.5">
+        <div
+          className={cn(
+            "text-[10px] mt-0.5",
+            darkCard ? "text-zinc-100/60" : "text-zinc-900/60",
+          )}
+        >
           {item.description}
         </div>
       </div>
@@ -135,6 +148,28 @@ function Portal({ children }: { children: React.ReactNode }) {
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
   return createPortal(children, document.body);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Surface polarity: is the page background dark?                            */
+/* -------------------------------------------------------------------------- */
+
+/** The inverted overlay can't rely on the `dark` class — custom themes strip
+ *  both `light` and `dark` from <html> (see themeSlice.setThemeMode), so a
+ *  custom dark theme looks "light" to Tailwind. Read the actual source of
+ *  truth: themeMode, plus the custom background's luminance when custom.
+ *  ponytail: ignores background opacity — a translucent dark bg still reads
+ *  dark; if that ever breaks, compute against the composited canvas color. */
+function useDarkBackground() {
+  const themeMode = useGraphStore((s) => s.themeMode);
+  const customTheme = useGraphStore((s) => s.customTheme);
+  if (themeMode === "dark") return true;
+  if (themeMode === "light") return false;
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(customTheme.background.color);
+  if (!m) return true;
+  const n = parseInt(m[1], 16);
+  const lum = ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114;
+  return lum <= 128;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -157,6 +192,11 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
 
   const { isTouch } = useDevice();
   const beginnerItems = getBeginnerChecklist(isTouch);
+  // Invert against the real page background: dark card on light pages,
+  // light card on dark pages — including custom themes, which carry no
+  // Tailwind `dark`/`light` class on <html>. (Hook must run before the
+  // early returns below.)
+  const darkCard = !useDarkBackground();
 
   // Restart when restartKey changes
   useEffect(() => {
@@ -279,7 +319,10 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
 
       <div
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:w-[400px] rounded-2xl border border-primary/50 bg-zinc-950/95 dark:bg-white/95 text-zinc-100 dark:text-zinc-900 p-4 shadow-2xl shadow-primary/25 backdrop-blur-xl animate-[tutorial-pop-in_0.45s_cubic-bezier(0.16,1,0.3,1),tutorial-attention_1.2s_ease-in-out_0.6s_2]"
+        className={cn(
+          "fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:w-[400px] rounded-2xl border border-primary/50 p-4 shadow-2xl shadow-primary/25 backdrop-blur-xl animate-[tutorial-pop-in_0.45s_cubic-bezier(0.16,1,0.3,1),tutorial-attention_1.2s_ease-in-out_0.6s_2]",
+          darkCard ? "bg-zinc-950/95 text-zinc-100" : "bg-white/95 text-zinc-900",
+        )}
         style={{ zIndex: 2147483647, pointerEvents: "auto" }}
       >
         <div className="flex items-center justify-between mb-3">
@@ -315,6 +358,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
             <ChecklistItem
               item={items[mobileStep]}
               done={doneList.includes(items[mobileStep].id)}
+              darkCard={darkCard}
               onToggle={() => handleMarkDone(items[mobileStep].id)}
             />
             <div className="flex items-center gap-2">

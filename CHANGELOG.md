@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hide/Show Children from the folder context menu no longer triggers a full graph relayout — both actions now go through the store's visibility-only hide/reveal paths, so nodes stay put and the viewport doesn't jump when zoomed in. Hide Children also hides each child's full subtree (matching the H shortcut, no more orphaned grandchildren on the canvas) and both actions are now undoable.
 - Selected folder cards no longer draw overlapping rings — the NodeResizer guide line is hidden and its corner handles now follow the themed Selection Ring color
 - Tutorial outline buttons (Back, Docs) no longer render invisible hover text on the inverted card: the shared outline variant's hover colors are overridden so the label keeps the card's text color with a subtle current-color hover fill in both themes.
+- Tutorial overlay inverts correctly under custom themes: custom themes carry no Tailwind dark class on <html>, so the inverted card matched the page background and vanished; the card now derives light/dark polarity from themeMode plus the custom background's luminance instead of the dark variant.
 
 ### Added
 
