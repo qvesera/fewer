@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { useGraphStore } from "@/store/graphStore";
+import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,12 @@ const nodeTypes: NodeTypes = {
   folder: CustomNode,
   file: CustomNode,
 };
+
+// Perf-mode cutoff: beyond this many nodes, per-card backdrop-filter and the
+// entrance blur animation dominate composite/parse cost, so the canvas drops
+// both (see .gm-perf in globals.css). Arbitrary tunable — validate against the
+// largest graphs you expect.
+const PERF_NODE_LIMIT = 300;
 
 function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   switch (style) {
@@ -502,6 +509,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
   }, [setRfNodes]);
 
+  const nodeCount = useGraphStore((s) => s.nodes.length);
   const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const scrollAction = useGraphStore((s) => s.scrollAction);
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
@@ -560,7 +568,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   );
 
   return (
-    <div ref={containerRef} className="relative h-full w-full select-none" style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
+    <div ref={containerRef} className={cn("relative h-full w-full select-none", nodeCount > PERF_NODE_LIMIT && "gm-perf")} style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
       onContextMenu={(e) => e.preventDefault()}>
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}

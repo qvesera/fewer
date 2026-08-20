@@ -72,10 +72,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge motion controls separated: 'Animate Selected Edges Only' + its pattern live in Settings only; sidebar Motion/Pattern now control non-selected edges when that toggle is on, globally otherwise. Removed 'Animated Edges' toggle from Settings and 'Animated Pattern' from sidebar.
 - Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
+- Selected nodes now highlight with a static accent ring plus a slight saturation/brightness boost instead of the pulsing glow — selection stays visible in light theme and with reduced motion.
 
 ### Security
 
 - Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
+
+### Performance
+
+- Large-graph performance: past 300 nodes the canvas drops per-card backdrop blur and the node entrance blur animation; the per-node aurora-haze layers (which painted nothing) were removed, so big graphs render smoother. The brand aurora stays on the root node only.
 
 ## [0.5.0] - 18th August 2026
 
