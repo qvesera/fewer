@@ -78,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selected nodes now highlight with a static accent ring plus a slight saturation/brightness boost instead of the pulsing glow — selection stays visible in light theme and with reduced motion.
 - **Crown shyness layout spacing**: sibling subtree gaps now scale with subtree depth and size (like real tree canopies that never touch), giving large branch clusters natural breathing room instead of uniform packing
 - Sidebar decluttered: layout-policy sliders (Max Depth, Auto-hide Limit, Crown Shyness) moved to Settings → Advanced, and edge fine-tuning (Corner Radius, Motion, Pattern, Line Thickness) moved to Settings → Appearance → Edge Styling; the sidebar keeps the quick edge Style picker
+- Shift+drag box selection now adds to the existing selection instead of replacing it
 
 ### Security
 

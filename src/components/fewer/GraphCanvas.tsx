@@ -345,14 +345,32 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
   }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion]);
 
+  // ── Additive Shift+drag box selection ──
+  // React Flow's box select REPLACES the selection: it calls
+  // resetSelectedElements() the moment a Shift+drag starts and then selects
+  // only the nodes inside the rect. To make Shift+drag ADD to the existing
+  // selection instead, we capture the selected ids when the gesture begins
+  // (wrapper onPointerDownCapture below), rewrite React Flow's deselect
+  // changes for those nodes back to `selected: true` (handleNodesChange), and
+  // merge the id lists in onSelectionChange. The ref is cleared on pointer
+  // up/cancel, where we also re-assert the merged selection into React Flow's
+  // controlled nodes so its internal state agrees with the store.
+  const boxSelectBaseRef = useRef<Set<string> | null>(null);
+
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
       const selectedIds = new Set(selected.map((n) => n.id));
       const prevIds = useGraphStore.getState().selectedNodeIds;
-      const kept = prevIds.filter((id) => selectedIds.has(id));
-      const added = selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id);
-      const newIds = [...kept, ...added];
+      const base = boxSelectBaseRef.current;
+      const newIds = base
+        ? // Shift+drag in progress: union of the pre-gesture selection and the
+          // current box contents, keeping the pre-gesture order first.
+          [...new Set([...base, ...selectedIds])]
+        : [
+            ...prevIds.filter((id) => selectedIds.has(id)),
+            ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
+          ];
       setSelectedNodeIds(newIds);
 
       const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
@@ -367,7 +385,19 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // ── Handle node changes (position/dimension) ──
   const handleNodesChange = useCallback(
     (changes: NodeChange<FewerNode>[]) => {
-      onNodesChange(changes);
+      // During a Shift+drag box select, React Flow deselects every node
+      // outside the rect — including the nodes that were selected when the
+      // gesture began. Flip those deselects back on so the box ADDS to the
+      // selection instead of replacing it (onSelectionChange merges the id
+      // lists to match).
+      const base = boxSelectBaseRef.current;
+      onNodesChange(
+        base
+          ? changes.map((c) =>
+              c.type === "select" && !c.selected && base.has(c.id) ? { ...c, selected: true } : c,
+            )
+          : changes,
+      );
 
       const dimensionChanges = changes.filter(
         (c): c is NodeChange<FewerNode> & { id: string; dimensions: { width: number; height: number } } =>
@@ -584,6 +614,22 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   return (
     <div ref={containerRef} className={cn("relative h-full w-full select-none", nodeCount > PERF_NODE_LIMIT && "gm-perf")} style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
+      onPointerDownCapture={(e) => {
+        // Capture the selection at the start of a Shift+drag so the box select
+        // can ADD to it instead of replacing it (see boxSelectBaseRef above).
+        boxSelectBaseRef.current = e.button === 0 && e.shiftKey
+          ? new Set(useGraphStore.getState().selectedNodeIds)
+          : null;
+      }}
+      onPointerUp={() => {
+        if (!boxSelectBaseRef.current) return;
+        boxSelectBaseRef.current = null;
+        // Re-assert the merged selection into React Flow's controlled nodes so
+        // its internal lookup agrees with the store after the gesture.
+        const ids = new Set(useGraphStore.getState().selectedNodeIds);
+        setRfNodes((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
+      }}
+      onPointerCancel={() => { boxSelectBaseRef.current = null; }}
       onContextMenu={(e) => e.preventDefault()}>
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
