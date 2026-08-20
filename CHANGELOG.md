@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
+- Toast notifications no longer block the minimap: the toast viewport is now click-through (pointer-events off) while individual toasts stay interactive.
+- The minimap no longer stops panning after the layout direction changes or saved settings load: the canvas previously force-remounted the ReactFlow tree on every post-mount direction change (the responsive LR default on screens under 2560×1440, the sidebar/Ctrl+L toggle, or cloud/local settings sync), which recreated the minimap's pan/zoom instance that @xyflow/react 12.11.2 never re-binds — leaving minimap drag/wheel dead. Direction changes now re-lay the graph in place without a remount.
 
 ### Added
 
