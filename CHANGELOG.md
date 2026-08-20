@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorial overlay inverts correctly under custom themes: custom themes carry no Tailwind dark class on <html>, so the inverted card matched the page background and vanished; the card now derives light/dark polarity from themeMode plus the custom background's luminance instead of the dark variant.
 - Tutorial no longer shows touch wording ("Tap", "Long-press") on desktops: device touch detection used maxTouchPoints/ontouchstart, which hybrid touch-screen laptops satisfy; it now checks the pointer:coarse media query so only touch-primary devices get touch instructions.
 - Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
+- Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
 
 ### Added
 
