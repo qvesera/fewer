@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar decluttered: layout-policy sliders (Max Depth, Auto-hide Limit, Crown Shyness) moved to Settings → Advanced, and edge fine-tuning (Corner Radius, Motion, Pattern, Line Thickness) moved to Settings → Appearance → Edge Styling; the sidebar keeps the quick edge Style picker
 - Shift+drag box selection now adds to the existing selection instead of replacing it
 - File nodes no longer show resize handles when selected — the cyan transform controls are gone, only the highlight ring remains; folder resizing is unchanged
+- Tutorial is now far more visible: the checklist card moved from the minimap-crowded bottom-right corner to bottom-center with an inverted high-contrast surface (dark card in light theme, light card in dark theme), an accent-colored border/glow, and a brief attention pulse; the welcome modal gets an accent border + glow and fixed body text (invalid class made it unstyled).
 
 ### Security
 
