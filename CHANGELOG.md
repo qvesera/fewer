@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorial outline buttons (Back, Docs) no longer render invisible hover text on the inverted card: the shared outline variant's hover colors are overridden so the label keeps the card's text color with a subtle current-color hover fill in both themes.
 - Tutorial overlay inverts correctly under custom themes: custom themes carry no Tailwind dark class on <html>, so the inverted card matched the page background and vanished; the card now derives light/dark polarity from themeMode plus the custom background's luminance instead of the dark variant.
 - Tutorial no longer shows touch wording ("Tap", "Long-press") on desktops: device touch detection used maxTouchPoints/ontouchstart, which hybrid touch-screen laptops satisfy; it now checks the pointer:coarse media query so only touch-primary devices get touch instructions.
+- Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
 
 ### Added
 

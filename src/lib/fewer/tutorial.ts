@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 
 export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
-  return [
+  const items: TutorialChecklistItem[] = [
     {
       id: "load-sample",
       label: "Load a sample project",
@@ -98,6 +98,14 @@ export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
       targetSelector: null,
     },
   ];
+
+  // Keyboard-shortcut step only matters with a physical keyboard. `isTouch`
+  // (pointer:coarse) marks touch-primary devices, which have none.
+  if (isTouch) {
+    return items.filter((item) => item.id !== "shortcuts");
+  }
+
+  return items;
 }
 
 /* -------------------------------------------------------------------------- */
