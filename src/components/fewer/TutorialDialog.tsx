@@ -322,7 +322,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 text-[10px]"
+                className="flex-1 text-[10px] !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
                 disabled={mobileStep === 0}
                 onClick={() => setMobileStep((s) => Math.max(0, s - 1))}
               >
@@ -352,7 +352,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="flex-1 text-[10px]"
+                    className="flex-1 text-[10px] !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
                     onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
                   >
                     Docs →

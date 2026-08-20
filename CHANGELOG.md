@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edges now snap to the correct sides immediately when switching layout direction (vertical ↔ horizontal): React Flow only re-measures handle positions on node mount/resize, so nodes that stayed visible kept stale bounds and their edges anchored to the old top/bottom handles until the node was scrolled off-screen and remounted. A direction change now force-refreshes handle bounds without remounting the canvas (the minimap pan/zoom fix stays intact).
 - Hide/Show Children from the folder context menu no longer triggers a full graph relayout — both actions now go through the store's visibility-only hide/reveal paths, so nodes stay put and the viewport doesn't jump when zoomed in. Hide Children also hides each child's full subtree (matching the H shortcut, no more orphaned grandchildren on the canvas) and both actions are now undoable.
 - Selected folder cards no longer draw overlapping rings — the NodeResizer guide line is hidden and its corner handles now follow the themed Selection Ring color
+- Tutorial outline buttons (Back, Docs) no longer render invisible hover text on the inverted card: the shared outline variant's hover colors are overridden so the label keeps the card's text color with a subtle current-color hover fill in both themes.
 
 ### Added
 
