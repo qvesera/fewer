@@ -884,8 +884,10 @@ function CustomNodeImpl({
             minHeight={50}
             isVisible={!!selected}
             shouldResize={() => true}
-            lineClassName="!border-cyan-400/70"
-            handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
+            /* Line stays draggable but invisible — the themed select ring is
+               the single visible ring on a selected folder card. */
+            lineClassName="!border-transparent"
+            handleClassName="!h-2 !w-2 !rounded-full gm-resizer-handle"
           />
         )}
 

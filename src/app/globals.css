@@ -465,6 +465,14 @@ aside::-webkit-scrollbar-thumb:hover {
   filter: saturate(1.25) brightness(1.08);
 }
 
+/* Folder-card transform affordances (NodeResizer): the guide line is hidden so
+   it doesn't draw a second ring on top of .gm-selected-ring; the corner
+   handles stay visible and follow the themed select ring color. */
+.gm-resizer-handle {
+  background: var(--fewer-select-ring, var(--brand-cyan-400)) !important;
+  border: 2px solid #fff !important;
+}
+
 /* Big-graph perf mode: >300 visible nodes, per-card backdrop-filter + the
    entrance blur animation dominate composite/parse cost. Drop both; the card
    tint (rgba ~0.1 alpha over near-black bg) still reads as a card. */
