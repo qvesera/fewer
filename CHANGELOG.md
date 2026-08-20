@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toast notifications no longer block the minimap: the toast viewport is now click-through (pointer-events off) while individual toasts stay interactive.
 - The minimap no longer stops panning after the layout direction changes or saved settings load: the canvas previously force-remounted the ReactFlow tree on every post-mount direction change (the responsive LR default on screens under 2560×1440, the sidebar/Ctrl+L toggle, or cloud/local settings sync), which recreated the minimap's pan/zoom instance that @xyflow/react 12.11.2 never re-binds — leaving minimap drag/wheel dead. Direction changes now re-lay the graph in place without a remount.
 - Minimap no longer lets canvas nodes bleed through it: the panel now uses the app's frosted-glass treatment (80% background + 24px blur) instead of a flat 60%-transparent fill
+- Edges now snap to the correct sides immediately when switching layout direction (vertical ↔ horizontal): React Flow only re-measures handle positions on node mount/resize, so nodes that stayed visible kept stale bounds and their edges anchored to the old top/bottom handles until the node was scrolled off-screen and remounted. A direction change now force-refreshes handle bounds without remounting the canvas (the minimap pan/zoom fix stays intact).
 
 ### Added
 

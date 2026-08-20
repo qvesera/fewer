@@ -10,6 +10,7 @@ import {
   useReactFlow,
   useNodesState,
   useEdgesState,
+  useUpdateNodeInternals,
   type NodeTypes,
   type OnSelectionChangeParams,
   type NodeChange,
@@ -172,6 +173,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const setCanvasSize = useGraphStore((s) => s.setCanvasSize);
   const themeMode = useGraphStore((s) => s.themeMode);
   const customTheme = useGraphStore((s) => s.customTheme);
+  const direction = useGraphStore((s) => s.direction);
   const isDark = themeMode === "dark";
 
   // Keep the store's canvas dimensions in sync with the viewer so the
@@ -261,6 +263,19 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [edgeAnimated, edgeAnimatedSelectedOnly]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  // React Flow measures handle bounds only when a node mounts or resizes.
+  // Switching layout direction moves the handles (e.g. bottom → right) without
+  // changing node dimensions, so visible nodes keep stale bounds and edges stay
+  // anchored to the old sides until the node is culled and remounted. Force a
+  // re-measure on every direction change; nodes culled by the viewport are
+  // skipped here but measured on remount anyway. No remount → the minimap's
+  // pan/zoom instance survives (see CHANGELOG "minimap no longer stops panning").
+  useEffect(() => {
+    if (useGraphStore.getState().nodes.length === 0) return;
+    updateNodeInternals(useGraphStore.getState().nodes.map((n) => n.id));
+  }, [direction, updateNodeInternals]);
 
   // Fit the view exactly once per loaded graph — when nodes first appear — and
   // never on relayout. React Flow's `fitView` boolean prop only fits at mount
