@@ -512,7 +512,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const minimapStyle = useMemo<React.CSSProperties>(() => {
     const base: React.CSSProperties = {
       width: miniMapSize, height: miniMapSize,
-      backgroundColor: isDark ? "rgba(15, 23, 42, 0.6)" : "rgba(255, 255, 255, 0.6)",
+      // Frosted glass like .gm-float: flat 60% alpha let canvas nodes bleed
+      // through; 80% background + blur keeps the minimap legible.
+      background: "color-mix(in srgb, var(--background) 80%, transparent)",
+      backdropFilter: "blur(24px) saturate(200%)",
+      WebkitBackdropFilter: "blur(24px) saturate(200%)",
       borderRadius: "12px",
       border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
     };
