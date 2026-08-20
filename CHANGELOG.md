@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
 - **Crown Shyness slider**: adjustable branch-spacing intensity (0–3×) in Settings → Advanced (Power User mode); relayout applies instantly on release
+- Selection Ring color control: the outline around the selected node is now a themeable --fewer-select-ring variable with a picker in the Custom Theme Editor (Canvas & Text section). SVG/PNG exports follow it, and all built-in presets ship a matching ring accent.
 
 ### Fixed
 

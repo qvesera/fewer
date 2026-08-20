@@ -135,6 +135,7 @@
   --fewer-item-hover: rgba(100, 116, 139, 0.12);
   --fewer-handle: #94a3b8;
   --fewer-edge: rgba(100, 116, 139, 0.4);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(249, 115, 22, 0.08);
   --fewer-folder-text: #1e293b;
   --fewer-folder-subtle-text: #64748b;
@@ -195,6 +196,7 @@
   --fewer-item-hover: rgba(173, 181, 189, 0.15);
   --fewer-handle: #868e96;
   --fewer-edge: rgba(173, 181, 189, 0.5);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(253, 126, 20, 0.12);
   --fewer-folder-text: #ffd8a8;
   --fewer-folder-subtle-text: #adb5bd;
@@ -458,7 +460,7 @@ aside::-webkit-scrollbar-thumb:hover {
    the hover filter (same specificity, later in cascade → wins). */
 .gm-selected-ring,
 .gm-selected-ring:hover {
-  outline: 2px solid var(--brand-cyan-400);
+  outline: 2px solid var(--fewer-select-ring, var(--brand-cyan-400));
   outline-offset: 2px;
   filter: saturate(1.25) brightness(1.08);
 }
