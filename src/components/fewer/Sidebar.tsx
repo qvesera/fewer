@@ -4,8 +4,6 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
@@ -22,12 +20,11 @@ import {
   SlidersHorizontal,
   FileIcon,
   Spline,
-  Info,
   FilePlus,
   FolderPlus,
   EyeOff,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import type { LayoutDirection, EdgeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
@@ -348,15 +345,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
-  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
-  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
-  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
-  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
-  const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
@@ -365,12 +353,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
-  const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
-  const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
-  const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
-  const shynessScale = useGraphStore((s) => s.shynessScale);
-  const setShynessScale = useGraphStore((s) => s.setShynessScale);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -390,10 +372,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-
-  // Crown-shyness slider: local value for live drag preview; store commits on release.
-  const [shynessPreview, setShynessPreview] = useState(shynessScale);
-  useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
   useEffect(() => {
     if (!advancedModeEnabled && (direction === "BT" || direction === "RL")) {
@@ -418,19 +396,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     { value: "straight" as EdgeStyle, label: "Straight" },
     { value: "angled" as EdgeStyle, label: "Angled" },
   ], []);
-
-  const availableStrokeStyles = useMemo(() => {
-    const list: { value: EdgeStrokeStyle; label: string }[] = [];
-    // "Solid" only makes sense when at least some edges keep a solid base —
-    // i.e. not when ALL edges are animated.
-    const allAnimated = edgeAnimated;
-    if (!allAnimated) {
-      list.push({ value: "solid", label: "Solid" });
-    }
-    list.push({ value: "dashed", label: "Dashed" });
-    list.push({ value: "dotted", label: "Dotted" });
-    return list;
-  }, [edgeAnimated]);
 
   const handleAddNode = (type: "file" | "folder") => {
     const selectedFolderId = selectedNodeIds.length === 1
@@ -568,93 +533,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               </div>
             </AnimatedConditional>
 
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-1 w-full min-w-0">
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Max Depth</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Hide nodes deeper than this level.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
-                    </span>
-                  </div>
-                  <Slider
-                    value={[maxDisplayDepth]}
-                    onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={0}
-                    max={10}
-                    step={1}
-                  />
-                </div>
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Auto-hide Limit</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Auto-collapse folders with more than this number of items.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
-                  </div>
-                  <Slider
-                    value={[autoHideThreshold]}
-                    onValueChange={([v]) => setAutoHideThreshold(v)}
-                    min={2}
-                    max={100}
-                    step={1}
-                  />
-                </div>
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Crown Shyness</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[220px] text-xs">
-                            Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    {/* Live preview value; relayout happens on drag release (onValueCommit) so
-                        large graphs don't relayout on every slider tick. */}
-                    <span className="text-xs font-mono text-muted-foreground">{shynessPreview.toFixed(1)}×</span>
-                  </div>
-                  <Slider
-                    value={[shynessPreview]}
-                    onValueChange={([v]) => setShynessPreview(v)}
-                    onValueCommit={([v]) => setShynessScale(v)}
-                    min={0}
-                    max={3}
-                    step={0.1}
-                    aria-label="Crown shyness intensity"
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Layout policy sliders (Max Depth, Auto-hide, Crown Shyness) live in
+                Settings → Advanced. Sidebar stays focused on per-graph actions. */}
 
             {/* Rearrange Action Button (shadcn) */}
             <Button
@@ -700,67 +580,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               />
             </div>
 
-            {advancedModeEnabled && edgeStyle === "angled" && (
-              <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
-                </div>
-                <Slider
-                  value={[cornerRadius]}
-                  onValueChange={([v]) => setCornerRadius(v)}
-                  min={0}
-                  max={20}
-                  step={1}
-                />
-              </div>
-            )}
-
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-2 border-t border-border/20 w-full min-w-0">
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Motion</Label>
-                  <SlidingToggle
-                    options={[
-                      { value: "static" as const, label: "Static" },
-                      { value: "animated" as const, label: "Animated" },
-                    ]}
-                    value={edgeAnimated ? "animated" : "static"}
-                    onValueChange={(v) => setEdgeAnimated(v === "animated")}
-                  />
-                </div>
-
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Pattern</Label>
-                  <SlidingToggle
-                    options={availableStrokeStyles}
-                    value={edgeStrokeStyle}
-                    onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
-                  />
-                </div>
-
-                {edgeAnimatedSelectedOnly && (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-                    Applies to non-selected edges only — the selected path&apos;s motion
-                    &amp; pattern are set in Settings.
-                  </p>
-                )}
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
-                  </div>
-                  <Slider
-                    value={[edgeWidth]}
-                    onValueChange={([v]) => setEdgeWidth(v)}
-                    min={0.5}
-                    max={6}
-                    step={0.25}
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Edge fine-tuning (corner radius, motion, pattern, thickness) lives in
+                Settings → Appearance → Edge Styling. Sidebar keeps the quick style picker. */}
           </div>
         </CollapsibleSection>
 

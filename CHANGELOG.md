@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
-- **Crown Shyness slider**: adjustable branch-spacing intensity (0–3×) in the sidebar Layout section (Power User mode); relayout applies instantly on release
+- **Crown Shyness slider**: adjustable branch-spacing intensity (0–3×) in Settings → Advanced (Power User mode); relayout applies instantly on release
 
 ### Fixed
 
@@ -75,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 - Selected nodes now highlight with a static accent ring plus a slight saturation/brightness boost instead of the pulsing glow — selection stays visible in light theme and with reduced motion.
 - **Crown shyness layout spacing**: sibling subtree gaps now scale with subtree depth and size (like real tree canopies that never touch), giving large branch clusters natural breathing room instead of uniform packing
+- Sidebar decluttered: layout-policy sliders (Max Depth, Auto-hide Limit, Crown Shyness) moved to Settings → Advanced, and edge fine-tuning (Corner Radius, Motion, Pattern, Line Thickness) moved to Settings → Appearance → Edge Styling; the sidebar keeps the quick edge Style picker
 
 ### Security
 

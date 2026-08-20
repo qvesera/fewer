@@ -76,7 +76,7 @@ Fewer ships a single custom **Reingold-Tilford tree layout** with contour matchi
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in the sidebar Layout section (Power User mode)
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode)
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
@@ -92,7 +92,7 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust via the sidebar Layout section (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust in Settings → Advanced (Power User mode).
 
 ## Edge Styles
 
@@ -119,19 +119,22 @@ Optional motion effects:
 A Settings → Appearance toggle, **Animate Selected Edges Only**, limits the
 animation to the edges along the selected nodes' path to the root (the same
 edges that get the selection highlight) instead of every edge on the canvas.
-It works standalone — no need to turn on the sidebar motion toggle first — and
+It works standalone — no need to turn on the edge motion toggle first — and
 its animated edges use the **Selected Edge Pattern** (dashed or dotted) chosen
-in the same dialog. Edges outside the selection follow the sidebar's Motion
-and Pattern controls.
+in the same dialog. Edges outside the selection follow the Motion
+and Pattern controls in the same tab.
 
 ## Edge Pattern & Weight
 
-In Power User mode, the sidebar Edges section controls:
+In Power User mode, Settings → Appearance → **Edge Styling** controls:
 
 - **Motion**: static or animated — applies to all edges globally, or to the
   non-selected edges only when **Animate Selected Edges Only** is on
 - **Pattern**: solid, dashed, or dotted — same scope as Motion
 - **Line Thickness**: 0.5px to 6px slider
+
+The sidebar keeps a quick **Style** picker (curved / straight / angled); corner
+radius for angled edges also lives in Edge Styling.
 
 ## Breadcrumb Bar
 
