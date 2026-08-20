@@ -1030,20 +1030,6 @@ function CustomNodeImpl({
           selected && "gm-selected-ring",
         )}
       >
-      {selected && (
-        <NodeResizer
-          minWidth={180}
-          minHeight={58}
-          isVisible={!!selected}
-          shouldResize={(e) => {
-            const direction = (e as unknown as { direction: string }).direction;
-            return direction === "left" || direction === "right";
-          }}
-          lineClassName="!border-cyan-400/70"
-          handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
-        />
-      )}
-
         <Handle
           type="target"
           position={target}
