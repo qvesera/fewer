@@ -380,10 +380,9 @@ function FolderContextMenu({
                   onSelect={() => {
                     const toShow = childIds.filter((id) => hiddenIds.includes(id));
                     if (toShow.length > 0) {
-                      useGraphStore.setState((s) => ({
-                        hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
-                      }));
-                      useGraphStore.getState().relayout();
+                      // Visibility-only reveal: no relayout, so the viewport
+                      // stays where the user left it.
+                      useGraphStore.getState().showSubtrees(toShow);
                       toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
                     useGraphStore.getState().setZoomToNodeIds(childIds);
@@ -404,12 +403,10 @@ function FolderContextMenu({
               return (
                 <ContextMenuItem
                   onSelect={() => {
-                    const hiddenSet = new Set(hiddenIds);
-                    for (const id of visibleChildren) {
-                      hiddenSet.add(id);
-                    }
-                    useGraphStore.setState({ hiddenIds: [...hiddenSet] });
-                    useGraphStore.getState().relayout();
+                    // Store action: hides each child subtree, keeps undo
+                    // history and view-state consistent, and never relayouts —
+                    // only visibility changes, so nothing jumps when zoomed in.
+                    useGraphStore.getState().hideNodes(visibleChildren);
                     toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
