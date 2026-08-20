@@ -27,6 +27,8 @@ export type LayoutSliceCreator = StateCreator<
     cornerRadius: number;
     nodeWidth: number;
     nodeHeight: number;
+    /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Drives relayout on change. */
+    shynessScale: number;
 
     setDirection: (d: LayoutDirection) => void;
     setEdgeStyle: (s: EdgeStyle) => void;
@@ -37,6 +39,7 @@ export type LayoutSliceCreator = StateCreator<
     setEdgeWidth: (w: number) => void;
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
+    setShynessScale: (scale: number) => void;
   }
 >;
 
@@ -69,6 +72,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   cornerRadius: 8,
   nodeWidth: 240,
   nodeHeight: 200,
+  shynessScale: 1,
 
   setDirection: (direction) => {
     set({ direction });
@@ -156,5 +160,12 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     }));
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes, graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
+  },
+
+  setShynessScale: (scale) => {
+    const clamped = Math.max(0, Math.min(3, scale));
+    if (clamped === get().shynessScale) return;
+    set({ shynessScale: clamped });
+    get().relayout();
   },
 });

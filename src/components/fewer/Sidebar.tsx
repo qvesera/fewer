@@ -369,6 +369,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
   const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
   const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
+  const shynessScale = useGraphStore((s) => s.shynessScale);
+  const setShynessScale = useGraphStore((s) => s.setShynessScale);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -388,6 +390,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  // Crown-shyness slider: local value for live drag preview; store commits on release.
+  const [shynessPreview, setShynessPreview] = useState(shynessScale);
+  useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
   useEffect(() => {
     if (!advancedModeEnabled && (direction === "BT" || direction === "RL")) {
@@ -615,6 +621,36 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                     min={2}
                     max={100}
                     step={1}
+                  />
+                </div>
+
+                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium text-foreground/80">Crown Shyness</Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[220px] text-xs">
+                            Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    {/* Live preview value; relayout happens on drag release (onValueCommit) so
+                        large graphs don't relayout on every slider tick. */}
+                    <span className="text-xs font-mono text-muted-foreground">{shynessPreview.toFixed(1)}×</span>
+                  </div>
+                  <Slider
+                    value={[shynessPreview]}
+                    onValueChange={([v]) => setShynessPreview(v)}
+                    onValueCommit={([v]) => setShynessScale(v)}
+                    min={0}
+                    max={3}
+                    step={0.1}
+                    aria-label="Crown shyness intensity"
                   />
                 </div>
               </div>

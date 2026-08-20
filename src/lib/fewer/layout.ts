@@ -30,6 +30,8 @@ export interface LayoutOptions {
    * Default true.
    */
   shyness?: boolean;
+  /** Crown-shyness intensity multiplier. 0 = flat gaps, 1 = default, up to 3. Default 1. */
+  shynessScale?: number;
 }
 
 // ponytail: linear per-level/per-log-size gap growth, capped at 3x base —
@@ -44,11 +46,12 @@ export function shynessGap(
   contourDepth: number,
   sizeA: number,
   sizeB: number,
+  scale = 1,
 ): number {
   const sizeTerm = SHYNESS_SIZE_K * Math.log2(1 + Math.min(sizeA, sizeB));
   return Math.min(
     baseGap * SHYNESS_MAX_MULTIPLE,
-    baseGap + SHYNESS_DEPTH_K * contourDepth + sizeTerm,
+    baseGap + (SHYNESS_DEPTH_K * contourDepth + sizeTerm) * scale,
   );
 }
 
@@ -69,6 +72,7 @@ export function layoutGraphContour(
 ): FewerNode[] {
   const excludeSet = options?.excludeFromLayout ?? new Set();
   const shyness = options?.shyness ?? true;
+  const shynessScale = Math.max(0, Math.min(3, options?.shynessScale ?? 1));
   const isHorizontal = direction === "LR" || direction === "RL";
   const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
   const layerGap = 70; // Spacing between tree depths
@@ -188,6 +192,7 @@ export function layoutGraphContour(
                   d,
                   computeSubtreeSize(children[j]),
                   computeSubtreeSize(childId),
+                  shynessScale,
                 )
               : baseGap;
             const requiredShift = prevRight - currLeft + gap;

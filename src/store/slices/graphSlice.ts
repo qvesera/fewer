@@ -318,7 +318,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal }), state.searchQuery, state.categoryFilter);
+      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -328,11 +328,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale } = get();
     if (nodes.length === 0) return;
     // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale });
     const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
@@ -878,7 +878,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale });
     const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));
