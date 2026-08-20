@@ -73,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 - Selected nodes now highlight with a static accent ring plus a slight saturation/brightness boost instead of the pulsing glow — selection stays visible in light theme and with reduced motion.
+- **Crown shyness layout spacing**: sibling subtree gaps now scale with subtree depth and size (like real tree canopies that never touch), giving large branch clusters natural breathing room instead of uniform packing
 
 ### Security
 

@@ -24,6 +24,32 @@ function getNodeDimensions(node: FewerNode): { w: number; h: number } {
 
 export interface LayoutOptions {
   excludeFromLayout?: Set<string>;
+  /**
+   * Crown shyness: sibling subtrees ("crowns") keep gaps that scale with
+   * contour depth and subtree size, like real tree canopies that never touch.
+   * Default true.
+   */
+  shyness?: boolean;
+}
+
+// ponytail: linear per-level/per-log-size gap growth, capped at 3x base —
+// upgrade path is per-contour-point gap shaping if trees ever need it.
+export const SHYNESS_DEPTH_K = 8; // extra px per contour level below the sibling pair
+export const SHYNESS_SIZE_K = 2; // extra px per log2(1 + smaller subtree's node count)
+export const SHYNESS_MAX_MULTIPLE = 3; // gap never exceeds baseGap * this
+
+/** Crown-shyness gap between two sibling crowns at a given contour level. */
+export function shynessGap(
+  baseGap: number,
+  contourDepth: number,
+  sizeA: number,
+  sizeB: number,
+): number {
+  const sizeTerm = SHYNESS_SIZE_K * Math.log2(1 + Math.min(sizeA, sizeB));
+  return Math.min(
+    baseGap * SHYNESS_MAX_MULTIPLE,
+    baseGap + SHYNESS_DEPTH_K * contourDepth + sizeTerm,
+  );
 }
 
 interface TreeContour {
@@ -42,6 +68,7 @@ export function layoutGraphContour(
   options?: LayoutOptions
 ): FewerNode[] {
   const excludeSet = options?.excludeFromLayout ?? new Set();
+  const shyness = options?.shyness ?? true;
   const isHorizontal = direction === "LR" || direction === "RL";
   const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
   const layerGap = 70; // Spacing between tree depths
@@ -103,6 +130,20 @@ export function layoutGraphContour(
   // Store relative offsets from parent center
   const relativeXMap = new Map<string, number>();
 
+  // 2b. Subtree sizes for crown-shyness gap scaling (post-order, memoized)
+  const subtreeSizes = new Map<string, number>();
+  function computeSubtreeSize(nodeId: string): number {
+    const cached = subtreeSizes.get(nodeId);
+    if (cached !== undefined) return cached;
+    let count = 1;
+    for (const childId of childrenMap.get(nodeId) ?? []) {
+      count += computeSubtreeSize(childId);
+    }
+    subtreeSizes.set(nodeId, count);
+    return count;
+  }
+  for (const root of roots) computeSubtreeSize(root.id);
+
   // 3. Bottom-up subtree layout with exact contour matching
   function layoutSubtree(nodeId: string): TreeContour {
     const node = nodeMap.get(nodeId)!;
@@ -130,7 +171,7 @@ export function layoutGraphContour(
         childOffsets.push(0);
       } else {
         let maxOverlapShift = 0;
-        const currentGap = isHorizontal ? 50 : nodeGap;
+        const baseGap = isHorizontal ? 50 : nodeGap;
 
         // Compare against ALL previously placed siblings to prevent cross-subtree overlap
         for (let j = 0; j < i; j++) {
@@ -140,7 +181,16 @@ export function layoutGraphContour(
           for (let d = 0; d < compareDepth; d++) {
             const prevRight = childOffsets[j] + prevContour.right[d];
             const currLeft = contour.left[d];
-            const requiredShift = prevRight - currLeft + currentGap;
+            // Crown shyness: gap grows with crown depth + crown size
+            const gap = shyness
+              ? shynessGap(
+                  baseGap,
+                  d,
+                  computeSubtreeSize(children[j]),
+                  computeSubtreeSize(childId),
+                )
+              : baseGap;
+            const requiredShift = prevRight - currLeft + gap;
             if (requiredShift > maxOverlapShift) {
               maxOverlapShift = requiredShift;
             }
