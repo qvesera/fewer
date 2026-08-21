@@ -93,6 +93,31 @@ test("node context menu offers cut, duplicate, and delete", async ({ page }) => 
   await expect(page.getByText("Cut", { exact: true }).first()).toBeVisible();
 });
 
+// Regression: the folder context menu renders in a portal that is still a
+// React-tree child of the node card. Without stopping synthetic propagation
+// there, the browser's post-pointerup click bubbled into React Flow's
+// NodeWrapper onClick, re-selecting the right-clicked folder AFTER "Select
+// Children" had set the real selection — leaving the folder itself selected.
+test("Select Children selects the folder's children, not the folder", async ({ page }) => {
+  await openCanvas(page);
+
+  // Match the src card by its header title (the root card also contains the
+  // text "src" in its child list), then right-click the header strip so the
+  // menu targets the folder itself, not one of the child chips inside it.
+  const src = page
+    .locator(".react-flow__node")
+    .filter({ has: page.locator(".text-sm.font-semibold", { hasText: /^src$/ }) })
+    .first();
+  const box = await src.boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
+
+  await page.getByRole("menuitem", { name: "Select Children" }).click();
+
+  const selectedNodes = page.locator(".react-flow__node.selected");
+  await expect(selectedNodes).toHaveCount(7, { timeout: 10000 });
+  await expect(src).not.toHaveClass(selected());
+});
+
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 
