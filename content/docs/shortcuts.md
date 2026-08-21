@@ -77,6 +77,13 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | ---------- | --------------------------------- |
 | **Ctrl+I** | Open keyboard shortcuts reference |
 
+## Mouse & Gestures
+
+| Gesture            | Action                                             |
+| ------------------ | -------------------------------------------------- |
+| **Drag (canvas)**  | Pan the canvas                                     |
+| **Shift+drag**     | Box-select nodes — adds to the existing selection  |
+
 ## Tips
 
 - Shortcuts work when the canvas is focused

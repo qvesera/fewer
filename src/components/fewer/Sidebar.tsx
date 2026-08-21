@@ -4,8 +4,6 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowDownToLine,
@@ -17,18 +15,26 @@ import {
   Trash2,
   Eye,
   ChevronRight,
+  Folder,
   Layers,
   HardDrive,
   SlidersHorizontal,
   FileIcon,
   Spline,
-  Info,
   FilePlus,
   FolderPlus,
   EyeOff,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import type { LayoutDirection, EdgeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
+import {
+  getHiddenLayerGroups,
+  filterHiddenTree,
+  filterHiddenGroups,
+  ancestorChain,
+  type HiddenTreeNode,
+  type HiddenGroup,
+} from "@/lib/fewer/hiddenGroups";
 import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -186,76 +192,84 @@ function AnimatedConditional({
   );
 }
 
-interface HiddenTreeNode {
-  node: FewerNode;
-  children: HiddenTreeNode[];
-}
+function HiddenGroupRow({ group }: { group: HiddenGroup }) {
+  const edges = useGraphStore((s) => s.edges);
+  const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
+  const [open, setOpen] = useState(true);
 
-/** App-wide ordering convention: folders first, then labels A→Z. */
-function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
-  if (a.node.data.type !== b.node.data.type) return a.node.data.type === "folder" ? -1 : 1;
-  return a.node.data.label.localeCompare(b.node.data.label);
-}
-
-function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const parentMap = new Map<string, string>();
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
-
-  // Only consider hidden ids that still map to a live node. A stale id (e.g. a
-  // node deleted while hidden) must never be dereferenced below — nodeMap.get
-  // would return undefined and hiddenTreeSort would throw on `.node.data`.
-  const liveHiddenIds = hiddenIds.filter((id) => nodeMap.has(id));
-  const idSet = new Set(liveHiddenIds);
-  const roots: HiddenTreeNode[] = [];
-  const processed = new Set<string>();
-
-  function build(id: string): HiddenTreeNode {
-    processed.add(id);
-    const node = nodeMap.get(id)!;
-    const children = (childrenMap.get(id) ?? [])
-      .filter((cid) => idSet.has(cid))
-      .map((cid) => build(cid))
-      .sort(hiddenTreeSort);
-    return { node, children };
-  }
-
-  for (const id of liveHiddenIds) {
-    if (processed.has(id)) continue;
-    const parentId = parentMap.get(id);
-    if (parentId && idSet.has(parentId)) continue;
-    roots.push(build(id));
-  }
-
-  return roots.sort(hiddenTreeSort);
-}
-
-function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return tree;
-  const result: HiddenTreeNode[] = [];
-  for (const t of tree) {
-    const children = filterHiddenTree(t.children, q);
-    const selfMatch = t.node.data.label.toLowerCase().includes(q);
-    if (selfMatch || children.length > 0) {
-      result.push({ node: t.node, children });
+  // Ring the visible parent folder + its ancestor path, and every hidden id in
+  // this group — so the hidden child rows glow inside the folder card on canvas,
+  // not just the card border, for coherence between the panel and the graph.
+  const ringIds = useMemo(() => {
+    if (!group.parentNode) return [];
+    const ids = [group.parentNode.id, ...ancestorChain(group.parentNode.id, edges)];
+    const stack = [...group.roots];
+    while (stack.length) {
+      const t = stack.pop()!;
+      ids.push(t.node.id);
+      stack.push(...t.children);
     }
+    return ids;
+  }, [group.parentNode, edges, group.roots]);
+
+  // No context folder (standalone roots) — render the nested rows directly.
+  if (!group.parentNode) {
+    return (
+      <>
+        {group.roots.map((root) => (
+          <HiddenNodeRow key={root.node.id} tree={root} depth={0} />
+        ))}
+      </>
+    );
   }
-  return result;
+
+  const p = group.parentNode;
+
+  return (
+    <div className="space-y-0.5 w-full min-w-0">
+      {/* Folder context header — dimmed, non-revealable, hovers to ring the folder on canvas. */}
+      <div
+        onMouseEnter={() => setHoverHighlight(ringIds)}
+        onMouseLeave={() => setHoverHighlight([])}
+        onClick={() => setOpen((o) => !o)}
+        title={group.parentPath || p.data.label}
+        className="flex items-center gap-1.5 rounded-md py-1 pr-1.5 text-xs cursor-pointer select-none hover:bg-muted/50 w-full min-w-0"
+      >
+        <ChevronRight
+          className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150", open && "rotate-90")}
+        />
+        <Folder className="h-3.5 w-3.5 shrink-0 text-fewer-folder-icon" />
+        <span className="truncate font-medium text-foreground/80 flex-1 min-w-0">{p.data.label}</span>
+        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+          {group.hiddenCount} hidden
+        </span>
+      </div>
+
+      {open && (
+        <div className="space-y-0.5 w-full min-w-0 pl-3">
+          {group.roots.map((root) => (
+            <HiddenNodeRow key={root.node.id} tree={root} depth={1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameNode = useGraphStore((s) => s.renameNode);
   const showAncestors = useGraphStore((s) => s.showAncestors);
+  const edges = useGraphStore((s) => s.edges);
+  const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const { toast } = useToast();
   const [open, setOpen] = useState(depth === 0);
   const isFolder = tree.node.data.type === "folder";
+
+  const ringIds = useMemo(
+    () => [tree.node.id, ...ancestorChain(tree.node.id, edges)],
+    [tree.node.id, edges],
+  );
   
   const unreveal = (id: string) => {
     if (isFolder) {
@@ -277,8 +291,11 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
 
   return (
     <div className="space-y-0.5 w-full min-w-0">
-      <div className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0">
-        
+      <div
+        onMouseEnter={() => setHoverHighlight(ringIds)}
+        onMouseLeave={() => setHoverHighlight([])}
+        className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0"
+        >
         {/* ── 1. PINNED LEFT EYE ICON (Always at x=0 regardless of depth) ── */}
         <button
           type="button"
@@ -348,15 +365,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
-  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
-  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
-  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
-  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
-  const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
@@ -365,10 +373,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
-  const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
-  const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
-  const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -377,14 +381,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   const [hiddenSearch, setHiddenSearch] = useState("");
 
-  const hiddenTree = useMemo(
-    () => getHiddenLayerData(nodes, edges, hiddenIds),
+  const hiddenGroups = useMemo(
+    () => getHiddenLayerGroups(nodes, edges, hiddenIds),
     [nodes, edges, hiddenIds],
   );
 
-  const filteredHiddenTree = useMemo(
-    () => filterHiddenTree(hiddenTree, hiddenSearch),
-    [hiddenTree, hiddenSearch],
+  const filteredHiddenGroups = useMemo(
+    () => filterHiddenGroups(hiddenGroups, hiddenSearch),
+    [hiddenGroups, hiddenSearch],
   );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -412,19 +416,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     { value: "straight" as EdgeStyle, label: "Straight" },
     { value: "angled" as EdgeStyle, label: "Angled" },
   ], []);
-
-  const availableStrokeStyles = useMemo(() => {
-    const list: { value: EdgeStrokeStyle; label: string }[] = [];
-    // "Solid" only makes sense when at least some edges keep a solid base —
-    // i.e. not when ALL edges are animated.
-    const allAnimated = edgeAnimated;
-    if (!allAnimated) {
-      list.push({ value: "solid", label: "Solid" });
-    }
-    list.push({ value: "dashed", label: "Dashed" });
-    list.push({ value: "dotted", label: "Dotted" });
-    return list;
-  }, [edgeAnimated]);
 
   const handleAddNode = (type: "file" | "folder") => {
     const selectedFolderId = selectedNodeIds.length === 1
@@ -562,63 +553,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               </div>
             </AnimatedConditional>
 
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-1 w-full min-w-0">
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Max Depth</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Hide nodes deeper than this level.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
-                    </span>
-                  </div>
-                  <Slider
-                    value={[maxDisplayDepth]}
-                    onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={0}
-                    max={10}
-                    step={1}
-                  />
-                </div>
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Auto-hide Limit</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Auto-collapse folders with more than this number of items.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
-                  </div>
-                  <Slider
-                    value={[autoHideThreshold]}
-                    onValueChange={([v]) => setAutoHideThreshold(v)}
-                    min={2}
-                    max={100}
-                    step={1}
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Layout policy sliders (Max Depth, Auto-hide, Crown Shyness) live in
+                Settings → Advanced. Sidebar stays focused on per-graph actions. */}
 
             {/* Rearrange Action Button (shadcn) */}
             <Button
@@ -664,67 +600,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               />
             </div>
 
-            {advancedModeEnabled && edgeStyle === "angled" && (
-              <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
-                </div>
-                <Slider
-                  value={[cornerRadius]}
-                  onValueChange={([v]) => setCornerRadius(v)}
-                  min={0}
-                  max={20}
-                  step={1}
-                />
-              </div>
-            )}
-
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-2 border-t border-border/20 w-full min-w-0">
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Motion</Label>
-                  <SlidingToggle
-                    options={[
-                      { value: "static" as const, label: "Static" },
-                      { value: "animated" as const, label: "Animated" },
-                    ]}
-                    value={edgeAnimated ? "animated" : "static"}
-                    onValueChange={(v) => setEdgeAnimated(v === "animated")}
-                  />
-                </div>
-
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Pattern</Label>
-                  <SlidingToggle
-                    options={availableStrokeStyles}
-                    value={edgeStrokeStyle}
-                    onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
-                  />
-                </div>
-
-                {edgeAnimatedSelectedOnly && (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-                    Applies to non-selected edges only — the selected path&apos;s motion
-                    &amp; pattern are set in Settings.
-                  </p>
-                )}
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
-                  </div>
-                  <Slider
-                    value={[edgeWidth]}
-                    onValueChange={([v]) => setEdgeWidth(v)}
-                    min={0.5}
-                    max={6}
-                    step={0.25}
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Edge fine-tuning (corner radius, motion, pattern, thickness) lives in
+                Settings → Appearance → Edge Styling. Sidebar keeps the quick style picker. */}
           </div>
         </CollapsibleSection>
 
@@ -752,8 +629,12 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
               onClick={() => {
                 const count = hiddenIds.length;
-                showAll();
+                // setShowFiles(true) re-runs the large-folder auto-hide filter, so it
+                // must run BEFORE showAll() — otherwise it re-hides a folder whose
+                // children outnumber the auto-hide threshold in the same click that
+                // was supposed to reveal them. showAll() must be the last write.
                 setShowFiles(true);
+                showAll();
                 if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
               }}
             >
@@ -761,9 +642,9 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <span className="truncate">Reveal All Nodes</span>
             </Button>
             <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-              {filteredHiddenTree.length > 0 ? (
-                filteredHiddenTree.map((root) => (
-                  <HiddenNodeRow key={root.node.id} tree={root} />
+              {filteredHiddenGroups.length > 0 ? (
+                filteredHiddenGroups.map((group, i) => (
+                  <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} />
                 ))
               ) : (
                 <p className="px-1 py-2 text-[11px] text-muted-foreground/70">

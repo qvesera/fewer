@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
+- **Crown Shyness slider**: adjustable branch-spacing intensity (0–3×) in Settings → Advanced (Power User mode); relayout applies instantly on release
+- Selection Ring color control: the outline around the selected node is now a themeable --fewer-select-ring variable with a picker in the Custom Theme Editor (Canvas & Text section). SVG/PNG exports follow it, and all built-in presets ship a matching ring accent.
+- Hovering a row in the Hidden nodes panel highlights the corresponding folder(s) on the canvas, like global search highlighting.
+- Hidden nodes panel now groups hidden files under their visible folder (with hidden count) instead of one flat list, so you can always tell which folder they belong to.
+- Hovering a folder header in the Hidden nodes panel now also highlights the hidden child rows inside that folder card on the canvas.
+- Hovering a folder in the Hidden nodes panel now also highlights the ancestor-path edges (root→folder) on the canvas, mirroring selection edge highlighting.
 
 ### Fixed
 
@@ -42,6 +48,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toast notifications no longer block the minimap: the toast viewport is now click-through (pointer-events off) while individual toasts stay interactive.
 - The minimap no longer stops panning after the layout direction changes or saved settings load: the canvas previously force-remounted the ReactFlow tree on every post-mount direction change (the responsive LR default on screens under 2560×1440, the sidebar/Ctrl+L toggle, or cloud/local settings sync), which recreated the minimap's pan/zoom instance that @xyflow/react 12.11.2 never re-binds — leaving minimap drag/wheel dead. Direction changes now re-lay the graph in place without a remount.
 - Minimap no longer lets canvas nodes bleed through it: the panel now uses the app's frosted-glass treatment (80% background + 24px blur) instead of a flat 60%-transparent fill
+- **Canvas fits the whole graph after an import again**: the initial fit silently no-oped on any graph taller than the viewport. With viewport culling (`onlyRenderVisibleElements`), nodes outside the canvas are never mounted and never measured, and React Flow's `fitView()` computes bounds from measured nodes only — so a fresh load (viewport at identity) fit to a handful of visible nodes, left the zoom stuck at 1x, and culled the rest of the graph offscreen (the sample tree showed 9 of 28 nodes). The initial fit now computes bounds from every laid-out node in the store (positions + type-aware sizes) and sets the viewport directly, with the same 0.2 padding and zoom clamp as before; the one-shot timer also survives the measure→relayout render churn right after a load instead of being cancelled by effect cleanup.
+- Edges now snap to the correct sides immediately when switching layout direction (vertical ↔ horizontal): React Flow only re-measures handle positions on node mount/resize, so nodes that stayed visible kept stale bounds and their edges anchored to the old top/bottom handles until the node was scrolled off-screen and remounted. A direction change now force-refreshes handle bounds without remounting the canvas (the minimap pan/zoom fix stays intact).
+- Hide/Show Children from the folder context menu no longer triggers a full graph relayout — both actions now go through the store's visibility-only hide/reveal paths, so nodes stay put and the viewport doesn't jump when zoomed in. Hide Children also hides each child's full subtree (matching the H shortcut, no more orphaned grandchildren on the canvas) and both actions are now undoable.
+- Selected folder cards no longer draw overlapping rings — the NodeResizer guide line is hidden and its corner handles now follow the themed Selection Ring color
+- Tutorial outline buttons (Back, Docs) no longer render invisible hover text on the inverted card: the shared outline variant's hover colors are overridden so the label keeps the card's text color with a subtle current-color hover fill in both themes.
+- Tutorial overlay inverts correctly under custom themes: custom themes carry no Tailwind dark class on <html>, so the inverted card matched the page background and vanished; the card now derives light/dark polarity from themeMode plus the custom background's luminance instead of the dark variant.
+- Tutorial no longer shows touch wording ("Tap", "Long-press") on desktops: device touch detection used maxTouchPoints/ontouchstart, which hybrid touch-screen laptops satisfy; it now checks the pointer:coarse media query so only touch-primary devices get touch instructions.
+- Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
+- Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
+- Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
+- Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 
 ### Added
 
@@ -73,6 +90,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden children inside a folder's child list now render desaturated (reduced saturation + opacity) with a tooltip, so you can tell at a glance which entries are hidden from the canvas.
 - Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
 - Selected nodes now highlight with a static accent ring plus a slight saturation/brightness boost instead of the pulsing glow — selection stays visible in light theme and with reduced motion.
+- **Crown shyness layout spacing**: sibling subtree gaps now scale with subtree depth and size (like real tree canopies that never touch), giving large branch clusters natural breathing room instead of uniform packing
+- Sidebar decluttered: layout-policy sliders (Max Depth, Auto-hide Limit, Crown Shyness) moved to Settings → Advanced, and edge fine-tuning (Corner Radius, Motion, Pattern, Line Thickness) moved to Settings → Appearance → Edge Styling; the sidebar keeps the quick edge Style picker
+- Shift+drag box selection now adds to the existing selection instead of replacing it
+- File nodes no longer show resize handles when selected — the cyan transform controls are gone, only the highlight ring remains; folder resizing is unchanged
+- Tutorial is now far more visible: the checklist card moved from the minimap-crowded bottom-right corner to bottom-center with an inverted high-contrast surface (dark card in light theme, light card in dark theme), an accent-colored border/glow, and a brief attention pulse; the welcome modal gets an accent border + glow and fixed body text (invalid class made it unstyled).
+- The minimap now defaults to OFF on mobile (screens under the mobile breakpoint); the setting is still available in Settings, and a saved/cloud preference is respected so a deliberate toggle is never overwritten.
+- Edge motion is now a signed-in (Power User) feature: the 'Animate Selected Edges Only' control is hidden for signed-out users, and non-auth graphs always render with static edges (including loaded/shared graphs and image exports).
+- Scroll to Zoom setting is hidden on mobile (no scroll wheel on touch devices); desktop keeps the wheel pan/zoom toggle in Settings → Advanced.
+- The Settings → Advanced tab is hidden entirely for signed-out mobile users when it would be empty (layout policy + node metrics are sign-in gated, and Scroll to Zoom is desktop-only).
 
 ### Security
 

@@ -108,7 +108,7 @@ docker run -p 3000:3000 fewer
 - **File cards** (purple): filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
-- **Custom Reingold-Tilford layout** with type-aware dimensions
+- **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Breadcrumb bar**: selected node's full path
 
 </details>

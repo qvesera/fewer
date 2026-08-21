@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
+import { loadSettingsLocal } from "@/lib/fewer/userSettings";
 import { cn } from "@/lib/utils";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -64,6 +65,19 @@ export function FewerApp() {
       setSidebarOpen(false);
     }
   }, [device.isMobile, setSidebarOpen]);
+
+  // On mobile, the minimap defaults to OFF — but only when the user hasn't saved
+  // a preference yet (mirroring the Sidebar's responsive-direction default), so
+  // a deliberate toggle (local or cloud) is never clobbered. The store keeps the
+  // isomorphic `true` default to avoid an SSR/client hydration mismatch; this
+  // effect applies the responsive default once on the client.
+  useEffect(() => {
+    if (!device.isMobile) return;
+    const saved = loadSettingsLocal();
+    if (!saved || saved.showMiniMap === undefined) {
+      useGraphStore.setState({ showMiniMap: false });
+    }
+  }, [device.isMobile]);
 
   // Initialize theme on mount: respect a saved preference, otherwise follow the
   // device scheme (resolved to light/dark). Syncing the store keeps the
