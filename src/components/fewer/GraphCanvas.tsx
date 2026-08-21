@@ -65,6 +65,7 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
  */
 function buildSelectedEdgeHighlight(
   selectedIds: string[],
+  hoverIds: string[],
   edges: FewerEdge[],
   nodes: FewerNode[],
   themeColors: { edge: string; folderIcon: string; fileIcon: string },
@@ -80,14 +81,15 @@ function buildSelectedEdgeHighlight(
   for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
 
   // Tree = at most one parent per node, so each node maps to a single parent
-  // edge (the child → source). Walking this map from a selected node up to the
-  // root gives exactly the ancestor path edges — child edges are NOT included.
+  // edge (the child → source). Walking this map from a node up to the root
+  // gives exactly the ancestor path edges — child edges are NOT included.
   const parentEdgeOf = new Map<string, FewerEdge>();
   for (const e of edges) {
     if (!parentEdgeOf.has(e.target)) parentEdgeOf.set(e.target, e);
   }
 
-  const highlighted = new Map<string, { stroke: string; width: number }>();
+  // Selection path uses the themed folder/file stroke.
+  const selectedHighlight = new Map<string, { stroke: string; width: number }>();
   for (const id of selectedIds) {
     let nodeId = id;
     const visited = new Set<string>();
@@ -96,18 +98,38 @@ function buildSelectedEdgeHighlight(
       const parentEdge = parentEdgeOf.get(nodeId);
       if (!parentEdge) break;
       const stroke = typeByNodeId.get(parentEdge.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-      highlighted.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
+      selectedHighlight.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
       nodeId = parentEdge.source;
     }
   }
 
+  // Hover path (sidebar Hidden-panel hover): amber, matching the node ring and
+  // the exporter's highlight — distinct from selection so the two don't conflate.
+  const hoverHighlight = new Map<string, { stroke: string; width: number }>();
+  for (const id of hoverIds) {
+    let nodeId = id;
+    const visited = new Set<string>();
+    while (nodeId && !visited.has(nodeId)) {
+      visited.add(nodeId);
+      const parentEdge = parentEdgeOf.get(nodeId);
+      if (!parentEdge) break;
+      hoverHighlight.set(parentEdge.id, { stroke: "#fbbf24", width: Math.max(edgeWidth, 3) });
+      nodeId = parentEdge.source;
+    }
+  }
+
+  const highlightedIds = new Set([...selectedHighlight.keys(), ...hoverHighlight.keys()]);
   const defaultStroke = themeColors.edge;
   return edges
     .map((e) => {
-      const h = highlighted.get(e.id);
+      const sel = selectedHighlight.get(e.id);
+      const hov = hoverHighlight.get(e.id);
+      // Hover wins on overlap — it's the user's current focus; selection styling
+      // returns on mouse-leave once the hover recompute drops these edges.
+      const h = hov ?? sel;
       // Per-edge animation: selected-path edges always animate when selectedOnly
       // is on; non-selected edges animate only when the global motion toggle is on.
-      const selectedPath = edgeAnimation.selectedOnly && !!h;
+      const selectedPath = edgeAnimation.selectedOnly && !!sel;
       const anim = selectedPath || edgeAnimation.animated;
       // Selected-path edges use the dialog-chosen pattern; everything else uses
       // the sidebar base pattern (so unselected edges stay solid/static when
@@ -126,7 +148,7 @@ function buildSelectedEdgeHighlight(
             style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
           };
     })
-    .sort((a, b) => (highlighted.has(a.id) ? 1 : 0) - (highlighted.has(b.id) ? 1 : 0));
+    .sort((a, b) => (highlightedIds.has(a.id) ? 1 : 0) - (highlightedIds.has(b.id) ? 1 : 0));
 }
 
 /** Read a CSS variable from :root (falling back to the bare var name). */
@@ -175,6 +197,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const customTheme = useGraphStore((s) => s.customTheme);
   const direction = useGraphStore((s) => s.direction);
   const isDark = themeMode === "dark";
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
 
   // Keep the store's canvas dimensions in sync with the viewer so the
   // minimap X/Y sliders in Settings scale to the actual canvas (no hard cap).
@@ -257,10 +280,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
   // inherit the current phase instead of restarting a CSS animation.
   useEffect(() => {
-    if (!(edgeAnimated || edgeAnimatedSelectedOnly)) return;
+    if (!advancedModeEnabled || !(edgeAnimated || edgeAnimatedSelectedOnly)) return;
     startDashClock();
     return stopDashClock;
-  }, [edgeAnimated, edgeAnimatedSelectedOnly]);
+  }, [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -339,11 +362,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // store and are pushed to the canvas on the graph rebuild.
   useEffect(() => {
     const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
     useGraphStore.setState({ edges: updatedEdges });
     const hidden = new Set(hiddenIds);
     setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion]);
+  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion, advancedModeEnabled, hoverHighlightIds]);
 
   // ── Additive Shift+drag box selection ──
   // React Flow's box select REPLACES the selection: it calls
@@ -373,8 +396,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           ];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, edges, nodes, themeColors, edgeWidth, { animated: anim, selectedOnly: animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
+      const { edges, nodes, hiddenIds, hoverHighlightIds: currentHover, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
       useGraphStore.setState({ edges: updatedEdges });
       const hidden = new Set(hiddenIds);
       setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
@@ -669,7 +692,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(edgeStyle), animated: edgeAnimated && !edgeAnimatedSelectedOnly,
+          type: edgeTypeFor(edgeStyle), animated: advancedModeEnabled && edgeAnimated && !edgeAnimatedSelectedOnly,
           style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
           zIndex: 0,
         }}

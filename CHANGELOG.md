@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
 - **Crown Shyness slider**: adjustable branch-spacing intensity (0–3×) in Settings → Advanced (Power User mode); relayout applies instantly on release
 - Selection Ring color control: the outline around the selected node is now a themeable --fewer-select-ring variable with a picker in the Custom Theme Editor (Canvas & Text section). SVG/PNG exports follow it, and all built-in presets ship a matching ring accent.
+- Hovering a row in the Hidden nodes panel highlights the corresponding folder(s) on the canvas, like global search highlighting.
+- Hidden nodes panel now groups hidden files under their visible folder (with hidden count) instead of one flat list, so you can always tell which folder they belong to.
+- Hovering a folder header in the Hidden nodes panel now also highlights the hidden child rows inside that folder card on the canvas.
+- Hovering a folder in the Hidden nodes panel now also highlights the ancestor-path edges (root→folder) on the canvas, mirroring selection edge highlighting.
 
 ### Fixed
 
@@ -52,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorial no longer shows touch wording ("Tap", "Long-press") on desktops: device touch detection used maxTouchPoints/ontouchstart, which hybrid touch-screen laptops satisfy; it now checks the pointer:coarse media query so only touch-primary devices get touch instructions.
 - Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
 - Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
+- Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
+- Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 
 ### Added
 
@@ -88,6 +94,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shift+drag box selection now adds to the existing selection instead of replacing it
 - File nodes no longer show resize handles when selected — the cyan transform controls are gone, only the highlight ring remains; folder resizing is unchanged
 - Tutorial is now far more visible: the checklist card moved from the minimap-crowded bottom-right corner to bottom-center with an inverted high-contrast surface (dark card in light theme, light card in dark theme), an accent-colored border/glow, and a brief attention pulse; the welcome modal gets an accent border + glow and fixed body text (invalid class made it unstyled).
+- The minimap now defaults to OFF on mobile (screens under the mobile breakpoint); the setting is still available in Settings, and a saved/cloud preference is respected so a deliberate toggle is never overwritten.
+- Edge motion is now a signed-in (Power User) feature: the 'Animate Selected Edges Only' control is hidden for signed-out users, and non-auth graphs always render with static edges (including loaded/shared graphs and image exports).
+- Scroll to Zoom setting is hidden on mobile (no scroll wheel on touch devices); desktop keeps the wheel pan/zoom toggle in Settings → Advanced.
+- The Settings → Advanced tab is hidden entirely for signed-out mobile users when it would be empty (layout policy + node metrics are sign-in gated, and Scroll to Zoom is desktop-only).
 
 ### Security
 

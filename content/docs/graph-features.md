@@ -116,7 +116,9 @@ Optional motion effects:
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
-A Settings → Appearance toggle, **Animate Selected Edges Only**, limits the
+Edge motion is a signed-in (Power User) feature: it's only available to
+authenticated users. A Settings → Appearance toggle, **Animate Selected
+Edges Only**, limits the
 animation to the edges along the selected nodes' path to the root (the same
 edges that get the selection highlight) instead of every edge on the canvas.
 It works standalone — no need to turn on the edge motion toggle first — and
@@ -148,11 +150,14 @@ Folders with more than N children (default: 10) auto-hide their children on impo
 
 ## Hidden Nodes Panel
 
-Access via sidebar. Shows all hidden nodes grouped by parent folder:
+Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
 
-- Nested expandable tree (any depth)
-- Eye button reveals individual folders
-- "Show All" button reveals everything
+- **Folder group headers** — each visible parent folder with a `N hidden` count and a collapse toggle
+- **Nested expandable tree** (any depth) for fully-hidden subtrees
+- **Eye button** reveals an individual item (or a whole hidden subtree)
+- **"Show All" button** reveals everything
+- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path edges (root→folder), like global search and selection
+- **Search** filters by folder name or path as well as file name
 
 ## Search
 
