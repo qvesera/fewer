@@ -287,7 +287,6 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
 
   const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition, setViewport } = useReactFlow();
-  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
   // React Flow measures handle bounds only when a node mounts or resizes.
