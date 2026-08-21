@@ -59,6 +59,43 @@ function computeLargeFolderHiddenIds(
 }
 
 /**
+ * Collect the reveal set for a bulk "show subtree" (used by Show Children):
+ * each requested id that is currently hidden, plus every hidden descendant of
+ * it, stopping at nodes the user hid directly (independentlyHiddenIds) —
+ * the same semantics as `showSubtree`, batched into one set.
+ */
+export function collectShowSubtrees(
+  edges: FewerEdge[],
+  hiddenIds: string[],
+  independentlyHiddenIds: string[],
+  ids: string[],
+): Set<string> {
+  const hiddenSet = new Set(hiddenIds);
+  const indieSet = new Set(independentlyHiddenIds);
+  const toShow = new Set<string>();
+  const queue: string[] = [];
+  for (const id of ids) {
+    if (hiddenSet.has(id) && !toShow.has(id)) {
+      toShow.add(id);
+      queue.push(id);
+    }
+  }
+  while (queue.length) {
+    const nid = queue.shift()!;
+    for (const e of edges) {
+      if (e.source !== nid || !hiddenSet.has(e.target)) continue;
+      // Nodes the user hid directly and all descendants stay hidden.
+      if (indieSet.has(e.target)) continue;
+      if (!toShow.has(e.target)) {
+        toShow.add(e.target);
+        queue.push(e.target);
+      }
+    }
+  }
+  return toShow;
+}
+
+/**
  * Live-reconcile the large-folder auto-hide filter against the current threshold.
  * Works both ways:
  *   - children whose folder now exceeds the threshold are newly hidden;
@@ -243,6 +280,7 @@ export type GraphSliceCreator = StateCreator<
     showNode: (id: string) => void;
     showAncestors: (id: string) => void;
     showSubtree: (id: string) => void;
+    showSubtrees: (ids: string[]) => void;
     autoHideLargeFolders: (threshold?: number) => void;
     maxDisplayDepth: number;
     setMaxDisplayDepth: (depth: number) => void;
@@ -295,7 +333,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
     // Animated edges use the dedicated animated pattern; everything else uses
     // the base pattern (solid stays solid when edge motion is on).
-    const animated = state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    // Edge motion is a signed-in (auth) feature: non-auth graphs never animate.
+    const animated = state.advancedModeEnabled && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
     const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
     const styledEdges = edges.map((e) => ({
       ...e,
@@ -318,7 +357,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal }), state.searchQuery, state.categoryFilter);
+      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -328,11 +367,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale } = get();
     if (nodes.length === 0) return;
     // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale });
     const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
@@ -822,6 +861,17 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
   },
 
+  showSubtrees: (ids) => {
+    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const toShow = collectShowSubtrees(edges, hiddenIds, independentlyHiddenIds, ids);
+    if (toShow.size === 0) return;
+    const before = captureViewState(get());
+    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
+    get().pushOp(viewStateOp(before, after));
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
+  },
+
+
   showAll: () => {
     const before = captureViewState(get());
     if (before.hiddenIds.length === 0) return;
@@ -878,7 +928,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale });
     const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));

@@ -20,6 +20,7 @@ export interface RenderPalette {
   text: string;
   subtle: string;
   edge: string;
+  selectRing: string;
   folderBg: string;
   folderBorder: string;
   folderText: string;
@@ -342,7 +343,7 @@ function renderFolderCard(
   }
 
   const filterId = "filter-folder-shadow";
-  const stroke = n.data.highlighted ? "#fbbf24" : selected ? "#22d3ee" : p.folderBorder;
+  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.folderBorder;
   const strokeWidth = n.data.highlighted || selected ? 2 : 1;
   const rowsCount = `${rows.length} ${rows.length === 1 ? "item" : "items"}`;
 
@@ -369,7 +370,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
-  const stroke = n.data.highlighted ? "#fbbf24" : selected ? "#22d3ee" : p.fileBorder;
+  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.fileBorder;
   const strokeWidth = n.data.highlighted || selected ? 2 : 1;
   const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
@@ -486,6 +487,7 @@ export function readThemePalette(): RenderPalette {
     text: varOr("--fewer-text", "#f8f9fa"),
     subtle: varOr("--fewer-text-subtle", "#adb5bd"),
     edge: varOr("--fewer-edge", "rgba(173, 181, 189, 0.5)"),
+    selectRing: varOr("--fewer-select-ring", "#22d3ee"),
     folderBg: varOr("--fewer-folder-bg", "rgba(253, 126, 20, 0.12)"),
     folderBorder: varOr("--fewer-folder-border", "rgba(253, 126, 20, 0.45)"),
     folderText: varOr("--fewer-folder-text", "#ffd8a8"),

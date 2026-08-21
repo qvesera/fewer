@@ -8,6 +8,7 @@ const palette: RenderPalette = {
   text: "#f8f9fa",
   subtle: "#adb5bd",
   edge: "rgba(173, 181, 189, 0.5)",
+  selectRing: "#22d3ee",
   folderBg: "rgba(253, 126, 20, 0.12)",
   folderBorder: "rgba(253, 126, 20, 0.45)",
   folderText: "#ffd8a8",

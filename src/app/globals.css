@@ -135,6 +135,7 @@
   --fewer-item-hover: rgba(100, 116, 139, 0.12);
   --fewer-handle: #94a3b8;
   --fewer-edge: rgba(100, 116, 139, 0.4);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(249, 115, 22, 0.08);
   --fewer-folder-text: #1e293b;
   --fewer-folder-subtle-text: #64748b;
@@ -195,6 +196,7 @@
   --fewer-item-hover: rgba(173, 181, 189, 0.15);
   --fewer-handle: #868e96;
   --fewer-edge: rgba(173, 181, 189, 0.5);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(253, 126, 20, 0.12);
   --fewer-folder-text: #ffd8a8;
   --fewer-folder-subtle-text: #adb5bd;
@@ -344,13 +346,19 @@
 /* ── Handle Micro-interactions ─────────────────────────────────────────────── */
 
 .react-flow__handle {
+  /* The position classes place handles via `transform` (translate) — that
+     must NOT be transitioned, or class swaps on layout-direction change
+     animate while the rAF-delayed handle-bounds re-measure reads mid-flight,
+     leaving edges offset from the settled dot. Hover growth uses the
+     independent `scale` property, which is centered on the element and misses
+     the position-dot anchor. */
   transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.2s ease,
     box-shadow 0.2s ease;
 }
 .react-flow__handle:hover {
-  transform: scale(1.5);
+  scale: 1.5;
   background: rgb(34, 211, 238) !important;
   box-shadow: 0 0 8px 2px rgba(34, 211, 238, 0.4);
 }
@@ -458,9 +466,27 @@ aside::-webkit-scrollbar-thumb:hover {
    the hover filter (same specificity, later in cascade → wins). */
 .gm-selected-ring,
 .gm-selected-ring:hover {
-  outline: 2px solid var(--brand-cyan-400);
+  outline: 2px solid var(--fewer-select-ring, var(--brand-cyan-400));
   outline-offset: 2px;
   filter: saturate(1.25) brightness(1.08);
+}
+
+/* Amber highlight ring for node cards (global search matches + sidebar Hidden-panel
+   hover). Uses `outline` (like .gm-selected-ring) instead of Tailwind's box-shadow
+   ring so it survives the custom .shadow-node-folder/.shadow-node-file box-shadow —
+   unlayered custom CSS overrides layered utilities, which silently killed the ring. */
+.gm-highlight-ring,
+.gm-highlight-ring:hover {
+  outline: 2px solid #fbbf24; /* amber-400 — matches the SVG/PNG exporter highlight */
+  outline-offset: 2px;
+}
+
+/* Folder-card transform affordances (NodeResizer): the guide line is hidden so
+   it doesn't draw a second ring on top of .gm-selected-ring; the corner
+   handles stay visible and follow the themed select ring color. */
+.gm-resizer-handle {
+  background: var(--fewer-select-ring, var(--brand-cyan-400)) !important;
+  border: 2px solid #fff !important;
 }
 
 /* Big-graph perf mode: >300 visible nodes, per-card backdrop-filter + the

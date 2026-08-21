@@ -380,10 +380,9 @@ function FolderContextMenu({
                   onSelect={() => {
                     const toShow = childIds.filter((id) => hiddenIds.includes(id));
                     if (toShow.length > 0) {
-                      useGraphStore.setState((s) => ({
-                        hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
-                      }));
-                      useGraphStore.getState().relayout();
+                      // Visibility-only reveal: no relayout, so the viewport
+                      // stays where the user left it.
+                      useGraphStore.getState().showSubtrees(toShow);
                       toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
                     useGraphStore.getState().setZoomToNodeIds(childIds);
@@ -404,12 +403,10 @@ function FolderContextMenu({
               return (
                 <ContextMenuItem
                   onSelect={() => {
-                    const hiddenSet = new Set(hiddenIds);
-                    for (const id of visibleChildren) {
-                      hiddenSet.add(id);
-                    }
-                    useGraphStore.setState({ hiddenIds: [...hiddenSet] });
-                    useGraphStore.getState().relayout();
+                    // Store action: hides each child subtree, keeps undo
+                    // history and view-state consistent, and never relayouts —
+                    // only visibility changes, so nothing jumps when zoomed in.
+                    useGraphStore.getState().hideNodes(visibleChildren);
                     toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
@@ -724,7 +721,9 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const { toast } = useToast();
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHidden = hiddenIds.includes(child.id);
+  const isHovered = hoverHighlightIds.includes(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -742,6 +741,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
         "hover:bg-fewer-item-hover hover:pl-3",
         isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
+        isHovered && "bg-amber-500/20 ring-1 ring-amber-400",
         isDimmed && "opacity-40",
         isHidden && "opacity-50 saturate-50",
       )}
@@ -831,6 +831,9 @@ function CustomNodeImpl({
 
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
 
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  const isHovered = hoverHighlightIds.includes(id);
+
   const handleRename = (v: string) => {
     const ok = renameNode(id, v);
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
@@ -876,7 +879,8 @@ function CustomNodeImpl({
           "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.isRoot && "gm-aurora gm-aurora-brand",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
@@ -887,8 +891,10 @@ function CustomNodeImpl({
             minHeight={50}
             isVisible={!!selected}
             shouldResize={() => true}
-            lineClassName="!border-cyan-400/70"
-            handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
+            /* Line stays draggable but invisible — the themed select ring is
+               the single visible ring on a selected folder card. */
+            lineClassName="!border-transparent"
+            handleClassName="!h-2 !w-2 !rounded-full gm-resizer-handle"
           />
         )}
 
@@ -1028,25 +1034,12 @@ function CustomNodeImpl({
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
           "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
       >
-      {selected && (
-        <NodeResizer
-          minWidth={180}
-          minHeight={58}
-          isVisible={!!selected}
-          shouldResize={(e) => {
-            const direction = (e as unknown as { direction: string }).direction;
-            return direction === "left" || direction === "right";
-          }}
-          lineClassName="!border-cyan-400/70"
-          handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
-        />
-      )}
-
         <Handle
           type="target"
           position={target}

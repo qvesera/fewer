@@ -69,6 +69,36 @@ test("shynessGap: capped at max multiple of base gap", () => {
   expect(shynessGap(60, 100, 1000, 1000)).toBe(60 * SHYNESS_MAX_MULTIPLE);
 });
 
+test("shynessGap: scale multiplies the extra shyness only", () => {
+  const base = 60;
+  const extra = SHYNESS_DEPTH_K * 2 + SHYNESS_SIZE_K * Math.log2(1 + 5);
+  expect(shynessGap(base, 2, 5, 5, 0)).toBe(base); // 0 = flat gaps
+  expect(shynessGap(base, 2, 5, 5, 1)).toBe(base + extra);
+  expect(shynessGap(base, 2, 5, 5, 2)).toBe(base + 2 * extra);
+});
+
+test("layout: shynessScale=0 matches shyness off; scale 2 doubles the extra spread", () => {
+  const build = () => {
+    const nodes = [
+      makeNode("root", "root", 100, 100),
+      makeNode("a", "a", 100, 100),
+      makeNode("b", "b", 100, 100),
+      makeNode("a1", "a1", 140, 58),
+      makeNode("b1", "b1", 140, 58),
+    ];
+    const edges = [makeEdge("root", "a"), makeEdge("root", "b"), makeEdge("a", "a1"), makeEdge("b", "b1")];
+    return { nodes, edges };
+  };
+  const dist = (laid: FewerNode[], x: string, y: string) =>
+    Math.abs(laid.find((n) => n.id === y)!.position.x - laid.find((n) => n.id === x)!.position.x);
+  const flat = layoutGraphSync(build().nodes, build().edges, "TB", { shyness: false });
+  const zero = layoutGraphSync(build().nodes, build().edges, "TB", { shyness: true, shynessScale: 0 });
+  const one = layoutGraphSync(build().nodes, build().edges, "TB", { shyness: true, shynessScale: 1 });
+  const two = layoutGraphSync(build().nodes, build().edges, "TB", { shyness: true, shynessScale: 2 });
+  expect(dist(zero, "a", "b")).toBe(dist(flat, "a", "b")); // 0 == off
+  expect(dist(two, "a", "b")).toBeGreaterThan(dist(one, "a", "b")); // more scale -> shier
+});
+
 test("layout: shyness pushes sibling crowns further apart than flat gaps", () => {
   // Tree: root -> {a, b}, a and b each have one wide child (wider than parents
   // so the deep contour level binds the sibling shift).

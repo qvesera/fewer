@@ -343,8 +343,11 @@ export function KeyboardShortcuts() {
           // Shift+H: show all and show files
           const hiddenCount = useGraphStore.getState().hiddenIds.length;
           if (hiddenCount > 0) {
-            showAll();
+            // setShowFiles(true) re-runs the large-folder auto-hide filter, so it must
+            // run BEFORE showAll() — otherwise it re-hides a folder whose children
+            // outnumber the threshold in the same gesture that's revealing them.
             setShowFiles(true);
+            showAll();
             toast({
               title: "Unhid all nodes",
               description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored`,
