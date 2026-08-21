@@ -21,6 +21,10 @@ export type UiSliceCreator = StateCreator<
     categoryFilter: FileCategory | null;
     /** Ids that the active category filter has added to hiddenIds. */
     categoryHiddenIds: string[];
+    /** Transient ids to ring on the canvas while a sidebar (Hidden panel) row is hovered.
+     *  Deliberately separate from data.highlighted so hover never pollutes node data,
+     *  history snapshots, or search highlighting. */
+    hoverHighlightIds: string[];
     hiddenIds: string[];
     renamingId: string | null;
     renameSource: "canvas" | "folder" | null;
@@ -61,6 +65,8 @@ export type UiSliceCreator = StateCreator<
     setSearchQuery: (q: string) => void;
     setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
+    /** Ring a transient set of node ids on the canvas (sidebar row hover). */
+    setHoverHighlight: (ids: string[]) => void;
     setRenamingId: (id: string | null, source?: "canvas" | "folder") => void;
     setZoomToNode: (nodeId: string | null) => void;
     setZoomToNodeIds: (ids: string[] | null) => void;
@@ -108,6 +114,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   searchQuery: "",
   categoryFilter: null,
   categoryHiddenIds: [],
+  hoverHighlightIds: [],
   hiddenIds: [],
   independentlyHiddenIds: [],
   renamingId: null,
@@ -183,6 +190,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
         ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) }
         : { selectedNodeIds: ids };
     }),
+  setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
 
   setRenamingId: (id, source) => {

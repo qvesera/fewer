@@ -471,6 +471,16 @@ aside::-webkit-scrollbar-thumb:hover {
   filter: saturate(1.25) brightness(1.08);
 }
 
+/* Amber highlight ring for node cards (global search matches + sidebar Hidden-panel
+   hover). Uses `outline` (like .gm-selected-ring) instead of Tailwind's box-shadow
+   ring so it survives the custom .shadow-node-folder/.shadow-node-file box-shadow —
+   unlayered custom CSS overrides layered utilities, which silently killed the ring. */
+.gm-highlight-ring,
+.gm-highlight-ring:hover {
+  outline: 2px solid #fbbf24; /* amber-400 — matches the SVG/PNG exporter highlight */
+  outline-offset: 2px;
+}
+
 /* Folder-card transform affordances (NodeResizer): the guide line is hidden so
    it doesn't draw a second ring on top of .gm-selected-ring; the corner
    handles stay visible and follow the themed select ring color. */

@@ -721,7 +721,9 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const { toast } = useToast();
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHidden = hiddenIds.includes(child.id);
+  const isHovered = hoverHighlightIds.includes(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -739,6 +741,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
         "hover:bg-fewer-item-hover hover:pl-3",
         isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
+        isHovered && "bg-amber-500/20 ring-1 ring-amber-400",
         isDimmed && "opacity-40",
         isHidden && "opacity-50 saturate-50",
       )}
@@ -828,6 +831,9 @@ function CustomNodeImpl({
 
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
 
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  const isHovered = hoverHighlightIds.includes(id);
+
   const handleRename = (v: string) => {
     const ok = renameNode(id, v);
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
@@ -873,7 +879,8 @@ function CustomNodeImpl({
           "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.isRoot && "gm-aurora gm-aurora-brand",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
@@ -1027,7 +1034,8 @@ function CustomNodeImpl({
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
           "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}

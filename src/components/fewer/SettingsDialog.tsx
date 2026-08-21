@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import { SlidingToggle } from "../ui/sliding-toggle";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
@@ -615,14 +616,15 @@ function AppearanceTab() {
         </div>
       </div>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-2">
-          <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Edge Motion
-          </Label>
-        </div>
-        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+      {advancedModeEnabled && (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Edge Motion
+            </Label>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <Label
               className="text-xs font-medium text-foreground"
@@ -658,6 +660,7 @@ function AppearanceTab() {
           </p>
         </div>
       </div>
+      )}
 
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
@@ -793,6 +796,7 @@ function MinimapControls() {
 /* -------------------------------------------------------------------------- */
 
 function AdvancedTab() {
+  const isMobile = useIsMobile();
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
@@ -879,26 +883,28 @@ function AdvancedTab() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
-        <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
-          <Mouse className="h-3.5 w-3.5 text-primary" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-            Canvas Navigation
-          </Label>
+      {!isMobile && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
+            <Mouse className="h-3.5 w-3.5 text-primary" />
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+              Canvas Navigation
+            </Label>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
+            <Switch
+              checked={scrollAction === "zoom"}
+              onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            {scrollAction === "zoom"
+              ? "The mouse wheel zooms the canvas directly."
+              : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
+          </p>
         </div>
-        <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
-          <Switch
-            checked={scrollAction === "zoom"}
-            onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
-          />
-        </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-          {scrollAction === "zoom"
-            ? "The mouse wheel zooms the canvas directly."
-            : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
-        </p>
-      </div>
+      )}
 
       {advancedModeEnabled && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
@@ -1058,6 +1064,11 @@ export function SettingsDialog() {
   const { user } = useAuth();
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const isMobile = useIsMobile();
+  // The Advanced tab is empty for signed-out mobile users: Layout Policy +
+  // Node Metrics are sign-in gated and the Scroll to Zoom card is desktop-only.
+  const showAdvancedTab = advancedModeEnabled || !isMobile;
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks
   // the user to fill in their name + username before publishing to the gallery.
@@ -1138,13 +1149,15 @@ export function SettingsDialog() {
                   Cloud
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="advanced"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <Settings className="h-3.5 w-3.5" />
-                Advanced
-              </TabsTrigger>
+              {showAdvancedTab && (
+                <TabsTrigger
+                  value="advanced"
+                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Advanced
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="help"
                 className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
@@ -1175,9 +1188,11 @@ export function SettingsDialog() {
                 <CloudTab />
               </TabsContent>
             )}
-            <TabsContent value="advanced" className="m-0">
-              <AdvancedTab />
-            </TabsContent>
+            {showAdvancedTab && (
+              <TabsContent value="advanced" className="m-0">
+                <AdvancedTab />
+              </TabsContent>
+            )}
             <TabsContent value="help" className="m-0">
               <HelpTab />
             </TabsContent>

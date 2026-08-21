@@ -333,7 +333,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
     // Animated edges use the dedicated animated pattern; everything else uses
     // the base pattern (solid stays solid when edge motion is on).
-    const animated = state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    // Edge motion is a signed-in (auth) feature: non-auth graphs never animate.
+    const animated = state.advancedModeEnabled && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
     const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
     const styledEdges = edges.map((e) => ({
       ...e,
