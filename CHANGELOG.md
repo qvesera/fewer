@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden nodes panel now groups hidden files under their visible folder (with hidden count) instead of one flat list, so you can always tell which folder they belong to.
 - Hovering a folder header in the Hidden nodes panel now also highlights the hidden child rows inside that folder card on the canvas.
 - Hovering a folder in the Hidden nodes panel now also highlights the ancestor-path edges (root→folder) on the canvas, mirroring selection edge highlighting.
+- Batch actions in the node context menu: with multiple nodes selected, right-clicking any selected node now shows a Batch actions section — Rename… (find/replace + prefix/suffix + numbering dialog with live preview), Copy, Cut, Duplicate, Move to Folder… (folder-picker reparent), Unparent, and Delete N Items. Each batch action is a single undoable history entry.
 
 ### Fixed
 

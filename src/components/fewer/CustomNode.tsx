@@ -170,7 +170,7 @@ function RenameInput({
         // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
       }}
-      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text"
+      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text nodrag"
     />
   );
 }
@@ -257,6 +257,7 @@ function FolderContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
+        <BatchActionsSection nodeId={nodeId} />
         <ContextMenuLabel className="text-xs text-muted-foreground">
           Folder actions
         </ContextMenuLabel>
@@ -484,6 +485,99 @@ function FolderContextMenu({
   );
 }
 
+/**
+ * Batch action section rendered at the top of both node context menus when the
+ * right-clicked node is part of a multi-node selection. Reads fresh state via
+ * getState() inside handlers so a stale menu can't act on an old selection.
+ */
+function BatchActionsSection({ nodeId }: { nodeId: string }) {
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
+  const { toast } = useToast();
+  if (!isBatch) return null;
+
+  return (
+    <>
+      <ContextMenuLabel className="text-xs text-muted-foreground">
+        Batch actions · {selectedNodeIds.length} selected
+      </ContextMenuLabel>
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        onSelect={() => window.dispatchEvent(new CustomEvent("fewer-batch-rename"))}
+        className="cursor-pointer"
+      >
+        Rename…
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          const ids = useGraphStore.getState().selectedNodeIds;
+          useGraphStore.getState().setClipboard("copy", ids);
+          toast({ title: "Copied", description: `${ids.length} item${ids.length === 1 ? "" : "s"} copied` });
+        }}
+        className="cursor-pointer"
+      >
+        Copy
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          const g = useGraphStore.getState();
+          const ids = g.selectedNodeIds;
+          g.setClipboard("cut", ids);
+          // Cut removes immediately (clipboard snapshot re-inserts on paste),
+          // same as the single-node cut and Ctrl+X.
+          g.deleteNodes(ids);
+          toast({ title: "Cut", description: `${ids.length} item${ids.length === 1 ? "" : "s"} cut: paste to place` });
+        }}
+        className="cursor-pointer"
+      >
+        Cut
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          const g = useGraphStore.getState();
+          for (const id of g.selectedNodeIds) g.duplicateNodeUnderParent(id);
+          toast({
+            title: "Duplicated",
+            description: `${g.selectedNodeIds.length} item${g.selectedNodeIds.length === 1 ? "" : "s"} duplicated under same parent`,
+          });
+        }}
+        className="cursor-pointer"
+      >
+        Duplicate
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => window.dispatchEvent(new CustomEvent("fewer-batch-parent"))}
+        className="cursor-pointer"
+      >
+        Move to Folder…
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          const g = useGraphStore.getState();
+          const ids = g.selectedNodeIds;
+          g.unparentNodes(ids);
+          toast({ title: "Unparented", description: `${ids.length} item${ids.length === 1 ? "" : "s"} made root-level` });
+        }}
+        className="cursor-pointer"
+      >
+        Unparent
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() => {
+          const g = useGraphStore.getState();
+          const count = g.selectedNodeIds.length;
+          g.deleteNodes(g.selectedNodeIds);
+          toast({ title: "Deleted", description: `${count} item${count === 1 ? "" : "s"} deleted` });
+        }}
+        className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+      >
+        Delete {selectedNodeIds.length} Items
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+    </>
+  );
+}
+
 function FileEntryContextMenu({
   nodeId,
   nodeLabel,
@@ -524,6 +618,7 @@ function FileEntryContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52">
+        <BatchActionsSection nodeId={nodeId} />
         <ContextMenuLabel className="text-xs text-muted-foreground">
           File actions
         </ContextMenuLabel>
