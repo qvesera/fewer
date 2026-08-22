@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 23rd August 2026
 
 ### Added
 
@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
 - The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
-- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
+- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
 - Toast notifications no longer block the minimap: the toast viewport is now click-through (pointer-events off) while individual toasts stay interactive.
 - The minimap no longer stops panning after the layout direction changes or saved settings load: the canvas previously force-remounted the ReactFlow tree on every post-mount direction change (the responsive LR default on screens under 2560×1440, the sidebar/Ctrl+L toggle, or cloud/local settings sync), which recreated the minimap's pan/zoom instance that @xyflow/react 12.11.2 never re-binds — leaving minimap drag/wheel dead. Direction changes now re-lay the graph in place without a remount.
@@ -84,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scroll action setting: the mouse wheel now pans the canvas vertically by default (Ctrl/⌘+scroll zooms), and a new Settings → Advanced toggle switches plain scrolling to zoom. Preference persists in synced/local user settings and saved-graph snapshots.
 - Animate Selected Edges Only: a Settings → Appearance toggle that limits edge-motion animation to the edges along the selected nodes' ancestor path (the selection-highlighted edges) instead of every edge. Persists with user settings and saved graphs.
 - Drag edge to empty canvas opens Add Node dialog (same as Alt+N) for the source folder
-- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and _meta.xml files are filtered out; results are cached 24h like other URL imports.
+- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and \_meta.xml files are filtered out; results are cached 24h like other URL imports.
 - Select Children in folder context menu: select all child nodes of a folder with one click
 
 ### Changed
