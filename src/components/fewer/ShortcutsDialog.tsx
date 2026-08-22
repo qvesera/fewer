@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
+import { useAuth } from "@/hooks/use-auth";
 
 // Render the four navigation arrows with lucide icons so they all draw with
 // the same stroke/weight. Raw ←→ glyphs can render thinner than ↑↓ in mono.
@@ -24,6 +25,8 @@ const ARROW_ICONS: Record<string, LucideIcon> = {
 interface Shortcut {
   keys: string[];
   action: string;
+  /** Hidden for signed-out users (requires a cloud account). */
+  signedInOnly?: boolean;
 }
 
 interface ShortcutGroup {
@@ -59,7 +62,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Alt", "Shift", "N"], action: "Clear canvas" },
       { keys: ["Alt", "P"], action: "Parent selected nodes" },
       { keys: ["Alt", "Shift", "P"], action: "Unparent selected nodes" },
-      { keys: ["Alt", "S"], action: "Save current graph (signed in)" },
+      { keys: ["Alt", "S"], action: "Save current graph", signedInOnly: true },
     ],
   },
   {
@@ -84,8 +87,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Shift", "↑↓←→"], action: "Add to selection" },
       { keys: ["Alt", "R"], action: "Re-layout graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
-      { keys: ["Alt", "I"], action: "Open import (folder / file / URL / cloud)" },
-      { keys: ["Alt", "O"], action: "Open in file explorer" },
+      { keys: ["Alt", "I"], action: "Import" },
+      { keys: ["Alt", "O"], action: "Open in file explorer", signedInOnly: true },
     ],
   },
 ];
@@ -179,6 +182,7 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
 export function ShortcutsDialog() {
   const open = useGraphStore((s) => s.shortcutsOpen);
   const setOpen = useGraphStore((s) => s.setShortcutsOpen);
+  const { user } = useAuth();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -200,9 +204,11 @@ export function ShortcutsDialog() {
                 {group.title}
               </h3>
               <div className="flex flex-col gap-1">
-                {group.shortcuts.map((s, idx) => (
-                  <ShortcutRow key={idx} shortcut={s} />
-                ))}
+                {group.shortcuts
+                  .filter((s) => !s.signedInOnly || user)
+                  .map((s, idx) => (
+                    <ShortcutRow key={idx} shortcut={s} />
+                  ))}
               </div>
             </div>
           ))}

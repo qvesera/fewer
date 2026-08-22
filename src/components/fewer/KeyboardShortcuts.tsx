@@ -84,6 +84,19 @@ export function KeyboardShortcuts() {
 
       const mod = e.ctrlKey || e.metaKey;
 
+      // On macOS, ⌥ (Option) + letter produces special Unicode (⌥+N=œ).
+      // Use e.code (physical key) for Alt-suffixed letter shortcuts so they
+      // work regardless of OS keyboard layout transformations.
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+      const altKey = (() => {
+        if (!e.altKey) return "";
+        if (!isMac) return e.key.toLowerCase();
+        // macOS: e.code stays "KeyN" even when ⌥+N emits "œ"
+        const c = e.code;
+        if (c.startsWith("Key")) return c.slice(3).toLowerCase();
+        return e.key.toLowerCase();
+      })();
+
       // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -114,7 +127,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+Shift+N - clear canvas
-      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "n") {
+      if (e.altKey && e.shiftKey && altKey === "n") {
         e.preventDefault();
         if (nodes.length > 0) {
           reset();
@@ -124,7 +137,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+N - open Add Node dialog (child mode if folder selected, otherwise standalone)
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "n") {
+      if (e.altKey && !e.shiftKey && altKey === "n") {
         e.preventDefault();
         const hasFolderSelected = useGraphStore.getState().selectedNodeIds.length === 1 &&
           useGraphStore.getState().nodes.some((n) => n.id === useGraphStore.getState().selectedNodeIds[0] && n.data.type === "folder");
@@ -133,7 +146,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+R - relayout
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+      if (e.altKey && !e.shiftKey && altKey === "r") {
         e.preventDefault();
         const relayout = useGraphStore.getState().relayout;
         relayout();
@@ -142,7 +155,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+F - zoom to selection
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "f" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "f" && !inEditable) {
         e.preventDefault();
         const selected = nodes.filter((n) => selectedNodeIds.includes(n.id));
         if (selected.length > 0) {
@@ -158,14 +171,14 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+I - open the unified import dialog (folder / file / URL / cloud)
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "i" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "i" && !inEditable) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("fewer-import-folder"));
         return;
       }
 
       // Alt+O - open selected folder in file explorer
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "o" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "o" && !inEditable) {
         e.preventDefault();
         const selected = useGraphStore.getState().selectedNodeIds;
         if (selected.length === 1) {
@@ -188,7 +201,7 @@ export function KeyboardShortcuts() {
 
       // Alt+S - save current graph (logged-in users only). Opens the auth
       // dialog when signed out; otherwise triggers the save dialog.
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "s" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "s" && !inEditable) {
         e.preventDefault();
         if (!user) {
           useGraphStore.getState().setAuthOpen(true);
@@ -199,7 +212,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+P - parent: last selected node is parent, rest are children
-      if (e.altKey && !e.shiftKey && e.key.toLowerCase() === "p" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "p" && !inEditable) {
         e.preventDefault();
         const ids = useGraphStore.getState().selectedNodeIds;
         if (ids.length >= 2) {
@@ -224,7 +237,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+Shift+P - unparent all selected nodes
-      if (e.altKey && e.shiftKey && e.key.toLowerCase() === "p" && !inEditable) {
+      if (e.altKey && e.shiftKey && altKey === "p" && !inEditable) {
         e.preventDefault();
         const ids = useGraphStore.getState().selectedNodeIds;
         if (ids.length > 0) {

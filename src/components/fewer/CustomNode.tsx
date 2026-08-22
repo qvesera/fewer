@@ -31,6 +31,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
+import { isLocalClient } from "@/lib/fewer/isLocalClient";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -432,6 +433,7 @@ function FolderContextMenu({
             Add Child Node
           </ContextMenuItem>
           {(dataSource === "directory" || localRootPath) && (
+            isLocalClient() ? (
             <ContextMenuItem
               onSelect={async () => {
                 const ok = await openFolderInExplorer(nodePath);
@@ -447,6 +449,21 @@ function FolderContextMenu({
             >
               Open in File Explorer
             </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                disabled
+                className="cursor-pointer opacity-50"
+                onSelect={() => {
+                  toast({
+                    title: "Not available remotely",
+                    description: "This graph lives on the server — remote clients can't open folders locally.",
+                    variant: "destructive",
+                  });
+                }}
+              >
+                Open in File Explorer
+              </ContextMenuItem>
+            )
           )}
             <ContextMenuItem
               onSelect={async () => {
@@ -893,7 +910,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -1120,7 +1137,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >

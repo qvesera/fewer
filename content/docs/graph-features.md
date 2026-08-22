@@ -70,6 +70,8 @@ Select a node to see resize handles:
 
 Drag a folder from your file system onto the canvas to expand it and load its contents from disk. Dropped folders become standalone nodes with their children loaded.
 
+On an **empty** canvas, dropping a folder starts a full import using your saved import settings (no picker or dialog) — the shortcut for "import this directory with the settings I use every time".
+
 ## Layout Engine
 
 Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ nodes) and is used for both initial import and relayout operations.

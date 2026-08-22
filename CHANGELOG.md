@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hovering a folder header in the Hidden nodes panel now also highlights the hidden child rows inside that folder card on the canvas.
 - Hovering a folder in the Hidden nodes panel now also highlights the ancestor-path edges (root→folder) on the canvas, mirroring selection edge highlighting.
 - Batch actions in the node context menu: with multiple nodes selected, right-clicking any selected node now shows a Batch actions section — Rename… (find/replace + prefix/suffix + numbering dialog with live preview), Copy, Cut, Duplicate, Move to Folder… (folder-picker reparent), Unparent, and Delete N Items. Each batch action is a single undoable history entry.
+- Drag-a-directory-to-import: dropping a folder onto the empty canvas imports it directly with your saved import settings. Channels the drop through File System Access handles, legacy file-entry fallback, and — for portalized Chromium (Flatpak/Snap, e.g. Vivaldi) where the drop only arrives as a local path — a new `/api/list-directory` local-server walk; where none exist you get a hint to use the Import dialog.
 
 ### Fixed
 
@@ -62,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 - Select Children in the folder context menu no longer undoes itself: the menu's post-activation click event bubbled through the React tree into React Flow's node handler, re-selecting the right-clicked folder after the children had been selected. Menu click/keyboard events are now contained inside the context menu (also fixes right-click → Escape selecting the node).
 - Batch Move to Folder now allows moving items up into ancestor folders (parent/grandparent) instead of failing with \"No eligible items\"
+- Open in File Explorer now works cross-platform: path resolution uses case-insensitive matching, BFS fallback across common user dirs (~/Downloads, ~/Desktop, ~/Documents), Windows backslash normalization, and ~-expansion instead of Linux-only dirname(cwd) guessing
+- Local-filesystem API routes (/api/open-folder, /api/open-file, /api/list-directory, /api/resolve-path) are now gated to localhost requests — remote clients (e.g. accessing via LAN IP from a MacBook) get a 403 instead of silently opening/listing paths on the server machine. Context-menu 'Open in File Explorer' is visually disabled with an explanatory toast when accessed remotely. 'Open File' skips the server-side OS opener and falls back to browser preview for renderable types.
 
 ### Added
 

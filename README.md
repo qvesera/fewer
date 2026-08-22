@@ -88,6 +88,10 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
+> **Tip:** On an empty canvas you can also **drag a folder** from your file
+> system straight onto the canvas — it imports immediately with your saved
+> import settings (Chromium-based browsers).
+
 ### Edit the graph
 
 - **Rename** a node: **F2** or right-click

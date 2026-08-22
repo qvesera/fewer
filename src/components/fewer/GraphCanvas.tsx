@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { edgeDashPattern } from "@/lib/fewer/types";
+import { readFewerChildPayload } from "@/lib/fewer/dropImport";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -566,23 +567,58 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   const onDrop = useCallback(
     async (event: React.DragEvent) => {
+      // ⚠️ DANGER: Do NOT iterate dataTransfer.items or call any method on
+      // individual DataTransferItem objects (getAsFileSystemHandle,
+      // webkitGetAsEntry, getAsString, etc.). On portalized/sandboxed Chromium
+      // builds (Vivaldi Flatpak, Brave, some Windows) ANY item-level access
+      // can crash the renderer process.
+      const payload = readFewerChildPayload(event.dataTransfer);
       event.preventDefault();
-      const payload = event.dataTransfer.getData("application/fewer-child");
-      if (!payload) return;
+
+      if (payload) {
+        try {
+          const { label, type, parentId } = JSON.parse(payload);
+          const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+          const { draggedFolderHandle } = await import("./CustomNode");
+          const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
+          const { expandFolderNode } = await import("@/lib/fewer/fileOps");
+          if (handle && handle.kind === "directory") {
+            await expandFolderNode(label, parentId, position, handle, useGraphStore.getState() as any);
+            toast({ title: "Folder expanded", description: `"${label}" and its contents loaded from disk` });
+          } else {
+            addStandaloneNode(label, type, position);
+            toast({ title: "Node created", description: `"${label}" dropped onto canvas` });
+          }
+        } catch { /* internal drop parse failure — ignore */ }
+        return;
+      }
+
+      // External native drop on the empty canvas → open the system folder picker
+      // (safe on every platform — no DataTransfer item access that could crash).
+      if (useGraphStore.getState().nodes.length > 0) return;
+
+      const store = useGraphStore.getState();
+      store.setLoading(true);
       try {
-        const { label, type, parentId } = JSON.parse(payload);
-        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const { draggedFolderHandle } = await import("./CustomNode");
-        const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
-        const { expandFolderNode } = await import("@/lib/fewer/fileOps");
-        if (handle && handle.kind === "directory") {
-          await expandFolderNode(label, parentId, position, handle, useGraphStore.getState() as any);
-          toast({ title: "Folder expanded", description: `"${label}" and its contents loaded from disk` });
-        } else {
-          addStandaloneNode(label, type, position);
-          toast({ title: "Node created", description: `"${label}" dropped onto canvas` });
-        }
-      } catch { /* ignore */ }
+        const { pickDirectoryTree } = await import("@/lib/fewer/fileSystem");
+        const tree = await pickDirectoryTree(store.importOptions);
+        if (!tree) { toast({ title: "Import cancelled", variant: "destructive" }); return; }
+        const { treeToGraph } = await import("@/lib/fewer/treeToGraph");
+        const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: store.importOptions.includeFiles });
+        useGraphStore.setState({ dataSource: "directory", includeFiles: store.importOptions.includeFiles, maxDisplayDepth: store.importOptions.displayMaxDepth });
+        useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
+        const { resolveRootLocalPath } = await import("@/lib/fewer/fileOps");
+        await resolveRootLocalPath();
+        const { collectAutoHideNotes } = await import("@/lib/fewer/importFlow");
+        const notes = await collectAutoHideNotes();
+        toast({ title: "Directory loaded", description: `${tree.name}: ${nodes.length} entries` });
+        notes?.forEach((n) => toast({ title: n.title, description: n.description }));
+      } catch (err) {
+        console.warn("[fewer] drop import failed", err);
+        toast({ title: "Import failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+      } finally {
+        store.setLoading(false);
+      }
     },
     [screenToFlowPosition, addStandaloneNode, toast],
   );
