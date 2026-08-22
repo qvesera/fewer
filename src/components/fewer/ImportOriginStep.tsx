@@ -35,6 +35,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import {
   listCloudFolder,
   PROVIDER_LABELS,
@@ -267,9 +268,9 @@ export function ImportOriginStep({
 
 function FolderSource() {
   // Resolve client-side only to avoid SSR hydration mismatch.
-  const [supported, setSupported] = useState(true);
+  const [supported, setSupported] = useState(false);
   useEffect(() => {
-    setSupported(isFileSystemAccessSupported());
+    setSupported(LOCAL_FS_FEATURES.fsaDirectoryPicker && isFileSystemAccessSupported());
   }, []);
 
   if (!supported) {

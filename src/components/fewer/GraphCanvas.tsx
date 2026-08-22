@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { edgeDashPattern } from "@/lib/fewer/types";
 import { readFewerChildPayload } from "@/lib/fewer/dropImport";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 const nodeTypes: NodeTypes = {
   folder: CustomNode,
@@ -582,7 +583,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           const { draggedFolderHandle } = await import("./CustomNode");
           const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
           const { expandFolderNode } = await import("@/lib/fewer/fileOps");
-          if (handle && handle.kind === "directory") {
+          if (handle && handle.kind === "directory" && LOCAL_FS_FEATURES.dropToExpand) {
             await expandFolderNode(label, parentId, position, handle, useGraphStore.getState() as any);
             toast({ title: "Folder expanded", description: `"${label}" and its contents loaded from disk` });
           } else {
@@ -595,7 +596,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
       // External native drop on the empty canvas → open the system folder picker
       // (safe on every platform — no DataTransfer item access that could crash).
-      if (useGraphStore.getState().nodes.length > 0) return;
+      if (useGraphStore.getState().nodes.length > 0 || !LOCAL_FS_FEATURES.dragDropImport) return;
 
       const store = useGraphStore.getState();
       store.setLoading(true);

@@ -105,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge motion is now a signed-in (Power User) feature: the 'Animate Selected Edges Only' control is hidden for signed-out users, and non-auth graphs always render with static edges (including loaded/shared graphs and image exports).
 - Scroll to Zoom setting is hidden on mobile (no scroll wheel on touch devices); desktop keeps the wheel pan/zoom toggle in Settings → Advanced.
 - The Settings → Advanced tab is hidden entirely for signed-out mobile users when it would be empty (layout policy + node metrics are sign-in gated, and Scroll to Zoom is desktop-only).
+- Local-filesystem features (Open in File Explorer, Open File, drag-drop import, expand from disk, FSA directory picker) switched off via LOCAL_FS_FEATURES feature flag; folder import still works through legacy <input webkitdirectory> fallback. Flags live in src/lib/fewer/features.ts -- flip to true when Tauri native commands replace the browser-only paths.
 
 ### Security
 

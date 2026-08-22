@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
 import { useAuth } from "@/hooks/use-auth";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 // Render the four navigation arrows with lucide icons so they all draw with
 // the same stroke/weight. Raw ←→ glyphs can render thinner than ↑↓ in mono.
@@ -27,6 +28,8 @@ interface Shortcut {
   action: string;
   /** Hidden for signed-out users (requires a cloud account). */
   signedInOnly?: boolean;
+  /** Hidden when the feature flag is off (no side effect in plain filter). */
+  featureKey?: keyof typeof LOCAL_FS_FEATURES;
 }
 
 interface ShortcutGroup {
@@ -88,7 +91,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Alt", "R"], action: "Re-layout graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
       { keys: ["Alt", "I"], action: "Import" },
-      { keys: ["Alt", "O"], action: "Open in file explorer", signedInOnly: true },
+      { keys: ["Alt", "O"], action: "Open in file explorer", featureKey: "openInOs" },
     ],
   },
 ];
@@ -205,7 +208,7 @@ export function ShortcutsDialog() {
               </h3>
               <div className="flex flex-col gap-1">
                 {group.shortcuts
-                  .filter((s) => !s.signedInOnly || user)
+                  .filter((s) => (!s.signedInOnly || user) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]))
                   .map((s, idx) => (
                     <ShortcutRow key={idx} shortcut={s} />
                   ))}

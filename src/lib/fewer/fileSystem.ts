@@ -6,6 +6,7 @@ import {
   DEFAULT_IMPORT_OPTIONS,
   VENDORED_DIRS,
 } from "./importOptions";
+import { LOCAL_FS_FEATURES } from "./features";
 
 /**
  * Attempts to use the File System Access API to let the user pick a
@@ -27,6 +28,13 @@ export async function pickDirectoryTree(
   options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
   startIn?: PickerOpts["startIn"],
 ): Promise<TreeEntry | null> {
+  // When local-filesystem features are off (e.g. Tauri shell), skip the
+  // File System Access API entirely and use the legacy <input webkitdirectory>
+  // fallback. The legacy picker works in every webview engine.
+  if (!LOCAL_FS_FEATURES.fsaDirectoryPicker) {
+    return pickDirectoryViaInput(options);
+  }
+
   const w = window as unknown as {
     showDirectoryPicker?: (opts?: PickerOpts) => Promise<FileSystemDirectoryHandle>;
   };

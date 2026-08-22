@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -432,7 +433,7 @@ function FolderContextMenu({
           >
             Add Child Node
           </ContextMenuItem>
-          {(dataSource === "directory" || localRootPath) && (
+          {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
             isLocalClient() ? (
             <ContextMenuItem
               onSelect={async () => {
@@ -748,7 +749,7 @@ function FileEntryContextMenu({
         {advancedModeEnabled && (
           <>
             <ContextMenuSeparator />
-            {showOpenFile !== false && (
+            {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
             <ContextMenuItem
               onSelect={async () => {
                 const { openNodeFile } = await import("@/lib/fewer/fileOps");

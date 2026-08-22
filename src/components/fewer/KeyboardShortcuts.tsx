@@ -7,6 +7,7 @@ import { useReactFlow, type Connection } from "@xyflow/react";
 import { navigate } from "@/lib/fewer/navigation";
 import { openNodeFile } from "@/lib/fewer/fileOps";
 import { useToast } from "@/hooks/use-toast";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 /**
  * Global keyboard shortcuts handler. Mounted at the app root.
@@ -178,7 +179,7 @@ export function KeyboardShortcuts() {
       }
 
       // Alt+O - open selected folder in file explorer
-      if (e.altKey && !e.shiftKey && altKey === "o" && !inEditable) {
+      if (e.altKey && !e.shiftKey && altKey === "o" && !inEditable && LOCAL_FS_FEATURES.openInOs) {
         e.preventDefault();
         const selected = useGraphStore.getState().selectedNodeIds;
         if (selected.length === 1) {
@@ -406,7 +407,7 @@ export function KeyboardShortcuts() {
 
       // Enter - open file or focus first child
       if (e.key === "Enter") {
-        if (selectedNodeIds.length === 1) {
+        if (selectedNodeIds.length === 1 && LOCAL_FS_FEATURES.openFileInOs) {
           e.preventDefault();
           const node = nodes.find((n) => n.id === selectedNodeIds[0]);
           if (node && node.data.type === "file") {
