@@ -135,6 +135,7 @@
   --fewer-item-hover: rgba(100, 116, 139, 0.12);
   --fewer-handle: #94a3b8;
   --fewer-edge: rgba(100, 116, 139, 0.4);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(249, 115, 22, 0.08);
   --fewer-folder-text: #1e293b;
   --fewer-folder-subtle-text: #64748b;
@@ -195,6 +196,7 @@
   --fewer-item-hover: rgba(173, 181, 189, 0.15);
   --fewer-handle: #868e96;
   --fewer-edge: rgba(173, 181, 189, 0.5);
+  --fewer-select-ring: #22d3ee;
   --fewer-folder-bg: rgba(253, 126, 20, 0.12);
   --fewer-folder-text: #ffd8a8;
   --fewer-folder-subtle-text: #adb5bd;
@@ -227,21 +229,6 @@
 /* -------------------------------------------------------------------------- */
 
 /* ── Keyframes ─────────────────────────────────────────────────────────────── */
-
-/* Breathing glow ring for selected nodes */
-@keyframes gm-pulse-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 8px 2px rgba(34, 211, 238, 0.35),
-      0 0 20px 4px rgba(34, 211, 238, 0.12);
-  }
-  50% {
-    box-shadow:
-      0 0 14px 4px rgba(34, 211, 238, 0.55),
-      0 0 32px 8px rgba(34, 211, 238, 0.2);
-  }
-}
 
 /* Subtle entrance animation for nodes.
    ⚠ DO NOT animate `transform` on `.react-flow__node` — React Flow uses
@@ -348,7 +335,7 @@
 .react-flow__node:active {
   cursor: grabbing;
 }
-/* Remove default selection outline — we use gm-pulse-glow instead */
+/* Remove default selection outline — we use .gm-selected-ring instead */
 .react-flow__node.selected {
   outline: none;
 }
@@ -359,13 +346,19 @@
 /* ── Handle Micro-interactions ─────────────────────────────────────────────── */
 
 .react-flow__handle {
+  /* The position classes place handles via `transform` (translate) — that
+     must NOT be transitioned, or class swaps on layout-direction change
+     animate while the rAF-delayed handle-bounds re-measure reads mid-flight,
+     leaving edges offset from the settled dot. Hover growth uses the
+     independent `scale` property, which is centered on the element and misses
+     the position-dot anchor. */
   transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    scale 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.2s ease,
     box-shadow 0.2s ease;
 }
 .react-flow__handle:hover {
-  transform: scale(1.5);
+  scale: 1.5;
   background: rgb(34, 211, 238) !important;
   box-shadow: 0 0 8px 2px rgba(34, 211, 238, 0.4);
 }
@@ -454,11 +447,6 @@ aside::-webkit-scrollbar-thumb:hover {
 
 /* ── Node card utilities ───────────────────────────────────────────────────── */
 
-/* Selected-node animated glow ring (applied via className) */
-.gm-selected-glow {
-  animation: gm-pulse-glow 2.4s ease-in-out infinite;
-}
-
 /* Hover lift for node cards — subtle vertical translation + deeper shadow */
 .gm-node-hover {
   transition:
@@ -470,6 +458,46 @@ aside::-webkit-scrollbar-thumb:hover {
     0 16px 40px -12px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(148, 163, 184, 0.08);
   filter: brightness(1.04);
+}
+
+/* Static selection ring — replaces the old pulsing glow + aurora breath. No
+   animation: survives prefers-reduced-motion and light theme. Mirrors the
+   accent ring the SVG/PNG exporter draws. :hover variant keeps the pop under
+   the hover filter (same specificity, later in cascade → wins). */
+.gm-selected-ring,
+.gm-selected-ring:hover {
+  outline: 2px solid var(--fewer-select-ring, var(--brand-cyan-400));
+  outline-offset: 2px;
+  filter: saturate(1.25) brightness(1.08);
+}
+
+/* Amber highlight ring for node cards (global search matches + sidebar Hidden-panel
+   hover). Uses `outline` (like .gm-selected-ring) instead of Tailwind's box-shadow
+   ring so it survives the custom .shadow-node-folder/.shadow-node-file box-shadow —
+   unlayered custom CSS overrides layered utilities, which silently killed the ring. */
+.gm-highlight-ring,
+.gm-highlight-ring:hover {
+  outline: 2px solid #fbbf24; /* amber-400 — matches the SVG/PNG exporter highlight */
+  outline-offset: 2px;
+}
+
+/* Folder-card transform affordances (NodeResizer): the guide line is hidden so
+   it doesn't draw a second ring on top of .gm-selected-ring; the corner
+   handles stay visible and follow the themed select ring color. */
+.gm-resizer-handle {
+  background: var(--fewer-select-ring, var(--brand-cyan-400)) !important;
+  border: 2px solid #fff !important;
+}
+
+/* Big-graph perf mode: >300 visible nodes, per-card backdrop-filter + the
+   entrance blur animation dominate composite/parse cost. Drop both; the card
+   tint (rgba ~0.1 alpha over near-black bg) still reads as a card. */
+.gm-perf .backdrop-blur-xl {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.gm-perf .react-flow__node > div {
+  animation: none;
 }
 
 /* ── Accessibility ─────────────────────────────────────────────────────────── */
@@ -490,10 +518,8 @@ aside::-webkit-scrollbar-thumb:hover {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .gm-pulse-glow,
   .gm-edge-flow,
-  .gm-node-fade-in,
-  .gm-aurora-breath {
+  .gm-node-fade-in {
     animation: none !important;
   }
 }
@@ -582,35 +608,18 @@ aside::-webkit-scrollbar-thumb:hover {
   opacity: 0.45;
 }
 
-/* Warm aurora — folders */
-.dark .gm-aurora-warm::before {
-  opacity: 0;
-}
-
-/* Cool aurora — files */
-.dark .gm-aurora-cool::before {
-  opacity: 0;
-}
-
-/* Brand aurora — root/selected/brand moments (fuchsia) */
+/* Brand aurora — root node only (fuchsia). The per-node gm-aurora-warm/cool
+   variants were removed: they had no background and opacity 0, so per-node
+   haze painted nothing yet cost a pseudo-element + transition on every card
+   (>1000 nodes). */
 .dark .gm-aurora-brand::before {
   background: radial-gradient(ellipse at 50% 40%, rgba(255, 0, 255, 0.22), rgba(168, 85, 247, 0.12) 50%, transparent 72%);
   filter: blur(80px);
 }
 
-/* Intensify on hover/active */
-.dark .gm-aurora:hover::before,
-.dark .gm-aurora.is-active::before {
+/* Intensify on hover */
+.dark .gm-aurora:hover::before {
   opacity: 0.85;
-}
-
-/* Breathing animation for selected nodes */
-@keyframes gm-aurora-breath {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.7; }
-}
-.dark .gm-aurora-breath::before {
-  animation: gm-aurora-breath 7s ease-in-out infinite;
 }
 
 /* Ambient canvas aurora — large fixed radial gradients for atmosphere */

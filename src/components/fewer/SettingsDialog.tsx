@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import {
   Dialog,
@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Github,
   Globe,
+  Mouse,
   HelpCircle,
+  Zap,
   Map as MinimapIcon,
   Maximize2,
   BookOpen,
@@ -43,8 +45,12 @@ import {
   Cloud,
   Trash2,
   Loader2,
+  Spline,
+  SlidersHorizontal,
 } from "lucide-react";
-import type { ThemeMode } from "@/lib/fewer/types";
+import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
+import { SlidingToggle } from "../ui/sliding-toggle";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
@@ -461,6 +467,38 @@ function AppearanceTab() {
   const themeMode = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
+  const cornerRadius = useGraphStore((s) => s.cornerRadius);
+  const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
+  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
+  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
+  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
+  const edgeWidth = useGraphStore((s) => s.edgeWidth);
+  const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
+  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
+  const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
+  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
+  const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
+
+  const edgeStyleOptions = useMemo(() => [
+    { value: "curved" as EdgeStyle, label: "Curved" },
+    { value: "straight" as EdgeStyle, label: "Straight" },
+    { value: "angled" as EdgeStyle, label: "Angled" },
+  ], []);
+
+  const strokeStyleOptions = useMemo(() => {
+    const list: { value: EdgeStrokeStyle; label: string }[] = [];
+    // "Solid" only makes sense when at least some edges keep a solid base —
+    // i.e. not when ALL edges are animated.
+    if (!edgeAnimated) {
+      list.push({ value: "solid", label: "Solid" });
+    }
+    list.push({ value: "dashed", label: "Dashed" });
+    list.push({ value: "dotted", label: "Dotted" });
+    return list;
+  }, [edgeAnimated]);
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -503,6 +541,126 @@ function AppearanceTab() {
           })}
         </div>
       </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Spline className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Edge Styling
+          </Label>
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Style</Label>
+            <SlidingToggle
+              options={edgeStyleOptions}
+              value={edgeStyle}
+              onValueChange={(v) => setEdgeStyle(v as EdgeStyle)}
+            />
+          </div>
+
+          {advancedModeEnabled && (
+            <div className="flex flex-col gap-4 border-t border-border/30 pt-4">
+              {edgeStyle === "angled" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-muted-foreground">Corner Radius</Label>
+                    <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
+                  </div>
+                  <Slider
+                    value={[cornerRadius]}
+                    onValueChange={([v]) => setCornerRadius(v)}
+                    min={0}
+                    max={20}
+                    step={1}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Motion</Label>
+                <SlidingToggle
+                  options={[
+                    { value: "static" as const, label: "Static" },
+                    { value: "animated" as const, label: "Animated" },
+                  ]}
+                  value={edgeAnimated ? "animated" : "static"}
+                  onValueChange={(v) => setEdgeAnimated(v === "animated")}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Pattern</Label>
+                <SlidingToggle
+                  options={strokeStyleOptions}
+                  value={edgeStrokeStyle}
+                  onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-muted-foreground">Line Thickness</Label>
+                  <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
+                </div>
+                <Slider
+                  value={[edgeWidth]}
+                  onValueChange={([v]) => setEdgeWidth(v)}
+                  min={0.5}
+                  max={6}
+                  step={0.25}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {advancedModeEnabled && (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Edge Motion
+            </Label>
+          </div>
+          <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <Label
+              className="text-xs font-medium text-foreground"
+              htmlFor="edge-motion-selected-toggle"
+            >
+              Animate Selected Edges Only
+            </Label>
+            <Switch
+              id="edge-motion-selected-toggle"
+              checked={edgeAnimatedSelectedOnly}
+              onCheckedChange={setEdgeAnimatedSelectedOnly}
+            />
+          </div>
+          {edgeAnimatedSelectedOnly && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Selected Edge Pattern
+              </Label>
+              <SlidingToggle
+                options={[
+                  { value: "dashed" as const, label: "Dashed" },
+                  { value: "dotted" as const, label: "Dotted" },
+                ]}
+                value={edgeAnimatedStrokeStyle}
+                onValueChange={(v) => setEdgeAnimatedStrokeStyle(v as EdgeStrokeStyle)}
+              />
+            </div>
+          )}
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            {edgeAnimatedSelectedOnly
+              ? "Only the edges along the selected nodes' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the Edge Styling controls above."
+              : "Turn this on to animate just the selection path; every other edge follows the Edge Styling controls above."}
+          </p>
+        </div>
+      </div>
+      )}
 
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
@@ -638,13 +796,116 @@ function MinimapControls() {
 /* -------------------------------------------------------------------------- */
 
 function AdvancedTab() {
+  const isMobile = useIsMobile();
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const scrollAction = useGraphStore((s) => s.scrollAction);
+  const setScrollAction = useGraphStore((s) => s.setScrollAction);
+  const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
+  const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
+  const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
+  const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
+  const shynessScale = useGraphStore((s) => s.shynessScale);
+  const setShynessScale = useGraphStore((s) => s.setShynessScale);
+
+  // Crown-shyness slider: local value for live drag preview; the store commit
+  // (and relayout) happens on drag release so large graphs don't relayout per tick.
+  const [shynessPreview, setShynessPreview] = useState(shynessScale);
+  useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
   return (
     <div className="flex flex-col gap-5 py-1">
+      {advancedModeEnabled && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+              Layout Policy
+            </Label>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs font-medium text-foreground">Max Depth</Label>
+                <p className="text-[11px] text-muted-foreground/70">Hide nodes deeper than this level.</p>
+              </div>
+              <span className="text-xs font-mono tabular-nums text-foreground/80">
+                <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
+              </span>
+            </div>
+            <Slider
+              value={[maxDisplayDepth]}
+              onValueChange={([v]) => setMaxDisplayDepth(v)}
+              min={0}
+              max={10}
+              step={1}
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs font-medium text-foreground">Auto-hide Limit</Label>
+                <p className="text-[11px] text-muted-foreground/70">Auto-collapse folders with more than this number of items.</p>
+              </div>
+              <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
+            </div>
+            <Slider
+              value={[autoHideThreshold]}
+              onValueChange={([v]) => setAutoHideThreshold(v)}
+              min={2}
+              max={100}
+              step={1}
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
+                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.</p>
+              </div>
+              <span className="text-xs font-mono tabular-nums text-foreground/80">{shynessPreview.toFixed(1)}×</span>
+            </div>
+            <Slider
+              value={[shynessPreview]}
+              onValueChange={([v]) => setShynessPreview(v)}
+              onValueCommit={([v]) => setShynessScale(v)}
+              min={0}
+              max={3}
+              step={0.1}
+              aria-label="Crown shyness intensity"
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            Changes apply immediately — the graph re-lays itself out as you adjust.
+          </p>
+        </div>
+      )}
+
+      {!isMobile && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
+            <Mouse className="h-3.5 w-3.5 text-primary" />
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+              Canvas Navigation
+            </Label>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
+            <Switch
+              checked={scrollAction === "zoom"}
+              onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            {scrollAction === "zoom"
+              ? "The mouse wheel zooms the canvas directly."
+              : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
+          </p>
+        </div>
+      )}
+
       {advancedModeEnabled && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
@@ -803,6 +1064,11 @@ export function SettingsDialog() {
   const { user } = useAuth();
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
+  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const isMobile = useIsMobile();
+  // The Advanced tab is empty for signed-out mobile users: Layout Policy +
+  // Node Metrics are sign-in gated and the Scroll to Zoom card is desktop-only.
+  const showAdvancedTab = advancedModeEnabled || !isMobile;
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks
   // the user to fill in their name + username before publishing to the gallery.
@@ -883,13 +1149,15 @@ export function SettingsDialog() {
                   Cloud
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="advanced"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <Settings className="h-3.5 w-3.5" />
-                Advanced
-              </TabsTrigger>
+              {showAdvancedTab && (
+                <TabsTrigger
+                  value="advanced"
+                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Advanced
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="help"
                 className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
@@ -920,9 +1188,11 @@ export function SettingsDialog() {
                 <CloudTab />
               </TabsContent>
             )}
-            <TabsContent value="advanced" className="m-0">
-              <AdvancedTab />
-            </TabsContent>
+            {showAdvancedTab && (
+              <TabsContent value="advanced" className="m-0">
+                <AdvancedTab />
+              </TabsContent>
+            )}
             <TabsContent value="help" className="m-0">
               <HelpTab />
             </TabsContent>

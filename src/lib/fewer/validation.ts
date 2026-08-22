@@ -53,15 +53,18 @@ export function validateConnection(
     const siblingIds = edges
       .filter((e) => e.source === parentNodeId && e.target !== childNodeId)
       .map((e) => e.target);
+    const childFull = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
     const duplicate = nodes.find(
-      (n) =>
-        siblingIds.includes(n.id) &&
-        n.data.label.toLowerCase() === child.data.label.toLowerCase()
+      (n) => {
+        if (!siblingIds.includes(n.id)) return false;
+        const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+        return nFull.toLowerCase() === childFull.toLowerCase();
+      }
     );
     if (duplicate) {
       return {
         ok: false,
-        reason: `Duplicate name: "${child.data.label}" already exists in this parent.`,
+        reason: `Duplicate name: "${childFull}" already exists in this parent.`,
       };
     }
   }

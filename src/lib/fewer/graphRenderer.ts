@@ -20,6 +20,7 @@ export interface RenderPalette {
   text: string;
   subtle: string;
   edge: string;
+  selectRing: string;
   folderBg: string;
   folderBorder: string;
   folderText: string;
@@ -81,8 +82,43 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function truncate(s: string, maxChars: number): string {
-  return s.length > maxChars ? `${s.slice(0, maxChars - 1)}…` : s;
+/* Approximate advance width (in em) for a generic UI sans. Kept slightly
+ * conservative vs Inter/Roboto/Segoe/DejaVu so the exported scene never lets
+ * text spill past a card edge. */
+function charEm(ch: string): number {
+  if (ch >= "A" && ch <= "Z") return ch === "M" || ch === "W" ? 0.95 : 0.75;
+  if (ch >= "a" && ch <= "z") return 0.62;
+  if (ch >= "0" && ch <= "9") return 0.64;
+  if (ch === " ") return 0.32;
+  if (ch === "…") return 1.0;
+  if (",.:;!'".includes(ch)) return 0.35;
+  return 0.62;
+}
+
+/** Best-effort pixel width of a run of text at the given font size/weight. */
+export function estimateTextWidth(text: string, fontSize: number, weight: number): number {
+  const factor = weight >= 600 ? 1.05 : 1;
+  let em = 0;
+  for (const ch of text) em += charEm(ch);
+  return em * fontSize * factor;
+}
+
+/**
+ * Truncate `s` with an ellipsis so its estimated width fits within `maxPx`.
+ * Pure — no DOM required, so it is deterministic and bun-testable.
+ */
+export function truncateToWidth(s: string, maxPx: number, fontSize: number, weight: number): string {
+  const ellipsisW = charEm("…") * fontSize * (weight >= 600 ? 1.05 : 1);
+  if (estimateTextWidth(s, fontSize, weight) <= maxPx) return s;
+  let w = 0;
+  let i = 0;
+  for (; i < s.length; i++) {
+    const cw = charEm(s[i]) * fontSize * (weight >= 600 ? 1.05 : 1);
+    if (w + cw + ellipsisW > maxPx) break;
+    w += cw;
+  }
+  const cut = i > 0 ? i : s.length;
+  return `${s.slice(0, cut)}…`;
 }
 
 function formatSize(bytes: number): string {
@@ -285,7 +321,7 @@ function renderFolderCard(
     const icon = isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"];
     const iconColor = isFolder ? p.folderIcon : p.fileIcon;
     const labelColor = isFolder && !selected ? p.folderText : p.text;
-    const label = truncate(child.data.label, Math.max(8, Math.floor((w - 96) / 7)));
+    const label = truncateToWidth(child.data.label, w - 96, 12, 400);
     const metric = isFolder
       ? (() => {
           const c = edges.filter((e) => e.source === child.id).length;
@@ -306,16 +342,16 @@ function renderFolderCard(
     bodyHtml = `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`;
   }
 
-  const filterId = selected ? "filter-glow" : "filter-folder-shadow";
-  const stroke = n.data.highlighted ? "#fbbf24" : p.folderBorder;
-  const strokeWidth = n.data.highlighted ? 2 : 1;
+  const filterId = "filter-folder-shadow";
+  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.folderBorder;
+  const strokeWidth = n.data.highlighted || selected ? 2 : 1;
   const rowsCount = `${rows.length} ${rows.length === 1 ? "item" : "items"}`;
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
-    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncate(n.data.label, Math.max(8, Math.floor((w - 48) / 8))))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncate(n.data.path, Math.max(8, Math.floor((w - 48) / 6))))}</text>
+    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48, 14, 600))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48, 10, 400))}</text>
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
     <line x1="${x}" y1="${y + footerTop}" x2="${x + w}" y2="${y + footerTop}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
@@ -330,13 +366,13 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const w = size.w;
   const h = size.h;
   const selected = o.selectedIds?.has(n.id) ?? false;
-  const filterId = selected ? "filter-glow" : "filter-file-shadow";
+  const filterId = "filter-file-shadow";
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
-  const stroke = n.data.highlighted ? "#fbbf24" : p.fileBorder;
-  const strokeWidth = n.data.highlighted ? 2 : 1;
-  const label = truncate(n.data.label, Math.max(6, Math.floor((w - 56) / 8)));
+  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.fileBorder;
+  const strokeWidth = n.data.highlighted || selected ? 2 : 1;
+  const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
   // Mirror the canvas file card layout: no horizontal padding (icon box sits
@@ -370,10 +406,6 @@ function filterDefs(o: GraphRenderOptions): string {
   return `<defs>
   <filter id="filter-folder-shadow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${escapeXml(p.folderIcon)}" flood-opacity="0.28"/></filter>
   <filter id="filter-file-shadow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${escapeXml(p.fileIcon)}" flood-opacity="0.28"/></filter>
-  <filter id="filter-glow" x="-60%" y="-60%" width="220%" height="220%">
-    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#22d3ee" flood-opacity="0.35"/>
-    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#22d3ee" flood-opacity="0.14"/>
-  </filter>
 </defs>`;
 }
 
@@ -455,6 +487,7 @@ export function readThemePalette(): RenderPalette {
     text: varOr("--fewer-text", "#f8f9fa"),
     subtle: varOr("--fewer-text-subtle", "#adb5bd"),
     edge: varOr("--fewer-edge", "rgba(173, 181, 189, 0.5)"),
+    selectRing: varOr("--fewer-select-ring", "#22d3ee"),
     folderBg: varOr("--fewer-folder-bg", "rgba(253, 126, 20, 0.12)"),
     folderBorder: varOr("--fewer-folder-border", "rgba(253, 126, 20, 0.45)"),
     folderText: varOr("--fewer-folder-text", "#ffd8a8"),

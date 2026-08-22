@@ -41,6 +41,22 @@ From the context menu, **Paste** on a folder pastes the clipboard contents into 
 
 Right-click a node that has a parent → **Unparent** to detach it from its parent and make it a root-level node.
 
+## Batch Actions
+
+Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click any selected node. A **Batch actions** section appears at the top of the context menu:
+
+| Action | Notes |
+| ------ | ----- |
+| Rename… | Opens a batch-rename dialog: find/replace, prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
+| Copy | Copies every selected node (with subtrees) to the clipboard |
+| Cut | Cuts the selection to the clipboard and removes the originals; paste to place them |
+| Duplicate | Duplicates each selected node under its same parent |
+| Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items |
+| Unparent | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection edge) |
+| Delete N Items | Removes the whole selection; folder deletes cascade |
+
+Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
+
 ## Connecting Nodes
 
 Drag from a node's **output handle** to another node's **input handle** to create a parent→child connection. Fewer validates the connection:

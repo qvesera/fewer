@@ -17,7 +17,7 @@ function makeEdge(id: string, source: string, target: string): FewerEdge {
   return { id, source, target, type: "smoothstep" } as FewerEdge;
 }
 
-const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
+const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [], categoryFilter: null, categoryHiddenIds: [], independentlyHiddenIds: [] };
 
 /**
  * Mirror the exact subtree-collection + op-building logic used by graphSlice.deleteNodes
@@ -173,4 +173,62 @@ test("auto-hide does not reveal manually-hidden nodes when threshold rises", () 
   const high = reconcileAutoHide(nodes, edges, hiddenIds, autoHiddenIds, [], 10);
   expect(high.hiddenIds).toEqual(["c2"]);
   expect(high.autoHiddenIds).toEqual([]);
+});
+
+test("setShowFiles(true) reveal re-applies the auto-hide limit (files under over-threshold folders stay hidden)", () => {
+  // One folder with 12 file children, auto-hide threshold 10 — mirrors the
+  // reveal-then-reconcile composition uiSlice.setShowFiles(true) now uses.
+  const folder = makeNode("folder", "folder", null, { isRoot: true });
+  const files = Array.from({ length: 12 }, (_, i) =>
+    makeNode(`f${i}`, `f${i}`, "folder", { type: "file" })
+  );
+  const nodes = [folder, ...files];
+  const edges = files.map((f) => makeEdge(`e-${f.id}`, "folder", f.id));
+
+  // Naive reveal removed every file from hiddenIds — reconcile must re-hide
+  // them (folder exceeds the threshold) and tag them as auto-hidden.
+  const { hiddenIds, autoHiddenIds } = reconcileAutoHide(nodes, edges, [], [], [], 10);
+  expect(new Set(hiddenIds)).toEqual(new Set(files.map((f) => f.id)));
+  expect(new Set(autoHiddenIds)).toEqual(new Set(files.map((f) => f.id)));
+
+  // Under the threshold the same reveal keeps all files visible.
+  const under = reconcileAutoHide(nodes, edges, [], [], [], 12);
+  expect(under.hiddenIds).toEqual([]);
+  expect(under.autoHiddenIds).toEqual([]);
+});
+
+test("showSubtree BFS skips independentlyHiddenIds and their descendants", () => {
+  // Tree: root -> a -> [a1, a2], root -> b -> [b1, b2]
+  // All nodes hidden (hideSelected on root). 'a' was independently hidden
+  // before the root hide — showSubtree("root") must reveal root, b, b1, b2
+  // but skip a and its children a1, a2.
+  const a = makeNode("a", "a", "root");
+  const a1 = makeNode("a1", "a1", "a");
+  const a2 = makeNode("a2", "a2", "a");
+  const b = makeNode("b", "b", "root");
+  const b1 = makeNode("b1", "b1", "b");
+  const b2 = makeNode("b2", "b2", "b");
+  const root = makeNode("root", "root", null, { isRoot: true });
+  const edges = [
+    makeEdge("e1", "root", "a"), makeEdge("e2", "a", "a1"), makeEdge("e3", "a", "a2"),
+    makeEdge("e4", "root", "b"), makeEdge("e5", "b", "b1"), makeEdge("e6", "b", "b2"),
+  ];
+  const hiddenIds = ["root", "a", "a1", "a2", "b", "b1", "b2"];
+  const indieSet = new Set(["a"]);
+
+  // Mirror showSubtree BFS
+  const toShow = new Set(["root"]);
+  const queue = ["root"];
+  while (queue.length) {
+    const nid = queue.shift()!;
+    for (const e of edges) {
+      if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
+      if (indieSet.has(e.target)) continue;
+      toShow.add(e.target);
+      queue.push(e.target);
+    }
+  }
+
+  const kept = hiddenIds.filter((h) => !toShow.has(h));
+  expect(new Set(kept)).toEqual(new Set(["a", "a1", "a2"]));
 });

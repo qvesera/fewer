@@ -18,6 +18,7 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level nodes on the canvas (folders only)
+- **Edge Motion**: **Animate Selected Edges Only** toggle — when on, the edges along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all *other* (non-selected) edges. When off, sidebar controls apply globally. The all-edges motion toggle lives in the sidebar (Power User mode), not in this dialog. Edge motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static edges.
 
 ## Advanced
 

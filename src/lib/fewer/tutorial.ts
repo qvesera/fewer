@@ -31,11 +31,12 @@ import {
   Layers,
   MousePointerClick,
   Search,
+  Keyboard,
   Download,
 } from "lucide-react";
 
 export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
-  return [
+  const items: TutorialChecklistItem[] = [
     {
       id: "load-sample",
       label: "Load a sample project",
@@ -77,6 +78,16 @@ export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
       targetSelector: null,
     },
     {
+      id: "shortcuts",
+      label: "View keyboard shortcuts",
+      description: isTouch
+        ? "Tap the keyboard icon in the toolbar to see all shortcuts"
+        : "Press Ctrl+I to view all keyboard shortcuts",
+      icon: Keyboard,
+      watchState: { key: "shortcutsOpen", value: true },
+      targetSelector: null,
+    },
+    {
       id: "export",
       label: "Export your graph",
       description: isTouch
@@ -87,6 +98,14 @@ export function getBeginnerChecklist(isTouch = false): TutorialChecklistItem[] {
       targetSelector: null,
     },
   ];
+
+  // Keyboard-shortcut step only matters with a physical keyboard. `isTouch`
+  // (pointer:coarse) marks touch-primary devices, which have none.
+  if (isTouch) {
+    return items.filter((item) => item.id !== "shortcuts");
+  }
+
+  return items;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -108,6 +127,18 @@ export const DEMO_KEYFRAMES = `
 @keyframes tutorial-fade-in {
   0% { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tutorial-pop-in {
+  0% { opacity: 0; transform: translateY(24px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Attention glow: pulses the inverted card border with the theme accent,
+   2 iterations then rests. var(--primary) keeps it theme-aware. */
+@keyframes tutorial-attention {
+  0%, 100% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 0 transparent; }
+  50% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px 4px color-mix(in srgb, var(--primary) 40%, transparent); }
 }
 
 @keyframes tutorial-shimmer {
