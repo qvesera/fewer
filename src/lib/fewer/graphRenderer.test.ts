@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { buildGraphSVG } from "./graphRenderer";
+import { buildGraphSVG, truncateToWidth, estimateTextWidth } from "./graphRenderer";
 import type { FewerNode, FewerEdge } from "./types";
 import type { RenderPalette, GraphRenderOptions } from "./graphRenderer";
 
@@ -8,6 +8,7 @@ const palette: RenderPalette = {
   text: "#f8f9fa",
   subtle: "#adb5bd",
   edge: "rgba(173, 181, 189, 0.5)",
+  selectRing: "#22d3ee",
   folderBg: "rgba(253, 126, 20, 0.12)",
   folderBorder: "rgba(253, 126, 20, 0.45)",
   folderText: "#ffd8a8",
@@ -64,15 +65,15 @@ test("renders theme colors + background rect", () => {
   expect(scene.svg).toContain("Empty folder");
 });
 
-test("selection adds the glow filter to the selected node only", () => {
+test("selection draws the accent ring stroke on the selected node only", () => {
   const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
   const edges = [makeEdge("e0", "r", "c")];
   const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["c"]) }));
-  // defs contains the glow filter...
-  expect(scene.svg).toContain('<filter id="filter-glow"');
-  // and only node c references it.
-  const used = (scene.svg.match(/filter="url\(#filter-glow\)"/g) ?? []).length;
-  expect(used).toBe(1);
+  // The pulsing glow filter def is gone; selection is a static accent ring.
+  expect(scene.svg).not.toContain("filter-glow");
+  // Selected node c carries the accent ring stroke + width.
+  expect(scene.svg).toContain('stroke="#22d3ee"');
+  expect(scene.svg).toContain('stroke-width="2"');
 });
 
 test("edge path geometry differs per edge style", () => {
@@ -127,4 +128,43 @@ test("hidden nodes are excluded from the scene, kept as folder rows", () => {
   // row inside folder "a" (mirroring how the canvas shows hidden children).
   expect(scene.svg).not.toContain(">/bbb<");
   expect(scene.svg).toContain(">ama<");
+});
+
+test("label truncation is width-aware so long names never spill past the card", () => {
+  // Short runs are returned untouched.
+  expect(truncateToWidth("index.ts", 181, 14, 600)).toBe("index.ts");
+  // A long uppercase run (14px semibold) truncates to a width that fits the
+  // card's 181px text budget (240px card minus icon column + padding).
+  const long = "AGILEXEL PRIVATE LIMITED DIRECTORY";
+  const cut = truncateToWidth(long, 181, 14, 600);
+  expect(cut).toMatch(/…$/);
+  expect(estimateTextWidth(cut, 14, 600)).toBeLessThanOrEqual(181);
+  // The old fixed-pixel assumption would keep far too many chars.
+  expect(cut.length).toBeLessThan(23);
+
+  // End-to-end: a drawn file card must render a label whose estimated width
+  // stays within its text column (text x=49, right padding ~10 for w=240).
+  const file = makeNode("f", "AGILEXEL PRIVATE LIMITED DIRECTORY.ts", {
+    type: "file",
+    category: "document",
+  });
+  file.measured = { width: 240, height: 36 };
+  const scene = buildGraphSVG([file], [], opts());
+  const label = (scene.svg.match(/<text x="49" y="\d+"[^>]*>(.*?)<\/text>/) ?? ["", ""])[1];
+  const clean = label.replace(/&#x26;|&amp;|&lt;|&gt;|&quot;/g, (m) =>
+    m === "&amp;" ? "&" : m === "&lt;" ? "<" : m === "&gt;" ? ">" : m === "&quot;" ? '"' : "&",
+  );
+  if (clean.includes("…")) {
+    expect(estimateTextWidth(clean, 14, 600)).toBeLessThanOrEqual(240 - 59);
+  }
+  // And the folder header label (w - 48 budget) also stays inside bounds.
+  const froot = makeNode("r", "SOME REALLY LONG UPPERCASE FOLDER HEADER TITLE");
+  const fscene = buildGraphSVG([froot], [], opts());
+  const header = (fscene.svg.match(/<text x="36" y="20"[^>]*>(.*?)<\/text>/) ?? ["", ""])[1];
+  const fclean = header.replace(/&amp;|&lt;|&gt;|&quot;/g, (m) =>
+    m === "&amp;" ? "&" : m === "&lt;" ? "<" : m === "&gt;" ? ">" : '"',
+  );
+  if (fclean.includes("…")) {
+    expect(estimateTextWidth(fclean, 14, 600)).toBeLessThanOrEqual(240 - 48);
+  }
 });

@@ -13,7 +13,9 @@ export function buildSnapshot(): SavedGraphData {
     direction: s.direction,
     edgeStyle: s.edgeStyle,
     edgeAnimated: s.edgeAnimated,
+    edgeAnimatedSelectedOnly: s.edgeAnimatedSelectedOnly,
     edgeStrokeStyle: s.edgeStrokeStyle,
+    edgeAnimatedStrokeStyle: s.edgeAnimatedStrokeStyle,
     edgeWidth: s.edgeWidth,
     cornerRadius: s.cornerRadius,
     nodeWidth: s.nodeWidth,
@@ -28,6 +30,7 @@ export function buildSnapshot(): SavedGraphData {
     miniMapSize: s.miniMapSize,
     miniMapX: s.miniMapX,
     miniMapY: s.miniMapY,
+    scrollAction: s.scrollAction,
     localRootPath: s.localRootPath,
   };
 }
@@ -46,7 +49,9 @@ export function applySnapshot(data: SavedGraphData) {
     direction: data.direction,
     edgeStyle: data.edgeStyle,
     edgeAnimated: data.edgeAnimated,
+    edgeAnimatedSelectedOnly: data.edgeAnimatedSelectedOnly ?? s.edgeAnimatedSelectedOnly,
     edgeStrokeStyle: data.edgeStrokeStyle as never,
+    edgeAnimatedStrokeStyle: (data.edgeAnimatedStrokeStyle as never) ?? s.edgeAnimatedStrokeStyle,
     edgeWidth: data.edgeWidth,
     nodeWidth: data.nodeWidth,
     nodeHeight: data.nodeHeight,
@@ -58,6 +63,7 @@ export function applySnapshot(data: SavedGraphData) {
     miniMapSize: data.miniMapSize,
     miniMapX: data.miniMapX ?? s.miniMapX,
     miniMapY: data.miniMapY ?? s.miniMapY,
+    scrollAction: data.scrollAction ?? s.scrollAction,
   });
 
   s.setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });

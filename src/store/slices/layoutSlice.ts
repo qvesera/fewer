@@ -3,6 +3,7 @@
 import type { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
+import { edgeDashPattern } from "@/lib/fewer/types";
 
 export type LayoutSliceCreator = StateCreator<
   GraphState,
@@ -12,19 +13,33 @@ export type LayoutSliceCreator = StateCreator<
     direction: LayoutDirection;
     edgeStyle: EdgeStyle;
     edgeAnimated: boolean;
+    /**
+     * Animate only the ancestor-path edges of selected nodes. Standalone: it
+     * implies animation is on for the selection path, whether or not
+     * `edgeAnimated` is set. When both are on, this controls the selected
+     * path; `edgeAnimated` drives the non-selected edges.
+     */
+    edgeAnimatedSelectedOnly: boolean;
     edgeStrokeStyle: EdgeStrokeStyle;
+    /** Dash pattern for the animated selected-path edges only (dashed | dotted) — owned by Settings. */
+    edgeAnimatedStrokeStyle: EdgeStrokeStyle;
     edgeWidth: number;
     cornerRadius: number;
     nodeWidth: number;
     nodeHeight: number;
+    /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Drives relayout on change. */
+    shynessScale: number;
 
     setDirection: (d: LayoutDirection) => void;
     setEdgeStyle: (s: EdgeStyle) => void;
     setEdgeAnimated: (v: boolean) => void;
+    setEdgeAnimatedSelectedOnly: (v: boolean) => void;
     setEdgeStrokeStyle: (s: EdgeStrokeStyle) => void;
+    setEdgeAnimatedStrokeStyle: (s: EdgeStrokeStyle) => void;
     setEdgeWidth: (w: number) => void;
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
+    setShynessScale: (scale: number) => void;
   }
 >;
 
@@ -50,11 +65,14 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   direction: "TB",
   edgeStyle: "angled",
   edgeAnimated: false,
+  edgeAnimatedSelectedOnly: false,
   edgeStrokeStyle: "solid",
+  edgeAnimatedStrokeStyle: "dashed",
   edgeWidth: 2,
   cornerRadius: 8,
   nodeWidth: 240,
   nodeHeight: 200,
+  shynessScale: 1,
 
   setDirection: (direction) => {
     set({ direction });
@@ -77,39 +95,46 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   },
 
   setEdgeAnimated: (animated) => {
-    if (animated && get().edgeStrokeStyle === "solid") {
-      set({ edgeAnimated: animated, edgeStrokeStyle: "dashed" });
-    } else {
-      set({ edgeAnimated: animated });
-    }
-    set((s) => {
-      // Animated edges need an explicit dash pattern on the element itself.
-      // Without one, @xyflow/react's CSS falls back to `stroke-dasharray: 5`
-      // (period 10), which doesn't match the app's patterns and shows up as
-      // periodic jumps in the dash animation.
-      const strokeDasharray =
-        s.edgeStrokeStyle === "dashed" ? "8 4" : s.edgeStrokeStyle === "dotted" ? "2 4" : undefined;
-      return {
-        edges: s.edges.map((e) => ({
-          ...e,
-          animated,
-          style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
-        })),
-        graphVersion: s.graphVersion + 1,
-      };
-    });
+    set({ edgeAnimated: animated });
+    set((s) => ({
+      // Motion toggle: with "Animate Selected Edges Only" on this drives only
+      // the NON-selected edges (the selected path always animates in its own
+      // dialog-chosen pattern). Patterns use the base style; the canvas
+      // edge-styling effect re-derives selected-path animated dashes.
+      edges: s.edges.map((e) => {
+        const dash = edgeDashPattern(s.edgeStrokeStyle);
+        return { ...e, animated, style: { ...e.style, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) } };
+      }),
+      graphVersion: s.graphVersion + 1,
+    }));
+  },
+
+  // Flips the flag only: per-edge animated/dash values are recomputed by the
+  // canvas edge-styling effect (it knows the selection). Only the Settings
+  // dialog owns this toggle.
+  setEdgeAnimatedSelectedOnly: (selectedOnly) => {
+    set((s) => ({ edgeAnimatedSelectedOnly: selectedOnly, graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeStrokeStyle: (strokeStyle) => {
     set({ edgeStrokeStyle: strokeStyle });
-    const strokeDasharray = strokeStyle === "dashed" ? "8 4" : strokeStyle === "dotted" ? "2 4" : undefined;
     set((s) => ({
-      edges: s.edges.map((e) => ({
-        ...e,
-        style: { ...e.style, ...(strokeDasharray ? { strokeDasharray } : { strokeDasharray: undefined }) },
-      })),
+      // Applies to all edges; the canvas effect re-derives selected-path
+      // animated dashes via the graphVersion bump (the dialog pattern wins for
+      // highlighted edges when "Animate Selected Edges Only" is on).
+      edges: s.edges.map((e) => {
+        const dash = edgeDashPattern(strokeStyle);
+        return { ...e, style: { ...e.style, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) } };
+      }),
       graphVersion: s.graphVersion + 1,
     }));
+  },
+
+  // Dash pattern for the animated SELECTED-path edges only (dashed | dotted),
+  // owned solely by the Settings dialog. The canvas edge-styling effect applies
+  // it to the highlighted edges; the graphVersion bump re-runs that effect.
+  setEdgeAnimatedStrokeStyle: (strokeStyle) => {
+    set((s) => ({ edgeAnimatedStrokeStyle: strokeStyle, graphVersion: s.graphVersion + 1 }));
   },
 
   setEdgeWidth: (width) => {
@@ -135,5 +160,12 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     }));
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes, graphVersion: get().graphVersion + 1 });
     setTimeout(() => get().relayout(), 50);
+  },
+
+  setShynessScale: (scale) => {
+    const clamped = Math.max(0, Math.min(3, scale));
+    if (clamped === get().shynessScale) return;
+    set({ shynessScale: clamped });
+    get().relayout();
   },
 });

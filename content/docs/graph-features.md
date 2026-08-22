@@ -11,6 +11,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 - Pan (drag empty space)
 - Zoom (scroll wheel or +/- keys)
+- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming
 - Fit view (Space key)
 - Minimap (bottom-right, configurable)
 - Controls (zoom in/out, fit view buttons)
@@ -69,12 +70,15 @@ Select a node to see resize handles:
 
 Drag a folder from your file system onto the canvas to expand it and load its contents from disk. Dropped folders become standalone nodes with their children loaded.
 
+On an **empty** canvas, dropping a folder starts a full import using your saved import settings (no picker or dialog) — the shortcut for "import this directory with the settings I use every time".
+
 ## Layout Engine
 
 Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ nodes) and is used for both initial import and relayout operations.
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode)
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
@@ -90,7 +94,7 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust via the sidebar Layout section (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust in Settings → Advanced (Power User mode).
 
 ## Edge Styles
 
@@ -114,12 +118,27 @@ Optional motion effects:
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
+Edge motion is a signed-in (Power User) feature: it's only available to
+authenticated users. A Settings → Appearance toggle, **Animate Selected
+Edges Only**, limits the
+animation to the edges along the selected nodes' path to the root (the same
+edges that get the selection highlight) instead of every edge on the canvas.
+It works standalone — no need to turn on the edge motion toggle first — and
+its animated edges use the **Selected Edge Pattern** (dashed or dotted) chosen
+in the same dialog. Edges outside the selection follow the Motion
+and Pattern controls in the same tab.
+
 ## Edge Pattern & Weight
 
-In Power User mode, the sidebar Edges section controls:
+In Power User mode, Settings → Appearance → **Edge Styling** controls:
 
-- **Pattern**: solid, dashed, or dotted
+- **Motion**: static or animated — applies to all edges globally, or to the
+  non-selected edges only when **Animate Selected Edges Only** is on
+- **Pattern**: solid, dashed, or dotted — same scope as Motion
 - **Line Thickness**: 0.5px to 6px slider
+
+The sidebar keeps a quick **Style** picker (curved / straight / angled); corner
+radius for angled edges also lives in Edge Styling.
 
 ## Breadcrumb Bar
 
@@ -133,11 +152,14 @@ Folders with more than N children (default: 10) auto-hide their children on impo
 
 ## Hidden Nodes Panel
 
-Access via sidebar. Shows all hidden nodes grouped by parent folder:
+Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
 
-- Nested expandable tree (any depth)
-- Eye button reveals individual folders
-- "Show All" button reveals everything
+- **Folder group headers** — each visible parent folder with a `N hidden` count and a collapse toggle
+- **Nested expandable tree** (any depth) for fully-hidden subtrees
+- **Eye button** reveals an individual item (or a whole hidden subtree)
+- **"Show All" button** reveals everything
+- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path edges (root→folder), like global search and selection
+- **Search** filters by folder name or path as well as file name
 
 ## Search
 

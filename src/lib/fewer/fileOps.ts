@@ -2,6 +2,7 @@
 
 import { fsHandleStore } from "./types";
 import { useGraphStore } from "@/store/graphStore";
+import { isLocalClient } from "./isLocalClient";
 
 /**
  * Real file system operations using the File System Access API.
@@ -231,6 +232,7 @@ export async function resolveRootLocalPath(): Promise<string | null> {
   return st.localRootPath ?? null;
 }
 
+
 /**
  * Open a local file node in its dedicated OS app (the default app for that
  * file type). We POST the node's path to /api/open-file, which the dev server
@@ -247,12 +249,10 @@ export async function openNodeFile(
   node: { id: string; data: { type: string; path?: string } },
   dataSource: string,
 ): Promise<boolean> {
-  // 1) Open in the OS default app whenever we have a path — the only route
-  //    that hands the file to `xdg-open` / `open` / `start`. Not gated on
-  //    directory imports: any path-owning source opens in its default app.
-  if (node.data.path) {
-    // Prefer the exact, previously-resolved root location (saved with the
-    // graph as localRootPath) so we don't have to search the filesystem again.
+  // 1) Open in the OS default app via the server API — the only route that
+  //    hands the file to `xdg-open` / `open` / `start`. Only works when the
+  //    client is on the same machine as the server (localhost).
+  if (node.data.path && isLocalClient()) {
     const st = useGraphStore.getState();
     const root = st.nodes.find((n) => n.data.isRoot);
     const sendPath =
@@ -266,11 +266,12 @@ export async function openNodeFile(
       });
       if (res.ok) return true;
     } catch {
-      // fall through to browser fallback
+      // server not reachable
     }
   }
-  // 2) Browser fallback (live file handle → object URL) — only for types the
-  //    browser can render, lest we silently download an unsupported type.
+  // 2) Browser fallback: check for a live File System Access handle. This
+  //    only works in Chromium browsers and only within the same page session
+  //    (handles are lost on refresh).
   if (node.data.type === "file") {
     const handle = fsHandleStore.get(node.id);
     if (handle && handle.kind === "file") {
@@ -280,13 +281,12 @@ export async function openNodeFile(
         await openFile(fileHandle);
         return true;
       }
-      // Non-renderable type without a server path: we have no way to open the
-      // OS app, so fail cleanly (caller toasts) instead of force-downloading.
       return false;
     }
   }
   return false;
 }
+
 /**
  * Download a remote file (e.g. a crawled public-index item) straight to disk.
  * Tries to read it as a blob first (so we control the saved filename); if the

@@ -77,7 +77,7 @@ function ColorPicker({ meta, value, onChange }: ColorPickerProps) {
 }
 
 const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
-  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge"].includes(m.key)) },
+  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge", "selectRing"].includes(m.key)) },
   { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },
   { title: "Files", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("file")) },
 ];
