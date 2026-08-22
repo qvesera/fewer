@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+## [0.6.0] - 23rd August 2026
+
 ### Added
 
 - Hidden children in a folder card child list now render desaturated (reduced saturation and opacity) with a tooltip, so hidden entries are distinguishable at a glance.
@@ -16,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden nodes panel now groups hidden files under their visible folder (with hidden count) instead of one flat list, so you can always tell which folder they belong to.
 - Hovering a folder header in the Hidden nodes panel now also highlights the hidden child rows inside that folder card on the canvas.
 - Hovering a folder in the Hidden nodes panel now also highlights the ancestor-path edges (root→folder) on the canvas, mirroring selection edge highlighting.
+- Batch actions in the node context menu: with multiple nodes selected, right-clicking any selected node now shows a Batch actions section — Rename… (find/replace + prefix/suffix + numbering dialog with live preview), Copy, Cut, Duplicate, Move to Folder… (folder-picker reparent), Unparent, and Delete N Items. Each batch action is a single undoable history entry.
+- Drag-a-directory-to-import: dropping a folder onto the empty canvas imports it directly with your saved import settings. Channels the drop through File System Access handles, legacy file-entry fallback, and — for portalized Chromium (Flatpak/Snap, e.g. Vivaldi) where the drop only arrives as a local path — a new `/api/list-directory` local-server walk; where none exist you get a hint to use the Import dialog.
+- Canvas context menu now shows a 'Batch actions' section whenever multiple nodes are selected (including Shift+drag box select): Rename…, Copy, Cut, Duplicate, Set as Parent (when the last-selected node is a folder) and Delete N Items — mirroring the multi-select submenu on node cards.
 
 ### Fixed
 
@@ -43,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
 - The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
-- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
+- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
 - Toast notifications no longer block the minimap: the toast viewport is now click-through (pointer-events off) while individual toasts stay interactive.
 - The minimap no longer stops panning after the layout direction changes or saved settings load: the canvas previously force-remounted the ReactFlow tree on every post-mount direction change (the responsive LR default on screens under 2560×1440, the sidebar/Ctrl+L toggle, or cloud/local settings sync), which recreated the minimap's pan/zoom instance that @xyflow/react 12.11.2 never re-binds — leaving minimap drag/wheel dead. Direction changes now re-lay the graph in place without a remount.
@@ -59,6 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
 - Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
 - Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
+- Select Children in the folder context menu no longer undoes itself: the menu's post-activation click event bubbled through the React tree into React Flow's node handler, re-selecting the right-clicked folder after the children had been selected. Menu click/keyboard events are now contained inside the context menu (also fixes right-click → Escape selecting the node).
+- Batch Move to Folder now allows moving items up into ancestor folders (parent/grandparent) instead of failing with \"No eligible items\"
+- Open in File Explorer now works cross-platform: path resolution uses case-insensitive matching, BFS fallback across common user dirs (~/Downloads, ~/Desktop, ~/Documents), Windows backslash normalization, and ~-expansion instead of Linux-only dirname(cwd) guessing
+- Local-filesystem API routes (/api/open-folder, /api/open-file, /api/list-directory, /api/resolve-path) are now gated to localhost requests — remote clients (e.g. accessing via LAN IP from a MacBook) get a 403 instead of silently opening/listing paths on the server machine. Context-menu 'Open in File Explorer' is visually disabled with an explanatory toast when accessed remotely. 'Open File' skips the server-side OS opener and falls back to browser preview for renderable types.
+- Right-clicking after a Shift+drag box selection did nothing: React Flow renders a pointer-events rect over the selection, so the pane context-menu handler's container guard rejected the event and no menu opened. The canvas now handles React Flow's selection context menu, opening the same menu at the cursor.
+- Right-clicking a selected node with multiple nodes selected (shift-drag, Select Children, …) now shows ONLY batch actions — the folder/file actions are hidden. Single-node right-clicks and empty-canvas/edge right-clicks keep their own menus.
+- Batch actions differed between selection methods: the Shift+drag box-select right-click menu was missing Move to Folder… and Unparent, while Select Children's node-menu batch section lacked Set as Parent. Both menus (and any future multi-select surface) now build from one shared action list in src/lib/fewer/batchActions.ts, so every multi-selection shows the same options: Rename…, Copy, Cut, Duplicate, Set as Parent (when last-selected is a folder), Move to Folder…, Unparent, Delete N Items.
+- Batch rename now applies find/replace to file extensions (e.g. .tsx → .jsx) instead of stripping them
 
 ### Added
 
@@ -73,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scroll action setting: the mouse wheel now pans the canvas vertically by default (Ctrl/⌘+scroll zooms), and a new Settings → Advanced toggle switches plain scrolling to zoom. Preference persists in synced/local user settings and saved-graph snapshots.
 - Animate Selected Edges Only: a Settings → Appearance toggle that limits edge-motion animation to the edges along the selected nodes' ancestor path (the selection-highlighted edges) instead of every edge. Persists with user settings and saved graphs.
 - Drag edge to empty canvas opens Add Node dialog (same as Alt+N) for the source folder
-- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and _meta.xml files are filtered out; results are cached 24h like other URL imports.
+- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and \_meta.xml files are filtered out; results are cached 24h like other URL imports.
 - Select Children in folder context menu: select all child nodes of a folder with one click
 
 ### Changed
@@ -99,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edge motion is now a signed-in (Power User) feature: the 'Animate Selected Edges Only' control is hidden for signed-out users, and non-auth graphs always render with static edges (including loaded/shared graphs and image exports).
 - Scroll to Zoom setting is hidden on mobile (no scroll wheel on touch devices); desktop keeps the wheel pan/zoom toggle in Settings → Advanced.
 - The Settings → Advanced tab is hidden entirely for signed-out mobile users when it would be empty (layout policy + node metrics are sign-in gated, and Scroll to Zoom is desktop-only).
+- Local-filesystem features (Open in File Explorer, Open File, drag-drop import, expand from disk, FSA directory picker) switched off via LOCAL_FS_FEATURES feature flag; folder import still works through legacy <input webkitdirectory> fallback. Flags live in src/lib/fewer/features.ts -- flip to true when Tauri native commands replace the browser-only paths.
+- Removed 'Set as Parent' from the batch actions menu; multi-node reparenting stays available via 'Move to Folder…'.
 
 ### Security
 

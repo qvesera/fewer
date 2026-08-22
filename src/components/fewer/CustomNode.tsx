@@ -30,7 +30,10 @@ import {
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
+import { isLocalClient } from "@/lib/fewer/isLocalClient";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -170,7 +173,7 @@ function RenameInput({
         // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
       }}
-      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text"
+      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text nodrag"
     />
   );
 }
@@ -252,11 +255,19 @@ function FolderContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  // When the right-clicked node is part of a multi-node selection (shift-drag,
+  // Select Children, …), the menu shows ONLY batch actions.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
+        <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           Folder actions
         </ContextMenuLabel>
@@ -430,7 +441,8 @@ function FolderContextMenu({
           >
             Add Child Node
           </ContextMenuItem>
-          {(dataSource === "directory" || localRootPath) && (
+          {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
+            isLocalClient() ? (
             <ContextMenuItem
               onSelect={async () => {
                 const ok = await openFolderInExplorer(nodePath);
@@ -446,6 +458,21 @@ function FolderContextMenu({
             >
               Open in File Explorer
             </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                disabled
+                className="cursor-pointer opacity-50"
+                onSelect={() => {
+                  toast({
+                    title: "Not available remotely",
+                    description: "This graph lives on the server — remote clients can't open folders locally.",
+                    variant: "destructive",
+                  });
+                }}
+              >
+                Open in File Explorer
+              </ContextMenuItem>
+            )
           )}
             <ContextMenuItem
               onSelect={async () => {
@@ -479,8 +506,44 @@ function FolderContextMenu({
             )}
           </>
         )}
+        </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+/**
+ * Batch action section rendered at the top of both node context menus when the
+ * right-clicked node is part of a multi-node selection. Reads fresh state via
+ * getState() inside handlers so a stale menu can't act on an old selection.
+ */
+function BatchActionsSection({ nodeId }: { nodeId: string }) {
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
+  const { toast } = useToast();
+  if (!isBatch) return null;
+
+  return (
+    <>
+      <ContextMenuLabel className="text-xs text-muted-foreground">
+        Batch actions · {selectedNodeIds.length} selected
+      </ContextMenuLabel>
+      <ContextMenuSeparator />
+      {buildBatchActions({ toast, selectedIds: selectedNodeIds }).map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className={
+            action.danger
+              ? "cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+              : "cursor-pointer"
+          }
+        >
+          {action.label}
+        </ContextMenuItem>
+      ))}
+    </>
   );
 }
 
@@ -519,11 +582,18 @@ function FileEntryContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  // Same rule as the folder menu: multi-selection right-click → batch only.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52">
+        <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           File actions
         </ContextMenuLabel>
@@ -636,7 +706,7 @@ function FileEntryContextMenu({
         {advancedModeEnabled && (
           <>
             <ContextMenuSeparator />
-            {showOpenFile !== false && (
+            {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
             <ContextMenuItem
               onSelect={async () => {
                 const { openNodeFile } = await import("@/lib/fewer/fileOps");
@@ -670,6 +740,8 @@ function FileEntryContextMenu({
               Copy Name
             </ContextMenuItem>
           </>
+        )}
+        </>
         )}
       </ContextMenuContent>
     </ContextMenu>
@@ -798,7 +870,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -1025,7 +1097,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >

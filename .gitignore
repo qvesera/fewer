@@ -62,7 +62,7 @@ server.log
 .gitignore
 LIGHTHOUSE_IMPROVEMENTS.md
 implementation_plan.md
-.agents/
+.agents/*
 
 # supabase local cli state
 supabase/.temp/
@@ -76,3 +76,9 @@ blob-report/
 
 lighthouse/*
 .clinerules/*
+.vscode/*
+.mcp.json
+
+# repowise local index
+.repowise/
+scripts/*

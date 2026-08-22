@@ -19,6 +19,21 @@ Fewer lets you import file trees in multiple formats, whether it is directly fro
 
 The graph builds instantly with auto-layout. Large imports show a progress indicator.
 
+### Drag & Drop (empty canvas)
+
+On an empty canvas, drag a folder from your file system and drop it anywhere on
+the canvas to import it directly — no picker, no dialog. The import honors your
+**saved import settings** (scan depth, hidden files, extension filters, etc. —
+the same options configured in the Import dialog).
+
+- Works in Chromium-based browsers (Chrome, Edge, Vivaldi, Brave, …). Uses the
+  File System Access API, with a legacy file-entry fallback, and — when a
+  portalized install (Flatpak/Snap) delivers the drop only as a local path —
+  a local-dev-server fallback that reads the folder directly. Where none of
+  those channels exist you'll get a hint to use the Import dialog instead.
+- Dropping onto a canvas that already has nodes keeps the existing behavior:
+  the folder becomes a single expandable node rather than a full import.
+
 ### Browser Support
 
 - **Chrome/Edge:** Full File System Access API: can read and write back to disk

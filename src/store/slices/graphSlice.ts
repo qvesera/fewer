@@ -273,6 +273,12 @@ export type GraphSliceCreator = StateCreator<
     duplicateNode: (id: string) => void;
     connectNodes: (connection: { source: string; target: string }) => { ok: boolean; reason?: string };
     removeEdgesFromHandle: (nodeId: string, handleType: "source" | "target") => void;
+    /** Batch-rename selected nodes via a label transform. One history entry. Returns renamed count. */
+    renameNodes: (ids: string[], transform: (node: FewerNode, index: number) => string | null) => number;
+    /** Detach the top-most selected roots from their parents. One history entry. */
+    unparentNodes: (ids: string[]) => void;
+    /** Move the top-most selected roots under a target folder (reparent). One history entry. */
+    parentNodesTo: (ids: string[], parentId: string) => { moved: number; reason?: string };
     deleteEdges: (ids: string[]) => void;
     hideNode: (id: string) => void;
     hideNodes: (ids: string[]) => void;
@@ -771,6 +777,171 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
     set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+  },
+
+  renameNodes: (ids, transform) => {
+    const { nodes, edges, searchQuery } = get();
+    let nextNodes = nodes;
+    const ops: HistoryOp[] = [];
+    ids.forEach((id, index) => {
+      const node = nextNodes.find((n) => n.id === id);
+      if (!node) return;
+      const raw = transform(node, index);
+      const trimmed = typeof raw === "string" ? raw.trim() : "";
+      if (!trimmed) return;
+      // Same semantics as the single renameNode: extension re-parsed from the
+      // new full label, sibling-uniqueness enforced, descendant paths rewritten.
+      const newExt = node.data.type === "file" ? getFileExtension(trimmed) : "";
+      const newLabelOnly = newExt ? trimmed.slice(0, -(newExt.length + 1)) : trimmed;
+      const oldFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+      const newFullLabel = newExt ? `${newLabelOnly}.${newExt}` : newLabelOnly;
+      if (newFullLabel.toLowerCase() === oldFullLabel.toLowerCase()) return;
+      const parentEdge = edges.find((e) => e.target === id);
+      const siblingIds = parentEdge
+        ? edges.filter((e) => e.source === parentEdge.source && e.target !== id).map((e) => e.target)
+        : nextNodes.filter((n) => !edges.some((e) => e.target === n.id) && n.id !== id).map((n) => n.id);
+      const siblingHasLabel = siblingIds.some((sid) => {
+        const s = nextNodes.find((n) => n.id === sid);
+        if (!s) return false;
+        const sFull = s.data.extension ? `${s.data.label}.${s.data.extension}` : s.data.label;
+        return sFull.toLowerCase() === newFullLabel.toLowerCase();
+      });
+      if (siblingHasLabel) return;
+      const parentPath = parentEdge ? (nextNodes.find((n) => n.id === parentEdge.source)?.data.path ?? "") : "";
+      const oldPathPrefix = parentEdge ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
+      const newPathPrefix = parentEdge ? `${parentPath}/${newFullLabel}` : newFullLabel;
+      const isFolder = node.data.type === "folder";
+      const descendantIds = new Set<string>();
+      if (isFolder) {
+        const queue = [id];
+        while (queue.length) {
+          const nid = queue.shift()!;
+          for (const e of edges) { if (e.source === nid && e.target !== id && !descendantIds.has(e.target)) { descendantIds.add(e.target); queue.push(e.target); } }
+        }
+      }
+      nextNodes = nextNodes.map((n) => {
+        if (n.id === id) return { ...n, data: { ...n.data, label: newLabelOnly, path: newPathPrefix, extension: newExt, category: newExt ? categorizeByExtension(newExt) : undefined } };
+        if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldPathPrefix)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldPathPrefix, newPathPrefix) } };
+        return n;
+      });
+      ops.push({ type: "rename", nodeId: id, oldLabel: node.data.label, newLabel: newLabelOnly });
+    });
+    if (ops.length === 0) {
+      set({ renamingId: null });
+      return 0;
+    }
+    get().pushOp(ops);
+    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
+    return ops.length;
+  },
+
+  unparentNodes: (ids) => {
+    const { nodes, edges, searchQuery } = get();
+    const idSet = new Set(ids);
+    const parentMap = new Map<string, string>();
+    for (const e of edges) parentMap.set(e.target, e.source);
+    // Only top-most selection roots detach: a node whose ancestor is also
+    // selected keeps its in-selection parent edge.
+    const roots = ids.filter((id) => {
+      let p = parentMap.get(id);
+      while (p) { if (idSet.has(p)) return false; p = parentMap.get(p); }
+      return true;
+    });
+    const removedEdges = edges.filter((e) => roots.includes(e.target));
+    if (removedEdges.length === 0) return;
+    const removedKey = new Set(removedEdges.map((e) => e.id));
+    const filteredEdges = edges.filter((e) => !removedKey.has(e.id));
+    const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
+    get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
+    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+  },
+
+  parentNodesTo: (ids, parentId) => {
+    const { nodes, edges, searchQuery } = get();
+    const parent = nodes.find((n) => n.id === parentId);
+    if (!parent || parent.data.type !== "folder") return { moved: 0, reason: "Target must be a folder." };
+    const idSet = new Set(ids);
+    const parentMap = new Map<string, string>();
+    for (const e of edges) parentMap.set(e.target, e.source);
+    // Top-most selected roots only; skip the target itself and items already
+    // sitting directly under the target (moving to an ancestor further up is
+    // legal — cycles are caught per-item by validateConnection below).
+    const roots = ids.filter((id) => {
+      if (id === parentId) return false;
+      if (parentMap.get(id) === parentId) return false;
+      let p = parentMap.get(id);
+      while (p) {
+        if (idSet.has(p)) return false;
+        p = parentMap.get(p);
+      }
+      return true;
+    });
+    if (roots.length === 0) {
+      const alreadyThere = ids.length > 0 && ids.every((id) => id === parentId || parentMap.get(id) === parentId);
+      return { moved: 0, reason: alreadyThere ? "Items are already in that folder." : undefined };
+    }
+
+    const ops: HistoryOp[] = [];
+    let workNodes = nodes;
+    let workEdges = edges;
+
+    // Step 1 — detach every moving root from its current parent. Undo restores
+    // all original edges/paths via one remove-edges op.
+    const oldEdges = edges.filter((e) => roots.includes(e.target));
+    if (oldEdges.length > 0) {
+      const oldKey = new Set(oldEdges.map((e) => e.id));
+      workEdges = edges.filter((e) => !oldKey.has(e.id));
+      const detached = unparentSubtree(nodes, workEdges, oldEdges);
+      workNodes = detached.nodes;
+      ops.push({ type: "remove-edges", edges: oldEdges, pathChanges: detached.pathChanges });
+    }
+
+    // Step 2 — attach each root under the target folder (same path rewrite as
+    // connectNodes). Nodes failing validation (duplicate name, …) are skipped.
+    const addedEdges: FewerEdge[] = [];
+    for (const id of roots) {
+      const combinedEdges = [...workEdges, ...addedEdges];
+      if (!validateConnection(parentId, id, workNodes, combinedEdges).ok) continue;
+      const child = workNodes.find((n) => n.id === id)!;
+      const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
+      const newChildPath = `${parent.data.path}/${childFullLabel}`;
+      const oldChildPath = child.data.path;
+      const isFolder = child.data.type === "folder";
+      const descendantIds = new Set<string>();
+      if (isFolder) {
+        const queue = [id];
+        while (queue.length) {
+          const nid = queue.shift()!;
+          for (const e of combinedEdges) { if (e.source === nid && e.target !== id && !descendantIds.has(e.target)) { descendantIds.add(e.target); queue.push(e.target); } }
+        }
+      }
+      workNodes = workNodes.map((n) => {
+        if (n.id === id) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+        if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+        return n;
+      });
+      const changedNodeIds = isFolder ? [id, ...Array.from(descendantIds)] : [id];
+      const prevPaths = changedNodeIds
+        .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
+        .filter((p) => p.path !== "");
+      const nextPaths = changedNodeIds
+        .map((nid) => ({ nodeId: nid, path: workNodes.find((n) => n.id === nid)?.data.path ?? "" }))
+        .filter((p) => p.path !== "");
+      const newEdge: FewerEdge = { id: `e-${parentId}-${id}-${uuid().slice(0, 6)}`, source: parentId, target: id, type: edgeTypeFromStyle(get().edgeStyle) };
+      addedEdges.push(newEdge);
+      ops.push({ type: "connect", edge: newEdge, prevPaths, nextPaths });
+    }
+    if (addedEdges.length === 0) {
+      // Nothing attached — discard the local detach computation entirely.
+      return { moved: 0, reason: "None of the selected items can be moved there." };
+    }
+    get().pushOp(ops);
+    set({
+      nodes: applySearchInternal(workNodes, searchQuery, get().categoryFilter),
+      edges: sortEdges([...workEdges, ...addedEdges], workNodes),
+      graphVersion: get().graphVersion + 1,
+    });
+    return { moved: addedEdges.length };
   },
 
   deleteEdges: (ids) => {
