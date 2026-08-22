@@ -864,17 +864,22 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parentMap = new Map<string, string>();
     for (const e of edges) parentMap.set(e.target, e.source);
     // Top-most selected roots only; skip the target itself and items already
-    // parented under the target.
+    // sitting directly under the target (moving to an ancestor further up is
+    // legal — cycles are caught per-item by validateConnection below).
     const roots = ids.filter((id) => {
       if (id === parentId) return false;
+      if (parentMap.get(id) === parentId) return false;
       let p = parentMap.get(id);
       while (p) {
-        if (p === parentId || idSet.has(p)) return false;
+        if (idSet.has(p)) return false;
         p = parentMap.get(p);
       }
       return true;
     });
-    if (roots.length === 0) return { moved: 0 };
+    if (roots.length === 0) {
+      const alreadyThere = ids.length > 0 && ids.every((id) => id === parentId || parentMap.get(id) === parentId);
+      return { moved: 0, reason: alreadyThere ? "Items are already in that folder." : undefined };
+    }
 
     const ops: HistoryOp[] = [];
     let workNodes = nodes;

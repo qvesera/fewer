@@ -76,3 +76,8 @@ blob-report/
 
 lighthouse/*
 .clinerules/*
+.vscode/*
+.mcp.json
+
+# repowise local index
+.repowise/

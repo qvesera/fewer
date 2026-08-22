@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
 - Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 - Select Children in the folder context menu no longer undoes itself: the menu's post-activation click event bubbled through the React tree into React Flow's node handler, re-selecting the right-clicked folder after the children had been selected. Menu click/keyboard events are now contained inside the context menu (also fixes right-click → Escape selecting the node).
+- Batch Move to Folder now allows moving items up into ancestor folders (parent/grandparent) instead of failing with \"No eligible items\"
 
 ### Added
 
