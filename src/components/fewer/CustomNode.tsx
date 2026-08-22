@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
@@ -254,12 +255,19 @@ function FolderContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  // When the right-clicked node is part of a multi-node selection (shift-drag,
+  // Select Children, …), the menu shows ONLY batch actions.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           Folder actions
         </ContextMenuLabel>
@@ -498,6 +506,8 @@ function FolderContextMenu({
             )}
           </>
         )}
+        </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -520,78 +530,19 @@ function BatchActionsSection({ nodeId }: { nodeId: string }) {
         Batch actions · {selectedNodeIds.length} selected
       </ContextMenuLabel>
       <ContextMenuSeparator />
-      <ContextMenuItem
-        onSelect={() => window.dispatchEvent(new CustomEvent("fewer-batch-rename"))}
-        className="cursor-pointer"
-      >
-        Rename…
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => {
-          const ids = useGraphStore.getState().selectedNodeIds;
-          useGraphStore.getState().setClipboard("copy", ids);
-          toast({ title: "Copied", description: `${ids.length} item${ids.length === 1 ? "" : "s"} copied` });
-        }}
-        className="cursor-pointer"
-      >
-        Copy
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => {
-          const g = useGraphStore.getState();
-          const ids = g.selectedNodeIds;
-          g.setClipboard("cut", ids);
-          // Cut removes immediately (clipboard snapshot re-inserts on paste),
-          // same as the single-node cut and Ctrl+X.
-          g.deleteNodes(ids);
-          toast({ title: "Cut", description: `${ids.length} item${ids.length === 1 ? "" : "s"} cut: paste to place` });
-        }}
-        className="cursor-pointer"
-      >
-        Cut
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => {
-          const g = useGraphStore.getState();
-          for (const id of g.selectedNodeIds) g.duplicateNodeUnderParent(id);
-          toast({
-            title: "Duplicated",
-            description: `${g.selectedNodeIds.length} item${g.selectedNodeIds.length === 1 ? "" : "s"} duplicated under same parent`,
-          });
-        }}
-        className="cursor-pointer"
-      >
-        Duplicate
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => window.dispatchEvent(new CustomEvent("fewer-batch-parent"))}
-        className="cursor-pointer"
-      >
-        Move to Folder…
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => {
-          const g = useGraphStore.getState();
-          const ids = g.selectedNodeIds;
-          g.unparentNodes(ids);
-          toast({ title: "Unparented", description: `${ids.length} item${ids.length === 1 ? "" : "s"} made root-level` });
-        }}
-        className="cursor-pointer"
-      >
-        Unparent
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() => {
-          const g = useGraphStore.getState();
-          const count = g.selectedNodeIds.length;
-          g.deleteNodes(g.selectedNodeIds);
-          toast({ title: "Deleted", description: `${count} item${count === 1 ? "" : "s"} deleted` });
-        }}
-        className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-      >
-        Delete {selectedNodeIds.length} Items
-      </ContextMenuItem>
-      <ContextMenuSeparator />
+      {buildBatchActions({ toast, selectedIds: selectedNodeIds }).map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className={
+            action.danger
+              ? "cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+              : "cursor-pointer"
+          }
+        >
+          {action.label}
+        </ContextMenuItem>
+      ))}
     </>
   );
 }
@@ -631,12 +582,18 @@ function FileEntryContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  // Same rule as the folder menu: multi-selection right-click → batch only.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52">
         <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           File actions
         </ContextMenuLabel>
@@ -783,6 +740,8 @@ function FileEntryContextMenu({
               Copy Name
             </ContextMenuItem>
           </>
+        )}
+        </>
         )}
       </ContextMenuContent>
     </ContextMenu>

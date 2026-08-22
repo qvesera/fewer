@@ -1,27 +1,36 @@
 /**
- * Batch-rename label transform shared by the store's `renameNodes` action and
- * the BatchRenameDialog preview. Operates on a node's label only — extensions
- * are preserved separately by the store (a trailing ".ext" in user input is
- * treated as part of the label text and re-parsed by the store).
+ * Batch-rename transform shared by the store's `renameNodes` action and
+ * the BatchRenameDialog preview. Takes a node's FULL name (label + extension,
+ * e.g. "Button.tsx"): find/replace runs over the whole name so extension
+ * swaps like ".tsx" → ".jsx" work, while prefix/suffix/numbering are inserted
+ * before a trailing extension so they never corrupt it. Callers pass the
+ * result to the store, which re-parses the trailing extension.
  */
 export interface BatchRenameOptions {
-  /** Text to find in each label. Empty/undefined = skip replacement. */
+  /** Text to find in each name. Empty/undefined = skip replacement. */
   find?: string;
   /** Replacement for `find`. */
   replace?: string;
-  /** Prepended to every label. */
+  /** Prepended to every name. */
   prefix?: string;
-  /** Appended to every label (before numbering). */
+  /** Appended to every name (before numbering). */
   suffix?: string;
-  /** Append " <n>" to each label, counting from `numberStart`. */
+  /** Append " <n>" to each name, counting from `numberStart`. */
   numbered?: boolean;
   numberStart?: number;
 }
 
-export function applyBatchRename(label: string, opts: BatchRenameOptions, index: number): string {
-  let out = label;
+/** Split a trailing ".ext" off a name. Dotfiles (".gitignore") count as extensionless — matches getFileExtension. */
+function splitExtension(name: string): { base: string; ext: string } {
+  const i = name.lastIndexOf(".");
+  return i > 0 && i < name.length - 1 ? { base: name.slice(0, i), ext: name.slice(i) } : { base: name, ext: "" };
+}
+
+export function applyBatchRename(name: string, opts: BatchRenameOptions, index: number): string {
+  let out = name;
   if (opts.find) out = out.split(opts.find).join(opts.replace ?? "");
-  out = `${opts.prefix ?? ""}${out}${opts.suffix ?? ""}`;
+  const { base, ext } = splitExtension(out);
+  out = `${opts.prefix ?? ""}${base}${opts.suffix ?? ""}`;
   if (opts.numbered) out = `${out} ${(opts.numberStart ?? 1) + index}`;
-  return out;
+  return `${out}${ext}`;
 }

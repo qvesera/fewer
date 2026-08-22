@@ -17,6 +17,10 @@ import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { applyBatchRename } from "@/lib/fewer/batchRename";
 
+/** Full display name of a node — label plus its stored extension, if any. */
+const fullName = (n: { data: { label: string; extension?: string } }) =>
+  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+
 /**
  * Batch rename for multi-selection. Opens via the "fewer-batch-rename" window
  * event (fired by the context menu's batch section). Applies a find/replace +
@@ -60,9 +64,8 @@ export function BatchRenameDialog() {
       .slice(0, 5)
       .map((n) => ({
         id: n.id,
-        before: n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label,
-        afterBase: applyBatchRename(n.data.label, options, ids.indexOf(n.id)),
-        extension: n.data.extension,
+        before: fullName(n),
+        after: applyBatchRename(fullName(n), options, ids.indexOf(n.id)),
       }));
   }, [open, ids, nodes, options]);
 
@@ -70,7 +73,7 @@ export function BatchRenameDialog() {
 
   const handleApply = () => {
     const renamed = useGraphStore.getState().renameNodes(ids, (node, i) =>
-      applyBatchRename(node.data.label, options, i),
+      applyBatchRename(fullName(node), options, i),
     );
     setOpen(false);
     toast({
@@ -95,7 +98,9 @@ export function BatchRenameDialog() {
         <DialogHeader>
           <DialogTitle>Rename {ids.length} items</DialogTitle>
           <DialogDescription>
-            Applies to item names. File extensions are preserved.
+            Applies to item names. Find &amp; replace also matches extensions
+            (e.g. .tsx → .jsx); prefixes/suffixes are added before the
+            extension.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,8 +141,7 @@ export function BatchRenameDialog() {
                   <span className="truncate text-muted-foreground">{p.before}</span>
                   <span className="shrink-0 opacity-50">→</span>
                   <span className={cn("truncate font-medium", !hasChange && "opacity-50")}>
-                    {p.afterBase}
-                    {p.extension ? `.${p.extension}` : ""}
+                    {p.after}
                   </span>
                 </div>
               ))}
