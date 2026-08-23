@@ -35,6 +35,10 @@ import {
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats } from "@/lib/fewer/stats";
 import { useToast } from "@/hooks/use-toast";
+import {
+  buildGitHubIssueUrl,
+  type BugReport,
+} from "@/lib/fewer/bugReport";
 
 type Severity = "low" | "medium" | "high" | "critical";
 type Category =
@@ -167,7 +171,7 @@ export function BugReportDialog() {
   ]);
 
   // Build the full bug report object
-  const bugReport = useMemo(
+  const bugReport = useMemo<BugReport>(
     () => ({
       ...diagnostics,
       bug: {
@@ -236,77 +240,6 @@ export function BugReportDialog() {
     if (!response.ok || !data.success) {
       throw new Error(data.message || "Failed to submit bug report via Web3Forms.");
     }
-  };
-
-  const buildGitHubIssueUrl = (report: typeof bugReport) => {
-    const repo = "qvesera/fewer";
-    const { environment, graphState, app } = report;
-
-    // Build body manually with explicit \r\n for GitHub compatibility
-    const e = (s: string) => encodeURIComponent(s);
-    let body = "";
-
-    body += `### Description\n`;
-    body += `\n`;
-    body += `${report.bug.description !== "(no description provided)" ? report.bug.description : "_No description provided._"}\n`;
-    body += `\n`;
-    body += `### Steps to Reproduce\n`;
-    body += `\n`;
-    body += "```\n";
-    body += `${report.bug.stepsToReproduce !== "(no steps provided)" ? report.bug.stepsToReproduce : "No steps provided."}\n`;
-    body += "```\n";
-    body += `\n`;
-    body += `### Details\n`;
-    body += `\n`;
-    body += `- **Severity**: \`${report.bug.severity}\`\n`;
-    body += `- **Category**: \`${report.bug.category}\`\n`;
-    body += `- **App Version**: ${app?.version || "1.0.0"}\n`;
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>System Diagnostics</b></summary>\n";
-    body += `\n`;
-    body += `| Metric | Value |\n`;
-    body += `| --- | --- |\n`;
-    body += `| App Name | ${app?.name || "fewer"} |\n`;
-    body += `| App Version | ${app?.version || "1.0.0"} |\n`;
-    body += `| Timestamp | ${app?.timestamp || new Date().toISOString()} |\n`;
-    body += `| Browser | ${environment?.browser || "unknown"} |\n`;
-    body += `| FS Access | ${environment?.fileSystemAccess || "unknown"} |\n`;
-    body += `| Iframe | ${environment?.iframeContext ? "Yes" : "No"} |\n`;
-    body += `| Viewport | ${environment?.viewport || "unknown"} |\n`;
-    body += `| Online | ${environment?.online ? "Yes" : "No"} |\n`;
-    body += `\n`;
-    body += "</details>\n";
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>Graph State</b></summary>\n";
-    body += `\n`;
-    body += `| Metric | Value |\n`;
-    body += `| --- | --- |\n`;
-    body += `| Nodes | ${graphState?.totalNodes ?? 0} |\n`;
-    body += `| Edges | ${graphState?.totalEdges ?? 0} |\n`;
-    body += `| Files | ${graphState?.totalFiles ?? 0} |\n`;
-    body += `| Folders | ${graphState?.totalFolders ?? 0} |\n`;
-    body += `| Size (Bytes) | ${graphState?.totalSize ?? 0} |\n`;
-    body += `| Hidden | ${graphState?.hiddenNodes ?? 0} |\n`;
-    body += `| Layout | ${graphState?.layoutDirection || "unknown"} |\n`;
-    body += `| Edge Style | ${graphState?.edgeStyle || "unknown"} |\n`;
-    body += `| Theme | ${graphState?.themeMode || "unknown"} |\n`;
-    body += `\n`;
-    body += "</details>\n";
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>Raw JSON Payload</b></summary>\n";
-    body += `\n`;
-    body += "```json\n";
-    body += `${JSON.stringify(report, null, 2)}\n`;
-    body += "```\n";
-    body += `\n`;
-    body += "</details>\n";
-
-    const title = `[Bug] ${report.bug.title}`;
-    const url = `https://github.com/${repo}/issues/new?title=${e(title)}&body=${e(body)}`;
-    return url;
   };
 
   const handleSubmit = () => {
