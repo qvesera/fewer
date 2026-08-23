@@ -51,7 +51,7 @@ import {
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
+import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
   AlertDialog,

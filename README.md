@@ -296,7 +296,7 @@ src/
 │   ├── ShortcutsDialog.tsx   # All keyboard shortcuts
 │   ├── TutorialDialog.tsx    # Interactive spotlight walkthrough
 │   ├── BreadcrumbBar.tsx     # Path breadcrumb navigation
-│   ├── CustomThemeEditor.tsx # 16 color pickers
+│   ├── ThemeEditorDialog.tsx  # Draggable custom theme editor + presets
 │   ├── ErrorBoundary.tsx     # Crash recovery
 │   └── KeyboardShortcuts.tsx # Global hotkey handler
 ├── lib/fewer/
