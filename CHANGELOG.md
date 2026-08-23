@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Extract bug-report GitHub issue builder into testable src/lib/fewer/bugReport module (reduces cyclomatic complexity, adds unit tests)
+- Reduce cyclomatic complexity of SVG export folder-card renderer by extracting child-row, metric, icon, and stroke helpers
 
 
 ## [0.6.0] - 23rd August 2026

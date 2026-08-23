@@ -290,6 +290,63 @@ function childRows(node: FewerNode, edges: FewerEdge[], nodes: FewerNode[]): Few
   return list;
 }
 
+function itemCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "item" : "items"}`;
+}
+
+/** Metric shown on a folder child row: item count for folders, size for files. */
+function childMetric(child: FewerNode, edges: FewerEdge[]): string {
+  if (child.data.type !== "folder") return formatSize(child.data.size ?? 0);
+  const c = edges.filter((e) => e.source === child.id).length;
+  return itemCountLabel(c);
+}
+
+function childRowIcon(child: FewerNode, p: RenderPalette): { icon: IconName; color: string } {
+  const isFolder = child.data.type === "folder";
+  return {
+    icon: isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"],
+    color: isFolder ? p.folderIcon : p.fileIcon,
+  };
+}
+
+function renderChildRow(
+  child: FewerNode,
+  i: number,
+  rowBase: number,
+  w: number,
+  selected: boolean,
+  subtleColor: string,
+  p: RenderPalette,
+  edges: FewerEdge[],
+): string {
+  const ry = rowBase + i * ITEM_HEIGHT;
+  const isFolder = child.data.type === "folder";
+  const { icon, color: iconColor } = childRowIcon(child, p);
+  const labelColor = isFolder && !selected ? p.folderText : p.text;
+  const label = truncateToWidth(child.data.label, w - 96, 12, 400);
+  const metric = childMetric(child, edges);
+  const chevronX = w - 18;
+  return `<g>
+      <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
+      <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
+      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
+      <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
+    </g>`;
+}
+
+/** Shared highlight/selection/border ring logic for folder + file cards. */
+function cardStroke(
+  n: FewerNode,
+  selected: boolean,
+  selectRing: string,
+  border: string,
+): { stroke: string; width: number } {
+  return {
+    stroke: n.data.highlighted ? "#fbbf24" : selected ? selectRing : border,
+    width: n.data.highlighted || selected ? 2 : 1,
+  };
+}
+
 function renderFolderCard(
   n: FewerNode,
   edges: FewerEdge[],
@@ -315,40 +372,21 @@ function renderFolderCard(
   const subtleColor = selected ? p.subtle : p.folderSubtle;
   const rootIcon = n.data.isRoot ? "folder-open" : "folder";
 
-  const listRowsHtml = rows.slice(0, visibleRows).map((child, i) => {
-    const ry = rowBase + i * ITEM_HEIGHT;
-    const isFolder = child.data.type === "folder";
-    const icon = isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"];
-    const iconColor = isFolder ? p.folderIcon : p.fileIcon;
-    const labelColor = isFolder && !selected ? p.folderText : p.text;
-    const label = truncateToWidth(child.data.label, w - 96, 12, 400);
-    const metric = isFolder
-      ? (() => {
-          const c = edges.filter((e) => e.source === child.id).length;
-          return `${c} ${c === 1 ? "item" : "items"}`;
-        })()
-      : formatSize(child.data.size ?? 0);
-    const chevronX = w - 18;
-    return `<g>
-      <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
-      <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
-      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
-      <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
-    </g>`;
-  }).join("");
+  const listRowsHtml = rows
+    .slice(0, visibleRows)
+    .map((child, i) => renderChildRow(child, i, rowBase, w, selected, subtleColor, p, edges))
+    .join("");
 
-  let bodyHtml = listRowsHtml;
-  if (rows.length === 0) {
-    bodyHtml = `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`;
-  }
+  const bodyHtml =
+    rows.length === 0
+      ? `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`
+      : listRowsHtml;
 
-  const filterId = "filter-folder-shadow";
-  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.folderBorder;
-  const strokeWidth = n.data.highlighted || selected ? 2 : 1;
-  const rowsCount = `${rows.length} ${rows.length === 1 ? "item" : "items"}`;
+  const { stroke, width: strokeWidth } = cardStroke(n, selected, p.selectRing, p.folderBorder);
+  const rowsCount = itemCountLabel(rows.length);
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
     <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48, 14, 600))}</text>
     <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48, 10, 400))}</text>
@@ -370,8 +408,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
-  const stroke = n.data.highlighted ? "#fbbf24" : selected ? p.selectRing : p.fileBorder;
-  const strokeWidth = n.data.highlighted || selected ? 2 : 1;
+  const { stroke, width: strokeWidth } = cardStroke(n, selected, p.selectRing, p.fileBorder);
   const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
