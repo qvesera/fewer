@@ -168,6 +168,7 @@ Fuzzy search across filenames, paths, and extensions.
 - **Click result** → zoom to node
 - **Hidden matches** appear with badge, click to show & zoom
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
 ## Sidebar
 

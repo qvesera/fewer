@@ -144,6 +144,7 @@ docker run -p 3000:3000 fewer
 - **Click result** → zoom to node
 - **Hidden nodes** appear with badge: click to show & zoom
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 
 </details>
 

@@ -6,6 +6,7 @@ import type { FileCategory } from "@/lib/fewer/types";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
+import { SEARCH_HISTORY_KEY, withSearchEntry } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 import { reconcileAutoHide } from "./graphSlice";
@@ -17,6 +18,7 @@ export type UiSliceCreator = StateCreator<
   {
     selectedNodeIds: string[];
     searchQuery: string;
+    searchHistory: string[];
     /** Active file-type (extension category) filter. `null` = no filter. */
     categoryFilter: FileCategory | null;
     /** Ids that the active category filter has added to hiddenIds. */
@@ -63,6 +65,8 @@ export type UiSliceCreator = StateCreator<
     rightClickDetected: boolean;
 
     setSearchQuery: (q: string) => void;
+    commitSearch: (q: string) => void;
+    clearSearchHistory: () => void;
     setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
     /** Ring a transient set of node ids on the canvas (sidebar row hover). */
@@ -112,6 +116,15 @@ export type UiSliceCreator = StateCreator<
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
   searchQuery: "",
+  searchHistory: (() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const v = sessionStorage.getItem(SEARCH_HISTORY_KEY);
+      return v ? (JSON.parse(v) as string[]) : [];
+    } catch {
+      return [];
+    }
+  })(),
   categoryFilter: null,
   categoryHiddenIds: [],
   hoverHighlightIds: [],
@@ -159,6 +172,17 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   skipNextAutoLayout: false,
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
+  commitSearch: (q) => {
+    const next = withSearchEntry(get().searchHistory, q);
+    set({ searchHistory: next });
+    if (typeof window === "undefined") return;
+    try { sessionStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  },
+  clearSearchHistory: () => {
+    set({ searchHistory: [] });
+    if (typeof window === "undefined") return;
+    try { sessionStorage.removeItem(SEARCH_HISTORY_KEY); } catch { /* ignore */ }
+  },
   setCategoryFilter: (cat) => {
     const { nodes, hiddenIds, categoryHiddenIds } = get();
     // Files to hide for this filter (folders are never hidden).

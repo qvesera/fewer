@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce cyclomatic complexity of SVG export folder-card renderer by extracting child-row, metric, icon, and stroke helpers
 - Remove dead CustomThemeEditor component (superseded by ThemeEditorDialog)
 - Extract theme editor positioning/color logic into testable module with paired tests
+- Help tab links (Blog, Documentation) open in a new tab instead of navigating away
+- Unhiding a node from the Hidden nodes panel now auto-selects the revealed node on the canvas
+- Username uniqueness is now enforced exactly at the database level: stored usernames must be trimmed and lowercase (new CHECK constraints), so handles can never collide via spelling variants like "foo" vs "Foo" vs " foo " even when written outside the API.
+
+### Fixed
+
+- Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
+- Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
+
+### Added
+
+- Search terms are now remembered per browser session and shown as recent searches in the search panel (stored in sessionStorage, with clear option)
 
 
 ## [0.6.0] - 23rd August 2026
