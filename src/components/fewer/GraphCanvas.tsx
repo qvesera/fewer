@@ -184,7 +184,6 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
@@ -240,16 +239,16 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, [edgeStrokeStyle]);
 
   const visibleNodes = useMemo(() => {
-    let nodes = hiddenIds.length === 0 ? allNodes : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n) => !hidden.has(n.id)); })();
+    let nodes = hiddenIds.length === 0 ? allNodes : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n: FewerNode) => !hidden.has(n.id)); })();
     // Guarantee nodes always render above edges (React Flow defaults edges to 0,
     // nodes to 1000; we lock this explicitly so no edge can ever overlap a node).
-    return nodes.map((n) => ({ ...n, zIndex: 1000 }));
+    return nodes.map((n: FewerNode) => ({ ...n, zIndex: 1000 }));
   }, [allNodes, hiddenIds]);
 
   const visibleEdges = useMemo(() => {
     if (hiddenIds.length === 0) return allEdges;
     const hidden = new Set(hiddenIds);
-    return allEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target));
+    return allEdges.filter((e: FewerEdge) => !hidden.has(e.source) && !hidden.has(e.target));
   }, [allEdges, hiddenIds]);
 
   const hiddenCount = hiddenIds.length;
@@ -274,7 +273,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       // was deselected when clicking an edge comes back as selected after any
       // graph edit). Force `selected` from the canonical id list instead.
       const selectedSet = new Set(useGraphStore.getState().selectedNodeIds);
-      setRfNodes(visibleNodes.map((n) => (selectedSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
+      setRfNodes(visibleNodes.map((n: FewerNode) => (selectedSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
       setRfEdges(visibleEdges);
       prevGraphVersion.current = graphVersion;
     }
@@ -289,7 +288,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     return stopDashClock;
   }, [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
 
-  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition, setViewport } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
   // React Flow measures handle bounds only when a node mounts or resizes.
@@ -301,7 +300,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // pan/zoom instance survives (see CHANGELOG "minimap no longer stops panning").
   useEffect(() => {
     if (useGraphStore.getState().nodes.length === 0) return;
-    updateNodeInternals(useGraphStore.getState().nodes.map((n) => n.id));
+    updateNodeInternals(useGraphStore.getState().nodes.map((n: FewerNode) => n.id));
   }, [direction, updateNodeInternals]);
 
   // Fit the view exactly once per loaded graph — when nodes first appear — and
@@ -395,7 +394,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     const ids = zoomToNodeIdsRef.current;
     if (ids && ids.length > 0) {
       const t = setTimeout(() => {
-        fitView({ nodes: ids.map((id) => ({ id })), duration: 600, padding: 0.3, maxZoom: 1.5 });
+        fitView({ nodes: ids.map((id: string) => ({ id })), duration: 600, padding: 0.3, maxZoom: 1.5 });
         useGraphStore.getState().setZoomToNodeIds(null);
       }, 150);
       return () => clearTimeout(t);
@@ -441,7 +440,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           // current box contents, keeping the pre-gesture order first.
           [...new Set([...base, ...selectedIds])]
         : [
-            ...prevIds.filter((id) => selectedIds.has(id)),
+            ...prevIds.filter((id: string) => selectedIds.has(id)),
             ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
           ];
       setSelectedNodeIds(newIds);
@@ -483,7 +482,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
       if (positionChanges.length > 0) {
         useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
+          nodes: s.nodes.map((n: FewerNode) => {
             const change = positionChanges.find((c) => c.id === n.id);
             return change ? { ...n, position: change.position } : n;
           }),
@@ -492,13 +491,13 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
       if (dimensionChanges.length > 0) {
         useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
+          nodes: s.nodes.map((n: FewerNode) => {
             const change = dimensionChanges.find((c) => c.id === n.id);
             if (change) {
               // Record the pre-resize dimensions the first time we see this node resize.
               if (!resizeStartDimensions.current.has(n.id)) {
-                const prev = n.style?.width ?? n.measured?.width ?? 0;
-                const prevH = n.style?.height ?? n.measured?.height ?? 0;
+                const prev = (n.style?.width as number) ?? (n.measured?.width as number) ?? 0;
+                const prevH = (n.style?.height as number) ?? (n.measured?.height as number) ?? 0;
                 resizeStartDimensions.current.set(n.id, { w: prev, h: prevH });
               }
               return {
@@ -530,7 +529,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           const store = useGraphStore.getState();
           const changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[] = [];
           for (const [id, from] of resizeStartDimensions.current) {
-            const node = store.nodes.find((n) => n.id === id);
+            const node = store.nodes.find((n: FewerNode) => n.id === id);
             if (!node) continue;
             const to = { w: (node.style?.width as number) ?? 0, h: (node.style?.height as number) ?? 0 };
             if (from.w !== to.w || from.h !== to.h) changes.push({ nodeId: id, from, to });
@@ -652,12 +651,12 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const fitToSelection = useCallback(() => {
     const selected = useGraphStore.getState().selectedNodeIds;
     if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
-    fitView({ nodes: selected.map((id) => ({ id })), duration: 600, padding: 0.3 });
+    fitView({ nodes: selected.map((id: string) => ({ id })), duration: 600, padding: 0.3 });
   }, [fitView]);
 
   const selectAll = useCallback(() => {
-    const ids = useGraphStore.getState().nodes.map((n) => n.id);
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: ids }));
+    const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
+    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n: FewerNode) => ({ ...n, selected: true })), selectedNodeIds: ids }));
     // Also update React Flow's internal node state so the selection is visible
     setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
   }, [setRfNodes]);
