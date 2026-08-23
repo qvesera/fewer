@@ -29,8 +29,8 @@ import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
-import { edgeDashPattern } from "@/lib/fewer/types";
+import type { EdgeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
+import { buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { readFewerChildPayload } from "@/lib/fewer/dropImport";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
@@ -51,108 +51,6 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
     case "angled": return "smoothstep";
     case "straight": return "straight";
   }
-}
-
-/**
- * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
- * from a selected node up to its root parent (child edges are NOT highlighted).
- * Each path edge is colored by its target node type (folder vs file) so
- * multi-selection shows every selected node's path, not just the last-picked
- * one. Empty selection → all edges reset to default stroke.
- * Highlighted edges get zIndex 1 (above other edges but below every node,
- * which is locked at zIndex 1000 in visibleNodes).
- * 
- * Animation semantics:
- *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
- *     and non-selected edges animate only when `animated` (sidebar motion).
- *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
- */
-function buildSelectedEdgeHighlight(
-  selectedIds: string[],
-  hoverIds: string[],
-  edges: FewerEdge[],
-  nodes: FewerNode[],
-  themeColors: { edge: string; folderIcon: string; fileIcon: string },
-  edgeWidth: number,
-  edgeAnimation: {
-    animated: boolean;
-    selectedOnly: boolean;
-    animatedStrokeStyle: EdgeStrokeStyle;
-    baseStrokeStyle: EdgeStrokeStyle;
-  },
-): FewerEdge[] {
-  const typeByNodeId = new Map<string, "folder" | "file">();
-  for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
-
-  // Tree = at most one parent per node, so each node maps to a single parent
-  // edge (the child → source). Walking this map from a node up to the root
-  // gives exactly the ancestor path edges — child edges are NOT included.
-  const parentEdgeOf = new Map<string, FewerEdge>();
-  for (const e of edges) {
-    if (!parentEdgeOf.has(e.target)) parentEdgeOf.set(e.target, e);
-  }
-
-  // Selection path uses the themed folder/file stroke.
-  const selectedHighlight = new Map<string, { stroke: string; width: number }>();
-  for (const id of selectedIds) {
-    let nodeId = id;
-    const visited = new Set<string>();
-    while (nodeId && !visited.has(nodeId)) {
-      visited.add(nodeId);
-      const parentEdge = parentEdgeOf.get(nodeId);
-      if (!parentEdge) break;
-      const stroke = typeByNodeId.get(parentEdge.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-      selectedHighlight.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
-      nodeId = parentEdge.source;
-    }
-  }
-
-  // Hover path (sidebar Hidden-panel hover): amber, matching the node ring and
-  // the exporter's highlight — distinct from selection so the two don't conflate.
-  const hoverHighlight = new Map<string, { stroke: string; width: number }>();
-  for (const id of hoverIds) {
-    let nodeId = id;
-    const visited = new Set<string>();
-    while (nodeId && !visited.has(nodeId)) {
-      visited.add(nodeId);
-      const parentEdge = parentEdgeOf.get(nodeId);
-      if (!parentEdge) break;
-      hoverHighlight.set(parentEdge.id, { stroke: "#fbbf24", width: Math.max(edgeWidth, 3) });
-      nodeId = parentEdge.source;
-    }
-  }
-
-  const highlightedIds = new Set([...selectedHighlight.keys(), ...hoverHighlight.keys()]);
-  const defaultStroke = themeColors.edge;
-  return edges
-    .map((e) => {
-      const sel = selectedHighlight.get(e.id);
-      const hov = hoverHighlight.get(e.id);
-      // Hover wins on overlap — it's the user's current focus; selection styling
-      // returns on mouse-leave once the hover recompute drops these edges.
-      const h = hov ?? sel;
-      // Per-edge animation: selected-path edges always animate when selectedOnly
-      // is on; non-selected edges animate only when the global motion toggle is on.
-      const selectedPath = edgeAnimation.selectedOnly && !!sel;
-      const anim = selectedPath || edgeAnimation.animated;
-      // Selected-path edges use the dialog-chosen pattern; everything else uses
-      // the sidebar base pattern (so unselected edges stay solid/static when
-      // motion is off).
-      const dash = anim ? edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle) : edgeDashPattern(edgeAnimation.baseStrokeStyle);
-      return h
-        ? {
-            ...e,
-            zIndex: 1,
-            animated: anim,
-            style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          }
-        : {
-            ...e,
-            animated: anim,
-            style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          };
-    })
-    .sort((a, b) => (highlightedIds.has(a.id) ? 1 : 0) - (highlightedIds.has(b.id) ? 1 : 0));
 }
 
 /** Read a CSS variable from :root (falling back to the bare var name). */

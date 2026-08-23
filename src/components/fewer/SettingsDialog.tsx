@@ -1006,8 +1006,8 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "Blog", icon: Newspaper, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/blog"); } },
-    { label: "Documentation", icon: BookOpen, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/docs"); } },
+    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
+    { label: "Documentation", icon: BookOpen, onClick: () => window.open("/docs", "_blank", "noreferrer") },
   ];
 
   const supportActions = [

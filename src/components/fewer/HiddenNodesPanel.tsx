@@ -84,6 +84,8 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   const showAncestors = useGraphStore((s) => s.showAncestors);
   const edges = useGraphStore((s) => s.edges);
   const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
+  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
+  const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
   const { toast } = useToast();
   const [open, setOpen] = useState(depth === 0);
   const isFolder = tree.node.data.type === "folder";
@@ -91,6 +93,11 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   const ringIds = useMemo(() => buildRingIds(tree.node.id, edges), [tree.node.id, edges]);
 
   const unreveal = (id: string) => {
+    // Pointer is still inside this row when the eye button clicks, so onMouseLeave
+    // won't fire; and once the node is revealed the row unmounts, which also never
+    // fires mouseleave. Clear the canvas ring explicitly or it lingers on the
+    // just-revealed nodes.
+    setHoverHighlight([]);
     if (isFolder) {
       useGraphStore.getState().revealSubtree(id);
       toast({ title: "Subtree shown", description: tree.node.data.label });
@@ -98,6 +105,10 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
       showAncestors(id);
       toast({ title: "Node shown", description: tree.node.data.label });
     }
+    // Auto-select the just-revealed node so it's ringed on the canvas and
+    // arrow-key navigation can act on it immediately.
+    setSelectedNodeIds([id]);
+    setFocusedNodeId(id);
   };
   
   const node = tree.node;
@@ -188,6 +199,7 @@ export function HiddenNodesPanel() {
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const { toast } = useToast();
 
   const [hiddenSearch, setHiddenSearch] = useState("");
@@ -220,6 +232,7 @@ export function HiddenNodesPanel() {
         size="sm"
         className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
         onClick={() => {
+          setHoverHighlight([]);
           const count = hiddenIds.length;
           // setShowFiles(true) re-runs the large-folder auto-hide filter, so it
           // must run BEFORE showAll() — otherwise it re-hides a folder whose

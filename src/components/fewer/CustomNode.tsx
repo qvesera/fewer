@@ -780,10 +780,11 @@ function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, 
   return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
 
-function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
+function ChildEntry({ child }: { child: FewerNode }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const showNode = useGraphStore((s) => s.showNode);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
@@ -819,8 +820,10 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       )}
       title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
       onDoubleClick={() => {
-        const isHidden = hiddenIds.includes(child.id);
-        setZoomToNode(isHidden ? parentId : child.id);
+        // Double-clicking a hidden child reveals it (and zooms to it); the
+        // visible children keep zooming into the node as before.
+        if (hiddenIds.includes(child.id)) showNode(child.id);
+        setZoomToNode(child.id);
       }}
     >
       <NodeIcon
@@ -1053,7 +1056,7 @@ function CustomNodeImpl({
                     style={{ transform: `translateY(${virtual.offsetY}px)` }}
                   >
                     {children.slice(virtual.startIndex, virtual.endIndex).map((child) => (
-                      <ChildEntry key={child.id} child={child} parentId={id} />
+                      <ChildEntry key={child.id} child={child} />
                     ))}
                   </div>
                 </div>
