@@ -309,16 +309,18 @@ function childRowIcon(child: FewerNode, p: RenderPalette): { icon: IconName; col
   };
 }
 
-function renderChildRow(
-  child: FewerNode,
-  i: number,
-  rowBase: number,
-  w: number,
-  selected: boolean,
-  subtleColor: string,
-  p: RenderPalette,
-  edges: FewerEdge[],
-): string {
+/** Shared layout/palette context for folder child rows. */
+interface FolderRowCtx {
+  w: number;
+  rowBase: number;
+  selected: boolean;
+  subtleColor: string;
+  p: RenderPalette;
+  edges: FewerEdge[];
+}
+
+function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string {
+  const { w, rowBase, selected, subtleColor, p, edges } = ctx;
   const ry = rowBase + i * ITEM_HEIGHT;
   const isFolder = child.data.type === "folder";
   const { icon, color: iconColor } = childRowIcon(child, p);
@@ -374,7 +376,7 @@ function renderFolderCard(
 
   const listRowsHtml = rows
     .slice(0, visibleRows)
-    .map((child, i) => renderChildRow(child, i, rowBase, w, selected, subtleColor, p, edges))
+    .map((child, i) => renderChildRow(child, i, { w, rowBase, subtleColor, p, edges, selected }))
     .join("");
 
   const bodyHtml =
