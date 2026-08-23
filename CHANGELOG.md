@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract bug-report GitHub issue builder into testable src/lib/fewer/bugReport module (reduces cyclomatic complexity, adds unit tests)
 - Reduce cyclomatic complexity of SVG export folder-card renderer by extracting child-row, metric, icon, and stroke helpers
 - Remove dead CustomThemeEditor component (superseded by ThemeEditorDialog)
+- Extract theme editor positioning/color logic into testable module with paired tests
 
 
 ## [0.6.0] - 23rd August 2026

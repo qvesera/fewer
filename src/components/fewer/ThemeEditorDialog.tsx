@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
-import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
+import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
@@ -15,62 +15,22 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import {
+  TOP_OFFSET,
+  THEME_EDITOR_SECTIONS,
+  clampDockRaw,
+  clampPosition,
+  colorOpacityToHexAlpha,
+  dialogWidth,
+  hexAlphaToColorOpacity,
+  snapDockPosition,
+  type CanvasBounds,
+  type DockEdge,
+} from "@/lib/fewer/themeEditor";
 
-const DIALOG_WIDTH = 360;
-const TOP_OFFSET = 80; // navbar + toolbar
+/** Get the canvas area bounds (excludes sidebar, navbar, toolbar). Pure math lives in @/lib/fewer/themeEditor. */
+function getCanvasBounds(): CanvasBounds {
 
-/** Dialog width clamped to viewport (mobile-safe). */
-function dialogWidth() {
-  return Math.min(DIALOG_WIDTH, window.innerWidth - 16);
-}
-
-function clampPosition(x: number, y: number, dialogHeight?: number) {
-  const w = dialogWidth();
-  const minX = 0;
-  const maxX = Math.max(0, window.innerWidth - w);
-  const minY = TOP_OFFSET;
-  const h = dialogHeight ?? Math.min(window.innerHeight * 0.85, 600);
-  const maxY = Math.max(TOP_OFFSET, window.innerHeight - h);
-  return {
-    x: Math.max(minX, Math.min(maxX, x)),
-    y: Math.max(minY, Math.min(maxY, y)),
-  };
-}
-
-type DockEdge = "top" | "bottom" | "left" | "right";
-
-/** Snap to nearest canvas edge, keeping the perpendicular position */
-function snapDockPosition(x: number, y: number): { x: number; y: number; edge: DockEdge } {
-  const b = getCanvasBounds();
-  const pad = 12;
-  const vPillW = 26;
-  const vPillH = 48;
-  const hPillW = 80;
-  const hPillH = 26;
-
-  // Distance from each edge
-  const distTop = y - b.top;
-  const distBottom = (b.top + b.height) - y;
-  const distLeft = x - b.left;
-  const distRight = (b.left + b.width) - x;
-  const minDist = Math.min(distTop, distBottom, distLeft, distRight);
-
-  if (minDist === distTop) {
-    // Top edge: keep x, snap y to top
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + pad, edge: "top" };
-  }
-  if (minDist === distBottom) {
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + b.height - pad - hPillH, edge: "bottom" };
-  }
-  if (minDist === distLeft) {
-    return { x: b.left + pad, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "left" };
-  }
-  // Right edge
-  return { x: b.left + b.width - pad - vPillW, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "right" };
-}
-
-/** Get the canvas area bounds (excludes sidebar, navbar, toolbar) */
-function getCanvasBounds() {
   const main = document.getElementById("main-content");
   if (main) {
     const r = main.getBoundingClientRect();
@@ -78,22 +38,6 @@ function getCanvasBounds() {
   }
   return { left: 0, top: TOP_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_OFFSET };
 }
-
-/** Clamp raw dock drag position to canvas area */
-function clampDockRaw(x: number, y: number) {
-  const b = getCanvasBounds();
-  const pillSize = 36;
-  return {
-    x: Math.max(b.left, Math.min(b.left + b.width - pillSize, x)),
-    y: Math.max(b.top, Math.min(b.top + b.height - pillSize, y)),
-  };
-}
-
-const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
-  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge", "selectRing"].includes(m.key)) },
-  { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },
-  { title: "Files", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("file")) },
-];
 
 export function ThemeEditorDialog() {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -217,19 +161,12 @@ export function ThemeEditorDialog() {
   };
 
   const handleColorChange = (key: string, c: string) => {
-    const hex = c.startsWith("#") ? c : `#${c}`;
-    if (hex.length === 9) {
-      const a = parseInt(hex.slice(7, 9), 16) / 255;
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: Math.round(a * 100) / 100 });
-    } else {
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: customTheme[key as keyof CustomTheme].opacity });
-    }
+    handleChange(key as keyof CustomTheme, hexAlphaToColorOpacity(c, customTheme[key as keyof CustomTheme].opacity));
   };
 
   const getColorWithAlpha = (key: string) => {
     const theme = customTheme[key as keyof CustomTheme];
-    const a = Math.round(theme.opacity * 255).toString(16).padStart(2, "0");
-    return `${theme.color}${a}`;
+    return colorOpacityToHexAlpha(theme.color, theme.opacity);
   };
 
   // Position + minimize + drag state
@@ -247,8 +184,10 @@ export function ThemeEditorDialog() {
 
   useEffect(() => {
     setPosition(clampPosition(
-      Math.max(0, window.innerWidth - dialogWidth() - 20),
+      Math.max(0, window.innerWidth - dialogWidth(window.innerWidth) - 20),
       Math.max(TOP_OFFSET, window.innerHeight / 2 - 250),
+      window.innerWidth,
+      window.innerHeight,
     ));
   }, []);
 
@@ -265,7 +204,7 @@ export function ThemeEditorDialog() {
       const newX = dragStartRef.current.posX + (e.clientX - dragStartRef.current.x);
       const newY = dragStartRef.current.posY + (e.clientY - dragStartRef.current.y);
       const h = dialogRef.current?.offsetHeight;
-      setPosition(clampPosition(newX, newY, h));
+      setPosition(clampPosition(newX, newY, window.innerWidth, window.innerHeight, h));
     };
     const handlePointerUp = () => setIsDragging(false);
     window.addEventListener("pointermove", handlePointerMove);
@@ -293,7 +232,7 @@ export function ThemeEditorDialog() {
       dockMovedRef.current = true;
       const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
       const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
-      const clamped = clampDockRaw(newX, newY);
+      const clamped = clampDockRaw(newX, newY, getCanvasBounds());
       dockPosRef.current = clamped;
       setDockPosition(clamped);
     };
@@ -304,7 +243,7 @@ export function ThemeEditorDialog() {
         return;
       }
       // Snap to nearest dock point using ref for latest position
-      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y);
+      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y, getCanvasBounds());
       dockPosRef.current = snapped;
       setDockPosition(snapped);
       setDockEdge(snapped.edge);
@@ -320,9 +259,9 @@ export function ThemeEditorDialog() {
   }, [isDraggingDock]);
 
   const handleMinimize = useCallback(() => {
-    const centerX = position.x + dialogWidth() / 2;
+    const centerX = position.x + dialogWidth(window.innerWidth) / 2;
     const centerY = position.y + 200;
-    const snapped = snapDockPosition(centerX, centerY);
+    const snapped = snapDockPosition(centerX, centerY, getCanvasBounds());
     dockPosRef.current = snapped;
     setDockPosition(snapped);
     setDockEdge(snapped.edge);
@@ -369,7 +308,7 @@ export function ThemeEditorDialog() {
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-      style={{ left: position.x, top: position.y, width: dialogWidth(), maxHeight: "85vh", touchAction: "none" }}
+      style={{ left: position.x, top: position.y, width: dialogWidth(window.innerWidth), maxHeight: "85vh", touchAction: "none" }}
     >
       {/* Header - draggable */}
       <div
@@ -577,7 +516,7 @@ export function ThemeEditorDialog() {
             </PopoverContent>
           </Popover>
         </div>
-        {SECTIONS.map((section) => (
+        {THEME_EDITOR_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1.5">
             <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               {section.title}
