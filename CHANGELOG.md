@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
 - Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
+- Clicking a hidden search result now also reveals all of its parent folders up to the root, so the match is never left under a still-hidden ancestor
 
 ### Added
 

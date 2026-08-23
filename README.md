@@ -142,7 +142,7 @@ docker run -p 3000:3000 fewer
 
 - **Fuzzy search** across filenames, paths, extensions
 - **Click result** → zoom to node
-- **Hidden nodes** appear with badge: click to show & zoom
+- **Hidden nodes** appear with badge: clicking shows the node **and its whole hidden ancestor chain** up to root, then zooms
 - **Highlight/dim** matched/unmatched nodes
 - **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 

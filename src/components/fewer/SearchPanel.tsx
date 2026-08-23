@@ -31,8 +31,10 @@ export function SearchPanel() {
 
     if (query.trim()) commitSearch(query);
 
+    // Reveal the matched node AND every hidden ancestor up to root, so a
+    // search hit is never left dangling under a still-hidden parent.
     if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().showNode(nodeId);
+      useGraphStore.getState().showAncestors(nodeId);
     }
 
     setSelectedNodeIds([nodeId]);
