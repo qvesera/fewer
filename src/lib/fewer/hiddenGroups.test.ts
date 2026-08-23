@@ -3,6 +3,7 @@ import {
   getHiddenLayerGroups,
   filterHiddenGroups,
   ancestorChain,
+  buildRingIds,
 } from "./hiddenGroups";
 import type { FewerNode, FewerEdge } from "./types";
 
@@ -134,5 +135,50 @@ describe("ancestorChain", () => {
     expect(ancestorChain("inner", edges)).toEqual(["outer", "root"]);
     expect(ancestorChain("outer", edges)).toEqual(["root"]);
     expect(ancestorChain("root", edges)).toEqual([]);
+  });
+});
+
+describe("buildRingIds", () => {
+  const edges: FewerEdge[] = [
+    makeEdge("e1", "root", "docs"),
+    makeEdge("e2", "docs", "a"),
+  ];
+
+  test("rings the node plus its full ancestor chain", () => {
+    expect(buildRingIds("a", edges)).toEqual(["a", "docs", "root"]);
+    expect(buildRingIds("docs", edges)).toEqual(["docs", "root"]);
+    expect(buildRingIds("root", edges)).toEqual(["root"]);
+  });
+
+  test("null/undefined node id rings nothing (standalone group header)", () => {
+    expect(buildRingIds(null, edges)).toEqual([]);
+    expect(buildRingIds(undefined, edges)).toEqual([]);
+  });
+
+  test("subtree roots flatten every descendant into the ring set", () => {
+    // Hidden folder subtree: outer -> [f1, f2 -> deep]
+    const nodes: FewerNode[] = [
+      makeNode("outer", "outer", "root"),
+      makeFile("f1", "f1.txt", "outer"),
+      makeFile("f2", "f2.txt", "outer"),
+    ];
+    const tree = {
+      node: nodes[0],
+      children: [
+        { node: nodes[1], children: [] },
+        { node: nodes[2], children: [{ node: makeFile("deep", "deep.md", "f2"), children: [] }] },
+      ],
+    };
+    const ids = buildRingIds("docs", edges, [tree]);
+    expect(ids).toContain("docs");
+    expect(ids).toContain("root");
+    expect(ids).toContain("outer");
+    expect(ids).toContain("f1");
+    expect(ids).toContain("f2");
+    expect(ids).toContain("deep");
+  });
+
+  test("no subtree roots → just node + ancestors", () => {
+    expect(buildRingIds("a", edges, [])).toEqual(["a", "docs", "root"]);
   });
 });

@@ -1,21 +1,14 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  ArrowDownToLine,
-  ArrowRightFromLine,
-  ArrowUpFromLine,
-  ArrowLeftToLine,
   RefreshCw,
   FolderOpen,
   Trash2,
-  Eye,
-  ChevronRight,
-  Folder,
   Layers,
   HardDrive,
   SlidersHorizontal,
@@ -25,17 +18,12 @@ import {
   FolderPlus,
   EyeOff,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import type { EdgeStyle } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
-import {
-  getHiddenLayerGroups,
-  filterHiddenTree,
-  filterHiddenGroups,
-  ancestorChain,
-  type HiddenTreeNode,
-  type HiddenGroup,
-} from "@/lib/fewer/hiddenGroups";
-import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
+import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
+import { HiddenNodesPanel } from "./HiddenNodesPanel";
+import { LayoutPicker } from "./LayoutPicker";
+import { StatsPanel, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
@@ -56,308 +44,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-
-const PRIMARY_LAYOUTS: {
-  value: LayoutDirection;
-  label: string;
-  sublabel: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: "TB", label: "Vertical", sublabel: "Top → Down", icon: ArrowDownToLine },
-  { value: "LR", label: "Horizontal", sublabel: "Left → Right", icon: ArrowRightFromLine },
-];
-
-const ADVANCED_LAYOUTS: {
-  value: LayoutDirection;
-  label: string;
-  sublabel: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: "BT", label: "Upward", sublabel: "Bottom → Top", icon: ArrowUpFromLine },
-  { value: "RL", label: "Reverse", sublabel: "Right → Left", icon: ArrowLeftToLine },
-];
+import { plural } from "@/lib/fewer/plural";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
   onRequireAuth: () => void;
 }
 
-function CollapsibleSection({
-  title,
-  icon: Icon,
-  defaultOpen = false,
-  badge,
-  forceOpen,
-  children,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  defaultOpen?: boolean;
-  badge?: string;
-  forceOpen?: number;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (forceOpen !== undefined && forceOpen > 0) {
-      setOpen(true);
-    }
-  }, [forceOpen]);
-
-  return (
-    <section 
-      ref={sectionRef} 
-      className="w-full min-w-0 max-w-full shrink-0 overflow-hidden rounded-xl border border-border/30 bg-card/10 transition-colors duration-200 hover:border-border/60 focus-within:border-border/80"
-    >
-      <Button
-        variant="ghost"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
-      >
-        <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground/70 shrink-0", open && "rotate-90")} />
-        <Icon className="h-4 w-4 shrink-0 text-primary/80" />
-        <span className="truncate flex-1 text-left">{title}</span>
-        {badge && (
-          <span className="ml-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
-            {badge}
-          </span>
-        )}
-      </Button>
-      <div
-        className={cn(
-          "grid w-full min-w-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          open 
-            ? "grid-rows-[1fr] opacity-100 translate-y-0 pb-3" 
-            : "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none pb-0"
-        )}
-      >
-        <div className="w-full min-w-0 min-h-0 overflow-hidden px-3">
-          <div className="flex flex-col gap-3 pt-1 w-full min-w-0">{children}</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function AnimatedConditional({
-  show,
-  delay = 0,
-  children,
-}: {
-  show: boolean;
-  delay?: number;
-  children: React.ReactNode;
-}) {
-  const [shouldRender, setShouldRender] = useState(show);
-  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (show) {
-      setShouldRender(true);
-      const frame = requestAnimationFrame(() => {
-        setIsAnimatingIn(true);
-      });
-      return () => cancelAnimationFrame(frame);
-    } else {
-      setIsAnimatingIn(false);
-      timer = setTimeout(() => setShouldRender(false), 250);
-      return () => clearTimeout(timer);
-    }
-  }, [show]);
-
-  if (!shouldRender) return null;
-
-  const active = show && isAnimatingIn;
-
-  return (
-    <div
-      // Added `shrink-0` to the animated wrapper
-      className={cn(
-        "grid w-full min-w-0 shrink-0 transition-[grid-template-rows,opacity,transform] duration-250 ease-in-out",
-        active
-          ? "grid-rows-[1fr] opacity-100 scale-y-100"
-          : "grid-rows-[0fr] opacity-0 scale-y-95 pointer-events-none"
-      )}
-      style={{ transitionDelay: active ? `${delay}ms` : "0ms" }}
-    >
-      <div className="w-full min-w-0 min-h-0 overflow-hidden">{children}</div>
-    </div>
-  );
-}
-
-function HiddenGroupRow({ group }: { group: HiddenGroup }) {
-  const edges = useGraphStore((s) => s.edges);
-  const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
-  const [open, setOpen] = useState(true);
-
-  // Ring the visible parent folder + its ancestor path, and every hidden id in
-  // this group — so the hidden child rows glow inside the folder card on canvas,
-  // not just the card border, for coherence between the panel and the graph.
-  const ringIds = useMemo(() => {
-    if (!group.parentNode) return [];
-    const ids = [group.parentNode.id, ...ancestorChain(group.parentNode.id, edges)];
-    const stack = [...group.roots];
-    while (stack.length) {
-      const t = stack.pop()!;
-      ids.push(t.node.id);
-      stack.push(...t.children);
-    }
-    return ids;
-  }, [group.parentNode, edges, group.roots]);
-
-  // No context folder (standalone roots) — render the nested rows directly.
-  if (!group.parentNode) {
-    return (
-      <>
-        {group.roots.map((root) => (
-          <HiddenNodeRow key={root.node.id} tree={root} depth={0} />
-        ))}
-      </>
-    );
-  }
-
-  const p = group.parentNode;
-
-  return (
-    <div className="space-y-0.5 w-full min-w-0">
-      {/* Folder context header — dimmed, non-revealable, hovers to ring the folder on canvas. */}
-      <div
-        onMouseEnter={() => setHoverHighlight(ringIds)}
-        onMouseLeave={() => setHoverHighlight([])}
-        onClick={() => setOpen((o) => !o)}
-        title={group.parentPath || p.data.label}
-        className="flex items-center gap-1.5 rounded-md py-1 pr-1.5 text-xs cursor-pointer select-none hover:bg-muted/50 w-full min-w-0"
-      >
-        <ChevronRight
-          className={cn("h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150", open && "rotate-90")}
-        />
-        <Folder className="h-3.5 w-3.5 shrink-0 text-fewer-folder-icon" />
-        <span className="truncate font-medium text-foreground/80 flex-1 min-w-0">{p.data.label}</span>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-          {group.hiddenCount} hidden
-        </span>
-      </div>
-
-      {open && (
-        <div className="space-y-0.5 w-full min-w-0 pl-3">
-          {group.roots.map((root) => (
-            <HiddenNodeRow key={root.node.id} tree={root} depth={1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
-  const renamingId = useGraphStore((s) => s.renamingId);
-  const renameNode = useGraphStore((s) => s.renameNode);
-  const showAncestors = useGraphStore((s) => s.showAncestors);
-  const edges = useGraphStore((s) => s.edges);
-  const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
-  const { toast } = useToast();
-  const [open, setOpen] = useState(depth === 0);
-  const isFolder = tree.node.data.type === "folder";
-
-  const ringIds = useMemo(
-    () => [tree.node.id, ...ancestorChain(tree.node.id, edges)],
-    [tree.node.id, edges],
-  );
-  
-  const unreveal = (id: string) => {
-    if (isFolder) {
-      useGraphStore.getState().revealSubtree(id);
-      toast({ title: "Subtree shown", description: tree.node.data.label });
-    } else {
-      showAncestors(id);
-      toast({ title: "Node shown", description: tree.node.data.label });
-    }
-  };
-  
-  const node = tree.node;
-  const hasChildren = tree.children.length > 0;
-
-  const handleRename = (v: string) => {
-    const ok = renameNode(node.id, v);
-    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
-  };
-
-  return (
-    <div className="space-y-0.5 w-full min-w-0">
-      <div
-        onMouseEnter={() => setHoverHighlight(ringIds)}
-        onMouseLeave={() => setHoverHighlight([])}
-        className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0"
-        >
-        {/* ── 1. PINNED LEFT EYE ICON (Always at x=0 regardless of depth) ── */}
-        <button
-          type="button"
-          onClick={() => unreveal(node.id)}
-          title={isFolder ? "Show folder and its children" : "Show this item"}
-          aria-label={isFolder ? "Show subtree" : "Show item"}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/10 transition-colors"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </button>
-
-        {/* ── 2. INDENTED CONTENT (Chevron, Dot, Label) ── */}
-        <div 
-          className="flex items-center gap-1.5 min-w-0 flex-1"
-          style={{ paddingLeft: `${depth * 10}px` }} // Adjust 10px to increase/decrease tree indentation
-        >
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              title={open ? "Collapse" : "Expand"}
-              aria-label={open ? "Collapse" : "Expand"}
-              className="h-4 w-4 shrink-0 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/10"
-            >
-              <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", open && "rotate-90")} />
-            </button>
-          ) : (
-            <span className="w-4 shrink-0" />
-          )}
-
-          <span
-            className={cn(
-              "h-1.5 w-1.5 shrink-0 rounded-full",
-              node.data.type === "folder" ? "bg-fewer-folder-icon" : "bg-fewer-file-icon",
-            )}
-          />
-
-          {renamingId === node.id ? (
-            <RenameInput
-              initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
-              onCommit={handleRename}
-              onCancel={() => useGraphStore.getState().setRenamingId(null)}
-            />
-          ) : (
-            <span className="truncate text-foreground/90 flex-1 min-w-0 text-[11px] leading-tight">
-              {node.data.label}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ── 3. CHILDREN WRAPPER (NO PADDING HERE) ── */}
-      {open && hasChildren && (
-        <div className="space-y-0.5 w-full min-w-0">
-          {tree.children.map((child) => (
-            <HiddenNodeRow key={child.node.id} tree={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const { user } = useAuth();
@@ -369,27 +62,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
   const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const showAll = useGraphStore((s) => s.showAll);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const edges = useGraphStore((s) => s.edges);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
-
-  const [hiddenSearch, setHiddenSearch] = useState("");
-
-  const hiddenGroups = useMemo(
-    () => getHiddenLayerGroups(nodes, edges, hiddenIds),
-    [nodes, edges, hiddenIds],
-  );
-
-  const filteredHiddenGroups = useMemo(
-    () => filterHiddenGroups(hiddenGroups, hiddenSearch),
-    [hiddenGroups, hiddenSearch],
-  );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -502,56 +182,12 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         {/* ── 2. LAYOUT & ORIENTATION ── */}
         <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
           <div className="flex flex-col gap-3 w-full min-w-0">
-            {/* Hybrid Choice Cards (Custom <button>) */}
-            <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-              {PRIMARY_LAYOUTS.map((l) => {
-                const Icon = l.icon;
-                const active = direction === l.value;
-                return (
-                  <button
-                    key={l.value}
-                    type="button"
-                    onClick={() => setDirection(l.value)}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
-                      active
-                        ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
-                        : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 mb-1 shrink-0" />
-                    <span className="text-xs truncate w-full text-center font-medium">{l.label}</span>
-                    <span className="text-[10px] text-muted-foreground/70 font-normal truncate w-full text-center">{l.sublabel}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                {ADVANCED_LAYOUTS.map((l) => {
-                  const Icon = l.icon;
-                  const active = direction === l.value;
-                  return (
-                    <button
-                      key={l.value}
-                      type="button"
-                      onClick={() => setDirection(l.value)}
-                      className={cn(
-                        "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
-                        active
-                          ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
-                          : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5 mb-0.5 shrink-0" />
-                      <span className="text-xs truncate w-full text-center font-medium">{l.label}</span>
-                      <span className="text-[10px] text-muted-foreground/70 font-normal truncate w-full text-center">{l.sublabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </AnimatedConditional>
+            {/* Orientation choice cards; advanced orientations slide in with advanced mode. */}
+            <LayoutPicker
+              direction={direction}
+              onPick={setDirection}
+              advancedModeEnabled={advancedModeEnabled}
+            />
 
             {/* Layout policy sliders (Max Depth, Auto-hide, Crown Shyness) live in
                 Settings → Advanced. Sidebar stays focused on per-graph actions. */}
@@ -614,44 +250,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
           >
-            <div className="relative w-full min-w-0">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
-              <Input
-                value={hiddenSearch}
-                onChange={(e) => setHiddenSearch(e.target.value)}
-                placeholder="Search hidden nodes…"
-                className="h-8 pl-8 text-xs"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
-              onClick={() => {
-                const count = hiddenIds.length;
-                // setShowFiles(true) re-runs the large-folder auto-hide filter, so it
-                // must run BEFORE showAll() — otherwise it re-hides a folder whose
-                // children outnumber the auto-hide threshold in the same click that
-                // was supposed to reveal them. showAll() must be the last write.
-                setShowFiles(true);
-                showAll();
-                if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
-              }}
-            >
-              <Eye className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Reveal All Nodes</span>
-            </Button>
-            <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-              {filteredHiddenGroups.length > 0 ? (
-                filteredHiddenGroups.map((group, i) => (
-                  <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} />
-                ))
-              ) : (
-                <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-                  No hidden nodes match “{hiddenSearch.trim()}”.
-                </p>
-              )}
-            </div>
+            <HiddenNodesPanel />
           </CollapsibleSection>
         )}
 
@@ -669,8 +268,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-medium">Clear canvas?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs font-normal">
-              This will remove all {nodes.length} node{nodes.length === 1 ? "" : "s"} and{" "}
-              {edges.length} edge{edges.length === 1 ? "" : "s"} from your graph.
+              This will remove all {plural(nodes.length, "node")} and{" "}
+              {plural(edges.length, "edge")} from your graph.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -151,3 +151,28 @@ export function ancestorChain(id: string, edges: FewerEdge[]): string[] {
   return out;
 }
 
+/**
+ * Node ids to ring on canvas when a Hidden-panel row is hovered: the row's node
+ * itself, its full ancestor chain (so the visible folder cards up to the root
+ * glow), plus — for a folder group hover — every node in the hidden subtrees,
+ * so hidden child rows light up inside their parent card on canvas.
+ */
+export function buildRingIds(
+  nodeId: string | null | undefined,
+  edges: FewerEdge[],
+  subtreeRoots?: HiddenTreeNode[],
+): string[] {
+  if (!nodeId) return [];
+  const ids = [nodeId, ...ancestorChain(nodeId, edges)];
+  if (subtreeRoots) {
+    const stack = [...subtreeRoots];
+    while (stack.length) {
+      const t = stack.pop()!;
+      ids.push(t.node.id);
+      stack.push(...t.children);
+    }
+  }
+  return ids;
+}
+
+

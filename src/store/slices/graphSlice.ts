@@ -96,6 +96,33 @@ export function collectShowSubtrees(
 }
 
 /**
+ * Shared commit tail for the show-subtree actions: snapshot view state for
+ * undo, then apply the filtered hidden sets and bump graphVersion. When
+ * `clearIndie` is true, shown ids are also dropped from
+ * independentlyHiddenIds — batch subtree shows un-hide user-hidden roots,
+ * while a single-subtree show leaves them hidden by design.
+ */
+function commitShow(
+  set: Parameters<GraphSliceCreator>[0],
+  get: () => GraphState,
+  toShow: Set<string>,
+  clearIndie: boolean,
+): void {
+  const shown = (ids: string[]) => ids.filter((h) => !toShow.has(h));
+  const before = captureViewState(get());
+  const after = clearIndie
+    ? { ...before, hiddenIds: shown(before.hiddenIds), independentlyHiddenIds: shown(before.independentlyHiddenIds) }
+    : { ...before, hiddenIds: shown(before.hiddenIds) };
+  get().pushOp(viewStateOp(before, after));
+  set({
+    hiddenIds: shown(get().hiddenIds),
+    ...(clearIndie ? { independentlyHiddenIds: shown(get().independentlyHiddenIds) } : {}),
+    autoHiddenIds: shown(get().autoHiddenIds),
+    graphVersion: get().graphVersion + 1,
+  });
+}
+
+/**
  * Live-reconcile the large-folder auto-hide filter against the current threshold.
  * Works both ways:
  *   - children whose folder now exceeds the threshold are newly hidden;
@@ -1012,7 +1039,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   showSubtree: (id) => {
-    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const { hiddenIds, edges, independentlyHiddenIds } = get();
     const indieSet = new Set(independentlyHiddenIds);
     const toShow = new Set([id]);
     const queue = [id];
@@ -1026,20 +1053,14 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         queue.push(e.target);
       }
     }
-    const before = captureViewState(get());
-    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
-    get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
+    commitShow(set, get, toShow, false);
   },
 
   showSubtrees: (ids) => {
-    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const { hiddenIds, edges, independentlyHiddenIds } = get();
     const toShow = collectShowSubtrees(edges, hiddenIds, independentlyHiddenIds, ids);
     if (toShow.size === 0) return;
-    const before = captureViewState(get());
-    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
-    get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
+    commitShow(set, get, toShow, true);
   },
 
 

@@ -116,10 +116,6 @@ export function StatsPanel() {
 
       <div className="rounded-xl border border-border/40 bg-card/40 p-3 text-xs">
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Edges</span>
-          <span className="tabular-nums font-medium">{edges.length}</span>
-        </div>
-        <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Selected</span>
           <span className="tabular-nums font-medium">{selectedCount}</span>
         </div>
