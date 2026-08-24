@@ -137,10 +137,12 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
   useEffect(() => {
     const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, allEdges, allNodes, themeColors, edgeWidth, animation);
-    useGraphStore.setState({ edges: updatedEdges });
-    const hidden = new Set(hiddenIds);
-    setRfEdges(updatedEdges.filter((e: FewerEdge) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [ themeColors, setRfEdges, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, selectedNodeIds, hoverHighlightIds, allEdges, allNodes, hiddenIds, animation ]);
+    // Update only React Flow edges; store edges are already synced via useCanvasGraphSync.
+    setRfEdges(updatedEdges.filter((e: FewerEdge) => {
+      const hidden = new Set(hiddenIds);
+      return !hidden.has(e.source) && !hidden.has(e.target);
+    }));
+  }, [themeColors, setRfEdges, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, selectedNodeIds, hoverHighlightIds, allEdges, allNodes, hiddenIds, animation]);
 
   const dashArray = useMemo(() => {
     switch (edgeStrokeStyle) {
