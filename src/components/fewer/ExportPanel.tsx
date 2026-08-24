@@ -35,7 +35,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
@@ -226,8 +225,7 @@ export function ExportPanel() {
                         {f.desc}
                       </div>
                     </div>
-                    <TooltipProvider>
-                      <Tooltip>
+                    <Tooltip>
                         <TooltipTrigger asChild>
                           <span 
                             onClick={(e) => e.stopPropagation()} 
@@ -240,7 +238,6 @@ export function ExportPanel() {
                           {f.info}
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
                   </button>
                 );
               })}

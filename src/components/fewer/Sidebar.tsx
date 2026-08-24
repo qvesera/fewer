@@ -40,7 +40,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
@@ -150,8 +149,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 <FolderPlus className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">Folder</span>
               </Button>
-              <TooltipProvider>
-                <Tooltip>
+              <Tooltip>                 {/* TooltipProvider at app root */}
                   <TooltipTrigger asChild>
                     <Button
                       variant="ghost"
@@ -167,7 +165,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                     Clear Canvas
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
             </div>
           </div>
         </CollapsibleSection>
