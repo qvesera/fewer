@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking a hidden search result now also reveals all of its parent folders up to the root, so the match is never left under a still-hidden ancestor
 - Fix infinite re-render cascade: Radix TooltipProvider context (moved to page-level), useToast [state] dep (→[]), Button forwardRef
 - Replace Button inside TooltipTrigger asChild with native <button> + buttonVariants() to break Slot+forwardRef infinite re-render loop in Sidebar
+- Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
 
 ### Added
 
