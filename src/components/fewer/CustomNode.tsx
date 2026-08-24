@@ -29,11 +29,12 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
-import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { openFolderInExplorer } from "@/lib/fewer/fileOps";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -200,33 +201,7 @@ function providerLabelFromSource(dataSource: string | null): string {
   return "Provider";
 }
 
-const openFolderInExplorer = async (path: string): Promise<boolean> => {
-  // Prefer the exact, previously-resolved root location (saved with the graph
-  // as localRootPath) so we don't search the filesystem again on every open.
-  const st = useGraphStore.getState();
-  const root = st.nodes.find((n) => n.data.isRoot);
-  const sendPath =
-    nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
-  try {
-    const res = await fetch("/api/open-folder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: sendPath }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to open folder");
-    }
-    return true;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    // The path may come from an import (CSV/JSON/saved graph) and not exist on
-    // this machine — that's not a crash. Log for diagnostics; callers surface a
-    // toast so the user sees why nothing opened.
-    console.error("Open folder error:", msg);
-    return false;
-  }
-};
+
 
 function FolderContextMenu({
   nodeId,
@@ -435,7 +410,7 @@ function FolderContextMenu({
               useGraphStore.setState((s) => ({
                 nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
               }));
-              window.dispatchEvent(new CustomEvent("fewer-add-node"));
+              window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
             }}
             className="cursor-pointer"
           >
@@ -780,10 +755,11 @@ function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, 
   return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
 
-function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
+function ChildEntry({ child }: { child: FewerNode }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const showNode = useGraphStore((s) => s.showNode);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
@@ -819,8 +795,10 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       )}
       title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
       onDoubleClick={() => {
-        const isHidden = hiddenIds.includes(child.id);
-        setZoomToNode(isHidden ? parentId : child.id);
+        // Double-clicking a hidden child reveals it (and zooms to it); the
+        // visible children keep zooming into the node as before.
+        if (hiddenIds.includes(child.id)) showNode(child.id);
+        setZoomToNode(child.id);
       }}
     >
       <NodeIcon
@@ -1053,7 +1031,7 @@ function CustomNodeImpl({
                     style={{ transform: `translateY(${virtual.offsetY}px)` }}
                   >
                     {children.slice(virtual.startIndex, virtual.endIndex).map((child) => (
-                      <ChildEntry key={child.id} child={child} parentId={id} />
+                      <ChildEntry key={child.id} child={child} />
                     ))}
                   </div>
                 </div>
@@ -1181,4 +1159,4 @@ function CustomNodeImpl({
 
 export const CustomNode = memo(CustomNodeImpl);
 export { RenameInput };
-export { openFolderInExplorer };
+

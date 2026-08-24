@@ -18,6 +18,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
 import { graphDataEqual } from "@/lib/fewer/versions";
+import { FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
@@ -162,8 +163,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   // Alt+S (KeyboardShortcuts) opens the same save dialog as the button.
   useEffect(() => {
     const trigger = () => openSaveDialog();
-    window.addEventListener("fewer-save-graph", trigger);
-    return () => window.removeEventListener("fewer-save-graph", trigger);
+    window.addEventListener(FEWER_SAVE_GRAPH, trigger);
+    return () => window.removeEventListener(FEWER_SAVE_GRAPH, trigger);
   }, [user, nodes.length, onRequireAuth, toast]);
 
   const handleLoad = (graph: SavedGraph) => {

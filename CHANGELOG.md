@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Extract bug-report GitHub issue builder into testable src/lib/fewer/bugReport module (reduces cyclomatic complexity, adds unit tests)
+- Reduce cyclomatic complexity of SVG export folder-card renderer by extracting child-row, metric, icon, and stroke helpers
+- Remove dead CustomThemeEditor component (superseded by ThemeEditorDialog)
+- Extract theme editor positioning/color logic into testable module with paired tests
+- Help tab links (Blog, Documentation) open in a new tab instead of navigating away
+- Unhiding a node from the Hidden nodes panel now auto-selects the revealed node on the canvas
+- Username uniqueness is now enforced exactly at the database level: stored usernames must be trimmed and lowercase (new CHECK constraints), so handles can never collide via spelling variants like "foo" vs "Foo" vs " foo " even when written outside the API.
+- Refactor KeyboardShortcuts into a command-table architecture with pure testable rules in keyboardShortcuts.ts; extract openFolderInExplorer to fileOps.ts; consolidate event-name constants across 5 files; add 32 keyboard-shortcut tests
+
+### Fixed
+
+- Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
+- Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
+- Clicking a hidden search result now also reveals all of its parent folders up to the root, so the match is never left under a still-hidden ancestor
+- Fix infinite re-render cascade: Radix TooltipProvider context (moved to page-level), useToast [state] dep (→[]), Button forwardRef
+- Replace Button inside TooltipTrigger asChild with native <button> + buttonVariants() to break Slot+forwardRef infinite re-render loop in Sidebar
+- Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
+- Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
+
+### Added
+
+- Search terms are now remembered per browser session and shown as recent searches in the search panel (stored in sessionStorage, with clear option)
+
 
 ## [0.6.0] - 23rd August 2026
 

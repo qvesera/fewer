@@ -10,39 +10,40 @@ import {
   useReactFlow,
   useNodesState,
   useEdgesState,
-  useUpdateNodeInternals,
-  type NodeTypes,
-  type OnSelectionChangeParams,
-  type NodeChange,
-  type Connection,
   Panel,
   ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
-import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
-import { LAYOUT_DIMENSIONS } from "@/lib/fewer/layout";
-import { useGraphStore } from "@/store/graphStore";
+import { edgeDashPattern } from "@/lib/fewer/types";
+import { buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
-import { edgeDashPattern } from "@/lib/fewer/types";
-import { readFewerChildPayload } from "@/lib/fewer/dropImport";
-import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import type { OnSelectionChangeParams } from "@xyflow/react";
+import { useGraphStore } from "@/store/graphStore";
+import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
 
-const nodeTypes: NodeTypes = {
-  folder: CustomNode,
-  file: CustomNode,
-};
+// Hooks (Phase C extraction — each is a cohesive, single-concern unit).
+import { useCanvasResize } from "@/hooks/use-canvas-resize";
+import { useCanvasThemeColors, type CanvasThemeColors } from "@/hooks/use-canvas-theme-colors";
+import { useCanvasVisibleGraph } from "@/hooks/use-canvas-visible-graph";
+import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
+import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
+import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
+import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
+import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
+import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
+import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
+import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handler";
+import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
+import { useCanvasDrop } from "@/hooks/use-canvas-drop";
 
-// Perf-mode cutoff: beyond this many nodes, per-card backdrop-filter and the
-// entrance blur animation dominate composite/parse cost, so the canvas drops
-// both (see .gm-perf in globals.css). Arbitrary tunable — validate against the
-// largest graphs you expect.
+const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
 
 function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
@@ -53,123 +54,26 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
   }
 }
 
-/**
- * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
- * from a selected node up to its root parent (child edges are NOT highlighted).
- * Each path edge is colored by its target node type (folder vs file) so
- * multi-selection shows every selected node's path, not just the last-picked
- * one. Empty selection → all edges reset to default stroke.
- * Highlighted edges get zIndex 1 (above other edges but below every node,
- * which is locked at zIndex 1000 in visibleNodes).
- * 
- * Animation semantics:
- *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
- *     and non-selected edges animate only when `animated` (sidebar motion).
- *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
- */
-function buildSelectedEdgeHighlight(
-  selectedIds: string[],
-  hoverIds: string[],
-  edges: FewerEdge[],
-  nodes: FewerNode[],
-  themeColors: { edge: string; folderIcon: string; fileIcon: string },
-  edgeWidth: number,
-  edgeAnimation: {
-    animated: boolean;
-    selectedOnly: boolean;
-    animatedStrokeStyle: EdgeStrokeStyle;
-    baseStrokeStyle: EdgeStrokeStyle;
-  },
-): FewerEdge[] {
-  const typeByNodeId = new Map<string, "folder" | "file">();
-  for (const n of nodes) typeByNodeId.set(n.id, n.data?.type);
+interface CanvasMenuPosition { x: number; y: number; }
+interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; }
 
-  // Tree = at most one parent per node, so each node maps to a single parent
-  // edge (the child → source). Walking this map from a node up to the root
-  // gives exactly the ancestor path edges — child edges are NOT included.
-  const parentEdgeOf = new Map<string, FewerEdge>();
-  for (const e of edges) {
-    if (!parentEdgeOf.has(e.target)) parentEdgeOf.set(e.target, e);
-  }
-
-  // Selection path uses the themed folder/file stroke.
-  const selectedHighlight = new Map<string, { stroke: string; width: number }>();
-  for (const id of selectedIds) {
-    let nodeId = id;
-    const visited = new Set<string>();
-    while (nodeId && !visited.has(nodeId)) {
-      visited.add(nodeId);
-      const parentEdge = parentEdgeOf.get(nodeId);
-      if (!parentEdge) break;
-      const stroke = typeByNodeId.get(parentEdge.target) === "folder" ? themeColors.folderIcon : themeColors.fileIcon;
-      selectedHighlight.set(parentEdge.id, { stroke, width: Math.max(edgeWidth, 3) });
-      nodeId = parentEdge.source;
-    }
-  }
-
-  // Hover path (sidebar Hidden-panel hover): amber, matching the node ring and
-  // the exporter's highlight — distinct from selection so the two don't conflate.
-  const hoverHighlight = new Map<string, { stroke: string; width: number }>();
-  for (const id of hoverIds) {
-    let nodeId = id;
-    const visited = new Set<string>();
-    while (nodeId && !visited.has(nodeId)) {
-      visited.add(nodeId);
-      const parentEdge = parentEdgeOf.get(nodeId);
-      if (!parentEdge) break;
-      hoverHighlight.set(parentEdge.id, { stroke: "#fbbf24", width: Math.max(edgeWidth, 3) });
-      nodeId = parentEdge.source;
-    }
-  }
-
-  const highlightedIds = new Set([...selectedHighlight.keys(), ...hoverHighlight.keys()]);
-  const defaultStroke = themeColors.edge;
-  return edges
-    .map((e) => {
-      const sel = selectedHighlight.get(e.id);
-      const hov = hoverHighlight.get(e.id);
-      // Hover wins on overlap — it's the user's current focus; selection styling
-      // returns on mouse-leave once the hover recompute drops these edges.
-      const h = hov ?? sel;
-      // Per-edge animation: selected-path edges always animate when selectedOnly
-      // is on; non-selected edges animate only when the global motion toggle is on.
-      const selectedPath = edgeAnimation.selectedOnly && !!sel;
-      const anim = selectedPath || edgeAnimation.animated;
-      // Selected-path edges use the dialog-chosen pattern; everything else uses
-      // the sidebar base pattern (so unselected edges stay solid/static when
-      // motion is off).
-      const dash = anim ? edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle) : edgeDashPattern(edgeAnimation.baseStrokeStyle);
-      return h
-        ? {
-            ...e,
-            zIndex: 1,
-            animated: anim,
-            style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          }
-        : {
-            ...e,
-            animated: anim,
-            style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          };
-    })
-    .sort((a, b) => (highlightedIds.has(a.id) ? 1 : 0) - (highlightedIds.has(b.id) ? 1 : 0));
-}
-
-/** Read a CSS variable from :root (falling back to the bare var name). */
-function cssVar(name: string, fallback = ""): string {
-  if (typeof document === "undefined") return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
-interface CanvasMenuPosition {
-  x: number;
-  y: number;
-}
-
-interface CanvasEmptyActionsProps {
-  onOpenImport: () => void;
-  onLoadSample: () => void;
+/** Shared edge-animation configuration assembled from store state. */
+function useEdgeAnimationOpts(
+  advancedModeEnabled: boolean,
+  edgeAnimated: boolean,
+  edgeAnimatedSelectedOnly: boolean,
+  edgeAnimatedStrokeStyle: EdgeStrokeStyle,
+  edgeStrokeStyle: EdgeStrokeStyle,
+) {
+  return useMemo(
+    () => ({
+      animated: advancedModeEnabled && edgeAnimated,
+      selectedOnly: advancedModeEnabled && edgeAnimatedSelectedOnly,
+      animatedStrokeStyle: edgeAnimatedStrokeStyle,
+      baseStrokeStyle: edgeStrokeStyle,
+    }),
+    [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle],
+  );
 }
 
 function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
@@ -184,7 +88,6 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
@@ -202,33 +105,44 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const direction = useGraphStore((s) => s.direction);
   const isDark = themeMode === "dark";
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
+  const graphVersion = useGraphStore((s) => s.graphVersion);
+  const relayout = useGraphStore((s) => s.relayout);
 
-  // Keep the store's canvas dimensions in sync with the viewer so the
-  // minimap X/Y sliders in Settings scale to the actual canvas (no hard cap).
+  // ── Hook extractions (pure moves, no behavior change) ──
+  useCanvasResize(containerRef, setCanvasSize);
+  const themeColors = useCanvasThemeColors(themeMode, isDark, customTheme);
+  const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, hiddenIds);
+  const graphsExists = allNodes.length > 0;
+
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
+  void onEdgesChange; // reserved for parity; RF drives edges via graphVersion sync
+
+  useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
+  useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
+  useCanvasDirectionRemeasure(direction);
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport } = useReactFlow();
+  useCanvasInitialFit(visibleNodes, containerRef, setViewport);
+  const zoomToNode = useGraphStore((s) => s.zoomToNode);
+  useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
+  const mini = useCanvasMinimap({ themeColors, isDark });
+  const dragHandlers = useCanvasNodeDrag(recordDragMoves);
+  const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, relayout, fitView, recordResize, boxSelectBaseRef });
+  const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
+
+  const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);
+  // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [setCanvasSize]);
-
-  // Resolve theme colors once per theme change so edges, minimap, and the
-  // background dots follow light/dark/custom without hard-coded values.
-  const themeColors = useMemo(() => {
-    const edge = cssVar("--fewer-edge", isDark ? "rgba(173, 181, 189, 0.5)" : "rgba(100, 116, 139, 0.4)");
-    const folderBg = cssVar("--fewer-folder-bg", "rgba(253, 126, 20, 0.12)");
-    const fileBg = cssVar("--fewer-file-bg", "rgba(190, 75, 219, 0.18)");
-    const folderIcon = cssVar("--fewer-folder-icon", "#ffa94d");
-    const fileIcon = cssVar("--fewer-file-icon", "#e599f7");
-    const bgDot = isDark ? "rgba(173, 181, 189, 0.18)" : "rgba(100, 116, 139, 0.2)";
-    return { edge, folderBg, fileBg, folderIcon, fileIcon, bgDot };
-  }, [themeMode, isDark, customTheme]);
-
-  const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
-  const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, allEdges, allNodes, themeColors, edgeWidth, animation);
+    // Update only React Flow edges; store edges are already synced via useCanvasGraphSync.
+    setRfEdges(updatedEdges.filter((e: FewerEdge) => {
+      const hidden = new Set(hiddenIds);
+      return !hidden.has(e.source) && !hidden.has(e.target);
+    }));
+  }, [themeColors, setRfEdges, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, selectedNodeIds, hoverHighlightIds, allEdges, allNodes, hiddenIds, animation]);
 
   const dashArray = useMemo(() => {
     switch (edgeStrokeStyle) {
@@ -239,312 +153,34 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
     }
   }, [edgeStrokeStyle]);
 
-  const visibleNodes = useMemo(() => {
-    let nodes = hiddenIds.length === 0 ? allNodes : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n) => !hidden.has(n.id)); })();
-    // Guarantee nodes always render above edges (React Flow defaults edges to 0,
-    // nodes to 1000; we lock this explicitly so no edge can ever overlap a node).
-    return nodes.map((n) => ({ ...n, zIndex: 1000 }));
-  }, [allNodes, hiddenIds]);
-
-  const visibleEdges = useMemo(() => {
-    if (hiddenIds.length === 0) return allEdges;
-    const hidden = new Set(hiddenIds);
-    return allEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target));
-  }, [allEdges, hiddenIds]);
-
-  const hiddenCount = hiddenIds.length;
-
-  // True when any nodes were loaded at all. Distinct from rfNodes.length === 0,
-  // which also becomes 0 when every node is hidden (e.g. a graph made only of
-  // file nodes with "Show Files" turned off). In that case we must NOT show the
-  // "No directory loaded" import/sample actions — a graph exists.
-  const graphsExists = allNodes.length > 0;
-
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
-  const [rfEdges, setRfEdges] = useEdgesState(visibleEdges);
-
-  const graphVersion = useGraphStore((s) => s.graphVersion);
-  const prevGraphVersion = useRef(graphVersion);
-  useEffect(() => {
-    if (graphVersion !== prevGraphVersion.current) {
-      // Rebuild RF nodes from the store. Selection is authoritative in
-      // `selectedNodeIds` (kept in sync by onSelectionChange); the per-node
-      // `selected` flags on the store are NOT updated for RF-driven clicks, so
-      // trusting them here would resurrect a stale selection (e.g. a node that
-      // was deselected when clicking an edge comes back as selected after any
-      // graph edit). Force `selected` from the canonical id list instead.
-      const selectedSet = new Set(useGraphStore.getState().selectedNodeIds);
-      setRfNodes(visibleNodes.map((n) => (selectedSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
-      setRfEdges(visibleEdges);
-      prevGraphVersion.current = graphVersion;
-    }
-  }, [graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges]);
-
-  // Run the shared edge-dash clock only while animated edges are enabled.
-  // The loop writes --gm-dash-offset (see dashClock.ts) so edge (re)mounts
-  // inherit the current phase instead of restarting a CSS animation.
-  useEffect(() => {
-    if (!advancedModeEnabled || !(edgeAnimated || edgeAnimatedSelectedOnly)) return;
-    startDashClock();
-    return stopDashClock;
-  }, [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
-
-  const { fitView, zoomIn, zoomOut, getNodes, screenToFlowPosition, setViewport } = useReactFlow();
-  const updateNodeInternals = useUpdateNodeInternals();
-
-  // React Flow measures handle bounds only when a node mounts or resizes.
-  // Switching layout direction moves the handles (e.g. bottom → right) without
-  // changing node dimensions, so visible nodes keep stale bounds and edges stay
-  // anchored to the old sides until the node is culled and remounted. Force a
-  // re-measure on every direction change; nodes culled by the viewport are
-  // skipped here but measured on remount anyway. No remount → the minimap's
-  // pan/zoom instance survives (see CHANGELOG "minimap no longer stops panning").
-  useEffect(() => {
-    if (useGraphStore.getState().nodes.length === 0) return;
-    updateNodeInternals(useGraphStore.getState().nodes.map((n) => n.id));
-  }, [direction, updateNodeInternals]);
-
-  // Fit the view exactly once per loaded graph — when nodes first appear — and
-  // never on relayout. React Flow's `fitView` boolean prop only fits at mount
-  // (so an import that happens after the canvas mounts would never fit), and a
-  // `graphVersion`-driven fitView would zoom/jump the user's viewport on every
-  // relayout (parent/unparent, cut/paste, edge-style, beautify, …). Guarding on
-  // "nodes went from empty to non-empty" gives a fit on initial load, and
-  // resetting the guard when the canvas empties fits again on the next import.
-  // The small delay lets the initial dimension-measure → relayout settle so the
-  // fit targets real positions, not the raw stacked layout.
-  //
-  // We deliberately do NOT call React Flow's fitView() for the initial fit:
-  // with onlyRenderVisibleElements, nodes outside the current viewport never
-  // mount, so they are never measured — and fitView() computes its bounds from
-  // measured nodes only. On a fresh load (viewport still at identity) a tall
-  // graph has most nodes culled, so fitView() sees few/no measured nodes,
-  // silently no-ops, and the canvas stays stuck at zoom 1 with the rest of the
-  // graph culled offscreen. The store already knows every node's laid-out
-  // position and type-aware size (LAYOUT_DIMENSIONS / nodeWidth/nodeHeight),
-  // so compute the bounds ourselves and set the viewport directly.
-  const didInitialFitRef = useRef(false);
-  const fitTimerRef = useRef<number | null>(null);
-  // NOTE: the pending timer deliberately survives dependency churn (the
-  // measure→relayout pass right after load re-creates the `visibleNodes`
-  // array). Clearing the timer in this effect's cleanup cancelled the fit
-  // before it ever ran — the one-shot ref then blocked rescheduling.
-  useEffect(() => {
-    if (visibleNodes.length === 0) {
-      didInitialFitRef.current = false;
-      if (fitTimerRef.current !== null) { clearTimeout(fitTimerRef.current); fitTimerRef.current = null; }
-      return;
-    }
-    if (didInitialFitRef.current || fitTimerRef.current !== null) return;
-    didInitialFitRef.current = true;
-    fitTimerRef.current = window.setTimeout(() => {
-      fitTimerRef.current = null;
-      const el = containerRef.current;
-      if (!el || el.clientWidth === 0 || el.clientHeight === 0) return;
-      const { nodeWidth, nodeHeight } = useGraphStore.getState();
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const n of visibleNodes) {
-        const w = n.measured?.width ?? n.width ?? nodeWidth;
-        const h = n.measured?.height ?? n.height ?? (n.data.type === "folder" ? nodeHeight : LAYOUT_DIMENSIONS.height);
-        minX = Math.min(minX, n.position.x);
-        minY = Math.min(minY, n.position.y);
-        maxX = Math.max(maxX, n.position.x + w);
-        maxY = Math.max(maxY, n.position.y + h);
-      }
-      const bw = Math.max(1, maxX - minX);
-      const bh = Math.max(1, maxY - minY);
-      const padding = 0.2;
-      // Same zoom clamp as the old fitView call (maxZoom 1.0, minZoom 0.35).
-      const zoom = Math.min(1.0, Math.max(0.35, Math.min(
-        (el.clientWidth * (1 - 2 * padding)) / bw,
-        (el.clientHeight * (1 - 2 * padding)) / bh,
-      )));
-      const cx = (minX + maxX) / 2;
-      const cy = (minY + maxY) / 2;
-      setViewport({
-        x: el.clientWidth / 2 - cx * zoom,
-        y: el.clientHeight / 2 - cy * zoom,
-        zoom,
-      });
-    }, 120);
-  }, [visibleNodes, setViewport]);
-  // Clear the fit timer only on unmount.
-  useEffect(() => () => { if (fitTimerRef.current !== null) clearTimeout(fitTimerRef.current); }, []);
-
-  const relayout = useGraphStore((s) => s.relayout);
-  const hasMeasuredRef = useRef(false);
-  const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
-  const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
-  const resizeTimerRef = useRef<number | null>(null);
-  const zoomToNode = useGraphStore((s) => s.zoomToNode);
-  const zoomToNodeIds = useGraphStore((s) => s.zoomToNodeIds);
-
-  useEffect(() => {
-    if (!zoomToNode) return;
-    const { nodeId } = zoomToNode;
-    const t = setTimeout(() => {
-      fitView({ nodes: [{ id: nodeId }], duration: 600, padding: 0.3, maxZoom: 1.5 });
-    }, 150);
-    return () => clearTimeout(t);
-  }, [zoomToNode, fitView]);
-
-  const zoomToNodeIdsRef = useRef(zoomToNodeIds);
-  useEffect(() => { zoomToNodeIdsRef.current = zoomToNodeIds; }, [zoomToNodeIds]);
-
-  useEffect(() => {
-    const ids = zoomToNodeIdsRef.current;
-    if (ids && ids.length > 0) {
-      const t = setTimeout(() => {
-        fitView({ nodes: ids.map((id) => ({ id })), duration: 600, padding: 0.3, maxZoom: 1.5 });
-        useGraphStore.getState().setZoomToNodeIds(null);
-      }, 150);
-      return () => clearTimeout(t);
-    }
-  }, [zoomToNodeIds]);
-
-  // ── Re-apply edge colors + per-edge animation when the graph or its
-  // theme/edge settings change ──. `graphVersion` is included so the ancestor
-  // path highlight is recomputed against the LIVE structure every time the graph
-  // mutates (parent/unparent, delete, cut/paste, …). Without it, a leftover
-  // highlighted stroke survives on edges that were on a selected node's path
-  // before an edit (e.g. unparenting `utils` leaves the now-irrelevant
-  // `fewer→src` edge highlighted), because the old styled edges stay in the
-  // store and are pushed to the canvas on the graph rebuild.
-  useEffect(() => {
-    const { selectedNodeIds, edges, nodes, hiddenIds, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
-    useGraphStore.setState({ edges: updatedEdges });
-    const hidden = new Set(hiddenIds);
-    setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
-  }, [themeMode, setRfEdges, edgeWidth, themeColors, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, graphVersion, advancedModeEnabled, hoverHighlightIds]);
-
-  // ── Additive Shift+drag box selection ──
-  // React Flow's box select REPLACES the selection: it calls
-  // resetSelectedElements() the moment a Shift+drag starts and then selects
-  // only the nodes inside the rect. To make Shift+drag ADD to the existing
-  // selection instead, we capture the selected ids when the gesture begins
-  // (wrapper onPointerDownCapture below), rewrite React Flow's deselect
-  // changes for those nodes back to `selected: true` (handleNodesChange), and
-  // merge the id lists in onSelectionChange. The ref is cleared on pointer
-  // up/cancel, where we also re-assert the merged selection into React Flow's
-  // controlled nodes so its internal state agrees with the store.
-  const boxSelectBaseRef = useRef<Set<string> | null>(null);
+  const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
+  const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams) => {
-      const selectedIds = new Set(selected.map((n) => n.id));
+            const selectedIds = new Set(selected.map((n) => n.id));
       const prevIds = useGraphStore.getState().selectedNodeIds;
       const base = boxSelectBaseRef.current;
       const newIds = base
-        ? // Shift+drag in progress: union of the pre-gesture selection and the
-          // current box contents, keeping the pre-gesture order first.
-          [...new Set([...base, ...selectedIds])]
+        ? [...new Set([...base, ...selectedIds])]
         : [
-            ...prevIds.filter((id) => selectedIds.has(id)),
-            ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
+            ...prevIds.filter((id: string) => selectedIds.has(id)),
+                        ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
           ];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds, hoverHighlightIds: currentHover, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: edgeAnimatedStrokeStyle, baseStrokeStyle: edgeStrokeStyle });
+      const { edges, nodes, hiddenIds: hidden, hoverHighlightIds: currentHover, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle: selStroke, edgeStrokeStyle: selBase } = useGraphStore.getState();
+      const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: selStroke, baseStrokeStyle: selBase });
       useGraphStore.setState({ edges: updatedEdges });
-      const hidden = new Set(hiddenIds);
-      setRfEdges(updatedEdges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target)));
+      const hiddenSet = new Set(hidden);
+      setRfEdges(updatedEdges.filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
     },
-    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors],
-  );
-
-  // ── Handle node changes (position/dimension) ──
-  const handleNodesChange = useCallback(
-    (changes: NodeChange<FewerNode>[]) => {
-      // During a Shift+drag box select, React Flow deselects every node
-      // outside the rect — including the nodes that were selected when the
-      // gesture began. Flip those deselects back on so the box ADDS to the
-      // selection instead of replacing it (onSelectionChange merges the id
-      // lists to match).
-      const base = boxSelectBaseRef.current;
-      onNodesChange(
-        base
-          ? changes.map((c) =>
-              c.type === "select" && !c.selected && base.has(c.id) ? { ...c, selected: true } : c,
-            )
-          : changes,
-      );
-
-      const dimensionChanges = changes.filter(
-        (c): c is NodeChange<FewerNode> & { id: string; dimensions: { width: number; height: number } } =>
-          c.type === "dimensions" && !!c.dimensions,
-      );
-      const positionChanges = changes.filter(
-        (c): c is NodeChange<FewerNode> & { id: string; position: { x: number; y: number } } =>
-          c.type === "position" && !!c.position,
-      );
-
-      if (positionChanges.length > 0) {
-        useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
-            const change = positionChanges.find((c) => c.id === n.id);
-            return change ? { ...n, position: change.position } : n;
-          }),
-        }));
-      }
-
-      if (dimensionChanges.length > 0) {
-        useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
-            const change = dimensionChanges.find((c) => c.id === n.id);
-            if (change) {
-              // Record the pre-resize dimensions the first time we see this node resize.
-              if (!resizeStartDimensions.current.has(n.id)) {
-                const prev = n.style?.width ?? n.measured?.width ?? 0;
-                const prevH = n.style?.height ?? n.measured?.height ?? 0;
-                resizeStartDimensions.current.set(n.id, { w: prev, h: prevH });
-              }
-              return {
-                ...n,
-                style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
-                measured: { width: change.dimensions.width, height: change.dimensions.height },
-              };
-            }
-            return n;
-          }),
-        }));
-
-        if (!hasMeasuredRef.current) {
-          hasMeasuredRef.current = true;
-          setTimeout(() => {
-            // If the graph was just loaded with saved positions, don't re-lay
-            // it out (that would scatter them). Skip and consume the flag.
-            if (useGraphStore.getState().skipNextAutoLayout) {
-              useGraphStore.setState({ skipNextAutoLayout: false });
-              return;
-            }
-            relayout();
-          }, 50);
-        }
-
-        // Commit a resize op once the resize gesture settles (debounced).
-        if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
-        resizeTimerRef.current = window.setTimeout(() => {
-          const store = useGraphStore.getState();
-          const changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[] = [];
-          for (const [id, from] of resizeStartDimensions.current) {
-            const node = store.nodes.find((n) => n.id === id);
-            if (!node) continue;
-            const to = { w: (node.style?.width as number) ?? 0, h: (node.style?.height as number) ?? 0 };
-            if (from.w !== to.w || from.h !== to.h) changes.push({ nodeId: id, from, to });
-          }
-          if (changes.length > 0) recordResize(changes);
-          resizeStartDimensions.current.clear();
-        }, 300);
-      }
-    },
-    [onNodesChange, relayout, fitView, recordResize],
+    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef],
   );
 
   const onConnect = useCallback(
-    (connection: Connection) => {
+    (connection) => {
       const result = connectNodes(connection);
       if (!result.ok) {
         toast({ title: "Connection rejected", description: result.reason, variant: "destructive" });
@@ -557,187 +193,49 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   const onConnectEnd = useCallback(
     (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } } }) => {
-      // Dropped on empty canvas from a folder's output handle → open Add Node dialog
       if (!connectionState.isValid && connectionState.fromNode?.data?.type === "folder") {
         const store = useGraphStore.getState();
         store.setSelectedNodeIds([connectionState.fromNode.id]);
-        window.dispatchEvent(new CustomEvent("fewer-add-node"));
+        window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
       }
     },
     [],
   );
 
-  const onDrop = useCallback(
-    async (event: React.DragEvent) => {
-      // ⚠️ DANGER: Do NOT iterate dataTransfer.items or call any method on
-      // individual DataTransferItem objects (getAsFileSystemHandle,
-      // webkitGetAsEntry, getAsString, etc.). On portalized/sandboxed Chromium
-      // builds (Vivaldi Flatpak, Brave, some Windows) ANY item-level access
-      // can crash the renderer process.
-      const payload = readFewerChildPayload(event.dataTransfer);
-      event.preventDefault();
-
-      if (payload) {
-        try {
-          const { label, type, parentId } = JSON.parse(payload);
-          const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-          const { draggedFolderHandle } = await import("./CustomNode");
-          const handle = draggedFolderHandle as FileSystemDirectoryHandle | null;
-          const { expandFolderNode } = await import("@/lib/fewer/fileOps");
-          if (handle && handle.kind === "directory" && LOCAL_FS_FEATURES.dropToExpand) {
-            await expandFolderNode(label, parentId, position, handle, useGraphStore.getState() as any);
-            toast({ title: "Folder expanded", description: `"${label}" and its contents loaded from disk` });
-          } else {
-            addStandaloneNode(label, type, position);
-            toast({ title: "Node created", description: `"${label}" dropped onto canvas` });
-          }
-        } catch { /* internal drop parse failure — ignore */ }
-        return;
-      }
-
-      // External native drop on the empty canvas → open the system folder picker
-      // (safe on every platform — no DataTransfer item access that could crash).
-      if (useGraphStore.getState().nodes.length > 0 || !LOCAL_FS_FEATURES.dragDropImport) return;
-
-      const store = useGraphStore.getState();
-      store.setLoading(true);
-      try {
-        const { pickDirectoryTree } = await import("@/lib/fewer/fileSystem");
-        const tree = await pickDirectoryTree(store.importOptions);
-        if (!tree) { toast({ title: "Import cancelled", variant: "destructive" }); return; }
-        const { treeToGraph } = await import("@/lib/fewer/treeToGraph");
-        const { nodes, edges, hiddenFileIds } = treeToGraph(tree, { includeFiles: store.importOptions.includeFiles });
-        useGraphStore.setState({ dataSource: "directory", includeFiles: store.importOptions.includeFiles, maxDisplayDepth: store.importOptions.displayMaxDepth });
-        useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
-        const { resolveRootLocalPath } = await import("@/lib/fewer/fileOps");
-        await resolveRootLocalPath();
-        const { collectAutoHideNotes } = await import("@/lib/fewer/importFlow");
-        const notes = await collectAutoHideNotes();
-        toast({ title: "Directory loaded", description: `${tree.name}: ${nodes.length} entries` });
-        notes?.forEach((n) => toast({ title: n.title, description: n.description }));
-      } catch (err) {
-        console.warn("[fewer] drop import failed", err);
-        toast({ title: "Import failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
-      } finally {
-        store.setLoading(false);
-      }
-    },
-    [screenToFlowPosition, addStandaloneNode, toast],
-  );
-
-  const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }, []);
-  const onNodeDragStart = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
-    dragStartPositions.current.set(node.id, { x: node.position.x, y: node.position.y });
-  }, []);
-  const onNodeDragStop = useCallback((_e: unknown, node: { id: string; position: { x: number; y: number } }) => {
-    const from = dragStartPositions.current.get(node.id);
-    const to = { x: node.position.x, y: node.position.y };
-    if (from) recordDragMoves([{ nodeId: node.id, from, to }]);
-    dragStartPositions.current.delete(node.id);
-  }, [recordDragMoves]);
-  const onSelectionDragStart = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
-    for (const n of nodes) dragStartPositions.current.set(n.id, { x: n.position.x, y: n.position.y });
-  }, []);
-  const onSelectionDragStop = useCallback((_e: unknown, nodes: { id: string; position: { x: number; y: number } }[]) => {
-    const moves = nodes.map((n) => {
-      const from = dragStartPositions.current.get(n.id);
-      const to = { x: n.position.x, y: n.position.y };
-      return from ? { nodeId: n.id, from, to } : null;
-    }).filter((m): m is { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } } => !!m);
-    recordDragMoves(moves);
-    for (const n of nodes) dragStartPositions.current.delete(n.id);
-  }, [recordDragMoves]);
-  /* Resize is delivered as "dimensions" node changes (see handleNodesChange). */
-
   const fitToSelection = useCallback(() => {
     const selected = useGraphStore.getState().selectedNodeIds;
     if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
-    fitView({ nodes: selected.map((id) => ({ id })), duration: 600, padding: 0.3 });
+    fitView({ nodes: selected.map((id: string) => ({ id })), duration: 600, padding: 0.3 });
   }, [fitView]);
 
   const selectAll = useCallback(() => {
-    const ids = useGraphStore.getState().nodes.map((n) => n.id);
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: true })), selectedNodeIds: ids }));
-    // Also update React Flow's internal node state so the selection is visible
+    const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
+    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n: FewerNode) => ({ ...n, selected: true })), selectedNodeIds: ids }));
     setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
   }, [setRfNodes]);
 
-  const nodeCount = useGraphStore((s) => s.nodes.length);
-  const showMiniMap = useGraphStore((s) => s.showMiniMap);
-  const scrollAction = useGraphStore((s) => s.scrollAction);
-  const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
-  const miniMapSize = useGraphStore((s) => s.miniMapSize);
-  const miniMapX = useGraphStore((s) => s.miniMapX);
-  const miniMapY = useGraphStore((s) => s.miniMapY);
-
-  const minimapStyle = useMemo<React.CSSProperties>(() => {
-    const base: React.CSSProperties = {
-      width: miniMapSize, height: miniMapSize,
-      // Frosted glass like .gm-float: flat 60% alpha let canvas nodes bleed
-      // through; 80% background + blur keeps the minimap legible.
-      background: "color-mix(in srgb, var(--background) 80%, transparent)",
-      backdropFilter: "blur(24px) saturate(200%)",
-      WebkitBackdropFilter: "blur(24px) saturate(200%)",
-      borderRadius: "12px",
-      border: `1px solid ${isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(15, 23, 42, 0.1)"}`,
-    };
-    // Custom position: pin the minimap to a free-form x/y. Anchor to the
-    // top-left corner and override with explicit offsets + zero margin so the
-    // slider-chosen coordinates lock in place (the inline style beats the
-    // React Flow panel corner classes).
-    if (miniMapPosition === "custom") {
-      return { ...base, position: "absolute", top: miniMapY, left: miniMapX, margin: 0 };
-    }
-    return base;
-  }, [isDark, miniMapSize, miniMapPosition, miniMapX, miniMapY]);
-
-  // "custom" isn't a valid React Flow PanelPosition, so fall back to a real
-  // corner for the base placement (the inline style above overrides it).
-  const rfMiniMapPosition = miniMapPosition === "custom" ? "top-left" : miniMapPosition;
-
-  // Compute a contrasting chip background from the canvas background color
   const hiddenChipStyle = useMemo(() => {
-    const bg = cssVar("--fewer-background", "#0b0b13");
+    const bg = (() => {
+      if (typeof document === "undefined") return "#0b0b13";
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--fewer-background").trim();
+      return v || "#0b0b13";
+    })();
     const m = /^#?([0-9a-fA-F]{6})$/.exec(bg.trim());
     if (!m) return {};
     const n = parseInt(m[1], 16);
     const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
     const luminance = (r * 299 + g * 587 + b * 114) / 1000;
     if (luminance > 128) {
-      // Light canvas → dark chip with light text
       return { backgroundColor: `rgba(${Math.round(r * 0.25)}, ${Math.round(g * 0.25)}, ${Math.round(b * 0.25)}, 0.8)`, color: "rgba(255, 255, 255, 0.9)" };
     }
-    // Dark canvas → light chip with dark text
     return { backgroundColor: `rgba(${Math.min(255, Math.round(r * 0.5 + 128))}, ${Math.min(255, Math.round(g * 0.5 + 128))}, ${Math.min(255, Math.round(b * 0.5 + 128))}, 0.8)`, color: "rgba(0, 0, 0, 0.85)" };
-  }, [themeColors]);
-
-  const nodeColor = useCallback(
-    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderBg : themeColors.fileBg,
-    [themeColors],
-  );
-  const nodeStrokeColor = useCallback(
-    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon,
-    [themeColors],
-  );
+  }, []);
 
   return (
-    <div ref={containerRef} className={cn("relative h-full w-full select-none", nodeCount > PERF_NODE_LIMIT && "gm-perf")} style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
-      onPointerDownCapture={(e) => {
-        // Capture the selection at the start of a Shift+drag so the box select
-        // can ADD to it instead of replacing it (see boxSelectBaseRef above).
-        boxSelectBaseRef.current = e.button === 0 && e.shiftKey
-          ? new Set(useGraphStore.getState().selectedNodeIds)
-          : null;
-      }}
-      onPointerUp={() => {
-        if (!boxSelectBaseRef.current) return;
-        boxSelectBaseRef.current = null;
-        // Re-assert the merged selection into React Flow's controlled nodes so
-        // its internal lookup agrees with the store after the gesture.
-        const ids = new Set(useGraphStore.getState().selectedNodeIds);
-        setRfNodes((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })));
-      }}
-      onPointerCancel={() => { boxSelectBaseRef.current = null; }}
+    <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
+      onPointerDownCapture={onPointerDownCapture}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onContextMenu={(e) => e.preventDefault()}>
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
@@ -745,22 +243,20 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onConnect={onConnect}
         onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
         onPaneClick={() => setRenamingId(null)}
-        onNodeDragStart={onNodeDragStart} onNodeDragStop={onNodeDragStop}
-        onSelectionDragStart={onSelectionDragStart} onSelectionDragStop={onSelectionDragStop}
+        onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
+        onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
           useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
-          // Defer so the selection state update processes before the fitView
-          // animation starts — avoids React Flow stepping on the viewport change.
           requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
           if (deletedNodes.length > 0) {
-            deleteNodes(deletedNodes.map((n) => n.id));
+            deleteNodes(deletedNodes.map((n: FewerNode) => n.id));
             toast({ title: "Deleted", description: `${deletedNodes.length} item${deletedNodes.length === 1 ? "" : "s"} removed` });
           }
           if (deletedEdges.length > 0) {
-            useGraphStore.getState().deleteEdges(deletedEdges.map((e) => e.id));
+            useGraphStore.getState().deleteEdges(deletedEdges.map((e: FewerEdge) => e.id));
             toast({ title: "Deleted", description: `${deletedEdges.length} edge${deletedEdges.length === 1 ? "" : "s"} removed` });
           }
         }}
@@ -771,10 +267,10 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
-        zoomOnScroll={scrollAction === "zoom"}
-        panOnScroll={scrollAction === "pan"}
+        zoomOnScroll={mini.scrollAction === "zoom"}
+        panOnScroll={mini.scrollAction === "pan"}
         panOnScrollMode={PanOnScrollMode.Vertical}
-        zoomActivationKeyCode={scrollAction === "pan" ? "Control" : null}
+        zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
@@ -786,12 +282,9 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         proOptions={{ hideAttribution: true }}
         className="bg-transparent h-full w-full"
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1.5}
-          color={themeColors.bgDot}
-          className="transition-colors" />
-        {showMiniMap && (
-          <MiniMap position={rfMiniMapPosition} style={minimapStyle} pannable zoomable
-            nodeColor={nodeColor} nodeStrokeColor={nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={themeColors.bgDot} className="transition-colors" />
+        {mini.showMiniMap && (
+          <MiniMap position={mini.rfMiniMapPosition} style={mini.minimapStyle} pannable zoomable nodeColor={mini.nodeColor} nodeStrokeColor={mini.nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
         )}
         <Panel position="bottom-center">
           <div className="gm-float flex items-center gap-1 rounded-2xl p-1">
@@ -850,8 +343,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         )}
         {hiddenCount > 0 && (
           <Panel position="top-right">
-            <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md"
-              style={hiddenChipStyle}
+            <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md" style={hiddenChipStyle}
               onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
               {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
             </button>
@@ -864,7 +356,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         const ids = useGraphStore.getState().selectedNodeIds;
         const isSelectionMenu = canvasMenu.kind === "selection" && ids.length >= 2;
         const edgeId = lastClickedEdgeId;
-        const edgeExists = !isSelectionMenu && !!edgeId && useGraphStore.getState().edges.some((e) => e.id === edgeId);
+        const edgeExists = !isSelectionMenu && !!edgeId && useGraphStore.getState().edges.some((e: FewerEdge) => e.id === edgeId);
         return (
           <>
             <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
@@ -872,15 +364,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
               {isSelectionMenu ? (
                 <>
                   <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Batch actions · {ids.length} selected</div>
-                  {buildBatchActions({
-                    toast,
-                    selectedIds: ids,
-                  }).map((action) => (
+                  {buildBatchActions({ toast, selectedIds: ids }).map((action) => (
                     <button
                       key={action.id}
                       onClick={() => { action.run(); close(); }}
-                      className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] ${action.danger ? "text-red-500" : "text-foreground"}`}
-                    >
+                      className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] ${action.danger ? "text-red-500" : "text-foreground"}`}>
                       {action.label}
                     </button>
                   ))}

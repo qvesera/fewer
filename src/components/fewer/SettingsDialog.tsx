@@ -51,7 +51,7 @@ import {
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
+import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
   AlertDialog,
@@ -1006,8 +1006,8 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "Blog", icon: Newspaper, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/blog"); } },
-    { label: "Documentation", icon: BookOpen, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/docs"); } },
+    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
+    { label: "Documentation", icon: BookOpen, onClick: () => window.open("/docs", "_blank", "noreferrer") },
   ];
 
   const supportActions = [

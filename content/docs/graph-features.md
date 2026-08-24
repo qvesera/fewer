@@ -166,8 +166,9 @@ Access via sidebar. Shows all hidden nodes grouped by their visible parent folde
 Fuzzy search across filenames, paths, and extensions.
 
 - **Click result** → zoom to node
-- **Hidden matches** appear with badge, click to show & zoom
+- **Hidden matches** appear with badge; clicking reveals the match **and all its hidden ancestors** up to root, then zooms
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
 ## Sidebar
 

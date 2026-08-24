@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Folder, FileIcon, EyeOff, Search, X } from "lucide-react";
+import { Folder, FileIcon, EyeOff, Search, History, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import { fuzzyMatch } from "@/lib/fewer/stats";
@@ -17,6 +17,9 @@ export function SearchPanel() {
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const setFocusedNodeId = useGraphStore((s) => s.setFocusedNodeId);
+  const searchHistory = useGraphStore((s) => s.searchHistory);
+  const commitSearch = useGraphStore((s) => s.commitSearch);
+  const clearSearchHistory = useGraphStore((s) => s.clearSearchHistory);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
@@ -26,8 +29,12 @@ export function SearchPanel() {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
 
+    if (query.trim()) commitSearch(query);
+
+    // Reveal the matched node AND every hidden ancestor up to root, so a
+    // search hit is never left dangling under a still-hidden parent.
     if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().showNode(nodeId);
+      useGraphStore.getState().showAncestors(nodeId);
     }
 
     setSelectedNodeIds([nodeId]);
@@ -97,6 +104,9 @@ export function SearchPanel() {
         e.preventDefault();
         const item = matches.slice(0, 50)[activeIndex];
         if (item) handleResultClick(item.id);
+      } else if (e.key === "Enter" && query.trim()) {
+        commitSearch(query);
+        setOpen(false);
       }
     };
 
@@ -174,9 +184,36 @@ export function SearchPanel() {
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
           {!query && !categoryFilter ? (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
-              Start typing to search files & directory structures...
-            </div>
+            searchHistory.length > 0 ? (
+              <div className="p-1.5 space-y-0.5 min-w-0">
+                <div className="flex items-center justify-between px-1 pb-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Recent searches</span>
+                  <button
+                    type="button"
+                    onClick={() => clearSearchHistory()}
+                    className="text-[10px] text-muted-foreground/60 hover:text-foreground rounded px-1"
+                    aria-label="Clear search history"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {searchHistory.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => setQuery(term)}
+                    className="flex items-center gap-2.5 w-full px-2.5 py-1.5 text-xs cursor-pointer rounded-md hover:bg-muted/60 text-foreground/90 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <History className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                    <span className="truncate text-left flex-1">{term}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
+                Start typing to search files & directory structures...
+              </div>
+            )
           ) : matches.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-muted-foreground font-medium" role="status">
               No canvas matches found

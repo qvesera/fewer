@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal } from "@/lib/fewer/userSettings";
 import { cn } from "@/lib/utils";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
@@ -252,14 +253,14 @@ export function FewerApp() {
     const openStandalone = () => setAddStandaloneOpen(true);
     const openImportFolder = () => openImportFlow("folder");
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
-    window.addEventListener("fewer-add-node", openChild);
-    window.addEventListener("fewer-add-node-standalone", openStandalone);
-    window.addEventListener("fewer-import-folder", openImportFolder);
+    window.addEventListener(FEWER_ADD_NODE, openChild);
+    window.addEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+    window.addEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
-      window.removeEventListener("fewer-add-node", openChild);
-      window.removeEventListener("fewer-add-node-standalone", openStandalone);
-      window.removeEventListener("fewer-import-folder", openImportFolder);
+      window.removeEventListener(FEWER_ADD_NODE, openChild);
+      window.removeEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+      window.removeEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, [openImportFlow]);
