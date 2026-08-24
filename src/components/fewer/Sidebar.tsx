@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -37,6 +37,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { plural } from "@/lib/fewer/plural";
 
@@ -144,19 +149,22 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 <FolderPlus className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">Folder</span>
               </Button>
-              <button
-                type="button"
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto",
-                )}
-                onClick={() => setResetConfirmOpen(true)}
-                disabled={nodes.length === 0}
-                title="Clear Canvas"
-                aria-label="Clear canvas"
-              >
-                <Trash2 className="h-3.5 w-3.5 shrink-0" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto"
+                    onClick={() => setResetConfirmOpen(true)}
+                    disabled={nodes.length === 0}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Clear Canvas
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </CollapsibleSection>

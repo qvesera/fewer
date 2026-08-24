@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix infinite re-render cascade: Radix TooltipProvider context (moved to page-level), useToast [state] dep (→[]), Button forwardRef
 - Replace Button inside TooltipTrigger asChild with native <button> + buttonVariants() to break Slot+forwardRef infinite re-render loop in Sidebar
 - Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
+- Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
 
 ### Added
 
