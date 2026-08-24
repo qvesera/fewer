@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 import { useGraphStore } from "@/store/graphStore";
+import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
 
 // Hooks (Phase C extraction — each is a cohesive, single-concern unit).
 import { useCanvasResize } from "@/hooks/use-canvas-resize";
@@ -193,7 +194,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       if (!connectionState.isValid && connectionState.fromNode?.data?.type === "folder") {
         const store = useGraphStore.getState();
         store.setSelectedNodeIds([connectionState.fromNode.id]);
-        window.dispatchEvent(new CustomEvent("fewer-add-node"));
+        window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
       }
     },
     [],

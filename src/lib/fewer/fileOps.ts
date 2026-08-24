@@ -286,6 +286,33 @@ export async function openNodeFile(
   }
   return false;
 }
+/**
+ * Open a folder in the OS file explorer via /api/open-folder. Returns true
+ * when the server acknowledged the open request, false on failure.
+ * Uses the resolved root location (saved with the graph as localRootPath) to
+ * avoid searching the filesystem again on every open.
+ */
+export async function openFolderInExplorer(path: string): Promise<boolean> {
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot);
+  const sendPath = nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
+  try {
+    const res = await fetch("/api/open-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: sendPath }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to open folder");
+    }
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("Open folder error:", msg);
+    return false;
+  }
+}
 
 /**
  * Download a remote file (e.g. a crawled public-index item) straight to disk.

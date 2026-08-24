@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Help tab links (Blog, Documentation) open in a new tab instead of navigating away
 - Unhiding a node from the Hidden nodes panel now auto-selects the revealed node on the canvas
 - Username uniqueness is now enforced exactly at the database level: stored usernames must be trimmed and lowercase (new CHECK constraints), so handles can never collide via spelling variants like "foo" vs "Foo" vs " foo " even when written outside the API.
+- Refactor KeyboardShortcuts into a command-table architecture with pure testable rules in keyboardShortcuts.ts; extract openFolderInExplorer to fileOps.ts; consolidate event-name constants across 5 files; add 32 keyboard-shortcut tests
 
 ### Fixed
 
