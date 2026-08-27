@@ -200,14 +200,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               }}
             >
               <RefreshCw className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">Auto-Rearrange Graph</span>
+              <span className="truncate">Rearrange Graph</span>
             </Button>
 
             <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Label htmlFor="show-files" className="text-xs font-medium cursor-pointer truncate">
-                  Include File Nodes
+                  Include File Cards
                 </Label>
               </div>
               <Switch
@@ -241,7 +241,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         {/* ── 5. HIDDEN NODES RECOVERY ── */}
         {hiddenIds.length > 0 && (
           <CollapsibleSection
-            title="Hidden Nodes"
+            title="Hidden Cards"
             icon={EyeOff}
             badge={String(hiddenIds.length)}
             forceOpen={hiddenPanelExpandTrigger}

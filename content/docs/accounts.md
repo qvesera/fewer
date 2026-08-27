@@ -27,7 +27,7 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 A saved graph captures the full app state:
 
-- Nodes, edges, and their positions
+- Cards, edges, and their positions
 - Layout direction and edge style
 - Theme mode, custom theme colors, corner radius
 - Node dimensions and minimap settings

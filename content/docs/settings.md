@@ -18,7 +18,7 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level nodes on the canvas (folders only)
-- **Edge Motion**: **Animate Selected Edges Only** toggle — when on, the edges along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all *other* (non-selected) edges. When off, sidebar controls apply globally. The all-edges motion toggle lives in the sidebar (Power User mode), not in this dialog. Edge motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static edges.
+- **Edge Motion**: **Animate Selected Edges Only** toggle — when on, the edges along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) edges. When off, sidebar controls apply globally. The all-edges motion toggle lives in the sidebar (Power User mode), not in this dialog. Edge motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static edges.
 
 ## Advanced
 
@@ -31,14 +31,14 @@ Advanced settings are gated behind **Power User mode**: a toggle in this tab (al
 
 Settings in Advanced:
 
-| Setting | Description |
-| ------- | ----------- |
-| **Show Files** | Show/hide file nodes (also in Appearance) |
-| **Minimap** | Toggle the minimap on/off |
+| Setting              | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| **Show Files**       | Show/hide file nodes (also in Appearance)      |
+| **Minimap**          | Toggle the minimap on/off                      |
 | **Minimap Position** | Top-left, Top-right, Bottom-left, Bottom-right |
-| **Minimap Size** | Slider, 80–300px |
-| **Node Width** | Card width slider, 120–400px |
-| **Node Height** | Card height slider, 40–300px |
+| **Minimap Size**     | Slider, 80–300px                               |
+| **Node Width**       | Card width slider, 120–400px                   |
+| **Node Height**      | Card height slider, 40–300px                   |
 
 ## Help
 
@@ -97,4 +97,4 @@ Disabling **Power User mode** resets all settings to defaults, including the the
 
 - [Theming](/docs/theming): custom colors, presets, and the theme editor
 - [Graph Features](/docs/graph-features): minimap, layout, and canvas behavior
-- [Editing Nodes](/docs/editing): add, rename, delete, and connect nodes
+- [Editing Cards](/docs/editing): add, rename, delete, and connect nodes

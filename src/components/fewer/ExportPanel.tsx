@@ -361,7 +361,7 @@ export function ExportPanel() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out] pt-2">
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-                  <span>Nodes</span>
+                  <span>Cards</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
                       ? `${exportNodes.length} nodes`

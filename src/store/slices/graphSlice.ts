@@ -84,7 +84,7 @@ export function collectShowSubtrees(
     const nid = queue.shift()!;
     for (const e of edges) {
       if (e.source !== nid || !hiddenSet.has(e.target)) continue;
-      // Nodes the user hid directly and all descendants stay hidden.
+      // Cards the user hid directly and all descendants stay hidden.
       if (indieSet.has(e.target)) continue;
       if (!toShow.has(e.target)) {
         toShow.add(e.target);
@@ -203,7 +203,7 @@ function unparentSubtree(
   edges: FewerEdge[],
   removedEdges: FewerEdge[],
 ): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
-  // Nodes whose last parent edge was removed.
+  // Cards whose last parent edge was removed.
   const incoming = new Map<string, string[]>();
   for (const e of edges) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
@@ -924,7 +924,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
 
     // Step 2 — attach each root under the target folder (same path rewrite as
-    // connectNodes). Nodes failing validation (duplicate name, …) are skipped.
+    // connectNodes). Cards failing validation (duplicate name, …) are skipped.
     const addedEdges: FewerEdge[] = [];
     for (const id of roots) {
       const combinedEdges = [...workEdges, ...addedEdges];
@@ -1047,7 +1047,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       const nid = queue.shift()!;
       for (const e of edges) {
         if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
-        // Nodes the user hid directly and all descendants stay hidden.
+        // Cards the user hid directly and all descendants stay hidden.
         if (indieSet.has(e.target)) continue;
         toShow.add(e.target);
         queue.push(e.target);
@@ -1153,7 +1153,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       thresholdValue,
     );
     // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
-    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // target set. When Include File Cards is off, file nodes must stay hidden
     // regardless of the auto-hide calculation — re-hide them.
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds
@@ -1178,7 +1178,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       threshold,
     );
     // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
-    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // target set. When Include File Cards is off, file nodes must stay hidden
     // regardless of the auto-hide calculation — re-hide them.
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds

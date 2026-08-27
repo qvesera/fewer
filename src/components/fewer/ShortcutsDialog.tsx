@@ -53,7 +53,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: "Selection & Nodes",
+    title: "Selection & Cards",
     shortcuts: [
       { keys: ["⌘", "Ctrl", "A"], action: "Select all nodes" },
       { keys: ["F2"], action: "Rename selected node" },

@@ -331,7 +331,7 @@ export function BugReportDialog() {
               id="bug-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Nodes overlap when switching to LR layout"
+              placeholder="e.g. Cards overlap when switching to LR layout"
               className="text-sm"
               disabled={isDisabled}
               aria-required="true"
@@ -428,7 +428,7 @@ export function BugReportDialog() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
-                <span>Nodes / Edges</span>
+                <span>Cards / Edges</span>
                 <span className="tabular-nums font-medium text-foreground/80">
                   {diagnostics.graphState.totalNodes} /{" "}
                   {diagnostics.graphState.totalEdges}

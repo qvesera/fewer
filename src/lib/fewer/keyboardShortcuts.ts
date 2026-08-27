@@ -176,7 +176,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
       handle(e,ctx,_kc) { e.preventDefault(); const ids=ctx.getState().selectedNodeIds;
         if(ids.length>=2){const last=ctx.getState().nodes.find((n)=>n.id===ids[ids.length-1]);if(last?.data.type==="folder"){
           let ok=0,fail=0;for(const c of ids.slice(0,-1)){if(ctx.connectNodes({source:ids[ids.length-1],target:c}).ok)ok++;else fail++;}
-          ctx.toast({title:"Nodes parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
+          ctx.toast({title:"Cards parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
     // Alt+Shift+P — unparent
     { test(_e,_ctx,kc) { return kc.alt&&kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;
@@ -231,7 +231,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           if (ids.length > 0) {
             const sub = countDescendants(ids, ctx.getState().edges);
             ctx.hideNodes(ids);
-            ctx.toast({ title: "Nodes hidden", description: `${pluralizeCount(ids.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore` });
+            ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore` });
           }
         }
       },

@@ -40,7 +40,7 @@ export interface GraphRenderOptions {
   fontFamily: string;
   /** Node ids to render with the selection glow. */
   selectedIds?: Set<string>;
-  /** Nodes excluded as hidden / outside the export scope. */
+  /** Cards excluded as hidden / outside the export scope. */
   hiddenIds?: Set<string>;
   transparentBackground?: boolean;
   includeBranding?: boolean;
