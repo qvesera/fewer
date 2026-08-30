@@ -538,8 +538,4 @@ export async function expandFolderNode(
     useGraphStore.getState().autoHideLargeFolders();
   }, 0);
 
-  // Trigger relayout
-  setTimeout(() => {
-    useGraphStore.getState().relayout();
-  }, 50);
 }

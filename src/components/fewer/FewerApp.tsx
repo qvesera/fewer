@@ -155,7 +155,6 @@ export function FewerApp() {
       useGraphStore.setState({
         dataSource: "shared",
         localRootPath: (data as { localRootPath?: string | null }).localRootPath ?? null,
-        skipNextAutoLayout: true,
       });
       setHashLoaded(true);
       // Clear hash from address bar

@@ -130,7 +130,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const mini = useCanvasMinimap({ themeColors, isDark });
   const dragHandlers = useCanvasNodeDrag(recordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, relayout, fitView, recordResize, boxSelectBaseRef });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
 
   const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);

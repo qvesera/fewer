@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { PointerEvent } from "react";
 import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
@@ -13,7 +14,7 @@ export interface BoxSelectHandlers {
 
 interface BoxSelectDeps {
   selectedNodeIds: string[];
-  setRfNodes: (nodes: FewerNode[]) => void;
+  setRfNodes: Dispatch<SetStateAction<FewerNode[]>>;
 }
 
 /**
@@ -25,7 +26,8 @@ interface BoxSelectDeps {
  * for those nodes back to `selected: true` (see useCanvasNodeChangeHandler).
  * The ref is cleared on pointer up/cancel, where we also re-assert the merged
  * selection into React Flow's controlled nodes so its internal state agrees
- * with the store.
+ * with the store. That re-assert maps the CURRENT canvas nodes (visible only)
+ * — mapping the full store node list would resurrect hidden nodes.
  */
 export function useCanvasBoxSelect({ selectedNodeIds, setRfNodes }: BoxSelectDeps): BoxSelectHandlers {
   const boxSelectBaseRef = useRef<Set<string> | null>(null);
@@ -39,7 +41,7 @@ export function useCanvasBoxSelect({ selectedNodeIds, setRfNodes }: BoxSelectDep
     // Re-assert the merged selection into React Flow's controlled nodes so
     // its internal lookup agrees with the store after the gesture.
     const ids = new Set(useGraphStore.getState().selectedNodeIds);
-    setRfNodes(useGraphStore.getState().nodes.map((n) => (ids.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) as FewerNode[]);
+    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: ids.has(n.id) })));
   };
     const onPointerCancel = () => { boxSelectBaseRef.current = null; };
 

@@ -727,7 +727,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Targeted add-node op — stores only the new node, not the full array
     get().pushOp({ type: "add-node", node: newNode, edge: newEdge as FewerEdge | null });
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: sorted, graphVersion: get().graphVersion + 1 });
-    get().relayout();
     return newNode.id;
   },
 
@@ -1203,7 +1202,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "toggle-collapse", nodeId: id, wasCollapsed });
     const newNodes = nodes.map((n) => n.id === id ? { ...n, data: { ...n.data, collapsed: !wasCollapsed } } : n);
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
   },
 
   collapseAll: () => {
@@ -1214,7 +1212,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const newNodes = nodes.map((n) => n.data.type === "folder" ? { ...n, data: { ...n.data, collapsed: true } } : n);
     get().pushOp({ type: "collapse-batch", changes });
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
   },
 
   expandAll: () => {
@@ -1223,7 +1220,6 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const newNodes = nodes.map((n) => ({ ...n, data: { ...n.data, collapsed: false } }));
     get().pushOp({ type: "collapse-batch", changes });
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
   },
 
   removeNode: (id) => {

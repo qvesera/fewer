@@ -6,8 +6,6 @@ import { useGraphStore } from "@/store/graphStore";
 interface NodeChangeHandlerDeps {
   /** React Flow's internal node-setter (already wired by useNodesState). */
   onNodesChange: (changes: NodeChange<FewerNode>[]) => void;
-  /** Recompute layout positions after the first dimension measurement settles. */
-  relayout: () => void;
   fitView: (opts?: { duration?: number; padding?: number }) => void;
   /** Commit a debounced resize op to history. */
   recordResize: (changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[]) => void;
@@ -22,23 +20,21 @@ interface NodeChangeHandlerDeps {
 /**
  * Handle React Flow node position + dimension changes:
  *   - position changes → commit to the store immediately
- *   - dimension changes → resize via store setState; on first measurement,
- *     trigger relayout (skipped if saved positions were just loaded); commit a
- *     resize op once the gesture settles (300ms debounce).
+ *   - dimension changes → resize via store setState; commit a resize op once
+ *     the gesture settles (300ms debounce). Layout is NEVER recomputed here —
+ *     re-layout only runs when the user clicks Rearrange Graph.
  *
  * Private refs (`hasMeasuredRef`, `resizeStartDimensions`, `resizeTimerRef`)
  * are owned here so the handler has no external state coupling.
  */
 export function useCanvasNodeChangeHandler({
   onNodesChange,
-  relayout,
   fitView,
   recordResize,
   boxSelectBaseRef,
 }: NodeChangeHandlerDeps) {
   void fitView; // reserved for parity with original signature; not used directly
 
-  const hasMeasuredRef = useRef(false);
   const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
   const resizeTimerRef = useRef<number | null>(null);
 
@@ -97,19 +93,6 @@ export function useCanvasNodeChangeHandler({
           }),
         }));
 
-        if (!hasMeasuredRef.current) {
-          hasMeasuredRef.current = true;
-          setTimeout(() => {
-            // If the graph was just loaded with saved positions, don't re-lay
-            // it out (that would scatter them). Skip and consume the flag.
-            if (useGraphStore.getState().skipNextAutoLayout) {
-              useGraphStore.setState({ skipNextAutoLayout: false });
-              return;
-            }
-            relayout();
-          }, 50);
-        }
-
         // Commit a resize op once the resize gesture settles (debounced).
         if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
         resizeTimerRef.current = window.setTimeout(() => {
@@ -126,7 +109,7 @@ export function useCanvasNodeChangeHandler({
         }, 300);
       }
     },
-            [onNodesChange, relayout, fitView, recordResize, boxSelectBaseRef],
+            [onNodesChange, fitView, recordResize, boxSelectBaseRef],
   );
 
   return handleNodesChange;
