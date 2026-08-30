@@ -47,7 +47,7 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 
 | Action          | Notes                                                                                                                                                                                |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Rename…         | Opens a batch-rename dialog: find/replace, prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
+| Rename…         | Opens a batch-rename dialog: find/replace (with `*` wildcard support), prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
 | Copy            | Copies every selected node (with subtrees) to the clipboard                                                                                                                          |
 | Cut             | Cuts the selection to the clipboard and removes the originals; paste to place them                                                                                                   |
 | Duplicate       | Duplicates each selected node under its same parent                                                                                                                                  |

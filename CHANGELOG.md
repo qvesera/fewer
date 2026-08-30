@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Search terms are now remembered per browser session and shown as recent searches in the search panel (stored in sessionStorage, with clear option)
+- Batch rename: `*` wildcard in Find matches anything; `*` in Replace keeps the matched part, so you can rename without retyping names (e.g. Find `*` → Replace `Photo *`)
 
 ## [0.6.0] - 23rd August 2026
 
