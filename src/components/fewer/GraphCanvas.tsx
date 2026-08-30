@@ -18,7 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { edgeDashPattern } from "@/lib/fewer/types";
-import { buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
+import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,12 +118,29 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
-  void onEdgesChange; // reserved for parity; RF drives edges via graphVersion sync
+
+  // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
+  const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
+  const handleEdgesChange = useCallback(
+    (changes: import("@xyflow/react").EdgeChange<FewerEdge>[]) => {
+      for (const c of changes) {
+        if (c.type === "select") {
+          if (c.selected) selectedEdgeIdsRef.current.add(c.id);
+          else selectedEdgeIdsRef.current.delete(c.id);
+        } else if (c.type === "remove") {
+          selectedEdgeIdsRef.current.delete(c.id);
+        }
+        // `add` changes carry no id (the edge is the payload) — nothing to track.
+      }
+      onEdgesChange(changes);
+    },
+    [onEdgesChange],
+  );
 
   useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
   useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(direction);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
@@ -138,7 +155,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   useEffect(() => {
     const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, allEdges, allNodes, themeColors, edgeWidth, animation);
     // Update only React Flow edges; store edges are already synced via useCanvasGraphSync.
-    setRfEdges(updatedEdges.filter((e: FewerEdge) => {
+    // Re-apply RF's live selection so the rebuild doesn't wipe selected edges.
+    setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
@@ -158,8 +176,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
-    ({ nodes: selected }: OnSelectionChangeParams) => {
+    ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
             const selectedIds = new Set(selected.map((n) => n.id));
+      // Sync the live edge-selection ref from RF's authoritative full-selection
+      // snapshot so the upcoming rebuild (and any later one) preserves it.
+      selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
       const prevIds = useGraphStore.getState().selectedNodeIds;
       const base = boxSelectBaseRef.current;
       const newIds = base
@@ -174,7 +195,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: selStroke, baseStrokeStyle: selBase });
       useGraphStore.setState({ edges: updatedEdges });
       const hiddenSet = new Set(hidden);
-      setRfEdges(updatedEdges.filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
+      // Re-apply RF's live edge selection so this rebuild doesn't wipe it.
+      setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
     },
     [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef],
   );
@@ -240,6 +262,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
+        onEdgesChange={handleEdgesChange as import("@xyflow/react").OnEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
         onPaneClick={() => setRenamingId(null)}
@@ -265,6 +288,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, kind: "pane" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onSelectionContextMenu={(e) => { e.preventDefault(); setCanvasMenu({ x: e.clientX, y: e.clientY, kind: "selection" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
+        deleteKeyCode={null}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
         zoomOnScroll={mini.scrollAction === "zoom"}

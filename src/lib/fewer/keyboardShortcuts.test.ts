@@ -229,3 +229,18 @@ test("0 resets zoom", () => {
   expect(fire(buildKeyboardRules(), ctx, { key: "0" })).toBe(true);
   expect(a.setViewport).toBeDefined();
 });
+
+test("Delete with a selected edge invokes deleteEdges (unparent path)", () => {
+  const { ctx, a } = makeCtx({
+    reactFlow: { getEdges: () => [{ id: "e-p-c", selected: true }] } as any,
+  });
+  expect(fire(buildKeyboardRules(), ctx, { key: "Delete" })).toBe(true);
+  expect(a.deleteEdges).toEqual(["e-p-c"]);
+});
+
+test("Delete with no selection does nothing", () => {
+  const { ctx, a } = makeCtx({ reactFlow: { getEdges: () => [] } as any });
+  expect(fire(buildKeyboardRules(), ctx, { key: "Delete" })).toBe(true);
+  expect(a.deleteEdges).toBeUndefined();
+  expect(a.deleteNodes).toBeUndefined();
+});

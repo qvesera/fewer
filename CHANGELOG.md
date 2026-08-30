@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
 - Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
 - Shift+drag box selection no longer makes hidden nodes reappear on the canvas (selection re-assert now maps only visible canvas nodes)
+- Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
 
 ### Added
 

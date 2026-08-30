@@ -152,3 +152,19 @@ export function buildSelectedEdgeHighlight(
     })
     .sort((a, b) => (highlightedIds.has(a.id) ? 1 : 0) - (highlightedIds.has(b.id) ? 1 : 0));
 }
+
+/**
+ * Merge React Flow's live edge-selection state onto a freshly-rebuilt edge array.
+ *
+ * `buildSelectedEdgeHighlight` reconstructs edges from the store, which never
+ * carries a `selected` flag — so every rebuild (theme change, hover, node
+ * selection, graphVersion sync) would otherwise wipe RF's selection. Call this
+ * right before `setRfEdges` to restore the flags RF is tracking internally.
+ */
+export function applyEdgeSelection(
+  edges: FewerEdge[],
+  selectedIds: Set<string>,
+): FewerEdge[] {
+  if (selectedIds.size === 0) return edges;
+  return edges.map((e) => (selectedIds.has(e.id) ? { ...e, selected: true } : e));
+}
