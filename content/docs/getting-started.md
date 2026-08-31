@@ -54,6 +54,10 @@ After import, you'll see:
 - **Minimap** in bottom-right for navigation
 - **Breadcrumb bar** showing selected node's full path
 
+## Reload Persistence
+
+The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph — including node positions and edits — without re-importing. No account needed. Clearing the canvas removes the cache.
+
 ## Keyboard Navigation
 
 | Key                       | Action                                 |

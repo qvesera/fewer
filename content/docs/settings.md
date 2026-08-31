@@ -66,7 +66,7 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 2. Click **Save Current Graph** in the **Your Directories** sidebar section
 3. Name the graph and click **Save**
 
-Saved graphs capture the full app state: nodes, edges, layout, theme mode, custom theme, minimap, and advanced settings. Restoring a saved graph restores everything.
+Saved graphs capture the graph itself — nodes, edges, and their positions. Your app settings (layout direction, edge style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
 
 ### Manage saved graphs
 

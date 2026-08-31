@@ -25,14 +25,11 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 ## What Gets Saved
 
-A saved graph captures the full app state:
+A saved graph captures the graph itself:
 
 - Cards, edges, and their positions
-- Layout direction and edge style
-- Theme mode, custom theme colors, corner radius
-- Node dimensions and minimap settings
 
-Restoring a saved graph restores everything, so you can pick up exactly where you left off.
+Your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) are not part of the graph — they follow **you** as account settings, so loading a graph never overwrites your current settings.
 
 ## Load, Rename, Delete
 

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
 - Shift+drag box selection no longer makes hidden nodes reappear on the canvas (selection re-assert now maps only visible canvas nodes)
 - Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
+- Loading a saved or shared graph no longer overwrites your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) — settings follow your account, not the graph. Saved-graph payloads are now graph-only; layout direction was removed from them.
 
 ### Added
 
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dialogs (settings, import, save/share graph, tutorial, shortcuts, auth, and others) are now draggable via a grip handle in the title area; dialog stays clamped to the viewport
 - Any dialog can be minimized to a dock pill (drag to snap to screen edges, click to restore); added minimize button next to close in every dialog and the theme editor
 - Search bar for docs page to filter documentation by title and description
+- The graph on your canvas now survives a page reload: nodes, edges, and positions are cached in localStorage and restored on your next visit, no account needed.
 
 ## [0.6.0] - 23rd August 2026
 
