@@ -104,11 +104,15 @@ export function ExportPanel() {
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  // A lone file node has no descendants, so "export selection" would export
-  // exactly one node — treat it as not a selection export and hide the option
-  // (folders and multi-node selections still qualify).
+  // A lone file node has no descendants, so for non-image formats "export
+  // selection" would export exactly one node — block it and hide the option
+  // (folders and multi-node selections still qualify). Image formats (PNG/SVG)
+  // still allow exporting a single file as an image.
+  const isImageFormat =
+    settings.format === "png" || settings.format === "svg";
   const singleFileSelected =
     selectedNodeIds.length === 1 &&
+    !isImageFormat &&
     nodes.find((n) => n.id === selectedNodeIds[0])?.data?.type === "file";
 
   // If the toggle was on and the selection collapses to a single file node,
@@ -190,7 +194,6 @@ export function ExportPanel() {
     () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
     [exportNodes, hiddenSet],
   );
-  const isImageFormat = settings.format === "png" || settings.format === "svg";
   const imageBlocked = isImageFormat && imageExportableCount === 0;
 
   return (
