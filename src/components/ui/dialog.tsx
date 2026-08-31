@@ -102,7 +102,12 @@ function useDialogDrag() {
     window.addEventListener("pointerup", onUp)
   }, [])
 
-  return { ref, offset, onDragStart }
+  const resetOffset = React.useCallback(() => {
+    offsetRef.current = { x: 0, y: 0 }
+    setOffset(null)
+  }, [])
+
+  return { ref, offset, onDragStart, resetOffset }
 }
 
 /** Grip icon that drags its dialog. Renders nothing outside a DialogContent. */
@@ -254,7 +259,7 @@ function DialogContent({
   dialogTitle?: string
   dialogIcon?: React.ReactNode
 }) {
-  const { ref, offset, onDragStart } = useDialogDrag()
+  const { ref, offset, onDragStart, resetOffset } = useDialogDrag()
   const [minimized, setMinimized] = React.useState(false)
 
   const handleMinimize = React.useCallback(() => {
@@ -263,17 +268,38 @@ function DialogContent({
     setMinimized(true)
   }, [])
 
+  const handleRestore = React.useCallback(() => {
+    // Re-center: clear any drag offset so the dialog mounts fresh and on-screen.
+    resetOffset()
+    setMinimized(false)
+  }, [resetOffset])
+
+  // Minimized: render ONLY the dock pill (unmount the Radix content entirely),
+  // mirroring ThemeEditorDialog. This avoids display:none fighting Radix
+  // Presence/data-state, which left restored content faded and inaccessible.
+  if (minimized) {
+    return (
+      <DialogPortal data-slot="dialog-portal">
+        <MinimizedDialogPill
+          icon={dialogIcon}
+          label={dialogTitle}
+          onRestore={handleRestore}
+        />
+      </DialogPortal>
+    )
+  }
+
   const resolvedStyle = offset
     ? { ...style, transform: `translate(${offset.x}px, ${offset.y}px)` }
     : style
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      {!minimized && <DialogOverlay />}
+      <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
         data-slot="dialog-content"
-        style={minimized ? { ...resolvedStyle, display: "none" } : resolvedStyle}
+        style={resolvedStyle}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-4 sm:p-6 shadow-lg duration-200 sm:max-w-lg max-h-[85dvh] overflow-y-auto",
           className
@@ -304,13 +330,6 @@ function DialogContent({
           </button>
         )}
       </DialogPrimitive.Content>
-      {minimized && (
-        <MinimizedDialogPill
-          icon={dialogIcon}
-          label={dialogTitle}
-          onRestore={() => setMinimized(false)}
-        />
-      )}
     </DialogPortal>
   )
 }
