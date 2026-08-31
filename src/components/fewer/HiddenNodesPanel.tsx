@@ -103,7 +103,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
       toast({ title: "Subtree shown", description: tree.node.data.label });
     } else {
       showAncestors(id);
-      toast({ title: "Node shown", description: tree.node.data.label });
+      toast({ title: "Card shown", description: tree.node.data.label });
     }
     // Auto-select the just-revealed node so it's ringed on the canvas and
     // arrow-key navigation can act on it immediately.

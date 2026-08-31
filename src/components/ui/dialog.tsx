@@ -388,9 +388,8 @@ function DialogContent({
       >
         <DragHandleContext.Provider value={onDragStart}>
           {children}
-        </DragHandleContext.Provider>
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-0.5">
-          <DialogDragHandle className="p-1" />
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-0.5">
+            <DialogDragHandle className="p-1" />
           {minimizable && (
             <button
               type="button"
@@ -411,7 +410,8 @@ function DialogContent({
               <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
           )}
-        </div>
+          </div>
+        </DragHandleContext.Provider>
       </DialogPrimitive.Content>
     </DialogPortal>
   )

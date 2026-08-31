@@ -191,16 +191,15 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
             {/* Rearrange Action Button (shadcn) */}
             <Button
-              variant="outline"
               size="sm"
-              className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
+              className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
               onClick={() => {
                 relayout();
                 toast({ title: "Graph rearranged" });
               }}
             >
-              <RefreshCw className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">Rearrange Graph</span>
+              <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
+              <span className="truncate">Rearrange</span>
             </Button>
 
             <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">

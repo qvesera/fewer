@@ -910,7 +910,7 @@ function AdvancedTab() {
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              Node Metrics
+              Card Metrics
             </Label>
           </div>
           <div className="space-y-2">

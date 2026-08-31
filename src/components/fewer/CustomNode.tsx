@@ -413,7 +413,7 @@ function FolderContextMenu({
             }}
             className="cursor-pointer"
           >
-            Add Child Node
+            Add Child Card
           </ContextMenuItem>
           {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
             isLocalClient() ? (

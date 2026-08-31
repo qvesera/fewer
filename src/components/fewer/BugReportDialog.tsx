@@ -441,7 +441,7 @@ export function BugReportDialog() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Theme / Node size</span>
+                <span>Theme / Card size</span>
                 <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.themeMode} /{" "}
                   {diagnostics.graphState.nodeWidth}×
