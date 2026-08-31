@@ -14,9 +14,7 @@ import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -222,7 +220,6 @@ export function ImportFlowDialog({
       >
         <DialogHeader className="border-b border-border/20 pb-3">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
-            <DialogDragHandle />
             <OriginIcon className="h-5 w-5 text-muted-foreground/80" />
             Import {step === 1 ? "" : `· ${ORIGIN_META[origin].label}`}
           </DialogTitle>

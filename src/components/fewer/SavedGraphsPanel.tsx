@@ -44,9 +44,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -396,8 +394,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         <DialogContent dialogTitle="Save Graph" dialogIcon={<Save className="h-3.5 w-3.5 text-primary" />} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <DialogDragHandle />
-              <Save className="h-4 w-4 text-primary" />
+                <Save className="h-4 w-4 text-primary" />
               Save
             </DialogTitle>
             <DialogDescription>
@@ -649,7 +646,6 @@ function ShareGraphDialog({
       <DialogContent dialogTitle="Share" dialogIcon={<Link2 className="h-3.5 w-3.5 text-purple-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DialogDragHandle />
             <Link2 className="h-4 w-4 text-purple-500" />
             Share "{graph.name}"
           </DialogTitle>

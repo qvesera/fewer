@@ -4,9 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -107,7 +105,6 @@ export function ShareDialog() {
       <DialogContent dialogTitle="Share" dialogIcon={<Link className="h-3.5 w-3.5 text-purple-500" />} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DialogDragHandle />
             <Link className="h-4 w-4 text-purple-500" />
             Share Graph
           </DialogTitle>

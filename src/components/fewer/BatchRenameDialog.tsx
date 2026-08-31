@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -97,7 +95,7 @@ export function BatchRenameDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent dialogTitle="Rename" className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-1.5"><DialogDragHandle />Rename {ids.length} items</DialogTitle>
+          <DialogTitle>Rename {ids.length} items</DialogTitle>
           <DialogDescription>
             Applies to item names. Find &amp; replace also matches file extensions.
           </DialogDescription>

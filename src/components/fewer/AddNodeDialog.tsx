@@ -4,9 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -140,8 +138,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
         <DialogContent dialogTitle="Add Node" className="sm:max-w-md">
           <div ref={contentRef} style={shake ? { animation: "dialog-shake 0.5s ease-in-out" } : undefined}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-1.5">
-              <DialogDragHandle />
+            <DialogTitle>
               {mode === "child" ? "Add child node" : "Add node"}
             </DialogTitle>
             <DialogDescription>

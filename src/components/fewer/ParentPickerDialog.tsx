@@ -4,9 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogHeader,
+  DialogDescription,  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Folder } from "lucide-react";
@@ -92,7 +90,7 @@ export function ParentPickerDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent dialogTitle="Move" className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-1.5"><DialogDragHandle />Move {ids.length} items to folder</DialogTitle>
+          <DialogTitle>Move {ids.length} items to folder</DialogTitle>
           <DialogDescription>
             Pick a target folder. Items keep their sub-items; undo reverts the whole move.
           </DialogDescription>

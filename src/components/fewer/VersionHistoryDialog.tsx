@@ -4,9 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -104,7 +102,6 @@ export function VersionHistoryDialog({
       <DialogContent dialogTitle="History" dialogIcon={<History className="h-3.5 w-3.5 text-amber-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DialogDragHandle />
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
               <History className="h-4 w-4" />
             </div>

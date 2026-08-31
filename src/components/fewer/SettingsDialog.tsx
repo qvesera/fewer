@@ -5,9 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogDragHandle,
-  DialogHeader,
+  DialogDescription,  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -1096,7 +1094,6 @@ export function SettingsDialog() {
       <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
-            <DialogDragHandle />
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
               <Settings className="h-4 w-4" />
             </div>
