@@ -336,16 +336,16 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
     </g>`;
 }
 
-/** Shared highlight/selection/border ring logic for folder + file cards. */
+/** Shared highlight/border ring logic for folder + file cards. The selection
+    ring is intentionally NOT drawn in exports: it is a canvas interaction
+    affordance, so exporting never bakes the current selection into the image. */
 function cardStroke(
   n: FewerNode,
-  selected: boolean,
-  selectRing: string,
   border: string,
 ): { stroke: string; width: number } {
   return {
-    stroke: n.data.highlighted ? "#fbbf24" : selected ? selectRing : border,
-    width: n.data.highlighted || selected ? 2 : 1,
+    stroke: n.data.highlighted ? "#fbbf24" : border,
+    width: n.data.highlighted ? 2 : 1,
   };
 }
 
@@ -384,7 +384,7 @@ function renderFolderCard(
       ? `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`
       : listRowsHtml;
 
-  const { stroke, width: strokeWidth } = cardStroke(n, selected, p.selectRing, p.folderBorder);
+  const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
   const rowsCount = itemCountLabel(rows.length);
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
@@ -410,7 +410,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
-  const { stroke, width: strokeWidth } = cardStroke(n, selected, p.selectRing, p.fileBorder);
+  const { stroke, width: strokeWidth } = cardStroke(n, p.fileBorder);
   const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
