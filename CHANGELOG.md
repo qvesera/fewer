@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-layout no longer runs automatically after actions (add node, collapse/expand, hide, direction/shyness/size changes, drag-merge, initial load) — it now runs only via the Rearrange Graph button or its keyboard shortcut
 - Hide the Export Selected option for non-image exports when only a single file node is selected (PNG/SVG image exports of a single file still keep the option)
 - Exported images no longer include the selection ring around selected nodes — selection is a canvas-only affordance
+- PNG and SVG exports now carry a fewer logo watermark badge (inline vector mark + wordmark, linked to the homepage) instead of the plain text credit line
 
 ### Fixed
 

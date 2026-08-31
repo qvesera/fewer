@@ -312,9 +312,9 @@ export function ExportPanel() {
 
           <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
             <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">Include &quot;Created with fewer&quot; credit</Label>
+              <Label className="text-xs font-semibold">Include fewer branding</Label>
               <p className="text-xs text-muted-foreground">
-                Adds a link/watermark pointing back to fewer.
+                Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats.
               </p>
             </div>
             <Switch

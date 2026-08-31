@@ -5,7 +5,7 @@ import {
   getStraightPath,
   Position,
 } from "@xyflow/react";
-import { FEWER_CREDIT, FEWER_HOME_URL } from "./branding";
+import { FEWER_HOME_URL } from "./branding";
 
 /* -------------------------------------------------------------------------- */
 /*  graphRenderer.ts - faithful vector scene builder for PNG/SVG export.      */
@@ -448,6 +448,40 @@ function filterDefs(o: GraphRenderOptions): string {
 </defs>`;
 }
 
+/* ------------------------ "made with fewer" watermark ----------------------- */
+
+/** Inline vector mark (`public/logo_flat.svg` flattened) — embedded directly in
+    the exported SVG so it survives rasterization (PNG) and opening the file
+    offline. Natural size is ~130.7 × 117.7 units; callers scale it down. */
+const LOGO_MARK_PATHS = `<path style="fill:#f97c20;stroke:none" d="M 18.744535,116.66975 V 42.194181 A 21.516756,21.516756 135 0 1 40.261291,20.677425 h 21.48881 a 10.160205,10.160205 26.121466 0 1 8.032801,3.938961 l 4.482039,5.787159 a 10.160205,10.160205 26.121466 0 0 8.032801,3.938961 h 45.530038 a 21.609584,21.609584 45 0 1 21.60958,21.609584 v 60.86611 a 21.574914,21.574914 135.0739 0 1 -21.63057,21.57484 l -87.620365,-0.22602 a 21.497343,21.497343 45.073899 0 1 -21.44189,-21.49727 z" transform="translate(-155.54246,311.95701)"/><g transform="translate(-155.54246,311.95701)"><path d="M 114.98183,60.062214 H 70.412308 A 16.807367,16.807367 135 0 0 53.604941,76.869581 v 61.252969 l 29.17889,0.0592 v -17.74588 a 10.387433,10.387433 135 0 1 10.387433,-10.38743 h 21.747226 c 0,0 -13.52653,-16.079502 -21.656037,-25.256653 5.715055,-6.277277 13.207107,-14.835145 21.719637,-24.729573 z" style="fill:#f9f9f9;stroke-width:0.575981"/><path style="fill:none;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 115.51467,60.057317 93.361718,85.054093 115.44653,110.05087"/><path style="fill:#cc9ee5;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 93.511771,84.993363 H 74.846246"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="110.03839" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="72.858231" cy="85.035263" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="60.958183" r="6.1801715"/></g>`;
+
+/** Display host of the homepage (e.g. "fewer.direct") instead of the full URL,
+    so the badge stays compact even if NEXT_PUBLIC_HOME_URL overrides the domain. */
+function brandingHost(): string {
+  try {
+    return new URL(FEWER_HOME_URL).host;
+  } catch {
+    return FEWER_HOME_URL;
+  }
+}
+
+/** Corner badge: fewer logo mark + name + host on a translucent pill, linked to
+    the homepage. Fixed size keeps it legible over any graph content; sits
+    bottom-right like the old credit line. */
+function renderBrandingMark(sceneW: number, sceneH: number): string {
+  const BW = 118;
+  const BH = 30;
+  const bx = Math.max(8, sceneW - 14 - BW);
+  const by = Math.max(8, sceneH - 14 - BH);
+  const scale = 0.13; // 117.7-unit mark → ~15.3px tall in the badge
+  return `<a href="${FEWER_HOME_URL}" target="_blank" rel="noopener"><g>
+    <rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="15" fill="rgba(11, 11, 19, 0.25)" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+    <g transform="translate(${bx + 10}, ${by + 7.4}) scale(${scale})"><g transform="translate(-31.956073,-332.63444)"><g transform="translate(168.75398)">${LOGO_MARK_PATHS}</g></g></g>
+    <text x="${bx + 47}" y="${by + 14}" font-size="11" font-weight="700" fill="#f8f9fa">fewer</text>
+    <text x="${bx + 35}" y="${by + 25}" font-size="9" fill="rgba(248, 249, 250, 0.9)">${escapeXml(brandingHost())}</text>
+  </g></a>`;
+}
+
 /** Build an SVG scene exactly reflecting current graph + theme state. */
 export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRenderOptions): GraphScene {
   const hidden = o.hiddenIds ?? new Set<string>();
@@ -492,9 +526,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
     .join("\n  ");
 
   const font = o.fontFamily || "sans-serif";
-  const fontSvg = o.includeBranding
-    ? `<a href="${FEWER_HOME_URL}" target="_blank" rel="noopener"><text x="${width - 14}" y="${height - 12}" text-anchor="end" font-size="11" fill="${escapeXml(o.palette.subtle)}">${escapeXml(FEWER_CREDIT)}</text></a>`
-    : "";
+  const brandingSvg = o.includeBranding ? renderBrandingMark(width, height) : "";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
   ${filterDefs(o)}
@@ -503,7 +535,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   ${edgesHtml}
   ${nodesHtml}
   </g>
-  ${fontSvg}
+  ${brandingSvg}
 </svg>`;
 
   return { svg, width, height };
