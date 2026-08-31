@@ -139,6 +139,35 @@ function getCanvasBounds() {
   return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
 }
 
+// ---- Dock-pill slot registry -----------------------------------------------
+// Minimized pills would otherwise all stack at the same bottom-center point.
+// Each pill claims a staggered slot along the bottom edge on mount and frees
+// it on unmount (restore), so N minimized dialogs tile left-to-right without
+// overlapping. Reclaims the lowest freed index first to keep slots compact.
+const PAD = 12
+const PILL_W = 96
+const GAP = 8
+const occupied = new Set<number>()
+const freed: number[] = []
+let nextSlot = 0
+
+function claimSlot(): number {
+  if (freed.length) return freed.sort((a, b) => a - b).shift()!
+  const i = nextSlot
+  nextSlot += 1
+  occupied.add(i)
+  return i
+}
+
+function freeSlot(i: number) {
+  occupied.delete(i)
+  freed.push(i)
+}
+
+function slotPosition(index: number, b: ReturnType<typeof getCanvasBounds>) {
+  return { x: PAD + index * (PILL_W + GAP), y: b.height - PAD - 30 }
+}
+
 /** Small docked pill shown when a dialog is minimized. Draggable, snaps to
  *  the nearest screen edge, click (without drag) restores the dialog. */
 function MinimizedDialogPill({
@@ -157,12 +186,19 @@ function MinimizedDialogPill({
   const startRef = React.useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const posRef = React.useRef({ x: 0, y: 0 })
 
+  const slotRef = React.useRef<number | null>(null)
+
   React.useEffect(() => {
     const b = getCanvasBounds()
-    const snapped = snapDockPosition(b.width / 2, b.height - 60, b)
-    posRef.current = snapped
-    setDockPosition({ x: snapped.x, y: snapped.y })
-    setDockEdge(snapped.edge)
+    const slot = claimSlot()
+    slotRef.current = slot
+    const pos = slotPosition(slot, b)
+    posRef.current = pos
+    setDockPosition(pos)
+    setDockEdge("bottom")
+    return () => {
+      if (slotRef.current != null) freeSlot(slotRef.current)
+    }
   }, [])
 
   const handlePointerDown = React.useCallback((e: React.PointerEvent) => {
