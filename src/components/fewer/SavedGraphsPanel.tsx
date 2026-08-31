@@ -45,6 +45,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -255,7 +256,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         onClick={openSaveDialog}
       >
         <Save className="h-4 w-4 shrink-0" />
-        Save Graph
+        Save
       </Button>
 
       {/* List */}
@@ -392,11 +393,12 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
       {/* Save dialog */}
       <Dialog open={savingOpen} onOpenChange={setSavingOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent dialogTitle="Save Graph" dialogIcon={<Save className="h-3.5 w-3.5 text-primary" />} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
+              <DialogDragHandle />
               <Save className="h-4 w-4 text-primary" />
-              Save Graph
+              Save
             </DialogTitle>
             <DialogDescription>
               Save the current graph to your account.
@@ -644,9 +646,10 @@ function ShareGraphDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="Share" dialogIcon={<Link2 className="h-3.5 w-3.5 text-purple-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            <DialogDragHandle />
             <Link2 className="h-4 w-4 text-purple-500" />
             Share "{graph.name}"
           </DialogTitle>

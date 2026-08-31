@@ -12,7 +12,9 @@ import {
   Check,
   X,
   BookOpen,
+  Minus,
 } from "lucide-react";
+import { MinimizedDialogPill, useDialogDrag } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
@@ -181,6 +183,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   const [open, setOpen] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
   const [mobileStep, setMobileStep] = useState(0);
+  const [minimized, setMinimized] = useState(false);
+  const { ref, offset, onDragStart } = useDialogDrag();
 
   const {
     tutorialBeginnerDone,
@@ -310,6 +314,19 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     );
   }
 
+  /* ── Minimized ── */
+  if (minimized) {
+    return (
+      <Portal>
+        <MinimizedDialogPill
+          icon={<BookOpen className="h-3.5 w-3.5 text-primary" />}
+          label="Tutorial"
+          onRestore={() => setMinimized(false)}
+        />
+      </Portal>
+    );
+  }
+
   /* ── Checklist overlay ── */
   const items = beginnerItems;
   const doneList = tutorialBeginnerDone;
@@ -323,15 +340,31 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
           "fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:w-[400px] rounded-2xl border border-primary/50 p-4 shadow-2xl shadow-primary/25 backdrop-blur-xl animate-[tutorial-pop-in_0.45s_cubic-bezier(0.16,1,0.3,1),tutorial-attention_1.2s_ease-in-out_0.6s_2]",
           darkCard ? "bg-zinc-950/95 text-zinc-100" : "bg-white/95 text-zinc-900",
         )}
-        style={{ zIndex: 2147483647, pointerEvents: "auto" }}
+        style={{
+          zIndex: 2147483647,
+          pointerEvents: "auto",
+          transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined,
+        }}
+        ref={ref}
       >
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-grab touch-none select-none active:cursor-grabbing"
+            onPointerDown={onDragStart}
+          >
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15">
               <BookOpen className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-xs font-bold">Tutorial</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setMinimized(true)}
+            className="rounded p-1 text-current opacity-40 transition-opacity hover:opacity-100"
+            title="Minimize"
+          >
+            <Minus className="h-3 w-3" />
+          </button>
           <button
             type="button"
             onClick={handleDismiss}

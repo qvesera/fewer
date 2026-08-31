@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -312,9 +313,10 @@ export function BugReportDialog() {
       open={open}
       onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
     >
-      <DialogContent className="sm:max-w-2xl w-full">
+      <DialogContent dialogTitle="Report a Bug" dialogIcon={<Bug className="h-3.5 w-3.5 text-red-500" />} className="sm:max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-balance">
+            <DialogDragHandle />
             <Bug className="h-4 w-4 text-red-500" />
             Report a Bug
           </DialogTitle>

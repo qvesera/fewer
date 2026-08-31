@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -89,9 +90,9 @@ export function ParentPickerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="Move" className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Move {ids.length} items to folder</DialogTitle>
+          <DialogTitle className="flex items-center gap-1.5"><DialogDragHandle />Move {ids.length} items to folder</DialogTitle>
           <DialogDescription>
             Pick a target folder. Items keep their sub-items; undo reverts the whole move.
           </DialogDescription>

@@ -371,7 +371,6 @@ function FolderContextMenu({
                       useGraphStore.getState().showSubtrees(toShow);
                       toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
-                    useGraphStore.getState().setZoomToNodeIds(childIds);
                   }}
                   className="cursor-pointer"
                 >

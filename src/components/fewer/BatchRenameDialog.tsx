@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -94,9 +95,9 @@ export function BatchRenameDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="Rename" className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rename {ids.length} items</DialogTitle>
+          <DialogTitle className="flex items-center gap-1.5"><DialogDragHandle />Rename {ids.length} items</DialogTitle>
           <DialogDescription>
             Applies to item names. Find &amp; replace also matches file extensions.
           </DialogDescription>

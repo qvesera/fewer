@@ -15,6 +15,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -215,11 +216,13 @@ export function ImportFlowDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        dialogTitle="Import"
         onKeyDown={handleStepKeyDown}
         className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md"
       >
         <DialogHeader className="border-b border-border/20 pb-3">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
+            <DialogDragHandle />
             <OriginIcon className="h-5 w-5 text-muted-foreground/80" />
             Import {step === 1 ? "" : `· ${ORIGIN_META[origin].label}`}
           </DialogTitle>

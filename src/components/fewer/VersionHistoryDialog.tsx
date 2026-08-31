@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -100,10 +101,13 @@ export function VersionHistoryDialog({
   };
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="History" dialogIcon={<History className="h-3.5 w-3.5 text-amber-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <History className="h-4 w-4 text-amber-500" />
+            <DialogDragHandle />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              <History className="h-4 w-4" />
+            </div>
             History — &quot;{graph.name}&quot;
           </DialogTitle>
           <DialogDescription>

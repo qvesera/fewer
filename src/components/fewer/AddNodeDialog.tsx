@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -136,10 +137,11 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     <>
       <style>{shakeStyle}</style>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent dialogTitle="Add Node" className="sm:max-w-md">
           <div ref={contentRef} style={shake ? { animation: "dialog-shake 0.5s ease-in-out" } : undefined}>
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-1.5">
+              <DialogDragHandle />
               {mode === "child" ? "Add child node" : "Add node"}
             </DialogTitle>
             <DialogDescription>

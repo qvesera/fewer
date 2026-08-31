@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogDragHandle,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -148,9 +149,10 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent dialogTitle="Account" className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            <DialogDragHandle />
             {mode === "signin" ? <LogIn className="h-4 w-4 text-primary" /> : mode === "signup" ? <UserPlus className="h-4 w-4 text-primary" /> : <KeyRound className="h-4 w-4 text-primary" />}
             {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Reset password"}
           </DialogTitle>
