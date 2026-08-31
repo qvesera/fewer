@@ -2,6 +2,7 @@ export { AddNodeDialog } from "./AddNodeDialog";
 export { BatchRenameDialog } from "./BatchRenameDialog";
 export { ParentPickerDialog } from "./ParentPickerDialog";
 export { BreadcrumbBar } from "./BreadcrumbBar";
+export { DocsSearch } from "./DocsSearch";
 export { BugReportDialog } from "./BugReportDialog";
 export { draggedFolderHandle, CustomNode, RenameInput } from "./CustomNode";
 export { CustomMiniMap } from "./CustomMiniMap";

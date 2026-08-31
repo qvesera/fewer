@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch rename: `*` wildcard in Find matches anything; `*` in Replace keeps the matched part, so you can rename without retyping names (e.g. Find `*` → Replace `Photo *`)
 - Dialogs (settings, import, save/share graph, tutorial, shortcuts, auth, and others) are now draggable via a grip handle in the title area; dialog stays clamped to the viewport
 - Any dialog can be minimized to a dock pill (drag to snap to screen edges, click to restore); added minimize button next to close in every dialog and the theme editor
+- Search bar for docs page to filter documentation by title and description
 
 ## [0.6.0] - 23rd August 2026
 

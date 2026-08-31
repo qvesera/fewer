@@ -208,8 +208,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       const idSet = new Set(ids);
       const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
       return changed
-        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) }
-        : { selectedNodeIds: ids };
+        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
+        : { selectedNodeIds: ids, graphVersion: s.graphVersion + 1 };
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),

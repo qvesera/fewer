@@ -224,8 +224,7 @@ export function ImportFlowDialog({
             Import {step === 1 ? "" : `· ${ORIGIN_META[origin].label}`}
           </DialogTitle>
           <DialogDescription className="mt-1 text-xs font-normal leading-normal text-muted-foreground">
-            fewer does not store or upload any data. All data is processed
-            locally.
+            fewer does not store or upload any data. All data is processed locally, in browser.
           </DialogDescription>
 
           {/* Stepper: exactly 3 steps for every origin */}
@@ -435,7 +434,7 @@ export function ImportFlowDialog({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {importing ? "Importing..." : "Import"}
+                {importing ? "Importing..." : "Browse"}
               </Button>
             </>
           )}
