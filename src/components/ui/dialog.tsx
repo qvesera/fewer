@@ -140,32 +140,63 @@ function getCanvasBounds() {
 }
 
 // ---- Dock-pill slot registry -----------------------------------------------
-// Minimized pills would otherwise all stack at the same bottom-center point.
-// Each pill claims a staggered slot along the bottom edge on mount and frees
-// it on unmount (restore), so N minimized dialogs tile left-to-right without
-// overlapping. Reclaims the lowest freed index first to keep slots compact.
+// Pills would otherwise stack on top of each other. Each pill claims a slot
+// along its edge; slots tile with a step >= the max pill size so two pills can
+// never overlap. On drop we resolve to the nearest *free* slot (searching
+// outward from the drop point), so even manual drags can’t produce overlap.
+// Pills on different edges can’t collide, so occupancy is tracked per edge.
 const PAD = 12
-const PILL_W = 96
-const GAP = 8
-const occupied = new Set<number>()
-const freed: number[] = []
-let nextSlot = 0
+const H_STEP = 130 // tile step along horizontal edges (bottom/top)
+const V_STEP = 170 // tile step along vertical edges (left/right)
 
-function claimSlot(): number {
-  if (freed.length) return freed.sort((a, b) => a - b).shift()!
-  const i = nextSlot
-  nextSlot += 1
-  occupied.add(i)
-  return i
+const edgeSlots: Record<DockEdge, Set<number>> = {
+  top: new Set(),
+  bottom: new Set(),
+  left: new Set(),
+  right: new Set(),
+}
+const pillSlot = new Map<number, { edge: DockEdge; index: number }>()
+let nextPillId = 0
+
+function slotIndexForEdge(edge: DockEdge, x: number, y: number): number {
+  const raw = edge === "top" || edge === "bottom"
+    ? Math.round((x - PAD) / H_STEP)
+    : Math.round((y - PAD) / V_STEP)
+  return Math.max(0, raw)
 }
 
-function freeSlot(i: number) {
-  occupied.delete(i)
-  freed.push(i)
+function slotPositionForEdge(
+  edge: DockEdge,
+  index: number,
+  b: ReturnType<typeof getCanvasBounds>,
+): { x: number; y: number } {
+  if (edge === "bottom") return { x: PAD + index * H_STEP, y: b.height - PAD - 30 }
+  if (edge === "top") return { x: PAD + index * H_STEP, y: PAD }
+  if (edge === "left") return { x: PAD, y: PAD + index * V_STEP }
+  return { x: b.width - PAD - 26, y: PAD + index * V_STEP }
 }
 
-function slotPosition(index: number, b: ReturnType<typeof getCanvasBounds>) {
-  return { x: PAD + index * (PILL_W + GAP), y: b.height - PAD - 30 }
+function claimEdgeSlot(edge: DockEdge, preferred: number): number {
+  const taken = edgeSlots[edge]
+  if (!taken.has(preferred)) {
+    taken.add(preferred)
+    return preferred
+  }
+  for (let d = 1; d < 200; d++) {
+    if (preferred - d >= 0 && !taken.has(preferred - d)) {
+      taken.add(preferred - d)
+      return preferred - d
+    }
+    if (!taken.has(preferred + d)) {
+      taken.add(preferred + d)
+      return preferred + d
+    }
+  }
+  return preferred
+}
+
+function freeEdgeSlot(edge: DockEdge, index: number) {
+  edgeSlots[edge]?.delete(index)
 }
 
 /** Small docked pill shown when a dialog is minimized. Draggable, snaps to
@@ -186,18 +217,22 @@ function MinimizedDialogPill({
   const startRef = React.useRef({ x: 0, y: 0, posX: 0, posY: 0 })
   const posRef = React.useRef({ x: 0, y: 0 })
 
-  const slotRef = React.useRef<number | null>(null)
+  const pillId = React.useRef<number | null>(null)
+  if (pillId.current === null) pillId.current = nextPillId++
+  const slotRef = React.useRef<{ edge: DockEdge; index: number } | null>(null)
 
   React.useEffect(() => {
     const b = getCanvasBounds()
-    const slot = claimSlot()
-    slotRef.current = slot
-    const pos = slotPosition(slot, b)
+    const edge: DockEdge = "bottom"
+    const index = claimEdgeSlot(edge, 0)
+    slotRef.current = { edge, index }
+    const pos = slotPositionForEdge(edge, index, b)
     posRef.current = pos
     setDockPosition(pos)
-    setDockEdge("bottom")
+    setDockEdge(edge)
     return () => {
-      if (slotRef.current != null) freeSlot(slotRef.current)
+      const s = slotRef.current
+      if (s) freeEdgeSlot(s.edge, s.index)
     }
   }, [])
 
@@ -230,9 +265,18 @@ function MinimizedDialogPill({
         onRestore()
         return
       }
-      const snapped = snapDockPosition(posRef.current.x, posRef.current.y, getCanvasBounds())
-      posRef.current = snapped
-      setDockPosition({ x: snapped.x, y: snapped.y })
+      const b = getCanvasBounds()
+      const snapped = snapDockPosition(posRef.current.x, posRef.current.y, b)
+      // Free the old slot, then claim the nearest free slot along the edge
+      // we dropped onto so two pills can never occupy the same position.
+      const prev = slotRef.current
+      if (prev) freeEdgeSlot(prev.edge, prev.index)
+      const preferred = slotIndexForEdge(snapped.edge, snapped.x, snapped.y)
+      const index = claimEdgeSlot(snapped.edge, preferred)
+      slotRef.current = { edge: snapped.edge, index }
+      const pos = slotPositionForEdge(snapped.edge, index, b)
+      posRef.current = pos
+      setDockPosition(pos)
       setDockEdge(snapped.edge)
     }
     window.addEventListener("pointermove", onMove)
