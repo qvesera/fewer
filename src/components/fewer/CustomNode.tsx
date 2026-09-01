@@ -29,7 +29,7 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
-import { openFolderInExplorer } from "@/lib/fewer/fileOps";
+import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
@@ -466,12 +466,33 @@ function FolderContextMenu({
             </ContextMenuItem>
             {dataSource === "directory" && (
               <ContextMenuItem
-                onSelect={() =>
-                  toast({
-                    title: "Refreshed from disk",
-                    description: `${nodeLabel} re-scanned`,
-                  })
-                }
+                onSelect={async () => {
+                  const result = await refreshFolderFromDisk(nodeId);
+                  if (result.status === "ok") {
+                    toast({
+                      title: "Refreshed from disk",
+                      description: `${nodeLabel}: +${result.added} / -${result.removed}`,
+                    });
+                  } else if (result.status === "no-handle") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "No disk connection for this folder (re-scan only works in the session that imported it).",
+                      variant: "destructive",
+                    });
+                  } else if (result.status === "not-found") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "Folder not found in graph.",
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Refresh failed",
+                      description: result.error ?? "Unknown error",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 className="cursor-pointer"
               >
                 Refresh from Disk

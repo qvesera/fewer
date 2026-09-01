@@ -5,7 +5,7 @@ import type { FewerNode, FewerEdge, HistoryOp, FileCategory } from "@/lib/fewer/
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
 
 /** Full display name for a node: label.ext for files, label for folders. */
@@ -296,6 +296,7 @@ export type GraphSliceCreator = StateCreator<
     moveNode: (id: string) => void;
     _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
     deleteNodes: (ids: string[]) => void;
+    applyFolderRefresh: (nodeId: string, childNodes: FewerNode[], childEdges: FewerEdge[]) => { added: number; removed: number };
     renameNode: (id: string, newLabel: string) => boolean;
     duplicateNode: (id: string) => void;
     connectNodes: (connection: { source: string; target: string }) => { ok: boolean; reason?: string };
@@ -413,6 +414,70 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes, searchQuery, categoryFilter, graphVersion } = get();
     set({ nodes: applySearchInternal(nodes, searchQuery, categoryFilter), graphVersion: graphVersion + 1 });
   },
+
+  applyFolderRefresh: (nodeId, childNodes, childEdges) => {
+    const {
+      nodes, edges, searchQuery, categoryFilter, hiddenIds,
+      revealedRootIds, autoHideThreshold, maxDisplayDepth,
+      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, graphVersion, showFiles,
+    } = get();
+    const folderNode = nodes.find((n) => n.id === nodeId);
+    if (!folderNode || folderNode.data.type !== "folder") return { added: 0, removed: 0 };
+
+    // Old descendants of this folder (folder itself is preserved).
+    const oldIds = new Set(getDescendants(nodeId, edges));
+    const oldNodes = nodes.filter((n) => oldIds.has(n.id));
+    const oldEdges = edges.filter((e) => oldIds.has(e.source) && oldIds.has(e.target));
+
+    // Lay the refreshed subtree out around the folder's current position.
+    const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(edgeStyle) }));
+    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale });
+    const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
+    const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
+    const newChildNodes = laid.slice(1).map((n) => ({
+      ...n,
+      position: { x: (n.position.x ?? 0) + dx, y: (n.position.y ?? 0) + dy },
+      style: { width: nodeWidth, height: n.data.type === "folder" ? nodeHeight : undefined, minHeight: undefined },
+    }));
+
+    // Clear stale fs handles for removed descendants.
+    for (const id of oldIds) fsHandleStore.delete(id);
+
+    // Recompute hidden ids over the full graph, preserving manual hides outside the subtree.
+    const finalNodes = [...nodes.filter((n) => n.id !== nodeId && !oldIds.has(n.id)), folderNode, ...newChildNodes];
+    const finalEdges = [...edges.filter((e) => !oldIds.has(e.source) && !oldIds.has(e.target)), ...subtreeEdges];
+    const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, autoHideThreshold, new Set(revealedRootIds as string[]));
+    const depthIds = computeDisplayDepthHiddenIds(finalNodes, maxDisplayDepth);
+    const catHiddenIds = categoryHiddenNodeIds(finalNodes, categoryFilter);
+    let idsToHide: string[] = [...(hiddenIds as string[]).filter((h) => !oldIds.has(h))];
+    if (!showFiles) idsToHide = [...new Set([...idsToHide, ...finalNodes.filter((n) => n.data.type === "file").map((n) => n.id)])];
+    idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...depthIds, ...catHiddenIds])];
+
+    const before = captureViewState(get());
+    set({
+      nodes: applySearchInternal(finalNodes, searchQuery, categoryFilter),
+      edges: sortEdges(finalEdges, finalNodes),
+      hiddenIds: idsToHide,
+      categoryHiddenIds: catHiddenIds,
+      autoHiddenIds: autoHideIds,
+      graphVersion: graphVersion + 1,
+    });
+    const after = captureViewState(get());
+
+    get().pushOp({
+      type: "refresh-subtree",
+      nodeId,
+      oldNodes,
+      oldEdges,
+      newNodes: newChildNodes,
+      newEdges: subtreeEdges,
+      before,
+      after,
+    });
+    return { added: newChildNodes.length, removed: oldNodes.length };
+  },
+
+
 
   setClipboard: (mode, nodeIds) => {
     const { nodes, edges } = get();
