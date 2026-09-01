@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shift+drag box selection no longer makes hidden nodes reappear on the canvas (selection re-assert now maps only visible canvas nodes)
 - Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
 - Loading a saved or shared graph no longer overwrites your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) — settings follow your account, not the graph. Saved-graph payloads are now graph-only; layout direction was removed from them.
+- Keyboard shortcut toasts (Deleted, Pasted, Duplicated, Graph relayouted, Cards parented) no longer fire when the shortcut performs no action — they only fire when the underlying store action actually mutates the graph
 
 ### Added
 

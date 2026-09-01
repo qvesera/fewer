@@ -230,6 +230,7 @@ function FolderContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  const hasChildren = edges.some((e) => e.source === nodeId);
   // When the right-clicked node is part of a multi-node selection (shift-drag,
   // Select Children, …), the menu shows ONLY batch actions.
   const isBatchSelection = useGraphStore(
@@ -306,24 +307,22 @@ function FolderContextMenu({
             Paste
           </ContextMenuItem>
         )}
-        <ContextMenuItem
-          onSelect={() => {
-            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-            if (childIds.length > 0) {
+        {hasChildren && (
+          <ContextMenuItem
+            onSelect={() => {
+              const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
               useGraphStore.setState((s) => ({
                 selectedNodeIds: childIds,
                 nodes: s.nodes.map((n) => ({ ...n, selected: childIds.includes(n.id) })),
                 graphVersion: s.graphVersion + 1,
               }));
               toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
-            } else {
-              toast({ title: "No children", description: "This folder has no children" });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Select Children
-        </ContextMenuItem>
+            }}
+            className="cursor-pointer"
+          >
+            Select Children
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         {hasParent && (
           <ContextMenuItem
@@ -793,10 +792,12 @@ function ChildEntry({ child }: { child: FewerNode }) {
         isHidden && "opacity-50 saturate-50",
       )}
       title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
-      onDoubleClick={() => {
+      onDoubleClick={(e) => {
         // Double-clicking a hidden child reveals it (and zooms to it); the
         // visible children keep zooming into the node as before.
+        e.stopPropagation();
         if (hiddenIds.includes(child.id)) showNode(child.id);
+        useGraphStore.getState().setSelectedNodeIds([child.id]);
         setZoomToNode(child.id);
       }}
     >

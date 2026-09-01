@@ -149,7 +149,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           ? FEWER_ADD_NODE : FEWER_ADD_NODE_STANDALONE)); } },
     // Alt+R — re-layout
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
-      handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); ctx.toast({ title:"Graph relayouted" }); } },
+            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph relayouted" }); } },
     // Alt+F — zoom to selection
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();
@@ -176,7 +176,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
       handle(e,ctx,_kc) { e.preventDefault(); const ids=ctx.getState().selectedNodeIds;
         if(ids.length>=2){const last=ctx.getState().nodes.find((n)=>n.id===ids[ids.length-1]);if(last?.data.type==="folder"){
           let ok=0,fail=0;for(const c of ids.slice(0,-1)){if(ctx.connectNodes({source:ids[ids.length-1],target:c}).ok)ok++;else fail++;}
-          ctx.toast({title:"Cards parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
+                    if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
     // Alt+Shift+P — unparent
     { test(_e,_ctx,kc) { return kc.alt&&kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;
@@ -202,15 +202,16 @@ export function buildKeyboardRules(): ShortcutRule[] {
         ctx.toast({title:"Cut",description:`${pluralizeCount(ids.length,"item")} cut: paste to place`});}},
 // Ctrl/Cmd+V — paste
     { test(_e,_ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="v"&&!kc.inEditable; },
-      handle(e,ctx,_kc) {const st=ctx.getState();if(st.clipboard&&st.clipboard.nodeIds.length>0){e.preventDefault();
+            handle(e,ctx,_kc) {const st=ctx.getState();const cb=st.clipboard;if(cb&&cb.nodeIds.length>0){const valid=cb.nodeIds.filter((id)=>st.nodes.some((n)=>n.id===id)).length;if(valid===0)return;e.preventDefault();
         const sf=st.selectedNodeIds.length===1?st.nodes.find((n)=>n.id===st.selectedNodeIds[0]&&n.data.type==="folder")?.id:undefined;
-        ctx.pasteFromClipboard(sf);ctx.toast({title:"Pasted",description:`${pluralizeCount(st.clipboard.nodeIds.length,"item")} pasted${sf?" into folder":" as standalone"}`});
-        if(st.clipboard.mode==="cut")ctx.clearClipboard();}}},
+        ctx.pasteFromClipboard(sf);ctx.toast({title:"Pasted",description:`${pluralizeCount(valid,"item")} pasted${sf?" into folder":" as standalone"}`});
+        if(cb.mode==="cut")ctx.clearClipboard();}}},
     // Ctrl/Cmd+D — duplicate
-    { test(_e,ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="d"&&!kc.inEditable&&ctx.getState().selectedNodeIds.length>0; },
-      handle(e,ctx,_kc) {e.preventDefault();const ids=ctx.getState().selectedNodeIds;
+        { test(_e,ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="d"&&!kc.inEditable&&ctx.getState().selectedNodeIds.length>0; },
+      handle(e,ctx,_kc) {e.preventDefault();const ids=ctx.getState().selectedNodeIds;const valid=ids.filter((id)=>ctx.getState().nodes.some((n)=>n.id===id));
         for(const id of ids)ctx.duplicateNodeUnderParent(id);
-        ctx.toast({title:"Duplicated",description:`${pluralizeCount(ids.length,"item")} duplicated under same parent`});}},
+                if(valid.length>0)ctx.toast({title:"Duplicated",description:`${pluralizeCount(valid.length,"item")} duplicated under same parent`});}},
+
     // ── In-editable guard (no-op) ──
     {
       test(_e, _ctx, kc) { return kc.inEditable; },
@@ -286,10 +287,11 @@ export function buildKeyboardRules(): ShortcutRule[] {
     // Delete / Backspace
     {
       test(_e, _ctx, kc) { return (_e.key === "Delete" || _e.key === "Backspace") && !kc.mod && !kc.alt; },
-      handle(e, ctx, _kc) {
-        e.preventDefault();
+            handle(e, ctx, _kc) {
         const st = ctx.getState();
         const rfEdges = ctx.reactFlow.getEdges().filter((ed) => ed.selected).map((ed) => ed.id);
+        if (rfEdges.length === 0 && st.selectedNodeIds.length === 0) return;
+        e.preventDefault();
         if (rfEdges.length > 0) ctx.deleteEdges(rfEdges);
         if (st.selectedNodeIds.length > 0) ctx.deleteNodes(st.selectedNodeIds);
         const parts: string[] = [];

@@ -121,6 +121,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
   const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
+  // Protect double-click selection from being cleared by the subsequent onSelectionChange.
+  const doubleClickedIdRef = useRef<string | null>(null);
   const handleEdgesChange = useCallback(
     (changes: import("@xyflow/react").EdgeChange<FewerEdge>[]) => {
       for (const c of changes) {
@@ -178,6 +180,12 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const onSelectionChange = useCallback(
     ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
             const selectedIds = new Set(selected.map((n) => n.id));
+      // If a double-click just selected a node, ensure it stays selected
+      // even if RF's onSelectionChange reports a stale/empty selection.
+      if (doubleClickedIdRef.current) {
+        selectedIds.add(doubleClickedIdRef.current);
+        doubleClickedIdRef.current = null;
+      }
       // Sync the live edge-selection ref from RF's authoritative full-selection
       // snapshot so the upcoming rebuild (and any later one) preserves it.
       selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
@@ -270,7 +278,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
-          useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
+          doubleClickedIdRef.current = node.id;
+          useGraphStore.getState().setSelectedNodeIds([node.id]);
           requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
