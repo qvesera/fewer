@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hide the Export Selected option for non-image exports when only a single file node is selected (PNG/SVG image exports of a single file still keep the option)
 - Exported images no longer include the selection ring around selected nodes — selection is a canvas-only affordance
 - PNG and SVG exports now carry a fewer logo watermark badge (inline vector mark + wordmark, linked to the homepage) instead of the plain text credit line
-- Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts and handles missing handles gracefully
+- Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts. Falls back to a local-path re-walk via the dev server when no File System Access handle exists (drag-imports delivered as a path, Flatpak/Snap portalized drops, subfolders)
 
 ### Fixed
 

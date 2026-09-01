@@ -476,7 +476,7 @@ function FolderContextMenu({
                   } else if (result.status === "no-handle") {
                     toast({
                       title: "Cannot refresh",
-                      description: "No disk connection for this folder (re-scan only works in the session that imported it).",
+                      description: "No disk handle and no resolvable local path for this folder (import it from this machine to enable re-scan).",
                       variant: "destructive",
                     });
                   } else if (result.status === "not-found") {

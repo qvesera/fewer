@@ -1,6 +1,7 @@
 "use client";
 
 import { fsHandleStore } from "./types";
+import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 import { useGraphStore } from "@/store/graphStore";
 import { isLocalClient } from "./isLocalClient";
 
@@ -542,48 +543,74 @@ export async function expandFolderNode(
 
 /**
  * Re-scan a folder's children from disk and replace its subtree in the graph.
- * Honors the same in-memory fsHandleStore used at import time — works only while
- * the browser session that imported the folder is alive (handles don't survive
- * page reload). Returns added/removed counts and a status code.
+ *
+ * Two re-scan channels, tried in order:
+ *  1. File System Access handle (fsHandleStore) — only for folders imported via
+ *     showDirectoryPicker in this browser session. Lost on page reload.
+ *  2. Local-path walk via /api/list-directory — works for any folder whose
+ *     absolute path the dev server can resolve (drag-imports delivered as a
+ *     path, Flatpak/Snap portalized drops, subfolders). Requires the graph to
+ *     have a resolvable localRootPath.
+ *
+ * Returns added/removed counts and a status code.
  */
 export async function refreshFolderFromDisk(
   nodeId: string,
 ): Promise<{ added: number; removed: number; status: "ok" | "no-handle" | "not-found" | "error"; error?: string }> {
   try {
-    const handle = fsHandleStore.get(nodeId);
-    if (!handle || handle.kind !== "directory") {
-      return { added: 0, removed: 0, status: "no-handle" };
-    }
     const store = useGraphStore.getState();
     const folderNode = store.nodes.find((n) => n.id === nodeId);
     if (!folderNode || folderNode.data.type !== "folder") {
       return { added: 0, removed: 0, status: "not-found" };
     }
 
-    const { treeToGraph } = await import("./treeToGraph");
-    const { buildTreeFromHandle } = await import("./fileSystem");
+    const { treeToGraph, rekeyTreeChildren } = await import("./treeToGraph");
     const { DEFAULT_IMPORT_OPTIONS } = await import("./importOptions");
-
     const importOpts = { ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 };
-    const dirHandle = handle as FileSystemDirectoryHandle;
-    const tree = await buildTreeFromHandle(dirHandle, 0, importOpts);
-    tree.name = folderNode.data.label;
-    tree.fsHandle = dirHandle;
-    const { nodes: rawNodes, edges: rawEdges } = treeToGraph(tree, { idPrefix: "refresh" });
 
-    // rawNodes[0] is the folder itself (a duplicate of the existing node) —
-    // drop it and re-parent its child edges to the existing folder id.
-    const rootOldId = rawNodes[0].id;
-    const childNodes = rawNodes.slice(1).map((n) => ({
-      ...n,
-      data: { ...n.data, depth: (n.data.depth ?? 0) + (folderNode.data.depth ?? 0) },
-    }));
-    const childEdges = rawEdges.map((e) => ({
-      ...e,
-      source: e.source === rootOldId ? nodeId : e.source,
-      id: `e-${e.source === rootOldId ? nodeId : e.source}-${e.target}`,
-    }));
+    // Channel 1: live File System Access handle.
+    const handle = fsHandleStore.get(nodeId);
+    let rawNodes: FewerNode[];
+    let rawEdges: FewerEdge[];
+    if (handle && handle.kind === "directory") {
+      const { buildTreeFromHandle } = await import("./fileSystem");
+      const dirHandle = handle as FileSystemDirectoryHandle;
+      const tree = await buildTreeFromHandle(dirHandle, 0, importOpts);
+      tree.name = folderNode.data.label;
+      tree.fsHandle = dirHandle;
+      ({ nodes: rawNodes, edges: rawEdges } = treeToGraph(tree, { idPrefix: "refresh" }));
+    } else {
+      // Channel 2: resolve the folder's absolute path and re-walk via the
+      // local dev server (same walker the initial drag-import used).
+      const rootNode = store.nodes.find((n) => n.data.isRoot && n.data.type === "folder");
+      const absPath = nodeAbsolutePath(folderNode.data.path, rootNode?.data.path, store.localRootPath);
+      if (!absPath) {
+        return { added: 0, removed: 0, status: "no-handle" };
+      }
+      const res = await fetch("/api/list-directory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: absPath, options: importOpts }),
+      });
+      const json = await res.json().catch(() => null) as { tree?: TreeEntry | null; error?: string } | null;
+      if (!res.ok || !json?.tree) {
+        return {
+          added: 0,
+          removed: 0,
+          status: "error",
+          error: json?.error ?? `Server returned ${res.status}`,
+        };
+      }
+      json.tree.name = folderNode.data.label;
+      ({ nodes: rawNodes, edges: rawEdges } = treeToGraph(json.tree, { idPrefix: "refresh" }));
+    }
 
+    const { childNodes, childEdges } = rekeyTreeChildren(
+      rawNodes,
+      rawEdges,
+      nodeId,
+      folderNode.data.depth ?? 0,
+    );
     const result = store.applyFolderRefresh(nodeId, childNodes, childEdges);
     return { added: result.added, removed: result.removed, status: "ok" };
   } catch (err) {
