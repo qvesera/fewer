@@ -356,7 +356,11 @@ function AccountTab() {
               </Button>
             ) : (
               <span className="text-[11px] text-muted-foreground/70">
-                Plans are managed by the administrator.
+                {plan === "team"
+                  ? "Team is managed by your organization administrator."
+                  : plan === "pro"
+                    ? "Pro was granted by your administrator."
+                    : "Upgrades are granted by your administrator — see /docs/plans."}
               </span>
             )}
           </div>
