@@ -391,7 +391,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
       {/* Save dialog */}
       <Dialog open={savingOpen} onOpenChange={setSavingOpen}>
-        <DialogContent dialogTitle="Save" dialogIcon={<Save className="h-3.5 w-3.5 text-primary" />} className="sm:max-w-sm">
+        <DialogContent dialogTitle="Save" dialogIcon={<Save className="h-3.5 w-3.5" />} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
                 <Save className="h-4 w-4 text-primary" />
