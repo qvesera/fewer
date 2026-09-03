@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FREE_LIMITS, PRO_LIMITS, TEAM_LIMITS, GUEST_LIMITS, limitsFor, overLimit } from "./plans";
+import { FREE_LIMITS, PRO_LIMITS, TEAM_LIMITS, GUEST_LIMITS, limitsFor, overLimit, formatUsage } from "./plans";
 
 describe("plans", () => {
   test("unknown or missing plans fall back to free limits", () => {
@@ -48,5 +48,14 @@ describe("plans", () => {
     expect(PRO_LIMITS.watchedIndexes).toBe(10);
     expect(overLimit(PRO_LIMITS.watchedIndexes, PRO_LIMITS.watchedIndexes)).toBe(true);
     expect(overLimit(PRO_LIMITS.watchedIndexes - 1, PRO_LIMITS.watchedIndexes)).toBe(false);
+  });
+});
+
+describe("formatUsage", () => {
+  test("renders capped, unlimited, and failed-count labels", () => {
+    expect(formatUsage(2, 3)).toBe("2 of 3");
+    expect(formatUsage(12, 10)).toBe("12 of 10");
+    expect(formatUsage(-1, 3)).toBe("—");
+    expect(formatUsage(40, Infinity)).toBe("Unlimited");
   });
 });

@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pro subscription now billed in EUR (€7/mo); currency switch is a single env var (STRIPE_PRO_PRICE_ID) per deployment
 - Payment gateway (Stripe) is now behind a BILLING_ENABLED / NEXT_PUBLIC_BILLING_ENABLED feature flag that is OFF by default: /api/billing/* return 503 and the app hides all upgrade/checkout UI, showing 'managed by the administrator' instead. Account plans are assigned directly in the database (profiles.plan) with operator SQL documented on /docs/plans.
 - Plan metering rebalanced to the new tiers: free accounts get 3 saved graphs and an automatic 30-day version history (previously 5 saved graphs, no history), Pro keeps 1 year of history and 10 watched indexes, cloud-saved custom themes are now Pro-only, guests always export with the fewer watermark (branding toggle is signed-in only), and DB short links for large share payloads are Pro-only.
+- Settings → Account now shows the account status: a colored Free/Pro/Team plan badge, live usage meters (saved graphs and watched indexes against the plan's limits, red fill when over cap), the version-history retention window, email verification state, and member-since date. /api/profile now also returns current saved-graph and watched-index counts.
 
 ### Security
 

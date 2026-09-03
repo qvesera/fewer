@@ -105,3 +105,13 @@ export async function countOwned(
 export function overLimit(count: number, limit: number): boolean {
   return count >= 0 && count >= limit;
 }
+
+/**
+ * "2 of 3"-style label for the Account-status meters. `count === -1` (counting
+ * failed) renders a dash; an unlimited cap renders "Unlimited".
+ */
+export function formatUsage(count: number, cap: number): string {
+  if (count === -1) return "—";
+  if (cap === Infinity) return "Unlimited";
+  return `${count} of ${cap}`;
+}
