@@ -42,6 +42,8 @@ export function VersionHistoryDialog({
 }) {
   const { toast } = useToast();
   const { loading: upgrading, startCheckout } = useBilling();
+const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
+
   const [versions, setVersions] = useState<GraphVersionMeta[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [proLocked, setProLocked] = useState(false);
@@ -134,20 +136,26 @@ export function VersionHistoryDialog({
         <div className="max-h-80 overflow-y-auto space-y-1.5">
           {proLocked ? (
             <div className="px-1 py-2 space-y-1">
-              <p className="text-[11px] text-foreground/90 font-medium">Version history is a Pro feature.</p>
+              <p className="text-[11px] text-foreground/90 font-medium">Version history is not enabled on this plan.</p>
               <p className="text-[11px] text-muted-foreground/70">
-                Pro keeps an automatic snapshot every time you save a graph, so you can restore any past version.
-                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> for details.
+                Free keeps an automatic snapshot of every save for 30 days; Pro and Team keep a full year.
+                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> for the tier table.
               </p>
-              <Button
-                size="sm"
-                onClick={handleUpgrade}
-                disabled={upgrading}
-                className="mt-1.5 gap-1 cursor-pointer"
-              >
-                {upgrading && <Loader2 className="h-3 w-3 animate-spin" />}
-                Upgrade to Pro
-              </Button>
+              {BILLING_UI ? (
+                <Button
+                  size="sm"
+                  onClick={handleUpgrade}
+                  disabled={upgrading}
+                  className="mt-1.5 gap-1 cursor-pointer"
+                >
+                  {upgrading && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Upgrade to Pro
+                </Button>
+              ) : (
+                <p className="text-[11px] text-muted-foreground/70">
+                  Plans are managed by the administrator — contact them to enable history.
+                </p>
+              )}
             </div>
           ) : error ? (
             <p className="px-1 py-2 text-[11px] text-muted-foreground/70">{error}</p>

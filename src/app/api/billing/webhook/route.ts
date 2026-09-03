@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { getStripe, getServiceSupabase } from "@/lib/fewer/billing";
+import { getStripe, getServiceSupabase, billingDisabled, billingEnabled } from "@/lib/fewer/billing";
 
 /**
  * POST /api/billing/webhook
@@ -18,6 +18,7 @@ import { getStripe, getServiceSupabase } from "@/lib/fewer/billing";
 const PRO_STATUSES = new Set<Stripe.Subscription.Status>(["active", "trialing", "past_due"]);
 
 export async function POST(request: Request) {
+  if (!billingEnabled()) return billingDisabled();
   const stripe = getStripe();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   const service = getServiceSupabase();

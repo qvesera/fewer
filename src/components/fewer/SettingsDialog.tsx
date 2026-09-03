@@ -81,10 +81,11 @@ function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const { loading: billingBusy, startCheckout, openPortal } = useBilling();
+  const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [plan, setPlan] = useState<"free" | "pro">("free");
+  const [plan, setPlan] = useState<"free" | "pro" | "team">("free");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -94,6 +95,10 @@ function AccountTab() {
     last_name: "",
     username: "",
   });
+  // Derived after the state declarations: plan is a hook state above.
+  const billingEnabledUi = BILLING_UI;
+  const planLabel =
+    plan === "pro" ? "Pro plan" : plan === "team" ? "Team plan" : "Free plan";
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
@@ -119,7 +124,7 @@ function AccountTab() {
           setFirstName(first_name);
           setLastName(last_name);
           setUsername(username);
-          setPlan(p.plan === "pro" || p.plan === "team" ? "pro" : "free");
+          setPlan(p.plan === "pro" || p.plan === "team" ? (p.plan as "pro" | "team") : "free");
           setSavedProfile({ first_name, last_name, username });
         }
       } catch {
@@ -315,25 +320,31 @@ function AccountTab() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">
-                {plan === "pro" ? "Pro — €7/month" : "Free plan"}
+                {planLabel}
               </span>
               <span className="text-[11px] text-muted-foreground/70">
-                {plan === "pro"
+                {billingEnabledUi && plan !== "free"
                   ? "Update card, view invoices, or cancel anytime"
-                  : "5 saved graphs, 3 watched indexes — Pro unlocks more"}
+                  : "3 saved graphs, 30-day history — see /docs/plans for the tier table"}
               </span>
             </div>
           </div>
-          <Button
-            variant={plan === "pro" ? "outline" : "default"}
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            disabled={billingBusy}
-            onClick={() => handleBilling(plan === "pro" ? openPortal : startCheckout)}
-          >
-            {billingBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {plan === "pro" ? "Manage subscription" : "Upgrade to Pro"}
-          </Button>
+          {billingEnabledUi ? (
+            <Button
+              variant={plan !== "free" ? "outline" : "default"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              disabled={billingBusy}
+              onClick={() => handleBilling(plan !== "free" ? openPortal : startCheckout)}
+            >
+              {billingBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {plan !== "free" ? "Manage subscription" : "Upgrade to Pro"}
+            </Button>
+          ) : (
+            <span className="text-[11px] text-muted-foreground/70">
+              Plans are managed by the administrator.
+            </span>
+          )}
         </div>
       )}
 

@@ -7,6 +7,7 @@ import { isDangerousText } from "@/lib/fewer/textValidation";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SHARE_FREE_MAX_CHARS = 200_000;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "fewer <onboarding@resend.dev>";
 const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -60,6 +61,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
     }
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "Sign in to create share links. Guests can share small graphs with the encoded link.", code: "plan_limit" },
+        { status: 403 },
+      );
+    }
+    const payloadChars = JSON.stringify(data).length;
+    const planLimits = limitsFor(await getUserPlan(supabase, user.id));
+    if (payloadChars > SHARE_FREE_MAX_CHARS && planLimits.largeShareLinks === false) {
+      return NextResponse.json(
+        { error: "This graph is too large to share on the Free plan -- short links for large payloads are Pro. See /docs/plans.", code: "plan_limit" },
+        { status: 403 },
+      );
+    }
     const access = body?.access === "invite" ? "invite" : "public";
     const invitedEmails: string[] = Array.isArray(body?.invited_emails)
       ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)

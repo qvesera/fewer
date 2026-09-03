@@ -93,9 +93,10 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
-    // Pro-only: version history is a metered feature (storage cost per save).
-    if (limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
-      await recordVersion(supabase, user.id, data.id, body.data);
+    // Retention window is per-plan (free 30 days, pro/team 1 year -- see plans.ts).
+    const updateLimits = limitsFor(await getUserPlan(supabase, user.id));
+    if (updateLimits.historyDays > 0) {
+      await recordVersion(supabase, user.id, data.id, body.data, updateLimits.historyDays);
     }
     return NextResponse.json({ graph: data });
   }
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error: `Free plan saves up to ${limits.savedGraphs} graphs. Upgrade to Pro for unlimited saves.`,
+        error: `Free plan saves up to ${limits.savedGraphs} graphs. See /docs/plans for the tier table.`,
         code: "plan_limit",
       },
       { status: 403 },
@@ -122,9 +123,10 @@ export async function POST(request: Request) {
     .select("id, name, data, created_at, updated_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  // Best-effort history snapshot; never blocks the save on failure. Pro-only.
-  if (limits.versionHistory) {
-    await recordVersion(supabase, user.id, data.id, body.data);
+  // Best-effort history snapshot; never blocks the save on failure.
+  // Retention window is per-plan (free 30 days, pro/team 1 year).
+  if (limits.historyDays > 0) {
+    await recordVersion(supabase, user.id, data.id, body.data, limits.historyDays);
   }
   return NextResponse.json({ graph: data });
 }

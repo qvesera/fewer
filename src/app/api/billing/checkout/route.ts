@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe, getProPriceId, getAppUrl, getServiceSupabase, getAuthedUser, billingNotConfigured } from "@/lib/fewer/billing";
+import { getStripe, getProPriceId, getAppUrl, getServiceSupabase, getAuthedUser, billingNotConfigured, billingEnabled, billingDisabled } from "@/lib/fewer/billing";
 
 /**
  * POST /api/billing/checkout
@@ -12,6 +12,7 @@ import { getStripe, getProPriceId, getAppUrl, getServiceSupabase, getAuthedUser,
 export async function POST() {
   const user = await getAuthedUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  if (!billingEnabled()) return billingDisabled();
 
   const stripe = getStripe();
   const price = getProPriceId();

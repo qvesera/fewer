@@ -1,8 +1,11 @@
-// Server-side Stripe billing helpers. All /api/billing/* routes are
-// env-guarded: without STRIPE_SECRET_KEY / STRIPE_PRO_PRICE_ID /
-// STRIPE_WEBHOOK_SECRET they return 503 instead of half-working.
-// profiles.plan is service-role-only (migrations 0022/0023) — the webhook
-// is the sole writer; never trust a success_url redirect.
+// Server-side Stripe billing helpers. Every /api/billing/* route first checks
+// the BILLING_ENABLED feature flag — while it is off (the default) routes
+// return 503 and no plan is ever written; account levels are assigned
+// directly in the database (profiles.plan, service-role-only — migrations
+// 0022/0023). When the flag is on, the routes additionally require
+// STRIPE_SECRET_KEY / STRIPE_PRO_PRICE_ID / STRIPE_WEBHOOK_SECRET and return
+// 503 without them instead of half-working. The webhook then syncs plan from
+// subscription status; never trust a success_url redirect.
 import "server-only";
 import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
@@ -12,6 +15,16 @@ import { cookies } from "next/headers";
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
   return key ? new Stripe(key) : null;
+}
+
+/**
+ * Master feature flag for the payment gateway. "false" (the default) keeps
+ * payments switched off: /api/billing/* return 503 and the client hides all
+ * upgrade/checkout UI. Flip to "true" (plus the Stripe env vars) to turn
+ * self-serve billing on.
+ */
+export function billingEnabled(): boolean {
+  return process.env.BILLING_ENABLED === "true";
 }
 
 export function getProPriceId(): string | null {
@@ -52,6 +65,11 @@ export async function getAuthedUser() {
   });
   const { data } = await supabase.auth.getUser();
   return data.user ?? null;
+}
+
+/** 503 body returned while the BILLING_ENABLED feature flag is switched off. */
+export function billingDisabled(): Response {
+  return Response.json({ error: "Billing is disabled on this server" }, { status: 503 });
 }
 
 /** 503 body shared by the billing routes when Stripe env vars are unset. */

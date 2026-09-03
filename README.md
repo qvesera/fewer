@@ -377,7 +377,7 @@ A: Delete the repo folder. That's it. No background processes, no config files, 
 
 **Q: Do I need an account?**
 
-A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
+A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing. See [Plans](/docs/plans) for the Guest / Free / Pro / Team tier table.
 
 ---
 

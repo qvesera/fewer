@@ -38,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
@@ -101,6 +102,11 @@ export function ExportPanel() {
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+  // Guests always export with the fewer watermark (see /docs/plans); the
+  // toggle stays functional only for signed-in users.
+  const isGuest = authLoading ? false : !user;
+  const includeBranding = isGuest || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -162,12 +168,12 @@ export function ExportPanel() {
     const edgesToExport = exportEdges;
 
     if (settings.format === "script") {
-      exportDirectoryScript(nodesToExport, edgesToExport, settings.includeBranding);
+      exportDirectoryScript(nodesToExport, edgesToExport, includeBranding);
     } else if (settings.format === "tree") {
-      exportDirectoryTree(nodesToExport, edgesToExport, settings.includeBranding);
+      exportDirectoryTree(nodesToExport, edgesToExport, includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, settings, stats, {
+      exportGraph(nodesToExport, edgesToExport, { ...settings, includeBranding }, stats, {
         selectedIds: selectedNodeIds,
         hiddenIds,
         nodeWidth,
@@ -314,12 +320,15 @@ export function ExportPanel() {
             <div className="space-y-0.5">
               <Label className="text-xs font-semibold">Include fewer branding</Label>
               <p className="text-xs text-muted-foreground">
-                Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats.
+                {isGuest
+                  ? "Signed out — exports carry the fewer watermark until you sign in."
+                  : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
               </p>
             </div>
             <Switch
-              checked={settings.includeBranding}
+              checked={includeBranding}
               onCheckedChange={(v) => setSettings({ includeBranding: v })}
+              disabled={isGuest}
             />
           </div>
 

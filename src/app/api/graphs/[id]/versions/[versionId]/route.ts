@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
+import { retentionCutoffIso } from "@/lib/fewer/versions";
 
-/** Version-history endpoints are Pro-only (per-save storage cost). */
-const planLimitResponse = () =>
+/** Version-history endpoints gate on a per-plan retention window (0 = none). */
+const planLimitResponse = (msg = "Version history requires an account.") =>
   NextResponse.json(
-    { error: "Version history is a Pro feature. Upgrade to restore past versions.", code: "plan_limit" },
+    { error: msg, code: "plan_limit" },
     { status: 403 },
   );
 
@@ -47,8 +48,8 @@ export async function GET(
   const { supabase, user } = authed;
   const { id, versionId } = await params;
 
-  // Version history is a Pro feature (per-save storage cost).
-  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (limits.historyDays === 0) {
     return planLimitResponse();
   }
 
@@ -60,6 +61,11 @@ export async function GET(
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const cutoffIso = retentionCutoffIso(limits.historyDays);
+  if (data.created_at < cutoffIso) {
+    return planLimitResponse("That version is past the plan retention window.");
+  }
 
   return NextResponse.json({ version: data });
 }
@@ -77,8 +83,8 @@ export async function DELETE(
   const { supabase, user } = authed;
   const { id, versionId } = await params;
 
-  // Version history is a Pro feature (per-save storage cost).
-  if (!limitsFor(await getUserPlan(supabase, user.id)).versionHistory) {
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (limits.historyDays === 0) {
     return planLimitResponse();
   }
 

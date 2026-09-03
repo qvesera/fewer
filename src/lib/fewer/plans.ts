@@ -1,6 +1,12 @@
 // Server-side plan entitlements. The plan lives on profiles.plan (service-role
-// only — see migration 0022) and every metered API route checks it here.
+// only — see migrations 0022/0023) and every metered API route checks it here.
 // Client-side checks would be cosmetic: the API routes are the enforcement.
+// Plans are assigned by the operator directly in the database (profiles.plan);
+// self-serve Stripe checkout exists but sits behind the BILLING_ENABLED flag.
+// "guest" is not a stored plan — it means signed out. Guests keep everything
+// local: local import, all exports (watermarked), hash sharing under 2,000
+// characters. Their limits live client-side; the server never had a session
+// to check anyway.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Plan = "free" | "pro" | "team";
@@ -10,18 +16,35 @@ export interface PlanLimits {
   savedGraphs: number;
   /** Max watched indexes (Infinity = unlimited). */
   watchedIndexes: number;
-  /** Automatic version history for saved graphs. */
-  versionHistory: boolean;
+  /** Version-history retention window in days (0 = no history). */
+  historyDays: number;
+  /** Cloud-saved custom themes (Pro+). */
+  savedThemes: boolean;
+  /** DB-backed short share links for large payloads (Pro+). */
+  largeShareLinks: boolean;
   /** Cloud storage connectors (OAuth account linking). */
   cloudConnections: boolean;
   /** Invite-only share links (public links stay free). */
   inviteSharing: boolean;
 }
 
+/** Signed-out guests. Enforced client-side + by auth (no session → no server features). */
+export const GUEST_LIMITS: PlanLimits = {
+  savedGraphs: 0,
+  watchedIndexes: 0,
+  historyDays: 0,
+  savedThemes: false,
+  largeShareLinks: false,
+  cloudConnections: false,
+  inviteSharing: false,
+};
+
 export const FREE_LIMITS: PlanLimits = {
-  savedGraphs: 5,
+  savedGraphs: 3,
   watchedIndexes: 3,
-  versionHistory: false,
+  historyDays: 30,
+  savedThemes: false,
+  largeShareLinks: false,
   cloudConnections: false,
   inviteSharing: false,
 };
@@ -31,16 +54,23 @@ export const PRO_LIMITS: PlanLimits = {
   // ponytail: 10 not Infinity — watch crawls have per-index marginal cost
   // (GH Actions minutes + digest email). Team raises this later.
   watchedIndexes: 10,
-  versionHistory: true,
+  historyDays: 365,
+  savedThemes: true,
+  largeShareLinks: true,
   cloudConnections: true,
   inviteSharing: true,
 };
 
+// Team shares pro limits for now; org workspaces, shared theme libraries and
+// admin controls are planned — see /docs/plans.
+export const TEAM_LIMITS: PlanLimits = PRO_LIMITS;
+
 export function limitsFor(plan: Plan | null | undefined): PlanLimits {
-  // team shares pro limits for now; team-specific quotas come later.
   // Fail-safe: anything unrecognized → free (the enum makes this unreachable
   // from the DB, but keeps the default restrictive).
-  return plan === "pro" || plan === "team" ? PRO_LIMITS : FREE_LIMITS;
+  if (plan === "pro") return PRO_LIMITS;
+  if (plan === "team") return TEAM_LIMITS;
+  return FREE_LIMITS;
 }
 
 /** Read the user's plan. Missing row / read error → free (fail-safe). */
