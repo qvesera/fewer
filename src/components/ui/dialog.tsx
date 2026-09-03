@@ -5,14 +5,9 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { GripHorizontal, Layers, Minus, XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useDarkBackground } from "@/hooks/use-dark-background"
 import type { DockEdge } from "@/lib/fewer/themeEditor"
 import { clampDockRaw, snapDockPosition } from "@/lib/fewer/themeEditor"
-
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
-}
 
 function DialogTrigger({
   ...props
@@ -45,6 +40,65 @@ function DialogOverlay({
       )}
       {...props}
     />
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Minimize state shared between the Dialog wrapper and its DialogContent.   */
+/*  minimize = close (open=false) + remember, so any later open transition    */
+/*  (toolbar button, pill click) is a real false->true that clears minimized. */
+/* -------------------------------------------------------------------------- */
+
+interface DialogMinimizeMeta {
+  title: string
+  icon?: React.ReactNode
+}
+
+const DialogMinimizeContext = React.createContext<{
+  minimized: boolean
+  meta: DialogMinimizeMeta
+  minimize: (meta?: DialogMinimizeMeta) => void
+  restore: () => void
+} | null>(null)
+
+function Dialog({
+  open,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const [minimized, setMinimized] = React.useState(false)
+  const [meta, setMeta] = React.useState<DialogMinimizeMeta>({ title: "Dialog" })
+
+  const minimize = React.useCallback(
+    (next?: DialogMinimizeMeta) => {
+      if (next) setMeta(next)
+      setMinimized(true)
+      onOpenChange?.(false)
+    },
+    [onOpenChange],
+  )
+
+  const restore = React.useCallback(() => {
+    setMinimized(false)
+    onOpenChange?.(true)
+  }, [onOpenChange])
+
+  // Any genuine open transition (toolbar button, DialogTrigger) un-minimizes.
+  React.useEffect(() => {
+    if (open) setMinimized(false)
+  }, [open])
+
+  return (
+    <DialogMinimizeContext.Provider value={{ minimized, meta, minimize, restore }}>
+      <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={onOpenChange}>
+        {props.children}
+        {minimized && (
+          <DialogPortal>
+            <MinimizedDialogPill icon={meta.icon} label={meta.title} onRestore={restore} />
+          </DialogPortal>
+        )}
+      </DialogPrimitive.Root>
+    </DialogMinimizeContext.Provider>
   )
 }
 
@@ -290,11 +344,15 @@ function MinimizedDialogPill({
   }, [isDragging, onRestore])
 
   const isVertical = dockEdge === "left" || dockEdge === "right"
+  const darkCard = !useDarkBackground()
 
   return (
     <div
       className={cn(
-        "fixed z-50 flex rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg select-none hover:shadow-xl",
+        "fixed z-50 flex rounded-xl border backdrop-blur-xl shadow-lg select-none hover:shadow-xl",
+        darkCard
+          ? "border-zinc-700/60 bg-zinc-950/95 text-zinc-100"
+          : "border-zinc-200/60 bg-white/95 text-zinc-900",
         isVertical ? "flex-col items-center gap-1" : "flex-row items-center gap-2"
       )}
       style={{
@@ -310,10 +368,10 @@ function MinimizedDialogPill({
       onPointerDown={handlePointerDown}
       title="Drag to snap · Click to restore"
     >
-      {icon ?? <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+      {icon ?? <Layers className="h-3.5 w-3.5 text-current/60 shrink-0" />}
       <span
         className={cn(
-          "text-[10px] font-medium text-foreground/80",
+          "text-[10px] font-medium text-current/80",
           isVertical ? "writing-vertical" : ""
         )}
         style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}
@@ -330,40 +388,44 @@ function DialogContent({
   style,
   showCloseButton = true,
   minimizable = true,
+  minimizeCloses = true,
   dialogTitle = "Dialog",
   dialogIcon,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   minimizable?: boolean
+  /** When true (default), minimize closes the dialog so a later open transition
+   *  (toolbar button) restores it. False keeps the dialog open and shows a local
+   *  pill — for conditionally-mounted dialogs whose onClose would unmount them. */
+  minimizeCloses?: boolean
   dialogTitle?: string
   dialogIcon?: React.ReactNode
 }) {
-  const { ref, offset, onDragStart, resetOffset } = useDialogDrag()
-  const [minimized, setMinimized] = React.useState(false)
+  const { ref, offset, onDragStart } = useDialogDrag()
+  const minimize = React.useContext(DialogMinimizeContext)
+  const [localMinimized, setLocalMinimized] = React.useState(false)
 
   const handleMinimize = React.useCallback(() => {
     const el = document.activeElement as HTMLElement | null
     if (el && el !== document.body) el.blur()
-    setMinimized(true)
-  }, [])
+    // Controlled dialogs: close + let the wrapper remember (enables open-button restore).
+    if (minimizeCloses && minimize) {
+      minimize.minimize({ title: dialogTitle, icon: dialogIcon })
+      return
+    }
+    // Conditionally-mounted / unwrapped dialogs: keep open, show a local pill.
+    setLocalMinimized(true)
+  }, [minimize, minimizeCloses, dialogTitle, dialogIcon])
 
-  const handleRestore = React.useCallback(() => {
-    // Re-center: clear any drag offset so the dialog mounts fresh and on-screen.
-    resetOffset()
-    setMinimized(false)
-  }, [resetOffset])
-
-  // Minimized: render ONLY the dock pill (unmount the Radix content entirely),
-  // mirroring ThemeEditorDialog. This avoids display:none fighting Radix
-  // Presence/data-state, which left restored content faded and inaccessible.
-  if (minimized) {
+  // Local pill for the non-closing case (conditionally-mounted dialogs).
+  if (localMinimized) {
     return (
       <DialogPortal data-slot="dialog-portal">
         <MinimizedDialogPill
           icon={dialogIcon}
           label={dialogTitle}
-          onRestore={handleRestore}
+          onRestore={() => setLocalMinimized(false)}
         />
       </DialogPortal>
     )

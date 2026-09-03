@@ -197,9 +197,32 @@ export function ThemeEditorDialog() {
     };
   }, [isDragging]);
 
-  const handleMinimize = useCallback(() => setMinimized(true), []);
+  const handleMinimize = useCallback(() => {
+    // minimize = close + remember: drop open state so the toolbar button's
+    // setThemeEditorOpen(true) becomes a real false->true transition later.
+    setMinimized(true)
+    setThemeEditorOpen(false)
+  }, [])
 
-  if (!themeEditorOpen) return null;
+  // Un-minimize on any genuine open transition (e.g. the toolbar button reopens).
+  // Must run before the early returns below (rules-of-hooks).
+  useEffect(() => {
+    if (themeEditorOpen) setMinimized(false)
+  }, [themeEditorOpen])
+
+  // Minimized: small docked pill (draggable, snaps to edges). Check this BEFORE
+  // the !themeEditorOpen guard so the pill survives the close.
+  if (minimized) {
+    return (
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5 text-muted-foreground" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
+    )
+  }
+
+  if (!themeEditorOpen) return null
 
   // Group presets by category
   const groupedPresets = THEME_PRESETS.reduce((acc, preset) => {

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported images no longer include the selection ring around selected nodes — selection is a canvas-only affordance
 - PNG and SVG exports now carry a fewer logo watermark badge (inline vector mark + wordmark, linked to the homepage) instead of the plain text credit line
 - Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts. Falls back to a local-path re-walk via the dev server when no File System Access handle exists (drag-imports delivered as a path, Flatpak/Snap portalized drops, subfolders)
+- Invert toast and minimized dock pill colors against page background, matching the tutorial dialog.
 
 ### Fixed
 
@@ -36,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
 - Loading a saved or shared graph no longer overwrites your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) — settings follow your account, not the graph. Saved-graph payloads are now graph-only; layout direction was removed from them.
 - Keyboard shortcut toasts (Deleted, Pasted, Duplicated, Graph relayouted, Cards parented) no longer fire when the shortcut performs no action — they only fire when the underlying store action actually mutates the graph
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
 
 ### Added
 

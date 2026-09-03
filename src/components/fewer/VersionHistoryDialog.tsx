@@ -99,7 +99,7 @@ export function VersionHistoryDialog({
   };
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent dialogTitle="History" dialogIcon={<History className="h-3.5 w-3.5 text-amber-500" />} className="sm:max-w-md">
+      <DialogContent minimizeCloses={false} dialogTitle="History" dialogIcon={<History className="h-3.5 w-3.5 text-amber-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
