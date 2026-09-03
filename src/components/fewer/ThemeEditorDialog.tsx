@@ -7,93 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
 import { toCssColor } from "@/lib/fewer/themeColors";
-import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
+import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
+import { MinimizedDialogPill } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-
-const DIALOG_WIDTH = 360;
-const TOP_OFFSET = 80; // navbar + toolbar
-
-/** Dialog width clamped to viewport (mobile-safe). */
-function dialogWidth() {
-  return Math.min(DIALOG_WIDTH, window.innerWidth - 16);
-}
-
-function clampPosition(x: number, y: number, dialogHeight?: number) {
-  const w = dialogWidth();
-  const minX = 0;
-  const maxX = Math.max(0, window.innerWidth - w);
-  const minY = TOP_OFFSET;
-  const h = dialogHeight ?? Math.min(window.innerHeight * 0.85, 600);
-  const maxY = Math.max(TOP_OFFSET, window.innerHeight - h);
-  return {
-    x: Math.max(minX, Math.min(maxX, x)),
-    y: Math.max(minY, Math.min(maxY, y)),
-  };
-}
-
-type DockEdge = "top" | "bottom" | "left" | "right";
-
-/** Snap to nearest canvas edge, keeping the perpendicular position */
-function snapDockPosition(x: number, y: number): { x: number; y: number; edge: DockEdge } {
-  const b = getCanvasBounds();
-  const pad = 12;
-  const vPillW = 26;
-  const vPillH = 48;
-  const hPillW = 80;
-  const hPillH = 26;
-
-  // Distance from each edge
-  const distTop = y - b.top;
-  const distBottom = (b.top + b.height) - y;
-  const distLeft = x - b.left;
-  const distRight = (b.left + b.width) - x;
-  const minDist = Math.min(distTop, distBottom, distLeft, distRight);
-
-  if (minDist === distTop) {
-    // Top edge: keep x, snap y to top
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + pad, edge: "top" };
-  }
-  if (minDist === distBottom) {
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + b.height - pad - hPillH, edge: "bottom" };
-  }
-  if (minDist === distLeft) {
-    return { x: b.left + pad, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "left" };
-  }
-  // Right edge
-  return { x: b.left + b.width - pad - vPillW, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "right" };
-}
-
-/** Get the canvas area bounds (excludes sidebar, navbar, toolbar) */
-function getCanvasBounds() {
-  const main = document.getElementById("main-content");
-  if (main) {
-    const r = main.getBoundingClientRect();
-    return { left: r.left, top: r.top, width: r.width, height: r.height };
-  }
-  return { left: 0, top: TOP_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_OFFSET };
-}
-
-/** Clamp raw dock drag position to canvas area */
-function clampDockRaw(x: number, y: number) {
-  const b = getCanvasBounds();
-  const pillSize = 36;
-  return {
-    x: Math.max(b.left, Math.min(b.left + b.width - pillSize, x)),
-    y: Math.max(b.top, Math.min(b.top + b.height - pillSize, y)),
-  };
-}
-
-const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
-  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge"].includes(m.key)) },
-  { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },
-  { title: "Files", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("file")) },
-];
+import {
+  TOP_OFFSET,
+  THEME_EDITOR_SECTIONS,
+  clampPosition,
+  colorOpacityToHexAlpha,
+  dialogWidth,
+  hexAlphaToColorOpacity,
+} from "@/lib/fewer/themeEditor";
 
 export function ThemeEditorDialog() {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -217,19 +147,12 @@ export function ThemeEditorDialog() {
   };
 
   const handleColorChange = (key: string, c: string) => {
-    const hex = c.startsWith("#") ? c : `#${c}`;
-    if (hex.length === 9) {
-      const a = parseInt(hex.slice(7, 9), 16) / 255;
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: Math.round(a * 100) / 100 });
-    } else {
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: customTheme[key as keyof CustomTheme].opacity });
-    }
+    handleChange(key as keyof CustomTheme, hexAlphaToColorOpacity(c, customTheme[key as keyof CustomTheme].opacity));
   };
 
   const getColorWithAlpha = (key: string) => {
     const theme = customTheme[key as keyof CustomTheme];
-    const a = Math.round(theme.opacity * 255).toString(16).padStart(2, "0");
-    return `${theme.color}${a}`;
+    return colorOpacityToHexAlpha(theme.color, theme.opacity);
   };
 
   // Position + minimize + drag state
@@ -237,18 +160,14 @@ export function ThemeEditorDialog() {
   const [minimized, setMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [isDraggingDock, setIsDraggingDock] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const dockDragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const [dockPosition, setDockPosition] = useState({ x: 0, y: 0 });
-  const [dockEdge, setDockEdge] = useState<DockEdge>("bottom");
-  const dockMovedRef = useRef(false);
-  const dockPosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setPosition(clampPosition(
-      Math.max(0, window.innerWidth - dialogWidth() - 20),
+      Math.max(0, window.innerWidth - dialogWidth(window.innerWidth) - 20),
       Math.max(TOP_OFFSET, window.innerHeight / 2 - 250),
+      window.innerWidth,
+      window.innerHeight,
     ));
   }, []);
 
@@ -265,7 +184,7 @@ export function ThemeEditorDialog() {
       const newX = dragStartRef.current.posX + (e.clientX - dragStartRef.current.x);
       const newY = dragStartRef.current.posY + (e.clientY - dragStartRef.current.y);
       const h = dialogRef.current?.offsetHeight;
-      setPosition(clampPosition(newX, newY, h));
+      setPosition(clampPosition(newX, newY, window.innerWidth, window.innerHeight, h));
     };
     const handlePointerUp = () => setIsDragging(false);
     window.addEventListener("pointermove", handlePointerMove);
@@ -278,58 +197,32 @@ export function ThemeEditorDialog() {
     };
   }, [isDragging]);
 
-  // Dock pill drag with snap-to-edge
-  const handleDockPointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    dockMovedRef.current = false;
-    setIsDraggingDock(true);
-    dockDragStartRef.current = { x: e.clientX, y: e.clientY, posX: dockPosition.x, posY: dockPosition.y };
-    e.preventDefault();
-  }, [dockPosition]);
-
-  useEffect(() => {
-    if (!isDraggingDock) return;
-    const handlePointerMove = (e: PointerEvent) => {
-      dockMovedRef.current = true;
-      const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
-      const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
-      const clamped = clampDockRaw(newX, newY);
-      dockPosRef.current = clamped;
-      setDockPosition(clamped);
-    };
-    const handlePointerUp = () => {
-      setIsDraggingDock(false);
-      if (!dockMovedRef.current) {
-        setMinimized(false);
-        return;
-      }
-      // Snap to nearest dock point using ref for latest position
-      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y);
-      dockPosRef.current = snapped;
-      setDockPosition(snapped);
-      setDockEdge(snapped.edge);
-    };
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
-    };
-  }, [isDraggingDock]);
-
   const handleMinimize = useCallback(() => {
-    const centerX = position.x + dialogWidth() / 2;
-    const centerY = position.y + 200;
-    const snapped = snapDockPosition(centerX, centerY);
-    dockPosRef.current = snapped;
-    setDockPosition(snapped);
-    setDockEdge(snapped.edge);
-    setMinimized(true);
-  }, [position]);
+    // minimize = close + remember: drop open state so the toolbar button's
+    // setThemeEditorOpen(true) becomes a real false->true transition later.
+    setMinimized(true)
+    setThemeEditorOpen(false)
+  }, [])
 
-  if (!themeEditorOpen) return null;
+  // Un-minimize on any genuine open transition (e.g. the toolbar button reopens).
+  // Must run before the early returns below (rules-of-hooks).
+  useEffect(() => {
+    if (themeEditorOpen) setMinimized(false)
+  }, [themeEditorOpen])
+
+  // Minimized: small docked pill (draggable, snaps to edges). Check this BEFORE
+  // the !themeEditorOpen guard so the pill survives the close.
+  if (minimized) {
+    return (
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
+    )
+  }
+
+  if (!themeEditorOpen) return null
 
   // Group presets by category
   const groupedPresets = THEME_PRESETS.reduce((acc, preset) => {
@@ -340,27 +233,12 @@ export function ThemeEditorDialog() {
 
   // Minimized: small docked pill (draggable, snaps to edges)
   if (minimized) {
-    const isVertical = dockEdge === "left" || dockEdge === "right";
-
     return (
-      <div
-        className={`fixed z-50 flex rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg select-none hover:shadow-xl ${isVertical ? "flex-col items-center gap-1" : "flex-row items-center gap-2"}`}
-        style={{
-          left: dockPosition.x,
-          top: dockPosition.y,
-          padding: isVertical ? "10px 6px" : "8px 14px",
-          cursor: isDraggingDock ? "grabbing" : "grab",
-          touchAction: "none",
-          transition: isDraggingDock ? "box-shadow 150ms ease" : "left 300ms cubic-bezier(0.34,1.56,0.64,1), top 300ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease",
-        }}
-        onPointerDown={handleDockPointerDown}
-        title="Drag to snap · Click to restore"
-      >
-        <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className={`text-[10px] font-medium text-foreground/80 ${isVertical ? "writing-vertical" : ""}`} style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}>
-          Theme
-        </span>
-      </div>
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
     );
   }
 
@@ -369,7 +247,7 @@ export function ThemeEditorDialog() {
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-      style={{ left: position.x, top: position.y, width: dialogWidth(), maxHeight: "85vh", touchAction: "none" }}
+      style={{ left: position.x, top: position.y, width: dialogWidth(window.innerWidth), maxHeight: "85vh", touchAction: "none" }}
     >
       {/* Header - draggable */}
       <div
@@ -577,7 +455,7 @@ export function ThemeEditorDialog() {
             </PopoverContent>
           </Popover>
         </div>
-        {SECTIONS.map((section) => (
+        {THEME_EDITOR_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1.5">
             <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
               {section.title}

@@ -1,35 +1,29 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
-  ArrowDownToLine,
-  ArrowRightFromLine,
-  ArrowUpFromLine,
-  ArrowLeftToLine,
   RefreshCw,
   FolderOpen,
   Trash2,
-  Eye,
-  ChevronRight,
   Layers,
   HardDrive,
   SlidersHorizontal,
   FileIcon,
   Spline,
-  Info,
   FilePlus,
   FolderPlus,
   EyeOff,
 } from "lucide-react";
-import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerNode, FewerEdge } from "@/lib/fewer/types";
+import type { EdgeStyle } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
-import { StatsPanel, RenameInput, SavedGraphsPanel } from ".";
+import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
+import { HiddenNodesPanel } from "./HiddenNodesPanel";
+import { LayoutPicker } from "./LayoutPicker";
+import { StatsPanel, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
@@ -46,301 +40,16 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-
-const PRIMARY_LAYOUTS: {
-  value: LayoutDirection;
-  label: string;
-  sublabel: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: "TB", label: "Vertical", sublabel: "Top → Down", icon: ArrowDownToLine },
-  { value: "LR", label: "Horizontal", sublabel: "Left → Right", icon: ArrowRightFromLine },
-];
-
-const ADVANCED_LAYOUTS: {
-  value: LayoutDirection;
-  label: string;
-  sublabel: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: "BT", label: "Upward", sublabel: "Bottom → Top", icon: ArrowUpFromLine },
-  { value: "RL", label: "Reverse", sublabel: "Right → Left", icon: ArrowLeftToLine },
-];
+import { plural } from "@/lib/fewer/plural";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
   onRequireAuth: () => void;
 }
 
-function CollapsibleSection({
-  title,
-  icon: Icon,
-  defaultOpen = false,
-  badge,
-  forceOpen,
-  children,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  defaultOpen?: boolean;
-  badge?: string;
-  forceOpen?: number;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (forceOpen !== undefined && forceOpen > 0) {
-      setOpen(true);
-    }
-  }, [forceOpen]);
-
-  return (
-    <section 
-      ref={sectionRef} 
-      className="w-full min-w-0 max-w-full shrink-0 overflow-hidden rounded-xl border border-border/30 bg-card/10 transition-colors duration-200 hover:border-border/60 focus-within:border-border/80"
-    >
-      <Button
-        variant="ghost"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
-      >
-        <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground/70 shrink-0", open && "rotate-90")} />
-        <Icon className="h-4 w-4 shrink-0 text-primary/80" />
-        <span className="truncate flex-1 text-left">{title}</span>
-        {badge && (
-          <span className="ml-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
-            {badge}
-          </span>
-        )}
-      </Button>
-      <div
-        className={cn(
-          "grid w-full min-w-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          open 
-            ? "grid-rows-[1fr] opacity-100 translate-y-0 pb-3" 
-            : "grid-rows-[0fr] opacity-0 -translate-y-1 pointer-events-none pb-0"
-        )}
-      >
-        <div className="w-full min-w-0 min-h-0 overflow-hidden px-3">
-          <div className="flex flex-col gap-3 pt-1 w-full min-w-0">{children}</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function AnimatedConditional({
-  show,
-  delay = 0,
-  children,
-}: {
-  show: boolean;
-  delay?: number;
-  children: React.ReactNode;
-}) {
-  const [shouldRender, setShouldRender] = useState(show);
-  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (show) {
-      setShouldRender(true);
-      const frame = requestAnimationFrame(() => {
-        setIsAnimatingIn(true);
-      });
-      return () => cancelAnimationFrame(frame);
-    } else {
-      setIsAnimatingIn(false);
-      timer = setTimeout(() => setShouldRender(false), 250);
-      return () => clearTimeout(timer);
-    }
-  }, [show]);
-
-  if (!shouldRender) return null;
-
-  const active = show && isAnimatingIn;
-
-  return (
-    <div
-      // Added `shrink-0` to the animated wrapper
-      className={cn(
-        "grid w-full min-w-0 shrink-0 transition-[grid-template-rows,opacity,transform] duration-250 ease-in-out",
-        active
-          ? "grid-rows-[1fr] opacity-100 scale-y-100"
-          : "grid-rows-[0fr] opacity-0 scale-y-95 pointer-events-none"
-      )}
-      style={{ transitionDelay: active ? `${delay}ms` : "0ms" }}
-    >
-      <div className="w-full min-w-0 min-h-0 overflow-hidden">{children}</div>
-    </div>
-  );
-}
-
-interface HiddenTreeNode {
-  node: FewerNode;
-  children: HiddenTreeNode[];
-}
-
-/** App-wide ordering convention: folders first, then labels A→Z. */
-function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
-  if (a.node.data.type !== b.node.data.type) return a.node.data.type === "folder" ? -1 : 1;
-  return a.node.data.label.localeCompare(b.node.data.label);
-}
-
-function getHiddenLayerData(nodes: FewerNode[], edges: FewerEdge[], hiddenIds: string[]): HiddenTreeNode[] {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const parentMap = new Map<string, string>();
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
-
-  // Only consider hidden ids that still map to a live node. A stale id (e.g. a
-  // node deleted while hidden) must never be dereferenced below — nodeMap.get
-  // would return undefined and hiddenTreeSort would throw on `.node.data`.
-  const liveHiddenIds = hiddenIds.filter((id) => nodeMap.has(id));
-  const idSet = new Set(liveHiddenIds);
-  const roots: HiddenTreeNode[] = [];
-  const processed = new Set<string>();
-
-  function build(id: string): HiddenTreeNode {
-    processed.add(id);
-    const node = nodeMap.get(id)!;
-    const children = (childrenMap.get(id) ?? [])
-      .filter((cid) => idSet.has(cid))
-      .map((cid) => build(cid))
-      .sort(hiddenTreeSort);
-    return { node, children };
-  }
-
-  for (const id of liveHiddenIds) {
-    if (processed.has(id)) continue;
-    const parentId = parentMap.get(id);
-    if (parentId && idSet.has(parentId)) continue;
-    roots.push(build(id));
-  }
-
-  return roots.sort(hiddenTreeSort);
-}
-
-function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return tree;
-  const result: HiddenTreeNode[] = [];
-  for (const t of tree) {
-    const children = filterHiddenTree(t.children, q);
-    const selfMatch = t.node.data.label.toLowerCase().includes(q);
-    if (selfMatch || children.length > 0) {
-      result.push({ node: t.node, children });
-    }
-  }
-  return result;
-}
-
-function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
-  const renamingId = useGraphStore((s) => s.renamingId);
-  const renameNode = useGraphStore((s) => s.renameNode);
-  const showAncestors = useGraphStore((s) => s.showAncestors);
-  const { toast } = useToast();
-  const [open, setOpen] = useState(depth === 0);
-  const isFolder = tree.node.data.type === "folder";
-  
-  const unreveal = (id: string) => {
-    if (isFolder) {
-      useGraphStore.getState().revealSubtree(id);
-      toast({ title: "Subtree shown", description: tree.node.data.label });
-    } else {
-      showAncestors(id);
-      toast({ title: "Node shown", description: tree.node.data.label });
-    }
-  };
-  
-  const node = tree.node;
-  const hasChildren = tree.children.length > 0;
-
-  const handleRename = (v: string) => {
-    const ok = renameNode(node.id, v);
-    if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
-  };
-
-  return (
-    <div className="space-y-0.5 w-full min-w-0">
-      <div className="group flex items-center rounded-md py-1 pr-1.5 text-xs hover:bg-muted/50 w-full min-w-0">
-        
-        {/* ── 1. PINNED LEFT EYE ICON (Always at x=0 regardless of depth) ── */}
-        <button
-          type="button"
-          onClick={() => unreveal(node.id)}
-          title={isFolder ? "Show folder and its children" : "Show this item"}
-          aria-label={isFolder ? "Show subtree" : "Show item"}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/10 transition-colors"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </button>
-
-        {/* ── 2. INDENTED CONTENT (Chevron, Dot, Label) ── */}
-        <div 
-          className="flex items-center gap-1.5 min-w-0 flex-1"
-          style={{ paddingLeft: `${depth * 10}px` }} // Adjust 10px to increase/decrease tree indentation
-        >
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={() => setOpen((o) => !o)}
-              title={open ? "Collapse" : "Expand"}
-              aria-label={open ? "Collapse" : "Expand"}
-              className="h-4 w-4 shrink-0 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/10"
-            >
-              <ChevronRight className={cn("h-3 w-3 transition-transform duration-150", open && "rotate-90")} />
-            </button>
-          ) : (
-            <span className="w-4 shrink-0" />
-          )}
-
-          <span
-            className={cn(
-              "h-1.5 w-1.5 shrink-0 rounded-full",
-              node.data.type === "folder" ? "bg-fewer-folder-icon" : "bg-fewer-file-icon",
-            )}
-          />
-
-          {renamingId === node.id ? (
-            <RenameInput
-              initialValue={node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label}
-              onCommit={handleRename}
-              onCancel={() => useGraphStore.getState().setRenamingId(null)}
-            />
-          ) : (
-            <span className="truncate text-foreground/90 flex-1 min-w-0 text-[11px] leading-tight">
-              {node.data.label}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ── 3. CHILDREN WRAPPER (NO PADDING HERE) ── */}
-      {open && hasChildren && (
-        <div className="space-y-0.5 w-full min-w-0">
-          {tree.children.map((child) => (
-            <HiddenNodeRow key={child.node.id} tree={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const { user } = useAuth();
@@ -348,43 +57,18 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
-  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
-  const setEdgeAnimated = useGraphStore((s) => s.setEdgeAnimated);
-  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
-  const setEdgeStrokeStyle = useGraphStore((s) => s.setEdgeStrokeStyle);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
   const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
   const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const showAll = useGraphStore((s) => s.showAll);
-  const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
-  const setMaxDisplayDepth = useGraphStore((s) => s.setMaxDisplayDepth);
-  const autoHideThreshold = useGraphStore((s) => s.autoHideThreshold);
-  const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
   const showFiles = useGraphStore((s) => s.showFiles);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const edges = useGraphStore((s) => s.edges);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
-
-  const [hiddenSearch, setHiddenSearch] = useState("");
-
-  const hiddenTree = useMemo(
-    () => getHiddenLayerData(nodes, edges, hiddenIds),
-    [nodes, edges, hiddenIds],
-  );
-
-  const filteredHiddenTree = useMemo(
-    () => filterHiddenTree(hiddenTree, hiddenSearch),
-    [hiddenTree, hiddenSearch],
-  );
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -411,16 +95,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     { value: "straight" as EdgeStyle, label: "Straight" },
     { value: "angled" as EdgeStyle, label: "Angled" },
   ], []);
-
-  const availableStrokeStyles = useMemo(() => {
-    const list: { value: EdgeStrokeStyle; label: string }[] = [];
-    if (!edgeAnimated) {
-      list.push({ value: "solid", label: "Solid" });
-    }
-    list.push({ value: "dashed", label: "Dashed" });
-    list.push({ value: "dotted", label: "Dotted" });
-    return list;
-  }, [edgeAnimated]);
 
   const handleAddNode = (type: "file" | "folder") => {
     const selectedFolderId = selectedNodeIds.length === 1
@@ -475,24 +149,22 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 <FolderPlus className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">Folder</span>
               </Button>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto"
-                      onClick={() => setResetConfirmOpen(true)}
-                      disabled={nodes.length === 0}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    Clear Canvas
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto"
+                    onClick={() => setResetConfirmOpen(true)}
+                    disabled={nodes.length === 0}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Clear Canvas
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </CollapsibleSection>
@@ -507,134 +179,34 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         {/* ── 2. LAYOUT & ORIENTATION ── */}
         <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
           <div className="flex flex-col gap-3 w-full min-w-0">
-            {/* Hybrid Choice Cards (Custom <button>) */}
-            <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-              {PRIMARY_LAYOUTS.map((l) => {
-                const Icon = l.icon;
-                const active = direction === l.value;
-                return (
-                  <button
-                    key={l.value}
-                    type="button"
-                    onClick={() => setDirection(l.value)}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
-                      active
-                        ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
-                        : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 mb-1 shrink-0" />
-                    <span className="text-xs truncate w-full text-center font-medium">{l.label}</span>
-                    <span className="text-[10px] text-muted-foreground/70 font-normal truncate w-full text-center">{l.sublabel}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Orientation choice cards; advanced orientations slide in with advanced mode. */}
+            <LayoutPicker
+              direction={direction}
+              onPick={setDirection}
+              advancedModeEnabled={advancedModeEnabled}
+            />
 
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                {ADVANCED_LAYOUTS.map((l) => {
-                  const Icon = l.icon;
-                  const active = direction === l.value;
-                  return (
-                    <button
-                      key={l.value}
-                      type="button"
-                      onClick={() => setDirection(l.value)}
-                      className={cn(
-                        "flex flex-col items-center justify-center p-2 rounded-xl border transition-all active:scale-[0.97] outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0 overflow-hidden",
-                        active
-                          ? "border-primary bg-primary/10 text-primary font-medium shadow-sm"
-                          : "border-border/50 hover:border-border hover:bg-muted/30 text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5 mb-0.5 shrink-0" />
-                      <span className="text-xs truncate w-full text-center font-medium">{l.label}</span>
-                      <span className="text-[10px] text-muted-foreground/70 font-normal truncate w-full text-center">{l.sublabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </AnimatedConditional>
-
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-1 w-full min-w-0">
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Max Depth</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Hide nodes deeper than this level.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground">
-                      <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
-                    </span>
-                  </div>
-                  <Slider
-                    value={[maxDisplayDepth]}
-                    onValueChange={([v]) => setMaxDisplayDepth(v)}
-                    min={0}
-                    max={10}
-                    step={1}
-                  />
-                </div>
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Label className="text-xs font-medium text-foreground/80">Auto-hide Limit</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground/60 cursor-pointer shrink-0" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px] text-xs">
-                            Auto-collapse folders with more than this number of items.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
-                  </div>
-                  <Slider
-                    value={[autoHideThreshold]}
-                    onValueChange={([v]) => setAutoHideThreshold(v)}
-                    min={2}
-                    max={100}
-                    step={1}
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Layout policy sliders (Max Depth, Auto-hide, Crown Shyness) live in
+                Settings → Advanced. Sidebar stays focused on per-graph actions. */}
 
             {/* Rearrange Action Button (shadcn) */}
             <Button
-              variant="outline"
               size="sm"
-              className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
+              className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
               onClick={() => {
                 relayout();
                 toast({ title: "Graph rearranged" });
               }}
             >
-              <RefreshCw className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">Auto-Rearrange Graph</span>
+              <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
+              <span className="truncate">Rearrange</span>
             </Button>
 
             <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Label htmlFor="show-files" className="text-xs font-medium cursor-pointer truncate">
-                  Include File Nodes
+                  Include File Cards
                 </Label>
               </div>
               <Switch
@@ -660,106 +232,21 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               />
             </div>
 
-            {advancedModeEnabled && edgeStyle === "angled" && (
-              <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Corner Radius</Label>
-                  <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={cornerRadius} onCommit={(v) => setCornerRadius(v)} unit="px" /></span>
-                </div>
-                <Slider
-                  value={[cornerRadius]}
-                  onValueChange={([v]) => setCornerRadius(v)}
-                  min={0}
-                  max={20}
-                  step={1}
-                />
-              </div>
-            )}
-
-            <AnimatedConditional show={advancedModeEnabled} delay={50}>
-              <div className="space-y-3 pt-2 border-t border-border/20 w-full min-w-0">
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Motion</Label>
-                  <SlidingToggle
-                    options={[
-                      { value: "static" as const, label: "Static" },
-                      { value: "animated" as const, label: "Animated" },
-                    ]}
-                    value={edgeAnimated ? "animated" : "static"}
-                    onValueChange={(v) => setEdgeAnimated(v === "animated")}
-                  />
-                </div>
-
-                <div className="space-y-1.5 w-full min-w-0">
-                  <Label className="text-[11px] font-medium text-muted-foreground">Pattern</Label>
-                  <SlidingToggle
-                    options={availableStrokeStyles}
-                    value={edgeStrokeStyle}
-                    onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
-                  />
-                </div>
-
-                <div className="space-y-1.5 rounded-lg border border-border/20 bg-muted/10 p-2.5 w-full min-w-0">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">Line Thickness</Label>
-                    <span className="text-xs font-mono text-muted-foreground"><EditableNumber value={edgeWidth} onCommit={(v) => setEdgeWidth(v)} unit="px" /></span>
-                  </div>
-                  <Slider
-                    value={[edgeWidth]}
-                    onValueChange={([v]) => setEdgeWidth(v)}
-                    min={0.5}
-                    max={6}
-                    step={0.25}
-                  />
-                </div>
-              </div>
-            </AnimatedConditional>
+            {/* Edge fine-tuning (corner radius, motion, pattern, thickness) lives in
+                Settings → Appearance → Edge Styling. Sidebar keeps the quick style picker. */}
           </div>
         </CollapsibleSection>
 
         {/* ── 5. HIDDEN NODES RECOVERY ── */}
         {hiddenIds.length > 0 && (
           <CollapsibleSection
-            title="Hidden Nodes"
+            title="Hidden Cards"
             icon={EyeOff}
             badge={String(hiddenIds.length)}
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
           >
-            <div className="relative w-full min-w-0">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
-              <Input
-                value={hiddenSearch}
-                onChange={(e) => setHiddenSearch(e.target.value)}
-                placeholder="Search hidden nodes…"
-                className="h-8 pl-8 text-xs"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
-              onClick={() => {
-                const count = hiddenIds.length;
-                showAll();
-                setShowFiles(true);
-                if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
-              }}
-            >
-              <Eye className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Reveal All Nodes</span>
-            </Button>
-            <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-              {filteredHiddenTree.length > 0 ? (
-                filteredHiddenTree.map((root) => (
-                  <HiddenNodeRow key={root.node.id} tree={root} />
-                ))
-              ) : (
-                <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-                  No hidden nodes match “{hiddenSearch.trim()}”.
-                </p>
-              )}
-            </div>
+            <HiddenNodesPanel />
           </CollapsibleSection>
         )}
 
@@ -777,8 +264,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-medium">Clear canvas?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs font-normal">
-              This will remove all {nodes.length} node{nodes.length === 1 ? "" : "s"} and{" "}
-              {edges.length} edge{edges.length === 1 ? "" : "s"} from your graph.
+              This will remove all {plural(nodes.length, "node")} and{" "}
+              {plural(edges.length, "edge")} from your graph.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useGraphStore } from "@/store/graphStore";
 import {
   Keyboard,
@@ -11,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
+import { useAuth } from "@/hooks/use-auth";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 // Render the four navigation arrows with lucide icons so they all draw with
 // the same stroke/weight. Raw ←→ glyphs can render thinner than ↑↓ in mono.
@@ -24,6 +26,10 @@ const ARROW_ICONS: Record<string, LucideIcon> = {
 interface Shortcut {
   keys: string[];
   action: string;
+  /** Hidden for signed-out users (requires a cloud account). */
+  signedInOnly?: boolean;
+  /** Hidden when the feature flag is off (no side effect in plain filter). */
+  featureKey?: keyof typeof LOCAL_FS_FEATURES;
 }
 
 interface ShortcutGroup {
@@ -47,7 +53,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: "Selection & Nodes",
+    title: "Selection & Cards",
     shortcuts: [
       { keys: ["⌘", "Ctrl", "A"], action: "Select all nodes" },
       { keys: ["F2"], action: "Rename selected node" },
@@ -59,7 +65,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Alt", "Shift", "N"], action: "Clear canvas" },
       { keys: ["Alt", "P"], action: "Parent selected nodes" },
       { keys: ["Alt", "Shift", "P"], action: "Unparent selected nodes" },
-      { keys: ["Alt", "S"], action: "Save current graph (signed in)" },
+      { keys: ["Alt", "S"], action: "Save current graph", signedInOnly: true },
     ],
   },
   {
@@ -84,8 +90,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Shift", "↑↓←→"], action: "Add to selection" },
       { keys: ["Alt", "R"], action: "Re-layout graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
-      { keys: ["Alt", "I"], action: "Open import (folder / file / URL / cloud)" },
-      { keys: ["Alt", "O"], action: "Open in file explorer" },
+      { keys: ["Alt", "I"], action: "Import" },
+      { keys: ["Alt", "O"], action: "Open in file explorer", featureKey: "openInOs" },
     ],
   },
 ];
@@ -179,10 +185,11 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
 export function ShortcutsDialog() {
   const open = useGraphStore((s) => s.shortcutsOpen);
   const setOpen = useGraphStore((s) => s.setShortcutsOpen);
+  const { user } = useAuth();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6 gap-6">
+      <DialogContent dialogTitle="Shortcuts" dialogIcon={<Keyboard className="h-3.5 w-3.5" />} className="w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6 gap-6">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold tracking-tight">
             <Keyboard className="h-5 w-5 text-muted-foreground" />
@@ -200,9 +207,11 @@ export function ShortcutsDialog() {
                 {group.title}
               </h3>
               <div className="flex flex-col gap-1">
-                {group.shortcuts.map((s, idx) => (
-                  <ShortcutRow key={idx} shortcut={s} />
-                ))}
+                {group.shortcuts
+                  .filter((s) => (!s.signedInOnly || user) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]))
+                  .map((s, idx) => (
+                    <ShortcutRow key={idx} shortcut={s} />
+                  ))}
               </div>
             </div>
           ))}

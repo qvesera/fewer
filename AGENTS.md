@@ -62,7 +62,7 @@ FewerApp
 ├── ImportDialog / ImportFromFileDialog
 ├── AddNodeDialog
 ├── ShortcutsDialog / TutorialDialog / BugReportDialog
-├── CustomThemeEditor
+├── ThemeEditorDialog
 └── ErrorBoundary
 ```
 
@@ -122,5 +122,6 @@ Map Conventional Commits → group: `feat`→Added, `fix`→Fixed, `perf`→Perf
 **CRITICAL RULES:**
 
 - Work is NOT complete until `git push` succeeds
+- NEVER push to release/prod
 - NEVER stop before pushing
 - NEVER say "ready to push when you are": YOU must push

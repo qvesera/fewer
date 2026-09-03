@@ -19,6 +19,7 @@ export function captureViewState(state: GraphState): ViewState {
     autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
     categoryFilter: (state.categoryFilter ?? null) as FileCategory | null,
     categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
+    independentlyHiddenIds: (state.independentlyHiddenIds ?? []) as string[],
   };
 }
 
@@ -40,6 +41,7 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
   if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
   if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
+  if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
   return patch;
 }
 

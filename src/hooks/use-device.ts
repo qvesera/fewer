@@ -29,7 +29,11 @@ export function useDevice(): DeviceInfo {
   useEffect(() => {
     const update = () => {
       const w = window.innerWidth;
-      const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      // Primary-input check, NOT "has any touchscreen": hybrid laptops with a
+      // touchscreen report maxTouchPoints > 0, and "ontouchstart" exists in
+      // Chrome even without touch — both made desktops read as touch devices.
+      // pointer:coarse is true only when touch is the primary input.
+      const isTouch = window.matchMedia("(pointer: coarse)").matches;
       const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       setDevice({
         isMobile: w < MOBILE_BREAKPOINT,

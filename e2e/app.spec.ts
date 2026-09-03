@@ -93,6 +93,31 @@ test("node context menu offers cut, duplicate, and delete", async ({ page }) => 
   await expect(page.getByText("Cut", { exact: true }).first()).toBeVisible();
 });
 
+// Regression: the folder context menu renders in a portal that is still a
+// React-tree child of the node card. Without stopping synthetic propagation
+// there, the browser's post-pointerup click bubbled into React Flow's
+// NodeWrapper onClick, re-selecting the right-clicked folder AFTER "Select
+// Children" had set the real selection — leaving the folder itself selected.
+test("Select Children selects the folder's children, not the folder", async ({ page }) => {
+  await openCanvas(page);
+
+  // Match the src card by its header title (the root card also contains the
+  // text "src" in its child list), then right-click the header strip so the
+  // menu targets the folder itself, not one of the child chips inside it.
+  const src = page
+    .locator(".react-flow__node")
+    .filter({ has: page.locator(".text-sm.font-semibold", { hasText: /^src$/ }) })
+    .first();
+  const box = await src.boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
+
+  await page.getByRole("menuitem", { name: "Select Children" }).click();
+
+  const selectedNodes = page.locator(".react-flow__node.selected");
+  await expect(selectedNodes).toHaveCount(7, { timeout: 10000 });
+  await expect(src).not.toHaveClass(selected());
+});
+
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 
@@ -128,4 +153,44 @@ test("copy and paste duplicates a selected node", async ({ page }) => {
   await page.keyboard.press("Control+v");
 
   await expect(page.locator(".react-flow__node")).toHaveCount(before + 1);
+});
+
+// Regression: a post-mount layout-direction change (responsive default on
+// screens <2560×1440, or cloud/local settings sync) used to remount the whole
+// ReactFlow tree via `key={direction}`, after which dragging the minimap no
+// longer panned the canvas (@xyflow/react 12.11.2 fails to re-bind the minimap
+// zoom listeners when its panZoom instance is replaced). Seed a saved "LR"
+// direction so settings sync flips TB→LR after mount, then drag the minimap.
+test("minimap drag pans the canvas after a post-mount direction change", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "fewer-user-settings",
+      JSON.stringify({ version: 1, direction: "LR" }),
+    );
+  });
+
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const minimap = page.locator(".react-flow__minimap");
+  await expect(minimap).toBeVisible({ timeout: 10000 });
+
+  const viewport = page.locator(".react-flow__viewport");
+  await viewport.waitFor({ state: "attached" });
+  const before = await viewport.getAttribute("style");
+
+  const box = await minimap.boundingBox();
+  expect(box).not.toBeNull();
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 60, y + 40, { steps: 5 });
+  await page.waitForTimeout(150);
+  const after = await viewport.getAttribute("style");
+  await page.mouse.up();
+
+  expect(after).not.toBe(before);
 });

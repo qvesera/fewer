@@ -62,7 +62,7 @@ server.log
 .gitignore
 LIGHTHOUSE_IMPROVEMENTS.md
 implementation_plan.md
-.agents/
+.agents/*
 
 # supabase local cli state
 supabase/.temp/
@@ -74,5 +74,13 @@ playwright-report/
 blob-report/
 .playwright/
 
+lighthouse/*
+.clinerules/*
+.vscode/*
+.mcp.json
+
+# repowise local index
+.repowise/
+scripts/*
 lighthouse/*
 .clinerules/*

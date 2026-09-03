@@ -81,6 +81,29 @@ export function treeToGraph(
   return { nodes, edges, hiddenFileIds };
 }
 
+/** Drop the duplicate root node from a freshly-built tree and re-parent its
+ *  child edges to `existingNodeId`. Returns the children + rewired edges ready
+ *  to pass to `applyFolderRefresh`. Depth is bumped by `parentDepth` so nested
+ *  children keep their correct depth in the merged graph. */
+export function rekeyTreeChildren(
+  rawNodes: FewerNode[],
+  rawEdges: FewerEdge[],
+  existingNodeId: string,
+  parentDepth: number,
+): { childNodes: FewerNode[]; childEdges: FewerEdge[] } {
+  const rootOldId = rawNodes[0]?.id;
+  const childNodes = rawNodes.slice(1).map((n) => ({
+    ...n,
+    data: { ...n.data, depth: (n.data.depth ?? 0) + parentDepth },
+  }));
+  const childEdges = rawEdges.map((e) => ({
+    ...e,
+    source: e.source === rootOldId ? existingNodeId : e.source,
+    id: `e-${e.source === rootOldId ? existingNodeId : e.source}-${e.target}`,
+  }));
+  return { childNodes, childEdges };
+}
+
 /**
  * Check if a file name matches the extension filter.
  */

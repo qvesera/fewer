@@ -5,7 +5,7 @@ import {
   getStraightPath,
   Position,
 } from "@xyflow/react";
-import { FEWER_CREDIT, FEWER_HOME_URL } from "./branding";
+import { FEWER_HOME_URL } from "./branding";
 
 /* -------------------------------------------------------------------------- */
 /*  graphRenderer.ts - faithful vector scene builder for PNG/SVG export.      */
@@ -20,6 +20,7 @@ export interface RenderPalette {
   text: string;
   subtle: string;
   edge: string;
+  selectRing: string;
   folderBg: string;
   folderBorder: string;
   folderText: string;
@@ -39,7 +40,7 @@ export interface GraphRenderOptions {
   fontFamily: string;
   /** Node ids to render with the selection glow. */
   selectedIds?: Set<string>;
-  /** Nodes excluded as hidden / outside the export scope. */
+  /** Cards excluded as hidden / outside the export scope. */
   hiddenIds?: Set<string>;
   transparentBackground?: boolean;
   includeBranding?: boolean;
@@ -81,8 +82,43 @@ function escapeXml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function truncate(s: string, maxChars: number): string {
-  return s.length > maxChars ? `${s.slice(0, maxChars - 1)}…` : s;
+/* Approximate advance width (in em) for a generic UI sans. Kept slightly
+ * conservative vs Inter/Roboto/Segoe/DejaVu so the exported scene never lets
+ * text spill past a card edge. */
+function charEm(ch: string): number {
+  if (ch >= "A" && ch <= "Z") return ch === "M" || ch === "W" ? 0.95 : 0.75;
+  if (ch >= "a" && ch <= "z") return 0.62;
+  if (ch >= "0" && ch <= "9") return 0.64;
+  if (ch === " ") return 0.32;
+  if (ch === "…") return 1.0;
+  if (",.:;!'".includes(ch)) return 0.35;
+  return 0.62;
+}
+
+/** Best-effort pixel width of a run of text at the given font size/weight. */
+export function estimateTextWidth(text: string, fontSize: number, weight: number): number {
+  const factor = weight >= 600 ? 1.05 : 1;
+  let em = 0;
+  for (const ch of text) em += charEm(ch);
+  return em * fontSize * factor;
+}
+
+/**
+ * Truncate `s` with an ellipsis so its estimated width fits within `maxPx`.
+ * Pure — no DOM required, so it is deterministic and bun-testable.
+ */
+export function truncateToWidth(s: string, maxPx: number, fontSize: number, weight: number): string {
+  const ellipsisW = charEm("…") * fontSize * (weight >= 600 ? 1.05 : 1);
+  if (estimateTextWidth(s, fontSize, weight) <= maxPx) return s;
+  let w = 0;
+  let i = 0;
+  for (; i < s.length; i++) {
+    const cw = charEm(s[i]) * fontSize * (weight >= 600 ? 1.05 : 1);
+    if (w + cw + ellipsisW > maxPx) break;
+    w += cw;
+  }
+  const cut = i > 0 ? i : s.length;
+  return `${s.slice(0, cut)}…`;
 }
 
 function formatSize(bytes: number): string {
@@ -254,6 +290,65 @@ function childRows(node: FewerNode, edges: FewerEdge[], nodes: FewerNode[]): Few
   return list;
 }
 
+function itemCountLabel(count: number): string {
+  return `${count} ${count === 1 ? "item" : "items"}`;
+}
+
+/** Metric shown on a folder child row: item count for folders, size for files. */
+function childMetric(child: FewerNode, edges: FewerEdge[]): string {
+  if (child.data.type !== "folder") return formatSize(child.data.size ?? 0);
+  const c = edges.filter((e) => e.source === child.id).length;
+  return itemCountLabel(c);
+}
+
+function childRowIcon(child: FewerNode, p: RenderPalette): { icon: IconName; color: string } {
+  const isFolder = child.data.type === "folder";
+  return {
+    icon: isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"],
+    color: isFolder ? p.folderIcon : p.fileIcon,
+  };
+}
+
+/** Shared layout/palette context for folder child rows. */
+interface FolderRowCtx {
+  w: number;
+  rowBase: number;
+  selected: boolean;
+  subtleColor: string;
+  p: RenderPalette;
+  edges: FewerEdge[];
+}
+
+function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string {
+  const { w, rowBase, selected, subtleColor, p, edges } = ctx;
+  const ry = rowBase + i * ITEM_HEIGHT;
+  const isFolder = child.data.type === "folder";
+  const { icon, color: iconColor } = childRowIcon(child, p);
+  const labelColor = isFolder && !selected ? p.folderText : p.text;
+  const label = truncateToWidth(child.data.label, w - 96, 12, 400);
+  const metric = childMetric(child, edges);
+  const chevronX = w - 18;
+  return `<g>
+      <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
+      <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
+      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
+      <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
+    </g>`;
+}
+
+/** Shared highlight/border ring logic for folder + file cards. The selection
+    ring is intentionally NOT drawn in exports: it is a canvas interaction
+    affordance, so exporting never bakes the current selection into the image. */
+function cardStroke(
+  n: FewerNode,
+  border: string,
+): { stroke: string; width: number } {
+  return {
+    stroke: n.data.highlighted ? "#fbbf24" : border,
+    width: n.data.highlighted ? 2 : 1,
+  };
+}
+
 function renderFolderCard(
   n: FewerNode,
   edges: FewerEdge[],
@@ -279,43 +374,24 @@ function renderFolderCard(
   const subtleColor = selected ? p.subtle : p.folderSubtle;
   const rootIcon = n.data.isRoot ? "folder-open" : "folder";
 
-  const listRowsHtml = rows.slice(0, visibleRows).map((child, i) => {
-    const ry = rowBase + i * ITEM_HEIGHT;
-    const isFolder = child.data.type === "folder";
-    const icon = isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"];
-    const iconColor = isFolder ? p.folderIcon : p.fileIcon;
-    const labelColor = isFolder && !selected ? p.folderText : p.text;
-    const label = truncate(child.data.label, Math.max(8, Math.floor((w - 96) / 7)));
-    const metric = isFolder
-      ? (() => {
-          const c = edges.filter((e) => e.source === child.id).length;
-          return `${c} ${c === 1 ? "item" : "items"}`;
-        })()
-      : formatSize(child.data.size ?? 0);
-    const chevronX = w - 18;
-    return `<g>
-      <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
-      <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
-      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
-      <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
-    </g>`;
-  }).join("");
+  const listRowsHtml = rows
+    .slice(0, visibleRows)
+    .map((child, i) => renderChildRow(child, i, { w, rowBase, subtleColor, p, edges, selected }))
+    .join("");
 
-  let bodyHtml = listRowsHtml;
-  if (rows.length === 0) {
-    bodyHtml = `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`;
-  }
+  const bodyHtml =
+    rows.length === 0
+      ? `<text x="${w / 2}" y="${(listTop + footerTop) / 2 + 4}" text-anchor="middle" font-size="12" fill="${escapeXml(subtleColor)}">Empty folder</text>`
+      : listRowsHtml;
 
-  const filterId = selected ? "filter-glow" : "filter-folder-shadow";
-  const stroke = n.data.highlighted ? "#fbbf24" : p.folderBorder;
-  const strokeWidth = n.data.highlighted ? 2 : 1;
-  const rowsCount = `${rows.length} ${rows.length === 1 ? "item" : "items"}`;
+  const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
+  const rowsCount = itemCountLabel(rows.length);
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
-    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncate(n.data.label, Math.max(8, Math.floor((w - 48) / 8))))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncate(n.data.path, Math.max(8, Math.floor((w - 48) / 6))))}</text>
+    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48, 14, 600))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48, 10, 400))}</text>
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
     <line x1="${x}" y1="${y + footerTop}" x2="${x + w}" y2="${y + footerTop}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
@@ -330,13 +406,12 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const w = size.w;
   const h = size.h;
   const selected = o.selectedIds?.has(n.id) ?? false;
-  const filterId = selected ? "filter-glow" : "filter-file-shadow";
+  const filterId = "filter-file-shadow";
   const icon = CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
-  const stroke = n.data.highlighted ? "#fbbf24" : p.fileBorder;
-  const strokeWidth = n.data.highlighted ? 2 : 1;
-  const label = truncate(n.data.label, Math.max(6, Math.floor((w - 56) / 8)));
+  const { stroke, width: strokeWidth } = cardStroke(n, p.fileBorder);
+  const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
   // Mirror the canvas file card layout: no horizontal padding (icon box sits
@@ -370,11 +445,41 @@ function filterDefs(o: GraphRenderOptions): string {
   return `<defs>
   <filter id="filter-folder-shadow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${escapeXml(p.folderIcon)}" flood-opacity="0.28"/></filter>
   <filter id="filter-file-shadow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${escapeXml(p.fileIcon)}" flood-opacity="0.28"/></filter>
-  <filter id="filter-glow" x="-60%" y="-60%" width="220%" height="220%">
-    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#22d3ee" flood-opacity="0.35"/>
-    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#22d3ee" flood-opacity="0.14"/>
-  </filter>
 </defs>`;
+}
+
+/* ------------------------ "made with fewer" watermark ----------------------- */
+
+/** Inline vector mark (`public/logo_flat.svg` flattened) — embedded directly in
+    the exported SVG so it survives rasterization (PNG) and opening the file
+    offline. Natural size is ~130.7 × 117.7 units; callers scale it down. */
+const LOGO_MARK_PATHS = `<path style="fill:#f97c20;stroke:none" d="M 18.744535,116.66975 V 42.194181 A 21.516756,21.516756 135 0 1 40.261291,20.677425 h 21.48881 a 10.160205,10.160205 26.121466 0 1 8.032801,3.938961 l 4.482039,5.787159 a 10.160205,10.160205 26.121466 0 0 8.032801,3.938961 h 45.530038 a 21.609584,21.609584 45 0 1 21.60958,21.609584 v 60.86611 a 21.574914,21.574914 135.0739 0 1 -21.63057,21.57484 l -87.620365,-0.22602 a 21.497343,21.497343 45.073899 0 1 -21.44189,-21.49727 z" transform="translate(-155.54246,311.95701)"/><g transform="translate(-155.54246,311.95701)"><path d="M 114.98183,60.062214 H 70.412308 A 16.807367,16.807367 135 0 0 53.604941,76.869581 v 61.252969 l 29.17889,0.0592 v -17.74588 a 10.387433,10.387433 135 0 1 10.387433,-10.38743 h 21.747226 c 0,0 -13.52653,-16.079502 -21.656037,-25.256653 5.715055,-6.277277 13.207107,-14.835145 21.719637,-24.729573 z" style="fill:#f9f9f9;stroke-width:0.575981"/><path style="fill:none;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 115.51467,60.057317 93.361718,85.054093 115.44653,110.05087"/><path style="fill:#cc9ee5;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 93.511771,84.993363 H 74.846246"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="110.03839" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="72.858231" cy="85.035263" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="60.958183" r="6.1801715"/></g>`;
+
+/** Display host of the homepage (e.g. "fewer.direct") instead of the full URL,
+    so the badge stays compact even if NEXT_PUBLIC_HOME_URL overrides the domain. */
+function brandingHost(): string {
+  try {
+    return new URL(FEWER_HOME_URL).host;
+  } catch {
+    return FEWER_HOME_URL;
+  }
+}
+
+/** Corner badge: fewer logo mark + name + host on a translucent pill, linked to
+    the homepage. Fixed size keeps it legible over any graph content; sits
+    bottom-right like the old credit line. */
+function renderBrandingMark(sceneW: number, sceneH: number): string {
+  const BW = 118;
+  const BH = 30;
+  const bx = Math.max(8, sceneW - 14 - BW);
+  const by = Math.max(8, sceneH - 14 - BH);
+  const scale = 0.13; // 117.7-unit mark → ~15.3px tall in the badge
+  return `<a href="${FEWER_HOME_URL}" target="_blank" rel="noopener"><g>
+    <rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="15" fill="rgba(11, 11, 19, 0.25)" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+    <g transform="translate(${bx + 10}, ${by + 7.4}) scale(${scale})"><g transform="translate(-31.956073,-332.63444)"><g transform="translate(168.75398)">${LOGO_MARK_PATHS}</g></g></g>
+    <text x="${bx + 47}" y="${by + 14}" font-size="11" font-weight="700" fill="#f8f9fa">fewer</text>
+    <text x="${bx + 35}" y="${by + 25}" font-size="9" fill="rgba(248, 249, 250, 0.9)">${escapeXml(brandingHost())}</text>
+  </g></a>`;
 }
 
 /** Build an SVG scene exactly reflecting current graph + theme state. */
@@ -421,9 +526,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
     .join("\n  ");
 
   const font = o.fontFamily || "sans-serif";
-  const fontSvg = o.includeBranding
-    ? `<a href="${FEWER_HOME_URL}" target="_blank" rel="noopener"><text x="${width - 14}" y="${height - 12}" text-anchor="end" font-size="11" fill="${escapeXml(o.palette.subtle)}">${escapeXml(FEWER_CREDIT)}</text></a>`
-    : "";
+  const brandingSvg = o.includeBranding ? renderBrandingMark(width, height) : "";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
   ${filterDefs(o)}
@@ -432,7 +535,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   ${edgesHtml}
   ${nodesHtml}
   </g>
-  ${fontSvg}
+  ${brandingSvg}
 </svg>`;
 
   return { svg, width, height };
@@ -455,6 +558,7 @@ export function readThemePalette(): RenderPalette {
     text: varOr("--fewer-text", "#f8f9fa"),
     subtle: varOr("--fewer-text-subtle", "#adb5bd"),
     edge: varOr("--fewer-edge", "rgba(173, 181, 189, 0.5)"),
+    selectRing: varOr("--fewer-select-ring", "#22d3ee"),
     folderBg: varOr("--fewer-folder-bg", "rgba(253, 126, 20, 0.12)"),
     folderBorder: varOr("--fewer-folder-border", "rgba(253, 126, 20, 0.45)"),
     folderText: varOr("--fewer-folder-text", "#ffd8a8"),

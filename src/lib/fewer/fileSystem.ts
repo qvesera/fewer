@@ -6,6 +6,7 @@ import {
   DEFAULT_IMPORT_OPTIONS,
   VENDORED_DIRS,
 } from "./importOptions";
+import { LOCAL_FS_FEATURES } from "./features";
 
 /**
  * Attempts to use the File System Access API to let the user pick a
@@ -16,23 +17,44 @@ import {
  *
  * @param options Controls depth, filtering, and what to include.
  */
+// Type for the picker options — add startIn and id
+interface PickerOpts {
+  mode?: string;
+  startIn?: FileSystemDirectoryHandle | "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+  id?: string;
+}
+
 export async function pickDirectoryTree(
-  options: ImportOptions = DEFAULT_IMPORT_OPTIONS
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
+  startIn?: PickerOpts["startIn"],
 ): Promise<TreeEntry | null> {
+  // When local-filesystem features are off (e.g. Tauri shell), skip the
+  // File System Access API entirely and use the legacy <input webkitdirectory>
+  // fallback. The legacy picker works in every webview engine.
+  if (!LOCAL_FS_FEATURES.fsaDirectoryPicker) {
+    return pickDirectoryViaInput(options);
+  }
+
   const w = window as unknown as {
-    showDirectoryPicker?: (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle>;
+    showDirectoryPicker?: (opts?: PickerOpts) => Promise<FileSystemDirectoryHandle>;
   };
   if (typeof w.showDirectoryPicker !== "function") {
     // Fallback to webkitdirectory input
     return pickDirectoryViaInput(options);
   }
 
+  const pickerOpts: PickerOpts = {
+    mode: "readwrite",
+    id: "fewer-import",
+  };
+  if (startIn) pickerOpts.startIn = startIn;
+
   // Check for Brave browser (which may disable the API by default)
   const isBrave = await detectBrave();
   if (isBrave) {
     // Try anyway — the user may have enabled the flag
     try {
-      const handle = await w.showDirectoryPicker!({ mode: "read" });
+      const handle = await w.showDirectoryPicker!({ ...pickerOpts, mode: "read" });
       setStoredRootHandle(handle);
       return buildTreeFromHandle(handle, 0, options);
     } catch (err) {
@@ -46,7 +68,7 @@ export async function pickDirectoryTree(
   }
 
   try {
-    const handle = await w.showDirectoryPicker({ mode: "readwrite" });
+    const handle = await w.showDirectoryPicker(pickerOpts);
     setStoredRootHandle(handle);
     return buildTreeFromHandle(handle, 0, options);
   } catch (err) {
@@ -149,6 +171,111 @@ export async function buildTreeFromHandle(
   });
 
   return { name: handle.name, type: "folder", children, fsHandle: handle };
+}
+
+/**
+ * Same semantics as buildTreeFromHandle, but walks a legacy
+ * FileSystemDirectoryEntry instead of a FileSystemDirectoryHandle.
+ *
+ * Used as the drag-and-drop fallback: Chromium under a Flatpak/Snap portal
+ * (e.g. Vivaldi, Brave, Opera flatpaks) often fails to materialize a
+ * FileSystemDirectoryHandle for OS-dropped folders, while the legacy entry API
+ * still exposes the directory. Entries give no usable handle, so fsHandle is
+ * omitted — the graph still fully renders; only disk write-back ops need the
+ * handle, and those already require a handle backed by a picker.
+ */
+export async function buildTreeFromEntry(
+  entry: FileSystemDirectoryEntry,
+  depth: number,
+  options: ImportOptions
+): Promise<TreeEntry> {
+  const children: TreeEntry[] = [];
+
+  // maxDepth of 0 means unlimited; otherwise stop when we hit the limit
+  const shouldRecurse = options.maxDepth === 0 || depth < options.maxDepth;
+
+  if (shouldRecurse) {
+    const raw = await readLegacyEntries(entry);
+    for (const child of raw) {
+      // Skip hidden files/folders if not included
+      if (!options.includeHidden && child.name.startsWith(".")) continue;
+
+      // Skip vendored directories if not included
+      if (!options.includeVendored && VENDORED_DIRS.has(child.name)) continue;
+
+      if (child.isDirectory) {
+        const childTree = await buildTreeFromEntry(
+          child as FileSystemDirectoryEntry,
+          depth + 1,
+          options
+        );
+        // Mirror buildTreeFromHandle's empty-folder semantics: skip only when
+        // the folder has no entries AT ALL on disk, not just none imported.
+        if (options.skipEmptyFolders && childTree.children && childTree.children.length === 0) {
+          if (options.includeFiles) continue;
+          const hasEntries = await readLegacyEntries(child as FileSystemDirectoryEntry);
+          if (hasEntries.length === 0) continue;
+        }
+        children.push(childTree);
+      } else {
+        // Include all files when includeFiles: false so we can discover folder
+        // children — treeToGraph marks them hidden based on the option.
+        if (options.includeFiles && options.extensions.length > 0) {
+          const ext = child.name.split(".").pop() ?? "";
+          const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
+          const allowedExts = options.caseSensitiveExtensions
+            ? options.extensions
+            : options.extensions.map((e) => e.toLowerCase());
+          if (!allowedExts.includes(extToCompare)) continue;
+        }
+        let size = 0;
+        try {
+          size = await legacyFileSize(child as FileSystemFileEntry);
+        } catch {
+          size = 0;
+        }
+        children.push({ name: child.name, type: "file", size });
+      }
+    }
+  }
+
+  // Same sort as buildTreeFromHandle: folders first, then alphabetical
+  children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return { name: entry.name, type: "folder", children };
+}
+
+/** Drain a directory reader in batches (the legacy API returns a few per call). */
+function readLegacyEntries(
+  dir: FileSystemDirectoryEntry
+): Promise<FileSystemEntry[]> {
+  return new Promise((resolve, reject) => {
+    const reader = dir.createReader();
+    const all: FileSystemEntry[] = [];
+    const readBatch = () => {
+      reader.readEntries(
+        (batch) => {
+          if (batch.length === 0) {
+            resolve(all);
+            return;
+          }
+          all.push(...batch);
+          readBatch();
+        },
+        (err) => reject(err)
+      );
+    };
+    readBatch();
+  });
+}
+
+function legacyFileSize(file: FileSystemFileEntry): Promise<number> {
+  return new Promise((resolve) => {
+    file.file((f) => resolve(f.size), () => resolve(0));
+  });
 }
 
 /**

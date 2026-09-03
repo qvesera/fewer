@@ -1,7 +1,9 @@
 "use client";
 
 import { fsHandleStore } from "./types";
+import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 import { useGraphStore } from "@/store/graphStore";
+import { isLocalClient } from "./isLocalClient";
 
 /**
  * Real file system operations using the File System Access API.
@@ -231,6 +233,7 @@ export async function resolveRootLocalPath(): Promise<string | null> {
   return st.localRootPath ?? null;
 }
 
+
 /**
  * Open a local file node in its dedicated OS app (the default app for that
  * file type). We POST the node's path to /api/open-file, which the dev server
@@ -247,12 +250,10 @@ export async function openNodeFile(
   node: { id: string; data: { type: string; path?: string } },
   dataSource: string,
 ): Promise<boolean> {
-  // 1) Open in the OS default app whenever we have a path — the only route
-  //    that hands the file to `xdg-open` / `open` / `start`. Not gated on
-  //    directory imports: any path-owning source opens in its default app.
-  if (node.data.path) {
-    // Prefer the exact, previously-resolved root location (saved with the
-    // graph as localRootPath) so we don't have to search the filesystem again.
+  // 1) Open in the OS default app via the server API — the only route that
+  //    hands the file to `xdg-open` / `open` / `start`. Only works when the
+  //    client is on the same machine as the server (localhost).
+  if (node.data.path && isLocalClient()) {
     const st = useGraphStore.getState();
     const root = st.nodes.find((n) => n.data.isRoot);
     const sendPath =
@@ -266,11 +267,12 @@ export async function openNodeFile(
       });
       if (res.ok) return true;
     } catch {
-      // fall through to browser fallback
+      // server not reachable
     }
   }
-  // 2) Browser fallback (live file handle → object URL) — only for types the
-  //    browser can render, lest we silently download an unsupported type.
+  // 2) Browser fallback: check for a live File System Access handle. This
+  //    only works in Chromium browsers and only within the same page session
+  //    (handles are lost on refresh).
   if (node.data.type === "file") {
     const handle = fsHandleStore.get(node.id);
     if (handle && handle.kind === "file") {
@@ -280,13 +282,39 @@ export async function openNodeFile(
         await openFile(fileHandle);
         return true;
       }
-      // Non-renderable type without a server path: we have no way to open the
-      // OS app, so fail cleanly (caller toasts) instead of force-downloading.
       return false;
     }
   }
   return false;
 }
+/**
+ * Open a folder in the OS file explorer via /api/open-folder. Returns true
+ * when the server acknowledged the open request, false on failure.
+ * Uses the resolved root location (saved with the graph as localRootPath) to
+ * avoid searching the filesystem again on every open.
+ */
+export async function openFolderInExplorer(path: string): Promise<boolean> {
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot);
+  const sendPath = nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
+  try {
+    const res = await fetch("/api/open-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: sendPath }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to open folder");
+    }
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("Open folder error:", msg);
+    return false;
+  }
+}
+
 /**
  * Download a remote file (e.g. a crawled public-index item) straight to disk.
  * Tries to read it as a blob first (so we control the saved filename); if the
@@ -506,13 +534,92 @@ export async function expandFolderNode(
     edges: [...s.edges, ...merged],
   }));
 
-  // Re-apply auto-hide: if the dragged folder has >10 children, hide them
+    // Re-apply auto-hide: if the dragged folder has >10 children, hide them
   setTimeout(() => {
     useGraphStore.getState().autoHideLargeFolders();
   }, 0);
 
-  // Trigger relayout
-  setTimeout(() => {
-    useGraphStore.getState().relayout();
-  }, 50);
 }
+
+/**
+ * Re-scan a folder's children from disk and replace its subtree in the graph.
+ *
+ * Two re-scan channels, tried in order:
+ *  1. File System Access handle (fsHandleStore) — only for folders imported via
+ *     showDirectoryPicker in this browser session. Lost on page reload.
+ *  2. Local-path walk via /api/list-directory — works for any folder whose
+ *     absolute path the dev server can resolve (drag-imports delivered as a
+ *     path, Flatpak/Snap portalized drops, subfolders). Requires the graph to
+ *     have a resolvable localRootPath.
+ *
+ * Returns added/removed counts and a status code.
+ */
+export async function refreshFolderFromDisk(
+  nodeId: string,
+): Promise<{ added: number; removed: number; status: "ok" | "no-handle" | "not-found" | "error"; error?: string }> {
+  try {
+    const store = useGraphStore.getState();
+    const folderNode = store.nodes.find((n) => n.id === nodeId);
+    if (!folderNode || folderNode.data.type !== "folder") {
+      return { added: 0, removed: 0, status: "not-found" };
+    }
+
+    const { treeToGraph, rekeyTreeChildren } = await import("./treeToGraph");
+    const { DEFAULT_IMPORT_OPTIONS } = await import("./importOptions");
+    const importOpts = { ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 };
+
+    // Channel 1: live File System Access handle.
+    const handle = fsHandleStore.get(nodeId);
+    let rawNodes: FewerNode[];
+    let rawEdges: FewerEdge[];
+    if (handle && handle.kind === "directory") {
+      const { buildTreeFromHandle } = await import("./fileSystem");
+      const dirHandle = handle as FileSystemDirectoryHandle;
+      const tree = await buildTreeFromHandle(dirHandle, 0, importOpts);
+      tree.name = folderNode.data.label;
+      tree.fsHandle = dirHandle;
+      ({ nodes: rawNodes, edges: rawEdges } = treeToGraph(tree, { idPrefix: "refresh" }));
+    } else {
+      // Channel 2: resolve the folder's absolute path and re-walk via the
+      // local dev server (same walker the initial drag-import used).
+      const rootNode = store.nodes.find((n) => n.data.isRoot && n.data.type === "folder");
+      const absPath = nodeAbsolutePath(folderNode.data.path, rootNode?.data.path, store.localRootPath);
+      if (!absPath) {
+        return { added: 0, removed: 0, status: "no-handle" };
+      }
+      const res = await fetch("/api/list-directory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: absPath, options: importOpts }),
+      });
+      const json = await res.json().catch(() => null) as { tree?: TreeEntry | null; error?: string } | null;
+      if (!res.ok || !json?.tree) {
+        return {
+          added: 0,
+          removed: 0,
+          status: "error",
+          error: json?.error ?? `Server returned ${res.status}`,
+        };
+      }
+      json.tree.name = folderNode.data.label;
+      ({ nodes: rawNodes, edges: rawEdges } = treeToGraph(json.tree, { idPrefix: "refresh" }));
+    }
+
+    const { childNodes, childEdges } = rekeyTreeChildren(
+      rawNodes,
+      rawEdges,
+      nodeId,
+      folderNode.data.depth ?? 0,
+    );
+    const result = store.applyFolderRefresh(nodeId, childNodes, childEdges);
+    return { added: result.added, removed: result.removed, status: "ok" };
+  } catch (err) {
+    return {
+      added: 0,
+      removed: 0,
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+

@@ -59,7 +59,7 @@ Each color has an independent opacity slider with live preview swatch. The edito
 
 The editor is a movable panel locked within the browser window. Click the minimize (−) button to collapse it into a small draggable dock pill that snaps to any canvas edge (top/bottom/left/right). The pill renders vertically on side edges. Click the pill to restore.
 
-### 16 CSS Color Variables
+### 17 CSS Color Variables
 
 All theme colors are exposed as `--fewer-*` CSS variables:
 
@@ -71,6 +71,7 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-item-hover`         | Hover state background     |
 | `--fewer-handle`             | Connection handle color    |
 | `--fewer-edge`               | Graph edge color           |
+| `--fewer-select-ring`        | Selected node outline      |
 | `--fewer-folder-bg`          | Folder card background     |
 | `--fewer-folder-border`      | Folder card border         |
 | `--fewer-folder-text`        | Folder title color         |

@@ -3,6 +3,9 @@ import type { Node, Edge } from "@xyflow/react";
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
 
+/** Result status returned by `refreshFolderFromDisk`. */
+export type RefreshStatus = "ok" | "no-handle" | "not-found" | "error";
+
 /** Categories used for icon + color selection */
 export type FileCategory =
   | "code"
@@ -58,6 +61,20 @@ export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 
 export type EdgeStyle = "curved" | "angled" | "straight";
 export type EdgeStrokeStyle = "solid" | "dashed" | "dotted";
+
+/**
+ * SVG `stroke-dasharray` for a stroke style. Used for BOTH the plain edges and
+ * the animated edges (which need an explicit pattern so the shared dash clock's
+ * wrap distance is a common multiple of every period in play — see dashClock).
+ */
+export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
+  switch (style) {
+    case "dashed": return "8 4";
+    case "dotted": return "2 4";
+    case "solid":
+    default: return undefined;
+  }
+}
 
 export interface GraphSnapshot {
   nodes: FewerNode[];
@@ -119,6 +136,8 @@ export interface CustomTheme {
   itemHover: CustomThemeColor;
   handle: CustomThemeColor;
   edge: CustomThemeColor;
+  // Outline around the currently selected node card
+  selectRing: CustomThemeColor;
   // Folder-specific colors
   folderBg: CustomThemeColor;
   folderBorder: CustomThemeColor;
@@ -171,6 +190,7 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
   { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
   { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
   { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
+  { key: "selectRing", label: "Selection Ring", cssVar: "--fewer-select-ring", description: "Outline around the selected node", defaultColor: "#22d3ee", defaultOpacity: 1, openColor: { family: "cyan", index: 6 } },
   { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
   { key: "folderText", label: "Folder Text", cssVar: "--fewer-folder-text", description: "Folder title text", defaultColor: "#1e293b", defaultOpacity: 1, openColor: { family: "gray", index: 8 } },
   { key: "folderSubtleText", label: "Folder Secondary", cssVar: "--fewer-folder-subtle-text", description: "Folder path and footer text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
@@ -241,6 +261,9 @@ export interface ViewState {
   categoryFilter: FileCategory | null;
   /** Ids that the category filter added to hiddenIds in this view state. */
   categoryHiddenIds: string[];
+  /** Ids the user hid directly (toggleHidden / hideSelected roots) —
+   *  showSubtree must not reveal them or their descendants. */
+  independentlyHiddenIds: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
@@ -294,6 +317,22 @@ export interface ViewStateOp {
   after: ViewState;
 }
 
+/** Replace a folder's on-disk subtree after a re-scan.
+ *  Undo restores the pre-refresh children; redo re-applies the new ones.
+ *  The folder node itself (nodeId) is never part of oldNodes/newNodes. */
+export interface RefreshSubtreeOp {
+  type: "refresh-subtree";
+  nodeId: string;
+  /** Descendants of the folder before the refresh (for undo). */
+  oldNodes: FewerNode[];
+  oldEdges: FewerEdge[];
+  /** Descendants of the folder after the refresh (for redo). */
+  newNodes: FewerNode[];
+  newEdges: FewerEdge[];
+  before: ViewState;
+  after: ViewState;
+}
+
 export type HistoryOp =
   | AddNodeOp
   | RemoveNodeOp
@@ -307,6 +346,7 @@ export type HistoryOp =
   | MovePositionsOp
   | ResizeOp
   | CollapseBatchOp
+  | RefreshSubtreeOp
   | ViewStateOp;
 
 /**

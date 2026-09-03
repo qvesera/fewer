@@ -4,8 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -26,13 +25,7 @@ export function ShareDialog() {
   const setOpen = useGraphStore((s) => s.setShareOpen);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
-  const direction = useGraphStore((s) => s.direction);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
-  const themeMode = useGraphStore((s) => s.themeMode);
-  const customTheme = useGraphStore((s) => s.customTheme);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const nodeWidth = useGraphStore((s) => s.nodeWidth);
-  const nodeHeight = useGraphStore((s) => s.nodeHeight);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const { toast } = useToast();
 
   const [copied, setCopied] = useState(false);
@@ -49,13 +42,7 @@ export function ShareDialog() {
     const data = {
       nodes,
       edges,
-      direction,
-      edgeStyle,
-      themeMode,
-      customTheme,
-      cornerRadius,
-      nodeWidth,
-      nodeHeight,
+      localRootPath,
     };
     const encoded = encodeShareData(data);
     if (encoded.length <= SHARE_HASH_THRESHOLD) {
@@ -103,7 +90,7 @@ export function ShareDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent dialogTitle="Share" dialogIcon={<Link className="h-3.5 w-3.5 text-purple-500" />} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link className="h-4 w-4 text-purple-500" />
@@ -164,7 +151,7 @@ export function ShareDialog() {
             <p className="text-xs text-muted-foreground">
               {building
                 ? "Storing large graph for a short share link…"
-                : `This link contains all ${nodes.length} node${ nodes.length === 1 ? "" : "s" } and ${edges.length} edge${ edges.length === 1 ? "" : "s" } with their positions and layout settings.`}
+                : `This link contains all ${nodes.length} node${ nodes.length === 1 ? "" : "s" } and ${edges.length} edge${ edges.length === 1 ? "" : "s" } with their positions.`}
             </p>
           </div>
         )}

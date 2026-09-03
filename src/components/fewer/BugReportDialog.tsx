@@ -4,8 +4,7 @@ import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -35,6 +34,10 @@ import {
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats } from "@/lib/fewer/stats";
 import { useToast } from "@/hooks/use-toast";
+import {
+  buildGitHubIssueUrl,
+  type BugReport,
+} from "@/lib/fewer/bugReport";
 
 type Severity = "low" | "medium" | "high" | "critical";
 type Category =
@@ -167,7 +170,7 @@ export function BugReportDialog() {
   ]);
 
   // Build the full bug report object
-  const bugReport = useMemo(
+  const bugReport = useMemo<BugReport>(
     () => ({
       ...diagnostics,
       bug: {
@@ -236,77 +239,6 @@ export function BugReportDialog() {
     if (!response.ok || !data.success) {
       throw new Error(data.message || "Failed to submit bug report via Web3Forms.");
     }
-  };
-
-  const buildGitHubIssueUrl = (report: typeof bugReport) => {
-    const repo = "qvesera/fewer";
-    const { environment, graphState, app } = report;
-
-    // Build body manually with explicit \r\n for GitHub compatibility
-    const e = (s: string) => encodeURIComponent(s);
-    let body = "";
-
-    body += `### Description\n`;
-    body += `\n`;
-    body += `${report.bug.description !== "(no description provided)" ? report.bug.description : "_No description provided._"}\n`;
-    body += `\n`;
-    body += `### Steps to Reproduce\n`;
-    body += `\n`;
-    body += "```\n";
-    body += `${report.bug.stepsToReproduce !== "(no steps provided)" ? report.bug.stepsToReproduce : "No steps provided."}\n`;
-    body += "```\n";
-    body += `\n`;
-    body += `### Details\n`;
-    body += `\n`;
-    body += `- **Severity**: \`${report.bug.severity}\`\n`;
-    body += `- **Category**: \`${report.bug.category}\`\n`;
-    body += `- **App Version**: ${app?.version || "1.0.0"}\n`;
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>System Diagnostics</b></summary>\n";
-    body += `\n`;
-    body += `| Metric | Value |\n`;
-    body += `| --- | --- |\n`;
-    body += `| App Name | ${app?.name || "fewer"} |\n`;
-    body += `| App Version | ${app?.version || "1.0.0"} |\n`;
-    body += `| Timestamp | ${app?.timestamp || new Date().toISOString()} |\n`;
-    body += `| Browser | ${environment?.browser || "unknown"} |\n`;
-    body += `| FS Access | ${environment?.fileSystemAccess || "unknown"} |\n`;
-    body += `| Iframe | ${environment?.iframeContext ? "Yes" : "No"} |\n`;
-    body += `| Viewport | ${environment?.viewport || "unknown"} |\n`;
-    body += `| Online | ${environment?.online ? "Yes" : "No"} |\n`;
-    body += `\n`;
-    body += "</details>\n";
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>Graph State</b></summary>\n";
-    body += `\n`;
-    body += `| Metric | Value |\n`;
-    body += `| --- | --- |\n`;
-    body += `| Nodes | ${graphState?.totalNodes ?? 0} |\n`;
-    body += `| Edges | ${graphState?.totalEdges ?? 0} |\n`;
-    body += `| Files | ${graphState?.totalFiles ?? 0} |\n`;
-    body += `| Folders | ${graphState?.totalFolders ?? 0} |\n`;
-    body += `| Size (Bytes) | ${graphState?.totalSize ?? 0} |\n`;
-    body += `| Hidden | ${graphState?.hiddenNodes ?? 0} |\n`;
-    body += `| Layout | ${graphState?.layoutDirection || "unknown"} |\n`;
-    body += `| Edge Style | ${graphState?.edgeStyle || "unknown"} |\n`;
-    body += `| Theme | ${graphState?.themeMode || "unknown"} |\n`;
-    body += `\n`;
-    body += "</details>\n";
-    body += `\n`;
-    body += "<details>\n";
-    body += "<summary><b>Raw JSON Payload</b></summary>\n";
-    body += `\n`;
-    body += "```json\n";
-    body += `${JSON.stringify(report, null, 2)}\n`;
-    body += "```\n";
-    body += `\n`;
-    body += "</details>\n";
-
-    const title = `[Bug] ${report.bug.title}`;
-    const url = `https://github.com/${repo}/issues/new?title=${e(title)}&body=${e(body)}`;
-    return url;
   };
 
   const handleSubmit = () => {
@@ -379,7 +311,7 @@ export function BugReportDialog() {
       open={open}
       onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
     >
-      <DialogContent className="sm:max-w-2xl w-full">
+      <DialogContent dialogTitle="Report a Bug" dialogIcon={<Bug className="h-3.5 w-3.5 text-red-500" />} className="sm:max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-balance">
             <Bug className="h-4 w-4 text-red-500" />
@@ -398,7 +330,7 @@ export function BugReportDialog() {
               id="bug-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Nodes overlap when switching to LR layout"
+              placeholder="e.g. Cards overlap when switching to LR layout"
               className="text-sm"
               disabled={isDisabled}
               aria-required="true"
@@ -495,7 +427,7 @@ export function BugReportDialog() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
-                <span>Nodes / Edges</span>
+                <span>Cards / Edges</span>
                 <span className="tabular-nums font-medium text-foreground/80">
                   {diagnostics.graphState.totalNodes} /{" "}
                   {diagnostics.graphState.totalEdges}
@@ -509,7 +441,7 @@ export function BugReportDialog() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Theme / Node size</span>
+                <span>Theme / Card size</span>
                 <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.themeMode} /{" "}
                   {diagnostics.graphState.nodeWidth}×

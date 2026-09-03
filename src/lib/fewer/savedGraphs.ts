@@ -1,28 +1,16 @@
-import type { FewerNode, FewerEdge, LayoutDirection, EdgeStyle, CustomTheme, ThemeMode } from "./types";
+import type { FewerNode, FewerEdge } from "./types";
 
-/** Serializable snapshot of the full app state for a saved graph. */
+/**
+ * Serializable snapshot of a graph for a saved graph row.
+ *
+ * Graph *data* only — app settings (direction, edge styling, node dims,
+ * theme, minimap, display filters, scroll action) are per-account user
+ * settings, synced separately, and must NOT ride along with the graph. On load
+ * the viewer's current settings win, so restoring a graph never clobbers them.
+ */
 export interface SavedGraphData {
   nodes: FewerNode[];
   edges: FewerEdge[];
-  direction: LayoutDirection;
-  edgeStyle: EdgeStyle;
-  edgeAnimated: boolean;
-  edgeStrokeStyle: string;
-  edgeWidth: number;
-  cornerRadius: number;
-  nodeWidth: number;
-  nodeHeight: number;
-  themeMode: ThemeMode;
-  customTheme?: CustomTheme;
-  showFiles: boolean;
-  maxDisplayDepth: number;
-  autoHideThreshold: number;
-  showMiniMap: boolean;
-  miniMapPosition: string;
-  miniMapSize: number;
-  /** Free-form minimap offset (px from top-left) when miniMapPosition === "custom". */
-  miniMapX?: number;
-  miniMapY?: number;
   /** Absolute path of the graph's root folder on the originating dev machine
    *  (resolved at import time). Lets a graph opened later — including from the
    *  cloud — open files/folders directly when the path is still there, instead

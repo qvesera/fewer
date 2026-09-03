@@ -103,7 +103,7 @@ export async function collectAutoHideNotes(): Promise<
   return [
     {
       title: "Large folders collapsed",
-      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Nodes in the sidebar to reveal them.`,
+      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Cards in the sidebar to reveal them.`,
     },
   ];
 }

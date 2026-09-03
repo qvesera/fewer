@@ -29,8 +29,12 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
-import { nodeAbsolutePath } from "@/lib/fewer/fileOps";
+import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
+import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
+import { isLocalClient } from "@/lib/fewer/isLocalClient";
+import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -170,7 +174,7 @@ function RenameInput({
         // (e.g. the context menu closing right after you open the rename field).
         if (committedRef.current) return;
       }}
-      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none"
+      className="w-full rounded border border-cyan-400 bg-background px-1.5 py-0.5 text-sm font-semibold text-foreground outline-none select-text nodrag"
     />
   );
 }
@@ -197,33 +201,7 @@ function providerLabelFromSource(dataSource: string | null): string {
   return "Provider";
 }
 
-const openFolderInExplorer = async (path: string): Promise<boolean> => {
-  // Prefer the exact, previously-resolved root location (saved with the graph
-  // as localRootPath) so we don't search the filesystem again on every open.
-  const st = useGraphStore.getState();
-  const root = st.nodes.find((n) => n.data.isRoot);
-  const sendPath =
-    nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
-  try {
-    const res = await fetch("/api/open-folder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: sendPath }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to open folder");
-    }
-    return true;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    // The path may come from an import (CSV/JSON/saved graph) and not exist on
-    // this machine — that's not a crash. Log for diagnostics; callers surface a
-    // toast so the user sees why nothing opened.
-    console.error("Open folder error:", msg);
-    return false;
-  }
-};
+
 
 function FolderContextMenu({
   nodeId,
@@ -252,11 +230,20 @@ function FolderContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  const hasChildren = edges.some((e) => e.source === nodeId);
+  // When the right-clicked node is part of a multi-node selection (shift-drag,
+  // Select Children, …), the menu shows ONLY batch actions.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
+        <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           Folder actions
         </ContextMenuLabel>
@@ -320,6 +307,22 @@ function FolderContextMenu({
             Paste
           </ContextMenuItem>
         )}
+        {hasChildren && (
+          <ContextMenuItem
+            onSelect={() => {
+              const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+              useGraphStore.setState((s) => ({
+                selectedNodeIds: childIds,
+                nodes: s.nodes.map((n) => ({ ...n, selected: childIds.includes(n.id) })),
+                graphVersion: s.graphVersion + 1,
+              }));
+              toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+            }}
+            className="cursor-pointer"
+          >
+            Select Children
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         {hasParent && (
           <ContextMenuItem
@@ -362,13 +365,11 @@ function FolderContextMenu({
                   onSelect={() => {
                     const toShow = childIds.filter((id) => hiddenIds.includes(id));
                     if (toShow.length > 0) {
-                      useGraphStore.setState((s) => ({
-                        hiddenIds: s.hiddenIds.filter((id) => !toShow.includes(id)),
-                      }));
-                      useGraphStore.getState().relayout();
+                      // Visibility-only reveal: no relayout, so the viewport
+                      // stays where the user left it.
+                      useGraphStore.getState().showSubtrees(toShow);
                       toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
-                    useGraphStore.getState().setZoomToNodeIds(childIds);
                   }}
                   className="cursor-pointer"
                 >
@@ -386,12 +387,10 @@ function FolderContextMenu({
               return (
                 <ContextMenuItem
                   onSelect={() => {
-                    const hiddenSet = new Set(hiddenIds);
-                    for (const id of visibleChildren) {
-                      hiddenSet.add(id);
-                    }
-                    useGraphStore.setState({ hiddenIds: [...hiddenSet] });
-                    useGraphStore.getState().relayout();
+                    // Store action: hides each child subtree, keeps undo
+                    // history and view-state consistent, and never relayouts —
+                    // only visibility changes, so nothing jumps when zoomed in.
+                    useGraphStore.getState().hideNodes(visibleChildren);
                     toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
@@ -409,13 +408,14 @@ function FolderContextMenu({
               useGraphStore.setState((s) => ({
                 nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
               }));
-              window.dispatchEvent(new CustomEvent("fewer-add-node"));
+              window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
             }}
             className="cursor-pointer"
           >
-            Add Child Node
+            Add Child Card
           </ContextMenuItem>
-          {(dataSource === "directory" || localRootPath) && (
+          {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
+            isLocalClient() ? (
             <ContextMenuItem
               onSelect={async () => {
                 const ok = await openFolderInExplorer(nodePath);
@@ -431,6 +431,21 @@ function FolderContextMenu({
             >
               Open in File Explorer
             </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                disabled
+                className="cursor-pointer opacity-50"
+                onSelect={() => {
+                  toast({
+                    title: "Not available remotely",
+                    description: "This graph lives on the server — remote clients can't open folders locally.",
+                    variant: "destructive",
+                  });
+                }}
+              >
+                Open in File Explorer
+              </ContextMenuItem>
+            )
           )}
             <ContextMenuItem
               onSelect={async () => {
@@ -451,12 +466,33 @@ function FolderContextMenu({
             </ContextMenuItem>
             {dataSource === "directory" && (
               <ContextMenuItem
-                onSelect={() =>
-                  toast({
-                    title: "Refreshed from disk",
-                    description: `${nodeLabel} re-scanned`,
-                  })
-                }
+                onSelect={async () => {
+                  const result = await refreshFolderFromDisk(nodeId);
+                  if (result.status === "ok") {
+                    toast({
+                      title: "Refreshed from disk",
+                      description: `${nodeLabel}: +${result.added} / -${result.removed}`,
+                    });
+                  } else if (result.status === "no-handle") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "No disk handle and no resolvable local path for this folder (import it from this machine to enable re-scan).",
+                      variant: "destructive",
+                    });
+                  } else if (result.status === "not-found") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "Folder not found in graph.",
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Refresh failed",
+                      description: result.error ?? "Unknown error",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 className="cursor-pointer"
               >
                 Refresh from Disk
@@ -464,8 +500,44 @@ function FolderContextMenu({
             )}
           </>
         )}
+        </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
+  );
+}
+
+/**
+ * Batch action section rendered at the top of both node context menus when the
+ * right-clicked node is part of a multi-node selection. Reads fresh state via
+ * getState() inside handlers so a stale menu can't act on an old selection.
+ */
+function BatchActionsSection({ nodeId }: { nodeId: string }) {
+  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
+  const { toast } = useToast();
+  if (!isBatch) return null;
+
+  return (
+    <>
+      <ContextMenuLabel className="text-xs text-muted-foreground">
+        Batch actions · {selectedNodeIds.length} selected
+      </ContextMenuLabel>
+      <ContextMenuSeparator />
+      {buildBatchActions({ toast, selectedIds: selectedNodeIds }).map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className={
+            action.danger
+              ? "cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+              : "cursor-pointer"
+          }
+        >
+          {action.label}
+        </ContextMenuItem>
+      ))}
+    </>
   );
 }
 
@@ -504,11 +576,18 @@ function FileEntryContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  // Same rule as the folder menu: multi-selection right-click → batch only.
+  const isBatchSelection = useGraphStore(
+    (s) => s.selectedNodeIds.length > 1 && s.selectedNodeIds.includes(nodeId),
+  );
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52">
+        <BatchActionsSection nodeId={nodeId} />
+        {!isBatchSelection && (
+        <>
         <ContextMenuLabel className="text-xs text-muted-foreground">
           File actions
         </ContextMenuLabel>
@@ -621,7 +700,7 @@ function FileEntryContextMenu({
         {advancedModeEnabled && (
           <>
             <ContextMenuSeparator />
-            {showOpenFile !== false && (
+            {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
             <ContextMenuItem
               onSelect={async () => {
                 const { openNodeFile } = await import("@/lib/fewer/fileOps");
@@ -655,6 +734,8 @@ function FileEntryContextMenu({
               Copy Name
             </ContextMenuItem>
           </>
+        )}
+        </>
         )}
       </ContextMenuContent>
     </ContextMenu>
@@ -693,10 +774,11 @@ function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, 
   return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
 
-function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string }) {
+function ChildEntry({ child }: { child: FewerNode }) {
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const showNode = useGraphStore((s) => s.showNode);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
@@ -706,6 +788,9 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
   const { toast } = useToast();
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  const isHidden = hiddenIds.includes(child.id);
+  const isHovered = hoverHighlightIds.includes(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -723,11 +808,18 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
         "flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 nodrag",
         "hover:bg-fewer-item-hover hover:pl-3",
         isHighlighted && "bg-amber-500/20 ring-1 ring-amber-400",
+        isHovered && "bg-amber-500/20 ring-1 ring-amber-400",
         isDimmed && "opacity-40",
+        isHidden && "opacity-50 saturate-50",
       )}
-      onDoubleClick={() => {
-        const isHidden = hiddenIds.includes(child.id);
-        setZoomToNode(isHidden ? parentId : child.id);
+      title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
+      onDoubleClick={(e) => {
+        // Double-clicking a hidden child reveals it (and zooms to it); the
+        // visible children keep zooming into the node as before.
+        e.stopPropagation();
+        if (hiddenIds.includes(child.id)) showNode(child.id);
+        useGraphStore.getState().setSelectedNodeIds([child.id]);
+        setZoomToNode(child.id);
       }}
     >
       <NodeIcon
@@ -777,7 +869,7 @@ function ChildEntry({ child, parentId }: { child: FewerNode; parentId: string })
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -809,6 +901,9 @@ function CustomNodeImpl({
   const { toast } = useToast();
 
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  const isHovered = hoverHighlightIds.includes(id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(id, v);
@@ -854,11 +949,11 @@ function CustomNodeImpl({
         className={cn(
           "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
-          "gm-aurora gm-aurora-warm",
-          data.isRoot && "gm-aurora-brand",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.isRoot && "gm-aurora gm-aurora-brand",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow is-active gm-aurora-breath",
+          selected && "gm-selected-ring",
         )}
       >
         {selected && (
@@ -867,8 +962,10 @@ function CustomNodeImpl({
             minHeight={50}
             isVisible={!!selected}
             shouldResize={() => true}
-            lineClassName="!border-cyan-400/70"
-            handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
+            /* Line stays draggable but invisible — the themed select ring is
+               the single visible ring on a selected folder card. */
+            lineClassName="!border-transparent"
+            handleClassName="!h-2 !w-2 !rounded-full gm-resizer-handle"
           />
         )}
 
@@ -955,7 +1052,7 @@ function CustomNodeImpl({
                     style={{ transform: `translateY(${virtual.offsetY}px)` }}
                   >
                     {children.slice(virtual.startIndex, virtual.endIndex).map((child) => (
-                      <ChildEntry key={child.id} child={child} parentId={id} />
+                      <ChildEntry key={child.id} child={child} />
                     ))}
                   </div>
                 </div>
@@ -999,7 +1096,7 @@ function CustomNodeImpl({
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory" || !!localRootPath}
+      showOpenFile={dataSource === "directory" && isLocalClient()}
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >
@@ -1008,26 +1105,12 @@ function CustomNodeImpl({
           "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
           "cursor-context-menu",
           "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
-          "gm-aurora gm-aurora-cool",
-          data.highlighted && "ring-2 ring-amber-400",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
-          selected && "gm-selected-glow is-active gm-aurora-breath",
+          selected && "gm-selected-ring",
         )}
       >
-      {selected && (
-        <NodeResizer
-          minWidth={180}
-          minHeight={58}
-          isVisible={!!selected}
-          shouldResize={(e) => {
-            const direction = (e as unknown as { direction: string }).direction;
-            return direction === "left" || direction === "right";
-          }}
-          lineClassName="!border-cyan-400/70"
-          handleClassName="!h-2 !w-2 !rounded-full !bg-cyan-400 !border-2 !border-white"
-        />
-      )}
-
         <Handle
           type="target"
           position={target}
@@ -1097,4 +1180,4 @@ function CustomNodeImpl({
 
 export const CustomNode = memo(CustomNodeImpl);
 export { RenameInput };
-export { openFolderInExplorer };
+

@@ -88,6 +88,10 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
+> **Tip:** On an empty canvas you can also **drag a folder** from your file
+> system straight onto the canvas — it imports immediately with your saved
+> import settings (Chromium-based browsers).
+
 ### Edit the graph
 
 - **Rename** a node: **F2** or right-click
@@ -108,7 +112,7 @@ docker run -p 3000:3000 fewer
 - **File cards** (purple): filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
-- **Custom Reingold-Tilford layout** with type-aware dimensions
+- **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Breadcrumb bar**: selected node's full path
 
 </details>
@@ -138,8 +142,9 @@ docker run -p 3000:3000 fewer
 
 - **Fuzzy search** across filenames, paths, extensions
 - **Click result** → zoom to node
-- **Hidden nodes** appear with badge: click to show & zoom
+- **Hidden nodes** appear with badge: clicking shows the node **and its whole hidden ancestor chain** up to root, then zooms
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 
 </details>
 
@@ -151,6 +156,7 @@ docker run -p 3000:3000 fewer
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
 | **File**   | Rename, Open File, Copy Name, Copy, Cut, Delete                  |
 | **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
+| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
 
 </details>
 
@@ -291,7 +297,7 @@ src/
 │   ├── ShortcutsDialog.tsx   # All keyboard shortcuts
 │   ├── TutorialDialog.tsx    # Interactive spotlight walkthrough
 │   ├── BreadcrumbBar.tsx     # Path breadcrumb navigation
-│   ├── CustomThemeEditor.tsx # 16 color pickers
+│   ├── ThemeEditorDialog.tsx  # Draggable custom theme editor + presets
 │   ├── ErrorBoundary.tsx     # Crash recovery
 │   └── KeyboardShortcuts.tsx # Global hotkey handler
 ├── lib/fewer/
