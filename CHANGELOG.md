@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Account now shows the account status: a colored Free/Pro/Team plan badge, live usage meters (saved graphs and watched indexes against the plan's limits, red fill when over cap), the version-history retention window, email verification state, and member-since date. /api/profile now also returns current saved-graph and watched-index counts.
 - Plan-granted copy fixes: when billing is disabled the Account card now says 'Upgrades are granted by your administrator' on Free, 'Pro was granted by your administrator' on Pro, and 'Team is managed by your organization administrator' on Team — instead of the confusing blanket 'Plans are managed by the administrator'.
 - Removed the fictional admin from plan copy: Free now reads 'Self-serve upgrades are currently off', Pro reads 'Pro is enabled for this account', and the History dialog no longer blames an administrator for missing history.
+- Plan-copy lines in Settings and the History dialog now link to /docs/plans and drop the em-dash.
 
 ### Security
 
