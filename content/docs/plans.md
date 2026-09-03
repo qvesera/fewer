@@ -37,7 +37,7 @@ Plans live on each account in the database (`profiles.plan`, one of `free` / `pr
 The payment gateway (Stripe) is behind a **feature flag** that is **switched off by default**:
 
 - Server: `BILLING_ENABLED=false` — all `/api/billing/*` routes return 503.
-- Client: `NEXT_PUBLIC_BILLING_ENABLED=false` — the app hides upgrade/checkout buttons and shows "managed by the administrator" instead.
+- Client: `NEXT_PUBLIC_BILLING_ENABLED=false` — the app hides upgrade/checkout buttons and shows plan-aware status copy instead.
 
 To change a user's plan while the flag is off, run SQL in Supabase Studio (the service role is the only writer — column-level revokes stop users flipping their own plan):
 

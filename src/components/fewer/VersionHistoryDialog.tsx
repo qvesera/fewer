@@ -139,7 +139,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
               <p className="text-[11px] text-foreground/90 font-medium">Version history is not enabled on this plan.</p>
               <p className="text-[11px] text-muted-foreground/70">
                 Free keeps an automatic snapshot of every save for 30 days; Pro and Team keep a full year.
-                See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> for the tier table.
+                See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a> for the tier table.
               </p>
               {BILLING_UI ? (
                 <Button
@@ -153,7 +153,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
                 </Button>
               ) : (
                 <p className="text-[11px] text-muted-foreground/70">
-                  Version history is not available on this plan. See <a href="/docs/plans" className="underline hover:text-foreground">plans</a> for the tier table.
+                  Version history is not available on this plan. See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a> for the tier table.
                 </p>
               )}
             </div>
