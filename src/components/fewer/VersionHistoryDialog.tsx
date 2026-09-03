@@ -153,7 +153,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
                 </Button>
               ) : (
                 <p className="text-[11px] text-muted-foreground/70">
-                  Version history is enabled by your administrator — see /docs/plans for the tier table.
+                  Version history is not available on this plan — see /docs/plans for the tier table.
                 </p>
               )}
             </div>

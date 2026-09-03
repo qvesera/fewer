@@ -357,10 +357,10 @@ function AccountTab() {
             ) : (
               <span className="text-[11px] text-muted-foreground/70">
                 {plan === "team"
-                  ? "Team is managed by your organization administrator."
+                  ? "Team is managed by your organization."
                   : plan === "pro"
-                    ? "Pro was granted by your administrator."
-                    : "Upgrades are granted by your administrator — see /docs/plans."}
+                    ? "Pro is enabled for this account."
+                    : "Self-serve upgrades are currently off — see /docs/plans."}
               </span>
             )}
           </div>
