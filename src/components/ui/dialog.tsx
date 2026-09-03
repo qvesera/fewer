@@ -64,6 +64,7 @@ const DialogMinimizeContext = React.createContext<{
 function Dialog({
   open,
   onOpenChange,
+  children,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   const [minimized, setMinimized] = React.useState(false)
@@ -90,10 +91,10 @@ function Dialog({
 
   return (
     <DialogMinimizeContext.Provider value={{ minimized, meta, minimize, restore }}>
-      <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={onOpenChange}>
-        {props.children}
+      <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={onOpenChange} {...props}>
+        {children}
         {minimized && (
-          <DialogPortal>
+          <DialogPortal forceMount>
             <MinimizedDialogPill icon={meta.icon} label={meta.title} onRestore={restore} />
           </DialogPortal>
         )}
