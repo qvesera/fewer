@@ -26,7 +26,7 @@ Right-click empty canvas space to open quick actions:
 - **Zoom In / Zoom Out**
 - **Delete Edge**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Nodes**: reveal hidden nodes (Power User mode)
+- **Show All Cards**: reveal hidden nodes (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
 ## Node Types
@@ -94,7 +94,7 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust in Settings → Advanced (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
 
 ## Edge Styles
 
@@ -146,11 +146,11 @@ Shows selected node's full path. Click any segment to navigate to that ancestor.
 
 ## Auto-hide Large Folders
 
-Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Nodes** section as a nested tree.
+Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Cards** section as a nested tree.
 
 **Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
-## Hidden Nodes Panel
+## Hidden Cards Panel
 
 Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
 
@@ -173,7 +173,7 @@ Fuzzy search across filenames, paths, and extensions.
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
-- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Nodes, Graph Analytics
+- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Cards, Graph Analytics
 
 ## Stats Panel
 

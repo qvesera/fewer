@@ -1,82 +1,97 @@
 import { useGraphStore } from "@/store/graphStore";
 import type { SavedGraphData } from "./savedGraphs";
+import type { FewerNode, FewerEdge } from "./types";
 
 /**
- * Capture the current full app state into a serializable snapshot.
- * Used for saving graphs to the account.
+ * Capture the current graph data into a serializable snapshot.
+ * Used for saving graphs to the account (cloud) and for the local
+ * reload-persistence cache. Graph data only — app settings are per-account
+ * user settings and deliberately excluded.
  */
 export function buildSnapshot(): SavedGraphData {
   const s = useGraphStore.getState();
   return {
     nodes: s.nodes,
     edges: s.edges,
-    direction: s.direction,
-    edgeStyle: s.edgeStyle,
-    edgeAnimated: s.edgeAnimated,
-    edgeAnimatedSelectedOnly: s.edgeAnimatedSelectedOnly,
-    edgeStrokeStyle: s.edgeStrokeStyle,
-    edgeAnimatedStrokeStyle: s.edgeAnimatedStrokeStyle,
-    edgeWidth: s.edgeWidth,
-    cornerRadius: s.cornerRadius,
-    nodeWidth: s.nodeWidth,
-    nodeHeight: s.nodeHeight,
-    themeMode: s.themeMode,
-    customTheme: s.customTheme,
-    showFiles: s.showFiles,
-    maxDisplayDepth: s.maxDisplayDepth,
-    autoHideThreshold: s.autoHideThreshold,
-    showMiniMap: s.showMiniMap,
-    miniMapPosition: s.miniMapPosition,
-    miniMapSize: s.miniMapSize,
-    miniMapX: s.miniMapX,
-    miniMapY: s.miniMapY,
-    scrollAction: s.scrollAction,
     localRootPath: s.localRootPath,
   };
 }
 
-/**
- * Restore a snapshot into the store.
- */
-export function applySnapshot(data: SavedGraphData) {
-  const s = useGraphStore.getState();
+export interface ApplySnapshotOptions {
+  /** `dataSource` label stamped on the loaded graph; default "saved". */
+  source?: string;
+}
 
-  // Apply appearance/scalar settings directly — NOT via the layout setters
-  // (setDirection/setNodeDimensions/setShowFiles/…) which re-run the tree layout
-  // and would scatter the saved node positions. The graph load below honours
-  // these values while keeping positions intact.
-  useGraphStore.setState({
-    direction: data.direction,
-    edgeStyle: data.edgeStyle,
-    edgeAnimated: data.edgeAnimated,
-    edgeAnimatedSelectedOnly: data.edgeAnimatedSelectedOnly ?? s.edgeAnimatedSelectedOnly,
-    edgeStrokeStyle: data.edgeStrokeStyle as never,
-    edgeAnimatedStrokeStyle: (data.edgeAnimatedStrokeStyle as never) ?? s.edgeAnimatedStrokeStyle,
-    edgeWidth: data.edgeWidth,
-    nodeWidth: data.nodeWidth,
-    nodeHeight: data.nodeHeight,
-    showFiles: data.showFiles,
-    maxDisplayDepth: data.maxDisplayDepth,
-    autoHideThreshold: data.autoHideThreshold,
-    showMiniMap: data.showMiniMap,
-    miniMapPosition: data.miniMapPosition as never,
-    miniMapSize: data.miniMapSize,
-    miniMapX: data.miniMapX ?? s.miniMapX,
-    miniMapY: data.miniMapY ?? s.miniMapY,
-    scrollAction: data.scrollAction ?? s.scrollAction,
-  });
+/**
+ * Restore a graph snapshot into the store. Graph data only: node/edge
+ * positions are preserved (`preservePositions`), and no app settings are
+ * touched — the viewer's current settings (direction, edge style, theme,
+ * minimap, …) win, so loading a graph never clobbers them.
+ */
+export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions) {
+  const s = useGraphStore.getState();
 
   s.setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
 
-  // Edge path options (corner radius) can only be set once the edges exist;
-  // setCornerRadius does not re-lay-out, so positions are preserved.
-  s.setCornerRadius(data.cornerRadius);
-
-  // Theme is an account-level preference (synced to the cloud separately), so
-  // loading a graph must NOT clobber the user's current theme.
   useGraphStore.setState({
-    dataSource: "saved",
+    dataSource: opts?.source ?? "saved",
     localRootPath: data.localRootPath ?? null,
     skipNextAutoLayout: true,
   });
+}
+
+// ── Local reload-persistence cache ────────────────────────────────────────
+// Keeps the graph on canvas (imported, sample, cloud-opened, edited) across a
+// page reload. Follows the app's manual-localStorage pattern (fewer-user-settings,
+// fewer-theme): no zustand persist middleware. localStorage quota (~5MB) caps
+// huge graphs — a failed write is caught and simply skips caching.
+
+const LOCAL_KEY = "fewer-graph";
+const LOCAL_VERSION = 1;
+
+interface LocalGraphSnapshot {
+  version: number;
+  nodes: FewerNode[];
+  edges: FewerEdge[];
+  dataSource: string | null;
+  localRootPath: string | null;
+}
+
+/** Cache the current graph so a reload restores the canvas. Empty graph → key removed. */
+export function saveGraphLocal(snap: {
+  nodes: FewerNode[];
+  edges: FewerEdge[];
+  dataSource: string | null;
+  localRootPath: string | null;
+}): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (snap.nodes.length === 0) {
+      localStorage.removeItem(LOCAL_KEY);
+      return;
+    }
+    const payload: LocalGraphSnapshot = { version: LOCAL_VERSION, ...snap };
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota/failure — just skip caching; never break the app */
+  }
+}
+
+/** Load the cached graph, if any. Returns null when absent/corrupt/empty. */
+export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | null } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LocalGraphSnapshot;
+    if (parsed.version !== LOCAL_VERSION || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+      return null;
+    }
+    return {
+      data: { nodes: parsed.nodes, edges: parsed.edges, localRootPath: parsed.localRootPath ?? null },
+      dataSource: parsed.dataSource ?? null,
+    };
+  } catch {
+    return null;
+  }
 }

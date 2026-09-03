@@ -97,7 +97,7 @@ export function ImportOptionsPanel({
           step={1}
         />
         <p className="text-xs text-muted-foreground leading-normal">
-          How deep to display after import. Deeper nodes go to Hidden Nodes.
+          How deep to display after import. Deeper nodes go to Hidden Cards.
         </p>
       </div>
 

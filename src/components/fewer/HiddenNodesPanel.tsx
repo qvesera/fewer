@@ -103,7 +103,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
       toast({ title: "Subtree shown", description: tree.node.data.label });
     } else {
       showAncestors(id);
-      toast({ title: "Node shown", description: tree.node.data.label });
+      toast({ title: "Card shown", description: tree.node.data.label });
     }
     // Auto-select the just-revealed node so it's ringed on the canvas and
     // arrow-key navigation can act on it immediately.
@@ -190,7 +190,7 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
 }
 
 /**
- * Body of the Hidden Nodes recovery section: search box, Reveal All action, and
+ * Body of the Hidden Cards recovery section: search box, Reveal All action, and
  * the grouped hidden-node tree. Sidebar supplies the CollapsibleSection shell.
  */
 export function HiddenNodesPanel() {
@@ -244,7 +244,7 @@ export function HiddenNodesPanel() {
         }}
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">Reveal All Nodes</span>
+        <span className="truncate">Reveal All</span>
       </Button>
       <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
         {filteredHiddenGroups.length > 0 ? (

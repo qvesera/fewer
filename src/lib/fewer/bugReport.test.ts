@@ -30,7 +30,7 @@ const baseReport = (): BugReport => ({
     themeMode: "dark",
   },
   bug: {
-    title: "Nodes overlap",
+    title: "Cards overlap",
     description: "It breaks.",
     stepsToReproduce: "1. Open\n2. Break",
     severity: "high",
@@ -42,7 +42,7 @@ describe("buildGitHubIssueUrl", () => {
   test("points at new-issue endpoint with encoded title", () => {
     const url = buildGitHubIssueUrl(baseReport());
     expect(url.startsWith("https://github.com/qvesera/fewer/issues/new?")).toBe(true);
-    expect(url).toContain(encodeURIComponent("[Bug] Nodes overlap"));
+    expect(url).toContain(encodeURIComponent("[Bug] Cards overlap"));
   });
 
   test("body contains all sections and populated values", () => {
@@ -60,7 +60,7 @@ describe("buildGitHubIssueUrl", () => {
       expect(body).toContain(section);
     }
     expect(body).toContain("| Browser | Brave |");
-    expect(body).toContain("| Nodes | 3 |");
+    expect(body).toContain("| Cards | 3 |");
     expect(body).toContain("- **Severity**: `high`");
     expect(body).toContain("It breaks.");
   });
@@ -83,7 +83,7 @@ describe("buildGitHubIssueUrl", () => {
     expect(body).toContain("| App Name | fewer |");
     expect(body).toContain("| Browser | unknown |");
     expect(body).toContain("| Iframe | No |");
-    expect(body).toContain("| Nodes | 0 |");
+    expect(body).toContain("| Cards | 0 |");
     expect(body).toContain("| Layout | unknown |");
     expect(body).toContain("| Online | No |");
   });

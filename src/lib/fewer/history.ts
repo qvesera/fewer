@@ -76,6 +76,14 @@ export function applyOp(
       const e = edges.filter((ed) => !edgeIds.has(ed.id));
       return { nodes: n, edges: e };
     }
+    case "refresh-subtree": {
+      const oldNodeIds = new Set(op.oldNodes.map((n) => n.id));
+      const oldEdgeIds = new Set(op.oldEdges.map((e) => e.id));
+      return {
+        nodes: [...nodes.filter((n) => !oldNodeIds.has(n.id)), ...op.newNodes],
+        edges: [...edges.filter((e) => !oldEdgeIds.has(e.id)), ...op.newEdges],
+      };
+    }
     case "connect": {
       const n = nodes.map((nd) => {
         const p = op.nextPaths.find((x) => x.nodeId === nd.id);
@@ -203,6 +211,14 @@ export function undoOp(
       const e = [...edges, op.edge, ...op.childEdges].filter((ed): ed is FewerEdge => !!ed);
       return { nodes: n, edges: e };
     }
+    case "refresh-subtree": {
+      const newNodeIds = new Set(op.newNodes.map((n) => n.id));
+      const newEdgeIds = new Set(op.newEdges.map((e) => e.id));
+      return {
+        nodes: [...nodes.filter((n) => !newNodeIds.has(n.id)), ...op.oldNodes],
+        edges: [...edges.filter((e) => !newEdgeIds.has(e.id)), ...op.oldEdges],
+      };
+    }
     case "connect": {
       const n = nodes.map((nd) => {
         const p = op.prevPaths.find((x) => x.nodeId === nd.id);
@@ -286,6 +302,7 @@ export function undoOps(
  */
 export function getUndoViewState(op: HistoryOp): Partial<ViewState> | null {
   if (op.type === "remove-subtree") return op.before;
+  if (op.type === "refresh-subtree") return op.before;
   if (op.type === "view-state") return op.before;
   return null;
 }
@@ -295,6 +312,7 @@ export function getUndoViewState(op: HistoryOp): Partial<ViewState> | null {
  */
 export function getRedoViewState(op: HistoryOp): Partial<ViewState> | null {
   if (op.type === "remove-subtree") return op.after;
+  if (op.type === "refresh-subtree") return op.after;
   if (op.type === "view-state") return op.after;
   return null;
 }

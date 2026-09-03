@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
+  DialogDescription,  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Folder } from "lucide-react";
@@ -89,7 +88,7 @@ export function ParentPickerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="Move" className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Move {ids.length} items to folder</DialogTitle>
           <DialogDescription>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useGraphStore } from "@/store/graphStore";
 import {
   Keyboard,
@@ -53,7 +53,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: "Selection & Nodes",
+    title: "Selection & Cards",
     shortcuts: [
       { keys: ["⌘", "Ctrl", "A"], action: "Select all nodes" },
       { keys: ["F2"], action: "Rename selected node" },
@@ -189,7 +189,7 @@ export function ShortcutsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6 gap-6">
+      <DialogContent dialogTitle="Shortcuts" dialogIcon={<Keyboard className="h-3.5 w-3.5" />} className="w-[95vw] sm:max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6 gap-6">
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold tracking-tight">
             <Keyboard className="h-5 w-5 text-muted-foreground" />

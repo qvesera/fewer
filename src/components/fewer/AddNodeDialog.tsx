@@ -4,8 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -136,16 +135,16 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     <>
       <style>{shakeStyle}</style>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent dialogTitle="Add Card" className="sm:max-w-md">
           <div ref={contentRef} style={shake ? { animation: "dialog-shake 0.5s ease-in-out" } : undefined}>
           <DialogHeader>
             <DialogTitle>
-              {mode === "child" ? "Add child node" : "Add node"}
+              {mode === "child" ? "Add child card" : "Add card"}
             </DialogTitle>
             <DialogDescription>
               {mode === "child"
-                ? "Creates a new node as a child of the selected folder."
-                : "Creates a new root node on the canvas."}
+                ? "Creates a new card as a child of the selected folder."
+                : "Creates a new root card on the canvas."}
             </DialogDescription>
           </DialogHeader>
 

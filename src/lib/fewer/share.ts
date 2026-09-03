@@ -1,16 +1,11 @@
-import type { FewerNode, FewerEdge, LayoutDirection, EdgeStyle, CustomTheme } from "./types";
+import type { FewerNode, FewerEdge } from "./types";
 import LZString from "lz-string";
 
 interface ShareData {
   nodes: FewerNode[];
   edges: FewerEdge[];
-  direction: LayoutDirection;
-  edgeStyle: EdgeStyle;
-  themeMode: string;
-  customTheme?: CustomTheme;
-  cornerRadius: number;
-  nodeWidth: number;
-  nodeHeight: number;
+  /** Absolute path of the graph root on the share author's machine (see SavedGraphData). */
+  localRootPath?: string | null;
 }
 
 /**

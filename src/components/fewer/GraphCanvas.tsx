@@ -18,7 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { edgeDashPattern } from "@/lib/fewer/types";
-import { buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
+import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,19 +118,38 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
-  void onEdgesChange; // reserved for parity; RF drives edges via graphVersion sync
+
+  // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
+  const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
+  // Protect double-click selection from being cleared by the subsequent onSelectionChange.
+  const doubleClickedIdRef = useRef<string | null>(null);
+  const handleEdgesChange = useCallback(
+    (changes: import("@xyflow/react").EdgeChange<FewerEdge>[]) => {
+      for (const c of changes) {
+        if (c.type === "select") {
+          if (c.selected) selectedEdgeIdsRef.current.add(c.id);
+          else selectedEdgeIdsRef.current.delete(c.id);
+        } else if (c.type === "remove") {
+          selectedEdgeIdsRef.current.delete(c.id);
+        }
+        // `add` changes carry no id (the edge is the payload) — nothing to track.
+      }
+      onEdgesChange(changes);
+    },
+    [onEdgesChange],
+  );
 
   useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
   useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(direction);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark });
   const dragHandlers = useCanvasNodeDrag(recordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, relayout, fitView, recordResize, boxSelectBaseRef });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
 
   const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);
@@ -138,7 +157,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   useEffect(() => {
     const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, allEdges, allNodes, themeColors, edgeWidth, animation);
     // Update only React Flow edges; store edges are already synced via useCanvasGraphSync.
-    setRfEdges(updatedEdges.filter((e: FewerEdge) => {
+    // Re-apply RF's live selection so the rebuild doesn't wipe selected edges.
+    setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
@@ -158,8 +178,17 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
-    ({ nodes: selected }: OnSelectionChangeParams) => {
+    ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
             const selectedIds = new Set(selected.map((n) => n.id));
+      // If a double-click just selected a node, ensure it stays selected
+      // even if RF's onSelectionChange reports a stale/empty selection.
+      if (doubleClickedIdRef.current) {
+        selectedIds.add(doubleClickedIdRef.current);
+        doubleClickedIdRef.current = null;
+      }
+      // Sync the live edge-selection ref from RF's authoritative full-selection
+      // snapshot so the upcoming rebuild (and any later one) preserves it.
+      selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
       const prevIds = useGraphStore.getState().selectedNodeIds;
       const base = boxSelectBaseRef.current;
       const newIds = base
@@ -174,7 +203,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: selStroke, baseStrokeStyle: selBase });
       useGraphStore.setState({ edges: updatedEdges });
       const hiddenSet = new Set(hidden);
-      setRfEdges(updatedEdges.filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
+      // Re-apply RF's live edge selection so this rebuild doesn't wipe it.
+      setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
     },
     [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef],
   );
@@ -240,6 +270,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}
+        onEdgesChange={handleEdgesChange as import("@xyflow/react").OnEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
         onPaneClick={() => setRenamingId(null)}
@@ -247,7 +278,8 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={(_, node) => {
-          useGraphStore.setState((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === node.id })), selectedNodeIds: [node.id] }));
+          doubleClickedIdRef.current = node.id;
+          useGraphStore.getState().setSelectedNodeIds([node.id]);
           requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
         }}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
@@ -265,6 +297,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, kind: "pane" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onSelectionContextMenu={(e) => { e.preventDefault(); setCanvasMenu({ x: e.clientX, y: e.clientY, kind: "selection" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
+        deleteKeyCode={null}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
         zoomOnScroll={mini.scrollAction === "zoom"}
@@ -390,7 +423,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
                   {advancedModeEnabled && (
                     <>
                       <div className="my-1 h-px bg-border/40" />
-                      <button onClick={() => { useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All Nodes</button>
+                      <button onClick={() => { useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
                       <div className="my-1 h-px bg-border/40" />
                       <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
                     </>

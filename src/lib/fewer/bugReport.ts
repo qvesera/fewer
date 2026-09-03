@@ -63,7 +63,7 @@ export function buildGitHubIssueBody(report: BugReport): string {
   ];
 
   const graphStateRows: [string, string][] = [
-    ["Nodes", String(graphState?.totalNodes ?? 0)],
+    ["Cards", String(graphState?.totalNodes ?? 0)],
     ["Edges", String(graphState?.totalEdges ?? 0)],
     ["Files", String(graphState?.totalFiles ?? 0)],
     ["Folders", String(graphState?.totalFolders ?? 0)],

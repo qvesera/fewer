@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { FewerEdge, FewerNode } from "./types";
-import { buildSelectedEdgeHighlight } from "./edgeHighlight";
+import { applyEdgeSelection, buildSelectedEdgeHighlight } from "./edgeHighlight";
 
 function makeNode(id: string, type: "folder" | "file" = "folder"): FewerNode {
   return { id, type, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type } };
@@ -128,5 +128,36 @@ describe("buildSelectedEdgeHighlight", () => {
     const result = byId(buildSelectedEdgeHighlight(["c"], [], edges, nodes, THEME, 2, baseOpts({ baseStrokeStyle: "dashed" })));
     expect(result.get("e-ab")?.style?.strokeDasharray).toBe("8 4");
     expect(result.get("e-xy")?.style?.strokeDasharray).toBe("8 4");
+  });
+});
+
+describe("applyEdgeSelection", () => {
+  test("marks only the listed edges as selected", () => {
+    const result = applyEdgeSelection(edges, new Set(["e-ab", "e-xy"]));
+    const byId = new Map(result.map((e) => [e.id, e]));
+    expect(byId.get("e-ab")?.selected).toBe(true);
+    expect(byId.get("e-xy")?.selected).toBe(true);
+    expect(byId.get("e-ra")?.selected).toBeUndefined();
+    expect(byId.get("e-bc")?.selected).toBeUndefined();
+  });
+
+  test("an empty set leaves every edge unselected", () => {
+    const result = applyEdgeSelection(edges, new Set());
+    for (const e of result) expect(e.selected).toBeUndefined();
+  });
+
+  test("unknown ids are ignored (no spurious edges added)", () => {
+    const result = applyEdgeSelection(edges, new Set(["e-ab", "does-not-exist"]));
+    expect(result).toHaveLength(edges.length);
+    expect(result.find((e) => e.id === "does-not-exist")).toBeUndefined();
+  });
+
+  test("preserves existing edge fields", () => {
+    const result = applyEdgeSelection(edges, new Set(["e-bc"]));
+    const bc = result.find((e) => e.id === "e-bc")!;
+    expect(bc.source).toBe("b");
+    expect(bc.target).toBe("c");
+    expect(bc.type).toBe("default");
+    expect(bc.selected).toBe(true);
   });
 });

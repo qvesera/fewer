@@ -13,31 +13,17 @@ import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
+import { MinimizedDialogPill } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   TOP_OFFSET,
   THEME_EDITOR_SECTIONS,
-  clampDockRaw,
   clampPosition,
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
-  snapDockPosition,
-  type CanvasBounds,
-  type DockEdge,
 } from "@/lib/fewer/themeEditor";
-
-/** Get the canvas area bounds (excludes sidebar, navbar, toolbar). Pure math lives in @/lib/fewer/themeEditor. */
-function getCanvasBounds(): CanvasBounds {
-
-  const main = document.getElementById("main-content");
-  if (main) {
-    const r = main.getBoundingClientRect();
-    return { left: r.left, top: r.top, width: r.width, height: r.height };
-  }
-  return { left: 0, top: TOP_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_OFFSET };
-}
 
 export function ThemeEditorDialog() {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -174,13 +160,7 @@ export function ThemeEditorDialog() {
   const [minimized, setMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [isDraggingDock, setIsDraggingDock] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const dockDragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const [dockPosition, setDockPosition] = useState({ x: 0, y: 0 });
-  const [dockEdge, setDockEdge] = useState<DockEdge>("bottom");
-  const dockMovedRef = useRef(false);
-  const dockPosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setPosition(clampPosition(
@@ -217,58 +197,32 @@ export function ThemeEditorDialog() {
     };
   }, [isDragging]);
 
-  // Dock pill drag with snap-to-edge
-  const handleDockPointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    dockMovedRef.current = false;
-    setIsDraggingDock(true);
-    dockDragStartRef.current = { x: e.clientX, y: e.clientY, posX: dockPosition.x, posY: dockPosition.y };
-    e.preventDefault();
-  }, [dockPosition]);
-
-  useEffect(() => {
-    if (!isDraggingDock) return;
-    const handlePointerMove = (e: PointerEvent) => {
-      dockMovedRef.current = true;
-      const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
-      const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
-      const clamped = clampDockRaw(newX, newY, getCanvasBounds());
-      dockPosRef.current = clamped;
-      setDockPosition(clamped);
-    };
-    const handlePointerUp = () => {
-      setIsDraggingDock(false);
-      if (!dockMovedRef.current) {
-        setMinimized(false);
-        return;
-      }
-      // Snap to nearest dock point using ref for latest position
-      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y, getCanvasBounds());
-      dockPosRef.current = snapped;
-      setDockPosition(snapped);
-      setDockEdge(snapped.edge);
-    };
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
-    };
-  }, [isDraggingDock]);
-
   const handleMinimize = useCallback(() => {
-    const centerX = position.x + dialogWidth(window.innerWidth) / 2;
-    const centerY = position.y + 200;
-    const snapped = snapDockPosition(centerX, centerY, getCanvasBounds());
-    dockPosRef.current = snapped;
-    setDockPosition(snapped);
-    setDockEdge(snapped.edge);
-    setMinimized(true);
-  }, [position]);
+    // minimize = close + remember: drop open state so the toolbar button's
+    // setThemeEditorOpen(true) becomes a real false->true transition later.
+    setMinimized(true)
+    setThemeEditorOpen(false)
+  }, [])
 
-  if (!themeEditorOpen) return null;
+  // Un-minimize on any genuine open transition (e.g. the toolbar button reopens).
+  // Must run before the early returns below (rules-of-hooks).
+  useEffect(() => {
+    if (themeEditorOpen) setMinimized(false)
+  }, [themeEditorOpen])
+
+  // Minimized: small docked pill (draggable, snaps to edges). Check this BEFORE
+  // the !themeEditorOpen guard so the pill survives the close.
+  if (minimized) {
+    return (
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
+    )
+  }
+
+  if (!themeEditorOpen) return null
 
   // Group presets by category
   const groupedPresets = THEME_PRESETS.reduce((acc, preset) => {
@@ -279,27 +233,12 @@ export function ThemeEditorDialog() {
 
   // Minimized: small docked pill (draggable, snaps to edges)
   if (minimized) {
-    const isVertical = dockEdge === "left" || dockEdge === "right";
-
     return (
-      <div
-        className={`fixed z-50 flex rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg select-none hover:shadow-xl ${isVertical ? "flex-col items-center gap-1" : "flex-row items-center gap-2"}`}
-        style={{
-          left: dockPosition.x,
-          top: dockPosition.y,
-          padding: isVertical ? "10px 6px" : "8px 14px",
-          cursor: isDraggingDock ? "grabbing" : "grab",
-          touchAction: "none",
-          transition: isDraggingDock ? "box-shadow 150ms ease" : "left 300ms cubic-bezier(0.34,1.56,0.64,1), top 300ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease",
-        }}
-        onPointerDown={handleDockPointerDown}
-        title="Drag to snap · Click to restore"
-      >
-        <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className={`text-[10px] font-medium text-foreground/80 ${isVertical ? "writing-vertical" : ""}`} style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}>
-          Theme
-        </span>
-      </div>
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
     );
   }
 

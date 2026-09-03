@@ -4,8 +4,7 @@ import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -312,7 +311,7 @@ export function BugReportDialog() {
       open={open}
       onOpenChange={(v) => (v ? setOpen(true) : handleClose())}
     >
-      <DialogContent className="sm:max-w-2xl w-full">
+      <DialogContent dialogTitle="Report a Bug" dialogIcon={<Bug className="h-3.5 w-3.5 text-red-500" />} className="sm:max-w-2xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-balance">
             <Bug className="h-4 w-4 text-red-500" />
@@ -331,7 +330,7 @@ export function BugReportDialog() {
               id="bug-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Nodes overlap when switching to LR layout"
+              placeholder="e.g. Cards overlap when switching to LR layout"
               className="text-sm"
               disabled={isDisabled}
               aria-required="true"
@@ -428,7 +427,7 @@ export function BugReportDialog() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
-                <span>Nodes / Edges</span>
+                <span>Cards / Edges</span>
                 <span className="tabular-nums font-medium text-foreground/80">
                   {diagnostics.graphState.totalNodes} /{" "}
                   {diagnostics.graphState.totalEdges}
@@ -442,7 +441,7 @@ export function BugReportDialog() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Theme / Node size</span>
+                <span>Theme / Card size</span>
                 <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.themeMode} /{" "}
                   {diagnostics.graphState.nodeWidth}×

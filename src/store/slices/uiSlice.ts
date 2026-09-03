@@ -54,7 +54,6 @@ export type UiSliceCreator = StateCreator<
     /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly. */
     scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
-    skipNextAutoLayout: boolean;
     showFiles: boolean;
     loading: boolean;
     exportSettings: ExportSettings;
@@ -169,7 +168,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   })(),
   tutorialDemoStep: 0,
   rightClickDetected: false,
-  skipNextAutoLayout: false,
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   commitSearch: (q) => {
@@ -198,7 +196,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       get().pushOp(viewStateOp(before, after));
     }
     set({ categoryFilter: cat, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
   },
   // Keep the per-node `selected` mirror in sync with the canonical id list.
   // React Flow-driven selection changes (which #setSelectedNodeIds) don't flow
@@ -211,8 +208,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       const idSet = new Set(ids);
       const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
       return changed
-        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })) }
-        : { selectedNodeIds: ids };
+        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
+        : { selectedNodeIds: ids, graphVersion: s.graphVersion + 1 };
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
@@ -273,7 +270,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], independentlyHiddenIds: [...new Set([...s.independentlyHiddenIds, ...selectedNodeIds])], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
-    setTimeout(() => get().relayout(), 50);
   },
 
   showAll: () => {
@@ -353,7 +349,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
       set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }
-    setTimeout(() => get().relayout(), 50);
   },
 
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),

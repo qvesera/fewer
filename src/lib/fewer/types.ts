@@ -3,6 +3,9 @@ import type { Node, Edge } from "@xyflow/react";
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
 
+/** Result status returned by `refreshFolderFromDisk`. */
+export type RefreshStatus = "ok" | "no-handle" | "not-found" | "error";
+
 /** Categories used for icon + color selection */
 export type FileCategory =
   | "code"
@@ -314,6 +317,22 @@ export interface ViewStateOp {
   after: ViewState;
 }
 
+/** Replace a folder's on-disk subtree after a re-scan.
+ *  Undo restores the pre-refresh children; redo re-applies the new ones.
+ *  The folder node itself (nodeId) is never part of oldNodes/newNodes. */
+export interface RefreshSubtreeOp {
+  type: "refresh-subtree";
+  nodeId: string;
+  /** Descendants of the folder before the refresh (for undo). */
+  oldNodes: FewerNode[];
+  oldEdges: FewerEdge[];
+  /** Descendants of the folder after the refresh (for redo). */
+  newNodes: FewerNode[];
+  newEdges: FewerEdge[];
+  before: ViewState;
+  after: ViewState;
+}
+
 export type HistoryOp =
   | AddNodeOp
   | RemoveNodeOp
@@ -327,6 +346,7 @@ export type HistoryOp =
   | MovePositionsOp
   | ResizeOp
   | CollapseBatchOp
+  | RefreshSubtreeOp
   | ViewStateOp;
 
 /**

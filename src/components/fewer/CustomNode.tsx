@@ -29,7 +29,7 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
-import { openFolderInExplorer } from "@/lib/fewer/fileOps";
+import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
@@ -230,6 +230,7 @@ function FolderContextMenu({
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
+  const hasChildren = edges.some((e) => e.source === nodeId);
   // When the right-clicked node is part of a multi-node selection (shift-drag,
   // Select Children, …), the menu shows ONLY batch actions.
   const isBatchSelection = useGraphStore(
@@ -306,24 +307,22 @@ function FolderContextMenu({
             Paste
           </ContextMenuItem>
         )}
-        <ContextMenuItem
-          onSelect={() => {
-            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-            if (childIds.length > 0) {
+        {hasChildren && (
+          <ContextMenuItem
+            onSelect={() => {
+              const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
               useGraphStore.setState((s) => ({
                 selectedNodeIds: childIds,
                 nodes: s.nodes.map((n) => ({ ...n, selected: childIds.includes(n.id) })),
                 graphVersion: s.graphVersion + 1,
               }));
               toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
-            } else {
-              toast({ title: "No children", description: "This folder has no children" });
-            }
-          }}
-          className="cursor-pointer"
-        >
-          Select Children
-        </ContextMenuItem>
+            }}
+            className="cursor-pointer"
+          >
+            Select Children
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         {hasParent && (
           <ContextMenuItem
@@ -371,7 +370,6 @@ function FolderContextMenu({
                       useGraphStore.getState().showSubtrees(toShow);
                       toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
                     }
-                    useGraphStore.getState().setZoomToNodeIds(childIds);
                   }}
                   className="cursor-pointer"
                 >
@@ -414,7 +412,7 @@ function FolderContextMenu({
             }}
             className="cursor-pointer"
           >
-            Add Child Node
+            Add Child Card
           </ContextMenuItem>
           {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
             isLocalClient() ? (
@@ -468,12 +466,33 @@ function FolderContextMenu({
             </ContextMenuItem>
             {dataSource === "directory" && (
               <ContextMenuItem
-                onSelect={() =>
-                  toast({
-                    title: "Refreshed from disk",
-                    description: `${nodeLabel} re-scanned`,
-                  })
-                }
+                onSelect={async () => {
+                  const result = await refreshFolderFromDisk(nodeId);
+                  if (result.status === "ok") {
+                    toast({
+                      title: "Refreshed from disk",
+                      description: `${nodeLabel}: +${result.added} / -${result.removed}`,
+                    });
+                  } else if (result.status === "no-handle") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "No disk handle and no resolvable local path for this folder (import it from this machine to enable re-scan).",
+                      variant: "destructive",
+                    });
+                  } else if (result.status === "not-found") {
+                    toast({
+                      title: "Cannot refresh",
+                      description: "Folder not found in graph.",
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Refresh failed",
+                      description: result.error ?? "Unknown error",
+                      variant: "destructive",
+                    });
+                  }
+                }}
                 className="cursor-pointer"
               >
                 Refresh from Disk
@@ -794,10 +813,12 @@ function ChildEntry({ child }: { child: FewerNode }) {
         isHidden && "opacity-50 saturate-50",
       )}
       title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
-      onDoubleClick={() => {
+      onDoubleClick={(e) => {
         // Double-clicking a hidden child reveals it (and zooms to it); the
         // visible children keep zooming into the node as before.
+        e.stopPropagation();
         if (hiddenIds.includes(child.id)) showNode(child.id);
+        useGraphStore.getState().setSelectedNodeIds([child.id]);
         setZoomToNode(child.id);
       }}
     >

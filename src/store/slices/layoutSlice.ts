@@ -159,7 +159,6 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
       measured: undefined,
     }));
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes, graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
   },
 
   setShynessScale: (scale) => {

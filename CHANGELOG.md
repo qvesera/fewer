@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.1] - September 3, 2026
 
 ### Changed
 
@@ -17,8 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unhiding a node from the Hidden nodes panel now auto-selects the revealed node on the canvas
 - Username uniqueness is now enforced exactly at the database level: stored usernames must be trimmed and lowercase (new CHECK constraints), so handles can never collide via spelling variants like "foo" vs "Foo" vs " foo " even when written outside the API.
 - Refactor KeyboardShortcuts into a command-table architecture with pure testable rules in keyboardShortcuts.ts; extract openFolderInExplorer to fileOps.ts; consolidate event-name constants across 5 files; add 32 keyboard-shortcut tests
+- Re-layout no longer runs automatically after actions (add node, collapse/expand, hide, direction/shyness/size changes, drag-merge, initial load) — it now runs only via the Rearrange Graph button or its keyboard shortcut
+- Hide the Export Selected option for non-image exports when only a single file node is selected (PNG/SVG image exports of a single file still keep the option)
+- Exported images no longer include the selection ring around selected nodes — selection is a canvas-only affordance
+- PNG and SVG exports now carry a fewer logo watermark badge (inline vector mark + wordmark, linked to the homepage) instead of the plain text credit line
+- Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts. Falls back to a local-path re-walk via the dev server when no File System Access handle exists (drag-imports delivered as a path, Flatpak/Snap portalized drops, subfolders)
+- Invert toast and minimized dock pill colors against page background, matching the tutorial dialog.
 
-### Fixed
+### Fixed- Consolidated minimized dialog pill icon color — icons now inherit the pill's inverted text color (`text-current/60`) instead of hard-coded `text-muted-foreground`/`text-primary`, so they stay legible on both light and dark surfaces.
 
 - Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
 - Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
@@ -27,11 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace Button inside TooltipTrigger asChild with native <button> + buttonVariants() to break Slot+forwardRef infinite re-render loop in Sidebar
 - Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
 - Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
+- Shift+drag box selection no longer makes hidden nodes reappear on the canvas (selection re-assert now maps only visible canvas nodes)
+- Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
+- Loading a saved or shared graph no longer overwrites your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) — settings follow your account, not the graph. Saved-graph payloads are now graph-only; layout direction was removed from them.
+- Keyboard shortcut toasts (Deleted, Pasted, Duplicated, Graph relayouted, Cards parented) no longer fire when the shortcut performs no action — they only fire when the underlying store action actually mutates the graph
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
 
 ### Added
 
 - Search terms are now remembered per browser session and shown as recent searches in the search panel (stored in sessionStorage, with clear option)
-
+- Batch rename: `*` wildcard in Find matches anything; `*` in Replace keeps the matched part, so you can rename without retyping names (e.g. Find `*` → Replace `Photo *`)
+- Dialogs (settings, import, save/share graph, tutorial, shortcuts, auth, and others) are now draggable via a grip handle in the title area; dialog stays clamped to the viewport
+- Any dialog can be minimized to a dock pill (drag to snap to screen edges, click to restore); added minimize button next to close in every dialog and the theme editor
+- Search bar for docs page to filter documentation by title and description
+- The graph on your canvas now survives a page reload: nodes, edges, and positions are cached in localStorage and restored on your next visit, no account needed.
 
 ## [0.6.0] - 23rd August 2026
 
@@ -71,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
 - Hide/show nodes no longer triggers graph relayout — visibility changes only
 - File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
-- The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
-- The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
+- The Include File Cards toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
+- The auto-hide limit slider no longer reveals file nodes when Include File Cards is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
@@ -89,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
 - Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
 - Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
-- Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
+- Reveal All Cards (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 - Select Children in the folder context menu no longer undoes itself: the menu's post-activation click event bubbled through the React tree into React Flow's node handler, re-selecting the right-clicked folder after the children had been selected. Menu click/keyboard events are now contained inside the context menu (also fixes right-click → Escape selecting the node).
 - Batch Move to Folder now allows moving items up into ancestor folders (parent/grandparent) instead of failing with \"No eligible items\"
 - Open in File Explorer now works cross-platform: path resolution uses case-insensitive matching, BFS fallback across common user dirs (~/Downloads, ~/Desktop, ~/Documents), Windows backslash normalization, and ~-expansion instead of Linux-only dirname(cwd) guessing
@@ -230,7 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
 - **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
 - **App no longer crash-loops when Supabase isn't configured**: `useAuth` called `getBrowserSupabase()`, which throws when `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are missing. On a build without those env vars (e.g. CI), the throw during mount cascaded so the UI kept remounting (`element was detached from the DOM`) and nothing was interactive. `useAuth` now catches missing-env and stays signed out, so the graph visualizer loads normally and cloud features just report unavailable.
-- **Hidden Nodes panel ordering**: the sidebar Hidden Nodes list showed items in reverse alphabetical order (it inherited the store's edge array order). Roots and children are now sorted with the app-wide convention — folders first, then labels A→Z — matching folder cards, imports, and layout.
+- **Hidden Cards panel ordering**: the sidebar Hidden Cards list showed items in reverse alphabetical order (it inherited the store's edge array order). Roots and children are now sorted with the app-wide convention — folders first, then labels A→Z — matching folder cards, imports, and layout.
 - **Open in File Explorer on Windows**: the "Open in File Explorer" action failed on Windows. The server route ran `explorer "C:\path"` through `exec`, but `explorer.exe` doesn't strip quotes from its own argument, so paths with spaces (or the surrounding quotes) failed to open. The route now uses `spawn` with a `cmd /c start "" "<path>"` argument array (no shell quoting mangling), which reliably opens the folder; macOS/Linux paths are unchanged.
 - **Animated edge dashes no longer reset/jerk**: the animated dashes ran a per-edge CSS animation that restarted from zero every time an edge (re)mounted — with `onlyRenderVisibleElements` on large graphs, edges crossing the viewport boundary remount constantly, so the dashes kept snapping back. The fixed keyframe cycle also visibly jumped every loop whenever the dash pattern period didn't divide it — notably for `@xyflow/react`'s fallback `stroke-dasharray: 5` (period 10), which edges get when they carry no inline dasharray (e.g. toggling animation on from solid stroke). Edges are now driven by one shared rAF clock (`src/lib/fewer/dashClock.ts`) writing `--gm-dash-offset` on `<html>`: remounted edges inherit the current phase, the offset wraps only at a common multiple of every dash period (12,000px ≈ every 10 minutes, invisible), and React Flow's own `dashdraw` animation is suppressed. `setEdgeAnimated` now writes an explicit dash pattern onto the edges so nothing falls back to the library's 5-5 dashes. The clock runs only while animation is enabled and respects `prefers-reduced-motion`.
 - **Undo/redo overhaul**: undo/redo now works correctly across every graph-mutating action. Previously node-drag undo deleted the whole graph, and delete/cut/connect/edge-delete undo were no-ops or worse (connect undo removed the child node). Each action now uses a dedicated history op: `remove-subtree` (delete/cut restores the subtree on undo), `connect` (removes the edge and restores paths without deleting the child), `remove-edges` (restores deleted edges), `move-positions` (restores dragged positions), `resize` (restores dimensions), `collapse-batch` (collapse/expand-all restores each folder's prior collapsed state), and `view-state` (hide/show, show-files, max-display-depth, auto-hide-threshold). Undo/redo also restores `hiddenIds`/`showFiles`/`maxDisplayDepth`/`autoHideThreshold` alongside nodes/edges. New `src/lib/fewer/history.test.ts` covers round-trips for all op types. Undo/redo no longer re-runs the graph layout, so restored nodes keep their exact positions and parent relationships.
@@ -284,7 +300,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Public file index import**: Import from URL now crawls Apache/nginx auto-index pages (e.g. `https://www.sidc.be/EUI/data/`) server-side via new `/api/crawl` route, with depth/page caps and partial-tree truncation notice. GitHub URLs still use the existing `/api/github-tree` path.
 - **Crawl cache (Supabase)**: crawled file index trees cached in a `crawl_cache` table (JSONB tree + TTL, 24h). Repeat imports of the same URL return instantly from cache. Cache is best-effort — on any Supabase failure the route falls back to a fresh crawl. Migration in `supabase/migrations/0001_crawl_cache.sql`; Supabase CLI linked.
 - **DB-backed share links**: large graphs (encoded hash > 2000 chars) are stored in a `shared_graphs` table and shared via a short `#s:<id>` link instead of a long URL hash. Small graphs still embed the compressed hash. 30-day TTL with lazy expiry on read. New `/api/share` (POST) + `/api/share/[id]` (GET) routes; migration `0002_shared_graphs.sql`.
-- **Hidden nodes search**: search bar in the Hidden Nodes sidebar section filters hidden nodes by name, keeping parent/child hierarchy context
+- **Hidden nodes search**: search bar in the Hidden Cards sidebar section filters hidden nodes by name, keeping parent/child hierarchy context
 
 ### Changed
 
@@ -366,7 +382,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme mode class cleanup**: switching to custom mode now removes `light`/`dark` classes from `<html>`, preventing CSS variable conflicts and unwanted aurora overlays.
 - **Connection handle colors**: handles now use `--fewer-handle` CSS variable instead of hardcoded `slate-700`, following the active theme.
 - **Hidden nodes chip**: uses theme-aware `--fewer-folder-icon` color instead of hardcoded amber, visible in all theme modes.
-- **Hidden panel dots**: folder/file indicator dots in the sidebar Hidden Nodes section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
+- **Hidden panel dots**: folder/file indicator dots in the sidebar Hidden Cards section now use theme-aware `--fewer-folder-icon` / `--fewer-file-icon` colors.
 
 ## [0.2.5]
 
@@ -390,7 +406,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Include File Nodes toggle preserves ancestor-aware visibility**: re-enabling "Include File Nodes" no longer reveals files whose parent folder is hidden, preventing orphan file nodes from appearing as root-level items on the canvas.
+- **Include File Cards toggle preserves ancestor-aware visibility**: re-enabling "Include File Cards" no longer reveals files whose parent folder is hidden, preventing orphan file nodes from appearing as root-level items on the canvas.
 - **GlobalNavbar simplified**: removed Keyboard/Bug/GitHub/Globe buttons; now Logo + Search + Notifications + Settings gear.
 - **Minimap controls** and **node dimension sliders** moved from sidebar to Settings → Advanced tab.
 - **Power User toggle** moved from sidebar Configuration section to Settings → Advanced tab.
@@ -400,9 +416,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Auto-hide large folder children**: folders with >10 children hide their children on import (threshold adjustable in sidebar, 2-100). Hidden children appear in the sidebar Hidden Nodes section grouped by folder.
-- **Recursive Hidden Nodes tree**: hidden nodes shown as nested expandable tree, any depth. Eye button on a folder reveals its subtree; large grandchildren stay hidden via re-applied auto-hide.
-- **Max Display Depth**: configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to Hidden Nodes.
+- **Auto-hide large folder children**: folders with >10 children hide their children on import (threshold adjustable in sidebar, 2-100). Hidden children appear in the sidebar Hidden Cards section grouped by folder.
+- **Recursive Hidden Cards tree**: hidden nodes shown as nested expandable tree, any depth. Eye button on a folder reveals its subtree; large grandchildren stay hidden via re-applied auto-hide.
+- **Max Display Depth**: configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to Hidden Cards.
 - **Sidebar drag-resize**: drag the right edge of the sidebar to resize it (200-560px).
 - **File nodes hide output handle**: files can't have children, so their source handle is hidden.
 

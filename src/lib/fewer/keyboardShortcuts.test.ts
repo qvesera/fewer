@@ -229,3 +229,78 @@ test("0 resets zoom", () => {
   expect(fire(buildKeyboardRules(), ctx, { key: "0" })).toBe(true);
   expect(a.setViewport).toBeDefined();
 });
+
+test("Delete with a selected edge invokes deleteEdges (unparent path)", () => {
+  const { ctx, a } = makeCtx({
+    reactFlow: { getEdges: () => [{ id: "e-p-c", selected: true }] } as any,
+  });
+  expect(fire(buildKeyboardRules(), ctx, { key: "Delete" })).toBe(true);
+  expect(a.deleteEdges).toEqual(["e-p-c"]);
+});
+
+test("Delete with no selection does nothing", () => {
+  const { ctx, a } = makeCtx({ reactFlow: { getEdges: () => [] } as any });
+  expect(fire(buildKeyboardRules(), ctx, { key: "Delete" })).toBe(true);
+  expect(a.deleteEdges).toBeUndefined();
+  expect(a.deleteNodes).toBeUndefined();
+  expect(a.toast).toBeUndefined();
+});
+
+test("Delete with selected nodes toasts", () => {
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ selectedNodeIds: ["n1"] }) });
+  expect(fire(buildKeyboardRules(), ctx, { key: "Delete" })).toBe(true);
+  expect(a.deleteNodes).toEqual(["n1"]);
+  expect(a.toast).toBeDefined();
+});
+
+test("Alt+R relayout toasts only when nodes exist", () => {
+  const { ctx, a } = makeCtx();
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "r" })).toBe(true);
+  expect(a.relayout).toBe(true);
+  expect(a.toast).toBeUndefined();
+
+  const { ctx: c2, a: b } = makeCtx({ getState: () => toStoreReader({ nodes: [{ id: "n1" }] }) });
+  expect(fire(buildKeyboardRules(), c2, { altKey: true, key: "r" })).toBe(true);
+  expect(b.toast).toBeDefined();
+});
+
+test("Alt+P parent stays silent when all edges fail", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["n1", "n2", "n3"], nodes: [{ id: "n3", data: { type: "folder" } }] }),
+    connectNodes: () => ({ ok: false, reason: "blocked" }),
+  });
+    expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "p" })).toBe(true);
+  expect(a.toast).toBeUndefined();
+});
+
+test("Alt+P parent toasts partial success", () => {
+  let calls = 0;
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["n1", "n2", "n3"], nodes: [{ id: "n3", data: { type: "folder" } }] }),
+    connectNodes: () => { calls++; return { ok: calls === 1, reason: undefined }; },
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "p" })).toBe(true);
+  expect(calls).toBe(2);
+  expect(a.toast).toBeDefined();
+});
+
+test("Ctrl+D duplicate stays silent for stale selection", () => {
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ selectedNodeIds: ["ghost"] }) });
+  expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "d" })).toBe(true);
+  expect(a.duplicateNodeUnderParent).toBe("ghost");
+  expect(a.toast).toBeUndefined();
+});
+
+test("Ctrl+V paste stays silent for stale clipboard", () => {
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ clipboard: { mode: "copy", nodeIds: ["ghost"] } }) });
+  expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "v" })).toBe(true);
+  expect(a.pasteFromClipboard).toBeUndefined();
+  expect(a.toast).toBeUndefined();
+});
+
+test("Ctrl+V paste toasts real clipboard content", () => {
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ clipboard: { mode: "copy", nodeIds: ["n1"] }, nodes: [{ id: "n1" }] }) });
+  expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "v" })).toBe(true);
+    expect(a.pasteFromClipboard).toBeUndefined();
+  expect(a.toast).toBeDefined();
+});
