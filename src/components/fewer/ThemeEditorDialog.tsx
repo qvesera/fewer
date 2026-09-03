@@ -215,7 +215,7 @@ export function ThemeEditorDialog() {
   if (minimized) {
     return (
       <MinimizedDialogPill
-        icon={<Palette className="h-3.5 w-3.5 text-muted-foreground" />}
+        icon={<Palette className="h-3.5 w-3.5" />}
         label="Theme"
         onRestore={() => setMinimized(false)}
       />
@@ -235,7 +235,7 @@ export function ThemeEditorDialog() {
   if (minimized) {
     return (
       <MinimizedDialogPill
-        icon={<Palette className="h-3.5 w-3.5 text-muted-foreground" />}
+        icon={<Palette className="h-3.5 w-3.5" />}
         label="Theme"
         onRestore={() => setMinimized(false)}
       />

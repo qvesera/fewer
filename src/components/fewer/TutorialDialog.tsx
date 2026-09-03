@@ -261,7 +261,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     return (
       <Portal>
         <MinimizedDialogPill
-          icon={<BookOpen className="h-3.5 w-3.5 text-primary" />}
+          icon={<BookOpen className="h-3.5 w-3.5" />}
           label="Tutorial"
           onRestore={() => setMinimized(false)}
         />

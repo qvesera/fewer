@@ -369,7 +369,9 @@ function MinimizedDialogPill({
       onPointerDown={handlePointerDown}
       title="Drag to snap · Click to restore"
     >
-      {icon ?? <Layers className="h-3.5 w-3.5 text-current/60 shrink-0" />}
+      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-current/60">
+        {icon ?? <Layers className="h-3.5 w-3.5" />}
+      </span>
       <span
         className={cn(
           "text-[10px] font-medium text-current/80",

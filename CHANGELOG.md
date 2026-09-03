@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts. Falls back to a local-path re-walk via the dev server when no File System Access handle exists (drag-imports delivered as a path, Flatpak/Snap portalized drops, subfolders)
 - Invert toast and minimized dock pill colors against page background, matching the tutorial dialog.
 
-### Fixed
+### Fixed- Consolidated minimized dialog pill icon color — icons now inherit the pill's inverted text color (`text-current/60`) instead of hard-coded `text-muted-foreground`/`text-primary`, so they stay legible on both light and dark surfaces.
+
 
 - Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
 - Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).

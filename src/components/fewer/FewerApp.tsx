@@ -53,6 +53,7 @@ export function FewerApp() {
 
   const [importFlowOpen, setImportFlowOpen] = useState(false);
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
+  const [importFlowMounted, setImportFlowMounted] = useState(false);
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
@@ -377,15 +378,16 @@ export function FewerApp() {
       <SettingsDialog />
       <ThemeEditorDialog />
       <ShareDialog />
-      {/* Mounted only while open — shell hooks (useAuth/useWatch) must not
-          fire at app startup when the import flow is never used. */}
-      {importFlowOpen && (
-        <ImportFlowDialog
-          open={importFlowOpen}
-          onOpenChange={setImportFlowOpen}
-          initialOrigin={importFlowOrigin}
-        />
-      )}
+    {/* Lazy-mount once, then keep alive across minimize so the dock pill can render.
+        Shell hooks (useAuth/useWatch) still defer until first open. */}
+    {(importFlowMounted || importFlowOpen) && (
+      <ImportFlowDialog
+        open={importFlowOpen}
+        onOpenChange={setImportFlowOpen}
+        initialOrigin={importFlowOrigin}
+        onFirstOpen={() => setImportFlowMounted(true)}
+      />
+    )}
 
       <AddNodeDialog
         open={addChildOpen}
