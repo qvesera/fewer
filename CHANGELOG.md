@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.1] - September 3, 2026
 
 ### Changed
 
@@ -25,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invert toast and minimized dock pill colors against page background, matching the tutorial dialog.
 
 ### Fixed- Consolidated minimized dialog pill icon color — icons now inherit the pill's inverted text color (`text-current/60`) instead of hard-coded `text-muted-foreground`/`text-primary`, so they stay legible on both light and dark surfaces.
-
 
 - Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
 - Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
