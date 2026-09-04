@@ -45,6 +45,7 @@ import {
   Trash2,
   Loader2,
   CreditCard,
+  Mail,
   Spline,
   SlidersHorizontal,
 } from "lucide-react";
@@ -78,6 +79,9 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
@@ -86,6 +90,8 @@ function AccountTab() {
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
   const [plan, setPlan] = useState<"free" | "pro" | "team">("free");
   const [usage, setUsage] = useState<{ savedGraphs: number; watchedIndexes: number } | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -219,6 +225,35 @@ function AccountTab() {
     }
   };
 
+  const handleChangeEmail = async () => {
+    const value = newEmail.trim();
+    if (!EMAIL_RE.test(value)) {
+      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (user && value.toLowerCase() === user.email?.toLowerCase()) {
+      toast({ title: "Already your email", description: "Enter a different address." });
+      return;
+    }
+    setChangingEmail(true);
+    try {
+      // Supabase emails a confirmation link to the NEW address; the email
+      // (and login) only changes after the link is confirmed.
+      const { error } = await getBrowserSupabase().auth.updateUser({ email: value });
+      if (error) throw error;
+      toast({
+        title: "Check your inbox",
+        description: `We sent a confirmation link to ${value}. Your email changes after you confirm it.`,
+      });
+      setNewEmail("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not change email";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setChangingEmail(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
@@ -241,7 +276,10 @@ function AccountTab() {
       }
       useGraphStore.getState().setSettingsOpen(false);
       setConfirmOpen(false);
-      toast({ title: "Account deleted", description: "Your account and data have been removed." });
+      toast({
+        title: "Deletion scheduled",
+        description: "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not delete account";
       toast({ title: "Could not delete account", description: msg, variant: "destructive" });
@@ -484,6 +522,44 @@ function AccountTab() {
           )
         )}
       </div>
+      {/* Change Email — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-3.5 space-y-2.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">Email</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                Current: {user.email ?? "—"} — a confirmation link is sent to the new address
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              id="account-new-email"
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new-you@example.com"
+              autoComplete="email"
+              className="h-8 text-xs"
+            />
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs shrink-0"
+              disabled={changingEmail || newEmail.trim().length === 0}
+              onClick={handleChangeEmail}
+            >
+              {changingEmail && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Change
+            </Button>
+          </div>
+        </div>
+      )}
+
+
 {/* Danger Zone — only shown to signed-in users */}
       {!loading && user && (
         <div className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5">
@@ -494,7 +570,7 @@ function AccountTab() {
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Delete account</span>
               <span className="text-[11px] text-muted-foreground/70">
-                Permanently remove your account, saved graphs, and related data
+                Schedules permanent removal in 7 days — sign in again to cancel
               </span>
             </div>
           </div>
@@ -514,8 +590,9 @@ function AccountTab() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete your account?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This permanently deletes your account, saved graphs, watch lists, cloud
-                  connections, and any shared graphs you own. This action cannot be undone.
+                  Your account is scheduled for permanent deletion in 7 days. Your saved graphs,
+                  watch lists, cloud connections, and any shared graphs you own are removed then.
+                  Signing in again before that cancels the deletion.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

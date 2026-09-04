@@ -9,11 +9,23 @@ Fewer works fully without an account. Signing in is optional and unlocks saving 
 
 Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 
-- **Create an account** with an email and password
-- **Sign in** to an existing account
-- **Reset your password** via email
+- **Create an account** with an email and password (typed twice to confirm)
+- **Sign in** to an existing account with your email or username and password
+- **Sign in with Google or GitHub** using one tap
+- **Sign in with a link** — enter your email and we send a one-tap sign-in link, no password needed
+- **Reset your password** via email — the link opens a page where you set a new password
+
+If you try to sign up with an email that already has an account, you're told and pointed to the sign-in form.
 
 After signing in, the navbar shows your account menu with a **Sign out** option.
+
+## Change Your Email
+
+In **Settings → Account**, use the **Email** card to enter a new address and click **Change**. A confirmation link is emailed to the new address; your email (and login) only changes after you confirm it. The old address keeps working until then.
+
+## Delete Your Account
+
+In **Settings → Account**, the **Delete account** action schedules your account for permanent deletion in 7 days. Your saved graphs, watch lists, cloud connections, and any shared graphs you own are removed when the window lapses. **Signing in again before then cancels the deletion** — no separate restore step needed.
 
 ## Save a Graph
 

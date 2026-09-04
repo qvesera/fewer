@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB_*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Plans links in Settings and the History dialog open /docs/plans in a new tab, and the plans page now exists: the docs index and /docs/plans render the tier table from content_pages (seeded via scripts/gen-seed-plans.py).
+- Sign-up with an already-registered email no longer pretends to succeed: Supabase returns user:null (anti-enumeration) for duplicate emails and the dialog silently showed 'Check your email' — the dialog now detects it, tells the user the email is taken, and switches to the sign-in form with the email prefilled.
+- Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
 
 ### Added
 
@@ -41,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stripe billing: self-serve Pro checkout ($7/mo) from the History dialog's upgrade prompt, Stripe-hosted billing portal for payment method/invoices/cancellation, and a signature-verified /api/billing/webhook as the sole writer of profiles.plan (subscription status → pro/free). Billing routes are env-guarded (503 until STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/STRIPE_PRO_PRICE_ID are set) and profiles.stripe_customer_id is service-role-only (migration 0024). /docs/plans updated with the checkout flow.
 - Settings → Account gains a Plan & billing card: shows your current plan (Free/Pro) with an Upgrade to Pro button on free accounts, and a Manage subscription button on Pro that opens the Stripe billing portal (update card, invoices, cancel). /api/profile now returns the account plan; plans.md updated to point at the new card.
 - Account tiers split out into the four-tier table (Guest / Free / Pro / Team) with prices on /docs/plans; Guest is the signed-out tier (local import, watermarked exports, hash sharing < 2,000 chars), Free drops to ~3 saved graphs + 30-day version history, Pro gains 1-yr history, saved themes, 5-10 watched indexes, crawl quota, watermark removal and large-payload short links, and Team lists org workspaces / private gallery / shared theme libraries / admin controls as the next rollout.
+- Sign in with Google or GitHub: one-tap OAuth buttons on the sign-in and sign-up screens (Supabase OIDC providers, PKCE flow through the existing /auth/callback route). Provider credentials must be enabled in the Supabase dashboard first — see /docs/accounts.
+- Passwordless sign-in link: 'Sign in with a link' on the sign-in screen emails a one-tap sign-in link (expires in an hour); first use creates the account, so it doubles as passwordless sign-up.
+- Change email: signed-in users can update their account email from Settings → Account; a confirmation link is sent to the new address and the change only applies after it's confirmed.
 
 ### Changed
 
@@ -59,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plan-granted copy fixes: when billing is disabled the Account card now says 'Upgrades are granted by your administrator' on Free, 'Pro was granted by your administrator' on Pro, and 'Team is managed by your organization administrator' on Team — instead of the confusing blanket 'Plans are managed by the administrator'.
 - Removed the fictional admin from plan copy: Free now reads 'Self-serve upgrades are currently off', Pro reads 'Pro is enabled for this account', and the History dialog no longer blames an administrator for missing history.
 - Plan-copy lines in Settings and the History dialog now link to /docs/plans and drop the em-dash.
+- Sign-up now asks for the password twice: a confirm-password field with live mismatch feedback prevents typos, alongside the existing requirements checklist.
+- Account deletion now uses a 7-day grace window instead of immediate removal: 'Delete account' schedules the deletion (the account looks gone right away), the nightly purge job permanently removes data when the window lapses, and signing in again before then cancels the deletion — a free recovery path against accidental or takeover-driven deletion. Job runs via GitHub Actions cron (purge-deleted-accounts.yml), same pattern as the watch digest. Privacy policy and /docs/accounts updated to disclose the window.
 
 ### Security
 
