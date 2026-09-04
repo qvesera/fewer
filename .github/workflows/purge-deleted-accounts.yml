@@ -1,0 +1,36 @@
+name: Account purge
+
+# Nightly purge of accounts whose 7-day deletion grace window has lapsed
+# (see src/lib/fewer/accountDeletion.ts). GitHub Actions cron, same pattern
+# as the watch digest.
+on:
+  schedule:
+    - cron: "29 2 * * *" # daily at 02:29 UTC
+  workflow_dispatch: # manual trigger for testing
+
+concurrency:
+  group: account-purge
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - name: Purge due accounts
+        run: bun scripts/purge-deleted-accounts.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

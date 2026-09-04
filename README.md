@@ -193,7 +193,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Accounts & Saved Graphs</b></summary>
 
-- **Optional accounts**: email/password sign-in via Supabase Auth. The app works fully logged-out
+- **Optional accounts**: email/password sign-in, Google/GitHub sign-in, or passwordless email links (magic link) via Supabase Auth. Account deletion runs with a 7-day grace window (sign in again to cancel). The app works fully logged-out
 - **Save graphs**: save the current graph (nodes, layout, theme, settings) to your account
 - **Your Directories**: load, rename, share, and delete saved graphs from the sidebar
 - **Selective sharing**: share saved graphs as "anyone with the link" or invite-only

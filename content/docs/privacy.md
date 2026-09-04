@@ -16,7 +16,7 @@ Fewer is a browser-based tool that turns directory structures into interactive g
 - **We do not sell your data.** We do not run ads, and we do not track you across the Internet.
 - **We collect almost nothing unless you sign in.** Optional features (accounts, saving across devices, share links, email invites, and email digests) involve a small, clearly described set of data. When you don't use them, we handle almost none of your personal information.
 - **You are in control.** You can export your data, delete any saved graph, unsubscribe from any email, or delete your account at any time.
-- **You can stop at any moment.** Close the tab and everything that only lives in your browser disappears. Server-side data you delete is removed promptly.
+- **You can stop at any moment.** Close the tab and everything that only lives in your browser disappears. Server-side data you delete is removed promptly — account deletion completes within 7 days (a grace window that lets you cancel by signing back in; see "Deletion requests" below).
 
 If a section ever surprises you, tell us — we would rather make the policy clearer than surprise you.
 
@@ -98,7 +98,7 @@ We do **not** use your data to build profiles of you, to target advertising, or 
 - **Encryption at rest.** Saved data is stored on encrypted infrastructure. Cloud access tokens are individually encrypted at rest.
 - **Access controls.** Saved graphs are private to your account and protected by row-level security except where you deliberately share them.
 - **How long we keep data.** We keep data only as long as needed for the purpose it was collected.
-- **Account + saved graphs.** While your account is active; deleted when you delete your account.
+- **Account + saved graphs.** While your account is active; when you request deletion, removed within 7 days (a grace window lets you cancel by signing back in — data is permanently purged when it lapses).
 - **Share links.** Until you delete the link.
 - **Email invites.** The recipient's email and one-time token are kept only long enough to deliver and validate the invite.
 - **Service logs.** Retained under our hosting provider's schedule, never used for advertising.
@@ -125,7 +125,7 @@ Depending on where you live — including under India's Digital Personal Data Pr
 
 - **Delete saved graphs:** directly in the Service at any time.
 - **Unsubscribe from digests or email:** use the in-app controls or the unsubscribe link in any email.
-- **Delete your account:** in account settings; this removes your account and its related data.
+- **Delete your account:** in account settings. Deletion is scheduled immediately and becomes permanent within 7 days; signing back in during that window cancels it.
 - **File a request:** open an issue on the [GitHub repository](https://github.com/qvesera/fewer) or use the contact details below.
 
 When you request access or deletion, we will verify your identity before acting and respond within the time limits the law requires (generally no more than one month). We will not discriminate against you for exercising your rights.
