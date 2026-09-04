@@ -27,7 +27,8 @@ export type LayoutSliceCreator = StateCreator<
     cornerRadius: number;
     nodeWidth: number;
     nodeHeight: number;
-    /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Drives relayout on change. */
+    /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Read by
+     *  relayout, so a change applies the next time Rearrange runs. */
     shynessScale: number;
 
     setDirection: (d: LayoutDirection) => void;
@@ -85,7 +86,8 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
         type: edgeTypeMap[currentStyle] as any,
       })),
     }));
-    get().relayout();
+    // No automatic relayout: nodes keep their positions and edges re-route to
+    // the new handle sides. Re-layout runs only via the Rearrange button/shortcut.
   },
 
   setEdgeStyle: (style) => {
@@ -164,7 +166,8 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   setShynessScale: (scale) => {
     const clamped = Math.max(0, Math.min(3, scale));
     if (clamped === get().shynessScale) return;
+    // No automatic relayout — the new intensity is picked up on the next
+    // explicit Rearrange (relayout reads shynessScale from the store).
     set({ shynessScale: clamped });
-    get().relayout();
   },
 });

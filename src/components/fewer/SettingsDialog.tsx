@@ -1041,7 +1041,8 @@ function AdvancedTab() {
   const setShynessScale = useGraphStore((s) => s.setShynessScale);
 
   // Crown-shyness slider: local value for live drag preview; the store commit
-  // (and relayout) happens on drag release so large graphs don't relayout per tick.
+  // happens on drag release (or when a custom value is typed). No auto-relayout:
+  // the new intensity is picked up on the next explicit Rearrange.
   const [shynessPreview, setShynessPreview] = useState(shynessScale);
   useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
@@ -1095,7 +1096,9 @@ function AdvancedTab() {
                 <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
                 <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.</p>
               </div>
-              <span className="text-xs font-mono tabular-nums text-foreground/80">{shynessPreview.toFixed(1)}×</span>
+              <span className="text-xs font-mono tabular-nums text-foreground/80">
+                <EditableNumber value={shynessPreview} onCommit={(v) => setShynessScale(v)} labelFn={(v) => `${v.toFixed(1)}×`} />
+              </span>
             </div>
             <Slider
               value={[shynessPreview]}
@@ -1108,7 +1111,7 @@ function AdvancedTab() {
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Changes apply immediately — the graph re-lays itself out as you adjust.
+            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is rearranged (Rearrange button or Alt+R).
           </p>
         </div>
       )}

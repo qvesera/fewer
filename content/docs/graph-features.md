@@ -78,7 +78,7 @@ Fewer ships a single custom **Reingold-Tilford tree layout** with contour matchi
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode)
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom multiplier; it takes effect on the next Rearrange
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
