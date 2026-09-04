@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { recordVersion } from "@/lib/fewer/versions";
+import { recordVersion, retentionCutoffIso } from "@/lib/fewer/versions";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 async function getAuthedClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,13 +39,23 @@ export async function GET(
 ) {
   const authed = await getAuthedClient();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  const { supabase } = authed;
+  const { supabase, user } = authed;
   const { id } = await params;
 
+  // Version history is metered: per-plan retention window (0 = none).
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (limits.historyDays === 0) {
+    return NextResponse.json(
+      { error: "Version history requires an account.", code: "plan_limit" },
+      { status: 403 },
+    );
+  }
+  const cutoffIso = retentionCutoffIso(limits.historyDays);
   const { data, error } = await supabase
     .from("graph_versions")
     .select("id, saved_graph_id, node_count, created_at")
     .eq("saved_graph_id", id)
+    .gte("created_at", cutoffIso)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -74,7 +85,14 @@ export async function POST(
     return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
   }
 
-  const result = await recordVersion(supabase, user.id, id, body.data);
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (limits.historyDays === 0) {
+    return NextResponse.json(
+      { error: "Version history requires an account.", code: "plan_limit" },
+      { status: 403 },
+    );
+  }
+  const result = await recordVersion(supabase, user.id, id, body.data, limits.historyDays);
   if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
   return NextResponse.json({ recorded: result.recorded });
 }

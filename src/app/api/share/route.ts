@@ -4,8 +4,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { Resend } from "resend";
 import { isDangerousText } from "@/lib/fewer/textValidation";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 const TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const SHARE_FREE_MAX_CHARS = 200_000;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "fewer <onboarding@resend.dev>";
 const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -59,11 +61,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
     }
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "Sign in to create share links. Guests can share small graphs with the encoded link.", code: "plan_limit" },
+        { status: 403 },
+      );
+    }
+    const payloadChars = JSON.stringify(data).length;
+    const planLimits = limitsFor(await getUserPlan(supabase, user.id));
+    if (payloadChars > SHARE_FREE_MAX_CHARS && planLimits.largeShareLinks === false) {
+      return NextResponse.json(
+        { error: "This graph is too large to share on the Free plan -- short links for large payloads are Pro. See /docs/plans.", code: "plan_limit" },
+        { status: 403 },
+      );
+    }
     const access = body?.access === "invite" ? "invite" : "public";
     const invitedEmails: string[] = Array.isArray(body?.invited_emails)
       ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)
       : [];
     const savedGraphId = body?.saved_graph_id ?? null;
+
+    // Invite-only sharing is a Pro feature (Resend emails per invitee have
+    // real cost). Public "anyone with the link" sharing stays free.
+    if (access === "invite" && user && !limitsFor(await getUserPlan(supabase, user.id)).inviteSharing) {
+      return NextResponse.json(
+        {
+          error: "Invite-only sharing is a Pro feature. Public links stay free.",
+          code: "plan_limit",
+        },
+        { status: 403 },
+      );
+    }
 
     // Reject broken gallery text (e.g. "[object Object]") before it's stored.
     const badGallery = (v: unknown) => v != null && isDangerousText(v);

@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
-import { DocsSearch } from "@/components/fewer/DocsSearch";
 import { getSupabase } from "@/lib/supabase";
 
 export const metadata = {
@@ -36,8 +36,28 @@ async function getDocs(): Promise<DocMeta[]> {
   }
 }
 
+const sections = [
+  {
+    title: "Getting Started",
+    items: ["getting-started"],
+  },
+  {
+    title: "Features",
+    items: ["graph-features", "editing", "import-export", "sharing", "accounts", "watch", "cloud", "plans"],
+  },
+  {
+    title: "Reference",
+    items: ["settings", "shortcuts", "theming", "pwa-install", "deployment"],
+  },
+  {
+    title: "Legal",
+    items: ["privacy", "terms"],
+  },
+];
+
 export default async function DocsPage() {
   const docs = await getDocs();
+  const docsBySlug = new Map(docs.map((d) => [d.slug, d]));
 
   return (
     <DocsLayout type="docs" title="Docs">
@@ -48,8 +68,54 @@ export default async function DocsPage() {
         Feature guides, tutorials, and technical references for Fewer.
       </p>
 
-      <div className="mt-8">
-        <DocsSearch docs={docs} />
+      <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-10">
+        <aside className="md:col-span-1 space-y-6">
+          {sections.map((section) => (
+            <div key={section.title}>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                {section.title}
+              </h2>
+              <ul className="mt-2 space-y-1">
+                {section.items.map((slug) => {
+                  const doc = docsBySlug.get(slug);
+                  if (!doc) return null;
+                  return (
+                    <li key={slug}>
+                      <Link
+                        href={`/docs/${slug}`}
+                        className="block text-sm text-foreground/80 hover:text-primary transition-colors"
+                      >
+                        {doc.title}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </aside>
+
+        <div className="md:col-span-3 space-y-10">
+          {docs.map((doc) => (
+            <article
+              key={doc.slug}
+              className="border border-border rounded-lg p-6 hover:border-border/80 transition-colors"
+            >
+              <Link href={`/docs/${doc.slug}`}>
+                <h2 className="text-xl font-semibold text-foreground hover:text-primary transition-colors">
+                  {doc.title}
+                </h2>
+              </Link>
+              <p className="mt-2 text-muted-foreground">{doc.description}</p>
+              <Link
+                href={`/docs/${doc.slug}`}
+                className="mt-3 inline-flex items-center text-sm font-medium text-primary hover:underline"
+              >
+                Read docs →
+              </Link>
+            </article>
+          ))}
+        </div>
       </div>
     </DocsLayout>
   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { isDangerousText, safeText, validateUsername } from "@/lib/fewer/textValidation";
+import { countOwned } from "@/lib/fewer/plans";
 
 /**
  * Per-account profile info (first/last name, username) from Settings → Account.
@@ -39,12 +40,20 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("first_name, last_name, username")
+    // plan is SELECT-able by its owner (0022 only column-revoked INSERT/UPDATE)
+    .select("first_name, last_name, username, plan")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ profile: data ?? null });
+
+  // Usage counters for the Account-status card (head-count, fails -1 on error).
+  const [savedGraphs, watchedIndexes] = await Promise.all([
+    countOwned(supabase, "saved_graphs", user.id),
+    countOwned(supabase, "watched_indexes", user.id),
+  ]);
+
+  return NextResponse.json({ profile: data ?? null, counts: { savedGraphs, watchedIndexes } });
 }
 
 export async function PUT(request: Request) {

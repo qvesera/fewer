@@ -82,3 +82,5 @@ lighthouse/*
 # repowise local index
 .repowise/
 scripts/*
+lighthouse/*
+.clinerules/*

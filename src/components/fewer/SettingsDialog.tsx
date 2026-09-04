@@ -44,6 +44,7 @@ import {
   Cloud,
   Trash2,
   Loader2,
+  CreditCard,
   Spline,
   SlidersHorizontal,
 } from "lucide-react";
@@ -65,7 +66,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
+import { limitsFor, formatUsage } from "@/lib/fewer/plans";
 import { useAuth } from "@/hooks/use-auth";
+import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -78,9 +81,13 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const { loading: billingBusy, startCheckout, openPortal } = useBilling();
+  const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [plan, setPlan] = useState<"free" | "pro" | "team">("free");
+  const [usage, setUsage] = useState<{ savedGraphs: number; watchedIndexes: number } | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -90,10 +97,19 @@ function AccountTab() {
     last_name: "",
     username: "",
   });
+  // Derived after the state declarations: plan is a hook state above.
+  const billingEnabledUi = BILLING_UI;
+  const planLabel =
+    plan === "pro" ? "Pro plan" : plan === "team" ? "Team plan" : "Free plan";
+  const limits = limitsFor(plan);
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPlan("free");
+      setUsage(null);
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
@@ -104,6 +120,7 @@ function AccountTab() {
             first_name?: unknown;
             last_name?: unknown;
             username?: unknown;
+            plan?: unknown;
           };
           const first_name = typeof p.first_name === "string" ? p.first_name : "";
           const last_name = typeof p.last_name === "string" ? p.last_name : "";
@@ -111,7 +128,16 @@ function AccountTab() {
           setFirstName(first_name);
           setLastName(last_name);
           setUsername(username);
+          setPlan(p.plan === "pro" || p.plan === "team" ? (p.plan as "pro" | "team") : "free");
           setSavedProfile({ first_name, last_name, username });
+          const { savedGraphs, watchedIndexes } = (json.counts ?? {
+            savedGraphs: -1,
+            watchedIndexes: -1,
+          }) as { savedGraphs?: number; watchedIndexes?: number };
+          setUsage({
+            savedGraphs: typeof savedGraphs === "number" ? savedGraphs : -1,
+            watchedIndexes: typeof watchedIndexes === "number" ? watchedIndexes : -1,
+          });
         }
       } catch {
         /* ignore */
@@ -172,6 +198,15 @@ function AccountTab() {
       toast({ title: "Could not save profile", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBilling = async (action: () => Promise<boolean>) => {
+    try {
+      await action(); // navigates away to Stripe on success
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Billing is unavailable";
+      toast({ title: "Could not open billing", description: msg, variant: "destructive" });
     }
   };
 
@@ -284,6 +319,125 @@ function AccountTab() {
               <Check className="h-3.5 w-3.5" />
               {saving ? "Saving…" : "Save profile"}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Account status card — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-3.5 space-y-3">
+          {/* Row 1: plan badge + billing action */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                <CreditCard className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-foreground">
+                  {planLabel}
+                </span>
+                <span className="text-[11px] text-muted-foreground/70">
+                  {billingEnabledUi && plan !== "free"
+                    ? "Update card, view invoices, or cancel anytime"
+                    : <>See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a> for the tier table</>}
+                </span>
+              </div>
+            </div>
+            {billingEnabledUi ? (
+              <Button
+                variant={plan !== "free" ? "outline" : "default"}
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={billingBusy}
+                onClick={() => handleBilling(plan !== "free" ? openPortal : startCheckout)}
+              >
+                {billingBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {plan !== "free" ? "Manage subscription" : "Upgrade to Pro"}
+              </Button>
+            ) : (
+              <span className="text-[11px] text-muted-foreground/70">
+                {plan === "team"
+                  ? "Team is managed by your organization."
+                  : plan === "pro"
+                    ? "Pro is enabled for this account."
+                    : <>Self-serve upgrades are currently off. See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a>.</>}
+              </span>
+            )}
+          </div>
+
+          {/* Row 2: usage meters + account-level status */}
+          <div className="border-t border-border/40 pt-3 space-y-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Saved graphs</span>
+                <span className="font-medium text-foreground/80">
+                  {usage === null ? "…" : formatUsage(usage.savedGraphs, limits.savedGraphs)}
+                </span>
+              </div>
+              {usage !== null && limits.savedGraphs !== Infinity && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      usage.savedGraphs >= limits.savedGraphs
+                        ? "bg-destructive"
+                        : "bg-primary/70",
+                    )}
+                    style={{ width: `${Math.min(100, (usage.savedGraphs / limits.savedGraphs) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Watched indexes</span>
+                <span className="font-medium text-foreground/80">
+                  {usage === null ? "…" : formatUsage(usage.watchedIndexes, limits.watchedIndexes)}
+                </span>
+              </div>
+              {usage !== null && limits.watchedIndexes !== Infinity && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      usage.watchedIndexes >= limits.watchedIndexes
+                        ? "bg-destructive"
+                        : "bg-primary/70",
+                    )}
+                    style={{ width: `${Math.min(100, (usage.watchedIndexes / limits.watchedIndexes) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground/80">Version history</span>
+              <span className="font-medium text-foreground/80">
+                {limits.historyDays > 0 ? `${limits.historyDays}-day history` : "Not available"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground/80">Email</span>
+              <span className="font-medium text-foreground/80 flex items-center gap-1">
+                {user.email ?? "—"}
+                {user.email_confirmed_at ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">✓ Verified</span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">Not verified</span>
+                )}
+              </span>
+            </div>
+
+            {user.created_at && (
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Member since</span>
+                <span className="font-medium text-foreground/80">
+                  {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

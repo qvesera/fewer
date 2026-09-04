@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   encodeShareData,
   buildShareUrl,
@@ -27,6 +28,8 @@ export function ShareDialog() {
   const edges = useGraphStore((s) => s.edges);
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isGuest = !user;
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -48,6 +51,17 @@ export function ShareDialog() {
     if (encoded.length <= SHARE_HASH_THRESHOLD) {
       setShareUrl(buildShareUrl(encoded));
       setBuilding(false);
+      return;
+    }
+    // Guests and this graph are too big for the encoded hash — the DB short
+    // link requires an account (guest cap is < 2,000 chars, see /docs/plans).
+    if (isGuest) {
+      setBuilding(false);
+      toast({
+        title: "Sign in to share this graph",
+        description: "Signed-out sharing is limited to graphs under 2,000 characters of compressed data.",
+        variant: "destructive",
+      });
       return;
     }
     try {
