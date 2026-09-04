@@ -391,7 +391,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale }), state.searchQuery, state.categoryFilter);
+    : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale, sortKey: state.sortKey, sortDir: state.sortDir }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -401,11 +401,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();
     if (nodes.length === 0) return;
     // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir });
     const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
@@ -419,7 +419,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const {
       nodes, edges, searchQuery, categoryFilter, hiddenIds,
       revealedRootIds, autoHideThreshold, maxDisplayDepth,
-      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, graphVersion, showFiles,
+      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, sortKey, sortDir, graphVersion, showFiles,
     } = get();
     const folderNode = nodes.find((n) => n.id === nodeId);
     if (!folderNode || folderNode.data.type !== "folder") return { added: 0, removed: 0 };
@@ -431,7 +431,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
     // Lay the refreshed subtree out around the folder's current position.
     const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(edgeStyle) }));
-    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale });
+    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale, sortKey, sortDir });
     const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
     const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
     const newChildNodes = laid.slice(1).map((n) => ({
@@ -1184,7 +1184,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale, sortKey: get().sortKey, sortDir: get().sortDir })
     const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));

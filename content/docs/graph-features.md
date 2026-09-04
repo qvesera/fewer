@@ -92,6 +92,18 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 3. **Bottom → Top** (limited to advanced mode)
 4. **Right → Left** (limited to advanced mode)
 
+## Sibling Sort
+
+Children within each folder are drawn in a chosen order. The sort applies recursively at every level, so folders and files are laid out consistently across the whole graph. Change it in **Settings → Appearance → Sibling Sort**:
+
+- **Order by**:
+  - **Name** — alphabetical by label (default, A→Z)
+  - **Size** — ascending/descending by recorded node size. Folders whose size wasn't reported on import sort last.
+  - **Type** — folders first, then files grouped by extension. Extension order inverts with direction; folders stay first either way.
+- **Direction**: Ascending / Descending (only inverts the primary key — Name and Size both sort unknown/empty values last in either direction, and Type always keeps folders first).
+
+Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
+
 ## Max Display Depth
 
 Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).

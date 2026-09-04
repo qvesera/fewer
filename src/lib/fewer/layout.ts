@@ -1,4 +1,7 @@
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
+import { compareSiblings } from "./sorting";
+import type { SortKey, SortDir } from "./sorting";
+import { DEFAULT_SORT_KEY, DEFAULT_SORT_DIR } from "./sorting";
 
 const DEFAULT_FOLDER_WIDTH = 240;
 const DEFAULT_FOLDER_HEIGHT = 200;
@@ -32,6 +35,10 @@ export interface LayoutOptions {
   shyness?: boolean;
   /** Crown-shyness intensity multiplier. 0 = flat gaps, 1 = default, up to 3. Default 1. */
   shynessScale?: number;
+  /** How siblings are ordered within a level. Defaults to name A→Z (current behavior). */
+  sortKey?: SortKey;
+  /** Direction applied to the primary sort key. Defaults to asc. */
+  sortDir?: SortDir;
 }
 
 // ponytail: linear per-level/per-log-size gap growth, capped at 3x base —
@@ -93,11 +100,20 @@ export function layoutGraphContour(
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
+  const sortKey = options?.sortKey ?? DEFAULT_SORT_KEY;
+  const sortDir = options?.sortDir ?? DEFAULT_SORT_DIR;
+
   for (const childIds of childrenMap.values()) {
     childIds.sort((a, b) => {
-      const labelA = nodeMap.get(a)?.data?.label || a;
-      const labelB = nodeMap.get(b)?.data?.label || b;
-      return labelA.localeCompare(labelB);
+      const nodeA = nodeMap.get(a);
+      const nodeB = nodeMap.get(b);
+      if (!nodeA || !nodeB) {
+        // Fallback to the original label sort when a node hasn't been built yet.
+        const labelA = nodeA?.data?.label || a;
+        const labelB = nodeB?.data?.label || b;
+        return labelA.localeCompare(labelB);
+      }
+      return compareSiblings(nodeA, nodeB, sortKey, sortDir);
     });
   }
 

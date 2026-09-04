@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sign in with Google or GitHub: one-tap OAuth buttons on the sign-in and sign-up screens (Supabase OIDC providers, PKCE flow through the existing /auth/callback route). Provider credentials must be enabled in the Supabase dashboard first — see /docs/accounts.
 - Passwordless sign-in link: 'Sign in with a link' on the sign-in screen emails a one-tap sign-in link (expires in an hour); first use creates the account, so it doubles as passwordless sign-up.
 - Change email: signed-in users can update their account email from Settings → Account; a confirmation link is sent to the new address and the change only applies after it's confirmed.
+- Sibling sort controls: folders' children can now be ordered by Name, Size, or Type (ascending/descending) via Settings → Appearance → Sibling Sort, applying recursively and relayout immediately; the choice persists with your other preferences.
 
 ### Changed
 

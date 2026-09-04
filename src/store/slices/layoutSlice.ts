@@ -4,6 +4,8 @@ import type { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import { edgeDashPattern } from "@/lib/fewer/types";
+import type { SortKey, SortDir } from "@/lib/fewer/sorting";
+import { DEFAULT_SORT_KEY, DEFAULT_SORT_DIR } from "@/lib/fewer/sorting";
 
 export type LayoutSliceCreator = StateCreator<
   GraphState,
@@ -30,6 +32,10 @@ export type LayoutSliceCreator = StateCreator<
     /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Read by
      *  relayout, so a change applies the next time Rearrange runs. */
     shynessScale: number;
+    /** Sibling sort key read by relayout. */
+    sortKey: SortKey;
+    /** Sibling sort direction read by relayout. */
+    sortDir: SortDir;
 
     setDirection: (d: LayoutDirection) => void;
     setEdgeStyle: (s: EdgeStyle) => void;
@@ -41,6 +47,8 @@ export type LayoutSliceCreator = StateCreator<
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
     setShynessScale: (scale: number) => void;
+    setSortKey: (key: SortKey) => void;
+    setSortDir: (dir: SortDir) => void;
   }
 >;
 
@@ -74,6 +82,8 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   nodeWidth: 240,
   nodeHeight: 200,
   shynessScale: 1,
+  sortKey: DEFAULT_SORT_KEY,
+  sortDir: DEFAULT_SORT_DIR,
 
   setDirection: (direction) => {
     set({ direction });
@@ -163,11 +173,23 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     set({ nodeWidth: newW, nodeHeight: newH, nodes: updatedNodes, graphVersion: get().graphVersion + 1 });
   },
 
-  setShynessScale: (scale) => {
+    setShynessScale: (scale) => {
     const clamped = Math.max(0, Math.min(3, scale));
     if (clamped === get().shynessScale) return;
     // No automatic relayout — the new intensity is picked up on the next
     // explicit Rearrange (relayout reads shynessScale from the store).
     set({ shynessScale: clamped });
+  },
+
+  setSortKey: (key) => {
+    if (key === get().sortKey) return;
+    set({ sortKey: key });
+    get().relayout();
+  },
+
+  setSortDir: (dir) => {
+    if (dir === get().sortDir) return;
+    set({ sortDir: dir });
+    get().relayout();
   },
 });

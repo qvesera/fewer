@@ -113,6 +113,7 @@ docker run -p 3000:3000 fewer
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
+- **Sibling sort**: order children by Name, Size, or Type (asc/desc); applies recursively
 - **Breadcrumb bar**: selected node's full path
 
 </details>
