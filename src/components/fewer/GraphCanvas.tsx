@@ -108,16 +108,13 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const customTheme = useGraphStore((s) => s.customTheme);
   const direction = useGraphStore((s) => s.direction);
   const activeLeafId = useGraphStore((s) => s.activeLeafId);
-  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const leafSelections = useGraphStore((s) => s.leafSelections);
   const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const relayout = useGraphStore((s) => s.relayout);
 
   // Per-view scope
   const isActive = leafId ? leafId === activeLeafId : true;
-  const effectiveHoverHighlight = isActive ? hoverHighlightIds : [];
 
   // ── Resolve per-view settings ──
   const vs = useMemo(
@@ -214,21 +211,23 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
-  // Leaf's own selection for edge highlight (not global — prevents cross-view leak)
-  const leafSelForHighlight = leafId ? (leafSelections[leafId] ?? []) : selectedNodeIds;
-
   const animation = useEdgeAnimationOpts(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
-  // Re-apply edge highlight per-view: uses leaf selection, writes only to RF edges
-  // (NOT to shared store — highlight is visual state, not graph data).
+
+  // Edge highlight: read selections INSIDE the effect from the store to avoid
+  // unstable empty-array references in deps that cause infinite re-renders.
   useEffect(() => {
-    const latestEdges = useGraphStore.getState().edges;
-    const updatedEdges = buildSelectedEdgeHighlight(leafSelForHighlight, effectiveHoverHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
+    const state = useGraphStore.getState();
+    const leafSel = leafId ? state.leafSelections[leafId] : undefined;
+    const selectedForHighlight = leafSel ?? state.selectedNodeIds;
+    const hoverForHighlight = isActive ? state.hoverHighlightIds : [];
+    const latestEdges = state.edges;
+    const updatedEdges = buildSelectedEdgeHighlight(selectedForHighlight, hoverForHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
     const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
     setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [leafSelForHighlight, effectiveHoverHighlight, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
+  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, hiddenIds, leafId, isActive]);
 
   const dashArray = useMemo(() => {
     switch (vs.edgeStrokeStyle) {
