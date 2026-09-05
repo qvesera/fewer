@@ -17,6 +17,7 @@ import {
   defaultLayout,
 } from "@/lib/fewer/panelLayout";
 import * as treeModule from "@/lib/fewer/panelTree";
+import { resolveViewSettings, type ViewSettings } from "@/lib/fewer/viewState";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -57,8 +58,8 @@ export type UiSliceCreator = StateCreator<
     shareOpen: boolean;
     authOpen: boolean;
     showMiniMap: boolean;
-    /** Leaf IDs whose minimap is hidden (per-view override). Empty = all visible. */
-    minimapHidden: Set<string>;
+    /** Per-leaf view settings overrides (showFiles, minimapHidden, edgeStyle, theme, etc.). */
+    viewSettings: Record<string, import("@/lib/fewer/viewState").ViewSettings>;
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
     miniMapSize: number;
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
@@ -68,8 +69,6 @@ export type UiSliceCreator = StateCreator<
     scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     showFiles: boolean;
-    /** Per-leaf showFiles overrides. Key = leafId, value = showFiles for that view. */
-    showFilesByLeaf: Record<string, boolean>;
     loading: boolean;
     exportSettings: ExportSettings;
     importOptions: ImportOptions;
@@ -113,6 +112,8 @@ export type UiSliceCreator = StateCreator<
     setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
     toggleMinimapForLeaf: (leafId: string) => void;
+    /** Set a per-view setting override. Bumps graphVersion for sync. */
+    setViewSetting: (leafId: string, key: keyof import("@/lib/fewer/viewState").ViewSettings, value: unknown) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -122,9 +123,6 @@ export type UiSliceCreator = StateCreator<
     canvasSize: { width: number; height: number };
     setCanvasSize: (size: { width: number; height: number }) => void;
     setShowFiles: (show: boolean) => void;
-    setShowFilesForLeaf: (leafId: string, show: boolean) => void;
-    /** Get showFiles for a specific leaf, falling back to global. */
-    getShowFilesForLeaf: (leafId: string) => boolean;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
     setImportOptions: (options: ImportOptions) => void;
@@ -184,7 +182,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   shareOpen: false,
   authOpen: false,
   showMiniMap: true,
-  minimapHidden: new Set<string>(),
+  viewSettings: {},
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
   miniMapX: 16,
@@ -192,7 +190,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   scrollAction: "pan",
   advancedModeEnabled: false,
   showFiles: true,
-  showFilesByLeaf: {},
   loading: false,
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
@@ -358,9 +355,15 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   toggleMinimapForLeaf: (leafId) => set((s) => {
-    const next = new Set(s.minimapHidden);
-    if (next.has(leafId)) next.delete(leafId); else next.add(leafId);
-    return { minimapHidden: next };
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, minimapHidden: !leaf.minimapHidden } };
+    return { viewSettings: next };
+  }),
+
+  setViewSetting: (leafId, key, value) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
+    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
   }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
@@ -420,16 +423,6 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
       set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }
-  },
-
-  setShowFilesForLeaf: (leafId, show) => set((s) => ({
-    showFilesByLeaf: { ...s.showFilesByLeaf, [leafId]: show },
-  })),
-
-  getShowFilesForLeaf: (leafId) => {
-    const s = get();
-    if (leafId in s.showFilesByLeaf) return s.showFilesByLeaf[leafId];
-    return s.showFiles;
   },
 
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),

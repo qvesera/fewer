@@ -26,8 +26,10 @@ interface UseCanvasMinimapResult {
  */
 export function useCanvasMinimap({ themeColors, isDark, leafId }: UseCanvasMinimapDeps): UseCanvasMinimapResult {
   const showMiniMapGlobal = useGraphStore((s) => s.showMiniMap);
-  const minimapHidden = useGraphStore((s) => s.minimapHidden);
-  const showMiniMap = leafId ? showMiniMapGlobal && !minimapHidden.has(leafId) : showMiniMapGlobal;
+  const viewSettingsMap = useGraphStore((s) => s.viewSettings);
+  const leafVs = leafId ? viewSettingsMap[leafId] : undefined;
+  const minimapHidden = leafVs?.minimapHidden ?? false;
+  const showMiniMap = showMiniMapGlobal && !minimapHidden;
   const scrollAction = useGraphStore((s) => s.scrollAction) as "pan" | "zoom";
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);

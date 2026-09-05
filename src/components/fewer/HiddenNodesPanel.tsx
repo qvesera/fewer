@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import {
   Eye,
+  EyeOff,
   ChevronRight,
   Folder,
 } from "lucide-react";
@@ -198,11 +199,18 @@ export function HiddenNodesPanel() {
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const showFilesGlobal = useGraphStore((s) => s.showFiles);
+  const viewSettingsMap = useGraphStore((s) => s.viewSettings);
+  const activeLeafId = useGraphStore((s) => s.activeLeafId);
   const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const { toast } = useToast();
 
   const [hiddenSearch, setHiddenSearch] = useState("");
+
+  // Resolve active view's showFiles for per-view filtering
+  const activeLeafVs = activeLeafId ? viewSettingsMap[activeLeafId] : undefined;
+  const activeViewShowFiles = activeLeafVs?.showFiles ?? showFilesGlobal;
+  const viewFiltersFiles = !activeViewShowFiles;
 
   const hiddenGroups = useMemo(
     () => getHiddenLayerGroups(nodes, edges, hiddenIds),
@@ -214,7 +222,8 @@ export function HiddenNodesPanel() {
     [hiddenGroups, hiddenSearch],
   );
 
-  if (hiddenIds.length === 0) return null;
+  const hasGlobalHidden = hiddenIds.length > 0;
+  if (!hasGlobalHidden && !viewFiltersFiles) return null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-2 w-full min-w-0">
@@ -227,6 +236,26 @@ export function HiddenNodesPanel() {
           className="h-8 pl-8 text-xs"
         />
       </div>
+      {/* View-filter banner */}
+      {viewFiltersFiles && (
+        <div className="flex items-center justify-between rounded-lg border border-border/20 bg-muted/20 px-3 py-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground truncate">File cards hidden in this view</span>
+          </div>
+          {activeLeafId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs shrink-0"
+              onClick={() => useGraphStore.getState().setViewSetting(activeLeafId, "showFiles", true)}
+            >
+              Show Files
+            </Button>
+          )}
+        </div>
+      )}
+      {hasGlobalHidden && (<>
       <Button
         variant="outline"
         size="sm"
@@ -234,11 +263,9 @@ export function HiddenNodesPanel() {
         onClick={() => {
           setHoverHighlight([]);
           const count = hiddenIds.length;
-          // setShowFiles(true) re-runs the large-folder auto-hide filter, so it
-          // must run BEFORE showAll() — otherwise it re-hides a folder whose
-          // children outnumber the auto-hide threshold in the same click that
-          // was supposed to reveal them. showAll() must be the last write.
-          setShowFiles(true);
+          // Per-leaf showFiles first, then global showAll
+          if (activeLeafId) useGraphStore.getState().setViewSetting(activeLeafId, "showFiles", true);
+          else useGraphStore.getState().setShowFiles(true);
           showAll();
           if (count > 0) toast({ title: "Unhid all nodes", description: `${plural(count, "node")} restored` });
         }}
@@ -257,6 +284,7 @@ export function HiddenNodesPanel() {
           </p>
         )}
       </div>
+      </>)}
     </div>
   );
 }

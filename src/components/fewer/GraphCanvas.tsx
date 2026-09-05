@@ -43,6 +43,7 @@ import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handl
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
 import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
+import { resolveViewSettings } from "@/lib/fewer/viewState";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -81,15 +82,14 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const showFilesGlobal = useGraphStore((s) => s.showFiles);
-  const getShowFilesForLeaf = useGraphStore((s) => s.getShowFilesForLeaf);
-  const setShowFilesForLeaf = useGraphStore((s) => s.setShowFilesForLeaf);
+  const viewSettingsMap = useGraphStore((s) => s.viewSettings);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
-  const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
-  const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
-  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
+  const edgeAnimatedGlobal = useGraphStore((s) => s.edgeAnimated);
+  const edgeAnimatedSelectedOnlyGlobal = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
+  const edgeStrokeStyleGlobal = useGraphStore((s) => s.edgeStrokeStyle);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
+  const edgeWidthGlobal = useGraphStore((s) => s.edgeWidth);
   const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
@@ -102,23 +102,35 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const setCanvasSize = useGraphStore((s) => s.setCanvasSize);
-  const themeMode = useGraphStore((s) => s.themeMode);
+  const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const customTheme = useGraphStore((s) => s.customTheme);
   const direction = useGraphStore((s) => s.direction);
-  const isDark = themeMode === "dark";
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const relayout = useGraphStore((s) => s.relayout);
 
-  // ── Hook extractions (pure moves, no behavior change) ──
+  // ── Resolve per-view settings ──
+  const vs = useMemo(
+    () => resolveViewSettings(viewSettingsMap, leafId, {
+      showFiles: showFilesGlobal, minimapHidden: false,
+      edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal,
+      edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
+      edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
+      themeMode: themeModeGlobal,
+    }),
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal],
+  );
+
+  const isDark = vs.themeMode === "dark";
+
+  // ── Hook extractions ──
   useCanvasResize(containerRef, setCanvasSize);
-  const themeColors = useCanvasThemeColors(themeMode, isDark, customTheme);
-  const showFiles = leafId ? getShowFilesForLeaf(leafId) : showFilesGlobal;
+  const themeColors = useCanvasThemeColors(vs.themeMode, isDark, customTheme);
 
   // Derive effective hiddenIds: if per-leaf showFiles is off, add all file node IDs
-  const effectiveHiddenIds = showFiles
+  const effectiveHiddenIds = vs.showFiles
     ? hiddenIds
     : [...hiddenIds, ...allNodes.filter((n) => n.data.type === "file").map((n) => n.id)];
 
@@ -149,7 +161,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   );
 
   useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
-  useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
+  useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(direction);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
@@ -162,14 +174,14 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
-  const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);
+  const animation = useEdgeAnimationOpts(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
   // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
   // Store edges are read via getState() so the effect only fires when selection /
   // theme / animation / hiddenIds / graphVersion change — NOT when store edges
   // change from the effect itself, which would create a render loop.
   useEffect(() => {
     const latestEdges = useGraphStore.getState().edges;
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, latestEdges, allNodes, themeColors, edgeWidth, animation);
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
     // Sync store edges so persistence / undo / export reflect the current highlight.
     useGraphStore.setState({ edges: updatedEdges });
     // Re-apply RF's live edge selection so the rebuild doesn't wipe it.
@@ -177,16 +189,16 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
+  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, vs.edgeWidth, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
 
   const dashArray = useMemo(() => {
-    switch (edgeStrokeStyle) {
+    switch (vs.edgeStrokeStyle) {
       case "dashed": return "6 6";
       case "dotted": return "2 6";
       case "solid":
       default: return undefined;
     }
-  }, [edgeStrokeStyle]);
+  }, [vs.edgeStrokeStyle]);
 
   const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
   const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
@@ -225,7 +237,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       // The effect handles both RF-edge highlighting and store-edge sync on
       // every selection / graphVersion / theme change.
     },
-    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef, leafId],
+    [setSelectedNodeIds, setRfEdges, vs.edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef, leafId],
   );
 
   const onConnect = useCallback(
@@ -234,10 +246,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       if (!result.ok) {
         toast({ title: "Connection rejected", description: result.reason, variant: "destructive" });
       } else if (connection.source && connection.target) {
-        setRfEdges((eds) => [...eds, { id: `e-${connection.source}-${connection.target}-${Date.now()}`, source: connection.source, target: connection.target, type: edgeTypeFor(edgeStyle) }]);
+        setRfEdges((eds) => [...eds, { id: `e-${connection.source}-${connection.target}-${Date.now()}`, source: connection.source, target: connection.target, type: edgeTypeFor(vs.edgeStyle) }]);
       }
     },
-    [connectNodes, toast, setRfEdges, edgeStyle],
+    [connectNodes, toast, setRfEdges, vs.edgeStyle],
   );
 
   const onConnectEnd = useCallback(
@@ -297,7 +309,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         onEdgesChange={handleEdgesChange as import("@xyflow/react").OnEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
-        onPaneClick={() => setRenamingId(null)}
+        onPaneClick={() => { setRenamingId(null); if (leafId) useGraphStore.getState().setActiveLeaf(leafId); }}
         onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
@@ -332,8 +344,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(edgeStyle), animated: advancedModeEnabled && edgeAnimated && !edgeAnimatedSelectedOnly,
-          style: { stroke: themeColors.edge, strokeWidth: edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+          type: edgeTypeFor(vs.edgeStyle), animated: advancedModeEnabled && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
+          style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
           zIndex: 0,
         }}
         elevateNodesOnSelect
@@ -367,12 +379,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
               <EyeOff className="h-12 w-12 text-muted-foreground/60" />
               <div className="text-lg font-semibold">Everything is hidden</div>
               <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
-                {showFiles
+                {vs.showFiles
                   ? "All nodes on this graph are currently hidden on the canvas."
                   : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
               </div>
-              {!showFiles && (
-                <Button variant="outline" onClick={() => leafId ? setShowFilesForLeaf(leafId, true) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
+              {!vs.showFiles && (
+                <Button variant="outline" onClick={() => leafId ? useGraphStore.getState().setViewSetting(leafId, "showFiles", true) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
                   <FolderOpen className="h-4 w-4" />
                   Show Files
                 </Button>
@@ -441,8 +453,15 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
                   {leafId && (
                     <>
-                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{mini.showMiniMap ? "Hide Minimap" : "Show Minimap"}</button>
-                      <button onClick={() => { setShowFilesForLeaf(leafId, !showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{showFiles ? "Hide Files" : "Show Files"}</button>
+                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
+                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "showFiles", !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "themeMode", vs.themeMode === "dark" ? "light" : "dark"); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Theme: {vs.themeMode === "dark" ? "Light" : "Dark"}</button>
+                      <div className="my-1 h-px bg-border/40" />
+                      <div className="flex items-center gap-1 px-2 py-1">
+                        {(["curved", "straight", "angled"] as const).map((style) => (
+                          <button key={style} onClick={() => { useGraphStore.getState().setViewSetting(leafId, "edgeStyle", style); close(); }} className={`rounded px-2 py-1 text-xs transition-colors ${vs.edgeStyle === style ? "bg-primary/20 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>{style.charAt(0).toUpperCase() + style.slice(1)}</button>
+                        ))}
+                      </div>
                     </>
                   )}
                   {edgeExists && (
