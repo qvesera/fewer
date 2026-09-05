@@ -8,7 +8,6 @@ import type { CanvasThemeColors } from "./use-canvas-theme-colors";
 interface UseCanvasMinimapDeps {
   themeColors: CanvasThemeColors;
   isDark: boolean;
-  leafId?: string;
 }
 
 interface UseCanvasMinimapResult {
@@ -21,13 +20,11 @@ interface UseCanvasMinimapResult {
 }
 
 /**
- * Minimap state + styling. Collapses store selectors into one logical unit.
- * When leafId is provided, minimap visibility is per-view (toggled via context menu).
+ * Minimap state + styling. Collapses 7 store selectors into one logical unit
+ * so CanvasInner carries only a single destructure line.
  */
-export function useCanvasMinimap({ themeColors, isDark, leafId }: UseCanvasMinimapDeps): UseCanvasMinimapResult {
-  const showMiniMapGlobal = useGraphStore((s) => s.showMiniMap);
-  const minimapHidden = useGraphStore((s) => s.minimapHidden);
-  const showMiniMap = leafId ? showMiniMapGlobal && !minimapHidden.has(leafId) : showMiniMapGlobal;
+export function useCanvasMinimap({ themeColors, isDark }: UseCanvasMinimapDeps): UseCanvasMinimapResult {
+  const showMiniMap = useGraphStore((s) => s.showMiniMap);
   const scrollAction = useGraphStore((s) => s.scrollAction) as "pan" | "zoom";
   const miniMapPosition = useGraphStore((s) => s.miniMapPosition);
   const miniMapSize = useGraphStore((s) => s.miniMapSize);

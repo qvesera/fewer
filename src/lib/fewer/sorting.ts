@@ -1,8 +1,7 @@
 import type { FewerNode } from "./types";
-import { compareSiblingsByTag } from "./tags";
 
 /** Sort criterion for sibling nodes inside a folder / tree level. */
-export type SortKey = "name" | "size" | "type" | "tag";
+export type SortKey = "name" | "size" | "type";
 
 /** Sort direction applied to the primary sort key. */
 export type SortDir = "asc" | "desc";
@@ -27,19 +26,8 @@ function labelOf(n: FewerNode): string {
  * Compare two sibling nodes for sort order. The primary key honors `dir`; name
  * is always used as the stable tie-breaker (never inverted) so equal keys stay
  * deterministic. For `type`, folders always come first regardless of direction.
- * For `tag`, nodes are grouped by their first tag's label (see `compareSiblingsByTag`);
- * pass `tagLabelById` so the comparator can resolve tag ids to labels.
  */
-export function compareSiblings(
-  a: FewerNode,
-  b: FewerNode,
-  key: SortKey,
-  dir: SortDir,
-  tagLabelById?: (id: string) => string,
-): number {
-  if (key === "tag") {
-    return compareSiblingsByTag(a, b, tagLabelById ?? (() => ""), dir);
-  }
+export function compareSiblings(a: FewerNode, b: FewerNode, key: SortKey, dir: SortDir): number {
   const dirMult = dir === "desc" ? -1 : 1;
 
   let primary = 0;
