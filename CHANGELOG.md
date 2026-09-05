@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
 - Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
 - Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
+- Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
 
 ### Added
 
