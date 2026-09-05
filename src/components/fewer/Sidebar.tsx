@@ -47,7 +47,8 @@ import {
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { plural } from "@/lib/fewer/plural";
-import { sectionsDockedAnywhere, type AreaEditor } from "@/lib/fewer/panelLayout";
+import { sectionsDockedInTree } from "@/lib/fewer/panelTree";
+import type { AreaEditor } from "@/lib/fewer/panelLayout";
 import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { startSectionDrag } from "./SectionDragLayer";
 
@@ -79,12 +80,11 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   // Panel layout
   const sidebarSide = useGraphStore((s) => s.sidebarSide);
-  const leftAreas = useGraphStore((s) => s.leftAreas);
-  const rightAreas = useGraphStore((s) => s.rightAreas);
+  const panelTree = useGraphStore((s) => s.panelTree);
   const setSidebarSide = useGraphStore((s) => s.setSidebarSide);
 
   // Section ids currently docked in an area — these get hidden from sidebar
-  const dockedIds = useMemo(() => sectionsDockedAnywhere(leftAreas, rightAreas), [leftAreas, rightAreas]);
+  const dockedIds = useMemo(() => sectionsDockedInTree(panelTree), [panelTree]);
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
