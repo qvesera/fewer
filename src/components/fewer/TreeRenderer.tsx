@@ -63,16 +63,16 @@ function LeafNode({
     <div
       ref={containerRef}
       data-leaf-id={leaf.area.id}
-      className="group relative flex flex-col h-full w-full min-h-0 min-w-0"
+      className="group relative flex flex-col h-full min-h-0 min-w-0"
     >
       {leaf.area.editor === "graph" ? (
-        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
+        <div className="relative min-w-0 flex-1 min-h-0">
           <GraphCanvasForLeaf
             onOpenImport={onOpenImport}
             onLoadSample={onLoadSample}
             primary={!!leaf.primary}
           />
-        </main>
+        </div>
       ) : (
         <DockArea area={leaf.area} side="left" />
       )}
@@ -145,7 +145,7 @@ function SplitNode({
 
   return (
     <div className={cn("flex min-h-0 min-w-0", isH ? "flex-row flex-1" : "flex-col min-h-0 flex-1")}>
-      <div className={cn("min-h-0 min-w-0", isH ? "flex-1" : "")} style={isH ? { flex: `${split.ratio}` } : { height: `${pct}%` }}>
+      <div className="min-h-0 min-w-0" style={isH ? { flex: `${split.ratio} 1 0%` } : { height: `${pct}%` }}>
         <TreeNode node={split.first} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
       </div>
 
@@ -158,7 +158,7 @@ function SplitNode({
         )}
       />
 
-      <div className={cn("min-h-0 min-w-0", isH ? "flex-1" : "")} style={isH ? { flex: `${1 - split.ratio}` } : { height: `${100 - pct}%` }}>
+      <div className="min-h-0 min-w-0" style={isH ? { flex: `${1 - split.ratio} 1 0%` } : { height: `${100 - pct}%` }}>
         <TreeNode node={split.second} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
       </div>
     </div>
