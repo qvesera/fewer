@@ -10,6 +10,16 @@ import { SEARCH_HISTORY_KEY, withSearchEntry } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 import { reconcileAutoHide } from "./graphSlice";
+import {
+  loadLayoutFromStorage,
+  saveLayoutToStorage,
+  clearLayoutStorage,
+  defaultLayout,
+  createArea as makeArea,
+  clampWidth,
+  type AreaEditor,
+  type PanelArea,
+} from "@/lib/fewer/panelLayout";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -63,6 +73,11 @@ export type UiSliceCreator = StateCreator<
     tutorialDemoStep: number;
     rightClickDetected: boolean;
 
+    // ── Panel layout (Blender-style docked areas) ──
+    sidebarSide: "left" | "right";
+    leftAreas: import("@/lib/fewer/panelLayout").PanelArea[];
+    rightAreas: import("@/lib/fewer/panelLayout").PanelArea[];
+
     setSearchQuery: (q: string) => void;
     commitSearch: (q: string) => void;
     clearSearchHistory: () => void;
@@ -109,6 +124,16 @@ export type UiSliceCreator = StateCreator<
     setTutorialDemoStep: (step: number) => void;
     setRightClickDetected: () => void;
     resetTutorial: () => void;
+    setSidebarSide: (side: "left" | "right") => void;
+    setLeftAreas: (areas: import("@/lib/fewer/panelLayout").PanelArea[]) => void;
+    setRightAreas: (areas: import("@/lib/fewer/panelLayout").PanelArea[]) => void;
+    createArea: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor, width?: number) => void;
+    removeArea: (id: string) => void;
+    setAreaEditor: (id: string, editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    setAreaWidth: (id: string, width: number) => void;
+    resetPanelLayout: () => void;
+    /** @internal — writes layout to localStorage. Called by other panel actions. */
+    _persistLayout: () => void;
   }
 >;
 
@@ -168,6 +193,12 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   })(),
   tutorialDemoStep: 0,
   rightClickDetected: false,
+
+  // Panel layout defaults — loaded from localStorage once, saved on change.
+  ...(() => {
+    const stored = loadLayoutFromStorage();
+    return stored ?? defaultLayout();
+  })(),
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   commitSearch: (q) => {
@@ -379,5 +410,69 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (typeof window !== "undefined") {
       try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); localStorage.removeItem(TUTORIAL_BEGINNER_DONE_KEY); } catch { /* ignore */ }
     }
+  },
+
+  // ── Panel layout actions ──
+
+  _persistLayout: () => {
+    const s = get();
+    saveLayoutToStorage({ sidebarSide: s.sidebarSide, leftAreas: s.leftAreas, rightAreas: s.rightAreas });
+  },
+
+  setSidebarSide: (side) => {
+    set({ sidebarSide: side });
+    get()._persistLayout();
+  },
+
+  setLeftAreas: (areas) => {
+    set({ leftAreas: areas });
+    get()._persistLayout();
+  },
+
+  setRightAreas: (areas) => {
+    set({ rightAreas: areas });
+    get()._persistLayout();
+  },
+
+  createArea: (side, editor, width) => {
+    const area = makeArea(editor, width);
+    const key = side === "left" ? "leftAreas" : "rightAreas";
+    set((s) => ({ [key]: [...s[key], area] }));
+    get()._persistLayout();
+  },
+
+  removeArea: (id) => {
+    set((s) => ({
+      leftAreas: s.leftAreas.filter((a) => a.id !== id),
+      rightAreas: s.rightAreas.filter((a) => a.id !== id),
+    }));
+    get()._persistLayout();
+  },
+
+  setAreaEditor: (id, editor) => {
+    const patch = (areas: PanelArea[]) =>
+      areas.map((a) => (a.id === id ? { ...a, editor } : a));
+    set((s) => ({
+      leftAreas: patch(s.leftAreas),
+      rightAreas: patch(s.rightAreas),
+    }));
+    get()._persistLayout();
+  },
+
+  setAreaWidth: (id, width) => {
+    const clamped = clampWidth(width);
+    const patch = (areas: PanelArea[]) =>
+      areas.map((a) => (a.id === id ? { ...a, width: clamped } : a));
+    set((s) => ({
+      leftAreas: patch(s.leftAreas),
+      rightAreas: patch(s.rightAreas),
+    }));
+    get()._persistLayout();
+  },
+
+  resetPanelLayout: () => {
+    const d = defaultLayout();
+    set({ sidebarSide: d.sidebarSide, leftAreas: d.leftAreas, rightAreas: d.rightAreas });
+    clearLayoutStorage();
   },
 });

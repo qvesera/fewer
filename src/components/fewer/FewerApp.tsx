@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { DockArea } from "./DockArea";
+import { SectionDragLayer } from "./SectionDragLayer";
 
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
@@ -64,6 +66,11 @@ export function FewerApp() {
   const authOpen = useGraphStore((s) => s.authOpen);
   const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
+
+  // Panel layout
+  const sidebarSide = useGraphStore((s) => s.sidebarSide);
+  const leftAreas = useGraphStore((s) => s.leftAreas);
+  const rightAreas = useGraphStore((s) => s.rightAreas);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -109,11 +116,13 @@ export function FewerApp() {
     useGraphStore.setState({ advancedModeEnabled: !!user });
   }, [user]);
 
-  // Sidebar drag-resize handler
+  // Sidebar drag-resize handler — adapts to left/right side
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.min(560, Math.max(200, e.clientX));
+      const w = sidebarSide === "left"
+        ? Math.min(560, Math.max(200, e.clientX))
+        : Math.min(560, Math.max(200, window.innerWidth - e.clientX));
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -127,7 +136,7 @@ export function FewerApp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [sidebarSide]);
 
   const startResize = useCallback(() => {
     resizingRef.current = true;
@@ -321,9 +330,13 @@ export function FewerApp() {
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
+        {/* Sidebar wrapper — positioned by sidebarSide */}
         <div
           className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
-          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+          style={{
+            width: sidebarOpen ? sidebarWidth : 0,
+            order: sidebarSide === "right" ? 999 : 0,
+          }}
         >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
@@ -332,12 +345,17 @@ export function FewerApp() {
           {sidebarOpen && (
             <div
               onMouseDown={startResize}
-              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors"
+              className={cn(
+                "absolute top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors",
+                sidebarSide === "left" ? "right-0" : "left-0",
+              )}
               title="Drag to resize"
               aria-label="Resize sidebar"
             />
           )}
         </div>
+
+        {/* Mobile sidebar overlay */}
         <div
           className={cn(
             "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
@@ -363,6 +381,12 @@ export function FewerApp() {
           />
           </div>
         </div>
+
+        {/* Left docked areas */}
+        {leftAreas.map((a) => (
+          <DockArea key={a.id} area={a} side="left" />
+        ))}
+
         <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
           <ErrorBoundary>
             <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
@@ -370,7 +394,15 @@ export function FewerApp() {
           <BreadcrumbBar />
           <SearchPanel />
         </main>
+
+        {/* Right docked areas */}
+        {rightAreas.map((a) => (
+          <DockArea key={a.id} area={a} side="right" />
+        ))}
       </div>
+
+      {/* Drag-to-dock overlay (ghost + edge strips) */}
+      <SectionDragLayer />
 
       <ExportPanel />
       <BatchRenameDialog />
