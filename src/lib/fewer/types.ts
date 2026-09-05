@@ -50,6 +50,8 @@ export interface FewerNodeData {
   collapsed?: boolean;
   /** Parent node id (for tree navigation) */
   parentId?: string | null;
+  /** Ids of tags assigned to this node (see src/lib/fewer/tags.ts). */
+  tagIds?: string[];
   /** Allow arbitrary extra fields (required by React Flow Node type) */
   [key: string]: unknown;
 }

@@ -35,6 +35,8 @@ import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
+import { TagRing, TagDots } from "./TagRing";
+import { TagMenu } from "./TagMenu";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -343,6 +345,8 @@ function FolderContextMenu({
             Open in {providerLabel}
           </ContextMenuItem>
         )}
+        <ContextMenuSeparator />
+        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
         <ContextMenuItem
           onSelect={() => {
             deleteNode([nodeId]);
@@ -688,6 +692,8 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
+        <ContextMenuSeparator />
+        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
         <ContextMenuItem
           onSelect={() => {
             onDelete();
@@ -699,7 +705,6 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         {advancedModeEnabled && (
           <>
-            <ContextMenuSeparator />
             {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
             <ContextMenuItem
               onSelect={async () => {
@@ -904,6 +909,8 @@ function CustomNodeImpl({
 
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHovered = hoverHighlightIds.includes(id);
+  const tags = useGraphStore((s) => s.tags);
+  const nodeTagIds = data.tagIds ?? [];
 
   const handleRename = (v: string) => {
     const ok = renameNode(id, v);
@@ -957,6 +964,7 @@ function CustomNodeImpl({
         )}
         style={{ background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         {selected && (
           <NodeResizer
             minWidth={180}
@@ -1033,6 +1041,9 @@ function CustomNodeImpl({
                   {data.path}
                 </span>
               </div>
+              {nodeTagIds.length > 0 && (
+                <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0 ml-1" />
+              )}
             </div>
 
             <div
@@ -1113,6 +1124,7 @@ function CustomNodeImpl({
         )}
         style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         <Handle
           type="target"
           position={target}
@@ -1162,6 +1174,10 @@ function CustomNodeImpl({
             ) : null}
           </div>
         </div>
+
+        {nodeTagIds.length > 0 && (
+          <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0" />
+        )}
 
         <Handle
           type="source"

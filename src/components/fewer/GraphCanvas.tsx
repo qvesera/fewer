@@ -42,6 +42,7 @@ import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
 import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handler";
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
+import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -142,7 +143,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
   useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(direction);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getEdges } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
@@ -151,18 +152,24 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
+  useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
   const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);
   // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
+  // Store edges are read via getState() so the effect only fires when selection /
+  // theme / animation / hiddenIds / graphVersion change — NOT when store edges
+  // change from the effect itself, which would create a render loop.
   useEffect(() => {
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, allEdges, allNodes, themeColors, edgeWidth, animation);
-    // Update only React Flow edges; store edges are already synced via useCanvasGraphSync.
-    // Re-apply RF's live selection so the rebuild doesn't wipe selected edges.
+    const latestEdges = useGraphStore.getState().edges;
+    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, latestEdges, allNodes, themeColors, edgeWidth, animation);
+    // Sync store edges so persistence / undo / export reflect the current highlight.
+    useGraphStore.setState({ edges: updatedEdges });
+    // Re-apply RF's live edge selection so the rebuild doesn't wipe it.
     setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [themeColors, setRfEdges, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, selectedNodeIds, hoverHighlightIds, allEdges, allNodes, hiddenIds, animation]);
+  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, edgeWidth, graphVersion, advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
 
   const dashArray = useMemo(() => {
     switch (edgeStrokeStyle) {
@@ -199,12 +206,11 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           ];
       setSelectedNodeIds(newIds);
 
-      const { edges, nodes, hiddenIds: hidden, hoverHighlightIds: currentHover, edgeAnimated: anim, edgeAnimatedSelectedOnly: animSelectedOnly, edgeAnimatedStrokeStyle: selStroke, edgeStrokeStyle: selBase } = useGraphStore.getState();
-      const updatedEdges = buildSelectedEdgeHighlight(newIds, currentHover, edges, nodes, themeColors, edgeWidth, { animated: advancedModeEnabled && anim, selectedOnly: advancedModeEnabled && animSelectedOnly, animatedStrokeStyle: selStroke, baseStrokeStyle: selBase });
-      useGraphStore.setState({ edges: updatedEdges });
-      const hiddenSet = new Set(hidden);
-      // Re-apply RF's live edge selection so this rebuild doesn't wipe it.
-      setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target)));
+      // NOTE: we intentionally do NOT write store edges here. Writing edges
+      // would change `allEdges` in the store, re-triggering the edge-highlight
+      // effect below and causing an infinite onSelectionChange ↔ effect loop.
+      // The effect handles both RF-edge highlighting and store-edge sync on
+      // every selection / graphVersion / theme change.
     },
     [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef],
   );
@@ -309,6 +315,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         panOnScroll={mini.scrollAction === "pan"}
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
+        panActivationKeyCode={mini.scrollAction === "zoom" ? "Control" : null}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{

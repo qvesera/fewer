@@ -11,7 +11,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 - Pan (drag empty space)
 - Zoom (scroll wheel or +/- keys)
-- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming
+- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming with Ctrl/⌘+scroll to pan vertically (trackpad pinch-zoom always works)
 - Fit view (Space key)
 - Minimap (bottom-right, configurable)
 - Controls (zoom in/out, fit view buttons)
@@ -112,6 +112,22 @@ Children within each folder are drawn in a chosen order. The sort applies recurs
 - **Direction**: Ascending / Descending (only inverts the primary key — Name and Size both sort unknown/empty values last in either direction, and Type always keeps folders first).
 
 Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
+
+## Tags
+
+Tags are named, colored labels you can attach to any folder or file card.
+
+**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **New tag** row that creates one and assigns it in one step. A card can carry any number of tags; assigned tags also appear as colored dots on the card.
+
+**The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
+
+**Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
+
+**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — a card stays bright when it carries at least one selected tag (OR semantics); everything else dims, exactly like a text search. Clear with the ✕.
+
+**Sort by tag**: **Settings → Appearance → Sibling Sort → Order by: Tag** orders siblings by the alphabetical label of their first tag; untagged cards always trail.
+
+Tags are part of the graph data: they ride along with saved graphs, share links, version history, and the local reload cache.
 
 ## Max Display Depth
 

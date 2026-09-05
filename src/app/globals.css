@@ -481,6 +481,23 @@ aside::-webkit-scrollbar-thumb:hover {
   outline-offset: 2px;
 }
 
+/* Tag highlight ring — a conic-gradient (set inline via --tag colors) painted as a
+   thin band around the card. The mask keeps ONLY the 3px padding band visible, so
+   the gradient never bleeds through a translucent card body. The element is an
+   absolutely-positioned overlay inside the card (inset -3px) so it adds no layout
+   size and never interferes with React Flow's node ref/handles. */
+.gm-tag-ring {
+  position: absolute;
+  inset: -3px;
+  padding: 3px;
+  border-radius: inherit;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
 /* Folder-card transform affordances (NodeResizer): the guide line is hidden so
    it doesn't draw a second ring on top of .gm-selected-ring; the corner
    handles stay visible and follow the themed select ring color. */

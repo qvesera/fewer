@@ -17,13 +17,14 @@ import {
   FilePlus,
   FolderPlus,
   EyeOff,
+  Tag as TagIcon,
 } from "lucide-react";
 import type { EdgeStyle } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
 import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
 import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
-import { StatsPanel, SavedGraphsPanel } from ".";
+import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
@@ -67,6 +68,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const edges = useGraphStore((s) => s.edges);
+  const tags = useGraphStore((s) => s.tags);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
 
@@ -250,7 +252,19 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           </CollapsibleSection>
         )}
 
-        {/* ── 6. GRAPH ANALYTICS ── */}
+        {/* ── 6. TAGS ── */}
+        {nodes.length > 0 && (
+          <CollapsibleSection
+            title="Tags"
+            icon={TagIcon}
+            badge={tags.length > 0 ? String(tags.length) : undefined}
+            defaultOpen={false}
+          >
+            <TagsPanel />
+          </CollapsibleSection>
+        )}
+
+        {/* ── 7. GRAPH ANALYTICS ── */}
         <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
           <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false}>
             <StatsPanel />

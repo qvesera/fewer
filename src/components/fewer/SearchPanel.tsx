@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Folder, FileIcon, EyeOff, Search, History, X } from "lucide-react";
+import { Folder, FileIcon, EyeOff, Search, History, X, Tag as TagIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import { fuzzyMatch } from "@/lib/fewer/stats";
@@ -20,6 +20,10 @@ export function SearchPanel() {
   const searchHistory = useGraphStore((s) => s.searchHistory);
   const commitSearch = useGraphStore((s) => s.commitSearch);
   const clearSearchHistory = useGraphStore((s) => s.clearSearchHistory);
+  const tags = useGraphStore((s) => s.tags);
+  const tagFilter = useGraphStore((s) => s.tagFilter);
+  const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
+  const clearTagFilter = useGraphStore((s) => s.clearTagFilter);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
@@ -175,6 +179,47 @@ export function SearchPanel() {
             >
               <X className="h-3 w-3" />
             </button>
+          </div>
+        )}
+
+        {/* Tag filter chips — toggle tags to filter the canvas (OR semantics). */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <TagIcon className="h-3 w-3 text-muted-foreground/60" />
+            {tags.map((tag) => {
+              const active = tagFilter.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTagFilter(tag.id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                    active
+                      ? "border-transparent text-white"
+                      : "border-border/50 bg-card/30 text-muted-foreground hover:text-foreground",
+                  )}
+                  style={active ? { background: tag.color } : undefined}
+                >
+                  <span
+                    className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-white/70" : "")}
+                    style={!active ? { background: tag.color } : undefined}
+                    aria-hidden="true"
+                  />
+                  {tag.label}
+                </button>
+              );
+            })}
+            {tagFilter.length > 0 && (
+              <button
+                onClick={() => clearTagFilter()}
+                className="ml-auto rounded p-0.5 text-muted-foreground/50 hover:text-foreground"
+                aria-label="Clear tag filter"
+                title="Clear tag filter"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
         )}
 
