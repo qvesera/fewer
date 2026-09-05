@@ -51,7 +51,7 @@ export type UiSliceCreator = StateCreator<
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
     miniMapX: number;
     miniMapY: number;
-    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly. */
+    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly (Ctrl+wheel pans, trackpad pinch unaffected). */
     scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     showFiles: boolean;

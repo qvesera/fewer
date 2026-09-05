@@ -42,6 +42,7 @@ import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
 import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handler";
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
+import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -142,7 +143,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
   useCanvasDashClock(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(direction);
-  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getEdges } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
@@ -151,6 +152,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
+  useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
   const animation = useEdgeAnimationOpts(advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle);
   // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
@@ -313,6 +315,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
         panOnScroll={mini.scrollAction === "pan"}
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
+        panActivationKeyCode={mini.scrollAction === "zoom" ? "Control" : null}
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
