@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   RefreshCw,
   FolderOpen,
@@ -11,20 +12,18 @@ import {
   Layers,
   HardDrive,
   SlidersHorizontal,
+  FileIcon,
   Spline,
   FilePlus,
   FolderPlus,
   EyeOff,
-  Tag as TagIcon,
-  PanelLeft,
-  PanelRight,
 } from "lucide-react";
 import type { EdgeStyle } from "@/lib/fewer/types";
 import { defaultDirection } from "@/store/slices/layoutSlice";
 import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
 import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
-import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
+import { StatsPanel, SavedGraphsPanel } from ".";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
@@ -45,10 +44,6 @@ import {
 } from "@/components/ui/tooltip";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { plural } from "@/lib/fewer/plural";
-import { sectionsDockedInTree } from "@/lib/fewer/panelTree";
-import type { AreaEditor } from "@/lib/fewer/panelLayout";
-import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
-import { startSectionDrag } from "./SectionDragLayer";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
@@ -68,19 +63,12 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const nodes = useGraphStore((s) => s.nodes);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const tags = useGraphStore((s) => s.tags);
+  const showFiles = useGraphStore((s) => s.showFiles);
+  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const edges = useGraphStore((s) => s.edges);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
-
-  // Panel layout
-  const sidebarSide = useGraphStore((s) => s.sidebarSide);
-  const panelTree = useGraphStore((s) => s.panelTree);
-  const setSidebarSide = useGraphStore((s) => s.setSidebarSide);
-
-  // Section ids currently docked in an area — these get hidden from sidebar
-  const dockedIds = useMemo(() => sectionsDockedInTree(panelTree), [panelTree]);
 
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -101,12 +89,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       setDirection(def);
     }
   }, []);
-
-  // Drag handle factory — only for dockable sections not already docked
-  const dragProps = (id: AreaEditor): { dragHandleProps: React.HTMLAttributes<HTMLDivElement> } | undefined =>
-    NON_DOCKABLE_SECTIONS.has(id) || dockedIds.has(id)
-      ? undefined
-      : { dragHandleProps: { onPointerDown: (e: React.PointerEvent) => startSectionDrag(id, e) } };
 
   const availableEdgeStyles = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },
@@ -131,41 +113,11 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   };
 
   return (
-    <aside
-      className={cn(
-        "gm-glass gm-aurora flex h-full w-full min-w-0 flex-col overflow-hidden p-3",
-        sidebarSide === "left" ? "border-r border-border/30" : "border-l border-border/30",
-      )}
-    >
-      {/* ── Side toggle ── */}
-      <div className="flex items-center justify-end shrink-0 pb-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
-              onClick={() => setSidebarSide(sidebarSide === "left" ? "right" : "left")}
-              title={`Move sidebar to ${sidebarSide === "left" ? "right" : "left"} side`}
-            >
-              {sidebarSide === "left" ? (
-                <PanelRight className="h-3.5 w-3.5" />
-              ) : (
-                <PanelLeft className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            Move sidebar to {sidebarSide === "left" ? "right" : "left"}
-          </TooltipContent>
-        </Tooltip>
-      </div>
-
+    <aside className="gm-glass gm-aurora flex h-full w-full min-w-0 flex-col overflow-hidden border-r border-border/30 p-3">
       <div className="flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-0.5 gm-scroll w-full min-w-0">
         
         {/* ── 1. FILE & ACTIONS ── */}
-        {!dockedIds.has("file") && (
-        <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen {...dragProps("file")}>
+        <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
           <div className="space-y-2.5 w-full min-w-0">
             {/* Primary Action Button (shadcn) — opens the unified 3-step
                 import flow at step 1 (origin selection). */}
@@ -216,7 +168,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             </div>
           </div>
         </CollapsibleSection>
-        )}
 
         {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
         {user && (
@@ -226,8 +177,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         )}
 
         {/* ── 2. LAYOUT & ORIENTATION ── */}
-        {!dockedIds.has("layout") && (
-        <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen {...dragProps("layout")}>
+        <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen>
           <div className="flex flex-col gap-3 w-full min-w-0">
             {/* Orientation choice cards; advanced orientations slide in with advanced mode. */}
             <LayoutPicker
@@ -251,14 +201,27 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
               <span className="truncate">Rearrange</span>
             </Button>
+
+            <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Label htmlFor="show-files" className="text-xs font-medium cursor-pointer truncate">
+                  Include File Cards
+                </Label>
+              </div>
+              <Switch
+                id="show-files"
+                checked={showFiles}
+                onCheckedChange={setShowFiles}
+                className="shrink-0"
+              />
+            </div>
           </div>
 
         </CollapsibleSection>
-        )}
 
         {/* ── 3. EDGES & STYLE ── */}
-        {!dockedIds.has("edges") && (
-        <CollapsibleSection title="Edges & Style" icon={Spline} defaultOpen={false} {...dragProps("edges")}>
+        <CollapsibleSection title="Edges & Style" icon={Spline} defaultOpen={false}>
           <div className="flex flex-col gap-3 w-full min-w-0">
             <div className="space-y-1.5 w-full min-w-0">
               <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
@@ -273,43 +236,26 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 Settings → Appearance → Edge Styling. Sidebar keeps the quick style picker. */}
           </div>
         </CollapsibleSection>
-        )}
 
         {/* ── 5. HIDDEN NODES RECOVERY ── */}
-        {!dockedIds.has("hidden") && hiddenIds.length > 0 && (
+        {hiddenIds.length > 0 && (
           <CollapsibleSection
             title="Hidden Cards"
             icon={EyeOff}
             badge={String(hiddenIds.length)}
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
-            {...dragProps("hidden")}
           >
             <HiddenNodesPanel />
           </CollapsibleSection>
         )}
 
-        {/* ── 6. TAGS ── */}
-        {!dockedIds.has("tags") && nodes.length > 0 && (
-          <CollapsibleSection
-            title="Tags"
-            icon={TagIcon}
-            badge={tags.length > 0 ? String(tags.length) : undefined}
-            defaultOpen={false}
-            {...dragProps("tags")}
-          >
-            <TagsPanel />
-          </CollapsibleSection>
-        )}
-
-        {/* ── 7. GRAPH ANALYTICS ── */}
-        {!dockedIds.has("analytics") && (
+        {/* ── 6. GRAPH ANALYTICS ── */}
         <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
-          <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
+          <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false}>
             <StatsPanel />
           </CollapsibleSection>
         </AnimatedConditional>
-        )}
 
       </div>
 

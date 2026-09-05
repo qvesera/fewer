@@ -56,7 +56,7 @@ test("buildSnapshot contains graph data only — no settings", () => {
   expect(snap.edges).toEqual([]);
   expect(snap.localRootPath).toBe("/tmp/root");
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["edges", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual(["edges", "localRootPath", "nodes"]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);
@@ -110,7 +110,6 @@ test("local save/load round-trips the graph and its dataSource", () => {
   saveGraphLocal({
     nodes: [folder("a", "A", 5, 7)],
     edges: [edge("a", "b")],
-    tags: [{ id: "tag-1", label: "Important", color: "#f87171" }],
     dataSource: "sample",
     localRootPath: "/home/user/proj",
   });
@@ -121,16 +120,15 @@ test("local save/load round-trips the graph and its dataSource", () => {
   expect(loaded!.data.nodes[0].position).toEqual({ x: 5, y: 7 });
   expect(loaded!.data.edges).toHaveLength(1);
   expect(loaded!.data.localRootPath).toBe("/home/user/proj");
-  expect(loaded!.data.tags).toEqual([{ id: "tag-1", label: "Important", color: "#f87171" }]);
   expect(loaded!.dataSource).toBe("sample");
 });
 
 test("saving an empty graph clears the cached key", () => {
   resetStore();
-  saveGraphLocal({ nodes: [folder("a", "A")], edges: [], tags: [], dataSource: "sample", localRootPath: null });
+  saveGraphLocal({ nodes: [folder("a", "A")], edges: [], dataSource: "sample", localRootPath: null });
   expect(loadGraphLocal()).not.toBeNull();
 
-  saveGraphLocal({ nodes: [], edges: [], tags: [], dataSource: "sample", localRootPath: null });
+  saveGraphLocal({ nodes: [], edges: [], dataSource: "sample", localRootPath: null });
   expect(loadGraphLocal()).toBeNull();
 });
 

@@ -16,7 +16,6 @@ Blog-post backlog. Major features merged to `dev` get a one-line entry here (see
 # Archive (written)
 
 - [x] 2026-08-18 · v0.5.0: Open/Download remote sources — GitHub repos & crawled file indexes · `content/blog/v050-remote-sources.md`
-- [ ] 2026-09-05: Tags — colored highlight rings per tag, tag filtering, tag sort · `content/docs/graph-features.md#tags`
 - [x] 2026-08-10 · v0.4.0: Accounts & authentication, saved graphs, selective sharing, theme/settings sync · `content/blog/v040-accounts.md`
 - [x] 2026-08-08 · v0.3.x: Bundle slimming + dialogs lazy-loaded (~300KB lighter startup) · `content/blog/v031-performance.md`
 - [x] 2026-08-06 · v0.3.0: Theme Engine, 18 presets, lighter bundle · `content/blog/v030-release.md`

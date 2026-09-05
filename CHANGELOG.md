@@ -28,10 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sign-up with an already-registered email no longer pretends to succeed: Supabase returns user:null (anti-enumeration) for duplicate emails and the dialog silently showed 'Check your email' — the dialog now detects it, tells the user the email is taken, and switches to the sign-in form with the email prefilled.
 - Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
 - Editing a gradient slot's base color no longer resets its gradient endpoint and angle
-- Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
-- Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
-- Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
-- Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
 
 ### Added
 
@@ -55,9 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drag from any node's input handle to create a parent folder for that node (always a folder, inserted between the node and its existing parent when it has one).
 - Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
 - Per-section undo buttons (Canvas & Text, Folders, Files) in the Custom Theme Editor that revert a section's slots, with drag-coalesced steps
-- Tags: assign named, colored tags to folders and files. Each tagged card shows a permanent highlight ring with its tags colors split evenly around the border (stepped, up to 5 colors); the ring yields to the selection ring while the card is selected. Assign via right-click > Tags on any card, manage the palette in the sidebar Tags panel, filter the canvas with tag chips in search (non-matching cards dim), and sort siblings by tag via Settings > Appearance > Sibling Sort > Tag. Tags travel with saved and shared graphs.
-- Blender-style dockable panel areas: drag sidebar sections into separate columns, switch between Graph View and section editors per column, dock areas to left or right side. Sidebar can be relocated to left or right edge of screen. Column widths are resizable.
-- Blender-style corner-drag split and join for panel areas: split any area by dragging from its corner, merge areas back together by dragging toward a neighbor. Divider drag between areas adjusts ratio. Full binary split tree layout model (v2) with v1 migration.
 
 ### Changed
 
@@ -80,9 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account deletion now uses a 7-day grace window instead of immediate removal: 'Delete account' schedules the deletion (the account looks gone right away), the nightly purge job permanently removes data when the window lapses, and signing in again before then cancels the deletion — a free recovery path against accidental or takeover-driven deletion. Job runs via GitHub Actions cron (purge-deleted-accounts.yml), same pattern as the watch digest. Privacy policy and /docs/accounts updated to disclose the window.
 - Changing the layout direction or the Crown Shyness intensity no longer auto-relayouts the graph — nodes keep their positions and re-layout runs only via the Rearrange button or Alt+R
 - Crown Shyness multiplier can now be typed in as a custom value — click the value next to the slider in Settings → Advanced (store clamps to 0–3×)
-- Tags: color editing now uses the same react-colorful picker as the Custom Theme Editor (click a tag swatch in the sidebar Tags panel to expand it), and new tags pick a color from a palette swatch row at creation in both the context menu and the sidebar; fixed the assigned-tag checkmark overlapping the color dot in the Tags submenu.
-- Tag filter now hides non-matching nodes from the canvas (same mechanism as the category filter in Graph Analytics) instead of dimming them. Toggle a tag chip in the search panel to show only cards carrying that tag; matching cards stay on canvas, non-matching ones are hidden and appear in the Hidden panel. Clear with the X button or uncheck the tag.
-- Sidebar Tags section now has a "By tag" filter list (matching the Graph Analytics "By category" pattern) with tag counts and colored progress bars — click a tag to show only cards carrying it, click again to clear.
 
 ### Security
 

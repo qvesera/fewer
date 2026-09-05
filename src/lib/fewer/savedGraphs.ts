@@ -1,5 +1,4 @@
 import type { FewerNode, FewerEdge } from "./types";
-import type { Tag } from "./tags";
 
 /**
  * Serializable snapshot of a graph for a saved graph row.
@@ -12,8 +11,6 @@ import type { Tag } from "./tags";
 export interface SavedGraphData {
   nodes: FewerNode[];
   edges: FewerEdge[];
-  /** Tag registry (id → Tag) so assigned colors/labels survive save/load & share. */
-  tags?: Tag[];
   /** Absolute path of the graph's root folder on the originating dev machine
    *  (resolved at import time). Lets a graph opened later — including from the
    *  cloud — open files/folders directly when the path is still there, instead

@@ -114,8 +114,7 @@ docker run -p 3000:3000 fewer
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
-- **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
-- **Tags**: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Sibling sort**: order children by Name, Size, or Type (asc/desc); applies recursively
 - **Breadcrumb bar**: selected node's full path
 
 </details>
