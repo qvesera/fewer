@@ -20,7 +20,7 @@ import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal } from "@/lib/fewer/userSettings";
 import { applySnapshot, loadGraphLocal, saveGraphLocal } from "@/lib/fewer/snapshot";
 import { cn } from "@/lib/utils";
-import { FEWER_ADD_NODE, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
@@ -56,6 +56,7 @@ export function FewerApp() {
   const [importFlowMounted, setImportFlowMounted] = useState(false);
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
+  const [addParentOpen, setAddParentOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
@@ -287,15 +288,18 @@ export function FewerApp() {
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
+    const openParent = () => setAddParentOpen(true);
     const openImportFolder = () => openImportFlow("folder");
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
     window.addEventListener(FEWER_ADD_NODE, openChild);
     window.addEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+    window.addEventListener(FEWER_ADD_NODE_PARENT, openParent);
     window.addEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
       window.removeEventListener(FEWER_ADD_NODE, openChild);
       window.removeEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+      window.removeEventListener(FEWER_ADD_NODE_PARENT, openParent);
       window.removeEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
@@ -398,6 +402,11 @@ export function FewerApp() {
         open={addStandaloneOpen}
         onOpenChange={setAddStandaloneOpen}
         mode="standalone"
+      />
+      <AddNodeDialog
+        open={addParentOpen}
+        onOpenChange={setAddParentOpen}
+        mode="parent"
       />
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />

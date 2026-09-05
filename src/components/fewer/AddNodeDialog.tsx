@@ -18,7 +18,7 @@ import { AlertTriangle } from "lucide-react";
 interface AddNodeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: "child" | "standalone";
+  mode: "child" | "standalone" | "parent";
 }
 
 const shakeStyle = `
@@ -32,6 +32,7 @@ const shakeStyle = `
 export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) {
   const addNode = useGraphStore((s) => s.addNode);
   const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
+  const addParentNode = useGraphStore((s) => s.addParentNode);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
@@ -84,15 +85,31 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
         const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
         return nFull.toLowerCase() === inputFullName;
       });
-    } else {
-      // Standalone: check root-level nodes
-      return nodes
-        .filter((n) => !edges.some((e) => e.target === n.id))
-        .some((n) => {
-          const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
-          return nFull.toLowerCase() === inputFullName;
-        });
     }
+
+    if (mode === "parent") {
+      const targetId = selectedNodeIds[0] ?? null;
+      if (!targetId) return false;
+      // The new folder becomes a sibling of the target node (child of its
+      // current parent, or a root-level node if the target is unparented).
+      const parentEdge = edges.find((e) => e.target === targetId);
+      const siblingNodeIds = parentEdge
+        ? edges.filter((e) => e.source === parentEdge.source).map((e) => e.target)
+        : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
+      return nodes.some((n) => {
+        if (!siblingNodeIds.includes(n.id)) return false;
+        const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+        return nFull.toLowerCase() === inputFullName;
+      });
+    }
+
+    // Standalone: check root-level nodes
+    return nodes
+      .filter((n) => !edges.some((e) => e.target === n.id))
+      .some((n) => {
+        const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+        return nFull.toLowerCase() === inputFullName;
+      });
   }, [name, type, mode, selectedNodeIds, nodes, edges]);
 
   const triggerShake = () => {
@@ -108,17 +125,39 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     }
     if (mode === "child") {
       addNode(selectedNodeIds[0] ?? null, trimmed, type);
+      onOpenChange(false);
+      toast({
+        title: type === "folder" ? "Folder added" : "File added",
+        description: `"${trimmed}" added to folder`,
+      });
+    } else if (mode === "parent") {
+      const targetId = selectedNodeIds[0] ?? null;
+      const result = targetId ? addParentNode(targetId, trimmed) : null;
+      if (!result || !result.ok) {
+        triggerShake();
+        return;
+      }
+      onOpenChange(false);
+      toast({
+        title: "Parent folder added",
+        description: `"${trimmed}" is now the parent card`,
+      });
     } else {
       addStandaloneNode(trimmed, type, { x: 1000, y: 600 });
+      onOpenChange(false);
+      toast({
+        title: type === "folder" ? "Folder added" : "File added",
+        description: `"${trimmed}" added to canvas`,
+      });
     }
-    onOpenChange(false);
-    toast({
-      title: type === "folder" ? "Folder added" : "File added",
-      description: mode === "child" ? `"${trimmed}" added to folder` : `"${trimmed}" added to canvas`,
-    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (mode === "parent") {
+      // Parent cards are always folders — no type switching.
+      if (e.key === "Enter") { e.preventDefault(); handleConfirm(); }
+      return;
+    }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
       setType("folder");
@@ -139,12 +178,14 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
           <div ref={contentRef} style={shake ? { animation: "dialog-shake 0.5s ease-in-out" } : undefined}>
           <DialogHeader>
             <DialogTitle>
-              {mode === "child" ? "Add child card" : "Add card"}
+              {mode === "child" ? "Add child card" : mode === "parent" ? "Add parent card" : "Add card"}
             </DialogTitle>
             <DialogDescription>
               {mode === "child"
                 ? "Creates a new card as a child of the selected folder."
-                : "Creates a new root card on the canvas."}
+                : mode === "parent"
+                  ? "Creates a new folder that becomes the parent of the selected card."
+                  : "Creates a new root card on the canvas."}
             </DialogDescription>
           </DialogHeader>
 
@@ -157,7 +198,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                 id="node-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={type === "folder" ? "e.g. new-folder" : "e.g. notes.md"}
+                placeholder={mode === "parent" || type === "folder" ? "e.g. new-folder" : "e.g. notes.md"}
                 className={cn(
                   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition-colors",
                   isDuplicate && name.trim()
@@ -174,6 +215,11 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
             </div>
 
             {/* Type toggle: use ← → arrows to switch, Enter to confirm */}
+            {mode === "parent" ? (
+              <div className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                📁 Parent cards are always folders
+              </div>
+            ) : (
             <div className="space-y-1.5">
               <Label>Type</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -206,6 +252,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                 Use ← → arrow keys to switch type · Enter to create
               </p>
             </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -217,12 +264,12 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
               disabled={isDuplicate && !!name.trim()}
               className={cn(
                 "text-white",
-                type === "folder"
+                type === "folder" || mode === "parent"
                   ? "bg-gradient-to-r from-primary to-primary hover:opacity-90"
                   : "bg-gradient-to-r from-purple-500 to-fuchsia-500 hover:from-purple-600 hover:to-fuchsia-600"
               )}
             >
-              {type === "folder" ? "Create folder" : "Create file"}
+              {mode === "parent" ? "Create parent folder" : type === "folder" ? "Create folder" : "Create file"}
             </Button>
           </DialogFooter>
           </div>

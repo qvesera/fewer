@@ -276,6 +276,8 @@ export type GraphSliceCreator = StateCreator<
     setLocalRootPath: (v: string | null) => void;
     addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
+    /** Create a new folder that becomes the parent of `nodeId`. If `nodeId` already has a parent, the new folder is inserted between the old parent and `nodeId` (reparenting `nodeId` under the new folder). Paths for `nodeId` and its descendants are rewritten; one composite history entry. */
+    addParentNode: (nodeId: string, label: string) => { ok: boolean; reason?: string; id?: string };
     removeNode: (id: string) => void;
     removeSelected: () => void;
     toggleCollapse: (id: string) => void;
@@ -814,6 +816,69 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "add-node", node: newNode, edge: null });
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     return newNode.id;
+  },
+
+  addParentNode: (nodeId, label) => {
+    const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return { ok: false, reason: "Node not found." };
+    const trimmed = label.trim() || "New Folder";
+    // The node's current parent edge (if any) — inserting the folder between them.
+    const oldEdge = edges.find((e) => e.target === nodeId);
+    const oldParent = oldEdge ? nodes.find((n) => n.id === oldEdge.source) : null;
+    // Duplicate check in the same sibling scope the node already lives in.
+    const siblingIds = oldParent ? edges.filter((e) => e.source === oldParent.id).map((e) => e.target) : null;
+    const siblingFullNames = siblingIds
+      ? new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName))
+      : new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map(fullName));
+    if (siblingFullNames.has(trimmed)) return { ok: false, reason: `A node named "${trimmed}" already exists here.` };
+    const newPath = oldParent ? `${oldParent.data.path}/${trimmed}` : trimmed;
+    const edgeType = edgeTypeFromStyle(get().edgeStyle);
+    const newNode: FewerNode = {
+      id: `n-${uuid().slice(0, 8)}`, type: "folder",
+      position: { x: node.position.x - 40, y: node.position.y - 120 },
+      data: { label: trimmed, path: newPath, type: "folder", size: 0, depth: oldParent ? (oldParent.data.depth ?? 0) + 1 : 0, isRoot: !oldParent },
+      style: { width: nodeWidth, height: nodeHeight, minHeight: undefined },
+    };
+    const parentEdge: FewerEdge | null = oldParent ? { id: `e-${oldParent.id}-${newNode.id}`, source: oldParent.id, target: newNode.id, type: edgeType } : null;
+    const childEdge: FewerEdge = { id: `e-${newNode.id}-${nodeId}`, source: newNode.id, target: nodeId, type: edgeType };
+    // Rewrite paths for the node + descendants (same semantics as connectNodes).
+    const nodeFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+    const oldChildPath = node.data.path;
+    const newChildPath = `${newPath}/${nodeFullLabel}`;
+    const isFolder = node.data.type === "folder";
+    const descendantIds = isFolder ? getDescendants(nodeId, edges).filter((d) => d !== nodeId) : [];
+    const changedNodeIds = [nodeId, ...descendantIds];
+    const prevPaths = changedNodeIds
+      .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
+      .filter((p) => p.path !== "");
+    const nextPaths = changedNodeIds
+      .map((nid) => {
+        if (nid === nodeId) return { nodeId: nid, path: newChildPath };
+        const d = nodes.find((n) => n.id === nid);
+        return { nodeId: nid, path: d ? d.data.path.replace(oldChildPath, newChildPath) : "" };
+      })
+      .filter((p) => p.path !== "");
+    const updatedNodes = nodes.map((n) => {
+      if (n.id === nodeId) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+      if (descendantIds.includes(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+      return n;
+    });
+    let nextEdges = oldEdge ? edges.filter((e) => e.id !== oldEdge.id) : edges;
+    nextEdges = [...nextEdges, ...(parentEdge ? [parentEdge] : []), childEdge];
+    nextEdges = sortEdges(nextEdges, [...updatedNodes, newNode]);
+    // Single composite history entry: add folder node → detach old edge (if any) → attach node under folder.
+    const ops: HistoryOp[] = [{ type: "add-node", node: newNode, edge: parentEdge }];
+    if (oldEdge) ops.push({ type: "remove-edges", edges: [oldEdge] });
+    ops.push({ type: "connect", edge: childEdge, prevPaths, nextPaths });
+    get().pushOp(ops);
+    set({
+      nodes: applySearchInternal([...updatedNodes, newNode], searchQuery, get().categoryFilter),
+      edges: nextEdges,
+      graphVersion: get().graphVersion + 1,
+      selectedNodeIds: [newNode.id],
+    });
+    return { ok: true, id: newNode.id };
   },
 
   connectNodes: (connection) => {

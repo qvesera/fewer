@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 import { useGraphStore } from "@/store/graphStore";
-import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 
 // Hooks (Phase C extraction — each is a cohesive, single-concern unit).
 import { useCanvasResize } from "@/hooks/use-canvas-resize";
@@ -222,11 +222,16 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   );
 
   const onConnectEnd = useCallback(
-    (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } } }) => {
-      if (!connectionState.isValid && connectionState.fromNode?.data?.type === "folder") {
+    (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } }; fromHandle?: { type?: "source" | "target" } }) => {
+      if (!connectionState.isValid && connectionState.fromNode) {
         const store = useGraphStore.getState();
         store.setSelectedNodeIds([connectionState.fromNode.id]);
-        window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
+        if (connectionState.fromHandle?.type === "target") {
+          // Dragging out of a node's entry handle → create a parent folder for it.
+          window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
+        } else if (connectionState.fromNode.data?.type === "folder") {
+          window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
+        }
       }
     },
     [],

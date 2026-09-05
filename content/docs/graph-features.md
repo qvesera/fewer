@@ -58,6 +58,15 @@ Select a node to see resize handles:
 
 **Ctrl+click** a node's input or output handle removes all edges connected to that handle.
 
+### Build the Tree by Dragging Handles
+
+Every node has an **input handle** (entry, on the left/top) and an **output handle** (exit, on the right/bottom).
+
+- **Drag from a folder's output handle** and release over empty canvas → the **Add child card** dialog opens, letting you create a folder or file inside that folder.
+- **Drag from any node's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the node's new parent. The new parent is always a folder:
+  - If the node is already rooted elsewhere, the folder is inserted between the node and its current parent.
+  - If the node has no parent yet, the folder becomes the node's new root parent.
+
 ## Multi-Select
 
 - **Ctrl+A**: select all visible nodes
