@@ -23,8 +23,13 @@ import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { TreeRenderer } from "./TreeRenderer";
-import { SectionDragLayer } from "./SectionDragLayer";
+
+// Client-only: tree layout is loaded from localStorage, so the server
+// always renders a single-leaf default and the client hydrates with the
+// actual stored tree.  Dynamic import with ssr:false prevents the
+// hydration mismatch that occurs when the two trees differ.
+const TreeRenderer = dynamic(() => import("./TreeRenderer").then((m) => m.TreeRenderer), { ssr: false });
+const SectionDragLayer = dynamic(() => import("./SectionDragLayer").then((m) => m.SectionDragLayer), { ssr: false });
 
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
