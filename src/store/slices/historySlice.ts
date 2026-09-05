@@ -67,7 +67,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery, categoryFilter, tagFilter, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -79,7 +79,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
-      nodes: applySearchInternal(prevNodes, searchQuery, categoryFilter, tagFilter),
+      nodes: applySearchInternal(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -87,7 +87,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   redo: () => {
-    const { past, future, nodes, edges, searchQuery, categoryFilter, tagFilter, graphVersion } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion } = get();
     if (future.length === 0) return;
     const entry = future[0];
     const { nodes: nextNodes, edges: nextEdges } = applyOps(nodes, edges, entry.ops);
@@ -98,7 +98,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       future: future.slice(1),
       past: [...past, entry].slice(-MAX_HISTORY),
-      nodes: applySearchInternal(nextNodes, searchQuery, categoryFilter, tagFilter),
+      nodes: applySearchInternal(nextNodes, searchQuery, categoryFilter),
       edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -110,24 +110,21 @@ function applySearchInternal(
   nodes: GraphState["nodes"],
   query: string,
   _categoryFilter?: FileCategory | null,
-  tagFilter?: string[] | null,
 ): GraphState["nodes"] {
-  const q = query.trim().toLowerCase();
-  const activeTags = (tagFilter ?? []).filter(Boolean);
-  const hasTagFilter = activeTags.length > 0;
-  const tagSet = new Set(activeTags);
+  if (!query.trim()) {
+    return nodes.map((n) => ({
+      ...n,
+      data: { ...n.data, highlighted: false, dimmed: false },
+    }));
+  }
+  const q = query.toLowerCase();
   return nodes.map((n) => {
-    const matchesQuery = !q
-      ? true
-      : n.data.label.toLowerCase().includes(q) ||
-        (n.data.extension ?? "").toLowerCase().includes(q);
-    const nodeTags = n.data.tagIds ?? [];
-    const matchesTagFilter = !hasTagFilter || nodeTags.some((t) => tagSet.has(t));
-    const dimmed = !matchesQuery || !matchesTagFilter;
-    const highlighted = !!q && matchesQuery && matchesTagFilter;
+    const matches =
+      n.data.label.toLowerCase().includes(q) ||
+      (n.data.extension ?? "").toLowerCase().includes(q);
     return {
       ...n,
-      data: { ...n.data, highlighted, dimmed },
+      data: { ...n.data, highlighted: matches, dimmed: !matches },
     };
   });
 }

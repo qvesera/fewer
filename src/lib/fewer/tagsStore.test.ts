@@ -71,19 +71,27 @@ test("deleteTag also clears the id from tagFilter", () => {
   expect(useGraphStore.getState().tagFilter).toEqual([]);
 });
 
-test("tagFilter dimming: nodes missing every selected tag get dimmed", () => {
+test("tagFilter hides non-matching files via hiddenIds", () => {
   const s = useGraphStore.getState();
   const a = s.createTag("A");
   const b = s.createTag("B");
   s.assignTag("n1", a.id);
-  // Filter by B only → n1 (tag A) is dimmed, n2 (no tags) dimmed.
-  useGraphStore.setState({ tagFilter: [b.id] });
-  s.applyTagFilter();
-  const nodes = useGraphStore.getState().nodes;
-  expect(nodes[0].data.dimmed).toBe(true);
-  expect(nodes[1].data.dimmed).toBe(true);
-  // Now also assign B to n1 → n1 matches (OR), no longer dimmed.
-  s.assignTag("n1", b.id);
-  s.applyTagFilter();
-  expect(useGraphStore.getState().nodes[0].data.dimmed).toBe(false);
+  // Filter by B only → file n2 (no tags) should be hidden, folder n1 stays.
+  s.setTagFilter([b.id]);
+  const { hiddenIds } = useGraphStore.getState();
+  expect(hiddenIds).toContain("n2");
+  // Folder is never hidden by tag filter.
+  expect(hiddenIds).not.toContain("n1");
+  // Clear the filter.
+  s.clearTagFilter();
+  expect(useGraphStore.getState().hiddenIds).not.toContain("n2");
+});
+
+test("toggleTagFilter toggles a tag in the filter", () => {
+  const s = useGraphStore.getState();
+  const a = s.createTag("A");
+  s.toggleTagFilter(a.id);
+  expect(useGraphStore.getState().tagFilter).toEqual([a.id]);
+  s.toggleTagFilter(a.id);
+  expect(useGraphStore.getState().tagFilter).toEqual([]);
 });

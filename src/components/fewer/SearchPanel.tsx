@@ -24,7 +24,6 @@ export function SearchPanel() {
   const tagFilter = useGraphStore((s) => s.tagFilter);
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const clearTagFilter = useGraphStore((s) => s.clearTagFilter);
-  const applyTagFilter = useGraphStore((s) => s.applyTagFilter);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
@@ -63,8 +62,6 @@ export function SearchPanel() {
   const matches = useMemo(() => {
     const hasQuery = !!query;
     const q = query.toLowerCase();
-    const hasTagFilter = tagFilter.length > 0;
-    const tagSet = new Set(tagFilter);
     const filtered = nodes.filter((n) => {
       const categoryMatches =
         !categoryFilter || n.data.type === "folder" || n.data.category === categoryFilter;
@@ -73,9 +70,7 @@ export function SearchPanel() {
         fuzzyMatch(query, n.data.label) ||
         fuzzyMatch(query, n.data.path) ||
         (n.data.extension ?? "").toLowerCase().includes(q);
-      // Tag filter: OR semantics — node carries at least one selected tag.
-      const tagMatches = !hasTagFilter || (n.data.tagIds ?? []).some((t) => tagSet.has(t));
-      return categoryMatches && queryMatches && tagMatches;
+      return categoryMatches && queryMatches;
     });
     return filtered.sort((a, b) => {
       const aLabel = a.data.label.toLowerCase();
@@ -92,7 +87,7 @@ export function SearchPanel() {
       // Alphabetical
       return aLabel.localeCompare(bLabel);
     });
-  }, [query, categoryFilter, tagFilter, nodes]);
+  }, [query, categoryFilter, nodes]);
 
   // Keyboard navigation window listener while panel is open
   useEffect(() => {
@@ -196,10 +191,7 @@ export function SearchPanel() {
               return (
                 <button
                   key={tag.id}
-                  onClick={() => {
-                    toggleTagFilter(tag.id);
-                    applyTagFilter();
-                  }}
+                  onClick={() => toggleTagFilter(tag.id)}
                   aria-pressed={active}
                   className={cn(
                     "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
@@ -220,10 +212,7 @@ export function SearchPanel() {
             })}
             {tagFilter.length > 0 && (
               <button
-                onClick={() => {
-                  clearTagFilter();
-                  applyTagFilter();
-                }}
+                onClick={() => clearTagFilter()}
                 className="ml-auto rounded p-0.5 text-muted-foreground/50 hover:text-foreground"
                 aria-label="Clear tag filter"
                 title="Clear tag filter"
@@ -239,7 +228,7 @@ export function SearchPanel() {
           ref={resultsContainerRef}
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
-          {!query && !categoryFilter && tagFilter.length === 0 ? (
+          {!query && !categoryFilter ? (
             searchHistory.length > 0 ? (
               <div className="p-1.5 space-y-0.5 min-w-0">
                 <div className="flex items-center justify-between px-1 pb-1">
