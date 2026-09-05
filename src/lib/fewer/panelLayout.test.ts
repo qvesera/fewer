@@ -17,6 +17,7 @@ import {
   parseTree,
   migrateV1ToTree,
   isLeaf,
+  dedupeLeafIds,
 } from "./panelTree";
 
 function leafId(node: ReturnType<typeof defaultTree>) {
@@ -163,5 +164,62 @@ describe("panelTree", () => {
       const tree = migrateV1ToTree({ leftAreas: [createArea("layout")], rightAreas: [] });
       expect(leafCount(tree)).toBe(2);
     });
+  });
+});
+
+describe("dedupeLeafIds", () => {
+  it("renames duplicate ids", () => {
+    const a = createArea("graph");
+    const root = { kind: "split", dir: "h", ratio: 0.5,
+      first: { kind: "leaf", area: a, primary: true },
+      second: { kind: "leaf", area: { ...a, width: 999 }, primary: false },
+    } as const;
+    const deduped = dedupeLeafIds(root as any);
+    const ids = leafList(deduped).map((l) => l.area.id);
+    // First is seen first; second has duplicate id → renamed
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(ids.length).toBe(2);
+  });
+
+  it("promotes a primary when missing", () => {
+    const a = createArea("graph");
+    const b = createArea("graph");
+    const root = { kind: "split", dir: "h", ratio: 0.5,
+      first: { kind: "leaf", area: a, primary: false },
+      second: { kind: "leaf", area: b, primary: false },
+    } as const;
+    const result = dedupeLeafIds(root as any);
+    expect(getPrimary(result)).not.toBeNull();
+  });
+});
+
+describe("replaceChild first-match only", () => {
+  it("splitLeaf only replaces one leaf with matching id in a tree", () => {
+    // Manually build tree with duplicate ids (simulates corruption)
+    const a = createArea("graph");
+    const root = {
+      kind: "split", dir: "h", ratio: 0.5,
+      first: { kind: "leaf", area: a, primary: true },
+      second: { kind: "leaf", area: { ...a }, primary: false },
+    } as any;
+    // splitLeaf uses replaceChild internally — first match only means
+    // only one of the two leaves gets replaced
+    const result = splitLeaf(root, a.id, "v");
+    // Should have 3 leaves (2 original + 1 new sibling)
+    expect(leafCount(result)).toBe(3);
+  });
+});
+
+describe("splitLeaf preserves primary", () => {
+  it("original leaf keeps primary after split", () => {
+    const root = defaultTree();
+    expect(root.kind).toBe("leaf");
+    if (root.kind !== "leaf") return;
+    expect(root.primary).toBe(true);
+    const result = splitLeaf(root, root.area.id, "h");
+    const leaves = leafList(result);
+    const primary = leaves.find((l) => l.primary);
+    expect(primary).not.toBeNull();
+    expect(primary!.area.id).toBe(root.area.id);
   });
 });
