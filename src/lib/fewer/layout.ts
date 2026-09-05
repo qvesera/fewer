@@ -39,6 +39,8 @@ export interface LayoutOptions {
   sortKey?: SortKey;
   /** Direction applied to the primary sort key. Defaults to asc. */
   sortDir?: SortDir;
+  /** tagId → label lookup, required only when `sortKey === "tag"`. */
+  tagLabelById?: (id: string) => string;
 }
 
 // ponytail: linear per-level/per-log-size gap growth, capped at 3x base —
@@ -102,6 +104,7 @@ export function layoutGraphContour(
 
   const sortKey = options?.sortKey ?? DEFAULT_SORT_KEY;
   const sortDir = options?.sortDir ?? DEFAULT_SORT_DIR;
+  const tagLabelById = options?.tagLabelById;
 
   for (const childIds of childrenMap.values()) {
     childIds.sort((a, b) => {
@@ -113,7 +116,7 @@ export function layoutGraphContour(
         const labelB = nodeB?.data?.label || b;
         return labelA.localeCompare(labelB);
       }
-      return compareSiblings(nodeA, nodeB, sortKey, sortDir);
+      return compareSiblings(nodeA, nodeB, sortKey, sortDir, tagLabelById);
     });
   }
 
