@@ -7,9 +7,19 @@ import type { PanelNode, PanelSplit } from "@/lib/fewer/panelTree";
 import { isLeaf, isSplit, setDividerRatio as treeSetDividerRatio } from "@/lib/fewer/panelTree";
 import { DockArea } from "./DockArea";
 import { CornerGrip } from "./CornerGrip";
-import { saveLayoutToStorage } from "@/lib/fewer/panelLayout";
+import { saveLayoutToStorage, AREA_EDITOR_LABELS, type PanelArea } from "@/lib/fewer/panelLayout";
+import { SECTION_CATALOG, NON_DOCKABLE_SECTIONS, sectionMetaById } from "./sectionRegistry";
 import dynamic from "next/dynamic";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 const GraphCanvasForLeaf = dynamic(
   () => import("./GraphCanvas").then((m) => m.GraphCanvas),
@@ -61,14 +71,71 @@ function LeafNode({
   onLoadSample: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isGraph = leaf.area.editor === "graph";
+  const meta = sectionMetaById(leaf.area.editor);
 
   return (
     <div
       ref={containerRef}
       data-leaf-id={leaf.area.id}
-      className="group relative flex flex-col h-full w-full min-h-0 min-w-0"
+      className="group relative flex flex-col h-full w-full min-h-0 min-w-0 border-border/20"
     >
-      {leaf.area.editor === "graph" ? (
+      {/* Unified header bar for all leaf types */}
+      <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20 shrink-0 bg-card/30">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 justify-between gap-1 h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1.5"
+            >
+              <span className="truncate text-left">
+                {isGraph ? AREA_EDITOR_LABELS.graph : meta?.title ?? leaf.area.editor}
+              </span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Editor Type
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, "graph")}
+              className="text-xs cursor-pointer"
+              disabled={isGraph}
+            >
+              {AREA_EDITOR_LABELS.graph}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {SECTION_CATALOG.filter((s) => !NON_DOCKABLE_SECTIONS.has(s.id)).map((s) => (
+              <DropdownMenuItem
+                key={s.id}
+                onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, s.id)}
+                className="text-xs cursor-pointer"
+                disabled={leaf.area.editor === s.id}
+              >
+                {s.title}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {!leaf.primary && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={() => useGraphStore.getState().joinArea(leaf.area.id)}
+            title="Close (merge into neighbor)"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+
+      {/* Content */}
+      {isGraph ? (
         <div className="relative min-w-0 flex-1 min-h-0">
           <GraphCanvasForLeaf
             onOpenImport={onOpenImport}
@@ -77,24 +144,7 @@ function LeafNode({
           />
         </div>
       ) : (
-        <DockArea area={leaf.area} side="left" />
-      )}
-
-      {/* Close / merge button — hidden when only one leaf or when it's the primary with no siblings */}
-      {!leaf.primary && (
-        <button
-          onClick={() => useGraphStore.getState().joinArea(leaf.area.id)}
-          className={cn(
-            "absolute top-1 right-1 z-30 flex items-center justify-center",
-            "w-5 h-5 rounded-full bg-background/80 border border-border/40",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
-            "hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive",
-            "text-muted-foreground",
-          )}
-          title="Close (merge into neighbor)"
-        >
-          <X className="h-3 w-3" />
-        </button>
+        <DockArea area={leaf.area} />
       )}
 
       <CornerGrip leafId={leaf.area.id} containerRef={containerRef} />
