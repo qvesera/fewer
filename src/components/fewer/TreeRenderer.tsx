@@ -141,6 +141,7 @@ function LeafNode({
             onOpenImport={onOpenImport}
             onLoadSample={onLoadSample}
             primary={!!leaf.primary}
+            leafId={leaf.area.id}
           />
         </div>
       ) : (

@@ -53,6 +53,8 @@ export type UiSliceCreator = StateCreator<
     shareOpen: boolean;
     authOpen: boolean;
     showMiniMap: boolean;
+    /** Leaf IDs whose minimap is hidden (per-view override). Empty = all visible. */
+    minimapHidden: Set<string>;
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
     miniMapSize: number;
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
@@ -102,6 +104,7 @@ export type UiSliceCreator = StateCreator<
     setShareOpen: (open: boolean) => void;
     setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
+    toggleMinimapForLeaf: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -168,6 +171,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   shareOpen: false,
   authOpen: false,
   showMiniMap: true,
+  minimapHidden: new Set<string>(),
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
   miniMapX: 16,
@@ -319,6 +323,11 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShareOpen: (open) => set({ shareOpen: open }),
   setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
+  toggleMinimapForLeaf: (leafId) => set((s) => {
+    const next = new Set(s.minimapHidden);
+    if (next.has(leafId)) next.delete(leafId); else next.add(leafId);
+    return { minimapHidden: next };
+  }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),

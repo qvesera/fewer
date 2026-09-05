@@ -56,7 +56,7 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 interface CanvasMenuPosition { x: number; y: number; }
-interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; }
+interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; leafId?: string; }
 
 /** Shared edge-animation configuration assembled from store state. */
 function useEdgeAnimationOpts(
@@ -77,7 +77,7 @@ function useEdgeAnimationOpts(
   );
 }
 
-function CanvasInner({ onOpenImport, onLoadSample, primary = true }: CanvasEmptyActionsProps) {
+function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const showFiles = useGraphStore((s) => s.showFiles);
@@ -147,7 +147,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true }: CanvasEmpty
   useCanvasInitialFit(visibleNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
-  const mini = useCanvasMinimap({ themeColors, isDark });
+  const mini = useCanvasMinimap({ themeColors, isDark, leafId });
   const dragHandlers = useCanvasNodeDrag(recordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
@@ -426,6 +426,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true }: CanvasEmpty
                   <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
                   <button onClick={() => { zoomIn({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
                   <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
+                  {leafId && (
+                    <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{mini.showMiniMap ? "Hide Minimap" : "Show Minimap"}</button>
+                  )}
                   {edgeExists && (
                     <>
                       <div className="my-1 h-px bg-border/40" />
@@ -458,12 +461,14 @@ interface GraphCanvasProps {
   onLoadSample: () => void;
   /** Primary viewport gets keyboard shortcuts; secondary viewports skip them. */
   primary?: boolean;
+  /** Leaf id for per-view minimap visibility tracking. */
+  leafId?: string;
 }
 
-export function GraphCanvas({ onOpenImport, onLoadSample, primary = true }: GraphCanvasProps) {
+export function GraphCanvas({ onOpenImport, onLoadSample, primary = true, leafId }: GraphCanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} primary={primary} />
+      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} primary={primary} leafId={leafId} />
     </ReactFlowProvider>
   );
 }
