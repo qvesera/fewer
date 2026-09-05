@@ -8,6 +8,7 @@ import type {
   CustomTheme,
   ExportSettings,
 } from "./types";
+import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import type { ImportOptions } from "./importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { useGraphStore } from "@/store/graphStore";
@@ -37,6 +38,10 @@ export interface UserSettings {
   cornerRadius: number;
   nodeWidth: number;
   nodeHeight: number;
+  /** Sibling sort key (persisted like direction/edgeStyle). */
+  sortKey: SortKey;
+  /** Sibling sort direction. */
+  sortDir: SortDir;
   // Display
   showMiniMap: boolean;
   miniMapPosition: string;
@@ -73,6 +78,8 @@ function pick(store: Record<string, unknown>): UserSettings {
     cornerRadius: store.cornerRadius as number,
     nodeWidth: store.nodeWidth as number,
     nodeHeight: store.nodeHeight as number,
+    sortKey: store.sortKey as SortKey,
+    sortDir: store.sortDir as SortDir,
     showMiniMap: store.showMiniMap as boolean,
     miniMapPosition: store.miniMapPosition as string,
     miniMapSize: store.miniMapSize as number,
@@ -125,6 +132,8 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     direction: data.direction ?? s.direction,
     nodeWidth: data.nodeWidth ?? s.nodeWidth,
     nodeHeight: data.nodeHeight ?? s.nodeHeight,
+    sortKey: data.sortKey ?? s.sortKey,
+    sortDir: data.sortDir ?? s.sortDir,
     showMiniMap: data.showMiniMap ?? s.showMiniMap,
     miniMapPosition: data.miniMapPosition ?? s.miniMapPosition,
     miniMapSize: data.miniMapSize ?? s.miniMapSize,

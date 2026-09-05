@@ -50,6 +50,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
+import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeEditorDialog, Logo, CloudPanel } from ".";
@@ -712,6 +713,12 @@ function AppearanceTab() {
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
 
+  const sortKey = useGraphStore((s) => s.sortKey);
+  const sortDir = useGraphStore((s) => s.sortDir);
+  const setSortKey = useGraphStore((s) => s.setSortKey);
+  const setSortDir = useGraphStore((s) => s.setSortDir);
+
+
   const edgeStyleOptions = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },
     { value: "straight" as EdgeStyle, label: "Straight" },
@@ -843,6 +850,48 @@ function AppearanceTab() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Sibling Sort
+          </Label>
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Order by</Label>
+            <SlidingToggle
+              options={[
+                { value: "name" as const, label: "Name" },
+                { value: "size" as const, label: "Size" },
+                { value: "type" as const, label: "Type" },
+              ]}
+              value={sortKey}
+              onValueChange={(v) => setSortKey(v as SortKey)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
+            <SlidingToggle
+              options={[
+                { value: "asc" as const, label: "Ascending" },
+                { value: "desc" as const, label: "Descending" },
+              ]}
+              value={sortDir}
+              onValueChange={(v) => setSortDir(v as SortDir)}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            Controls how siblings are ordered within each folder. Sort keys
+            apply recursively and re-layout the whole graph immediately — the new
+            order is saved with your other preferences and remembered next time
+            you open the app (it does not travel with a saved graph). Folder
+            size uses the value recorded when the graph was imported; if a
+            folder's size wasn't reported, it sorts last in ascending order.
+          </p>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { THEME_COLOR_META, type ThemeColorMeta } from "./types";
+import { THEME_COLOR_META, type ThemeColorMeta, type CustomTheme, type CustomThemeColor } from "./types";
 
 /**
  * Pure logic for the floating theme editor dialog (positioning, docking,
@@ -102,6 +102,110 @@ export function hexAlphaToColorOpacity(value: string, fallbackOpacity = 1): { co
 export function colorOpacityToHexAlpha(color: string, opacity: number): string {
   const a = Math.round(opacity * 255).toString(16).padStart(2, "0");
   return `${color}${a}`;
+}
+
+// ---------------------------------------------------------------------------
+// Per-section undo (pure logic, unit-tested in themeEditor.test.ts)
+// ---------------------------------------------------------------------------
+
+/** Max undo steps retained per editor section. */
+export const SECTION_UNDO_LIMIT = 50;
+/** Edits closer together than this (ms) coalesce into a single undo step. */
+export const SECTION_UNDO_COALESCE_MS = 600;
+
+/** Compare a single slot's editable fields (incl. gradient). */
+function slotEquals(a: CustomThemeColor, b: CustomThemeColor): boolean {
+  return a.color === b.color && a.opacity === b.opacity && a.gradientTo === b.gradientTo && a.gradientAngle === b.gradientAngle;
+}
+
+/** True when any slot in `section` differs between `prev` and `next`. */
+export function sectionDiffers(
+  section: { keys: ThemeColorMeta[] },
+  prev: CustomTheme,
+  next: CustomTheme,
+): boolean {
+  return section.keys.some((m) => !slotEquals(prev[m.key] as CustomThemeColor, next[m.key] as CustomThemeColor));
+}
+
+/** Snapshot of one section's slots (the undoable unit). */
+export function snapshotSection(
+  section: { keys: ThemeColorMeta[] },
+  theme: CustomTheme,
+): Partial<CustomTheme> {
+  const snap: Partial<CustomTheme> = {};
+  for (const m of section.keys) snap[m.key] = { ...(theme[m.key] as CustomThemeColor) };
+  return snap;
+}
+
+/**
+ * Record theme changes into per-section undo stacks.
+ *
+ * - A change pushed onto a section's stack is the state *before* the change,
+ *   so undoing restores it.
+ * - Edits within `SECTION_UNDO_COALESCE_MS` of the previous edit coalesce into
+ *   one step (keeps a picker drag from flooding history).
+ * - When `undoing` is true, nothing is pushed — undo itself must not be
+ *   undoable.
+ *
+ * Returns the (possibly new) stacks + last-change timestamps. Inputs are never
+ * mutated (pure).
+ */
+export function recordSectionChange(
+  sections: { title: string; keys: ThemeColorMeta[] }[],
+  prev: CustomTheme,
+  next: CustomTheme,
+  stacks: Record<string, Partial<CustomTheme>[]>,
+  lastChangeAt: Record<string, number>,
+  now: number,
+  undoing: boolean,
+): {
+  stacks: Record<string, Partial<CustomTheme>[]>;
+  lastChangeAt: Record<string, number>;
+  changed: boolean;
+} {
+  if (undoing) return { stacks, lastChangeAt, changed: false };
+
+  const nextStacks: Record<string, Partial<CustomTheme>[]> = {};
+  const nextLast: Record<string, number> = { ...lastChangeAt };
+  let changed = false;
+
+  for (const section of sections) {
+    const stack = stacks[section.title] ?? [];
+    nextStacks[section.title] = stack;
+
+    if (!sectionDiffers(section, prev, next)) continue;
+    changed = true;
+
+    const last = lastChangeAt[section.title] ?? 0;
+    if (now - last <= SECTION_UNDO_COALESCE_MS) continue; // coalesce into previous step
+
+    const snapped = [...stack, snapshotSection(section, prev)];
+    if (snapped.length > SECTION_UNDO_LIMIT) snapped.shift();
+    nextStacks[section.title] = snapped;
+    nextLast[section.title] = now;
+  }
+
+  return { stacks: nextStacks, lastChangeAt: nextLast, changed };
+}
+
+/** Number of undoable steps currently stored for a section. */
+export function sectionUndoDepth(
+  sectionTitle: string,
+  stacks: Record<string, Partial<CustomTheme>[]>,
+): number {
+  return stacks[sectionTitle]?.length ?? 0;
+}
+
+/**
+ * Pop the most recent snapshot off a section's undo stack. Returns the
+ * snapshot to apply plus the remaining stack. Pure — input untouched.
+ */
+export function popSectionUndo(
+  stack: Partial<CustomTheme>[],
+): { snapshot: Partial<CustomTheme> | undefined; stack: Partial<CustomTheme>[] } {
+  if (stack.length === 0) return { snapshot: undefined, stack };
+  const snapshot = stack[stack.length - 1];
+  return { snapshot, stack: stack.slice(0, -1) };
 }
 
 /** Editable color slots grouped into the editor's display sections. */

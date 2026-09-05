@@ -96,6 +96,7 @@ docker run -p 3000:3000 fewer
 
 - **Rename** a node: **F2** or right-click
 - **Add** a node: **Alt+N**
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
@@ -113,6 +114,7 @@ docker run -p 3000:3000 fewer
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
+- **Sibling sort**: order children by Name, Size, or Type (asc/desc); applies recursively
 - **Breadcrumb bar**: selected node's full path
 
 </details>
@@ -176,7 +178,8 @@ docker run -p 3000:3000 fewer
 
 - **Light / Dark / Custom** modes
 - **16 CSS color variables**: separate folder and file colors
-- **Live custom theme editor** with hex input + native color swatch
+- **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
+- **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
 - Changes apply instantly to all nodes
 
 </details>

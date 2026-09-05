@@ -7,6 +7,7 @@ import { LOCAL_FS_FEATURES } from "./features";
 // ─── Event-name constants ─────────────────────────────────────────
 export const FEWER_ADD_NODE = "fewer-add-node";
 export const FEWER_ADD_NODE_STANDALONE = "fewer-add-node-standalone";
+export const FEWER_ADD_NODE_PARENT = "fewer-add-node-parent";
 export const FEWER_IMPORT_FOLDER = "fewer-import-folder";
 export const FEWER_SAVE_GRAPH = "fewer-save-graph";
 

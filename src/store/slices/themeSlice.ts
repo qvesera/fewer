@@ -3,7 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
-import { toCssColor, migrateCustomTheme } from "@/lib/fewer/themeColors";
+import { toCssColor, toGradientCss, migrateCustomTheme } from "@/lib/fewer/themeColors";
 
 const STORAGE_THEME = "fewer-theme";
 const STORAGE_CUSTOM = "fewer-custom-theme";
@@ -90,7 +90,16 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   const root = document.documentElement;
   for (const meta of THEME_COLOR_META) {
     const c = theme[meta.key];
+    // Main var always stays a solid color: `background-color` consumers
+    // (minimap, SVG export, shadcn derivations) can't take a gradient.
     root.style.setProperty(meta.cssVar, toCssColor(c.color, c.opacity));
+    // Gradient-capable slots expose a companion `-gradient` var that CSS
+    // consumers opt into via `background: var(<grad>, var(<solid>))`.
+    if (meta.gradientCssVar) {
+      const gradient = toGradientCss(c);
+      if (gradient) root.style.setProperty(meta.gradientCssVar, gradient);
+      else root.style.removeProperty(meta.gradientCssVar);
+    }
   }
   // Auto-derive border colors from body colors (same color, higher opacity)
   root.style.setProperty("--fewer-folder-border", toCssColor(theme.folderBg.color, 0.45));
@@ -170,7 +179,10 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
 export function clearCustomThemeFromDOM() {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  for (const meta of THEME_COLOR_META) root.style.removeProperty(meta.cssVar);
+  for (const meta of THEME_COLOR_META) {
+    root.style.removeProperty(meta.cssVar);
+    if (meta.gradientCssVar) root.style.removeProperty(meta.gradientCssVar);
+  }
   // Also remove shadcn/ui CSS variables that were set by applyCustomThemeToDOM
   const uiVars = [
     "--background", "--foreground", "--card", "--card-foreground",

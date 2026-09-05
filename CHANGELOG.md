@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plans links in Settings and the History dialog open /docs/plans in a new tab, and the plans page now exists: the docs index and /docs/plans render the tier table from content_pages (seeded via scripts/gen-seed-plans.py).
 - Sign-up with an already-registered email no longer pretends to succeed: Supabase returns user:null (anti-enumeration) for duplicate emails and the dialog silently showed 'Check your email' — the dialog now detects it, tells the user the email is taken, and switches to the sign-in form with the email prefilled.
 - Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
+- Editing a gradient slot's base color no longer resets its gradient endpoint and angle
 
 ### Added
 
@@ -46,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sign in with Google or GitHub: one-tap OAuth buttons on the sign-in and sign-up screens (Supabase OIDC providers, PKCE flow through the existing /auth/callback route). Provider credentials must be enabled in the Supabase dashboard first — see /docs/accounts.
 - Passwordless sign-in link: 'Sign in with a link' on the sign-in screen emails a one-tap sign-in link (expires in an hour); first use creates the account, so it doubles as passwordless sign-up.
 - Change email: signed-in users can update their account email from Settings → Account; a confirmation link is sent to the new address and the change only applies after it's confirmed.
+- Sibling sort controls: folders' children can now be ordered by Name, Size, or Type (ascending/descending) via Settings → Appearance → Sibling Sort, applying recursively and relayout immediately; the choice persists with your other preferences.
+- Drag from any node's input handle to create a parent folder for that node (always a folder, inserted between the node and its existing parent when it has one).
+- Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
+- Per-section undo buttons (Canvas & Text, Folders, Files) in the Custom Theme Editor that revert a section's slots, with drag-coalesced steps
 
 ### Changed
 

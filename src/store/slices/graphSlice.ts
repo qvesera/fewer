@@ -276,6 +276,8 @@ export type GraphSliceCreator = StateCreator<
     setLocalRootPath: (v: string | null) => void;
     addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
+    /** Create a new folder that becomes the parent of `nodeId`. If `nodeId` already has a parent, the new folder is inserted between the old parent and `nodeId` (reparenting `nodeId` under the new folder). Paths for `nodeId` and its descendants are rewritten; one composite history entry. */
+    addParentNode: (nodeId: string, label: string) => { ok: boolean; reason?: string; id?: string };
     removeNode: (id: string) => void;
     removeSelected: () => void;
     toggleCollapse: (id: string) => void;
@@ -391,7 +393,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale }), state.searchQuery, state.categoryFilter);
+    : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale, sortKey: state.sortKey, sortDir: state.sortDir }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -401,11 +403,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();
     if (nodes.length === 0) return;
     // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir });
     const searched = applySearchInternal(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
@@ -419,7 +421,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const {
       nodes, edges, searchQuery, categoryFilter, hiddenIds,
       revealedRootIds, autoHideThreshold, maxDisplayDepth,
-      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, graphVersion, showFiles,
+      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, sortKey, sortDir, graphVersion, showFiles,
     } = get();
     const folderNode = nodes.find((n) => n.id === nodeId);
     if (!folderNode || folderNode.data.type !== "folder") return { added: 0, removed: 0 };
@@ -431,7 +433,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
     // Lay the refreshed subtree out around the folder's current position.
     const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(edgeStyle) }));
-    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale });
+    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale, sortKey, sortDir });
     const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
     const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
     const newChildNodes = laid.slice(1).map((n) => ({
@@ -816,6 +818,69 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     return newNode.id;
   },
 
+  addParentNode: (nodeId, label) => {
+    const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return { ok: false, reason: "Node not found." };
+    const trimmed = label.trim() || "New Folder";
+    // The node's current parent edge (if any) — inserting the folder between them.
+    const oldEdge = edges.find((e) => e.target === nodeId);
+    const oldParent = oldEdge ? nodes.find((n) => n.id === oldEdge.source) : null;
+    // Duplicate check in the same sibling scope the node already lives in.
+    const siblingIds = oldParent ? edges.filter((e) => e.source === oldParent.id).map((e) => e.target) : null;
+    const siblingFullNames = siblingIds
+      ? new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName))
+      : new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map(fullName));
+    if (siblingFullNames.has(trimmed)) return { ok: false, reason: `A node named "${trimmed}" already exists here.` };
+    const newPath = oldParent ? `${oldParent.data.path}/${trimmed}` : trimmed;
+    const edgeType = edgeTypeFromStyle(get().edgeStyle);
+    const newNode: FewerNode = {
+      id: `n-${uuid().slice(0, 8)}`, type: "folder",
+      position: { x: node.position.x - 40, y: node.position.y - 120 },
+      data: { label: trimmed, path: newPath, type: "folder", size: 0, depth: oldParent ? (oldParent.data.depth ?? 0) + 1 : 0, isRoot: !oldParent },
+      style: { width: nodeWidth, height: nodeHeight, minHeight: undefined },
+    };
+    const parentEdge: FewerEdge | null = oldParent ? { id: `e-${oldParent.id}-${newNode.id}`, source: oldParent.id, target: newNode.id, type: edgeType } : null;
+    const childEdge: FewerEdge = { id: `e-${newNode.id}-${nodeId}`, source: newNode.id, target: nodeId, type: edgeType };
+    // Rewrite paths for the node + descendants (same semantics as connectNodes).
+    const nodeFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+    const oldChildPath = node.data.path;
+    const newChildPath = `${newPath}/${nodeFullLabel}`;
+    const isFolder = node.data.type === "folder";
+    const descendantIds = isFolder ? getDescendants(nodeId, edges).filter((d) => d !== nodeId) : [];
+    const changedNodeIds = [nodeId, ...descendantIds];
+    const prevPaths = changedNodeIds
+      .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
+      .filter((p) => p.path !== "");
+    const nextPaths = changedNodeIds
+      .map((nid) => {
+        if (nid === nodeId) return { nodeId: nid, path: newChildPath };
+        const d = nodes.find((n) => n.id === nid);
+        return { nodeId: nid, path: d ? d.data.path.replace(oldChildPath, newChildPath) : "" };
+      })
+      .filter((p) => p.path !== "");
+    const updatedNodes = nodes.map((n) => {
+      if (n.id === nodeId) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+      if (descendantIds.includes(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+      return n;
+    });
+    let nextEdges = oldEdge ? edges.filter((e) => e.id !== oldEdge.id) : edges;
+    nextEdges = [...nextEdges, ...(parentEdge ? [parentEdge] : []), childEdge];
+    nextEdges = sortEdges(nextEdges, [...updatedNodes, newNode]);
+    // Single composite history entry: add folder node → detach old edge (if any) → attach node under folder.
+    const ops: HistoryOp[] = [{ type: "add-node", node: newNode, edge: parentEdge }];
+    if (oldEdge) ops.push({ type: "remove-edges", edges: [oldEdge] });
+    ops.push({ type: "connect", edge: childEdge, prevPaths, nextPaths });
+    get().pushOp(ops);
+    set({
+      nodes: applySearchInternal([...updatedNodes, newNode], searchQuery, get().categoryFilter),
+      edges: nextEdges,
+      graphVersion: get().graphVersion + 1,
+      selectedNodeIds: [newNode.id],
+    });
+    return { ok: true, id: newNode.id };
+  },
+
   connectNodes: (connection) => {
     const { nodes, edges, searchQuery } = get();
     if (!connection.source || !connection.target) return { ok: false, reason: "Missing source or target." };
@@ -1184,7 +1249,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale });
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale, sortKey: get().sortKey, sortDir: get().sortDir })
     const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));
