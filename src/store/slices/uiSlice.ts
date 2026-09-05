@@ -15,11 +15,8 @@ import {
   saveLayoutToStorage,
   clearLayoutStorage,
   defaultLayout,
-  createArea as makeArea,
-  clampWidth,
-  type AreaEditor,
-  type PanelArea,
 } from "@/lib/fewer/panelLayout";
+import * as treeModule from "@/lib/fewer/panelTree";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -75,8 +72,7 @@ export type UiSliceCreator = StateCreator<
 
     // ── Panel layout (Blender-style docked areas) ──
     sidebarSide: "left" | "right";
-    leftAreas: import("@/lib/fewer/panelLayout").PanelArea[];
-    rightAreas: import("@/lib/fewer/panelLayout").PanelArea[];
+    panelTree: import("@/lib/fewer/panelTree").PanelNode;
 
     setSearchQuery: (q: string) => void;
     commitSearch: (q: string) => void;
@@ -125,12 +121,12 @@ export type UiSliceCreator = StateCreator<
     setRightClickDetected: () => void;
     resetTutorial: () => void;
     setSidebarSide: (side: "left" | "right") => void;
-    setLeftAreas: (areas: import("@/lib/fewer/panelLayout").PanelArea[]) => void;
-    setRightAreas: (areas: import("@/lib/fewer/panelLayout").PanelArea[]) => void;
-    createArea: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor, width?: number) => void;
-    removeArea: (id: string) => void;
+    setPanelTree: (tree: import("@/lib/fewer/panelTree").PanelNode) => void;
+    splitArea: (id: string, dir: "h" | "v", ratio?: number) => void;
+    joinArea: (id: string) => void;
     setAreaEditor: (id: string, editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
-    setAreaWidth: (id: string, width: number) => void;
+    insertAreaAtEdge: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    setDividerRatio: (firstId: string, secondId: string, ratio: number) => void;
     resetPanelLayout: () => void;
     /** @internal — writes layout to localStorage. Called by other panel actions. */
     _persistLayout: () => void;
@@ -197,7 +193,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   // Panel layout defaults — loaded from localStorage once, saved on change.
   ...(() => {
     const stored = loadLayoutFromStorage();
-    return stored ?? defaultLayout();
+    const layout = stored ?? defaultLayout();
+    return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
   })(),
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
@@ -416,7 +413,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   _persistLayout: () => {
     const s = get();
-    saveLayoutToStorage({ sidebarSide: s.sidebarSide, leftAreas: s.leftAreas, rightAreas: s.rightAreas });
+    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree });
   },
 
   setSidebarSide: (side) => {
@@ -424,55 +421,57 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     get()._persistLayout();
   },
 
-  setLeftAreas: (areas) => {
-    set({ leftAreas: areas });
+  setPanelTree: (tree) => {
+    set({ panelTree: tree });
     get()._persistLayout();
   },
 
-  setRightAreas: (areas) => {
-    set({ rightAreas: areas });
-    get()._persistLayout();
+  splitArea: (id, dir, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
   },
 
-  createArea: (side, editor, width) => {
-    const area = makeArea(editor, width);
-    const key = side === "left" ? "leftAreas" : "rightAreas";
-    set((s) => ({ [key]: [...s[key], area] }));
-    get()._persistLayout();
-  },
-
-  removeArea: (id) => {
-    set((s) => ({
-      leftAreas: s.leftAreas.filter((a) => a.id !== id),
-      rightAreas: s.rightAreas.filter((a) => a.id !== id),
-    }));
-    get()._persistLayout();
+  joinArea: (id) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.joinLeaf(tree, id);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
   },
 
   setAreaEditor: (id, editor) => {
-    const patch = (areas: PanelArea[]) =>
-      areas.map((a) => (a.id === id ? { ...a, editor } : a));
-    set((s) => ({
-      leftAreas: patch(s.leftAreas),
-      rightAreas: patch(s.rightAreas),
-    }));
+    const tree = get().panelTree;
+    const newTree = treeModule.setLeafEditor(tree, id, editor);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  insertAreaAtEdge: (side, editor) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
+    set({ panelTree: newTree });
     get()._persistLayout();
   },
 
-  setAreaWidth: (id, width) => {
-    const clamped = clampWidth(width);
-    const patch = (areas: PanelArea[]) =>
-      areas.map((a) => (a.id === id ? { ...a, width: clamped } : a));
-    set((s) => ({
-      leftAreas: patch(s.leftAreas),
-      rightAreas: patch(s.rightAreas),
-    }));
-    get()._persistLayout();
+  setDividerRatio: (firstId, secondId, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.setDividerRatio(tree, firstId, secondId, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
   },
 
   resetPanelLayout: () => {
     const d = defaultLayout();
-    set({ sidebarSide: d.sidebarSide, leftAreas: d.leftAreas, rightAreas: d.rightAreas });
+    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree });
     clearLayoutStorage();
   },
 });

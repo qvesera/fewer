@@ -59,14 +59,6 @@ export function createArea(editor: AreaEditor, width?: number): PanelArea {
   };
 }
 
-/** Which section editor ids are already docked (appear in any area). */
-export function sectionsDockedAnywhere(left: PanelArea[], right: PanelArea[]): Set<string> {
-  const s = new Set<string>();
-  for (const a of left) if (a.editor !== "graph") s.add(a.editor);
-  for (const a of right) if (a.editor !== "graph") s.add(a.editor);
-  return s;
-}
-
 /** Given a pointer x and viewport width, return which side to dock. */
 export function dropSideForPointerX(x: number, viewportWidth: number): PanelSide {
   return x < viewportWidth / 2 ? "left" : "right";
@@ -74,10 +66,12 @@ export function dropSideForPointerX(x: number, viewportWidth: number): PanelSide
 
 // ── localStorage persistence ──
 
+import type { PanelNode } from "./panelTree";
+import { parseTree, migrateV1ToTree, serializeTree } from "./panelTree";
+
 interface LayoutSnapshot {
   sidebarSide: PanelSide;
-  leftAreas: PanelArea[];
-  rightAreas: PanelArea[];
+  panelTree: PanelNode;
 }
 
 const STORAGE_KEY = "fewer:panelLayout";
@@ -98,16 +92,27 @@ function isValidArea(v: unknown): v is PanelArea {
   );
 }
 
-/** Parse a localStorage value into a valid layout snapshot. Returns null on failure. */
+/** Parse a localStorage value into a valid layout snapshot. Handles both v1 (flat arrays) and v2 (tree). Returns null on failure. */
 export function parseLayoutStorage(raw: string | null): LayoutSnapshot | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw);
     if (!v || typeof v !== "object") return null;
     const sidebarSide: PanelSide = VALID_SIDES.has(v.sidebarSide) ? v.sidebarSide : "left";
-    const leftAreas = Array.isArray(v.leftAreas) ? v.leftAreas.filter(isValidArea) : [];
-    const rightAreas = Array.isArray(v.rightAreas) ? v.rightAreas.filter(isValidArea) : [];
-    return { sidebarSide, leftAreas, rightAreas };
+
+    // v2: tree format
+    if (v.panelTree) {
+      const tree = parseTree(v.panelTree);
+      if (tree) return { sidebarSide, panelTree: tree };
+    }
+
+    // v1: flat leftAreas/rightAreas → migrate
+    if (Array.isArray(v.leftAreas) || Array.isArray(v.rightAreas)) {
+      const tree = migrateV1ToTree(v);
+      return { sidebarSide, panelTree: tree };
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -115,7 +120,7 @@ export function parseLayoutStorage(raw: string | null): LayoutSnapshot | null {
 
 /** Serialize a layout snapshot for localStorage. */
 export function serializeLayoutStorage(snap: LayoutSnapshot): string {
-  return JSON.stringify(snap);
+  return JSON.stringify({ sidebarSide: snap.sidebarSide, panelTree: serializeTree(snap.panelTree) });
 }
 
 /** Load layout from localStorage (SSR-safe). */
@@ -144,7 +149,7 @@ export function clearLayoutStorage(): void {
   } catch { /* ignore */ }
 }
 
-/** Default layout: no areas, sidebar left. */
+/** Default layout: sidebar left, single graph canvas. */
 export function defaultLayout(): LayoutSnapshot {
-  return { sidebarSide: "left", leftAreas: [], rightAreas: [] };
+  return { sidebarSide: "left", panelTree: { kind: "leaf", area: createArea("graph"), primary: true } };
 }

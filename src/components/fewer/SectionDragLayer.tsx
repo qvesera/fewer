@@ -24,7 +24,7 @@ export function startSectionDrag(editor: AreaEditor, e: React.PointerEvent) {
 /** Edge strip component — shown during drag, handles drop to create area. */
 export function SectionDragLayer() {
   const [drag, setDrag] = useState<DragState | null>(null);
-  const createArea = useGraphStore((s) => s.createArea);
+  const insertAreaAtEdge = useGraphStore((s) => s.insertAreaAtEdge);
   const dropSideForPointerX = useCallback((x: number) => {
     return x < window.innerWidth / 2 ? "left" as const : "right" as const;
   }, []);
@@ -43,9 +43,9 @@ export function SectionDragLayer() {
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!drag) return;
     const side = dropSideForPointerX(e.clientX);
-    createArea(side, drag.editor);
+    insertAreaAtEdge(side, drag.editor);
     setDrag(null);
-  }, [drag, createArea, dropSideForPointerX]);
+  }, [drag, insertAreaAtEdge, dropSideForPointerX]);
 
   if (!drag) return null;
 

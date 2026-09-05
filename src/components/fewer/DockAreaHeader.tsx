@@ -15,7 +15,7 @@ import { AREA_EDITOR_LABELS, type AreaEditor, type PanelArea } from "@/lib/fewer
 import { SECTION_CATALOG, NON_DOCKABLE_SECTIONS, sectionMetaById } from "./sectionRegistry";
 
 export function DockAreaHeader({ area }: { area: PanelArea }) {
-  const removeArea = useGraphStore((s) => s.removeArea);
+  const joinArea = useGraphStore((s) => s.joinArea);
   const setAreaEditor = useGraphStore((s) => s.setAreaEditor);
 
   const isGraph = area.editor === "graph";
@@ -66,8 +66,8 @@ export function DockAreaHeader({ area }: { area: PanelArea }) {
         variant="ghost"
         size="icon"
         className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        onClick={() => removeArea(area.id)}
-        title="Remove area"
+        onClick={() => joinArea(area.id)}
+        title="Close area"
       >
         <X className="h-3 w-3" />
       </Button>

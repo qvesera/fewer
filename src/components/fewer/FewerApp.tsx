@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { DockArea } from "./DockArea";
+import { TreeRenderer } from "./TreeRenderer";
 import { SectionDragLayer } from "./SectionDragLayer";
 
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
@@ -69,8 +69,7 @@ export function FewerApp() {
 
   // Panel layout
   const sidebarSide = useGraphStore((s) => s.sidebarSide);
-  const leftAreas = useGraphStore((s) => s.leftAreas);
-  const rightAreas = useGraphStore((s) => s.rightAreas);
+  const panelTree = useGraphStore((s) => s.panelTree);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -382,23 +381,12 @@ export function FewerApp() {
           </div>
         </div>
 
-        {/* Left docked areas */}
-        {leftAreas.map((a) => (
-          <DockArea key={a.id} area={a} side="left" />
-        ))}
-
-        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
-          <ErrorBoundary>
-            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
-          </ErrorBoundary>
-          <BreadcrumbBar />
-          <SearchPanel />
-        </main>
-
-        {/* Right docked areas */}
-        {rightAreas.map((a) => (
-          <DockArea key={a.id} area={a} side="right" />
-        ))}
+        {/* Tree-based layout: all areas including canvas */}
+        <TreeRenderer
+          tree={panelTree}
+          onOpenImport={() => openImportFlow("folder")}
+          onLoadSample={handleLoadSample}
+        />
       </div>
 
       {/* Drag-to-dock overlay (ghost + edge strips) */}
