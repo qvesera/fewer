@@ -118,6 +118,8 @@ export type UiSliceCreator = StateCreator<
     setNodePositionForLeaf: (leafId: string, nodeId: string, pos: { x: number; y: number }) => void;
     /** Batch write per-view positions without graphVersion bump (for during-drag). */
     setNodePositionsBatch: (leafId: string, entries: { id: string; pos: { x: number; y: number } }[]) => void;
+    /** Seed the full positions map for a view (first drag writes full map before drag delta). */
+    seedNodePositions: (leafId: string, fullMap: Record<string, { x: number; y: number }>) => void;
     /** Seed-on-write: first call captures effective hidden, then adds. */
     hideForLeaf: (leafId: string, ids: string[]) => void;
     /** Seed-on-write: first call captures effective hidden, then removes. */
@@ -398,6 +400,13 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     for (const { id, pos } of entries) positions[id] = pos;
     const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next }; // No graphVersion bump — RF already shows positions
+  }),
+
+  seedNodePositions: (leafId, fullMap) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    if (leaf.positions) return {}; // Already seeded — no-op
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: { ...fullMap } } };
+    return { viewSettings: next }; // Silent — no bump
   }),
 
   hideForLeaf: (leafId, ids) => {

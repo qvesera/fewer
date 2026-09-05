@@ -195,19 +195,33 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // so views remain independent. Shared store positions are never
   // updated by individual view drags — they stay as the layout seed.
   const setNodePositionForLeaf = useGraphStore((s) => s.setNodePositionForLeaf);
+  const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
+
+  // On first drag in a view, seed the FULL positions map from the current
+  // positionedNodes so non-dragged nodes stay at their derived positions
+  // instead of falling back to shared (different) positions.
+  const seedOnFirstDrag = useCallback(() => {
+    if (leafId && !useGraphStore.getState().viewSettings[leafId]?.positions) {
+      const fullSeed: Record<string, { x: number; y: number }> = {};
+      for (const n of positionedNodes) fullSeed[n.id] = n.position;
+      seedNodePositions(leafId, fullSeed);
+    }
+  }, [leafId, positionedNodes, seedNodePositions]);
+
   const effectiveRecordDragMoves = useCallback(
     (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
       if (leafId) {
+        seedOnFirstDrag();
         for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
       } else {
         recordDragMoves(moves);
       }
     },
-    [leafId, recordDragMoves, setNodePositionForLeaf],
+    [leafId, seedOnFirstDrag, recordDragMoves, setNodePositionForLeaf],
   );
   const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 

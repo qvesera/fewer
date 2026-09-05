@@ -12,6 +12,8 @@ interface NodeChangeHandlerDeps {
   boxSelectBaseRef: { current: Set<string> | null };
   /** When set, position changes route to per-view instead of shared store. */
   leafId?: string;
+  /** Called before per-view position writes — CanvasInner seeds full map on first drag. */
+  onBeforePositionCommit?: () => void;
 }
 
 /**
@@ -30,6 +32,7 @@ export function useCanvasNodeChangeHandler({
   recordResize,
   boxSelectBaseRef,
   leafId,
+  onBeforePositionCommit,
 }: NodeChangeHandlerDeps) {
   void fitView; // reserved for parity with original signature; not used directly
 
@@ -63,7 +66,8 @@ export function useCanvasNodeChangeHandler({
 
       if (positionChanges.length > 0) {
         if (leafId) {
-          // Per-view: write positions to viewSettings, not shared store
+          // Seed full positions map on first drag to prevent layout jump
+          onBeforePositionCommit?.();
           const entries = positionChanges.map((c) => ({ id: c.id, pos: c.position! }));
           useGraphStore.getState().setNodePositionsBatch(leafId, entries);
         } else {
@@ -113,7 +117,7 @@ export function useCanvasNodeChangeHandler({
         }, 300);
       }
     },
-            [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId],
+            [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, onBeforePositionCommit],
   );
 
   return handleNodesChange;
