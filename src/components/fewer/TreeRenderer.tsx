@@ -28,8 +28,10 @@ interface TreeRendererProps {
  */
 export function TreeRenderer({ tree, onOpenImport, onLoadSample }: TreeRendererProps) {
   return (
-    <div className="flex min-h-0 flex-1 min-w-0 hidden sm:flex">
-      <TreeNode node={tree} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+    <div className="relative hidden sm:block flex-1 min-h-0 min-w-0">
+      <div className="absolute inset-0">
+        <TreeNode node={tree} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+      </div>
     </div>
   );
 }
@@ -64,7 +66,7 @@ function LeafNode({
     <div
       ref={containerRef}
       data-leaf-id={leaf.area.id}
-      className="group relative flex flex-col h-full min-h-0 min-w-0"
+      className="group relative flex flex-col h-full w-full min-h-0 min-w-0"
     >
       {leaf.area.editor === "graph" ? (
         <div className="relative min-w-0 flex-1 min-h-0">
@@ -163,9 +165,11 @@ function SplitNode({
   const pct = Math.round(split.ratio * 100);
 
   return (
-    <div className={cn("flex min-h-0 min-w-0", isH ? "flex-row flex-1" : "flex-col min-h-0 flex-1")}>
-      <div className="min-h-0 min-w-0" style={isH ? { flex: `${split.ratio} 1 0%` } : { height: `${pct}%` }}>
-        <TreeNode node={split.first} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+    <div className={cn("flex h-full w-full min-h-0 min-w-0", isH ? "flex-row" : "flex-col")}>
+      <div className="relative min-h-0 min-w-0" style={isH ? { flex: `${split.ratio} 1 0%` } : { height: `${pct}%` }}>
+        <div className="absolute inset-0">
+          <TreeNode node={split.first} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+        </div>
       </div>
 
       {/* Divider */}
@@ -177,8 +181,10 @@ function SplitNode({
         )}
       />
 
-      <div className="min-h-0 min-w-0" style={isH ? { flex: `${1 - split.ratio} 1 0%` } : { height: `${100 - pct}%` }}>
-        <TreeNode node={split.second} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+      <div className="relative min-h-0 min-w-0" style={isH ? { flex: `${1 - split.ratio} 1 0%` } : { height: `${100 - pct}%` }}>
+        <div className="absolute inset-0">
+          <TreeNode node={split.second} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+        </div>
       </div>
     </div>
   );

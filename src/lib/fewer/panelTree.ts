@@ -7,7 +7,7 @@
  * multiple side-by-side viewports of the same data.
  */
 import type { PanelArea, AreaEditor } from "./panelLayout";
-import { createArea } from "./panelLayout";
+import { createArea, generateAreaId } from "./panelLayout";
 
 // ── Node types ──
 
@@ -96,8 +96,10 @@ function patchLeaf(root: PanelNode, id: string, patch: (l: PanelLeaf) => PanelLe
 function replaceChild(root: PanelNode, leafId: string, replacement: PanelNode): PanelNode {
   if (isLeaf(root)) return root.area.id === leafId ? replacement : root;
   const f = replaceChild(root.first, leafId, replacement);
+  if (f !== root.first) return { ...root, first: f };
   const s = replaceChild(root.second, leafId, replacement);
-  return f === root.first && s === root.second ? root : { ...root, first: f, second: s };
+  if (s !== root.second) return { ...root, second: s };
+  return root;
 }
 
 // ── Set leaf editor ──
@@ -116,7 +118,7 @@ export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", rat
   const target = findLeaf(root, targetId);
   if (!target) return root;
   const sibling: PanelLeaf = { kind: "leaf", area: createArea(target.area.editor) };
-  const splitNode = makeSplit(dir, { ...target, primary: false }, sibling, ratio);
+  const splitNode = makeSplit(dir, { ...target }, sibling, ratio);
   if (isLeaf(root) && root.area.id === targetId) return splitNode;
   return replaceChild(root, targetId, splitNode);
 }
@@ -211,7 +213,38 @@ function parseNode(v: unknown): PanelNode | null {
   return null;
 }
 
-export const parseTree = (v: unknown): PanelNode | null => parseNode(v);
+export const parseTree = (v: unknown): PanelNode | null => {
+  const parsed = parseNode(v);
+  if (!parsed) return null;
+  return dedupeLeafIds(parsed);
+};
+
+// ── Deduplicate leaf ids + ensure primary exists ──
+
+export function dedupeLeafIds(root: PanelNode): PanelNode {
+  const seen = new Set<string>();
+  let hadDupe = false;
+  const walk = (n: PanelNode): PanelNode => {
+    if (isLeaf(n)) {
+      if (seen.has(n.area.id)) {
+        hadDupe = true;
+        return { ...n, area: { ...n.area, id: generateAreaId() } };
+      }
+      seen.add(n.area.id);
+      return n;
+    }
+    const f = walk(n.first);
+    const s = walk(n.second);
+    return f === n.first && s === n.second ? n : { ...n, first: f, second: s };
+  };
+  let out = walk(root);
+  // Ensure a primary leaf exists — promote the first graph leaf if missing
+  if (!getPrimary(out)) {
+    const graphLeaf = leafList(out).find((l) => l.area.editor === "graph");
+    if (graphLeaf) out = patchLeaf(out, graphLeaf.area.id, (l) => ({ ...l, primary: true }));
+  }
+  return out;
+}
 
 // ── v1 migration ──
 
