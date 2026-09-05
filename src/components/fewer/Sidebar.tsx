@@ -233,13 +233,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           <div className="flex flex-col gap-3 w-full min-w-0">
             {/* Orientation choice cards; advanced orientations slide in with advanced mode. */}
             <LayoutPicker
-              direction={direction}
-              onPick={setDirection}
+              direction={activeLeaf?.resolved.direction ?? direction}
+              onPick={(d) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { direction: d }); else setDirection(d); }}
               advancedModeEnabled={advancedModeEnabled}
             />
-
-            {/* Layout policy sliders (Max Depth, Auto-hide, Crown Shyness) live in
-                Settings → Advanced. Sidebar stays focused on per-graph actions. */}
 
             {/* Rearrange Action Button (shadcn) */}
             <Button

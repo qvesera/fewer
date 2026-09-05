@@ -26,6 +26,7 @@ export function useActiveLeaf(): ActiveLeafResult | null {
   const edgeWidthGlobal = useGraphStore((s) => s.edgeWidth);
   const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const directionGlobal = useGraphStore((s) => s.direction);
+  const hiddenIds = useGraphStore((s) => s.hiddenIds);
 
   return useMemo(() => {
     const primary = getPrimary(panelTree);
@@ -42,13 +43,14 @@ export function useActiveLeaf(): ActiveLeafResult | null {
       edgeWidth: edgeWidthGlobal,
       themeMode: themeModeGlobal,
       direction: directionGlobal,
-    });
+      hiddenIds,
+    }, hiddenIds);
 
     return { leafId: id, resolved };
   }, [
     activeLeafId, panelTree, viewSettingsMap,
     showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal,
     edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal,
-    edgeWidthGlobal, themeModeGlobal, directionGlobal,
+    edgeWidthGlobal, themeModeGlobal, directionGlobal, hiddenIds,
   ]);
 }

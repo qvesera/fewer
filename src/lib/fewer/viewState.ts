@@ -24,6 +24,8 @@ export interface ViewSettings {
   direction?: "TB" | "LR" | "BT" | "RL";
   /** Per-view node position overrides (when direction is overridden). */
   positions?: Record<string, { x: number; y: number }>;
+  /** Per-view hidden node overrides (seeded from effective hidden on first write). */
+  hiddenIds?: string[];
 }
 
 /** Fully resolved settings — every field is present (no undefined). */
@@ -38,8 +40,10 @@ export interface ResolvedViewSettings {
   themeMode: "light" | "dark";
   /** Per-view layout direction. "TB" default when no override. */
   direction: "TB" | "LR" | "BT" | "RL";
-  /** Per-view position overrides. undefined = use shared positions. */
+  /** Per-view node position overrides. undefined = use shared positions. */
   positions?: Record<string, { x: number; y: number }>;
+  /** Effective hidden list for this view (seeded override or global fallback). */
+  hiddenIds: string[];
 }
 
 // ── Resolution ──
@@ -57,6 +61,7 @@ export function resolveViewSettings(
   byLeaf: Record<string, ViewSettings>,
   leafId: string | null | undefined,
   global: ResolvedViewSettings,
+  globalHiddenIds?: string[],
 ): ResolvedViewSettings {
   const vs: ViewSettings = leafId && byLeaf[leafId] ? byLeaf[leafId] : {};
   const themeMode = pick(vs.themeMode, global.themeMode);
@@ -70,7 +75,8 @@ export function resolveViewSettings(
     edgeWidth: pick(vs.edgeWidth, global.edgeWidth),
     themeMode: themeMode === "system" ? global.themeMode : themeMode,
     direction: pick(vs.direction, global.direction),
-    positions: vs.positions, // undefined = use shared positions (no override)
+    positions: vs.positions,
+    hiddenIds: vs.hiddenIds ?? globalHiddenIds ?? [],
   };
 }
 

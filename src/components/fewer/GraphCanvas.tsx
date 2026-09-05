@@ -119,9 +119,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal,
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
-      themeMode: themeModeGlobal, direction,
-    }),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal, direction],
+      themeMode: themeModeGlobal, direction, hiddenIds,
+    }, hiddenIds),
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal, direction, hiddenIds],
   );
 
   const isDark = vs.themeMode === "dark";
@@ -177,7 +177,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [onEdgesChange],
   );
 
-  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges);
+  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
   useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
@@ -211,14 +211,16 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useEffect(() => {
     const latestEdges = useGraphStore.getState().edges;
     const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
+    // Apply per-view edge type (curved/straight/angled) to RF-state edges
+    const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
     // Sync store edges so persistence / undo / export reflect the current highlight.
     useGraphStore.setState({ edges: updatedEdges });
     // Re-apply RF's live edge selection so the rebuild doesn't wipe it.
-    setRfEdges(applyEdgeSelection(updatedEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
+    setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, vs.edgeWidth, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
+  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
 
   const dashArray = useMemo(() => {
     switch (vs.edgeStrokeStyle) {
@@ -481,7 +483,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   <button onClick={() => { zoomIn({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
                   <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
                   {leafId && (
-                    <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
+                    <>
+                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
+                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "showFiles", !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+                    </>
                   )}
                   {edgeExists && (
                     <>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import {
   Dialog,
   DialogContent,
@@ -695,10 +696,11 @@ function AboutTab() {
 /* -------------------------------------------------------------------------- */
 
 function AppearanceTab() {
-  const themeMode = useGraphStore((s) => s.themeMode);
+  const activeLeaf = useActiveLeaf();
+  const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
@@ -746,7 +748,7 @@ function AppearanceTab() {
         <div className="grid grid-cols-3 gap-2.5">
           {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
-            const active = themeMode === mode;
+            const active = (activeLeaf?.resolved.themeMode ?? themeModeGlobal) === mode;
             return (
               <button
                 key={mode}
@@ -761,7 +763,8 @@ function AppearanceTab() {
                   } else {
                     // Close theme editor dialog when switching to light/dark
                     useGraphStore.getState().setThemeEditorOpen(false);
-                    setThemeMode(mode);
+                    if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { themeMode: mode as "light" | "dark" });
+                    else setThemeMode(mode);
                   }
                 }}
                 className={cn(
@@ -791,14 +794,14 @@ function AppearanceTab() {
             <Label className="text-xs font-medium text-muted-foreground">Style</Label>
             <SlidingToggle
               options={edgeStyleOptions}
-              value={edgeStyle}
-              onValueChange={(v) => setEdgeStyle(v as EdgeStyle)}
+              value={activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal}
+              onValueChange={(v) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { edgeStyle: v as EdgeStyle }); else setEdgeStyle(v as EdgeStyle); }}
             />
           </div>
 
           {advancedModeEnabled && (
             <div className="flex flex-col gap-4 border-t border-border/30 pt-4">
-              {edgeStyle === "angled" && (
+              {(activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal) === "angled" && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium text-muted-foreground">Corner Radius</Label>

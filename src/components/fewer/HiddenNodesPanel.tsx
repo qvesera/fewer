@@ -263,11 +263,13 @@ export function HiddenNodesPanel() {
         onClick={() => {
           setHoverHighlight([]);
           const count = hiddenIds.length;
-          // Per-leaf showFiles first, then global showAll
-          if (activeLeafId) useGraphStore.getState().setViewSetting(activeLeafId, "showFiles", true);
-          else useGraphStore.getState().setShowFiles(true);
+          // Per-leaf reveal: clear view's hidden set
+          if (activeLeafId) {
+            useGraphStore.getState().revealAllForLeaf(activeLeafId);
+          }
+          // Also clear global hiddenIds + global showFiles (affects other views' defaults)
           showAll();
-          if (count > 0) toast({ title: "Unhid all nodes", description: `${plural(count, "node")} restored` });
+          if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
         }}
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />

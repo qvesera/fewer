@@ -116,6 +116,12 @@ export type UiSliceCreator = StateCreator<
     setViewSetting: (leafId: string, key: keyof import("@/lib/fewer/viewState").ViewSettings, value: unknown) => void;
     updateViewSettings: (leafId: string, patch: Partial<import("@/lib/fewer/viewState").ViewSettings>) => void;
     setNodePositionForLeaf: (leafId: string, nodeId: string, pos: { x: number; y: number }) => void;
+    /** Seed-on-write: first call captures effective hidden, then adds. */
+    hideForLeaf: (leafId: string, ids: string[]) => void;
+    /** Seed-on-write: first call captures effective hidden, then removes. */
+    unhideForLeaf: (leafId: string, ids: string[]) => void;
+    /** Clear per-view hidden list (reveal all in view). */
+    revealAllForLeaf: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -252,26 +258,23 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     set((s) => {
       const idSet = new Set(ids);
       const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+      // Mirror into active leaf's selection so per-view sync picks it up
+      const patch: Record<string, unknown> = { selectedNodeIds: ids };
+      if (s.activeLeafId) {
+        patch.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
+      }
       return changed
-        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
-        : { selectedNodeIds: ids, graphVersion: s.graphVersion + 1 };
+        ? { ...patch, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
+        : { ...patch, graphVersion: s.graphVersion + 1 };
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
 
-  setSelectionForLeaf: (leafId, ids) => set((s) => {
-    const idSet = new Set(ids);
-    const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
-    const next = {
-      leafSelections: { ...s.leafSelections, [leafId]: ids },
-      activeLeafId: leafId,
-      selectedNodeIds: ids,
-    };
-    if (changed) {
-      return { ...next, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 };
-    }
-    return { ...next, graphVersion: s.graphVersion + 1 };
-  }),
+  setSelectionForLeaf: (leafId, ids) => set((s) => ({
+    leafSelections: { ...s.leafSelections, [leafId]: ids },
+    activeLeafId: leafId,
+    selectedNodeIds: ids,
+  })),
 
   setActiveLeaf: (leafId) => set((s) => {
     if (!leafId || leafId === s.activeLeafId) return {};
@@ -380,6 +383,31 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next, graphVersion: s.graphVersion + 1 };
   }),
+
+  hideForLeaf: (leafId, ids) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    // Seed: if no hiddenIds override yet, capture current effective hidden
+    const current = leaf.hiddenIds ?? s.hiddenIds;
+    const leafNext = { ...leaf, hiddenIds: [...new Set([...current, ...ids])] };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: leafNext }, graphVersion: s.graphVersion + 1 });
+  },
+
+  unhideForLeaf: (leafId, ids) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const current = leaf.hiddenIds ?? s.hiddenIds;
+    const removeSet = new Set(ids);
+    const leafNext = { ...leaf, hiddenIds: current.filter((id) => !removeSet.has(id)) };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: leafNext }, graphVersion: s.graphVersion + 1 });
+  },
+
+  revealAllForLeaf: (leafId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, hiddenIds: [] } };
+    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+  },
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),

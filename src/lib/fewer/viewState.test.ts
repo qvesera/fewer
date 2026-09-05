@@ -12,6 +12,7 @@ const globalDefaults: ResolvedViewSettings = {
   edgeWidth: 1.5,
   themeMode: "dark",
   direction: "TB",
+  hiddenIds: [],
 };
 
 describe("resolveViewSettings", () => {
