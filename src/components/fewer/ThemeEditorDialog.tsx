@@ -564,20 +564,41 @@ export function ThemeEditorDialog() {
                             </button>
                           </div>
                           {isGradientOn(meta.key) && (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
+                              <div
+                                className="h-4 w-full rounded-md border border-border"
+                                style={{ background: toCssValue(customTheme[meta.key]) }}
+                                title="Gradient preview"
+                              />
+                              <div className="rounded-lg overflow-hidden">
+                                <HexAlphaColorPicker
+                                  color={colorOpacityToHexAlpha(
+                                    customTheme[meta.key].gradientTo!,
+                                    customTheme[meta.key].opacity,
+                                  )}
+                                  onChange={(c) => updateGradientEnd(meta.key, c)}
+                                  style={{ width: "100%", height: 160 }}
+                                />
+                              </div>
                               <div className="flex items-center gap-2">
-                                <div className="rounded-md border border-border bg-background p-1">
-                                  <HexAlphaColorPicker
-                                    color={colorOpacityToHexAlpha(customTheme[meta.key].gradientTo!, 1)}
+                                <div className="relative flex-1">
+                                  <HexColorInput
+                                    color={customTheme[meta.key].gradientTo!}
                                     onChange={(c) => updateGradientEnd(meta.key, c)}
-                                    style={{ width: 24, height: 24 }}
+                                    prefixed
+                                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
                                   />
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                    #
+                                  </span>
                                 </div>
-                                <span className="truncate font-mono text-[9px] text-muted-foreground">
-                                  {customTheme[meta.key].gradientTo}
-                                </span>
-                                <Input
-                                  type="number"
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="shrink-0 text-[10px] text-muted-foreground">
+                                  Angle
+                                </Label>
+                                <input
+                                  type="range"
                                   min={0}
                                   max={360}
                                   step={15}
@@ -585,9 +606,12 @@ export function ThemeEditorDialog() {
                                   onChange={(e) =>
                                     patchSlot(meta.key, { gradientAngle: Number(e.target.value) })
                                   }
-                                  className="h-7 w-16 text-xs"
+                                  className="flex-1 cursor-pointer accent-foreground"
                                   title="Gradient angle (degrees)"
                                 />
+                                <span className="shrink-0 w-10 text-right font-mono text-xs tabular-nums text-foreground/70">
+                                  {customTheme[meta.key].gradientAngle ?? 135}°
+                                </span>
                               </div>
                             </div>
                           )}
