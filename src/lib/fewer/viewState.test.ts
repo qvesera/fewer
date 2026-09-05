@@ -11,6 +11,7 @@ const globalDefaults: ResolvedViewSettings = {
   edgeStrokeStyle: "solid",
   edgeWidth: 1.5,
   themeMode: "dark",
+  direction: "TB",
 };
 
 describe("resolveViewSettings", () => {

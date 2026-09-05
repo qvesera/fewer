@@ -2,6 +2,7 @@
 
 import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, FolderOpen, Trash2, FilePlus, FolderPlus } from "lucide-react";
 import { SlidingToggle } from "@/components/ui/sliding-toggle";
@@ -12,6 +13,7 @@ import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
 import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
 import type { EdgeStyle } from "@/lib/fewer/types";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 
 const GraphCanvasForArea = dynamic(
   () => import("./GraphCanvas").then((m) => m.GraphCanvas),
@@ -85,14 +87,23 @@ function SectionContent({ editor }: { editor: AreaEditor }) {
 }
 
 function LayoutSection() {
-  const direction = useGraphStore((s) => s.direction);
-  const setDirection = useGraphStore((s) => s.setDirection);
+  const activeLeaf = useActiveLeaf();
+  const updateViewSettings = useGraphStore((s) => s.updateViewSettings);
+  const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const directionGlobal = useGraphStore((s) => s.direction);
   const relayout = useGraphStore((s) => s.relayout);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
+  const showFiles = activeLeaf?.resolved.showFiles ?? true;
+  const direction = activeLeaf?.resolved.direction ?? directionGlobal;
+
   return (
     <div className="flex flex-col gap-3 w-full min-w-0">
-      <LayoutPicker direction={direction} onPick={setDirection} advancedModeEnabled={advancedModeEnabled} />
+      <LayoutPicker
+        direction={direction}
+        onPick={(d) => { if (activeLeaf) updateViewSettings(activeLeaf.leafId, { direction: d }); else useGraphStore.getState().setDirection(d); }}
+        advancedModeEnabled={advancedModeEnabled}
+      />
       <Button
         size="sm"
         className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
@@ -101,13 +112,25 @@ function LayoutSection() {
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">Rearrange</span>
       </Button>
+      <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
+        <Label className="text-xs font-medium cursor-pointer truncate">Show File Cards</Label>
+        <Switch
+          checked={showFiles}
+          onCheckedChange={(v) => { if (activeLeaf) updateViewSettings(activeLeaf.leafId, { showFiles: v }); else setShowFiles(v); }}
+          className="shrink-0"
+        />
+      </div>
     </div>
   );
 }
 
 function EdgesSection() {
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
-  const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
+  const activeLeaf = useActiveLeaf();
+  const updateViewSettings = useGraphStore((s) => s.updateViewSettings);
+  const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
+  const edgeStyle = activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal;
+  const edgeStyleTarget = activeLeaf?.leafId;
+
   const styles = [
     { value: "curved" as EdgeStyle, label: "Curved" },
     { value: "straight" as EdgeStyle, label: "Straight" },
@@ -117,7 +140,11 @@ function EdgesSection() {
     <div className="flex flex-col gap-3 w-full min-w-0">
       <div className="space-y-1.5 w-full min-w-0">
         <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
-        <SlidingToggle options={styles} value={edgeStyle} onValueChange={(v) => setEdgeStyle(v as EdgeStyle)} />
+        <SlidingToggle
+          options={styles}
+          value={edgeStyle}
+          onValueChange={(v) => { if (edgeStyleTarget) updateViewSettings(edgeStyleTarget, { edgeStyle: v as EdgeStyle }); }}
+        />
       </div>
     </div>
   );

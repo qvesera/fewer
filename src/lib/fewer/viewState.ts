@@ -20,6 +20,10 @@ export interface ViewSettings {
   edgeWidth?: number;
   /** Per-view light/dark. "system" resolves to the global value at call time. */
   themeMode?: "light" | "dark" | "system";
+  /** Per-view layout direction override. */
+  direction?: "TB" | "LR" | "BT" | "RL";
+  /** Per-view node position overrides (when direction is overridden). */
+  positions?: Record<string, { x: number; y: number }>;
 }
 
 /** Fully resolved settings — every field is present (no undefined). */
@@ -32,6 +36,10 @@ export interface ResolvedViewSettings {
   edgeStrokeStyle: EdgeStrokeStyle;
   edgeWidth: number;
   themeMode: "light" | "dark";
+  /** Per-view layout direction. "TB" default when no override. */
+  direction: "TB" | "LR" | "BT" | "RL";
+  /** Per-view position overrides. undefined = use shared positions. */
+  positions?: Record<string, { x: number; y: number }>;
 }
 
 // ── Resolution ──
@@ -61,6 +69,8 @@ export function resolveViewSettings(
     edgeStrokeStyle: pick(vs.edgeStrokeStyle, global.edgeStrokeStyle),
     edgeWidth: pick(vs.edgeWidth, global.edgeWidth),
     themeMode: themeMode === "system" ? global.themeMode : themeMode,
+    direction: pick(vs.direction, global.direction),
+    positions: vs.positions, // undefined = use shared positions (no override)
   };
 }
 
@@ -88,6 +98,8 @@ function sanitizeViewSettings(raw: unknown): ViewSettings {
   if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
   if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
   if (typeof obj.themeMode === "string") out.themeMode = obj.themeMode;
+  if (typeof obj.direction === "string") out.direction = obj.direction;
+  if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   return out as ViewSettings;
 }
 

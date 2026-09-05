@@ -47,6 +47,7 @@ import { SlidingToggle } from "../ui/sliding-toggle";
 import { plural } from "@/lib/fewer/plural";
 import { sectionsDockedInTree } from "@/lib/fewer/panelTree";
 import type { AreaEditor } from "@/lib/fewer/panelLayout";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { startSectionDrag } from "./SectionDragLayer";
 
@@ -71,6 +72,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const tags = useGraphStore((s) => s.tags);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const edges = useGraphStore((s) => s.edges);
+  const activeLeaf = useActiveLeaf();
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
 
@@ -264,13 +266,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
               <SlidingToggle
                 options={availableEdgeStyles}
-                value={edgeStyle}
-                onValueChange={(v) => setEdgeStyle(v as EdgeStyle)}
+                value={activeLeaf?.resolved.edgeStyle ?? edgeStyle}
+                onValueChange={(v) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { edgeStyle: v as EdgeStyle }); else setEdgeStyle(v as EdgeStyle); }}
               />
             </div>
-
-            {/* Edge fine-tuning (corner radius, motion, pattern, thickness) lives in
-                Settings → Appearance → Edge Styling. Sidebar keeps the quick style picker. */}
           </div>
         </CollapsibleSection>
         )}

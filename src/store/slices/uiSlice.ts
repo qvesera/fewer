@@ -114,6 +114,8 @@ export type UiSliceCreator = StateCreator<
     toggleMinimapForLeaf: (leafId: string) => void;
     /** Set a per-view setting override. Bumps graphVersion for sync. */
     setViewSetting: (leafId: string, key: keyof import("@/lib/fewer/viewState").ViewSettings, value: unknown) => void;
+    updateViewSettings: (leafId: string, patch: Partial<import("@/lib/fewer/viewState").ViewSettings>) => void;
+    setNodePositionForLeaf: (leafId: string, nodeId: string, pos: { x: number; y: number }) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -363,6 +365,19 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setViewSetting: (leafId, key, value) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
+    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  updateViewSettings: (leafId, patch) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, ...patch } };
+    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setNodePositionForLeaf: (leafId, nodeId, pos) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const positions = { ...(leaf.positions ?? {}), [nodeId]: pos };
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next, graphVersion: s.graphVersion + 1 };
   }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),

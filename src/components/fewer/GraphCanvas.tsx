@@ -36,6 +36,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
+import { layoutGraphContour } from "@/lib/fewer/layout";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
 import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
@@ -118,9 +119,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal,
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
-      themeMode: themeModeGlobal,
+      themeMode: themeModeGlobal, direction,
     }),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal],
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal, direction],
   );
 
   const isDark = vs.themeMode === "dark";
@@ -135,6 +136,22 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     : [...hiddenIds, ...allNodes.filter((n) => n.data.type === "file").map((n) => n.id)];
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
+
+  // ── Per-view direction: derive positions when direction override is active ──
+  const hasDirectionOverride = vs.direction !== direction;
+  const positionedNodes = useMemo(() => {
+    // 1. Explicit per-view positions (set by drag) take priority
+    if (vs.positions) {
+      return visibleNodes.map((n) => vs.positions![n.id] ? { ...n, position: vs.positions![n.id] } : n);
+    }
+    // 2. Direction override without explicit positions: derive from layout engine
+    if (hasDirectionOverride) {
+      return layoutGraphContour(visibleNodes, visibleEdges, vs.direction);
+    }
+    // 3. No override: use shared (store) positions
+    return visibleNodes;
+  }, [vs.positions, vs.direction, hasDirectionOverride, visibleNodes, visibleEdges]);
+
   const graphsExists = allNodes.length > 0;
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
@@ -160,15 +177,27 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [onEdgesChange],
   );
 
-  useCanvasGraphSync(graphVersion, visibleNodes, visibleEdges, setRfNodes, setRfEdges);
+  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges);
   useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
-  useCanvasDirectionRemeasure(direction);
+  useCanvasDirectionRemeasure(vs.direction);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
-  useCanvasInitialFit(visibleNodes, containerRef, setViewport);
+  useCanvasInitialFit(positionedNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
-  const dragHandlers = useCanvasNodeDrag(recordDragMoves);
+  // When a direction override is active, drag writes per-view positions
+  const setNodePositionForLeaf = useGraphStore((s) => s.setNodePositionForLeaf);
+  const effectiveRecordDragMoves = useCallback(
+    (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
+      if (leafId && hasDirectionOverride) {
+        for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
+      } else {
+        recordDragMoves(moves);
+      }
+    },
+    [leafId, hasDirectionOverride, recordDragMoves, setNodePositionForLeaf],
+  );
+  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
@@ -452,17 +481,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   <button onClick={() => { zoomIn({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
                   <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
                   {leafId && (
-                    <>
-                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
-                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "showFiles", !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
-                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "themeMode", vs.themeMode === "dark" ? "light" : "dark"); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Theme: {vs.themeMode === "dark" ? "Light" : "Dark"}</button>
-                      <div className="my-1 h-px bg-border/40" />
-                      <div className="flex items-center gap-1 px-2 py-1">
-                        {(["curved", "straight", "angled"] as const).map((style) => (
-                          <button key={style} onClick={() => { useGraphStore.getState().setViewSetting(leafId, "edgeStyle", style); close(); }} className={`rounded px-2 py-1 text-xs transition-colors ${vs.edgeStyle === style ? "bg-primary/20 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>{style.charAt(0).toUpperCase() + style.slice(1)}</button>
-                        ))}
-                      </div>
-                    </>
+                    <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
                   )}
                   {edgeExists && (
                     <>
