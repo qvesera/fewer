@@ -287,6 +287,7 @@ export type GraphSliceCreator = StateCreator<
     connect: (source: string, target: string) => void;
     reset: () => void;
     applySearch: () => void;
+    applyTagFilter: () => void;
     relayout: () => void;
     triggerHiddenPanelExpand: () => void;
     setClipboard: (mode: "copy" | "cut", nodeIds: string[]) => void;

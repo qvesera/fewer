@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
 - Editing a gradient slot's base color no longer resets its gradient endpoint and angle
 - Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
+- Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
 
 ### Added
 
