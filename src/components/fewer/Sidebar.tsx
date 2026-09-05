@@ -272,18 +272,22 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         )}
 
         {/* ── 5. HIDDEN NODES RECOVERY ── */}
-        {!dockedIds.has("hidden") && hiddenIds.length > 0 && (
+        {!dockedIds.has("hidden") && (() => {
+          const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
+          const hasAnythingHidden = hiddenIds.length > 0 || viewFiltersFiles;
+          return hasAnythingHidden && (
           <CollapsibleSection
             title="Hidden Cards"
             icon={EyeOff}
-            badge={String(hiddenIds.length)}
+            badge={String(hiddenIds.length + (viewFiltersFiles ? nodes.filter((n) => n.data.type === "file").length : 0))}
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
             {...dragProps("hidden")}
           >
             <HiddenNodesPanel />
           </CollapsibleSection>
-        )}
+          );
+        })()}
 
         {/* ── 6. TAGS ── */}
         {!dockedIds.has("tags") && nodes.length > 0 && (

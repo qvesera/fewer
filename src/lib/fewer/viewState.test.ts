@@ -10,7 +10,6 @@ const globalDefaults: ResolvedViewSettings = {
   edgeAnimatedSelectedOnly: false,
   edgeStrokeStyle: "solid",
   edgeWidth: 1.5,
-  themeMode: "dark",
   direction: "TB",
   hiddenIds: [],
 };
@@ -34,16 +33,6 @@ describe("resolveViewSettings", () => {
   it("leaf override wins for edgeStyle", () => {
     const result = resolveViewSettings({ "x": { edgeStyle: "straight" } }, "x", globalDefaults);
     expect(result.edgeStyle).toBe("straight");
-  });
-
-  it("leaf override wins for themeMode", () => {
-    const result = resolveViewSettings({ "x": { themeMode: "light" } }, "x", globalDefaults);
-    expect(result.themeMode).toBe("light");
-  });
-
-  it("system themeMode resolves to global", () => {
-    const result = resolveViewSettings({ "x": { themeMode: "system" } }, "x", globalDefaults);
-    expect(result.themeMode).toBe("dark");
   });
 
   it("partial override merges with globals", () => {

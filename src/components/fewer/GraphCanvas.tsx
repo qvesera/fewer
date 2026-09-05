@@ -120,16 +120,16 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal,
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
-      themeMode: themeModeGlobal, direction, hiddenIds,
+      direction, hiddenIds,
     }, hiddenIds),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, themeModeGlobal, direction, hiddenIds],
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds],
   );
 
-  const isDark = vs.themeMode === "dark";
+  const isDark = themeModeGlobal === "dark";
 
   // ── Hook extractions ──
   useCanvasResize(containerRef, setCanvasSize);
-  const themeColors = useCanvasThemeColors(vs.themeMode, isDark, customTheme);
+  const themeColors = useCanvasThemeColors(themeModeGlobal, isDark, customTheme);
 
   // Derive effective hiddenIds: if per-leaf showFiles is off, add all file node IDs
   const effectiveHiddenIds = vs.showFiles

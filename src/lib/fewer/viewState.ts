@@ -18,8 +18,6 @@ export interface ViewSettings {
   edgeAnimatedSelectedOnly?: boolean;
   edgeStrokeStyle?: EdgeStrokeStyle;
   edgeWidth?: number;
-  /** Per-view light/dark. "system" resolves to the global value at call time. */
-  themeMode?: "light" | "dark" | "system";
   /** Per-view layout direction override. */
   direction?: "TB" | "LR" | "BT" | "RL";
   /** Per-view node position overrides (when direction is overridden). */
@@ -37,10 +35,9 @@ export interface ResolvedViewSettings {
   edgeAnimatedSelectedOnly: boolean;
   edgeStrokeStyle: EdgeStrokeStyle;
   edgeWidth: number;
-  themeMode: "light" | "dark";
   /** Per-view layout direction. "TB" default when no override. */
   direction: "TB" | "LR" | "BT" | "RL";
-  /** Per-view node position overrides. undefined = use shared positions. */
+  /** Per-view position overrides. undefined = use shared positions. */
   positions?: Record<string, { x: number; y: number }>;
   /** Effective hidden list for this view (seeded override or global fallback). */
   hiddenIds: string[];
@@ -64,7 +61,6 @@ export function resolveViewSettings(
   globalHiddenIds?: string[],
 ): ResolvedViewSettings {
   const vs: ViewSettings = leafId && byLeaf[leafId] ? byLeaf[leafId] : {};
-  const themeMode = pick(vs.themeMode, global.themeMode);
   return {
     showFiles: pick(vs.showFiles, global.showFiles),
     minimapHidden: pick(vs.minimapHidden, global.minimapHidden),
@@ -73,7 +69,6 @@ export function resolveViewSettings(
     edgeAnimatedSelectedOnly: pick(vs.edgeAnimatedSelectedOnly, global.edgeAnimatedSelectedOnly),
     edgeStrokeStyle: pick(vs.edgeStrokeStyle, global.edgeStrokeStyle),
     edgeWidth: pick(vs.edgeWidth, global.edgeWidth),
-    themeMode: themeMode === "system" ? global.themeMode : themeMode,
     direction: pick(vs.direction, global.direction),
     positions: vs.positions,
     hiddenIds: vs.hiddenIds ?? globalHiddenIds ?? [],
@@ -103,7 +98,6 @@ function sanitizeViewSettings(raw: unknown): ViewSettings {
   if (typeof obj.edgeAnimatedSelectedOnly === "boolean") out.edgeAnimatedSelectedOnly = obj.edgeAnimatedSelectedOnly;
   if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
   if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
-  if (typeof obj.themeMode === "string") out.themeMode = obj.themeMode;
   if (typeof obj.direction === "string") out.direction = obj.direction;
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   return out as ViewSettings;

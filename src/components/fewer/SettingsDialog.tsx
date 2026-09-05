@@ -748,7 +748,7 @@ function AppearanceTab() {
         <div className="grid grid-cols-3 gap-2.5">
           {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
-            const active = (activeLeaf?.resolved.themeMode ?? themeModeGlobal) === mode;
+            const active = themeModeGlobal === mode;
             return (
               <button
                 key={mode}
@@ -763,8 +763,7 @@ function AppearanceTab() {
                   } else {
                     // Close theme editor dialog when switching to light/dark
                     useGraphStore.getState().setThemeEditorOpen(false);
-                    if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { themeMode: mode as "light" | "dark" });
-                    else setThemeMode(mode);
+                    setThemeMode(mode);
                   }
                 }}
                 className={cn(
