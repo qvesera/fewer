@@ -186,17 +186,19 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
-  // When a direction override is active, drag writes per-view positions
+  // All drags write to per-view positions when a leafId exists,
+  // so views remain independent. Shared store positions are never
+  // updated by individual view drags — they stay as the layout seed.
   const setNodePositionForLeaf = useGraphStore((s) => s.setNodePositionForLeaf);
   const effectiveRecordDragMoves = useCallback(
     (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
-      if (leafId && hasDirectionOverride) {
+      if (leafId) {
         for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
       } else {
         recordDragMoves(moves);
       }
     },
-    [leafId, hasDirectionOverride, recordDragMoves, setNodePositionForLeaf],
+    [leafId, recordDragMoves, setNodePositionForLeaf],
   );
   const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
