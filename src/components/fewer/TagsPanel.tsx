@@ -1,25 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Check, X, Tag as TagIcon } from "lucide-react";
+import { useState } from "react";
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
-import type { Tag } from "@/lib/fewer/tags";
 
 /**
- * Sidebar panel: filter by tag, create/rename/recolor/delete tags (the tag
- * registry). The "Filter by tag" section mirrors the "By category" section in
- * StatsPanel — click a tag to hide everything that doesn't carry it; clicking
- * again clears the filter.
+ * Sidebar panel: create/rename/recolor/delete tags (the tag registry). Deleting
+ * a tag strips it from every node. Tag assignment itself happens in each
+ * node's context menu — this panel manages the shared palette.
  */
 export function TagsPanel() {
   const tags = useGraphStore((s) => s.tags);
-  const nodes = useGraphStore((s) => s.nodes);
-  const tagFilter = useGraphStore((s) => s.tagFilter);
-  const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const createTag = useGraphStore((s) => s.createTag);
   const updateTag = useGraphStore((s) => s.updateTag);
   const deleteTag = useGraphStore((s) => s.deleteTag);
@@ -30,19 +25,6 @@ export function TagsPanel() {
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
-
-  /** How many nodes carry each tag (folders + files). */
-  const tagCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const tag of tags) {
-      let n = 0;
-      for (const node of nodes) {
-        if ((node.data.tagIds ?? []).includes(tag.id)) n++;
-      }
-      if (n > 0) counts.set(tag.id, n);
-    }
-    return counts;
-  }, [tags, nodes]);
 
   const commitCreate = () => {
     const label = draft.trim();
@@ -68,72 +50,9 @@ export function TagsPanel() {
       {tags.length === 0 && !creating && (
         <p className="text-[11px] leading-relaxed text-muted-foreground/70">
           No tags yet. Tags highlight cards with a colored ring and let you
-          filter the graph.
+          filter the graph from Graph Analytics.
         </p>
       )}
-
-      {/* ── Filter by tag (mirrors StatsPanel "By category") ── */}
-      {tags.length > 0 && (
-        <div className="rounded-xl border border-border/40 bg-card/40 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              By tag
-            </span>
-            {tagFilter.length > 0 && (
-              <button
-                onClick={() => {
-                  // Clear all active tag filters at once.
-                  useGraphStore.getState().setTagFilter([]);
-                }}
-                className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
-              >
-                Clear filter
-              </button>
-            )}
-          </div>
-          <div className="space-y-1">
-            {tags.map((tag) => {
-              const count = tagCounts.get(tag.id) ?? 0;
-              if (count === 0) return null;
-              const total = nodes.length || 1;
-              const pct = (count / total) * 100;
-              const active = tagFilter.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleTagFilter(tag.id)}
-                  title={active ? `Showing only "${tag.label}" — click to clear` : `Show only "${tag.label}" cards`}
-                  className={cn(
-                    "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
-                    active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",
-                  )}
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full ring-1 ring-white/30"
-                        style={{ background: tag.color }}
-                        aria-hidden="true"
-                      />
-                      <span className={cn("font-medium", active && "text-foreground")}>{tag.label}</span>
-                      {active && <span className="text-[9px] font-semibold uppercase tracking-wide text-primary">Filtering</span>}
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">{count}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-500"
-                      style={{ width: `${pct}%`, background: tag.color }}
-                    />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Tag management ── */}
       <div className="flex flex-col gap-1 w-full min-w-0">
         {tags.map((tag) => (
           <div key={tag.id} className="flex flex-col gap-1">
