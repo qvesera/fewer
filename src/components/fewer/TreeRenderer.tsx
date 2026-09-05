@@ -9,6 +9,7 @@ import { DockArea } from "./DockArea";
 import { CornerGrip } from "./CornerGrip";
 import { saveLayoutToStorage } from "@/lib/fewer/panelLayout";
 import dynamic from "next/dynamic";
+import { X } from "lucide-react";
 
 const GraphCanvasForLeaf = dynamic(
   () => import("./GraphCanvas").then((m) => m.GraphCanvas),
@@ -76,6 +77,24 @@ function LeafNode({
       ) : (
         <DockArea area={leaf.area} side="left" />
       )}
+
+      {/* Close / merge button — hidden when only one leaf or when it's the primary with no siblings */}
+      {!leaf.primary && (
+        <button
+          onClick={() => useGraphStore.getState().joinArea(leaf.area.id)}
+          className={cn(
+            "absolute top-1 right-1 z-30 flex items-center justify-center",
+            "w-5 h-5 rounded-full bg-background/80 border border-border/40",
+            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive",
+            "text-muted-foreground",
+          )}
+          title="Close (merge into neighbor)"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+
       <CornerGrip leafId={leaf.area.id} containerRef={containerRef} />
     </div>
   );
