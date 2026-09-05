@@ -254,7 +254,7 @@ export function FewerApp() {
       if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
       graphTimerRef.current = setTimeout(() => {
         const s = useGraphStore.getState();
-        saveGraphLocal({ nodes: s.nodes, edges: s.edges, dataSource: s.dataSource, localRootPath: s.localRootPath });
+        saveGraphLocal({ nodes: s.nodes, edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
       }, 500);
     });
     return () => {

@@ -868,6 +868,7 @@ function AppearanceTab() {
                 { value: "name" as const, label: "Name" },
                 { value: "size" as const, label: "Size" },
                 { value: "type" as const, label: "Type" },
+                { value: "tag" as const, label: "Tag" },
               ]}
               value={sortKey}
               onValueChange={(v) => setSortKey(v as SortKey)}

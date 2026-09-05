@@ -13,6 +13,7 @@ export function buildSnapshot(): SavedGraphData {
   return {
     nodes: s.nodes,
     edges: s.edges,
+    tags: s.tags,
     localRootPath: s.localRootPath,
   };
 }
@@ -37,6 +38,7 @@ export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions)
     dataSource: opts?.source ?? "saved",
     localRootPath: data.localRootPath ?? null,
     skipNextAutoLayout: true,
+    tags: data.tags ?? [],
   });
 }
 
@@ -53,6 +55,7 @@ interface LocalGraphSnapshot {
   version: number;
   nodes: FewerNode[];
   edges: FewerEdge[];
+  tags: { id: string; label: string; color: string }[];
   dataSource: string | null;
   localRootPath: string | null;
 }
@@ -61,6 +64,7 @@ interface LocalGraphSnapshot {
 export function saveGraphLocal(snap: {
   nodes: FewerNode[];
   edges: FewerEdge[];
+  tags: { id: string; label: string; color: string }[];
   dataSource: string | null;
   localRootPath: string | null;
 }): void {
@@ -88,7 +92,7 @@ export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | n
       return null;
     }
     return {
-      data: { nodes: parsed.nodes, edges: parsed.edges, localRootPath: parsed.localRootPath ?? null },
+      data: { nodes: parsed.nodes, edges: parsed.edges, tags: parsed.tags ?? [], localRootPath: parsed.localRootPath ?? null },
       dataSource: parsed.dataSource ?? null,
     };
   } catch {
