@@ -217,8 +217,8 @@ export function HiddenNodesPanel() {
   if (hiddenIds.length === 0) return null;
 
   return (
-    <>
-      <div className="relative w-full min-w-0">
+    <div className="flex flex-col flex-1 min-h-0 gap-2 w-full min-w-0">
+      <div className="relative w-full min-w-0 shrink-0">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
         <Input
           value={hiddenSearch}
@@ -230,7 +230,7 @@ export function HiddenNodesPanel() {
       <Button
         variant="outline"
         size="sm"
-        className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
+        className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0 shrink-0"
         onClick={() => {
           setHoverHighlight([]);
           const count = hiddenIds.length;
@@ -246,7 +246,7 @@ export function HiddenNodesPanel() {
         <Eye className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">Reveal All</span>
       </Button>
-      <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
         {filteredHiddenGroups.length > 0 ? (
           filteredHiddenGroups.map((group, i) => (
             <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} />
@@ -257,7 +257,7 @@ export function HiddenNodesPanel() {
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -56,7 +56,7 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div className="flex-1 min-h-0 p-3 flex flex-col min-w-0 overflow-hidden">
       <SectionContent editor={area.editor} />
     </div>
   );
