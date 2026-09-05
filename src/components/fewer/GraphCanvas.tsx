@@ -107,11 +107,17 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const customTheme = useGraphStore((s) => s.customTheme);
   const direction = useGraphStore((s) => s.direction);
+  const activeLeafId = useGraphStore((s) => s.activeLeafId);
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
+  const leafSelections = useGraphStore((s) => s.leafSelections);
   const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const relayout = useGraphStore((s) => s.relayout);
+
+  // Per-view scope
+  const isActive = leafId ? leafId === activeLeafId : true;
+  const effectiveHoverHighlight = isActive ? hoverHighlightIds : [];
 
   // ── Resolve per-view settings ──
   const vs = useMemo(
@@ -138,20 +144,22 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
-  // ── Per-view direction: derive positions when direction override is active ──
+  // ── Per-view positions: derive when direction overrides OR visible set diverges ──
   const hasDirectionOverride = vs.direction !== direction;
+  const visibleSetDiverges = effectiveHiddenIds.length !== hiddenIds.length;
+  const needsDerivation = hasDirectionOverride || visibleSetDiverges;
   const positionedNodes = useMemo(() => {
     // 1. Explicit per-view positions (set by drag) take priority
     if (vs.positions) {
       return visibleNodes.map((n) => vs.positions![n.id] ? { ...n, position: vs.positions![n.id] } : n);
     }
-    // 2. Direction override without explicit positions: derive from layout engine
-    if (hasDirectionOverride) {
+    // 2. Direction override OR diverged visible set: derive from layout engine
+    if (needsDerivation) {
       return layoutGraphContour(visibleNodes, visibleEdges, vs.direction);
     }
-    // 3. No override: use shared (store) positions
+    // 3. No override, shared visible set: use shared (store) positions
     return visibleNodes;
-  }, [vs.positions, vs.direction, hasDirectionOverride, visibleNodes, visibleEdges]);
+  }, [vs.positions, vs.direction, needsDerivation, visibleNodes, visibleEdges]);
 
   const graphsExists = allNodes.length > 0;
 
@@ -184,7 +192,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(positionedNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
-  useCanvasZoomToNode(zoomToNode, useGraphStore((s) => s.zoomToNodeIds), fitView, setZoomToNodeIds);
+  useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
   // All drags write to per-view positions when a leafId exists,
   // so views remain independent. Shared store positions are never
@@ -202,28 +210,25 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   );
   const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
+  // Leaf's own selection for edge highlight (not global — prevents cross-view leak)
+  const leafSelForHighlight = leafId ? (leafSelections[leafId] ?? []) : selectedNodeIds;
+
   const animation = useEdgeAnimationOpts(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
-  // ── Re-apply edge highlight on graph/theme/edge changes (see useEdgeHighlight). ──
-  // Store edges are read via getState() so the effect only fires when selection /
-  // theme / animation / hiddenIds / graphVersion change — NOT when store edges
-  // change from the effect itself, which would create a render loop.
+  // Re-apply edge highlight per-view: uses leaf selection, writes only to RF edges
+  // (NOT to shared store — highlight is visual state, not graph data).
   useEffect(() => {
     const latestEdges = useGraphStore.getState().edges;
-    const updatedEdges = buildSelectedEdgeHighlight(selectedNodeIds, hoverHighlightIds, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
-    // Apply per-view edge type (curved/straight/angled) to RF-state edges
+    const updatedEdges = buildSelectedEdgeHighlight(leafSelForHighlight, effectiveHoverHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
     const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
-    // Sync store edges so persistence / undo / export reflect the current highlight.
-    useGraphStore.setState({ edges: updatedEdges });
-    // Re-apply RF's live edge selection so the rebuild doesn't wipe it.
     setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [selectedNodeIds, hoverHighlightIds, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
+  }, [leafSelForHighlight, effectiveHoverHighlight, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, graphVersion, advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, animation, setRfEdges, hiddenIds]);
 
   const dashArray = useMemo(() => {
     switch (vs.edgeStrokeStyle) {
@@ -332,7 +337,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   }, []);
 
   return (
-    <GraphViewProvider value={vs.direction}>
+    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs }}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}

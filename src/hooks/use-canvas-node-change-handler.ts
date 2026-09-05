@@ -9,12 +9,9 @@ interface NodeChangeHandlerDeps {
   fitView: (opts?: { duration?: number; padding?: number }) => void;
   /** Commit a debounced resize op to history. */
   recordResize: (changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[]) => void;
-  /**
-   * External ref (from useCanvasBoxSelect) capturing the pre-gesture selection
-   * during a Shift+drag. Lets us flip RF's deselects back on for those nodes
-   * so the box ADDS to the selection instead of replacing it.
-   */
   boxSelectBaseRef: { current: Set<string> | null };
+  /** When set, position changes route to per-view instead of shared store. */
+  leafId?: string;
 }
 
 /**
@@ -32,6 +29,7 @@ export function useCanvasNodeChangeHandler({
   fitView,
   recordResize,
   boxSelectBaseRef,
+  leafId,
 }: NodeChangeHandlerDeps) {
   void fitView; // reserved for parity with original signature; not used directly
 
@@ -64,12 +62,18 @@ export function useCanvasNodeChangeHandler({
       );
 
       if (positionChanges.length > 0) {
-        useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
-            const change = positionChanges.find((c) => c.id === n.id);
-            return change ? { ...n, position: change.position } : n;
-          }),
-        }));
+        if (leafId) {
+          // Per-view: write positions to viewSettings, not shared store
+          const entries = positionChanges.map((c) => ({ id: c.id, pos: c.position! }));
+          useGraphStore.getState().setNodePositionsBatch(leafId, entries);
+        } else {
+          useGraphStore.setState((s) => ({
+            nodes: s.nodes.map((n) => {
+              const change = positionChanges.find((c) => c.id === n.id);
+              return change ? { ...n, position: change.position } : n;
+            }),
+          }));
+        }
       }
 
       if (dimensionChanges.length > 0) {
@@ -109,7 +113,7 @@ export function useCanvasNodeChangeHandler({
         }, 300);
       }
     },
-            [onNodesChange, fitView, recordResize, boxSelectBaseRef],
+            [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId],
   );
 
   return handleNodesChange;

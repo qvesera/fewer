@@ -238,12 +238,17 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               advancedModeEnabled={advancedModeEnabled}
             />
 
-            {/* Rearrange Action Button (shadcn) */}
+            {/* Rearrange Action Button — clears per-view positions for active leaf, else global relayout */}
             <Button
               size="sm"
               className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
               onClick={() => {
-                relayout();
+                const store = useGraphStore.getState();
+                if (activeLeaf && Object.keys(store.viewSettings[activeLeaf.leafId] ?? {}).length > 0) {
+                  store.clearViewPositions(activeLeaf.leafId);
+                } else {
+                  relayout();
+                }
                 toast({ title: "Graph rearranged" });
               }}
             >

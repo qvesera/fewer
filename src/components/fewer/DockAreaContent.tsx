@@ -107,7 +107,14 @@ function LayoutSection() {
       <Button
         size="sm"
         className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
-        onClick={() => relayout()}
+        onClick={() => {
+          const store = useGraphStore.getState();
+          if (activeLeaf && Object.keys(store.viewSettings[activeLeaf.leafId] ?? {}).length > 0) {
+            store.clearViewPositions(activeLeaf.leafId);
+          } else {
+            relayout();
+          }
+        }}
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">Rearrange</span>

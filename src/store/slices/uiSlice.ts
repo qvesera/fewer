@@ -116,12 +116,15 @@ export type UiSliceCreator = StateCreator<
     setViewSetting: (leafId: string, key: keyof import("@/lib/fewer/viewState").ViewSettings, value: unknown) => void;
     updateViewSettings: (leafId: string, patch: Partial<import("@/lib/fewer/viewState").ViewSettings>) => void;
     setNodePositionForLeaf: (leafId: string, nodeId: string, pos: { x: number; y: number }) => void;
+    /** Batch write per-view positions without graphVersion bump (for during-drag). */
+    setNodePositionsBatch: (leafId: string, entries: { id: string; pos: { x: number; y: number } }[]) => void;
     /** Seed-on-write: first call captures effective hidden, then adds. */
     hideForLeaf: (leafId: string, ids: string[]) => void;
     /** Seed-on-write: first call captures effective hidden, then removes. */
     unhideForLeaf: (leafId: string, ids: string[]) => void;
     /** Clear per-view hidden list (reveal all in view). */
     revealAllForLeaf: (leafId: string) => void;
+    clearViewPositions: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -373,8 +376,13 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   updateViewSettings: (leafId, patch) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, ...patch } };
-    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+    // When direction changes, clear positions so the view re-derives
+    const next: Record<string, unknown> = { ...leaf, ...patch };
+    if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
+      next.positions = undefined;
+    }
+    const viewNext = { ...s.viewSettings, [leafId]: next };
+    return { viewSettings: viewNext, graphVersion: s.graphVersion + 1 };
   }),
 
   setNodePositionForLeaf: (leafId, nodeId, pos) => set((s) => {
@@ -382,6 +390,14 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const positions = { ...(leaf.positions ?? {}), [nodeId]: pos };
     const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setNodePositionsBatch: (leafId, entries) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const positions = { ...(leaf.positions ?? {}) };
+    for (const { id, pos } of entries) positions[id] = pos;
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
+    return { viewSettings: next }; // No graphVersion bump — RF already shows positions
   }),
 
   hideForLeaf: (leafId, ids) => {
@@ -406,6 +422,14 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, hiddenIds: [] } };
+    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+  },
+
+  clearViewPositions: (leafId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId];
+    if (!leaf?.positions) return;
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: undefined } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
   },
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),

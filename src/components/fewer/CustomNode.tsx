@@ -2,7 +2,7 @@
 
 import { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps, NodeResizer } from "@xyflow/react";
-import { useGraphViewDirection } from "@/hooks/use-graph-view-context";
+import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view-context";
 import {
   Folder,
   FolderOpen,
@@ -781,6 +781,7 @@ function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, 
 }
 
 function ChildEntry({ child }: { child: FewerNode }) {
+  const scope = useGraphViewScope();
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -839,7 +840,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
             : "text-fewer-file-icon",
         )}
       />
-      {renamingId === child.id && renameSource === "folder" ? (
+      {scope?.isActive && renamingId === child.id && renameSource === "folder" ? (
         <RenameInput
           initialValue={child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label}
           onCommit={handleRename}
@@ -891,6 +892,7 @@ function CustomNodeImpl({
   width,
   height,
 }: NodeProps<FewerNode>) {
+  const scope = useGraphViewScope();
   const layoutDirection = useGraphViewDirection();
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
@@ -944,7 +946,7 @@ function CustomNodeImpl({
     return childIds.filter((cid) => hiddenSet.has(cid)).length;
   }, [edges, id, isFolder, hiddenIds]);
 
-  const isRenaming = renamingId === id;
+  const isRenaming = !!scope?.isActive && renamingId === id;
   const childListRef = useRef<HTMLDivElement>(null);
   const virtual = useVirtualScroll(childListRef, children.length);
 

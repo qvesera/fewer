@@ -212,9 +212,17 @@ export function HiddenNodesPanel() {
   const activeViewShowFiles = activeLeafVs?.showFiles ?? showFilesGlobal;
   const viewFiltersFiles = !activeViewShowFiles;
 
+  // Compute effective hidden list: active view's hiddenIds + view-filtered file nodes
+  const effectiveHidden = useMemo(() => {
+    const viewHidden = activeLeafVs?.hiddenIds ?? hiddenIds;
+    if (!viewFiltersFiles) return viewHidden;
+    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+    return [...new Set([...viewHidden, ...fileIds])];
+  }, [activeLeafVs, hiddenIds, viewFiltersFiles, nodes]);
+
   const hiddenGroups = useMemo(
-    () => getHiddenLayerGroups(nodes, edges, hiddenIds),
-    [nodes, edges, hiddenIds],
+    () => getHiddenLayerGroups(nodes, edges, effectiveHidden),
+    [nodes, edges, effectiveHidden],
   );
 
   const filteredHiddenGroups = useMemo(
@@ -222,8 +230,7 @@ export function HiddenNodesPanel() {
     [hiddenGroups, hiddenSearch],
   );
 
-  const hasGlobalHidden = hiddenIds.length > 0;
-  if (!hasGlobalHidden && !viewFiltersFiles) return null;
+  if (effectiveHidden.length === 0) return null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-2 w-full min-w-0">
@@ -236,33 +243,15 @@ export function HiddenNodesPanel() {
           className="h-8 pl-8 text-xs"
         />
       </div>
-      {/* View-filter banner */}
-      {viewFiltersFiles && (
-        <div className="flex items-center justify-between rounded-lg border border-border/20 bg-muted/20 px-3 py-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <EyeOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground truncate">File cards hidden in this view</span>
-          </div>
-          {activeLeafId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs shrink-0"
-              onClick={() => useGraphStore.getState().setViewSetting(activeLeafId, "showFiles", true)}
-            >
-              Show Files
-            </Button>
-          )}
-        </div>
-      )}
-      {hasGlobalHidden && (<>
+      {/* Per-row tree with full effective hidden list */}
+      {effectiveHidden.length > 0 && (<>
       <Button
         variant="outline"
         size="sm"
         className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0 shrink-0"
         onClick={() => {
           setHoverHighlight([]);
-          const count = hiddenIds.length;
+          const count = effectiveHidden.length;
           // Per-leaf reveal: clear view's hidden set
           if (activeLeafId) {
             useGraphStore.getState().revealAllForLeaf(activeLeafId);
