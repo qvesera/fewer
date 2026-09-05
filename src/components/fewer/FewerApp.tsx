@@ -24,6 +24,13 @@ import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
+// Client-only: tree layout is loaded from localStorage, so the server
+// always renders a single-leaf default and the client hydrates with the
+// actual stored tree.  Dynamic import with ssr:false prevents the
+// hydration mismatch that occurs when the two trees differ.
+const TreeRenderer = dynamic(() => import("./TreeRenderer").then((m) => m.TreeRenderer), { ssr: false });
+const SectionDragLayer = dynamic(() => import("./SectionDragLayer").then((m) => m.SectionDragLayer), { ssr: false });
+
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
 const ExportPanel = dynamic(() => import("./ExportPanel").then((m) => m.ExportPanel), { ssr: false });
@@ -64,6 +71,10 @@ export function FewerApp() {
   const authOpen = useGraphStore((s) => s.authOpen);
   const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
+
+  // Panel layout
+  const sidebarSide = useGraphStore((s) => s.sidebarSide);
+  const panelTree = useGraphStore((s) => s.panelTree);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -109,11 +120,13 @@ export function FewerApp() {
     useGraphStore.setState({ advancedModeEnabled: !!user });
   }, [user]);
 
-  // Sidebar drag-resize handler
+  // Sidebar drag-resize handler — adapts to left/right side
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.min(560, Math.max(200, e.clientX));
+      const w = sidebarSide === "left"
+        ? Math.min(560, Math.max(200, e.clientX))
+        : Math.min(560, Math.max(200, window.innerWidth - e.clientX));
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -127,7 +140,7 @@ export function FewerApp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [sidebarSide]);
 
   const startResize = useCallback(() => {
     resizingRef.current = true;
@@ -254,7 +267,7 @@ export function FewerApp() {
       if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
       graphTimerRef.current = setTimeout(() => {
         const s = useGraphStore.getState();
-        saveGraphLocal({ nodes: s.nodes, edges: s.edges, dataSource: s.dataSource, localRootPath: s.localRootPath });
+        saveGraphLocal({ nodes: s.nodes, edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
       }, 500);
     });
     return () => {
@@ -321,9 +334,13 @@ export function FewerApp() {
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
+        {/* Sidebar wrapper — positioned by sidebarSide */}
         <div
           className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
-          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+          style={{
+            width: sidebarOpen ? sidebarWidth : 0,
+            order: sidebarSide === "right" ? 999 : 0,
+          }}
         >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
@@ -332,12 +349,17 @@ export function FewerApp() {
           {sidebarOpen && (
             <div
               onMouseDown={startResize}
-              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors"
+              className={cn(
+                "absolute top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors",
+                sidebarSide === "left" ? "right-0" : "left-0",
+              )}
               title="Drag to resize"
               aria-label="Resize sidebar"
             />
           )}
         </div>
+
+        {/* Mobile sidebar overlay */}
         <div
           className={cn(
             "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
@@ -363,14 +385,17 @@ export function FewerApp() {
           />
           </div>
         </div>
-        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
-          <ErrorBoundary>
-            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
-          </ErrorBoundary>
-          <BreadcrumbBar />
-          <SearchPanel />
-        </main>
+
+        {/* Tree-based layout: all areas including canvas */}
+        <TreeRenderer
+          tree={panelTree}
+          onOpenImport={() => openImportFlow("folder")}
+          onLoadSample={handleLoadSample}
+        />
       </div>
+
+      {/* Drag-to-dock overlay (ghost + edge strips) */}
+      <SectionDragLayer />
 
       <ExportPanel />
       <BatchRenameDialog />

@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Collapsible sidebar panel shell: ghost-button header (chevron + icon + title +
- * optional badge) over a grid-rows animated body. Shared by Sidebar and any
- * other panel that needs the same disclosure affordance.
+ * Collapsible sidebar panel shell: ghost-button header (chevron + icon + title + optional badge) over a grid-rows animated body. Shared by Sidebar and any other panel that needs the same disclosure affordance.
  */
 export function CollapsibleSection({
   title,
@@ -16,6 +15,7 @@ export function CollapsibleSection({
   defaultOpen = false,
   badge,
   forceOpen,
+  dragHandleProps,
   children,
 }: {
   title: string;
@@ -23,6 +23,8 @@ export function CollapsibleSection({
   defaultOpen?: boolean;
   badge?: string;
   forceOpen?: number;
+  /** When provided, renders a grip handle before the chevron for drag-to-dock. */
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -45,6 +47,15 @@ export function CollapsibleSection({
         aria-expanded={open}
         className="flex w-full items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
       >
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing shrink-0 -ml-1 p-0.5 rounded hover:bg-muted/50 touch-none"
+            title="Drag to dock"
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
+          </div>
+        )}
         <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground/70 shrink-0", open && "rotate-90")} />
         <Icon className="h-4 w-4 shrink-0 text-primary/80" />
         <span className="truncate flex-1 text-left">{title}</span>

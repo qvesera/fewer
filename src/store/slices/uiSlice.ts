@@ -10,6 +10,13 @@ import { SEARCH_HISTORY_KEY, withSearchEntry } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 import { reconcileAutoHide } from "./graphSlice";
+import {
+  loadLayoutFromStorage,
+  saveLayoutToStorage,
+  clearLayoutStorage,
+  defaultLayout,
+} from "@/lib/fewer/panelLayout";
+import * as treeModule from "@/lib/fewer/panelTree";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -17,6 +24,10 @@ export type UiSliceCreator = StateCreator<
   [],
   {
     selectedNodeIds: string[];
+    /** Per-leaf selection storage. Key = leafId. */
+    leafSelections: Record<string, string[]>;
+    /** ID of the most recently interacted graph leaf (for keyboard shortcuts). */
+    activeLeafId: string | null;
     searchQuery: string;
     searchHistory: string[];
     /** Active file-type (extension category) filter. `null` = no filter. */
@@ -46,15 +57,19 @@ export type UiSliceCreator = StateCreator<
     shareOpen: boolean;
     authOpen: boolean;
     showMiniMap: boolean;
+    /** Leaf IDs whose minimap is hidden (per-view override). Empty = all visible. */
+    minimapHidden: Set<string>;
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
     miniMapSize: number;
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
     miniMapX: number;
     miniMapY: number;
-    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly. */
+    /** Default wheel behavior: "pan" scrolls the canvas vertically (Ctrl+wheel zooms), "zoom" zooms directly (Ctrl+wheel pans, trackpad pinch unaffected). */
     scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     showFiles: boolean;
+    /** Per-leaf showFiles overrides. Key = leafId, value = showFiles for that view. */
+    showFilesByLeaf: Record<string, boolean>;
     loading: boolean;
     exportSettings: ExportSettings;
     importOptions: ImportOptions;
@@ -63,11 +78,17 @@ export type UiSliceCreator = StateCreator<
     tutorialDemoStep: number;
     rightClickDetected: boolean;
 
+    // ── Panel layout (Blender-style docked areas) ──
+    sidebarSide: "left" | "right";
+    panelTree: import("@/lib/fewer/panelTree").PanelNode;
+
     setSearchQuery: (q: string) => void;
     commitSearch: (q: string) => void;
     clearSearchHistory: () => void;
     setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
+    setSelectionForLeaf: (leafId: string, ids: string[]) => void;
+    setActiveLeaf: (leafId: string | null) => void;
     /** Ring a transient set of node ids on the canvas (sidebar row hover). */
     setHoverHighlight: (ids: string[]) => void;
     setRenamingId: (id: string | null, source?: "canvas" | "folder") => void;
@@ -91,6 +112,7 @@ export type UiSliceCreator = StateCreator<
     setShareOpen: (open: boolean) => void;
     setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
+    toggleMinimapForLeaf: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -100,6 +122,9 @@ export type UiSliceCreator = StateCreator<
     canvasSize: { width: number; height: number };
     setCanvasSize: (size: { width: number; height: number }) => void;
     setShowFiles: (show: boolean) => void;
+    setShowFilesForLeaf: (leafId: string, show: boolean) => void;
+    /** Get showFiles for a specific leaf, falling back to global. */
+    getShowFilesForLeaf: (leafId: string) => boolean;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
     setImportOptions: (options: ImportOptions) => void;
@@ -109,11 +134,23 @@ export type UiSliceCreator = StateCreator<
     setTutorialDemoStep: (step: number) => void;
     setRightClickDetected: () => void;
     resetTutorial: () => void;
+    setSidebarSide: (side: "left" | "right") => void;
+    setPanelTree: (tree: import("@/lib/fewer/panelTree").PanelNode) => void;
+    splitArea: (id: string, dir: "h" | "v", ratio?: number) => void;
+    joinArea: (id: string) => void;
+    setAreaEditor: (id: string, editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    insertAreaAtEdge: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    setDividerRatio: (firstId: string, secondId: string, ratio: number) => void;
+    resetPanelLayout: () => void;
+    /** @internal — writes layout to localStorage. Called by other panel actions. */
+    _persistLayout: () => void;
   }
 >;
 
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
+  leafSelections: {},
+  activeLeafId: null,
   searchQuery: "",
   searchHistory: (() => {
     if (typeof window === "undefined") return [];
@@ -147,6 +184,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   shareOpen: false,
   authOpen: false,
   showMiniMap: true,
+  minimapHidden: new Set<string>(),
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
   miniMapX: 16,
@@ -154,6 +192,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   scrollAction: "pan",
   advancedModeEnabled: false,
   showFiles: true,
+  showFilesByLeaf: {},
   loading: false,
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
@@ -168,6 +207,13 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   })(),
   tutorialDemoStep: 0,
   rightClickDetected: false,
+
+  // Panel layout defaults — loaded from localStorage once, saved on change.
+  ...(() => {
+    const stored = loadLayoutFromStorage();
+    const layout = stored ?? defaultLayout();
+    return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
+  })(),
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   commitSearch: (q) => {
@@ -213,6 +259,26 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
+
+  setSelectionForLeaf: (leafId, ids) => set((s) => {
+    const idSet = new Set(ids);
+    const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+    const next = {
+      leafSelections: { ...s.leafSelections, [leafId]: ids },
+      activeLeafId: leafId,
+      selectedNodeIds: ids,
+    };
+    if (changed) {
+      return { ...next, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 };
+    }
+    return { ...next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setActiveLeaf: (leafId) => set((s) => {
+    if (!leafId || leafId === s.activeLeafId) return {};
+    const ids = s.leafSelections[leafId] ?? [];
+    return { activeLeafId: leafId, selectedNodeIds: ids };
+  }),
 
   setRenamingId: (id, source) => {
     if (id) {
@@ -291,6 +357,11 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShareOpen: (open) => set({ shareOpen: open }),
   setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
+  toggleMinimapForLeaf: (leafId) => set((s) => {
+    const next = new Set(s.minimapHidden);
+    if (next.has(leafId)) next.delete(leafId); else next.add(leafId);
+    return { minimapHidden: next };
+  }),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
@@ -351,6 +422,16 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     }
   },
 
+  setShowFilesForLeaf: (leafId, show) => set((s) => ({
+    showFilesByLeaf: { ...s.showFilesByLeaf, [leafId]: show },
+  })),
+
+  getShowFilesForLeaf: (leafId) => {
+    const s = get();
+    if (leafId in s.showFilesByLeaf) return s.showFilesByLeaf[leafId];
+    return s.showFiles;
+  },
+
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
   setImportOptions: (options) => set({ importOptions: options }),
 
@@ -379,5 +460,71 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (typeof window !== "undefined") {
       try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); localStorage.removeItem(TUTORIAL_BEGINNER_DONE_KEY); } catch { /* ignore */ }
     }
+  },
+
+  // ── Panel layout actions ──
+
+  _persistLayout: () => {
+    const s = get();
+    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree });
+  },
+
+  setSidebarSide: (side) => {
+    set({ sidebarSide: side });
+    get()._persistLayout();
+  },
+
+  setPanelTree: (tree) => {
+    set({ panelTree: tree });
+    get()._persistLayout();
+  },
+
+  splitArea: (id, dir, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  joinArea: (id) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.joinLeaf(tree, id);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  setAreaEditor: (id, editor) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.setLeafEditor(tree, id, editor);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  insertAreaAtEdge: (side, editor) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
+    set({ panelTree: newTree });
+    get()._persistLayout();
+  },
+
+  setDividerRatio: (firstId, secondId, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.setDividerRatio(tree, firstId, secondId, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  resetPanelLayout: () => {
+    const d = defaultLayout();
+    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree });
+    clearLayoutStorage();
   },
 });

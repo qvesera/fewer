@@ -868,6 +868,7 @@ function AppearanceTab() {
                 { value: "name" as const, label: "Name" },
                 { value: "size" as const, label: "Size" },
                 { value: "type" as const, label: "Type" },
+                { value: "tag" as const, label: "Tag" },
               ]}
               value={sortKey}
               onValueChange={(v) => setSortKey(v as SortKey)}
@@ -1182,7 +1183,7 @@ function AdvancedTab() {
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             {scrollAction === "zoom"
-              ? "The mouse wheel zooms the canvas directly."
+              ? "The mouse wheel zooms the canvas directly; hold Ctrl (⌘) and scroll to pan."
               : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
           </p>
         </div>

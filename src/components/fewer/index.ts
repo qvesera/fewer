@@ -31,3 +31,7 @@ export { VersionHistoryDialog } from "./VersionHistoryDialog";
 export { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 export { AuthDialog } from "./AuthDialog";
 export { CloudPanel } from "./CloudPanel";
+export { TagsPanel } from "./TagsPanel";
+export { DockArea } from "./DockArea";
+export { SectionDragLayer } from "./SectionDragLayer";
+export { TreeRenderer } from "./TreeRenderer";
