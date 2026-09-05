@@ -24,6 +24,10 @@ export type UiSliceCreator = StateCreator<
   [],
   {
     selectedNodeIds: string[];
+    /** Per-leaf selection storage. Key = leafId. */
+    leafSelections: Record<string, string[]>;
+    /** ID of the most recently interacted graph leaf (for keyboard shortcuts). */
+    activeLeafId: string | null;
     searchQuery: string;
     searchHistory: string[];
     /** Active file-type (extension category) filter. `null` = no filter. */
@@ -64,6 +68,8 @@ export type UiSliceCreator = StateCreator<
     scrollAction: "pan" | "zoom";
     advancedModeEnabled: boolean;
     showFiles: boolean;
+    /** Per-leaf showFiles overrides. Key = leafId, value = showFiles for that view. */
+    showFilesByLeaf: Record<string, boolean>;
     loading: boolean;
     exportSettings: ExportSettings;
     importOptions: ImportOptions;
@@ -81,6 +87,8 @@ export type UiSliceCreator = StateCreator<
     clearSearchHistory: () => void;
     setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
+    setSelectionForLeaf: (leafId: string, ids: string[]) => void;
+    setActiveLeaf: (leafId: string | null) => void;
     /** Ring a transient set of node ids on the canvas (sidebar row hover). */
     setHoverHighlight: (ids: string[]) => void;
     setRenamingId: (id: string | null, source?: "canvas" | "folder") => void;
@@ -114,6 +122,9 @@ export type UiSliceCreator = StateCreator<
     canvasSize: { width: number; height: number };
     setCanvasSize: (size: { width: number; height: number }) => void;
     setShowFiles: (show: boolean) => void;
+    setShowFilesForLeaf: (leafId: string, show: boolean) => void;
+    /** Get showFiles for a specific leaf, falling back to global. */
+    getShowFilesForLeaf: (leafId: string) => boolean;
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
     setImportOptions: (options: ImportOptions) => void;
@@ -138,6 +149,8 @@ export type UiSliceCreator = StateCreator<
 
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
+  leafSelections: {},
+  activeLeafId: null,
   searchQuery: "",
   searchHistory: (() => {
     if (typeof window === "undefined") return [];
@@ -179,6 +192,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   scrollAction: "pan",
   advancedModeEnabled: false,
   showFiles: true,
+  showFilesByLeaf: {},
   loading: false,
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
@@ -245,6 +259,26 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
+
+  setSelectionForLeaf: (leafId, ids) => set((s) => {
+    const idSet = new Set(ids);
+    const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+    const next = {
+      leafSelections: { ...s.leafSelections, [leafId]: ids },
+      activeLeafId: leafId,
+      selectedNodeIds: ids,
+    };
+    if (changed) {
+      return { ...next, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 };
+    }
+    return { ...next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setActiveLeaf: (leafId) => set((s) => {
+    if (!leafId || leafId === s.activeLeafId) return {};
+    const ids = s.leafSelections[leafId] ?? [];
+    return { activeLeafId: leafId, selectedNodeIds: ids };
+  }),
 
   setRenamingId: (id, source) => {
     if (id) {
@@ -386,6 +420,16 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));
       set((s) => ({ showFiles: false, hiddenIds: [...new Set([...s.hiddenIds, ...fileIds])], graphVersion: graphVersion + 1 }));
     }
+  },
+
+  setShowFilesForLeaf: (leafId, show) => set((s) => ({
+    showFilesByLeaf: { ...s.showFilesByLeaf, [leafId]: show },
+  })),
+
+  getShowFilesForLeaf: (leafId) => {
+    const s = get();
+    if (leafId in s.showFilesByLeaf) return s.showFilesByLeaf[leafId];
+    return s.showFiles;
   },
 
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),

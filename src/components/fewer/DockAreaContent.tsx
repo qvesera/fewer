@@ -2,7 +2,6 @@
 
 import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, FolderOpen, Trash2, FilePlus, FolderPlus } from "lucide-react";
 import { SlidingToggle } from "@/components/ui/sliding-toggle";
@@ -88,8 +87,6 @@ function SectionContent({ editor }: { editor: AreaEditor }) {
 function LayoutSection() {
   const direction = useGraphStore((s) => s.direction);
   const setDirection = useGraphStore((s) => s.setDirection);
-  const showFiles = useGraphStore((s) => s.showFiles);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const relayout = useGraphStore((s) => s.relayout);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
@@ -104,10 +101,6 @@ function LayoutSection() {
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">Rearrange</span>
       </Button>
-      <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
-        <Label className="text-xs font-medium cursor-pointer truncate">Include File Cards</Label>
-        <Switch checked={showFiles} onCheckedChange={setShowFiles} className="shrink-0" />
-      </div>
     </div>
   );
 }

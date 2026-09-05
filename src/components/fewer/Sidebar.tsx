@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   RefreshCw,
   FolderOpen,
@@ -12,7 +11,6 @@ import {
   Layers,
   HardDrive,
   SlidersHorizontal,
-  FileIcon,
   Spline,
   FilePlus,
   FolderPlus,
@@ -70,11 +68,9 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const nodes = useGraphStore((s) => s.nodes);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const showFiles = useGraphStore((s) => s.showFiles);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const tags = useGraphStore((s) => s.tags);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const edges = useGraphStore((s) => s.edges);
-  const tags = useGraphStore((s) => s.tags);
 
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
 
@@ -255,21 +251,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
               <span className="truncate">Rearrange</span>
             </Button>
-
-            <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Label htmlFor="show-files" className="text-xs font-medium cursor-pointer truncate">
-                  Include File Cards
-                </Label>
-              </div>
-              <Switch
-                id="show-files"
-                checked={showFiles}
-                onCheckedChange={setShowFiles}
-                className="shrink-0"
-              />
-            </div>
           </div>
 
         </CollapsibleSection>

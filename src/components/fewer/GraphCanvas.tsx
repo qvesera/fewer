@@ -80,8 +80,9 @@ function useEdgeAnimationOpts(
 function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
-  const showFiles = useGraphStore((s) => s.showFiles);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const showFilesGlobal = useGraphStore((s) => s.showFiles);
+  const getShowFilesForLeaf = useGraphStore((s) => s.getShowFilesForLeaf);
+  const setShowFilesForLeaf = useGraphStore((s) => s.setShowFilesForLeaf);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const edgeAnimated = useGraphStore((s) => s.edgeAnimated);
@@ -114,7 +115,14 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // ── Hook extractions (pure moves, no behavior change) ──
   useCanvasResize(containerRef, setCanvasSize);
   const themeColors = useCanvasThemeColors(themeMode, isDark, customTheme);
-  const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, hiddenIds);
+  const showFiles = leafId ? getShowFilesForLeaf(leafId) : showFilesGlobal;
+
+  // Derive effective hiddenIds: if per-leaf showFiles is off, add all file node IDs
+  const effectiveHiddenIds = showFiles
+    ? hiddenIds
+    : [...hiddenIds, ...allNodes.filter((n) => n.data.type === "file").map((n) => n.id)];
+
+  const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
   const graphsExists = allNodes.length > 0;
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
@@ -204,7 +212,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
             ...prevIds.filter((id: string) => selectedIds.has(id)),
                         ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
           ];
-      setSelectedNodeIds(newIds);
+      // Write to per-leaf selection (and global for keyboard shortcut compatibility)
+      if (leafId) {
+        useGraphStore.getState().setSelectionForLeaf(leafId, newIds);
+      } else {
+        setSelectedNodeIds(newIds);
+      }
 
       // NOTE: we intentionally do NOT write store edges here. Writing edges
       // would change `allEdges` in the store, re-triggering the edge-highlight
@@ -212,7 +225,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       // The effect handles both RF-edge highlighting and store-edge sync on
       // every selection / graphVersion / theme change.
     },
-    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef],
+    [setSelectedNodeIds, setRfEdges, edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef, leafId],
   );
 
   const onConnect = useCallback(
@@ -305,7 +318,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         }}
         onNodeContextMenu={(event) => event.preventDefault()}
         onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); setCanvasMenu({ x: event.clientX, y: event.clientY, kind: "edge" }); }}
-        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, kind: "pane" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
+        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, kind: "pane" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); if (leafId) useGraphStore.getState().setActiveLeaf(leafId); }}
         onSelectionContextMenu={(e) => { e.preventDefault(); setCanvasMenu({ x: e.clientX, y: e.clientY, kind: "selection" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
         onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
         deleteKeyCode={null}
@@ -359,7 +372,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
               </div>
               {!showFiles && (
-                <Button variant="outline" onClick={() => setShowFiles(true)} data-tutorial="show-files-button">
+                <Button variant="outline" onClick={() => leafId ? setShowFilesForLeaf(leafId, true) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
                   <FolderOpen className="h-4 w-4" />
                   Show Files
                 </Button>
@@ -427,7 +440,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   <button onClick={() => { zoomIn({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
                   <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
                   {leafId && (
-                    <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{mini.showMiniMap ? "Hide Minimap" : "Show Minimap"}</button>
+                    <>
+                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{mini.showMiniMap ? "Hide Minimap" : "Show Minimap"}</button>
+                      <button onClick={() => { setShowFilesForLeaf(leafId, !showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{showFiles ? "Hide Files" : "Show Files"}</button>
+                    </>
                   )}
                   {edgeExists && (
                     <>
