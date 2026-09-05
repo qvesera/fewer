@@ -2,6 +2,7 @@
 
 import { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps, NodeResizer } from "@xyflow/react";
+import { useGraphViewDirection } from "@/hooks/use-graph-view-context";
 import {
   Folder,
   FolderOpen,
@@ -890,7 +891,7 @@ function CustomNodeImpl({
   width,
   height,
 }: NodeProps<FewerNode>) {
-  const layoutDirection = useGraphStore((s) => s.direction);
+  const layoutDirection = useGraphViewDirection();
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
 

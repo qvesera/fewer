@@ -45,6 +45,7 @@ import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
 import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
+import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -329,6 +330,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   }, []);
 
   return (
+    <GraphViewProvider value={vs.direction}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}
@@ -512,6 +514,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       })()}
       {primary && <KeyboardShortcuts />}
     </div>
+    </GraphViewProvider>
   );
 }
 
