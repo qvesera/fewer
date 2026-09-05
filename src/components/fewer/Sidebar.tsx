@@ -168,7 +168,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       <div className="flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-0.5 gm-scroll w-full min-w-0">
         
         {/* ── 1. FILE & ACTIONS ── */}
-        <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen>
+        {!dockedIds.has("file") && (
+        <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen {...dragProps("file")}>
           <div className="space-y-2.5 w-full min-w-0">
             {/* Primary Action Button (shadcn) — opens the unified 3-step
                 import flow at step 1 (origin selection). */}
@@ -219,6 +220,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             </div>
           </div>
         </CollapsibleSection>
+        )}
 
         {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
         {user && (
