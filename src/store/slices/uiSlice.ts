@@ -120,11 +120,17 @@ export type UiSliceCreator = StateCreator<
     setNodePositionsBatch: (leafId: string, entries: { id: string; pos: { x: number; y: number } }[]) => void;
     /** Seed the full positions map for a view (first drag writes full map before drag delta). */
     seedNodePositions: (leafId: string, fullMap: Record<string, { x: number; y: number }>) => void;
-    /** Seed-on-write: first call captures effective hidden, then adds. */
+    /** Seed-on-write: first call captures effective hidden, then adds to individual layer. */
     hideForLeaf: (leafId: string, ids: string[]) => void;
-    /** Seed-on-write: first call captures effective hidden, then removes. */
-    unhideForLeaf: (leafId: string, ids: string[]) => void;
-    /** Clear per-view hidden list (reveal all in view). */
+    /** Eye-reveal: removes id from individual + subtrees + adds to filesBulkExempt. */
+    eyeRevealForLeaf: (leafId: string, id: string) => void;
+    /** Per-folder Hide Children. */
+    hideSubtreeForLeaf: (leafId: string, folderId: string, descendantIds: string[]) => void;
+    /** Per-folder Show Children. */
+    showSubtreeForLeaf: (leafId: string, folderId: string) => void;
+    /** Toggle "Hide Files" bulk layer. */
+    setFilesBulkForLeaf: (leafId: string, active: boolean) => void;
+    /** Clear all hide layers for this view (Reveal All). */
     revealAllForLeaf: (leafId: string) => void;
     clearViewPositions: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
@@ -412,25 +418,58 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   hideForLeaf: (leafId, ids) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    // Seed: if no hiddenIds override yet, capture current effective hidden
-    const current = leaf.hiddenIds ?? s.hiddenIds;
-    const leafNext = { ...leaf, hiddenIds: [...new Set([...current, ...ids])] };
-    set({ viewSettings: { ...s.viewSettings, [leafId]: leafNext }, graphVersion: s.graphVersion + 1 });
+    const layers = leaf.hideLayers ?? { individual: s.hiddenIds, subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const next = { ...leaf, hideLayers: { ...layers, individual: [...new Set([...layers.individual, ...ids])] } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
   },
 
-  unhideForLeaf: (leafId, ids) => {
+  eyeRevealForLeaf: (leafId, id) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    const current = leaf.hiddenIds ?? s.hiddenIds;
-    const removeSet = new Set(ids);
-    const leafNext = { ...leaf, hiddenIds: current.filter((id) => !removeSet.has(id)) };
-    set({ viewSettings: { ...s.viewSettings, [leafId]: leafNext }, graphVersion: s.graphVersion + 1 });
+    const layers = leaf.hideLayers;
+    if (!layers) return;
+    const individual = layers.individual.filter((i) => i !== id);
+    const sub: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(layers.subtrees)) {
+      const filtered = (v as string[]).filter((i) => i !== id);
+      if (filtered.length > 0) sub[k] = filtered;
+    }
+    const filesBulkExempt = layers.filesBulkActive ? [...layers.filesBulkExempt, id] : layers.filesBulkExempt;
+    const next = { ...leaf, hideLayers: { ...layers, individual, subtrees: sub, filesBulkExempt } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+  },
+
+  hideSubtreeForLeaf: (leafId, folderId, descendantIds) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const next = { ...leaf, hideLayers: { ...layers, subtrees: { ...layers.subtrees, [folderId]: descendantIds } } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+  },
+
+  showSubtreeForLeaf: (leafId, folderId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers;
+    if (!layers) return;
+    const subtrees = { ...layers.subtrees };
+    delete subtrees[folderId];
+    const next = { ...leaf, hideLayers: { ...layers, subtrees } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+  },
+
+  setFilesBulkForLeaf: (leafId, active) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const next = { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
   },
 
   revealAllForLeaf: (leafId) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, hiddenIds: [] } };
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
   },
 

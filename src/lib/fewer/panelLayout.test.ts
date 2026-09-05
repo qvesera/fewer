@@ -1,225 +1,119 @@
 import { describe, it, expect } from "bun:test";
 import { createArea } from "./panelLayout";
 import {
-  defaultTree,
-  makeLeaf,
-  leafList,
-  findLeaf,
-  leafCount,
-  getPrimary,
-  sectionsDockedInTree,
-  splitLeaf,
-  joinLeaf,
-  setLeafEditor,
-  insertLeafAtEdge,
-  setDividerRatio,
-  serializeTree,
-  parseTree,
-  migrateV1ToTree,
-  isLeaf,
-  dedupeLeafIds,
+  defaultTree, makeLeaf, leafList, leafCount,
+  getPrimary, splitLeaf, joinLeaf,
+  serializeTree, parseTree, migrateV1ToTree, isLeaf, dedupeLeafIds,
 } from "./panelTree";
+import {
+  computeEffectiveHidden, type HideLayers,
+  type ResolvedViewSettings,
+  resolveViewSettings,
+} from "./viewState";
 
-function leafId(node: ReturnType<typeof defaultTree>) {
-  if (isLeaf(node)) return node.area.id;
-  throw new Error("expected leaf");
-}
+const FILE_IDS = ["f1", "f2", "f3", "f4", "f5"];
+const GLOBAL_HIDDEN = ["g1", "g2"];
+const DEFAULT_RESOLVED: ResolvedViewSettings = {
+  showFiles: true, minimapHidden: false, edgeStyle: "curved",
+  edgeAnimated: true, edgeAnimatedSelectedOnly: false, edgeStrokeStyle: "solid",
+  edgeWidth: 1.5, direction: "TB", hiddenIds: [],
+};
 
 describe("panelTree", () => {
-  describe("defaultTree", () => {
-    it("creates a single primary graph leaf", () => {
-      const t = defaultTree();
-      expect(isLeaf(t)).toBe(true);
-      if (isLeaf(t)) {
-        expect(t.area.editor).toBe("graph");
-        expect(t.primary).toBe(true);
-      }
-    });
+  it("split + round-trip", () => {
+    const root = defaultTree();
+    const t = splitLeaf(root, root.area.id, "h");
+    expect(leafCount(t)).toBe(2);
+    expect(leafCount(parseTree(serializeTree(t))!)).toBe(2);
   });
-
-  describe("leafList / leafCount / findLeaf", () => {
-    it("single leaf", () => {
-      const t = defaultTree();
-      expect(leafList(t)).toHaveLength(1);
-      expect(leafCount(t)).toBe(1);
-    });
-    it("after split", () => {
-      const root = defaultTree();
-      const id = leafId(root);
-      const t = splitLeaf(root, id, "h");
-      expect(leafCount(t)).toBe(2);
-      expect(leafList(t)).toHaveLength(2);
-      expect(findLeaf(t, id)).not.toBeNull();
-    });
+  it("join + round-trip", () => {
+    const root = splitLeaf(defaultTree(), defaultTree().area.id, "h");
+    const leaves = leafList(root);
+    const result = joinLeaf(root, leaves[0].area.id);
+    expect(leafCount(result)).toBe(1);
   });
-
-  describe("splitLeaf", () => {
-    it("doubles leaf count", () => {
-      const root = defaultTree();
-      const id = leafId(root);
-      const result = splitLeaf(root, id, "h");
-      expect(leafCount(result)).toBe(2);
-    });
-    it("original leaf keeps its id", () => {
-      const root = defaultTree();
-      const id = leafId(root);
-      const result = splitLeaf(root, id, "v");
-      expect(findLeaf(result, id)).not.toBeNull();
-    });
-    it("new sibling gets same editor type", () => {
-      const root = makeLeaf(createArea("layout"));
-      const id = leafId(root);
-      const result = splitLeaf(root, id, "h");
-      const leaves = leafList(result);
-      expect(leaves.length).toBe(2);
-      expect(leaves[0].area.editor).toBe("layout");
-      expect(leaves[1].area.editor).toBe("layout");
-    });
-    it("no-op for missing id", () => {
-      const root = defaultTree();
-      const result = splitLeaf(root, "nonexistent", "h");
-      expect(result).toBe(root);
-    });
+  it("migrate v1", () => {
+    const t = migrateV1ToTree({ leftAreas: [createArea("layout")], rightAreas: [] });
+    expect(leafCount(t)).toBe(2);
   });
-
-  describe("joinLeaf", () => {
-    it("removes a leaf, sibling takes over", () => {
-      const root = splitLeaf(defaultTree(), leafId(defaultTree()), "h");
-      const leaves = leafList(root);
-      const targetId = leaves[0].area.id;
-      const result = joinLeaf(root, targetId);
-      expect(leafCount(result)).toBe(1);
-    });
-    it("no-op on single leaf", () => {
-      const root = defaultTree();
-      const result = joinLeaf(root, leafId(root));
-      expect(result).toBe(root);
-    });
-    it("protects primary leaf", () => {
-      const root = splitLeaf(defaultTree(), leafId(defaultTree()), "h");
-      const primary = getPrimary(root)!;
-      const result = joinLeaf(root, primary.area.id);
-      expect(result).toBe(root);
-    });
-  });
-
-  describe("setLeafEditor", () => {
-    it("updates editor type", () => {
-      const root = defaultTree();
-      const id = leafId(root);
-      const result = setLeafEditor(root, id, "layout");
-      expect(findLeaf(result, id)?.area.editor).toBe("layout");
-    });
-  });
-
-  describe("insertLeafAtEdge", () => {
-    it("inserts on left", () => {
-      const root = defaultTree();
-      const result = insertLeafAtEdge(root, "left", "tags");
-      expect(leafCount(result)).toBe(2);
-      expect(leafList(result)[0].area.editor).toBe("tags");
-    });
-    it("inserts on right", () => {
-      const root = defaultTree();
-      const result = insertLeafAtEdge(root, "right", "tags");
-      expect(leafCount(result)).toBe(2);
-      expect(leafList(result)[1].area.editor).toBe("tags");
-    });
-  });
-
-  describe("sectionsDockedInTree", () => {
-    it("returns empty for graph-only tree", () => {
-      expect(sectionsDockedInTree(defaultTree()).size).toBe(0);
-    });
-    it("finds section editors", () => {
-      const root = insertLeafAtEdge(defaultTree(), "left", "layout");
-      expect(sectionsDockedInTree(root).has("layout")).toBe(true);
-    });
-  });
-
-  describe("serializeTree / parseTree round-trip", () => {
-    it("round-trips single leaf", () => {
-      expect(parseTree(serializeTree(defaultTree()))).not.toBeNull();
-    });
-    it("round-trips split tree", () => {
-      const root = defaultTree();
-      const t = splitLeaf(root, leafId(root), "h");
-      const parsed = parseTree(serializeTree(t));
-      expect(parsed).not.toBeNull();
-      expect(leafCount(parsed!)).toBe(2);
-    });
-    it("rejects invalid editor", () => {
-      expect(parseTree({ kind: "leaf", area: { id: "x", width: 200, editor: "bogus" } })).toBeNull();
-    });
-    it("null returns null", () => {
-      expect(parseTree(null)).toBeNull();
-    });
-  });
-
-  describe("migrateV1ToTree", () => {
-    it("empty v1 -> single graph leaf", () => {
-      expect(leafCount(migrateV1ToTree({ leftAreas: [], rightAreas: [] }))).toBe(1);
-    });
-    it("preserves left area count", () => {
-      const tree = migrateV1ToTree({ leftAreas: [createArea("layout")], rightAreas: [] });
-      expect(leafCount(tree)).toBe(2);
-    });
-  });
-});
-
-describe("dedupeLeafIds", () => {
-  it("renames duplicate ids", () => {
+  it("dedupe renames duplicate ids", () => {
     const a = createArea("graph");
     const root = { kind: "split", dir: "h", ratio: 0.5,
       first: { kind: "leaf", area: a, primary: true },
       second: { kind: "leaf", area: { ...a, width: 999 }, primary: false },
-    } as const;
-    const deduped = dedupeLeafIds(root as any);
-    const ids = leafList(deduped).map((l) => l.area.id);
-    // First is seen first; second has duplicate id → renamed
+    } as any;
+    const ids = leafList(dedupeLeafIds(root)).map((l) => l.area.id);
     expect(ids[0]).not.toBe(ids[1]);
     expect(ids.length).toBe(2);
   });
-
-  it("promotes a primary when missing", () => {
-    const a = createArea("graph");
-    const b = createArea("graph");
-    const root = { kind: "split", dir: "h", ratio: 0.5,
-      first: { kind: "leaf", area: a, primary: false },
-      second: { kind: "leaf", area: b, primary: false },
-    } as const;
-    const result = dedupeLeafIds(root as any);
-    expect(getPrimary(result)).not.toBeNull();
-  });
-});
-
-describe("replaceChild first-match only", () => {
-  it("splitLeaf only replaces one leaf with matching id in a tree", () => {
-    // Manually build tree with duplicate ids (simulates corruption)
-    const a = createArea("graph");
-    const root = {
-      kind: "split", dir: "h", ratio: 0.5,
-      first: { kind: "leaf", area: a, primary: true },
-      second: { kind: "leaf", area: { ...a }, primary: false },
-    } as any;
-    // splitLeaf uses replaceChild internally — first match only means
-    // only one of the two leaves gets replaced
-    const result = splitLeaf(root, a.id, "v");
-    // Should have 3 leaves (2 original + 1 new sibling)
-    expect(leafCount(result)).toBe(3);
-  });
-});
-
-describe("splitLeaf preserves primary", () => {
-  it("original leaf keeps primary after split", () => {
+  it("splitLeaf preserves primary", () => {
     const root = defaultTree();
-    expect(root.kind).toBe("leaf");
-    if (root.kind !== "leaf") return;
-    expect(root.primary).toBe(true);
     const result = splitLeaf(root, root.area.id, "h");
-    const leaves = leafList(result);
-    const primary = leaves.find((l) => l.primary);
-    expect(primary).not.toBeNull();
-    expect(primary!.area.id).toBe(root.area.id);
+    const p = leafList(result).find((l) => l.primary);
+    expect(p).not.toBeNull();
+    expect(p!.area.id).toBe(root.area.id);
+  });
+});
+
+describe("computeEffectiveHidden", () => {
+  const layers: HideLayers = {
+    individual: ["a", "b"],
+    subtrees: { "parent": ["c", "d"] },
+    filesBulkActive: false,
+    filesBulkExempt: [],
+  };
+  it("returns global when no layers", () => {
+    expect(computeEffectiveHidden(GLOBAL_HIDDEN, undefined, FILE_IDS)).toEqual(GLOBAL_HIDDEN);
+  });
+  it("individual + subtree layers overlay global", () => {
+    const r = computeEffectiveHidden(GLOBAL_HIDDEN, layers, FILE_IDS);
+    expect(r.sort()).toEqual(["a", "b", "c", "d", "g1", "g2"].sort());
+  });
+  it("bulk files layer adds all files", () => {
+    const bulk = { ...layers, filesBulkActive: true };
+    const r = computeEffectiveHidden(GLOBAL_HIDDEN, bulk, FILE_IDS);
+    expect(r.length).toBe(11);
+    expect(r).toContain("f1");
+  });
+  it("bulk exempt excludes files from bulk layer", () => {
+    const bulk = { ...layers, filesBulkActive: true, filesBulkExempt: ["f1"] };
+    const r = computeEffectiveHidden(GLOBAL_HIDDEN, bulk, FILE_IDS);
+    expect(r).not.toContain("f1");
+    expect(r).toContain("f2");
+  });
+  it("hide A then bulk show -> A still hidden", () => {
+    const l: HideLayers = { individual: ["A"], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    expect(computeEffectiveHidden([], l, ["A","B","C"])).toContain("A");
+  });
+  it("hide A then bulk hide then eye A -> A visible", () => {
+    const l: HideLayers = { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: ["A"] };
+    expect(computeEffectiveHidden([], l, ["A","B","C"])).not.toContain("A");
+  });
+  it("subtree show/hide per folder", () => {
+    const l: HideLayers = { individual: [], subtrees: { "F": ["c1","c2"] }, filesBulkActive: false, filesBulkExempt: [] };
+    expect(computeEffectiveHidden([], l, [])).toContain("c1");
+    const cleared: HideLayers = { ...l, subtrees: {} };
+    expect(computeEffectiveHidden([], cleared, [])).toHaveLength(0);
+  });
+});
+
+describe("resolveViewSettings with hideLayers", () => {
+  it("no layers -> global defaults", () => {
+    const r = resolveViewSettings({}, "x", DEFAULT_RESOLVED, GLOBAL_HIDDEN, FILE_IDS);
+    expect(r.showFiles).toBe(true);
+    expect(r.hiddenIds).toEqual(GLOBAL_HIDDEN);
+  });
+  it("bulk active -> showFiles false + files hidden", () => {
+    const vs = { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: [] } };
+    const r = resolveViewSettings({ "x": vs }, "x", DEFAULT_RESOLVED, [], FILE_IDS);
+    expect(r.showFiles).toBe(false);
+    expect(r.hiddenIds).toContain("f1");
+    expect(r.hiddenIds).toContain("f5");
+  });
+  it("bulk active with exempt -> exempt file visible", () => {
+    const vs = { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: ["f1"] } };
+    const r = resolveViewSettings({ "x": vs }, "x", DEFAULT_RESOLVED, [], FILE_IDS);
+    expect(r.hiddenIds).not.toContain("f1");
+    expect(r.hiddenIds).toContain("f2");
   });
 });

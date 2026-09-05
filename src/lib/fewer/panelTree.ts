@@ -40,7 +40,7 @@ export const clampRatio = (r: number) => Math.max(MIN_RATIO, Math.min(MAX_RATIO,
 
 // ── Constructors ──
 
-export function defaultTree(): PanelNode {
+export function defaultTree(): PanelLeaf {
   return { kind: "leaf", area: createArea("graph"), primary: true };
 }
 
