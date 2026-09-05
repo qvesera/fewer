@@ -39,6 +39,7 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
         <GraphCanvasForArea
           onOpenImport={() => { useGraphStore.getState().setSidebarOpen(true); }}
           onLoadSample={() => {}}
+          leafId={area.id}
         />
       </div>
     );
