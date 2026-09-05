@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Editing a gradient slot's base color no longer resets its gradient endpoint and angle
 - Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
 - Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
+- Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
 
 ### Added
 
@@ -77,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changing the layout direction or the Crown Shyness intensity no longer auto-relayouts the graph — nodes keep their positions and re-layout runs only via the Rearrange button or Alt+R
 - Crown Shyness multiplier can now be typed in as a custom value — click the value next to the slider in Settings → Advanced (store clamps to 0–3×)
 - Tags: color editing now uses the same react-colorful picker as the Custom Theme Editor (click a tag swatch in the sidebar Tags panel to expand it), and new tags pick a color from a palette swatch row at creation in both the context menu and the sidebar; fixed the assigned-tag checkmark overlapping the color dot in the Tags submenu.
+- Tag filter now hides non-matching nodes from the canvas (same mechanism as the category filter in Graph Analytics) instead of dimming them. Toggle a tag chip in the search panel to show only cards carrying that tag; matching cards stay on canvas, non-matching ones are hidden and appear in the Hidden panel. Clear with the X button or uncheck the tag.
 
 ### Security
 
