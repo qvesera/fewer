@@ -5,7 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2 } from "lucide-react";
 import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
@@ -23,6 +23,9 @@ import {
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
+  recordSectionChange,
+  popSectionUndo,
+  sectionUndoDepth,
 } from "@/lib/fewer/themeEditor";
 
 export function ThemeEditorDialog() {
@@ -143,7 +146,9 @@ export function ThemeEditorDialog() {
   };
 
   const handleChange = (key: keyof CustomTheme, value: CustomThemeColor) => {
-    setCustomTheme({ [key]: value } as Partial<CustomTheme>);
+    // Merge with the current slot so partial updates (e.g. the main color
+    // picker's {color, opacity}) never drop the slot's gradient fields.
+    setCustomTheme({ [key]: { ...customTheme[key], ...value } } as Partial<CustomTheme>);
   };
 
   /** Patch a slot, preserving gradient fields and opacity unless overridden. */
@@ -189,6 +194,49 @@ export function ThemeEditorDialog() {
     const c = customTheme[key as keyof CustomTheme];
     return Boolean(c.gradientTo && c.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(c.gradientTo));
   };
+
+  // --- per-section undo -------------------------------------------------
+  // Diff-based: an effect watches the store's customTheme and records a
+  // snapshot of each section *before* it changes. Coalescing collapses a
+  // picker drag into one step. History lives in component state — the dialog
+  // instance stays mounted (FewerApp renders it unconditionally), so undo
+  // survives open/close/minimize within the session.
+  const [sectionStacks, setSectionStacks] = useState<Record<string, Partial<CustomTheme>[]>>({});
+  const prevThemeRef = useRef(customTheme);
+  const lastChangeAtRef = useRef<Record<string, number>>({});
+  const undoingRef = useRef(false);
+
+  useEffect(() => {
+    const prev = prevThemeRef.current;
+    if (prev === customTheme) return;
+    const { stacks } = recordSectionChange(
+      THEME_EDITOR_SECTIONS,
+      prev,
+      customTheme,
+      sectionStacks,
+      lastChangeAtRef.current,
+      Date.now(),
+      undoingRef.current,
+    );
+    lastChangeAtRef.current = {}; // reset burst timers after any change
+    prevThemeRef.current = customTheme;
+    setSectionStacks(stacks);
+  }, [customTheme, sectionStacks]);
+
+  const undoSection = useCallback(
+    (sectionTitle: string) => {
+      const currentStack = sectionStacks[sectionTitle] ?? [];
+      const { snapshot, stack } = popSectionUndo(currentStack);
+      if (!snapshot) return;
+      undoingRef.current = true;
+      lastChangeAtRef.current[sectionTitle] = 0; // next real edit starts a fresh burst
+      setSectionStacks((s) => ({ ...s, [sectionTitle]: stack }));
+      setCustomTheme(snapshot);
+      // Release on next tick so the resulting store change isn't recorded.
+      queueMicrotask(() => { undoingRef.current = false; });
+    },
+    [sectionStacks],
+  );
 
   // Position + minimize + drag state
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -492,9 +540,20 @@ export function ThemeEditorDialog() {
         </div>
         {THEME_EDITOR_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1.5">
-            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              {section.title}
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                {section.title}
+              </Label>
+              <button
+                type="button"
+                onClick={() => undoSection(section.title)}
+                disabled={sectionUndoDepth(section.title, sectionStacks) === 0}
+                title={`Undo changes to ${section.title}`}
+                className="rounded-md p-0.5 text-muted-foreground/60 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Undo2 className="h-3 w-3" />
+              </button>
+            </div>
             <div className="space-y-1.5">
               {section.keys.map((meta) => (
                 <div key={meta.key}>
@@ -525,12 +584,7 @@ export function ThemeEditorDialog() {
                         type="text"
                         value={customTheme[meta.key].color}
                         onChange={(e) =>
-                          handleChange(meta.key, {
-                            color: e.target.value,
-                            opacity: customTheme[meta.key].opacity,
-                            gradientTo: customTheme[meta.key].gradientTo,
-                            gradientAngle: customTheme[meta.key].gradientAngle,
-                          })
+                          handleChange(meta.key, { color: e.target.value, opacity: customTheme[meta.key].opacity })
                         }
                         className="w-20 rounded-md border border-border bg-background px-1.5 py-1 font-mono text-[10px] text-foreground"
                       />
@@ -621,12 +675,7 @@ export function ThemeEditorDialog() {
                         <div className="relative flex-1">
                           <HexColorInput
                             color={customTheme[meta.key].color}
-                            onChange={(c) => handleChange(meta.key, {
-                              color: c,
-                              opacity: customTheme[meta.key].opacity,
-                              gradientTo: customTheme[meta.key].gradientTo,
-                              gradientAngle: customTheme[meta.key].gradientAngle,
-                            })}
+                            onChange={(c) => handleChange(meta.key, { color: c, opacity: customTheme[meta.key].opacity })}
                             prefixed
                             className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
                           />
