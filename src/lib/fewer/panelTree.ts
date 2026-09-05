@@ -125,6 +125,16 @@ export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", rat
 
 // ── Join (remove) a leaf ──
 
+/** Replace a specific split node anywhere in the tree with a new subtree. */
+function replaceSplitNode(root: PanelNode, split: PanelSplit, replacement: PanelNode): PanelNode {
+  if (root === split) return replacement;
+  if (isLeaf(root)) return root;
+  const f = replaceSplitNode(root.first, split, replacement);
+  const s = replaceSplitNode(root.second, split, replacement);
+  if (f === root.first && s === root.second) return root;
+  return { ...root, first: f, second: s };
+}
+
 /**
  * Remove a leaf — its sibling subtree takes over the parent split's space.
  * Cannot remove the last leaf. Cannot remove a primary leaf unless another
@@ -145,7 +155,8 @@ export function joinLeaf(root: PanelNode, targetId: string): PanelNode {
     const siblingHasPrimary = isLeaf(sibling) ? !!sibling.primary : getPrimary(sibling) !== null;
     if (!siblingHasPrimary) return root;
   }
-  return replaceChild(root, targetId, sibling);
+  // Replace the parent split with the sibling — collapses the split
+  return replaceSplitNode(root, parent, sibling);
 }
 
 export function findParentSplit(root: PanelNode, childId: string): PanelSplit | null {
