@@ -10,47 +10,38 @@ import {
 } from "@/lib/fewer/tags";
 
 /**
- * Conic-gradient highlight ring drawn BEHIND a node card. Always present when
- * the node has tags and the node is NOT selected (selection draws its own ring
- * on the card, so we hide this one to avoid a double ring).
+ * Tag highlight ring for a node card. Rendered INSIDE the card (which is
+ * `position: relative`) as an absolutely-positioned overlay — never as a
+ * wrapper. A wrapper breaks React Flow's node ref (context menus die) and a
+ * padded background bleeds through translucent card bodies. The `.gm-tag-ring`
+ * mask keeps only the 3px band around the border painted, so a multi-tag card
+ * shows hard-edged color steps around its outline and nothing else.
  *
- * The ring is a thin padded wrapper: the padded border shows the conic gradient
- * while the inner card paints over the rest. `rounded` must match the card's
- * border-radius for the ring to read as a continuous outline.
+ * Hidden while the card is selected: the themed selection ring wins.
  */
 export function TagRing({
   tags,
   tagIds,
   selected,
-  rounded = "rounded-2xl",
-  thickness = 3,
-  children,
 }: {
   tags: Tag[];
   /** Tag ids assigned to this node, in display order. */
   tagIds: string[];
   selected: boolean;
-  rounded?: string;
-  thickness?: number;
-  children: React.ReactNode;
 }) {
   const colors = useMemo(
     () => tagIds.map((id) => colorForTag(tags, id)).filter(Boolean),
     [tagIds, tags],
   );
 
-  if (selected || colors.length === 0) {
-    return <>{children}</>;
-  }
+  if (selected || colors.length === 0) return null;
 
   return (
     <div
-      className={cn("relative", rounded)}
-      style={{ padding: thickness, background: buildTagRingGradient(colors) }}
+      className="gm-tag-ring"
+      style={{ background: buildTagRingGradient(colors) }}
       aria-hidden="true"
-    >
-      {children}
-    </div>
+    />
   );
 }
 
@@ -87,5 +78,3 @@ export function TagDots({
     </span>
   );
 }
-
-export { TAG_RING_CAP };
