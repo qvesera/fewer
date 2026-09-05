@@ -71,7 +71,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
 ];
 
 /** Section ids that are always "in sidebar" — too core to dock. */
-export const NON_DOCKABLE_SECTIONS: Set<string> = new Set(["file"]);
+export const NON_DOCKABLE_SECTIONS: Set<string> = new Set();
 
 export function sectionMetaById(id: AreaEditor): SectionMeta | undefined {
   return SECTION_CATALOG.find((s) => s.id === id);
