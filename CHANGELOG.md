@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
 - Per-section undo buttons (Canvas & Text, Folders, Files) in the Custom Theme Editor that revert a section's slots, with drag-coalesced steps
 - Tags: assign named, colored tags to folders and files. Each tagged card shows a permanent highlight ring with its tags colors split evenly around the border (stepped, up to 5 colors); the ring yields to the selection ring while the card is selected. Assign via right-click > Tags on any card, manage the palette in the sidebar Tags panel, filter the canvas with tag chips in search (non-matching cards dim), and sort siblings by tag via Settings > Appearance > Sibling Sort > Tag. Tags travel with saved and shared graphs.
+- Blender-style dockable panel areas: drag sidebar sections into separate columns, switch between Graph View and section editors per column, dock areas to left or right side. Sidebar can be relocated to left or right edge of screen. Column widths are resizable.
 
 ### Changed
 

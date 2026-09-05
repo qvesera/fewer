@@ -56,7 +56,7 @@ function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
 }
 
 interface CanvasMenuPosition { x: number; y: number; }
-interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; }
+interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; }
 
 /** Shared edge-animation configuration assembled from store state. */
 function useEdgeAnimationOpts(
@@ -77,7 +77,7 @@ function useEdgeAnimationOpts(
   );
 }
 
-function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
+function CanvasInner({ onOpenImport, onLoadSample, primary = true }: CanvasEmptyActionsProps) {
   const allNodes = useGraphStore((s) => s.nodes);
   const allEdges = useGraphStore((s) => s.edges);
   const showFiles = useGraphStore((s) => s.showFiles);
@@ -448,7 +448,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
           </>
         );
       })()}
-      <KeyboardShortcuts />
+      {primary && <KeyboardShortcuts />}
     </div>
   );
 }
@@ -456,12 +456,14 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
 interface GraphCanvasProps {
   onOpenImport: () => void;
   onLoadSample: () => void;
+  /** Primary viewport gets keyboard shortcuts; secondary viewports skip them. */
+  primary?: boolean;
 }
 
-export function GraphCanvas({ onOpenImport, onLoadSample }: GraphCanvasProps) {
+export function GraphCanvas({ onOpenImport, onLoadSample, primary = true }: GraphCanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
+      <CanvasInner onOpenImport={onOpenImport} onLoadSample={onLoadSample} primary={primary} />
     </ReactFlowProvider>
   );
 }
