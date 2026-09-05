@@ -692,6 +692,8 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
+        <ContextMenuSeparator />
+        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
         <ContextMenuItem
           onSelect={() => {
             onDelete();
@@ -703,8 +705,6 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         {advancedModeEnabled && (
           <>
-            <ContextMenuSeparator />
-            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
             {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
             <ContextMenuItem
               onSelect={async () => {
@@ -952,37 +952,37 @@ function CustomNodeImpl({
     const actualHeight = height ?? nodeHeight;
     const childListMaxHeight = Math.max(60, actualHeight - 72);
     return (
-      <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected}>
-        <div
-          className={cn(
-            "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
-            "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
-            data.isRoot && "gm-aurora gm-aurora-brand",
-            data.highlighted && "gm-highlight-ring",
-            isHovered && "gm-highlight-ring",
-            data.dimmed && "opacity-40 saturate-50",
-            selected && "gm-selected-ring",
-          )}
-          style={{ background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
-        >
-          {selected && (
-            <NodeResizer
-              minWidth={180}
-              minHeight={50}
-              isVisible={!!selected}
-              shouldResize={() => true}
-              /* Line stays draggable but invisible — the themed select ring is
-                 the single visible ring on a selected folder card. */
-              lineClassName="!border-transparent"
-              handleClassName="!h-2 !w-2 !rounded-full gm-resizer-handle"
-            />
-          )}
+      <div
+        className={cn(
+          "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
+          "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
+          data.isRoot && "gm-aurora gm-aurora-brand",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
+          data.dimmed && "opacity-40 saturate-50",
+          selected && "gm-selected-ring",
+        )}
+        style={{ background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
+      >
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+        {selected && (
+          <NodeResizer
+            minWidth={180}
+            minHeight={50}
+            isVisible={!!selected}
+            shouldResize={() => true}
+            /* Line stays draggable but invisible — the themed select ring is
+               the single visible ring on a selected folder card. */
+            lineClassName="!border-transparent"
+            handleClassName="!h-2 !w-2 !rounded-full gm-resizer-handle"
+          />
+        )}
 
-          <Handle
-            type="target"
-            position={target}
-            id={`target-${target}`}
-            isConnectable
+        <Handle
+          type="target"
+          position={target}
+          id={`target-${target}`}
+          isConnectable
           onClick={(e) => {
             if (e.ctrlKey || e.metaKey) {
               useGraphStore.getState().removeEdgesFromHandle(id, "target");
@@ -1099,7 +1099,6 @@ function CustomNodeImpl({
           className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
       </div>
-      </TagRing>
     );
   }
 
@@ -1113,19 +1112,19 @@ function CustomNodeImpl({
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >
-      <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} rounded="rounded-xl">
-        <div
-          className={cn(
-            "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
-            "cursor-context-menu",
-            "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
-            data.highlighted && "gm-highlight-ring",
-            isHovered && "gm-highlight-ring",
-            data.dimmed && "opacity-40 saturate-50",
-            selected && "gm-selected-ring",
-          )}
-          style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
-        >
+      <div
+        className={cn(
+          "group relative flex items-center gap-3 w-full rounded-xl border backdrop-blur-xl gm-node-hover",
+          "cursor-context-menu",
+          "bg-fewer-file-bg border-fewer-file-border text-fewer-file-text shadow-node-file",
+          data.highlighted && "gm-highlight-ring",
+          isHovered && "gm-highlight-ring",
+          data.dimmed && "opacity-40 saturate-50",
+          selected && "gm-selected-ring",
+        )}
+        style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
+      >
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         <Handle
           type="target"
           position={target}
@@ -1193,7 +1192,6 @@ function CustomNodeImpl({
           className="!hidden !h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
         />
       </div>
-      </TagRing>
     </FileEntryContextMenu>
   );
 }

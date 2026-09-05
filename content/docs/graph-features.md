@@ -121,7 +121,7 @@ Tags are named, colored labels you can attach to any folder or file card.
 
 **The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
 
-**Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. Deleting a tag removes it from every card that carries it.
+**Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
 
 **Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — a card stays bright when it carries at least one selected tag (OR semantics); everything else dims, exactly like a text search. Clear with the ✕.
 

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { HexColorPicker, HexColorInput } from "react-colorful";
 import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TAG_PALETTE } from "@/lib/fewer/tags";
 
 /**
  * Sidebar panel: create/rename/recolor/delete tags (the tag registry). Deleting
@@ -19,13 +21,16 @@ export function TagsPanel() {
 
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftColor, setDraftColor] = useState<string | null>(null);
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
 
   const commitCreate = () => {
     const label = draft.trim();
-    if (label) createTag(label);
+    if (label) createTag(label, draftColor ?? undefined);
     setDraft("");
+    setDraftColor(null);
     setCreating(false);
   };
 
@@ -50,50 +55,95 @@ export function TagsPanel() {
       )}
       <div className="flex flex-col gap-1 w-full min-w-0">
         {tags.map((tag) => (
-          <div
-            key={tag.id}
-            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/30 px-2 py-1.5 group"
-          >
-            {editId === tag.id ? (
-              <TagEditor
-                color={tag.color}
-                value={editDraft}
-                onChange={setEditDraft}
-                onCommit={commitEdit}
-                onCancel={() => setEditId(null)}
-              />
-            ) : (
-              <TagRow
-                label={tag.label}
-                color={tag.color}
-                onColor={(c) => updateTag(tag.id, { color: c })}
-                onRename={() => startEdit(tag.id, tag.label)}
-                onDelete={() => deleteTag(tag.id)}
-              />
+          <div key={tag.id} className="flex flex-col gap-1">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-lg border bg-card/30 px-2 py-1.5 group",
+                colorPickerFor === tag.id ? "border-border/60" : "border-border/30",
+              )}
+            >
+              {editId === tag.id ? (
+                <TagEditor
+                  color={tag.color}
+                  value={editDraft}
+                  onChange={setEditDraft}
+                  onCommit={commitEdit}
+                  onCancel={() => setEditId(null)}
+                />
+              ) : (
+                <TagRow
+                  label={tag.label}
+                  color={tag.color}
+                  pickerOpen={colorPickerFor === tag.id}
+                  onTogglePicker={() =>
+                    setColorPickerFor(colorPickerFor === tag.id ? null : tag.id)
+                  }
+                  onRename={() => startEdit(tag.id, tag.label)}
+                  onDelete={() => deleteTag(tag.id)}
+                />
+              )}
+            </div>
+            {/* Theme-editor-style inline color picker (react-colorful), expanded
+                under the tag row when its swatch is clicked. */}
+            {colorPickerFor === tag.id && (
+              <div className="rounded-lg border border-border/40 bg-background/60 p-2.5 space-y-2">
+                <div className="overflow-hidden rounded-md">
+                  <HexColorPicker
+                    color={tag.color}
+                    onChange={(c) => updateTag(tag.id, { color: c })}
+                    style={{ width: "100%", height: 140 }}
+                  />
+                </div>
+                <HexColorInput
+                  color={tag.color}
+                  onChange={(c) => updateTag(tag.id, { color: c })}
+                  prefixed
+                  className="w-full rounded-md border border-border bg-background px-2 py-1 font-mono text-xs text-foreground"
+                />
+              </div>
             )}
           </div>
         ))}
       </div>
 
       {creating ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitCreate();
-              if (e.key === "Escape") {
-                setCreating(false);
-                setDraft("");
-              }
-            }}
-            placeholder="Tag name"
-            className="h-7 min-w-0 flex-1 rounded border border-border/50 bg-background px-2 text-xs outline-none focus:border-primary"
-          />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={commitCreate} title="Add">
-            <Check className="h-3.5 w-3.5" />
-          </Button>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitCreate();
+                if (e.key === "Escape") {
+                  setCreating(false);
+                  setDraft("");
+                }
+              }}
+              placeholder="Tag name"
+              className="h-7 min-w-0 flex-1 rounded border border-border/50 bg-background px-2 text-xs outline-none focus:border-primary"
+            />
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={commitCreate} title="Add">
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            {TAG_PALETTE.map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setDraftColor(color)}
+                aria-label={`Color ${color}`}
+                aria-pressed={draftColor === color}
+                className={cn(
+                  "h-4 w-4 rounded-full transition-transform",
+                  draftColor === color ? "ring-2 ring-ring ring-offset-1 ring-offset-background scale-110" : "ring-1 ring-white/30",
+                )}
+                style={{ background: color }}
+              />
+            ))}
+            <span className="text-[10px] text-muted-foreground/60">color (optional)</span>
+          </div>
         </div>
       ) : (
         <button
@@ -113,32 +163,31 @@ export function TagsPanel() {
 function TagRow({
   label,
   color,
-  onColor,
+  pickerOpen,
+  onTogglePicker,
   onRename,
   onDelete,
 }: {
   label: string;
   color: string;
-  onColor: (c: string) => void;
+  pickerOpen: boolean;
+  onTogglePicker: () => void;
   onRename: () => void;
   onDelete: () => void;
 }) {
   return (
     <>
-      <span
-        className="h-3 w-3 shrink-0 rounded-full ring-1 ring-white/30"
+      {/* Swatch doubles as the picker toggle — same affordance as the theme editor. */}
+      <button
+        type="button"
+        onClick={onTogglePicker}
+        aria-expanded={pickerOpen}
+        aria-label={`Color for ${label}`}
+        title="Change color"
+        className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded-full ring-1 ring-white/30 transition-transform hover:scale-110"
         style={{ background: color }}
-        aria-hidden="true"
       />
       <span className="min-w-0 flex-1 truncate text-xs">{label}</span>
-      <input
-        type="color"
-        value={color}
-        onChange={(e) => onColor(e.target.value)}
-        className="h-4 w-4 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
-        title="Change color"
-        aria-label={`Color for ${label}`}
-      />
       <button
         onClick={onRename}
         className="text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"

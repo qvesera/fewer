@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sign-up with an already-registered email no longer pretends to succeed: Supabase returns user:null (anti-enumeration) for duplicate emails and the dialog silently showed 'Check your email' — the dialog now detects it, tells the user the email is taken, and switches to the sign-in form with the email prefilled.
 - Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
 - Editing a gradient slot's base color no longer resets its gradient endpoint and angle
+- Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
 
 ### Added
 
@@ -74,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account deletion now uses a 7-day grace window instead of immediate removal: 'Delete account' schedules the deletion (the account looks gone right away), the nightly purge job permanently removes data when the window lapses, and signing in again before then cancels the deletion — a free recovery path against accidental or takeover-driven deletion. Job runs via GitHub Actions cron (purge-deleted-accounts.yml), same pattern as the watch digest. Privacy policy and /docs/accounts updated to disclose the window.
 - Changing the layout direction or the Crown Shyness intensity no longer auto-relayouts the graph — nodes keep their positions and re-layout runs only via the Rearrange button or Alt+R
 - Crown Shyness multiplier can now be typed in as a custom value — click the value next to the slider in Settings → Advanced (store clamps to 0–3×)
+- Tags: color editing now uses the same react-colorful picker as the Custom Theme Editor (click a tag swatch in the sidebar Tags panel to expand it), and new tags pick a color from a palette swatch row at creation in both the context menu and the sidebar; fixed the assigned-tag checkmark overlapping the color dot in the Tags submenu.
 
 ### Security
 

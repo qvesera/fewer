@@ -10,6 +10,8 @@ import {
   ContextMenuCheckboxItem,
   ContextMenuItem,
 } from "@/components/ui/context-menu";
+import { cn } from "@/lib/utils";
+import { TAG_PALETTE } from "@/lib/fewer/tags";
 
 /**
  * "Tags" submenu inside a node's context menu. Lists every tag as a checkbox
@@ -22,16 +24,19 @@ export function TagMenu({ nodeId, nodeTagIds }: { nodeId: string; nodeTagIds: st
   const createTag = useGraphStore((s) => s.createTag);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftColor, setDraftColor] = useState<string | null>(null);
 
   const commitDraft = () => {
     const label = draft.trim();
     if (!label) {
       setCreating(false);
+      setDraftColor(null);
       return;
     }
-    const tag = createTag(label);
+    const tag = createTag(label, draftColor ?? undefined);
     toggleNodeTag(nodeId, tag.id);
     setDraft("");
+    setDraftColor(null);
     setCreating(false);
   };
 
@@ -41,7 +46,7 @@ export function TagMenu({ nodeId, nodeTagIds }: { nodeId: string; nodeTagIds: st
         <TagIcon className="mr-2 h-3.5 w-3.5" />
         Tags
       </ContextMenuSubTrigger>
-      <ContextMenuSubContent className="w-48">
+      <ContextMenuSubContent className="w-52">
         {tags.length === 0 && !creating && (
           <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
             No tags yet — create one below.
@@ -57,19 +62,19 @@ export function TagMenu({ nodeId, nodeTagIds }: { nodeId: string; nodeTagIds: st
                 e.preventDefault();
                 toggleNodeTag(nodeId, tag.id);
               }}
-              className="cursor-pointer pl-8"
+              className="cursor-pointer"
             >
               <span
-                className="absolute left-2.5 h-2.5 w-2.5 rounded-full"
+                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/40"
                 style={{ background: tag.color }}
                 aria-hidden="true"
               />
-              {tag.label}
+              <span className="truncate">{tag.label}</span>
             </ContextMenuCheckboxItem>
           );
         })}
         {creating ? (
-          <div className="flex items-center gap-1 px-2 py-1">
+          <div className="flex flex-col gap-1.5 px-2 py-1.5">
             <input
               autoFocus
               value={draft}
@@ -80,12 +85,35 @@ export function TagMenu({ nodeId, nodeTagIds }: { nodeId: string; nodeTagIds: st
                 if (e.key === "Escape") {
                   setCreating(false);
                   setDraft("");
+                  setDraftColor(null);
                 }
               }}
               onBlur={commitDraft}
               placeholder="Tag name"
               className="h-7 w-full rounded border border-border/50 bg-background px-1.5 text-xs outline-none focus:border-primary"
             />
+            <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Tag color">
+              {TAG_PALETTE.map((color) => {
+                const active = draftColor === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setDraftColor(active ? null : color)}
+                    aria-label={`Color ${color}`}
+                    aria-pressed={active}
+                    className={cn(
+                      "h-4 w-4 rounded-full transition-transform",
+                      active ? "ring-2 ring-ring ring-offset-1 ring-offset-background scale-110" : "ring-1 ring-white/30",
+                    )}
+                    style={{ background: color }}
+                  />
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">
+              Uncheck a tag above to remove it from this card.
+            </p>
           </div>
         ) : (
           <ContextMenuItem
