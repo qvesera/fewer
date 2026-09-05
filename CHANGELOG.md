@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change email: signed-in users can update their account email from Settings → Account; a confirmation link is sent to the new address and the change only applies after it's confirmed.
 - Sibling sort controls: folders' children can now be ordered by Name, Size, or Type (ascending/descending) via Settings → Appearance → Sibling Sort, applying recursively and relayout immediately; the choice persists with your other preferences.
 - Drag from any node's input handle to create a parent folder for that node (always a folder, inserted between the node and its existing parent when it has one).
+- Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
 
 ### Changed
 

@@ -955,6 +955,7 @@ function CustomNodeImpl({
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
+        style={{ background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
         {selected && (
           <NodeResizer
@@ -1110,6 +1111,7 @@ function CustomNodeImpl({
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
+        style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
         <Handle
           type="target"

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
-import { toCssColor } from "@/lib/fewer/themeColors";
+import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
@@ -146,6 +146,36 @@ export function ThemeEditorDialog() {
     setCustomTheme({ [key]: value } as Partial<CustomTheme>);
   };
 
+  /** Patch a slot, preserving gradient fields and opacity unless overridden. */
+  const patchSlot = useCallback(
+    (key: keyof CustomTheme, patch: Partial<CustomThemeColor>) => {
+      const current = customTheme[key];
+      handleChange(key, { ...current, ...patch });
+    },
+    [customTheme, handleChange],
+  );
+
+  const toggleGradient = useCallback(
+    (key: keyof CustomTheme) => {
+      const current = customTheme[key];
+      const has = Boolean(current.gradientTo && current.gradientTo.length > 0);
+      if (has) {
+        patchSlot(key, { gradientTo: null, gradientAngle: 135 });
+      } else {
+        // Suggest a sensible endpoint (darker for light colors, lighter for dark).
+        patchSlot(key, { gradientTo: suggestGradientEnd(current.color), gradientAngle: 135 });
+      }
+    },
+    [customTheme, patchSlot],
+  );
+
+  const updateGradientEnd = useCallback(
+    (key: keyof CustomTheme, c: string) => {
+      patchSlot(key, { gradientTo: c.replace(/^#?/, "#").slice(0, 7) });
+    },
+    [patchSlot],
+  );
+
   const handleColorChange = (key: string, c: string) => {
     handleChange(key as keyof CustomTheme, hexAlphaToColorOpacity(c, customTheme[key as keyof CustomTheme].opacity));
   };
@@ -153,6 +183,11 @@ export function ThemeEditorDialog() {
   const getColorWithAlpha = (key: string) => {
     const theme = customTheme[key as keyof CustomTheme];
     return colorOpacityToHexAlpha(theme.color, theme.opacity);
+  };
+
+  const isGradientOn = (key: string) => {
+    const c = customTheme[key as keyof CustomTheme];
+    return Boolean(c.gradientTo && c.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(c.gradientTo));
   };
 
   // Position + minimize + drag state
@@ -470,7 +505,7 @@ export function ThemeEditorDialog() {
                     <div className="flex min-w-0 items-center gap-2">
                       <div
                         className="h-5 w-5 shrink-0 rounded-md border border-border"
-                        style={{ background: toCssColor(customTheme[meta.key].color, customTheme[meta.key].opacity) }}
+                        style={{ background: toCssValue(customTheme[meta.key]) }}
                         title={`${meta.label}: ${meta.description}`}
                       />
                       <Label
@@ -479,12 +514,24 @@ export function ThemeEditorDialog() {
                       >
                         {meta.label}
                       </Label>
+                      {meta.gradientCssVar && isGradientOn(meta.key) && (
+                        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Gradient
+                        </span>
+                      )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="text"
                         value={customTheme[meta.key].color}
-                        onChange={(e) => handleChange(meta.key, { color: e.target.value, opacity: customTheme[meta.key].opacity })}
+                        onChange={(e) =>
+                          handleChange(meta.key, {
+                            color: e.target.value,
+                            opacity: customTheme[meta.key].opacity,
+                            gradientTo: customTheme[meta.key].gradientTo,
+                            gradientAngle: customTheme[meta.key].gradientAngle,
+                          })
+                        }
                         className="w-20 rounded-md border border-border bg-background px-1.5 py-1 font-mono text-[10px] text-foreground"
                       />
                     </div>
@@ -498,11 +545,64 @@ export function ThemeEditorDialog() {
                           style={{ width: "100%", height: 160 }}
                         />
                       </div>
+                      {meta.gradientCssVar && (
+                        <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                              Gradient
+                            </Label>
+                            <button
+                              type="button"
+                              onClick={() => toggleGradient(meta.key)}
+                              className={`rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                isGradientOn(meta.key)
+                                  ? "border-border/60 bg-foreground/5 text-foreground"
+                                  : "border-border/40 text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              {isGradientOn(meta.key) ? "On" : "Add"}
+                            </button>
+                          </div>
+                          {isGradientOn(meta.key) && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className="rounded-md border border-border bg-background p-1">
+                                  <HexAlphaColorPicker
+                                    color={colorOpacityToHexAlpha(customTheme[meta.key].gradientTo!, 1)}
+                                    onChange={(c) => updateGradientEnd(meta.key, c)}
+                                    style={{ width: 24, height: 24 }}
+                                  />
+                                </div>
+                                <span className="truncate font-mono text-[9px] text-muted-foreground">
+                                  {customTheme[meta.key].gradientTo}
+                                </span>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={360}
+                                  step={15}
+                                  value={customTheme[meta.key].gradientAngle ?? 135}
+                                  onChange={(e) =>
+                                    patchSlot(meta.key, { gradientAngle: Number(e.target.value) })
+                                  }
+                                  className="h-7 w-16 text-xs"
+                                  title="Gradient angle (degrees)"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <HexColorInput
                             color={customTheme[meta.key].color}
-                            onChange={(c) => handleChange(meta.key, { color: c, opacity: customTheme[meta.key].opacity })}
+                            onChange={(c) => handleChange(meta.key, {
+                              color: c,
+                              opacity: customTheme[meta.key].opacity,
+                              gradientTo: customTheme[meta.key].gradientTo,
+                              gradientAngle: customTheme[meta.key].gradientAngle,
+                            })}
                             prefixed
                             className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
                           />

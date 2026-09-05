@@ -267,7 +267,7 @@ function CanvasInner({ onOpenImport, onLoadSample }: CanvasEmptyActionsProps) {
   }, []);
 
   return (
-    <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ backgroundColor: "var(--fewer-background)" }} onDrop={onDrop} onDragOver={onDragOver}
+    <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}

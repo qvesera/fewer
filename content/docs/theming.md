@@ -82,8 +82,30 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-file-subtle-text`   | File extension/size color  |
 | `--fewer-file-border`        | File card border           |
 | `--fewer-file-icon`          | File icon/accent color     |
+| `--fewer-background-gradient` | Canvas background gradient (only when enabled, else unset) |
+| `--fewer-folder-bg-gradient`  | Folder card background gradient (only when enabled, else unset) |
+| `--fewer-file-bg-gradient`    | File card background gradient (only when enabled, else unset) |
 
-### Per-Type Text Controls
+### Gradients
+
+Canvas background, folder body, and file body slots support an optional
+two-stop **linear gradient**. Expand the slot in the Custom Theme Editor and
+click **Add** under *Gradient* to enable it — a second color picker lets you
+choose the endpoint, and the slider sets the angle. Click **On** again to
+remove it.
+
+Gradient-capable slots expose a `-gradient` companion CSS variable alongside
+the solid `--fewer-*` variable. UI surfaces opt in explicitly:
+
+```css
+/* e.g. the canvas — falls back to the solid color when no gradient set */
+background: var(--fewer-background-gradient, var(--fewer-background));
+```
+
+**Note:** the main `--fewer-*` variable always stays a solid color, so features
+that take a single color — the minimap, SVG/PNG export, saved-theme preview
+dots — render the solid start color even when a gradient is configured. Only
+the in-app canvas and node card backgrounds render gradients.
 
 Folder and file cards each have separate text controls:
 
