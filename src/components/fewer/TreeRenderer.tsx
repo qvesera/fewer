@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { PanelNode, PanelSplit } from "@/lib/fewer/panelTree";
 import { isLeaf, isSplit, setDividerRatio as treeSetDividerRatio } from "@/lib/fewer/panelTree";
 import { DockArea } from "./DockArea";
+import { CornerGrip } from "./CornerGrip";
 import { saveLayoutToStorage } from "@/lib/fewer/panelLayout";
 import dynamic from "next/dynamic";
 
@@ -56,20 +57,28 @@ function LeafNode({
   onOpenImport: () => void;
   onLoadSample: () => void;
 }) {
-  if (leaf.area.editor === "graph") {
-    return (
-      <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
-        <GraphCanvasForLeaf
-          onOpenImport={onOpenImport}
-          onLoadSample={onLoadSample}
-          primary={!!leaf.primary}
-        />
-      </main>
-    );
-  }
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Section editor — render as a DockArea without the resize handle
-  return <DockArea area={leaf.area} side="left" />;
+  return (
+    <div
+      ref={containerRef}
+      data-leaf-id={leaf.area.id}
+      className="group relative flex flex-col h-full w-full min-h-0 min-w-0"
+    >
+      {leaf.area.editor === "graph" ? (
+        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
+          <GraphCanvasForLeaf
+            onOpenImport={onOpenImport}
+            onLoadSample={onLoadSample}
+            primary={!!leaf.primary}
+          />
+        </main>
+      ) : (
+        <DockArea area={leaf.area} side="left" />
+      )}
+      <CornerGrip leafId={leaf.area.id} containerRef={containerRef} />
+    </div>
+  );
 }
 
 function SplitNode({
