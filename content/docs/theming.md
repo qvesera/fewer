@@ -107,6 +107,17 @@ that take a single color — the minimap, SVG/PNG export, saved-theme preview
 dots — render the solid start color even when a gradient is configured. Only
 the in-app canvas and node card backgrounds render gradients.
 
+Editing a slot's base color (via the main picker or hex input) preserves its
+gradient — the gradient endpoint and angle are kept.
+
+### Per-Section Undo
+
+Each section header (**Canvas & Text**, **Folders**, **Files**) has an undo
+button that reverts that section's slots to their state before the last burst
+of edits. A picker drag coalesces into a single undo step. Applying a preset,
+loading a saved theme, or resetting are all undoable per-section. History is
+session-scoped (it survives opening/closing the editor, but not a page reload).
+
 Folder and file cards each have separate text controls:
 
 - **Folder text**: title color

@@ -3,14 +3,21 @@ import {
   DIALOG_WIDTH,
   TOP_OFFSET,
   THEME_EDITOR_SECTIONS,
+  SECTION_UNDO_LIMIT,
+  SECTION_UNDO_COALESCE_MS,
   clampDockRaw,
   clampPosition,
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
   snapDockPosition,
+  sectionDiffers,
+  snapshotSection,
+  recordSectionChange,
+  sectionUndoDepth,
+  popSectionUndo,
 } from "./themeEditor";
-import { THEME_COLOR_META } from "./types";
+import { THEME_COLOR_META, type CustomTheme } from "./types";
 
 // Canvas bounds used across the dock/clamp tests.
 const B = { left: 100, top: 80, width: 800, height: 500 };
@@ -144,5 +151,181 @@ describe("THEME_EDITOR_SECTIONS", () => {
     const metaKeys = THEME_COLOR_META.map((m) => m.key);
     expect([...sectionKeys].sort()).toEqual([...metaKeys].sort());
     expect(new Set(sectionKeys).size).toBe(sectionKeys.length);
+  });
+});
+
+// A minimal CustomTheme-shaped object for undo tests (only the fields that
+// slotEquals compares). Cast via Partial<CustomTheme> where needed.
+function makeTheme(overrides: Record<string, { color: string; opacity: number; gradientTo?: string | null; gradientAngle?: number }>): CustomTheme {
+  const base: Record<string, { color: string; opacity: number; gradientTo?: string | null; gradientAngle?: number }> = {};
+  for (const m of THEME_COLOR_META) base[m.key] = { color: m.defaultColor, opacity: m.defaultOpacity };
+  return { ...base, ...overrides } as unknown as CustomTheme;
+}
+
+describe("per-section undo", () => {
+  const section = THEME_EDITOR_SECTIONS[0]; // Canvas & Text
+
+  describe("sectionDiffers", () => {
+    it("returns false when nothing changed", () => {
+      const t = makeTheme({});
+      expect(sectionDiffers(section, t, makeTheme({}))).toBe(false);
+    });
+
+    it("detects a color change in the section", () => {
+      const prev = makeTheme({});
+      const next = makeTheme({ background: { color: "#123456", opacity: 1 } });
+      expect(sectionDiffers(section, prev, next)).toBe(true);
+    });
+
+    it("detects opacity and gradient field changes", () => {
+      const prev = makeTheme({ background: { color: "#000000", opacity: 1, gradientTo: null } });
+      const nextOpacity = makeTheme({ background: { color: "#000000", opacity: 0.5, gradientTo: null } });
+      expect(sectionDiffers(section, prev, nextOpacity)).toBe(true);
+
+      const nextGrad = makeTheme({ background: { color: "#000000", opacity: 1, gradientTo: "#ffffff", gradientAngle: 90 } });
+      expect(sectionDiffers(section, prev, nextGrad)).toBe(true);
+    });
+
+    it("returns false for changes outside the section", () => {
+      const prev = makeTheme({});
+      const next = makeTheme({ folderBg: { color: "#123456", opacity: 0.5 } });
+      expect(sectionDiffers(section, prev, next)).toBe(false);
+    });
+  });
+
+  describe("snapshotSection", () => {
+    it("captures only the section's slots", () => {
+      const t = makeTheme({ background: { color: "#123456", opacity: 0.4, gradientTo: "#abcdef", gradientAngle: 45 } });
+      const snap = snapshotSection(section, t);
+      expect(snap.background).toEqual({ color: "#123456", opacity: 0.4, gradientTo: "#abcdef", gradientAngle: 45 });
+      expect(snap.folderBg).toBeUndefined();
+    });
+
+    it("produces an independent copy (no shared references)", () => {
+      const t = makeTheme({});
+      const snap = snapshotSection(section, t);
+      (snap.background as { color: string }).color = "#000000";
+      expect((t.background as { color: string }).color).not.toBe("#000000");
+    });
+  });
+
+  describe("recordSectionChange", () => {
+    it("pushes the previous state when a section changes", () => {
+      const prev = makeTheme({});
+      const next = makeTheme({ background: { color: "#123456", opacity: 1 } });
+      const { stacks } = recordSectionChange(THEME_EDITOR_SECTIONS, prev, next, {}, {}, 1000, false);
+      expect(stacks["Canvas & Text"]).toHaveLength(1);
+      expect((stacks["Canvas & Text"]![0].background as { color: string }).color).toBe(
+        THEME_COLOR_META.find((m) => m.key === "background")!.defaultColor,
+      );
+    });
+
+    it("does not push when nothing changed", () => {
+      const t = makeTheme({});
+      const { stacks, changed } = recordSectionChange(THEME_EDITOR_SECTIONS, t, makeTheme({}), {}, {}, 1000, false);
+      expect(changed).toBe(false);
+      expect(stacks["Canvas & Text"]).toEqual([]);
+    });
+
+    it("coalesces edits within the window into one step", () => {
+      let state = recordSectionChange(
+        THEME_EDITOR_SECTIONS,
+        makeTheme({}),
+        makeTheme({ background: { color: "#111111", opacity: 1 } }),
+        {},
+        {},
+        1000,
+        false,
+      );
+      state = recordSectionChange(
+        THEME_EDITOR_SECTIONS,
+        makeTheme({ background: { color: "#111111", opacity: 1 } }),
+        makeTheme({ background: { color: "#222222", opacity: 1 } }),
+        state.stacks,
+        state.lastChangeAt,
+        1200,
+        false,
+      );
+      expect(state.stacks["Canvas & Text"]).toHaveLength(1);
+    });
+
+    it("starts a new step after the coalesce window elapses", () => {
+      let state = recordSectionChange(
+        THEME_EDITOR_SECTIONS,
+        makeTheme({}),
+        makeTheme({ background: { color: "#111111", opacity: 1 } }),
+        {},
+        {},
+        1000,
+        false,
+      );
+      state = recordSectionChange(
+        THEME_EDITOR_SECTIONS,
+        makeTheme({ background: { color: "#111111", opacity: 1 } }),
+        makeTheme({ background: { color: "#222222", opacity: 1 } }),
+        state.stacks,
+        state.lastChangeAt,
+        1000 + SECTION_UNDO_COALESCE_MS + 1,
+        false,
+      );
+      expect(state.stacks["Canvas & Text"]).toHaveLength(2);
+    });
+
+    it("does not record while undoing", () => {
+      const prev = makeTheme({});
+      const next = makeTheme({ background: { color: "#123456", opacity: 1 } });
+      const { stacks, changed } = recordSectionChange(THEME_EDITOR_SECTIONS, prev, next, {}, {}, 1000, true);
+      expect(changed).toBe(false);
+      expect(stacks["Canvas & Text"]).toBeUndefined();
+    });
+
+    it("respects the per-section undo limit", () => {
+      let state: { stacks: Record<string, Partial<CustomTheme>[]>; lastChangeAt: Record<string, number> } = { stacks: {}, lastChangeAt: {} };
+      for (let i = 0; i < SECTION_UNDO_LIMIT + 5; i++) {
+        const prev = makeTheme({ background: { color: `#${i.toString(16).padStart(6, "0")}`, opacity: 1 } });
+        const next = makeTheme({ background: { color: `#${(i + 1).toString(16).padStart(6, "0")}`, opacity: 1 } });
+        state = recordSectionChange(THEME_EDITOR_SECTIONS, prev, next, state.stacks, state.lastChangeAt, 1000 + i * (SECTION_UNDO_COALESCE_MS + 1), false);
+      }
+      expect(state.stacks["Canvas & Text"]).toHaveLength(SECTION_UNDO_LIMIT);
+    });
+  });
+
+  describe("sectionUndoDepth / popSectionUndo", () => {
+    it("reports depth and pops in LIFO order", () => {
+      const mid = makeTheme({ background: { color: "#111111", opacity: 1 } });
+      let { stacks } = recordSectionChange(THEME_EDITOR_SECTIONS, makeTheme({}), mid, {}, {}, 1000, false);
+      ({ stacks } = recordSectionChange(THEME_EDITOR_SECTIONS, mid, makeTheme({ background: { color: "#222222", opacity: 1 } }), stacks, {}, 2000, false));
+
+      expect(sectionUndoDepth("Canvas & Text", stacks)).toBe(2);
+
+      let pop = popSectionUndo(stacks["Canvas & Text"]!);
+      expect(pop.snapshot).toBeDefined();
+      expect(pop.stack).toHaveLength(1);
+      expect((pop.snapshot!.background as { color: string }).color).toBe("#111111");
+
+      pop = popSectionUndo(pop.stack);
+      expect((pop.snapshot!.background as { color: string }).color).toBe(
+        THEME_COLOR_META.find((m) => m.key === "background")!.defaultColor,
+      );
+      expect(pop.stack).toHaveLength(0);
+
+      pop = popSectionUndo(pop.stack);
+      expect(pop.snapshot).toBeUndefined();
+    });
+
+    it("does not mutate the input stack", () => {
+      const { stacks } = recordSectionChange(
+        THEME_EDITOR_SECTIONS,
+        makeTheme({}),
+        makeTheme({ background: { color: "#123456", opacity: 1 } }),
+        {},
+        {},
+        1000,
+        false,
+      );
+      const before = JSON.stringify(stacks);
+      popSectionUndo(stacks["Canvas & Text"]!);
+      expect(JSON.stringify(stacks)).toBe(before);
+    });
   });
 });
