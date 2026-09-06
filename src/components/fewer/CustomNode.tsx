@@ -219,6 +219,7 @@ function FolderContextMenu({
   nodeWebUrl?: string;
   children: React.ReactNode;
 }) {
+  const scope = useGraphViewScope();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
@@ -360,21 +361,16 @@ function FolderContextMenu({
         {advancedModeEnabled && (
           <>
           <ContextMenuSeparator />
-          {(() => {
-            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-            const hiddenIds = useGraphStore.getState().hiddenIds;
-            const hasHidden = childIds.some((id) => hiddenIds.includes(id));
-            if (hasHidden) {
+            {(() => {
+    const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+    const effHidden = new Set(scope.resolved.hiddenIds);
+    const childHidden = childIds.filter((id) => effHidden.has(id));
+            if (childHidden.length > 0) {
               return (
                 <ContextMenuItem
                   onSelect={() => {
-                    const toShow = childIds.filter((id) => hiddenIds.includes(id));
-                    if (toShow.length > 0) {
-                      // Visibility-only reveal: no relayout, so the viewport
-                      // stays where the user left it.
-                      useGraphStore.getState().showSubtrees(toShow);
-                      toast({ title: "Children shown", description: `${toShow.length} child${toShow.length === 1 ? "" : "ren"} restored` });
-                    }
+                    useGraphStore.getState().showSubtreeForLeaf(scope.leafId, nodeId);
+                    toast({ title: "Children shown", description: `${childHidden.length} child${childHidden.length === 1 ? "" : "ren"} restored` });
                   }}
                   className="cursor-pointer"
                 >
@@ -384,18 +380,16 @@ function FolderContextMenu({
             }
             return null;
           })()}
-          {(() => {
+                    {(() => {
             const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-            const hiddenIds = useGraphStore.getState().hiddenIds;
-            const visibleChildren = childIds.filter((id) => !hiddenIds.includes(id));
+            const effHidden = new Set(scope.resolved.hiddenIds);
+            const visibleChildren = childIds.filter((id) => !effHidden.has(id));
             if (visibleChildren.length > 0) {
               return (
                 <ContextMenuItem
                   onSelect={() => {
-                    // Store action: hides each child subtree, keeps undo
-                    // history and view-state consistent, and never relayouts —
-                    // only visibility changes, so nothing jumps when zoomed in.
-                    useGraphStore.getState().hideNodes(visibleChildren);
+                    // Per-view subtree layer: hidden descendants of this folder in this view.
+                    useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleChildren);
                     toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
                   }}
                   className="cursor-pointer"
@@ -784,7 +778,6 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const scope = useGraphViewScope();
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const edges = useGraphStore((s) => s.edges);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showNode = useGraphStore((s) => s.showNode);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
@@ -796,7 +789,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const isDimmed = child.data.dimmed;
   const isHighlighted = child.data.highlighted;
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
-  const isHidden = hiddenIds.includes(child.id);
+  const isHidden = scope.leafId !== null && scope.resolved.hiddenIds.includes(child.id);
   const isHovered = hoverHighlightIds.includes(child.id);
 
   const handleRename = (v: string) => {
@@ -821,10 +814,14 @@ function ChildEntry({ child }: { child: FewerNode }) {
       )}
       title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
       onDoubleClick={(e) => {
-        // Double-clicking a hidden child reveals it (and zooms to it); the
-        // visible children keep zooming into the node as before.
+        // Double-clicking a hidden child reveals it in this view (and zooms to
+        // it); the visible children keep zooming into the node as before.
         e.stopPropagation();
-        if (hiddenIds.includes(child.id)) showNode(child.id);
+        if (isHidden) {
+          const store = useGraphStore.getState();
+          if (scope.leafId !== null) store.eyeRevealForLeaf(scope.leafId, child.id);
+          if (store.hiddenIds.includes(child.id)) store.showNode(child.id);
+        }
         useGraphStore.getState().setSelectedNodeIds([child.id]);
         setZoomToNode(child.id);
       }}
@@ -908,8 +905,6 @@ function CustomNodeImpl({
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const { toast } = useToast();
 
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
-
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHovered = hoverHighlightIds.includes(id);
   const tags = useGraphStore((s) => s.tags);
@@ -941,10 +936,10 @@ function CustomNodeImpl({
 
   const hiddenChildCount = useMemo(() => {
     if (!isFolder) return 0;
-    const hiddenSet = new Set(hiddenIds);
+    const hiddenSet = new Set(scope.resolved.hiddenIds);
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
     return childIds.filter((cid) => hiddenSet.has(cid)).length;
-  }, [edges, id, isFolder, hiddenIds]);
+  }, [edges, id, isFolder, scope.resolved.hiddenIds]);
 
   const isRenaming = !!scope?.isActive && renamingId === id;
   const childListRef = useRef<HTMLDivElement>(null);

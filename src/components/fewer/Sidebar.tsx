@@ -278,13 +278,15 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
         {/* ── 5. HIDDEN NODES RECOVERY ── */}
         {!dockedIds.has("hidden") && (() => {
+          const viewHidden = activeLeaf ? activeLeaf.resolved.hiddenIds.length > 0 : hiddenIds.length > 0;
           const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
-          const hasAnythingHidden = hiddenIds.length > 0 || viewFiltersFiles;
-          return hasAnythingHidden && (
+          const hiddenCount = activeLeaf ? activeLeaf.resolved.hiddenIds.length : hiddenIds.length;
+          const fileCount = viewFiltersFiles ? nodes.filter((n) => n.data.type === "file").length : 0;
+          return (viewHidden || viewFiltersFiles) && (
           <CollapsibleSection
             title="Hidden Cards"
             icon={EyeOff}
-            badge={String(hiddenIds.length + (viewFiltersFiles ? nodes.filter((n) => n.data.type === "file").length : 0))}
+            badge={String(hiddenCount + fileCount)}
             forceOpen={hiddenPanelExpandTrigger}
             defaultOpen
             {...dragProps("hidden")}

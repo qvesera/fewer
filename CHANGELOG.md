@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
 - Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
 - Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
+- H / Shift+H now route through the active view's hide layers in split-view layouts: hiding selection writes to the active leaf's individual layer, and Shift+H clears both the leaf's layers and the global hidden list (previously Shift+H could not reveal nodes hidden in the active view, and its restored-count toast showed the selection size instead of the number of nodes restored)
 
 ### Added
 

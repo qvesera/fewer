@@ -99,11 +99,18 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
     // fires mouseleave. Clear the canvas ring explicitly or it lingers on the
     // just-revealed nodes.
     setHoverHighlight([]);
+    const store = useGraphStore.getState();
+    // Reveal in the active view's layers (removes from individual/subtrees/bulk-exempt)
+    if (store.activeLeafId) {
+      store.eyeRevealForLeaf(store.activeLeafId, id);
+    }
     if (isFolder) {
-      useGraphStore.getState().revealSubtree(id);
+      // Also reveal subtree globally when it was globally hidden (existing behavior)
+      store.revealSubtree(id);
       toast({ title: "Subtree shown", description: tree.node.data.label });
     } else {
-      showAncestors(id);
+      // Also reveal globally when globally hidden (existing behavior)
+      store.showAncestors(id);
       toast({ title: "Card shown", description: tree.node.data.label });
     }
     // Auto-select the just-revealed node so it's ringed on the canvas and

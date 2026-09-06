@@ -26,12 +26,14 @@ export function useActiveLeaf(): ActiveLeafResult | null {
   const edgeWidthGlobal = useGraphStore((s) => s.edgeWidth);
   const directionGlobal = useGraphStore((s) => s.direction);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
+  const nodes = useGraphStore((s) => s.nodes);
 
   return useMemo(() => {
     const primary = getPrimary(panelTree);
     const id = activeLeafId ?? primary?.area.id;
     if (!id) return null;
 
+    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
     const resolved = resolveViewSettings(viewSettingsMap, id, {
       showFiles: showFilesGlobal,
       minimapHidden: false,
@@ -42,13 +44,13 @@ export function useActiveLeaf(): ActiveLeafResult | null {
       edgeWidth: edgeWidthGlobal,
       direction: directionGlobal,
       hiddenIds,
-    }, hiddenIds);
+    }, hiddenIds, fileIds);
 
     return { leafId: id, resolved };
   }, [
     activeLeafId, panelTree, viewSettingsMap,
     showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal,
-    edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal,
-    edgeWidthGlobal, directionGlobal, hiddenIds,
+    edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal,
+    directionGlobal, hiddenIds, nodes,
   ]);
 }

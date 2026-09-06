@@ -123,7 +123,7 @@ function LayoutSection() {
         <Label className="text-xs font-medium cursor-pointer truncate">Show File Cards</Label>
         <Switch
           checked={showFiles}
-          onCheckedChange={(v) => { if (activeLeaf) updateViewSettings(activeLeaf.leafId, { showFiles: v }); else setShowFiles(v); }}
+          onCheckedChange={(v) => { if (activeLeaf) useGraphStore.getState().setFilesBulkForLeaf(activeLeaf.leafId, !v); else setShowFiles(v); }}
           className="shrink-0"
         />
       </div>

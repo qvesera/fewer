@@ -132,6 +132,8 @@ export type UiSliceCreator = StateCreator<
     setFilesBulkForLeaf: (leafId: string, active: boolean) => void;
     /** Clear all hide layers for this view (Reveal All). */
     revealAllForLeaf: (leafId: string) => void;
+    /** Alias for hideForLeaf used by keyboard hide routing. */
+    hideNodesForLeaf: (leafId: string, ids: string[]) => void;
     clearViewPositions: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
@@ -472,6 +474,8 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const next = { ...s.viewSettings, [leafId]: { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
   },
+
+  hideNodesForLeaf: (leafId, ids) => get().hideForLeaf(leafId, ids),
 
   clearViewPositions: (leafId) => {
     const s = get();

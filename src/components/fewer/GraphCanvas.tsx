@@ -117,6 +117,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const isActive = leafId ? leafId === activeLeafId : true;
 
   // ── Resolve per-view settings ──
+  const fileIds = allNodes.filter((n) => n.data.type === "file").map((n) => n.id);
   const vs = useMemo(
     () => resolveViewSettings(viewSettingsMap, leafId, {
       showFiles: showFilesGlobal, minimapHidden: false,
@@ -124,8 +125,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
       direction, hiddenIds,
-    }, hiddenIds),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds],
+    }, hiddenIds, fileIds),
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds],
   );
 
   const isDark = themeModeGlobal === "dark";
@@ -134,10 +135,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasResize(containerRef, setCanvasSize);
   const themeColors = useCanvasThemeColors(themeModeGlobal, isDark, customTheme);
 
-  // Derive effective hiddenIds: if per-leaf showFiles is off, add all file node IDs
-  const effectiveHiddenIds = vs.showFiles
-    ? hiddenIds
-    : [...hiddenIds, ...allNodes.filter((n) => n.data.type === "file").map((n) => n.id)];
+  // Effective hiddenIds come from resolveViewSettings (which already computed
+  // layers + bulk files from allFileIds). No showFiles special-case needed.
+  const effectiveHiddenIds = vs.hiddenIds;
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
@@ -437,7 +437,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
               </div>
               {!vs.showFiles && (
-                <Button variant="outline" onClick={() => leafId ? useGraphStore.getState().setViewSetting(leafId, "showFiles", true) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
+                <Button variant="outline" onClick={() => leafId ? useGraphStore.getState().setFilesBulkForLeaf(leafId, false) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
                   <FolderOpen className="h-4 w-4" />
                   Show Files
                 </Button>
@@ -507,7 +507,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   {leafId && (
                     <>
                       <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
-                      <button onClick={() => { useGraphStore.getState().setViewSetting(leafId, "showFiles", !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+                      <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
                     </>
                   )}
                   {edgeExists && (
@@ -519,7 +519,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   {advancedModeEnabled && (
                     <>
                       <div className="my-1 h-px bg-border/40" />
-                      <button onClick={() => { useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
+                      <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
                       <div className="my-1 h-px bg-border/40" />
                       <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
                     </>
