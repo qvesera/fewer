@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
+import { buildSelectActions } from "@/lib/fewer/batchSelect";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
@@ -545,6 +546,17 @@ function BatchActionsSection({ nodeId }: { nodeId: string }) {
               ? "cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
               : "cursor-pointer"
           }
+        >
+          {action.label}
+        </ContextMenuItem>
+      ))}
+      <ContextMenuSeparator />
+      <ContextMenuLabel className="text-xs text-muted-foreground">Select</ContextMenuLabel>
+      {buildSelectActions(selectedNodeIds).map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className="cursor-pointer"
         >
           {action.label}
         </ContextMenuItem>

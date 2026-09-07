@@ -1,5 +1,6 @@
 import type { FewerNode, FewerEdge } from "./types";
 import { getDescendants } from "./validation";
+import { useGraphStore } from "@/store/graphStore";
 
 /**
  * Pure selection helpers for the canvas selection-rect menu. Each function
@@ -7,6 +8,37 @@ import { getDescendants } from "./validation";
  * applies it via setSelectedNodeIds. Keeping them pure makes them trivial to
  * unit-test without a store.
  */
+
+export interface SelectAction {
+  id: string;
+  label: string;
+  run: () => void;
+}
+
+/**
+ * Shared Select section items used by both the canvas selection-rect menu
+ * (GraphCanvas) and the node context menu (BatchActionsSection in CustomNode).
+ * Keeps the two menus in sync from one source.
+ */
+export function buildSelectActions(selectedIds: string[]): SelectAction[] {
+  return [
+    {
+      id: "select-descendants",
+      label: "Select Descendants",
+      run: () => useGraphStore.getState().setSelectedNodeIds(selectDescendants(selectedIds, useGraphStore.getState().edges)),
+    },
+    {
+      id: "select-same-extension",
+      label: "Select Same Extension",
+      run: () => useGraphStore.getState().setSelectedNodeIds(selectSameExtension(useGraphStore.getState().nodes, selectedIds)),
+    },
+    {
+      id: "select-same-category",
+      label: "Select Same Category",
+      run: () => useGraphStore.getState().setSelectedNodeIds(selectSameCategory(useGraphStore.getState().nodes, selectedIds)),
+    },
+  ];
+}
 
 /** Union of every selected node plus all of its descendants (subtree). */
 export function selectDescendants(
