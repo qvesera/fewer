@@ -18,6 +18,9 @@ import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal } from "@/lib/fewer/userSettings";
+import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
+import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
+import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal } from "@/lib/fewer/snapshot";
 import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
@@ -83,6 +86,29 @@ export function FewerApp() {
       setSidebarOpen(false);
     }
   }, [device.isMobile, setSidebarOpen]);
+
+  // Hydrate browser-only state once on mount (panel layout, search history,
+  // tutorial flags). The store always starts with SSR-safe defaults to avoid
+  // hydration mismatches; this effect applies stored values on the client.
+  useEffect(() => {
+    const layout = loadLayoutFromStorage();
+    const searchHistory = (() => {
+      try { const v = sessionStorage.getItem(SEARCH_HISTORY_KEY); return v ? JSON.parse(v) as string[] : []; } catch { return []; }
+    })();
+    const tutorialBeginnerDone = (() => {
+      try { const v = localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY); return v ? JSON.parse(v) : []; } catch { return []; }
+    })();
+    const tutorialDismissed = (() => {
+      try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
+    })();
+
+    const next: Record<string, unknown> = { searchHistory, tutorialBeginnerDone, tutorialDismissed };
+    if (layout) {
+      next.sidebarSide = layout.sidebarSide;
+      next.panelTree = layout.panelTree;
+    }
+    useGraphStore.setState(next);
+  }, []);
 
   // On mobile, the minimap defaults to OFF — but only when the user hasn't saved
   // a preference yet (mirroring the Sidebar's responsive-direction default), so

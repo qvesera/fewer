@@ -177,15 +177,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   leafSelections: {},
   activeLeafId: null,
   searchQuery: "",
-  searchHistory: (() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const v = sessionStorage.getItem(SEARCH_HISTORY_KEY);
-      return v ? (JSON.parse(v) as string[]) : [];
-    } catch {
-      return [];
-    }
-  })(),
+  searchHistory: [] as string[],
   categoryFilter: null,
   categoryHiddenIds: [],
   hoverHighlightIds: [],
@@ -221,21 +213,15 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
 
-  tutorialBeginnerDone: (() => {
-    if (typeof window === "undefined") return [];
-    try { const v = localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY); return v ? JSON.parse(v) : []; } catch { return []; }
-  })(),
-  tutorialDismissed: (() => {
-    if (typeof window === "undefined") return false;
-    try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
-  })(),
+  tutorialBeginnerDone: [] as string[],
+  tutorialDismissed: false,
   tutorialDemoStep: 0,
   rightClickDetected: false,
 
-  // Panel layout defaults — loaded from localStorage once, saved on change.
+  // Panel layout defaults — always start with server-safe defaults.
+  // Stored layout hydrates in a useEffect to avoid hydration mismatch.
   ...(() => {
-    const stored = loadLayoutFromStorage();
-    const layout = stored ?? defaultLayout();
+    const layout = defaultLayout();
     return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
   })(),
 

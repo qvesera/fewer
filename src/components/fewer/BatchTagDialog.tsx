@@ -94,15 +94,19 @@ export function BatchTagDialog() {
               const checked = have === total && total > 0;
               const indeterminate = have > 0 && have < total;
               return (
-                <button
+                <label
                   key={tag.id}
-                  onClick={() => {
-                    if (have > 0) unassignTagFromNodes(ids, tag.id);
-                    else assignTagToNodes(ids, tag.id);
-                  }}
                   className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60"
                 >
-                  <Checkbox checked={checked} data-indeterminate={indeterminate} className="pointer-events-none h-4 w-4" />
+                  <Checkbox
+                    checked={checked}
+                    data-indeterminate={indeterminate}
+                    onCheckedChange={() => {
+                      if (have > 0) unassignTagFromNodes(ids, tag.id);
+                      else assignTagToNodes(ids, tag.id);
+                    }}
+                    className="h-4 w-4"
+                  />
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/40"
                     style={{ background: tag.color }}
@@ -114,7 +118,7 @@ export function BatchTagDialog() {
                       {have}/{total}
                     </span>
                   )}
-                </button>
+                </label>
               );
             })}
           </div>
