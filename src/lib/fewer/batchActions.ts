@@ -1,4 +1,5 @@
 import { useGraphStore } from "@/store/graphStore";
+import { countDescendants, pluralizeCount } from "./keyboardShortcuts";
 
 /** Minimal shape of the toast function menus pass in. */
 export type BatchToast = (t: { title: string; description?: string }) => void;
@@ -68,6 +69,100 @@ export function buildBatchActions(opts: {
           description: `${items(s.selectedNodeIds.length)} duplicated under same parent`,
         });
       },
+    },
+    {
+      id: "hide",
+      label: "Hide",
+      run: () => {
+        const s = g();
+        const list = s.selectedNodeIds;
+        if (list.length === 0) return;
+        const sub = countDescendants(list, s.edges);
+        if (s.activeLeafId) s.hideNodesForLeaf(s.activeLeafId, list);
+        else s.hideNodes(list);
+        toast({
+          title: "Cards hidden",
+          description: `${pluralizeCount(list.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore`,
+        });
+      },
+    },
+    {
+      id: "show",
+      label: "Show",
+      run: () => {
+        const s = g();
+        const hidden = s.hiddenIds;
+        const list = s.selectedNodeIds.filter((id) => hidden.includes(id));
+        if (list.length === 0) return;
+        for (const id of list) s.showNode(id);
+        toast({ title: "Cards shown", description: `${items(list.length)} revealed` });
+      },
+    },
+    {
+      id: "collapse",
+      label: "Collapse Folders",
+      run: () => {
+        const s = g();
+        const folders = s.selectedNodeIds.filter(
+          (id) => s.nodes.find((n) => n.id === id)?.data.type === "folder",
+        );
+        if (folders.length === 0) return;
+        let n = 0;
+        for (const id of folders) {
+          const node = s.nodes.find((nd) => nd.id === id);
+          if (node && !node.data.collapsed) {
+            s.toggleCollapse(id);
+            n++;
+          }
+        }
+        toast({ title: "Collapsed", description: `${items(n)} folder${n === 1 ? "" : "s"} collapsed` });
+      },
+    },
+    {
+      id: "expand",
+      label: "Expand Folders",
+      run: () => {
+        const s = g();
+        const folders = s.selectedNodeIds.filter(
+          (id) => s.nodes.find((n) => n.id === id)?.data.type === "folder",
+        );
+        if (folders.length === 0) return;
+        let n = 0;
+        for (const id of folders) {
+          const node = s.nodes.find((nd) => nd.id === id);
+          if (node && node.data.collapsed) {
+            s.toggleCollapse(id);
+            n++;
+          }
+        }
+        toast({ title: "Expanded", description: `${items(n)} folder${n === 1 ? "" : "s"} expanded` });
+      },
+    },
+    {
+      id: "copy-paths",
+      label: "Copy Paths",
+      run: () => {
+        const s = g();
+        const list = s.selectedNodeIds;
+        if (list.length === 0) return;
+        const paths = list
+          .map((id) => s.nodes.find((n) => n.id === id)?.data.path)
+          .filter((p): p is string => !!p)
+          .join("\n");
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(paths).then(
+            () => toast({ title: "Paths copied", description: `${items(list.length)} path${list.length === 1 ? "" : "s"} to clipboard` }),
+            () => toast({ title: "Copy failed", description: "Clipboard unavailable" }),
+          );
+        } else {
+          toast({ title: "Copy failed", description: "Clipboard unavailable" });
+        }
+      },
+    },
+    {
+      id: "tags",
+      label: "Tags…",
+      run: () => window.dispatchEvent(new CustomEvent("fewer-batch-tags")),
     },
   ];
 

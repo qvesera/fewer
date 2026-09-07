@@ -51,11 +51,25 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Copy            | Copies every selected node (with subtrees) to the clipboard                                                                                                                          |
 | Cut             | Cuts the selection to the clipboard and removes the originals; paste to place them                                                                                                   |
 | Duplicate       | Duplicates each selected node under its same parent                                                                                                                                  |
+| Hide            | Hides the whole selection (and descendant subnodes); press Shift+H to restore. Routes to the active leaf's hide layer when leaves are enabled                                        |
+| Show            | Reveals selected nodes that are currently hidden                                                                                                                                     |
+| Collapse Folders| Collapses every selected folder                                                                                                                                                      |
+| Expand Folders  | Expands every selected folder                                                                                                                                                        |
+| Copy Paths      | Copies each selected node's full path to the clipboard, one per line                                                                                                                 |
+| Tags…           | Opens a shared tag picker: assign or remove any tag across the whole selection at once (creates new tags too)                                                                |
 | Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection edge)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
 
 Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
+
+The canvas selection menu also offers **selection helpers** (under a "Select" heading) that replace the current selection rather than acting on it:
+
+| Action | Notes |
+| --- | --- |
+| Select Descendants | Expands the selection to include every descendant of every selected folder |
+| Select Same Extension | Selects every visible node sharing a file extension with any selected node |
+| Select Same Category | Selects every visible node in a category (code, data, media, …) present in the selection |
 
 ## Connecting Cards
 

@@ -95,3 +95,29 @@ test("toggleTagFilter toggles a tag in the filter", () => {
   s.toggleTagFilter(a.id);
   expect(useGraphStore.getState().tagFilter).toEqual([]);
 });
+
+test("assignTagToNodes assigns one tag to many nodes", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Batch");
+  s.assignTagToNodes(["n1", "n2"], tag.id);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([tag.id]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+});
+
+test("assignTagToNodes is idempotent and ignores unknown nodes", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Idem");
+  s.assignTagToNodes(["n1"], tag.id);
+  s.assignTagToNodes(["n1", "n2", "ghost"], tag.id);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([tag.id]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+});
+
+test("unassignTagFromNodes removes a tag from many nodes", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Remove");
+  s.assignTagToNodes(["n1", "n2"], tag.id);
+  s.unassignTagFromNodes(["n1"], tag.id);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+});

@@ -1,5 +1,6 @@
 export { AddNodeDialog } from "./AddNodeDialog";
 export { BatchRenameDialog } from "./BatchRenameDialog";
+export { BatchTagDialog } from "./BatchTagDialog";
 export { ParentPickerDialog } from "./ParentPickerDialog";
 export { BreadcrumbBar } from "./BreadcrumbBar";
 export { DocsSearch } from "./DocsSearch";

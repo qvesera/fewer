@@ -43,6 +43,7 @@ const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDia
 const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) => m.ThemeEditorDialog), { ssr: false });
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
 const BatchRenameDialog = dynamic(() => import("./BatchRenameDialog").then((m) => m.BatchRenameDialog), { ssr: false });
+const BatchTagDialog = dynamic(() => import("./BatchTagDialog").then((m) => m.BatchTagDialog), { ssr: false });
 const ParentPickerDialog = dynamic(() => import("./ParentPickerDialog").then((m) => m.ParentPickerDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
 const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
@@ -399,6 +400,7 @@ export function FewerApp() {
 
       <ExportPanel />
       <BatchRenameDialog />
+      <BatchTagDialog />
       <ParentPickerDialog />
       <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <BugReportDialog />

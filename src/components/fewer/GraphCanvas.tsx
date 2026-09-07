@@ -17,6 +17,11 @@ import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
+import {
+  selectDescendants,
+  selectSameExtension,
+  selectSameCategory,
+} from "@/lib/fewer/batchSelect";
 import { edgeDashPattern } from "@/lib/fewer/types";
 import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
@@ -496,6 +501,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                       {action.label}
                     </button>
                   ))}
+                  <div className="my-1 h-px bg-border/40" />
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Select</div>
+                  <button onClick={() => { useGraphStore.getState().setSelectedNodeIds(selectDescendants(ids, useGraphStore.getState().edges)); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] text-foreground">Select Descendants</button>
+                  <button onClick={() => { useGraphStore.getState().setSelectedNodeIds(selectSameExtension(useGraphStore.getState().nodes, ids)); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] text-foreground">Select Same Extension</button>
+                  <button onClick={() => { useGraphStore.getState().setSelectedNodeIds(selectSameCategory(useGraphStore.getState().nodes, ids)); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] text-foreground">Select Same Category</button>
                 </>
               ) : (
                 <>
