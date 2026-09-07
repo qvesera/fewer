@@ -19,6 +19,7 @@ import {
 import { RenameInput } from ".";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { plural } from "@/lib/fewer/plural";
@@ -204,28 +205,21 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
 export function HiddenNodesPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const showFilesGlobal = useGraphStore((s) => s.showFiles);
-  const viewSettingsMap = useGraphStore((s) => s.viewSettings);
-  const activeLeafId = useGraphStore((s) => s.activeLeafId);
+  const activeLeaf = useActiveLeaf();
   const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const { toast } = useToast();
 
   const [hiddenSearch, setHiddenSearch] = useState("");
 
-  // Resolve active view's showFiles for per-view filtering
-  const activeLeafVs = activeLeafId ? viewSettingsMap[activeLeafId] : undefined;
-  const activeViewShowFiles = activeLeafVs?.showFiles ?? showFilesGlobal;
-  const viewFiltersFiles = !activeViewShowFiles;
-
-  // Compute effective hidden list: active view's hiddenIds + view-filtered file nodes
-  const effectiveHidden = useMemo(() => {
-    const viewHidden = activeLeafVs?.hiddenIds ?? hiddenIds;
-    if (!viewFiltersFiles) return viewHidden;
-    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
-    return [...new Set([...viewHidden, ...fileIds])];
-  }, [activeLeafVs, hiddenIds, viewFiltersFiles, nodes]);
+  // Effective hidden list for the active view: resolved from the leaf's
+  // hide layers (individual + subtrees + bulk files) merged with global hiddenIds.
+  const effectiveHidden = useMemo(
+    () => activeLeaf?.resolved.hiddenIds ?? [],
+    [activeLeaf],
+  );
+  const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
+  const activeLeafId = activeLeaf?.leafId ?? null;
 
   const hiddenGroups = useMemo(
     () => getHiddenLayerGroups(nodes, edges, effectiveHidden),

@@ -420,8 +420,32 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   hideForLeaf: (leafId, ids) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    const layers = leaf.hideLayers ?? { individual: s.hiddenIds, subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
-    const next = { ...leaf, hideLayers: { ...layers, individual: [...new Set([...layers.individual, ...ids])] } };
+    const layers = leaf.hideLayers ?? { individual: [...s.hiddenIds], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    // Expand descendants (like the global hideNodes did): the folder goes into
+    // `individual`, its descendants into `subtrees[folderId]` so per-folder
+    // Show Children can reveal them without touching the folder itself.
+    const individual = new Set(layers.individual);
+    const subtrees = { ...layers.subtrees };
+    for (const id of ids) {
+      individual.add(id);
+      const queue = [id];
+      const descendants: string[] = [];
+      const seen = new Set([id]);
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of s.edges) {
+          if (e.source === nid && !seen.has(e.target)) {
+            seen.add(e.target);
+            descendants.push(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+      if (descendants.length > 0) {
+        subtrees[id] = [...new Set([...(subtrees[id] ?? []), ...descendants])];
+      }
+    }
+    const next = { ...leaf, hideLayers: { ...layers, individual: [...individual], subtrees } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
   },
 

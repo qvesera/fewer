@@ -238,10 +238,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     const updatedEdges = buildSelectedEdgeHighlight(selectedForHighlight, hoverForHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
     const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
     setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
-      const hidden = new Set(hiddenIds);
+      // Filter by the view's EFFECTIVE hidden set (layers + global), not just global.
+      const hidden = new Set(vs.hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, hiddenIds, leafId, isActive]);
+  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, vs.hiddenIds, leafId, isActive]);
 
   const dashArray = useMemo(() => {
     switch (vs.edgeStrokeStyle) {

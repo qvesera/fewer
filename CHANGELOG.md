@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
 - Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
 - H / Shift+H now route through the active view's hide layers in split-view layouts: hiding selection writes to the active leaf's individual layer, and Shift+H clears both the leaf's layers and the global hidden list (previously Shift+H could not reveal nodes hidden in the active view, and its restored-count toast showed the selection size instead of the number of nodes restored)
+- Hiding a folder (H key) now hides its descendants too in split views — the per-view hide layer expands the subtree like the global hide always did. Hidden nodes now appear under Hidden Cards again (the panel reads the active view's resolved hide layers instead of a removed store field), and edges to leaf-hidden nodes no longer resurrect after graph updates.
 
 ### Added
 
