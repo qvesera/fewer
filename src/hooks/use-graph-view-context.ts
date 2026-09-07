@@ -14,6 +14,8 @@ export interface GraphViewScope {
   isActive: boolean;
   direction: LayoutDirection;
   resolved: ResolvedViewSettings;
+  /** The set of node ids actually rendered on this canvas (lens output). */
+  visibleIds: Set<string>;
 }
 
 const GraphViewContext = createContext<GraphViewScope | null>(null);

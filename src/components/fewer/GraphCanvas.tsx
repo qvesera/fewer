@@ -375,8 +375,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     return { backgroundColor: `rgba(${Math.min(255, Math.round(r * 0.5 + 128))}, ${Math.min(255, Math.round(g * 0.5 + 128))}, ${Math.min(255, Math.round(b * 0.5 + 128))}, 0.8)`, color: "rgba(0, 0, 0, 0.85)" };
   }, []);
 
+  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
   return (
-    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs }}>
+    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs, visibleIds }}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}

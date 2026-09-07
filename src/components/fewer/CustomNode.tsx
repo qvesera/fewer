@@ -758,26 +758,28 @@ function FileEntryContextMenu({
 const ITEM_HEIGHT = 28;
 const OVERSCAN = 5;
 
-function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, totalItems: number, fallbackHeight = 0) {
+function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number, fallbackHeight = 0) {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(fallbackHeight);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onScroll = () => setScrollTop(el.scrollTop);
-    const ro = new ResizeObserver(([entry]) => {
-      if (entry.contentRect.height > 0) setContainerHeight(entry.contentRect.height);
+    if (!containerEl) return;
+    const onScroll = () => setScrollTop(containerEl.scrollTop);
+    const ro = new ResizeObserver(() => {
+      // clientHeight includes padding (the true scroll viewport);
+      // contentRect excludes it and would under-count by ~12px (p-1.5).
+      const h = containerEl.clientHeight;
+      if (h > 0) setContainerHeight(h);
     });
-    el.addEventListener("scroll", onScroll, { passive: true });
-    ro.observe(el);
-    const h = el.clientHeight;
+    containerEl.addEventListener("scroll", onScroll, { passive: true });
+    ro.observe(containerEl);
+    const h = containerEl.clientHeight;
     if (h > 0) setContainerHeight(h);
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      containerEl.removeEventListener("scroll", onScroll);
       ro.disconnect();
     };
-  }, [containerRef]);
+  }, [containerEl]); // re-attaches on every child-list remount (collapse → expand)
 
   const totalHeight = totalItems * ITEM_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
@@ -800,10 +802,10 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const renameSource = useGraphStore((s) => s.renameSource);
   const renameNode = useGraphStore((s) => s.renameNode);
   const { toast } = useToast();
-  const isDimmed = child.data.dimmed;
+  const isDimmed = false; // search dimming disabled — canvas visibility is the sole driver
   const isHighlighted = child.data.highlighted;
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
-  const isHidden = scope.leafId !== null && scope.resolved.hiddenIds.includes(child.id);
+  const isHidden = !scope.visibleIds.has(child.id);
   const isHovered = hoverHighlightIds.includes(child.id);
 
   const handleRename = (v: string) => {
@@ -955,15 +957,14 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
 
   const hiddenChildCount = useMemo(() => {
     if (!isFolder) return 0;
-    const hiddenSet = new Set(scope.resolved.hiddenIds);
     const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    return childIds.filter((cid) => hiddenSet.has(cid)).length;
-  }, [edges, id, isFolder, scope.resolved.hiddenIds]);
+    return childIds.filter((cid) => !scope.visibleIds.has(cid)).length;
+  }, [edges, id, isFolder, scope.visibleIds]);
 
   const isRenaming = !!scope?.isActive && renamingId === id;
-  const childListRef = useRef<HTMLDivElement>(null);
+  const [childListEl, setChildListEl] = useState<HTMLDivElement | null>(null);
   const fallbackChildListHeight = isFolder ? Math.max(60, nodeHeight - 72) : 0;
-  const virtual = useVirtualScroll(childListRef, children.length, fallbackChildListHeight);
+  const virtual = useVirtualScroll(childListEl, children.length, fallbackChildListHeight);
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
@@ -1156,7 +1157,7 @@ if (isCollapsed) {
               </button>
             </div>
 <div
-              ref={childListRef}
+              ref={setChildListEl}
               className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
               onWheel={(e) => { e.stopPropagation(); }}
             >
@@ -1283,7 +1284,9 @@ if (isCollapsed) {
         </div>
 
         {nodeTagIds.length > 0 && (
-          <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0" />
+          <div className="shrink-0 pr-2">
+            <TagDots tags={tags} tagIds={nodeTagIds} className="" />
+          </div>
         )}
 
         <Handle

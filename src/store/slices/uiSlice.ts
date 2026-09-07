@@ -527,20 +527,30 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
     set((st) => ({
       viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedFolderIds: next } },
-      nodes: isExpanding
-        ? st.nodes.map((n) => {
-            if (n.id !== nodeId) return n;
-            const saved = savedFolderHeights.get(nodeId);
-            savedFolderHeights.delete(nodeId);
-            return {
-              ...n,
-              // Restore the saved height (user's resize) or undefined (revert to nodeHeight).
-              style: { ...n.style, height: saved },
-              // Clear RF's stale measurement so getNodeDimensions doesn't fall back to it.
-              measured: n.measured ? { ...n.measured, height: saved } : n.measured,
-            };
-          })
-        : st.nodes,
+      nodes: (() => {
+      if (isExpanding) {
+        return st.nodes.map((n) => {
+          if (n.id !== nodeId) return n;
+          const saved = savedFolderHeights.get(nodeId);
+          savedFolderHeights.delete(nodeId);
+          return {
+            ...n,
+            // Restore the saved height (user's resize) or undefined (revert to nodeHeight).
+            style: { ...n.style, height: saved },
+            measured: n.measured ? { ...n.measured, height: saved } : n.measured,
+          };
+        });
+      }
+      // Collapsing: clear pinned height so the RF wrapper shrinks to the pill.
+      return st.nodes.map((n) => {
+        if (n.id !== nodeId) return n;
+        return {
+          ...n,
+          style: { ...n.style, height: undefined },
+          measured: n.measured ? { ...n.measured, height: undefined } : n.measured,
+        };
+      });
+    })(),
       graphVersion: st.graphVersion + 1,
     }));
     get().relayout();
