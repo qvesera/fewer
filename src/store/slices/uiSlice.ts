@@ -512,11 +512,15 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       : [...current, nodeId];
     set((st) => ({
       viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedFolderIds: next } },
-      // When expanding, drop the style.height the compact pill pinned via the
-      // dimension-change handler (RF measured it short; keeping it would clip the
-      // restored full card to the pill height)。
+      // When expanding, drop both style.height and measured.height so the card
+      // resets to the nodeHeight default. Without clearing measured, getNodeDimensions
+      // falls back to the stale measured value from the collapsed pill or prior resize.
       nodes: isExpanding
-        ? st.nodes.map((n) => (n.id === nodeId ? { ...n, style: { ...n.style, height: undefined } } : n))
+        ? st.nodes.map((n) => (n.id === nodeId ? {
+            ...n,
+            style: { ...n.style, height: undefined },
+            measured: n.measured ? { ...n.measured, height: undefined } : n.measured,
+          } : n))
         : st.nodes,
       graphVersion: st.graphVersion + 1,
     }));

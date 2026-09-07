@@ -1055,7 +1055,7 @@ if (isCollapsed) {
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
-        style={{ height: nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
+        style={{ height: height ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
         <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         {selected && (
