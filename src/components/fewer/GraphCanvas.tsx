@@ -10,6 +10,7 @@ import {
   useReactFlow,
   useNodesState,
   useEdgesState,
+  useUpdateNodeInternals,
   Panel,
   ReactFlowProvider,
 } from "@xyflow/react";
@@ -196,6 +197,19 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
   useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
+
+  // Force React Flow to re-measure handles when any folder's collapse state
+  // changes, since the card height changes (expanded → compact pill or vice
+  // versa) and handle bounds become stale.
+  const updateNodeInternals = useUpdateNodeInternals();
+  const collapsedKey = JSON.stringify(vs.collapsedFolderIds);
+  const prevCollapsedKeyRef = useRef(collapsedKey);
+  useEffect(() => {
+    if (prevCollapsedKeyRef.current === collapsedKey) return;
+    prevCollapsedKeyRef.current = collapsedKey;
+    if (useGraphStore.getState().nodes.length === 0) return;
+    updateNodeInternals(useGraphStore.getState().nodes.map((n) => n.id));
+  }, [collapsedKey, updateNodeInternals]);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(positionedNodes, containerRef, setViewport);
   const zoomToNode = useGraphStore((s) => s.zoomToNode);
