@@ -121,15 +121,20 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // Per-view scope
   const isActive = leafId ? leafId === activeLeafId : true;
 
-  // ── Resolve per-view settings ──
-  const fileIds = allNodes.filter((n) => n.data.type === "file").map((n) => n.id);
+    // ── Resolve per-view settings ──
+  // Memoized: a fresh array here would change the `vs` memo's deps every render,
+  // producing new resolved objects and an infinite setRfEdges loop.
+  const fileIds = useMemo(
+    () => allNodes.filter((n) => n.data.type === "file").map((n) => n.id),
+    [allNodes],
+  );
   const vs = useMemo(
     () => resolveViewSettings(viewSettingsMap, leafId, {
       showFiles: showFilesGlobal, minimapHidden: false,
       edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal,
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
-      direction, hiddenIds,
+      direction, hiddenIds, collapsedFolderIds: [],
     }, hiddenIds, fileIds),
     [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds],
   );
@@ -149,7 +154,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // ── Per-view positions: derive when direction overrides OR visible set diverges ──
   const hasDirectionOverride = vs.direction !== direction;
   const visibleSetDiverges = effectiveHiddenIds.length !== hiddenIds.length;
-  const needsDerivation = hasDirectionOverride || visibleSetDiverges;
+  const needsDerivation = hasDirectionOverride || visibleSetDiverges || vs.collapsedFolderIds.length > 0;
   const positionedNodes = useMemo(() => {
     // 1. Explicit per-view positions (set by drag) take priority
     if (vs.positions) {
@@ -161,7 +166,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     }
     // 3. No override, shared visible set: use shared (store) positions
     return visibleNodes;
-  }, [vs.positions, vs.direction, needsDerivation, visibleNodes, visibleEdges]);
+  }, [vs.positions, vs.direction, needsDerivation, visibleNodes, visibleEdges, vs.collapsedFolderIds]);
 
   const graphsExists = allNodes.length > 0;
 
@@ -247,7 +252,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       const hidden = new Set(vs.hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, vs.hiddenIds, leafId, isActive]);
+  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, vs.hiddenIds,
+      leafId, isActive]);
 
   const dashArray = useMemo(() => {
     switch (vs.edgeStrokeStyle) {
@@ -518,7 +524,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
                   {leafId && (
                     <>
                       <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
-                      <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, !vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+                      <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
                     </>
                   )}
                   {edgeExists && (

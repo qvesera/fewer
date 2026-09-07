@@ -23,6 +23,8 @@ export interface HideLayers {
 
 export interface ViewSettings {
   hideLayers?: HideLayers;
+  /** Per-leaf collapsed folder ids — descendants are pruned from this leaf's canvas. */
+  collapsedFolderIds?: string[];
   minimapHidden?: boolean;
   edgeStyle?: EdgeStyle;
   edgeAnimated?: boolean;
@@ -47,6 +49,8 @@ export interface ResolvedViewSettings {
   positions?: Record<string, { x: number; y: number }>;
   /** Effective hidden list computed from layers + global hiddenIds + allFileIds. */
   hiddenIds: string[];
+  /** Descendants hidden by per-leaf folder collapse (folder itself stays visible). */
+  collapsedFolderIds: string[];
 }
 
 // ── Effective hidden computation ──
@@ -116,6 +120,7 @@ export function resolveViewSettings(
     direction: pick(vs.direction, global.direction),
     positions: vs.positions,
     hiddenIds: hidden,
+    collapsedFolderIds: vs.collapsedFolderIds ?? [],
   };
 }
 
@@ -162,6 +167,9 @@ function sanitizeViewSettings(raw: unknown): ViewSettings {
   if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
   if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
   if (typeof obj.direction === "string") out.direction = obj.direction;
+  if (Array.isArray(obj.collapsedFolderIds)) {
+    out.collapsedFolderIds = obj.collapsedFolderIds.filter((x: unknown) => typeof x === "string");
+  }
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
   if (!out.hideLayers && typeof obj.showFiles === "boolean") {

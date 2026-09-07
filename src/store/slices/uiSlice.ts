@@ -128,6 +128,8 @@ export type UiSliceCreator = StateCreator<
     hideSubtreeForLeaf: (leafId: string, folderId: string, descendantIds: string[]) => void;
     /** Per-folder Show Children. */
     showSubtreeForLeaf: (leafId: string, folderId: string) => void;
+    /** Toggle a folder's per-leaf collapse (descendants pruned from this leaf's canvas; view-only, not undoable). */
+    toggleCollapseForLeaf: (leafId: string, nodeId: string) => void;
     /** Toggle "Hide Files" bulk layer. */
     setFilesBulkForLeaf: (leafId: string, active: boolean) => void;
     /** Clear all hide layers for this view (Reveal All). */
@@ -287,6 +289,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     leafSelections: { ...s.leafSelections, [leafId]: ids },
     activeLeafId: leafId,
     selectedNodeIds: ids,
+    graphVersion: s.graphVersion + 1,
   })),
 
   setActiveLeaf: (leafId) => set((s) => {
@@ -463,13 +466,18 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const filesBulkExempt = layers.filesBulkActive ? [...layers.filesBulkExempt, id] : layers.filesBulkExempt;
     const next = { ...leaf, hideLayers: { ...layers, individual, subtrees: sub, filesBulkExempt } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get().relayout();
   },
 
   hideSubtreeForLeaf: (leafId, folderId, descendantIds) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
-    const next = { ...leaf, hideLayers: { ...layers, subtrees: { ...layers.subtrees, [folderId]: descendantIds } } };
+    // Merge (don't overwrite): re-hiding a folder must not re-hide children the
+    // user individually revealed since the last hide. Individually-hidden descendants
+    // are already filtered out by the caller (only visible descendants are passed).
+    const merged = [...new Set([...(layers.subtrees[folderId] ?? []), ...descendantIds])];
+    const next = { ...leaf, hideLayers: { ...layers, subtrees: { ...layers.subtrees, [folderId]: merged } } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
   },
 
@@ -482,6 +490,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     delete subtrees[folderId];
     const next = { ...leaf, hideLayers: { ...layers, subtrees } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get().relayout();
   },
 
   setFilesBulkForLeaf: (leafId, active) => {
@@ -490,6 +499,28 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
     const next = { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    // Relayout when showing files (unhide), not when hiding them
+    if (!active) get().relayout();
+  },
+  toggleCollapseForLeaf: (leafId, nodeId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const current = leaf.collapsedFolderIds ?? [];
+    const isExpanding = current.includes(nodeId);
+    const next = isExpanding
+      ? current.filter((id) => id !== nodeId)
+      : [...current, nodeId];
+    set((st) => ({
+      viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedFolderIds: next } },
+      // When expanding, drop the style.height the compact pill pinned via the
+      // dimension-change handler (RF measured it short; keeping it would clip the
+      // restored full card to the pill height)。
+      nodes: isExpanding
+        ? st.nodes.map((n) => (n.id === nodeId ? { ...n, style: { ...n.style, height: undefined } } : n))
+        : st.nodes,
+      graphVersion: st.graphVersion + 1,
+    }));
+    get().relayout();
   },
 
   revealAllForLeaf: (leafId) => {
@@ -497,6 +528,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    get().relayout();
   },
 
   hideNodesForLeaf: (leafId, ids) => get().hideForLeaf(leafId, ids),

@@ -107,11 +107,17 @@ export function buildBatchActions(opts: {
           (id) => s.nodes.find((n) => n.id === id)?.data.type === "folder",
         );
         if (folders.length === 0) return;
+        const leafId = s.activeLeafId;
         let n = 0;
         for (const id of folders) {
           const node = s.nodes.find((nd) => nd.id === id);
-          if (node && !node.data.collapsed) {
-            s.toggleCollapse(id);
+          if (!node) continue;
+          const isCollapsed = leafId
+            ? (s.viewSettings[leafId]?.collapsedFolderIds ?? []).includes(id)
+            : node.data.collapsed === true;
+          if (!isCollapsed) {
+            if (leafId) s.toggleCollapseForLeaf(leafId, id);
+            else s.toggleCollapse(id);
             n++;
           }
         }
@@ -127,11 +133,17 @@ export function buildBatchActions(opts: {
           (id) => s.nodes.find((n) => n.id === id)?.data.type === "folder",
         );
         if (folders.length === 0) return;
+        const leafId = s.activeLeafId;
         let n = 0;
         for (const id of folders) {
           const node = s.nodes.find((nd) => nd.id === id);
-          if (node && node.data.collapsed) {
-            s.toggleCollapse(id);
+          if (!node) continue;
+          const isCollapsed = leafId
+            ? (s.viewSettings[leafId]?.collapsedFolderIds ?? []).includes(id)
+            : node.data.collapsed === true;
+          if (isCollapsed) {
+            if (leafId) s.toggleCollapseForLeaf(leafId, id);
+            else s.toggleCollapse(id);
             n++;
           }
         }

@@ -16,7 +16,7 @@ const GLOBAL_HIDDEN = ["g1", "g2"];
 const DEFAULT_RESOLVED: ResolvedViewSettings = {
   showFiles: true, minimapHidden: false, edgeStyle: "curved",
   edgeAnimated: true, edgeAnimatedSelectedOnly: false, edgeStrokeStyle: "solid",
-  edgeWidth: 1.5, direction: "TB", hiddenIds: [],
+  edgeWidth: 1.5, direction: "TB", hiddenIds: [], collapsedFolderIds: [],
 };
 
 describe("panelTree", () => {

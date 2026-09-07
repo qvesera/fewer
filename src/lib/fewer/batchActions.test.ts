@@ -54,7 +54,8 @@ describe("buildBatchActions", () => {
     (live as unknown as { hideNodesForLeaf: typeof orig }).hideNodesForLeaf = orig;
   });
 
-  it("collapse and expand only touch folders", () => {
+  it("collapse and expand only touch folders (global fallback, no active leaf)", () => {
+    useGraphStore.setState({ activeLeafId: null });
     const id = useGraphStore.getState().addNode(null, "Folder", "folder");
     useGraphStore.setState({ selectedNodeIds: [id] });
     const collapse = buildBatchActions({ ...base }).find((a) => a.id === "collapse");
@@ -63,6 +64,22 @@ describe("buildBatchActions", () => {
     const expand = buildBatchActions({ ...base }).find((a) => a.id === "expand");
     expand?.run();
     expect(useGraphStore.getState().nodes.find((n) => n.id === id)?.data.collapsed).toBe(false);
+  });
+
+  it("collapse routes through toggleCollapseForLeaf when a leaf is active", () => {
+    useGraphStore.setState({ activeLeafId: "test-leaf", selectedNodeIds: [] });
+    const id = useGraphStore.getState().addNode(null, "Folder", "folder");
+    useGraphStore.setState({ selectedNodeIds: [id] });
+    const collapse = buildBatchActions({ ...base }).find((a) => a.id === "collapse");
+    collapse?.run();
+    const leafSettings = useGraphStore.getState().viewSettings["test-leaf"];
+    expect(leafSettings?.collapsedFolderIds).toContain(id);
+    // global flag should NOT be set
+    expect(useGraphStore.getState().nodes.find((n) => n.id === id)?.data.collapsed).toBeFalsy();
+    const expand = buildBatchActions({ ...base }).find((a) => a.id === "expand");
+    expand?.run();
+    expect(useGraphStore.getState().viewSettings["test-leaf"]?.collapsedFolderIds).not.toContain(id);
+    useGraphStore.setState({ activeLeafId: null });
   });
 
   it("copy-paths joins selected node paths with newlines", async () => {

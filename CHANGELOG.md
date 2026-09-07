@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch actions for multi-selection: Hide, Show, Collapse Folders, Expand Folders, Copy Paths
 - Canvas selection menu: Select Descendants, Select Same Extension, Select Same Category
 - Batch Tags… action: assign/remove tags across a multi-selection via a shared tag picker
+- Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
 
 ### Changed
 

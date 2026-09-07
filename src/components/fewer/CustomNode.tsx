@@ -38,6 +38,7 @@ import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu } from "./TagMenu";
+import { getDescendants } from "@/lib/fewer/validation";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -315,11 +316,7 @@ function FolderContextMenu({
           <ContextMenuItem
             onSelect={() => {
               const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-              useGraphStore.setState((s) => ({
-                selectedNodeIds: childIds,
-                nodes: s.nodes.map((n) => ({ ...n, selected: childIds.includes(n.id) })),
-                graphVersion: s.graphVersion + 1,
-              }));
+              useGraphStore.getState().setSelectedNodeIds(childIds);
               toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
             }}
             className="cursor-pointer"
@@ -381,16 +378,18 @@ function FolderContextMenu({
             return null;
           })()}
                     {(() => {
-            const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+            // Full descendant subtree (children, grandchildren, ...) so no
+            // orphaned grandchildren remain on canvas after Hide Children.
+            const allDescendants = getDescendants(nodeId, edges);
             const effHidden = new Set(scope.resolved.hiddenIds);
-            const visibleChildren = childIds.filter((id) => !effHidden.has(id));
-            if (visibleChildren.length > 0) {
+            const visibleDescendants = allDescendants.filter((id) => !effHidden.has(id));
+            if (visibleDescendants.length > 0) {
               return (
                 <ContextMenuItem
                   onSelect={() => {
                     // Per-view subtree layer: hidden descendants of this folder in this view.
-                    useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleChildren);
-                    toast({ title: "Children hidden", description: `${visibleChildren.length} child${visibleChildren.length === 1 ? "" : "ren"} hidden` });
+                    useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
+                    toast({ title: "Children hidden", description: `${visibleDescendants.length} node${visibleDescendants.length === 1 ? "" : "s"} hidden` });
                   }}
                   className="cursor-pointer"
                 >
@@ -399,6 +398,20 @@ function FolderContextMenu({
               );
             }
             return null;
+          })()}
+{hasChildren && (() => {
+            const isCollapsedInMenu = scope.resolved.collapsedFolderIds.includes(nodeId) || !!nodes.find((n) => n.id === nodeId)?.data.collapsed;
+            return (
+              <ContextMenuItem
+                onSelect={() => {
+                  useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, nodeId);
+                  toast({ title: isCollapsedInMenu ? "Children expanded" : "Children collapsed", description: nodeLabel });
+                }}
+                className="cursor-pointer"
+              >
+                {isCollapsedInMenu ? "Expand Folder" : "Collapse Folder"}
+              </ContextMenuItem>
+            );
           })()}
           <ContextMenuItem
             onSelect={() => {
@@ -745,20 +758,21 @@ function FileEntryContextMenu({
 const ITEM_HEIGHT = 28;
 const OVERSCAN = 5;
 
-function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, totalItems: number) {
+function useVirtualScroll(containerRef: React.RefObject<HTMLDivElement | null>, totalItems: number, fallbackHeight = 0) {
   const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(fallbackHeight);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const onScroll = () => setScrollTop(el.scrollTop);
     const ro = new ResizeObserver(([entry]) => {
-      setContainerHeight(entry.contentRect.height);
+      if (entry.contentRect.height > 0) setContainerHeight(entry.contentRect.height);
     });
     el.addEventListener("scroll", onScroll, { passive: true });
     ro.observe(el);
-    setContainerHeight(el.clientHeight);
+    const h = el.clientHeight;
+    if (h > 0) setContainerHeight(h);
     return () => {
       el.removeEventListener("scroll", onScroll);
       ro.disconnect();
@@ -893,6 +907,7 @@ function CustomNodeImpl({
   const layoutDirection = useGraphViewDirection();
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
+const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.collapsedFolderIds.includes(id));
 
   const edges = useGraphStore((s) => s.edges);
   const allNodes = useGraphStore((s) => s.nodes);
@@ -943,16 +958,96 @@ function CustomNodeImpl({
 
   const isRenaming = !!scope?.isActive && renamingId === id;
   const childListRef = useRef<HTMLDivElement>(null);
-  const virtual = useVirtualScroll(childListRef, children.length);
+  const fallbackChildListHeight = isFolder ? Math.max(60, nodeHeight - 72) : 0;
+  const virtual = useVirtualScroll(childListRef, children.length, fallbackChildListHeight);
 
   // ---------- FOLDER CARD ----------
   if (isFolder) {
-    const actualHeight = height ?? nodeHeight;
-    const childListMaxHeight = Math.max(60, actualHeight - 72);
+    const childListMaxHeight = Math.max(60, nodeHeight - 72);
+if (isCollapsed) {
+      return (
+        <FolderContextMenu
+          nodeId={id}
+          nodeLabel={data.label}
+          nodePath={data.path}
+          nodeWebUrl={data.webUrl}
+        >
+          <div
+            className={cn(
+              "group relative flex items-center gap-3 w-full min-w-0 rounded-xl border backdrop-blur-xl gm-node-hover cursor-context-menu",
+              "bg-fewer-folder-bg border-fewer-folder-border text-fewer-folder-text shadow-node-folder",
+              data.highlighted && "gm-highlight-ring",
+              isHovered && "gm-highlight-ring",
+              data.dimmed && "opacity-40 saturate-50",
+              selected && "gm-selected-ring",
+            )}
+            style={{ width: width ?? 240 }}
+          >
+            <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+            <Handle
+              type="target"
+              position={target}
+              id={`target-${target}`}
+              isConnectable
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  useGraphStore.getState().removeEdgesFromHandle(id, "target");
+                }
+              }}
+              className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
+            />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fewer-folder-icon">
+              <NodeIcon
+                type={data.type}
+                category={data.category}
+                isRoot={data.isRoot}
+                className="h-5 w-5"
+              />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-sm font-semibold text-fewer-folder-text" title={data.label}>
+                {data.label}
+              </span>
+              <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
+                {childCount} {childCount === 1 ? "item" : "items"}
+              </span>
+            </div>
+            {nodeTagIds.length > 0 && (
+              <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0" />
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, id);
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-fewer-folder-subtle-text transition-colors hover:bg-fewer-folder-subtle-text/10 nodrag"
+              title="Expand folder"
+              aria-label="Expand folder"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <Handle
+              type="source"
+              position={source}
+              id={`source-${source}`}
+              isConnectable
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  useGraphStore.getState().removeEdgesFromHandle(id, "source");
+                }
+              }}
+              className="!h-2 !w-2 !rounded-full !border-2 !border-white/60 !bg-fewer-handle"
+            />
+          </div>
+        </FolderContextMenu>
+      );
+    }
     return (
       <div
         className={cn(
-          "group relative flex flex-col w-full h-full rounded-2xl border backdrop-blur-xl gm-node-hover",
+          "group relative flex flex-col w-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
           data.isRoot && "gm-aurora gm-aurora-brand",
           data.highlighted && "gm-highlight-ring",
@@ -960,7 +1055,7 @@ function CustomNodeImpl({
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
-        style={{ background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
+        style={{ height: nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
         <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         {selected && (
@@ -1042,11 +1137,23 @@ function CustomNodeImpl({
               {nodeTagIds.length > 0 && (
                 <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0 ml-1" />
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, id);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-fewer-folder-subtle-text transition-colors hover:bg-fewer-folder-subtle-text/10 nodrag"
+                title={isCollapsed ? "Expand folder" : "Collapse folder"}
+                aria-label={isCollapsed ? "Expand folder" : "Collapse folder"}
+              >
+                <ChevronRight className={cn("h-4 w-4 transition-transform duration-150", !isCollapsed && "rotate-90")} />
+              </button>
             </div>
-
-            <div
+<div
               ref={childListRef}
-              className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
+              className="overflow-y-auto p-1.5 nowheel"
               style={{ maxHeight: `${childListMaxHeight}px` }}
               onWheel={(e) => { e.stopPropagation(); }}
             >
@@ -1068,8 +1175,7 @@ function CustomNodeImpl({
                 </div>
               )}
             </div>
-
-            <div
+<div
               className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text bg-fewer-folder-bg"
             >
               <span>

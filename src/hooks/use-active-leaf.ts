@@ -44,6 +44,7 @@ export function useActiveLeaf(): ActiveLeafResult | null {
       edgeWidth: edgeWidthGlobal,
       direction: directionGlobal,
       hiddenIds,
+      collapsedFolderIds: [],
     }, hiddenIds, fileIds);
 
     return { leafId: id, resolved };
