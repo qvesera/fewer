@@ -918,6 +918,10 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
+  // Read the user's manual resize value from our store (never RF's measurement).
+  const manualHeight = useGraphStore(
+    (s) => (s.nodes.find((n) => n.id === id)?.style?.height as number | undefined),
+  );
   const { toast } = useToast();
 
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
@@ -1055,13 +1059,13 @@ if (isCollapsed) {
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
         )}
-        style={{ height: height ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
+        style={{ height: manualHeight ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
         <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
         {selected && (
           <NodeResizer
             minWidth={180}
-            minHeight={50}
+            minHeight={120}
             isVisible={!!selected}
             shouldResize={() => true}
             /* Line stays draggable but invisible — the themed select ring is
@@ -1153,8 +1157,7 @@ if (isCollapsed) {
             </div>
 <div
               ref={childListRef}
-              className="overflow-y-auto p-1.5 nowheel"
-              style={{ maxHeight: `${childListMaxHeight}px` }}
+              className="overflow-y-auto p-1.5 nowheel flex-1 min-h-0"
               onWheel={(e) => { e.stopPropagation(); }}
             >
               {children.length === 0 ? (

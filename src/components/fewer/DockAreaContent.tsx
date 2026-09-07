@@ -29,8 +29,15 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   const nodes = useGraphStore((s) => s.nodes);
   const user = useGraphStore((s) => s.user);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const activeLeaf = useActiveLeaf();
 
-  const storeSnapshot = { hiddenIds, nodes, user, advancedModeEnabled };
+  const storeSnapshot = {
+    hiddenIds,
+    nodes,
+    user,
+    advancedModeEnabled,
+    activeLeafHiddenIds: activeLeaf?.resolved.hiddenIds.length ?? 0,
+  };
   const meta = sectionMetaById(area.editor);
   const isAvailable = meta ? meta.available(storeSnapshot) : true;
 

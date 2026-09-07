@@ -54,7 +54,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
     id: "hidden",
     title: "Hidden Cards",
     icon: EyeOff,
-    available: (s) => s.hiddenIds.length > 0,
+    available: (s) => s.hiddenIds.length > 0 || (s.activeLeafHiddenIds ?? 0) > 0,
   },
   {
     id: "tags",

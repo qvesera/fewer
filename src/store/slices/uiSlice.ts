@@ -168,6 +168,10 @@ export type UiSliceCreator = StateCreator<
   }
 >;
 
+/** Persists the user's manual folder-card height across collapse/expand cycles. */
+const savedFolderHeights = new Map<string, number>();
+
+
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
   leafSelections: {},
@@ -510,17 +514,32 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const next = isExpanding
       ? current.filter((id) => id !== nodeId)
       : [...current, nodeId];
+
+    // Save the user's manual height before collapse so it can be restored on
+    // expand. Without this, the dimension-change handler would pin style.height
+    // to the compact pill's measured height, and expanding would lose the
+    // user's resize.
+    if (!isExpanding) {
+      const node = s.nodes.find((n) => n.id === nodeId);
+      const h = node?.style?.height as number | undefined;
+      if (h) savedFolderHeights.set(nodeId, h);
+    }
+
     set((st) => ({
       viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedFolderIds: next } },
-      // When expanding, drop both style.height and measured.height so the card
-      // resets to the nodeHeight default. Without clearing measured, getNodeDimensions
-      // falls back to the stale measured value from the collapsed pill or prior resize.
       nodes: isExpanding
-        ? st.nodes.map((n) => (n.id === nodeId ? {
-            ...n,
-            style: { ...n.style, height: undefined },
-            measured: n.measured ? { ...n.measured, height: undefined } : n.measured,
-          } : n))
+        ? st.nodes.map((n) => {
+            if (n.id !== nodeId) return n;
+            const saved = savedFolderHeights.get(nodeId);
+            savedFolderHeights.delete(nodeId);
+            return {
+              ...n,
+              // Restore the saved height (user's resize) or undefined (revert to nodeHeight).
+              style: { ...n.style, height: saved },
+              // Clear RF's stale measurement so getNodeDimensions doesn't fall back to it.
+              measured: n.measured ? { ...n.measured, height: saved } : n.measured,
+            };
+          })
         : st.nodes,
       graphVersion: st.graphVersion + 1,
     }));
