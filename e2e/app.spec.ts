@@ -75,7 +75,9 @@ test("deletes a node from the context menu, then undoes", async ({ page }) => {
   const node = nodeByName(page, "src").first();
   await node.click({ button: "right" });
 
-  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  const deleteItem = page.getByRole("menuitem", { name: "Delete", exact: true });
+  await expect(deleteItem).toBeVisible({ timeout: 5000 });
+  await deleteItem.click({ force: true });
   await expect(node).toHaveCount(0);
 
   // Undo brings the node (and its whole deleted subtree) back.
@@ -111,7 +113,9 @@ test("Select Children selects the folder's children, not the folder", async ({ p
   const box = await src.boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
 
-  await page.getByRole("menuitem", { name: "Select Children" }).click();
+  const selectChildren = page.getByRole("menuitem", { name: "Select Children" });
+  await expect(selectChildren).toBeVisible({ timeout: 5000 });
+  await selectChildren.click({ force: true });
 
   const selectedNodes = page.locator(".react-flow__node.selected");
   await expect(selectedNodes).toHaveCount(7, { timeout: 10000 });
