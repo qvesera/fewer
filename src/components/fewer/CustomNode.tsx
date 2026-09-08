@@ -28,11 +28,13 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuLabel,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from "@/components/ui/context-menu";
 import { useToast } from "@/hooks/use-toast";
 import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
-import { buildBatchActions } from "@/lib/fewer/batchActions";
-import { buildSelectActions } from "@/lib/fewer/batchSelect";
+import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
@@ -247,12 +249,9 @@ function FolderContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <BatchActionsSection nodeId={nodeId} />
+        <GroupedBatchSection nodeId={nodeId} />
         {!isBatchSelection && (
         <>
-        <ContextMenuLabel className="text-xs text-muted-foreground">
-          Folder actions
-        </ContextMenuLabel>
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => setRenamingId(nodeId)}
@@ -313,40 +312,228 @@ function FolderContextMenu({
             Paste
           </ContextMenuItem>
         )}
-        {hasChildren && (
-          <ContextMenuItem
-            onSelect={() => {
-              const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-              useGraphStore.getState().setSelectedNodeIds(childIds);
-              toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
-            }}
-            className="cursor-pointer"
-          >
-            Select Children
-          </ContextMenuItem>
-        )}
         <ContextMenuSeparator />
-        {hasParent && (
-          <ContextMenuItem
-            onSelect={() => {
-              useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
-              toast({ title: "Unparented", description: nodeLabel });
-            }}
-            className="cursor-pointer"
-          >
-            Unparent
-          </ContextMenuItem>
+        {!advancedModeEnabled && (
+          <>
+            {hasChildren && (
+              <ContextMenuItem
+                onSelect={() => {
+                  const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+                  useGraphStore.getState().setSelectedNodeIds(childIds);
+                  toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                }}
+                className="cursor-pointer"
+              >
+                Select Children
+              </ContextMenuItem>
+            )}
+            {hasParent && (
+              <ContextMenuItem
+                onSelect={() => {
+                  useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+                  toast({ title: "Unparented", description: nodeLabel });
+                }}
+                className="cursor-pointer"
+              >
+                Unparent
+              </ContextMenuItem>
+            )}
+            {nodeWebUrl && (
+              <ContextMenuItem
+                onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+                className="cursor-pointer"
+              >
+                Open in {providerLabel}
+              </ContextMenuItem>
+            )}
+            <ContextMenuSeparator />
+            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+          </>
         )}
-        {nodeWebUrl && (
-          <ContextMenuItem
-            onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
-            className="cursor-pointer"
-          >
-            Open in {providerLabel}
-          </ContextMenuItem>
+        {advancedModeEnabled && (
+          <>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="cursor-pointer">
+                Arrange
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {hasParent && (
+                  <ContextMenuItem
+                    onSelect={() => {
+                      useGraphStore.getState().removeEdgesFromHandle(nodeId, "target");
+                      toast({ title: "Unparented", description: nodeLabel });
+                    }}
+                    className="cursor-pointer"
+                  >
+                    Unparent
+                  </ContextMenuItem>
+                )}
+                {hasChildren && (() => {
+                  const isCollapsedInMenu = scope.resolved.collapsedFolderIds.includes(nodeId) || !!nodes.find((n) => n.id === nodeId)?.data.collapsed;
+                  return (
+                    <ContextMenuItem
+                      onSelect={() => {
+                        useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, nodeId);
+                        toast({ title: isCollapsedInMenu ? "Children expanded" : "Children collapsed", description: nodeLabel });
+                      }}
+                      className="cursor-pointer"
+                    >
+                      {isCollapsedInMenu ? "Expand Folder" : "Collapse Folder"}
+                    </ContextMenuItem>
+                  );
+                })()}
+                {hasChildren && (
+                  <ContextMenuItem
+                    onSelect={() => {
+                      const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+                      useGraphStore.getState().setSelectedNodeIds(childIds);
+                      toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                    }}
+                    className="cursor-pointer"
+                  >
+                    Select Children
+                  </ContextMenuItem>
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="cursor-pointer">
+                Visibility
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {(() => {
+                  const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
+                  const effHidden = new Set(scope.resolved.hiddenIds);
+                  const childHidden = childIds.filter((id) => effHidden.has(id));
+                  if (childHidden.length > 0) {
+                    return (
+                      <ContextMenuItem
+                        onSelect={() => {
+                          useGraphStore.getState().showSubtreeForLeaf(scope.leafId, nodeId);
+                          toast({ title: "Children shown", description: `${childHidden.length} child${childHidden.length === 1 ? "" : "ren"} restored` });
+                        }}
+                        className="cursor-pointer"
+                      >
+                        Show Children
+                      </ContextMenuItem>
+                    );
+                  }
+                  return null;
+                })()}
+                {(() => {
+                  const allDescendants = getDescendants(nodeId, edges);
+                  const effHidden = new Set(scope.resolved.hiddenIds);
+                  const visibleDescendants = allDescendants.filter((id) => !effHidden.has(id));
+                  if (visibleDescendants.length > 0) {
+                    return (
+                      <ContextMenuItem
+                        onSelect={() => {
+                          useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
+                          toast({ title: "Children hidden", description: `${visibleDescendants.length} node${visibleDescendants.length === 1 ? "" : "s"} hidden` });
+                        }}
+                        className="cursor-pointer"
+                      >
+                        Hide Children
+                      </ContextMenuItem>
+                    );
+                  }
+                  return null;
+                })()}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="cursor-pointer">
+                Info
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-48">
+                {nodeWebUrl && (
+                  <ContextMenuItem
+                    onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
+                    className="cursor-pointer"
+                  >
+                    Open in {providerLabel}
+                  </ContextMenuItem>
+                )}
+                {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
+                  isLocalClient() ? (
+                    <ContextMenuItem
+                      onSelect={async () => {
+                        const ok = await openFolderInExplorer(nodePath);
+                        if (!ok) {
+                          toast({ title: "Folder not found", description: nodePath, variant: "destructive" });
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      Open in File Explorer
+                    </ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem
+                      disabled
+                      className="cursor-pointer opacity-50"
+                      onSelect={() => {
+                        toast({ title: "Not available remotely", description: "This graph lives on the server — remote clients can't open folders locally.", variant: "destructive" });
+                      }}
+                    >
+                      Open in File Explorer
+                    </ContextMenuItem>
+                  )
+                )}
+                <ContextMenuItem
+                  onSelect={async () => {
+                    try {
+                      await navigator.clipboard.writeText(nodePath);
+                      toast({ title: "Path copied", description: nodePath });
+                    } catch {
+                      toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
+                  Copy Path
+                </ContextMenuItem>
+                {dataSource === "directory" && (
+                  <ContextMenuItem
+                    onSelect={async () => {
+                      const result = await refreshFolderFromDisk(nodeId);
+                      if (result.status === "ok") {
+                        toast({ title: "Refreshed from disk", description: `${nodeLabel}: +${result.added} / -${result.removed}` });
+                      } else if (result.status === "no-handle") {
+                        toast({ title: "Cannot refresh", description: "No disk handle and no resolvable local path for this folder (import it from this machine to enable re-scan).", variant: "destructive" });
+                      } else if (result.status === "not-found") {
+                        toast({ title: "Cannot refresh", description: "Folder not found in graph.", variant: "destructive" });
+                      } else {
+                        toast({ title: "Refresh failed", description: result.error ?? "Unknown error", variant: "destructive" });
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
+                    Refresh from Disk
+                  </ContextMenuItem>
+                )}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+
+            <ContextMenuItem
+              onSelect={() => {
+                setSelectedNodeIds([nodeId]);
+                useGraphStore.setState((s) => ({
+                  nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+                }));
+                window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
+              }}
+              className="cursor-pointer"
+            >
+              Add Child Card
+            </ContextMenuItem>
+          </>
         )}
+
         <ContextMenuSeparator />
-        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
         <ContextMenuItem
           onSelect={() => {
             deleteNode([nodeId]);
@@ -356,163 +543,6 @@ function FolderContextMenu({
         >
           Delete
         </ContextMenuItem>
-        {advancedModeEnabled && (
-          <>
-          <ContextMenuSeparator />
-            {(() => {
-    const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
-    const effHidden = new Set(scope.resolved.hiddenIds);
-    const childHidden = childIds.filter((id) => effHidden.has(id));
-            if (childHidden.length > 0) {
-              return (
-                <ContextMenuItem
-                  onSelect={() => {
-                    useGraphStore.getState().showSubtreeForLeaf(scope.leafId, nodeId);
-                    toast({ title: "Children shown", description: `${childHidden.length} child${childHidden.length === 1 ? "" : "ren"} restored` });
-                  }}
-                  className="cursor-pointer"
-                >
-                  Show Children
-                </ContextMenuItem>
-              );
-            }
-            return null;
-          })()}
-                    {(() => {
-            // Full descendant subtree (children, grandchildren, ...) so no
-            // orphaned grandchildren remain on canvas after Hide Children.
-            const allDescendants = getDescendants(nodeId, edges);
-            const effHidden = new Set(scope.resolved.hiddenIds);
-            const visibleDescendants = allDescendants.filter((id) => !effHidden.has(id));
-            if (visibleDescendants.length > 0) {
-              return (
-                <ContextMenuItem
-                  onSelect={() => {
-                    // Per-view subtree layer: hidden descendants of this folder in this view.
-                    useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
-                    toast({ title: "Children hidden", description: `${visibleDescendants.length} node${visibleDescendants.length === 1 ? "" : "s"} hidden` });
-                  }}
-                  className="cursor-pointer"
-                >
-                  Hide Children
-                </ContextMenuItem>
-              );
-            }
-            return null;
-          })()}
-{hasChildren && (() => {
-            const isCollapsedInMenu = scope.resolved.collapsedFolderIds.includes(nodeId) || !!nodes.find((n) => n.id === nodeId)?.data.collapsed;
-            return (
-              <ContextMenuItem
-                onSelect={() => {
-                  useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, nodeId);
-                  toast({ title: isCollapsedInMenu ? "Children expanded" : "Children collapsed", description: nodeLabel });
-                }}
-                className="cursor-pointer"
-              >
-                {isCollapsedInMenu ? "Expand Folder" : "Collapse Folder"}
-              </ContextMenuItem>
-            );
-          })()}
-          <ContextMenuItem
-            onSelect={() => {
-              // Select this folder so the Add Node dialog (Alt+N) adds a child of it.
-              setSelectedNodeIds([nodeId]);
-              useGraphStore.setState((s) => ({
-                nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
-              }));
-              window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
-            }}
-            className="cursor-pointer"
-          >
-            Add Child Card
-          </ContextMenuItem>
-          {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
-            isLocalClient() ? (
-            <ContextMenuItem
-              onSelect={async () => {
-                const ok = await openFolderInExplorer(nodePath);
-                if (!ok) {
-                  toast({
-                    title: "Folder not found",
-                    description: nodePath,
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="cursor-pointer"
-            >
-              Open in File Explorer
-            </ContextMenuItem>
-            ) : (
-              <ContextMenuItem
-                disabled
-                className="cursor-pointer opacity-50"
-                onSelect={() => {
-                  toast({
-                    title: "Not available remotely",
-                    description: "This graph lives on the server — remote clients can't open folders locally.",
-                    variant: "destructive",
-                  });
-                }}
-              >
-                Open in File Explorer
-              </ContextMenuItem>
-            )
-          )}
-            <ContextMenuItem
-              onSelect={async () => {
-                try {
-                  await navigator.clipboard.writeText(nodePath);
-                  toast({ title: "Path copied", description: nodePath });
-                } catch {
-                  toast({
-                    title: "Copy failed",
-                    description: "Clipboard not available",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="cursor-pointer"
-            >
-              Copy Path
-            </ContextMenuItem>
-            {dataSource === "directory" && (
-              <ContextMenuItem
-                onSelect={async () => {
-                  const result = await refreshFolderFromDisk(nodeId);
-                  if (result.status === "ok") {
-                    toast({
-                      title: "Refreshed from disk",
-                      description: `${nodeLabel}: +${result.added} / -${result.removed}`,
-                    });
-                  } else if (result.status === "no-handle") {
-                    toast({
-                      title: "Cannot refresh",
-                      description: "No disk handle and no resolvable local path for this folder (import it from this machine to enable re-scan).",
-                      variant: "destructive",
-                    });
-                  } else if (result.status === "not-found") {
-                    toast({
-                      title: "Cannot refresh",
-                      description: "Folder not found in graph.",
-                      variant: "destructive",
-                    });
-                  } else {
-                    toast({
-                      title: "Refresh failed",
-                      description: result.error ?? "Unknown error",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                className="cursor-pointer"
-              >
-                Refresh from Disk
-              </ContextMenuItem>
-            )}
-          </>
-        )}
         </>
         )}
       </ContextMenuContent>
@@ -522,37 +552,24 @@ function FolderContextMenu({
 
 /**
  * Batch action section rendered at the top of both node context menus when the
- * right-clicked node is part of a multi-node selection. Reads fresh state via
- * getState() inside handlers so a stale menu can't act on an old selection.
+ * right-clicked node is part of a multi-node selection. Groups actions into
+ * compact top-level items + submenus for the rest.
  */
-function BatchActionsSection({ nodeId }: { nodeId: string }) {
+function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
   const { toast } = useToast();
   if (!isBatch) return null;
 
+  const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: selectedNodeIds });
+
   return (
     <>
       <ContextMenuLabel className="text-xs text-muted-foreground">
-        Batch actions · {selectedNodeIds.length} selected
+        {selectedNodeIds.length} items selected
       </ContextMenuLabel>
       <ContextMenuSeparator />
-      {buildBatchActions({ toast, selectedIds: selectedNodeIds }).map((action) => (
-        <ContextMenuItem
-          key={action.id}
-          onSelect={() => action.run()}
-          className={
-            action.danger
-              ? "cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-              : "cursor-pointer"
-          }
-        >
-          {action.label}
-        </ContextMenuItem>
-      ))}
-      <ContextMenuSeparator />
-      <ContextMenuLabel className="text-xs text-muted-foreground">Select</ContextMenuLabel>
-      {buildSelectActions(selectedNodeIds).map((action) => (
+      {top.map((action) => (
         <ContextMenuItem
           key={action.id}
           onSelect={() => action.run()}
@@ -561,6 +578,51 @@ function BatchActionsSection({ nodeId }: { nodeId: string }) {
           {action.label}
         </ContextMenuItem>
       ))}
+      {more.length > 0 && (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="cursor-pointer">
+            More Actions
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48">
+            {more.map((action) => (
+              <ContextMenuItem
+                key={action.id}
+                onSelect={() => action.run()}
+                className="cursor-pointer"
+              >
+                {action.label}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
+      <ContextMenuSub>
+        <ContextMenuSubTrigger className="cursor-pointer">
+          Select
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-48">
+          {select.map((action) => (
+            <ContextMenuItem
+              key={action.id}
+              onSelect={() => action.run()}
+              className="cursor-pointer"
+            >
+              {action.label}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      {del && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onSelect={() => del.run()}
+            className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+          >
+            {del.label}
+          </ContextMenuItem>
+        </>
+      )}
     </>
   );
 }
@@ -609,12 +671,9 @@ function FileEntryContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-52">
-        <BatchActionsSection nodeId={nodeId} />
+        <GroupedBatchSection nodeId={nodeId} />
         {!isBatchSelection && (
         <>
-        <ContextMenuLabel className="text-xs text-muted-foreground">
-          File actions
-        </ContextMenuLabel>
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => setRenamingId(nodeId)}
@@ -712,8 +771,46 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
-        <ContextMenuSeparator />
         <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+        {advancedModeEnabled && (
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="cursor-pointer">
+              Info
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-48">
+              {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
+                <ContextMenuItem
+                  onSelect={async () => {
+                    const { openNodeFile } = await import("@/lib/fewer/fileOps");
+                    const ok = await openNodeFile({ id: nodeId, data: { type: "file", path: nodePath } }, dataSource);
+                    toast({
+                      title: ok ? "Opening file" : "Cannot open file",
+                      description: nodeLabel,
+                      ...(ok ? {} : { variant: "destructive" }),
+                    });
+                  }}
+                  className="cursor-pointer"
+                >
+                  Open File
+                </ContextMenuItem>
+              )}
+              <ContextMenuItem
+                onSelect={async () => {
+                  try {
+                    await navigator.clipboard.writeText(nodeLabel);
+                    toast({ title: "Name copied", description: nodeLabel });
+                  } catch {
+                    toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                Copy Name
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        )}
+        <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => {
             onDelete();
@@ -721,45 +818,8 @@ function FileEntryContextMenu({
           }}
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
-          Delete Item
+          Delete
         </ContextMenuItem>
-        {advancedModeEnabled && (
-          <>
-            {showOpenFile !== false && LOCAL_FS_FEATURES.openFileInOs && (
-            <ContextMenuItem
-              onSelect={async () => {
-                const { openNodeFile } = await import("@/lib/fewer/fileOps");
-                const ok = await openNodeFile({ id: nodeId, data: { type: "file", path: nodePath } }, dataSource);
-                toast({
-                  title: ok ? "Opening file" : "Cannot open file",
-                  description: nodeLabel,
-                  ...(ok ? {} : { variant: "destructive" }),
-                });
-              }}
-              className="cursor-pointer"
-            >
-              Open File
-            </ContextMenuItem>
-              )}
-            <ContextMenuItem
-              onSelect={async () => {
-                try {
-                  await navigator.clipboard.writeText(nodeLabel);
-                  toast({ title: "Name copied", description: nodeLabel });
-                } catch {
-                  toast({
-                    title: "Copy failed",
-                    description: "Clipboard not available",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="cursor-pointer"
-            >
-              Copy Name
-            </ContextMenuItem>
-          </>
-        )}
         </>
         )}
       </ContextMenuContent>

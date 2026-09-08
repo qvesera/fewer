@@ -19,10 +19,11 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { buildBatchActions } from "@/lib/fewer/batchActions";
 import { buildSelectActions } from "@/lib/fewer/batchSelect";
+import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { edgeDashPattern } from "@/lib/fewer/types";
 import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
@@ -276,6 +277,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
   const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
+  const [openBatchSub, setOpenBatchSub] = useState<string | null>(null);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
@@ -498,64 +500,79 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       </ReactFlow>
 
       {canvasMenu && (() => {
-        const close = () => setCanvasMenu(null);
+        const close = () => { setCanvasMenu(null); setOpenBatchSub(null); };
+
+        // ── Edge right-click: minimal menu ──
+        if (canvasMenu.kind === "edge" && lastClickedEdgeId) {
+          const eid = lastClickedEdgeId;
+          return (
+            <>
+              <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
+              <div className="gm-float fixed z-50 min-w-[160px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
+                <button onClick={() => { useGraphStore.getState().deleteEdges([eid]); toast({ title: "Edge deleted", description: "1 edge removed" }); close(); }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>
+              </div>
+            </>
+          );
+        }
+
         const ids = useGraphStore.getState().selectedNodeIds;
         const isSelectionMenu = canvasMenu.kind === "selection" && ids.length >= 2;
-        const edgeId = lastClickedEdgeId;
-        const edgeExists = !isSelectionMenu && !!edgeId && useGraphStore.getState().edges.some((e: FewerEdge) => e.id === edgeId);
+
+        if (isSelectionMenu) {
+          const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: ids });
+          return (
+            <>
+              <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
+              <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{ids.length} items selected</div>
+                {top.map((a) => (
+                  <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]">{a.label}</button>
+                ))}
+                {more.length > 0 && (<>
+                  <div className="my-1 h-px bg-border/40" />
+                  <button onClick={() => setOpenBatchSub(openBatchSub === "more" ? null : "more")} className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60">
+                    More Actions<ChevronRight className={`h-3 w-3 transition-transform ${openBatchSub === "more" ? "rotate-90" : ""}`} />
+                  </button>
+                  {openBatchSub === "more" && more.map((a) => (
+                    <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md pl-5 pr-2 py-1 text-xs text-foreground transition-colors hover:bg-muted/60">{a.label}</button>
+                  ))}
+                </>)}
+                <div className="my-1 h-px bg-border/40" />
+                <button onClick={() => setOpenBatchSub(openBatchSub === "select" ? null : "select")} className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60">
+                  Select<ChevronRight className={`h-3 w-3 transition-transform ${openBatchSub === "select" ? "rotate-90" : ""}`} />
+                </button>
+                {openBatchSub === "select" && select.map((a) => (
+                  <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md pl-5 pr-2 py-1 text-xs text-foreground transition-colors hover:bg-muted/60">{a.label}</button>
+                ))}
+                {del && (<>
+                  <div className="my-1 h-px bg-border/40" />
+                  <button onClick={() => { del.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">{del.label}</button>
+                </>)}
+              </div>
+            </>
+          );
+        }
+
+        // ── Pane right-click ──
         return (
           <>
             <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
             <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
-              {isSelectionMenu ? (
-                <>
-                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Batch actions · {ids.length} selected</div>
-                  {buildBatchActions({ toast, selectedIds: ids }).map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={() => { action.run(); close(); }}
-                      className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] ${action.danger ? "text-red-500" : "text-foreground"}`}>
-                      {action.label}
-                    </button>
-                  ))}
-                  <div className="my-1 h-px bg-border/40" />
-                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Select</div>
-                  {buildSelectActions(ids).map((action) => (
-                    <button key={action.id} onClick={() => { action.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98] text-foreground">{action.label}</button>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">Canvas actions</div>
-                  <div className="my-1 h-px bg-border/40" />
-                  <button onClick={() => { fitView({ duration: 500, padding: 0.2 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Fit View</button>
-                  <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
-                  <button onClick={() => { zoomIn({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Zoom In</button>
-                  <button onClick={() => { zoomOut({ duration: 250 }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Zoom Out</button>
-                  {leafId && (
-                    <>
-                      <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
-                      <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
-                    </>
-                  )}
-                  {edgeExists && (
-                    <>
-                      <div className="my-1 h-px bg-border/40" />
-                      <button onClick={() => { useGraphStore.getState().deleteEdges([edgeId!]); toast({ title: "Edge deleted", description: "1 edge removed" }); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>
-                    </>
-                  )}
-                  {advancedModeEnabled && (
-                    <>
-                      <div className="my-1 h-px bg-border/40" />
-                      <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
-                      <div className="my-1 h-px bg-border/40" />
-                      <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
-                    </>
-                  )}
-                  <div className="my-1 h-px bg-border/40" />
-                  <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
-                </>
-              )}
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">View</div>
+              <div className="my-1 h-px bg-border/40" />
+                  {leafId && (<>
+                  <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
+                  <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+                </>)}
+              <div className="my-1 h-px bg-border/40" />
+              <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
+              {advancedModeEnabled && (<>
+                  <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
+                  <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
+                </>)}
+              <div className="my-1 h-px bg-border/40" />
+              <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
             </div>
           </>
         );
