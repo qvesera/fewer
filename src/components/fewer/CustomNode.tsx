@@ -35,6 +35,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
+import { selectSameExtension, selectSameCategory } from "@/lib/fewer/batchSelect";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
@@ -772,6 +773,33 @@ function FileEntryContextMenu({
           )
         )}
         <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="cursor-pointer">
+            Select
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48">
+            <ContextMenuItem
+              onSelect={() => {
+                const ids = selectSameExtension(nodes, [nodeId]);
+                useGraphStore.getState().setSelectedNodeIds(ids);
+                toast({ title: "Selected by type", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same extension` });
+              }}
+              className="cursor-pointer"
+            >
+              By Type
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => {
+                const ids = selectSameCategory(nodes, [nodeId]);
+                useGraphStore.getState().setSelectedNodeIds(ids);
+                toast({ title: "Selected by category", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same category` });
+              }}
+              className="cursor-pointer"
+            >
+              By Category
+            </ContextMenuItem>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         {advancedModeEnabled && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="cursor-pointer">
