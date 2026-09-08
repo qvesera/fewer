@@ -64,6 +64,17 @@ export interface StoreReader {
   hiddenIds: string[];
   mousePosition: { x: number; y: number } | null;
   localRootPath: string | null;
+  activeLeafId: string | null;
+  showFilesByLeaf: Record<string, { showFiles?: boolean; hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }>;
+}
+
+/** Count nodes hidden by a leaf's hideLayers (individual + subtrees + bulk files). */
+function leafHiddenCount(vs: { hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }, fileCount: number): number {
+  const h = vs.hideLayers;
+  if (!h) return 0;
+  return h.individual.length
+    + Object.values(h.subtrees).reduce((a, v) => a + v.length, 0)
+    + (h.filesBulkActive ? fileCount : 0);
 }
 
 /**
@@ -82,6 +93,8 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     hiddenIds: s.hiddenIds ?? [],
     mousePosition: s.mousePosition ?? null,
     localRootPath: s.localRootPath ?? null,
+    activeLeafId: s.activeLeafId ?? null,
+    showFilesByLeaf: s.viewSettings ?? {},
   };
 }
 
@@ -91,8 +104,10 @@ export interface ShortcutCtx {
   setSelectedNodeIds(ids: string[]): void; deleteNodes(ids: string[]): void;
   setRenamingId(id: string | null, source?: "canvas" | "folder"): void;
   setClipboard(mode: "copy" | "cut", ids: string[]): void;
-  clearClipboard(): void; setFocusedNodeId(id: string | null): void;
+    clearClipboard(): void; setFocusedNodeId(id: string | null): void;
   hideNodes(ids: string[]): void; showAll(): void; setShowFiles(v: boolean): void;
+  hideNodesForLeaf(leafId: string, ids: string[]): void;
+  revealAllForLeaf(leafId: string): void;
   setExportOpen(v: boolean): void; setShortcutsOpen(v: boolean): void; reset(): void;
   pasteFromClipboard(parentId?: string | null): void; moveNode(id: string): void;
   connectNodes(connection: { source: string; target: string }): { ok: boolean; reason?: string };
@@ -224,15 +239,28 @@ export function buildKeyboardRules(): ShortcutRule[] {
       test(_e, _ctx, kc) { return _e.key.toLowerCase() === "h" && !kc.mod; },
       handle(e, ctx, kc) {
         e.preventDefault();
+        const st = ctx.getState();
         if (kc.shift) {
-          const n = ctx.getState().hiddenIds.length;
-          if (n > 0) { ctx.setShowFiles(true); ctx.showAll(); ctx.toast({ title: "Unhid all nodes", description: `${pluralizeCount(n, "node")} restored` }); }
-          else { ctx.setShowFiles(true); }
+          // Leaf-aware reveal: clear the active leaf's hide layers, then any global ones.
+          const leafVs = st.activeLeafId ? st.showFilesByLeaf[st.activeLeafId] : undefined;
+          const fileCount = st.nodes.filter((nd) => nd.data.type === "file").length;
+          let n = st.hiddenIds.length;
+          if (st.activeLeafId && leafVs?.hideLayers) {
+            n += leafHiddenCount(leafVs, fileCount);
+            ctx.revealAllForLeaf(st.activeLeafId);
+          }
+          if (n > 0) {
+            if (st.hiddenIds.length > 0) ctx.showAll();
+            ctx.toast({ title: "Unhid all nodes", description: `${pluralizeCount(n, "node")} restored` });
+          }
+          ctx.setShowFiles(true);
         } else {
-          const ids = ctx.getState().selectedNodeIds;
+          const ids = st.selectedNodeIds;
           if (ids.length > 0) {
-            const sub = countDescendants(ids, ctx.getState().edges);
-            ctx.hideNodes(ids);
+            const sub = countDescendants(ids, st.edges);
+            // Leaf-aware hide: route selection into the active leaf's hide layer.
+            if (st.activeLeafId) ctx.hideNodesForLeaf(st.activeLeafId, ids);
+            else ctx.hideNodes(ids);
             ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore` });
           }
         }

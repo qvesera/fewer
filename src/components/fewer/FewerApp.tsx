@@ -18,11 +18,21 @@ import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal } from "@/lib/fewer/userSettings";
+import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
+import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
+import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal } from "@/lib/fewer/snapshot";
 import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+
+// Client-only: tree layout is loaded from localStorage, so the server
+// always renders a single-leaf default and the client hydrates with the
+// actual stored tree.  Dynamic import with ssr:false prevents the
+// hydration mismatch that occurs when the two trees differ.
+const TreeRenderer = dynamic(() => import("./TreeRenderer").then((m) => m.TreeRenderer), { ssr: false });
+const SectionDragLayer = dynamic(() => import("./SectionDragLayer").then((m) => m.SectionDragLayer), { ssr: false });
 
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
@@ -36,6 +46,7 @@ const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDia
 const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) => m.ThemeEditorDialog), { ssr: false });
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
 const BatchRenameDialog = dynamic(() => import("./BatchRenameDialog").then((m) => m.BatchRenameDialog), { ssr: false });
+const BatchTagDialog = dynamic(() => import("./BatchTagDialog").then((m) => m.BatchTagDialog), { ssr: false });
 const ParentPickerDialog = dynamic(() => import("./ParentPickerDialog").then((m) => m.ParentPickerDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
 const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
@@ -65,12 +76,39 @@ export function FewerApp() {
   const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
+  // Panel layout
+  const sidebarSide = useGraphStore((s) => s.sidebarSide);
+  const panelTree = useGraphStore((s) => s.panelTree);
+
   // On mobile, start with sidebar closed
   useEffect(() => {
     if (device.isMobile) {
       setSidebarOpen(false);
     }
   }, [device.isMobile, setSidebarOpen]);
+
+  // Hydrate browser-only state once on mount (panel layout, search history,
+  // tutorial flags). The store always starts with SSR-safe defaults to avoid
+  // hydration mismatches; this effect applies stored values on the client.
+  useEffect(() => {
+    const layout = loadLayoutFromStorage();
+    const searchHistory = (() => {
+      try { const v = sessionStorage.getItem(SEARCH_HISTORY_KEY); return v ? JSON.parse(v) as string[] : []; } catch { return []; }
+    })();
+    const tutorialBeginnerDone = (() => {
+      try { const v = localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY); return v ? JSON.parse(v) : []; } catch { return []; }
+    })();
+    const tutorialDismissed = (() => {
+      try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
+    })();
+
+    const next: Record<string, unknown> = { searchHistory, tutorialBeginnerDone, tutorialDismissed };
+    if (layout) {
+      next.sidebarSide = layout.sidebarSide;
+      next.panelTree = layout.panelTree;
+    }
+    useGraphStore.setState(next);
+  }, []);
 
   // On mobile, the minimap defaults to OFF — but only when the user hasn't saved
   // a preference yet (mirroring the Sidebar's responsive-direction default), so
@@ -109,11 +147,13 @@ export function FewerApp() {
     useGraphStore.setState({ advancedModeEnabled: !!user });
   }, [user]);
 
-  // Sidebar drag-resize handler
+  // Sidebar drag-resize handler — adapts to left/right side
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.min(560, Math.max(200, e.clientX));
+      const w = sidebarSide === "left"
+        ? Math.min(560, Math.max(200, e.clientX))
+        : Math.min(560, Math.max(200, window.innerWidth - e.clientX));
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -127,7 +167,7 @@ export function FewerApp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [sidebarSide]);
 
   const startResize = useCallback(() => {
     resizingRef.current = true;
@@ -321,9 +361,13 @@ export function FewerApp() {
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
+        {/* Sidebar wrapper — positioned by sidebarSide */}
         <div
           className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
-          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+          style={{
+            width: sidebarOpen ? sidebarWidth : 0,
+            order: sidebarSide === "right" ? 999 : 0,
+          }}
         >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
@@ -332,12 +376,17 @@ export function FewerApp() {
           {sidebarOpen && (
             <div
               onMouseDown={startResize}
-              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors"
+              className={cn(
+                "absolute top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors",
+                sidebarSide === "left" ? "right-0" : "left-0",
+              )}
               title="Drag to resize"
               aria-label="Resize sidebar"
             />
           )}
         </div>
+
+        {/* Mobile sidebar overlay */}
         <div
           className={cn(
             "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
@@ -363,17 +412,22 @@ export function FewerApp() {
           />
           </div>
         </div>
-        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
-          <ErrorBoundary>
-            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
-          </ErrorBoundary>
-          <BreadcrumbBar />
-          <SearchPanel />
-        </main>
+
+        {/* Tree-based layout: all areas including canvas */}
+        <TreeRenderer
+          tree={panelTree}
+          onOpenImport={() => openImportFlow("folder")}
+          onLoadSample={handleLoadSample}
+        />
       </div>
 
+      {/* Drag-to-dock overlay (ghost + edge strips) */}
+      <SectionDragLayer />
+
       <ExportPanel />
+      <SearchPanel />
       <BatchRenameDialog />
+      <BatchTagDialog />
       <ParentPickerDialog />
       <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <BugReportDialog />

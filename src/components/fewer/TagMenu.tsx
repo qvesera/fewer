@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Tag as TagIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import {
   ContextMenuSub,
@@ -43,8 +43,7 @@ export function TagMenu({ nodeId, nodeTagIds }: { nodeId: string; nodeTagIds: st
   return (
     <ContextMenuSub>
       <ContextMenuSubTrigger className="cursor-pointer">
-        <TagIcon className="mr-2 h-3.5 w-3.5" />
-        Tags
+      Tags
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-52">
         {tags.length === 0 && !creating && (

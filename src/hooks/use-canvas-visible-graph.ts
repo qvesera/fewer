@@ -8,7 +8,7 @@ export interface VisibleGraph {
 }
 
 /**
- * Lens over the store's full node/edge set: drop hidden ids and lock every
+ * Lens over the store's full node/edge set: drop hidden ids和 lock every
  * node to zIndex 1000 so nodes always render above edges (React Flow defaults
  * edges to 0, nodes to 1000; we lock it explicitly so no edge can overlap).
  */

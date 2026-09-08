@@ -1,5 +1,6 @@
 export { AddNodeDialog } from "./AddNodeDialog";
 export { BatchRenameDialog } from "./BatchRenameDialog";
+export { BatchTagDialog } from "./BatchTagDialog";
 export { ParentPickerDialog } from "./ParentPickerDialog";
 export { BreadcrumbBar } from "./BreadcrumbBar";
 export { DocsSearch } from "./DocsSearch";
@@ -32,3 +33,6 @@ export { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 export { AuthDialog } from "./AuthDialog";
 export { CloudPanel } from "./CloudPanel";
 export { TagsPanel } from "./TagsPanel";
+export { DockArea } from "./DockArea";
+export { SectionDragLayer } from "./SectionDragLayer";
+export { TreeRenderer } from "./TreeRenderer";

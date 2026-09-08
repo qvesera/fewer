@@ -26,6 +26,8 @@ export type TagsSliceCreator = StateCreator<
     assignTag: (nodeId: string, tagId: string) => void;
     unassignTag: (nodeId: string, tagId: string) => void;
     toggleNodeTag: (nodeId: string, tagId: string) => void;
+    assignTagToNodes: (nodeIds: string[], tagId: string) => void;
+    unassignTagFromNodes: (nodeIds: string[], tagId: string) => void;
     /**
      * Toggle a tag in the active filter. Uses the same hide/show mechanism
      * as the category filter in StatsPanel: non-matching nodes are added to
@@ -125,6 +127,27 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     if (!node) return;
     if (node.data.tagIds?.includes(tagId)) get().unassignTag(nodeId, tagId);
     else get().assignTag(nodeId, tagId);
+  },
+  /** Assign one tag to many nodes in a single history entry. Idempotent. */
+  assignTagToNodes: (nodeIds, tagId) => {
+    const idSet = new Set(nodeIds);
+    const nodes = get().nodes.map((n) => {
+      if (!idSet.has(n.id)) return n;
+      const ids = n.data.tagIds ?? [];
+      if (ids.includes(tagId)) return n;
+      return { ...n, data: { ...n.data, tagIds: [...ids, tagId] } };
+    });
+    set({ nodes, graphVersion: get().graphVersion + 1 });
+  },
+  /** Remove one tag from many nodes in a single history entry. */
+  unassignTagFromNodes: (nodeIds, tagId) => {
+    const idSet = new Set(nodeIds);
+    const nodes = get().nodes.map((n) => {
+      if (!idSet.has(n.id) || !n.data.tagIds) return n;
+      if (!n.data.tagIds.includes(tagId)) return n;
+      return { ...n, data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) } };
+    });
+    set({ nodes, graphVersion: get().graphVersion + 1 });
   },
 
   setTagFilter: (ids) => {

@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { Button } from "@/components/ui/button";
 import {
   Eye,
+  EyeOff,
   ChevronRight,
   Folder,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import {
 import { RenameInput } from ".";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { plural } from "@/lib/fewer/plural";
@@ -98,11 +100,18 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
     // fires mouseleave. Clear the canvas ring explicitly or it lingers on the
     // just-revealed nodes.
     setHoverHighlight([]);
+    const store = useGraphStore.getState();
+    // Reveal in the active view's layers (removes from individual/subtrees/bulk-exempt)
+    if (store.activeLeafId) {
+      store.eyeRevealForLeaf(store.activeLeafId, id);
+    }
     if (isFolder) {
-      useGraphStore.getState().revealSubtree(id);
+      // Also reveal subtree globally when it was globally hidden (existing behavior)
+      store.revealSubtree(id);
       toast({ title: "Subtree shown", description: tree.node.data.label });
     } else {
-      showAncestors(id);
+      // Also reveal globally when globally hidden (existing behavior)
+      store.showAncestors(id);
       toast({ title: "Card shown", description: tree.node.data.label });
     }
     // Auto-select the just-revealed node so it's ringed on the canvas and
@@ -196,17 +205,25 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
 export function HiddenNodesPanel() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const showAll = useGraphStore((s) => s.showAll);
-  const setShowFiles = useGraphStore((s) => s.setShowFiles);
+  const activeLeaf = useActiveLeaf();
   const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const { toast } = useToast();
 
   const [hiddenSearch, setHiddenSearch] = useState("");
 
+  // Effective hidden list for the active view: resolved from the leaf's
+  // hide layers (individual + subtrees + bulk files) merged with global hiddenIds.
+  const effectiveHidden = useMemo(
+    () => activeLeaf?.resolved.hiddenIds ?? [],
+    [activeLeaf],
+  );
+  const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
+  const activeLeafId = activeLeaf?.leafId ?? null;
+
   const hiddenGroups = useMemo(
-    () => getHiddenLayerGroups(nodes, edges, hiddenIds),
-    [nodes, edges, hiddenIds],
+    () => getHiddenLayerGroups(nodes, edges, effectiveHidden),
+    [nodes, edges, effectiveHidden],
   );
 
   const filteredHiddenGroups = useMemo(
@@ -214,11 +231,11 @@ export function HiddenNodesPanel() {
     [hiddenGroups, hiddenSearch],
   );
 
-  if (hiddenIds.length === 0) return null;
+  if (effectiveHidden.length === 0) return null;
 
   return (
-    <>
-      <div className="relative w-full min-w-0">
+    <div className="flex flex-col flex-1 min-h-0 gap-2 w-full min-w-0">
+      <div className="relative w-full min-w-0 shrink-0">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
         <Input
           value={hiddenSearch}
@@ -227,26 +244,28 @@ export function HiddenNodesPanel() {
           className="h-8 pl-8 text-xs"
         />
       </div>
+      {/* Per-row tree with full effective hidden list */}
+      {effectiveHidden.length > 0 && (<>
       <Button
         variant="outline"
         size="sm"
-        className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0"
+        className="w-full gap-2 border-border/60 hover:bg-muted/40 text-xs font-normal min-w-0 shrink-0"
         onClick={() => {
           setHoverHighlight([]);
-          const count = hiddenIds.length;
-          // setShowFiles(true) re-runs the large-folder auto-hide filter, so it
-          // must run BEFORE showAll() — otherwise it re-hides a folder whose
-          // children outnumber the auto-hide threshold in the same click that
-          // was supposed to reveal them. showAll() must be the last write.
-          setShowFiles(true);
+          const count = effectiveHidden.length;
+          // Per-leaf reveal: clear view's hidden set
+          if (activeLeafId) {
+            useGraphStore.getState().revealAllForLeaf(activeLeafId);
+          }
+          // Also clear global hiddenIds + global showFiles (affects other views' defaults)
           showAll();
-          if (count > 0) toast({ title: "Unhid all nodes", description: `${plural(count, "node")} restored` });
+          if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
         }}
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">Reveal All</span>
       </Button>
-      <div className="max-h-52 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
         {filteredHiddenGroups.length > 0 ? (
           filteredHiddenGroups.map((group, i) => (
             <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} />
@@ -257,7 +276,8 @@ export function HiddenNodesPanel() {
           </p>
         )}
       </div>
-    </>
+      </>)}
+    </div>
   );
 }
 

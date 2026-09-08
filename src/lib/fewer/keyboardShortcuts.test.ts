@@ -85,13 +85,17 @@ test("toStoreReader extracts fields", () => {
     direction: "LR", selectedNodeIds: ["n1"], nodes: [{ id: "n1" }],
     edges: [], dataSource: "dir", clipboard: null, focusedNodeId: null,
     hiddenIds: [], mousePosition: { x: 1, y: 2 }, localRootPath: null,
+    activeLeafId: "leaf1", viewSettings: { leaf1: { showFiles: false } },
   });
   expect(r.direction).toBe("LR"); expect(r.selectedNodeIds).toEqual(["n1"]);
+  expect(r.activeLeafId).toBe("leaf1");
+  expect(r.showFilesByLeaf.leaf1?.showFiles).toBe(false);
 });
 test("toStoreReader defaults for missing fields", () => {
   const r = toStoreReader({});
   expect(r.nodes).toEqual([]); expect(r.hiddenIds).toEqual([]);
   expect(r.clipboard).toBeNull(); expect(r.localRootPath).toBeNull();
+  expect(r.activeLeafId).toBeNull(); expect(r.showFilesByLeaf).toEqual({});
 });
 // ─── Test harness ─────────────────────────────────────────────────
 function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Record<string, any> } {
@@ -108,8 +112,10 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
     clearClipboard: () => { a.clearClipboard = true; },
     setFocusedNodeId: (id) => { a.setFocusedNodeId = id; },
     hideNodes: (ids) => { a.hideNodes = ids; },
+    hideNodesForLeaf: (leafId, ids) => { a.hideNodesForLeaf = [leafId, ids]; },
     showAll: () => { a.showAll = true; },
     setShowFiles: (v) => { a.setShowFiles = v; },
+    revealAllForLeaf: (leafId) => { a.revealAllForLeaf = leafId; },
     setExportOpen: (v) => { a.setExportOpen = v; },
     setShortcutsOpen: (v) => { a.setShortcutsOpen = v; },
     reset: () => { a.reset = true; },

@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
 - Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
 - Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
+- H / Shift+H now route through the active view's hide layers in split-view layouts: hiding selection writes to the active leaf's individual layer, and Shift+H clears both the leaf's layers and the global hidden list (previously Shift+H could not reveal nodes hidden in the active view, and its restored-count toast showed the selection size instead of the number of nodes restored)
+- Hiding a folder (H key) now hides its descendants too in split views — the per-view hide layer expands the subtree like the global hide always did. Hidden nodes now appear under Hidden Cards again (the panel reads the active view's resolved hide layers instead of a removed store field), and edges to leaf-hidden nodes no longer resurrect after graph updates.
+- Fix e2e context menu tests to wait for menu animation before clicking
+- Restore SearchPanel mount accidentally dropped in panel tree refactor
 
 ### Added
 
@@ -56,6 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
 - Per-section undo buttons (Canvas & Text, Folders, Files) in the Custom Theme Editor that revert a section's slots, with drag-coalesced steps
 - Tags: assign named, colored tags to folders and files. Each tagged card shows a permanent highlight ring with its tags colors split evenly around the border (stepped, up to 5 colors); the ring yields to the selection ring while the card is selected. Assign via right-click > Tags on any card, manage the palette in the sidebar Tags panel, filter the canvas with tag chips in search (non-matching cards dim), and sort siblings by tag via Settings > Appearance > Sibling Sort > Tag. Tags travel with saved and shared graphs.
+- Blender-style dockable panel areas: drag sidebar sections into separate columns, switch between Graph View and section editors per column, dock areas to left or right side. Sidebar can be relocated to left or right edge of screen. Column widths are resizable.
+- Blender-style corner-drag split and join for panel areas: split any area by dragging from its corner, merge areas back together by dragging toward a neighbor. Divider drag between areas adjusts ratio. Full binary split tree layout model (v2) with v1 migration.
+- Batch actions for multi-selection: Hide, Show, Collapse Folders, Expand Folders, Copy Paths
+- Canvas selection menu: Select Descendants, Select Same Extension, Select Same Category
+- Batch Tags… action: assign/remove tags across a multi-selection via a shared tag picker
+- Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
+- Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
+- Add Parent Card option in file and folder context menus
 
 ### Changed
 
@@ -81,6 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags: color editing now uses the same react-colorful picker as the Custom Theme Editor (click a tag swatch in the sidebar Tags panel to expand it), and new tags pick a color from a palette swatch row at creation in both the context menu and the sidebar; fixed the assigned-tag checkmark overlapping the color dot in the Tags submenu.
 - Tag filter now hides non-matching nodes from the canvas (same mechanism as the category filter in Graph Analytics) instead of dimming them. Toggle a tag chip in the search panel to show only cards carrying that tag; matching cards stay on canvas, non-matching ones are hidden and appear in the Hidden panel. Clear with the X button or uncheck the tag.
 - Sidebar Tags section now has a "By tag" filter list (matching the Graph Analytics "By category" pattern) with tag counts and colored progress bars — click a tag to show only cards carrying it, click again to clear.
+- Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
+- Canvas batch selection menu now uses Radix submenus matching node context menu behavior
+- Remove icon from Tags context menu item for consistent text-only menu styling
 
 ### Security
 

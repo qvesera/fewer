@@ -121,6 +121,7 @@ function commitShow(
     autoHiddenIds: shown(get().autoHiddenIds),
     graphVersion: get().graphVersion + 1,
   });
+  get().relayout();
 }
 
 /**
@@ -1151,6 +1152,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id), graphVersion: s.graphVersion + 1 }));
+    get().relayout();
   },
 
   showAncestors: (id) => {
@@ -1166,6 +1168,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
     set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
+    get().relayout();
   },
 
   showSubtree: (id) => {
@@ -1200,6 +1203,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
+    get().relayout();
   },
 
   revealSubtree: (id) => {
@@ -1212,6 +1216,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Re-apply auto-hide so folders with >10 children underneath stay hidden,
     // while the explicitly-revealed root is protected from being re-hidden.
     get().autoHideLargeFolders();
+    get().relayout();
   },
 
   setMaxDisplayDepth: (maxDepth) => {

@@ -10,6 +10,14 @@ import { SEARCH_HISTORY_KEY, withSearchEntry } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { captureViewState, viewStateOp } from "./historySlice";
 import { reconcileAutoHide } from "./graphSlice";
+import {
+  loadLayoutFromStorage,
+  saveLayoutToStorage,
+  clearLayoutStorage,
+  defaultLayout,
+} from "@/lib/fewer/panelLayout";
+import * as treeModule from "@/lib/fewer/panelTree";
+import { resolveViewSettings, type ViewSettings } from "@/lib/fewer/viewState";
 
 export type UiSliceCreator = StateCreator<
   GraphState,
@@ -17,6 +25,10 @@ export type UiSliceCreator = StateCreator<
   [],
   {
     selectedNodeIds: string[];
+    /** Per-leaf selection storage. Key = leafId. */
+    leafSelections: Record<string, string[]>;
+    /** ID of the most recently interacted graph leaf (for keyboard shortcuts). */
+    activeLeafId: string | null;
     searchQuery: string;
     searchHistory: string[];
     /** Active file-type (extension category) filter. `null` = no filter. */
@@ -46,6 +58,8 @@ export type UiSliceCreator = StateCreator<
     shareOpen: boolean;
     authOpen: boolean;
     showMiniMap: boolean;
+    /** Per-leaf view settings overrides (showFiles, minimapHidden, edgeStyle, theme, etc.). */
+    viewSettings: Record<string, import("@/lib/fewer/viewState").ViewSettings>;
     miniMapPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
     miniMapSize: number;
     /** Free-form x/y offset (px from top-left) used when miniMapPosition === "custom". */
@@ -63,11 +77,17 @@ export type UiSliceCreator = StateCreator<
     tutorialDemoStep: number;
     rightClickDetected: boolean;
 
+    // ── Panel layout (Blender-style docked areas) ──
+    sidebarSide: "left" | "right";
+    panelTree: import("@/lib/fewer/panelTree").PanelNode;
+
     setSearchQuery: (q: string) => void;
     commitSearch: (q: string) => void;
     clearSearchHistory: () => void;
     setCategoryFilter: (cat: FileCategory | null) => void;
     setSelectedNodeIds: (ids: string[]) => void;
+    setSelectionForLeaf: (leafId: string, ids: string[]) => void;
+    setActiveLeaf: (leafId: string | null) => void;
     /** Ring a transient set of node ids on the canvas (sidebar row hover). */
     setHoverHighlight: (ids: string[]) => void;
     setRenamingId: (id: string | null, source?: "canvas" | "folder") => void;
@@ -91,6 +111,32 @@ export type UiSliceCreator = StateCreator<
     setShareOpen: (open: boolean) => void;
     setAuthOpen: (open: boolean) => void;
     setShowMiniMap: (show: boolean) => void;
+    toggleMinimapForLeaf: (leafId: string) => void;
+    /** Set a per-view setting override. Bumps graphVersion for sync. */
+    setViewSetting: (leafId: string, key: keyof import("@/lib/fewer/viewState").ViewSettings, value: unknown) => void;
+    updateViewSettings: (leafId: string, patch: Partial<import("@/lib/fewer/viewState").ViewSettings>) => void;
+    setNodePositionForLeaf: (leafId: string, nodeId: string, pos: { x: number; y: number }) => void;
+    /** Batch write per-view positions without graphVersion bump (for during-drag). */
+    setNodePositionsBatch: (leafId: string, entries: { id: string; pos: { x: number; y: number } }[]) => void;
+    /** Seed the full positions map for a view (first drag writes full map before drag delta). */
+    seedNodePositions: (leafId: string, fullMap: Record<string, { x: number; y: number }>) => void;
+    /** Seed-on-write: first call captures effective hidden, then adds to individual layer. */
+    hideForLeaf: (leafId: string, ids: string[]) => void;
+    /** Eye-reveal: removes id from individual + subtrees + adds to filesBulkExempt. */
+    eyeRevealForLeaf: (leafId: string, id: string) => void;
+    /** Per-folder Hide Children. */
+    hideSubtreeForLeaf: (leafId: string, folderId: string, descendantIds: string[]) => void;
+    /** Per-folder Show Children. */
+    showSubtreeForLeaf: (leafId: string, folderId: string) => void;
+    /** Toggle a folder's per-leaf collapse (descendants pruned from this leaf's canvas; view-only, not undoable). */
+    toggleCollapseForLeaf: (leafId: string, nodeId: string) => void;
+    /** Toggle "Hide Files" bulk layer. */
+    setFilesBulkForLeaf: (leafId: string, active: boolean) => void;
+    /** Clear all hide layers for this view (Reveal All). */
+    revealAllForLeaf: (leafId: string) => void;
+    /** Alias for hideForLeaf used by keyboard hide routing. */
+    hideNodesForLeaf: (leafId: string, ids: string[]) => void;
+    clearViewPositions: (leafId: string) => void;
     setMiniMapPosition: (pos: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom") => void;
     setMiniMapSize: (size: number) => void;
     setMiniMapX: (x: number) => void;
@@ -109,21 +155,29 @@ export type UiSliceCreator = StateCreator<
     setTutorialDemoStep: (step: number) => void;
     setRightClickDetected: () => void;
     resetTutorial: () => void;
+    setSidebarSide: (side: "left" | "right") => void;
+    setPanelTree: (tree: import("@/lib/fewer/panelTree").PanelNode) => void;
+    splitArea: (id: string, dir: "h" | "v", ratio?: number) => void;
+    joinArea: (id: string) => void;
+    setAreaEditor: (id: string, editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    insertAreaAtEdge: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
+    setDividerRatio: (firstId: string, secondId: string, ratio: number) => void;
+    resetPanelLayout: () => void;
+    /** @internal — writes layout to localStorage. Called by other panel actions. */
+    _persistLayout: () => void;
   }
 >;
 
+/** Persists the user's manual folder-card height across collapse/expand cycles. */
+const savedFolderHeights = new Map<string, number>();
+
+
 export const createUiSlice: UiSliceCreator = (set, get) => ({
   selectedNodeIds: [],
+  leafSelections: {},
+  activeLeafId: null,
   searchQuery: "",
-  searchHistory: (() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const v = sessionStorage.getItem(SEARCH_HISTORY_KEY);
-      return v ? (JSON.parse(v) as string[]) : [];
-    } catch {
-      return [];
-    }
-  })(),
+  searchHistory: [] as string[],
   categoryFilter: null,
   categoryHiddenIds: [],
   hoverHighlightIds: [],
@@ -147,6 +201,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   shareOpen: false,
   authOpen: false,
   showMiniMap: true,
+  viewSettings: {},
   miniMapPosition: "bottom-right",
   miniMapSize: 160,
   miniMapX: 16,
@@ -158,16 +213,17 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
 
-  tutorialBeginnerDone: (() => {
-    if (typeof window === "undefined") return [];
-    try { const v = localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY); return v ? JSON.parse(v) : []; } catch { return []; }
-  })(),
-  tutorialDismissed: (() => {
-    if (typeof window === "undefined") return false;
-    try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
-  })(),
+  tutorialBeginnerDone: [] as string[],
+  tutorialDismissed: false,
   tutorialDemoStep: 0,
   rightClickDetected: false,
+
+  // Panel layout defaults — always start with server-safe defaults.
+  // Stored layout hydrates in a useEffect to avoid hydration mismatch.
+  ...(() => {
+    const layout = defaultLayout();
+    return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
+  })(),
 
   setSearchQuery: (query) => { set({ searchQuery: query }); get().applySearch(); },
   commitSearch: (q) => {
@@ -207,12 +263,30 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     set((s) => {
       const idSet = new Set(ids);
       const changed = s.nodes.some((n) => idSet.has(n.id) !== !!n.selected);
+      // Mirror into active leaf's selection so per-view sync picks it up
+      const patch: Record<string, unknown> = { selectedNodeIds: ids };
+      if (s.activeLeafId) {
+        patch.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
+      }
       return changed
-        ? { selectedNodeIds: ids, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
-        : { selectedNodeIds: ids, graphVersion: s.graphVersion + 1 };
+        ? { ...patch, nodes: s.nodes.map((n) => (idSet.has(n.id) ? { ...n, selected: true } : { ...n, selected: false })), graphVersion: s.graphVersion + 1 }
+        : { ...patch, graphVersion: s.graphVersion + 1 };
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
   setHiddenIds: (ids) => set({ hiddenIds: ids }),
+
+  setSelectionForLeaf: (leafId, ids) => set((s) => ({
+    leafSelections: { ...s.leafSelections, [leafId]: ids },
+    activeLeafId: leafId,
+    selectedNodeIds: ids,
+    graphVersion: s.graphVersion + 1,
+  })),
+
+  setActiveLeaf: (leafId) => set((s) => {
+    if (!leafId || leafId === s.activeLeafId) return {};
+    const ids = s.leafSelections[leafId] ?? [];
+    return { activeLeafId: leafId, selectedNodeIds: ids };
+  }),
 
   setRenamingId: (id, source) => {
     if (id) {
@@ -291,6 +365,200 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShareOpen: (open) => set({ shareOpen: open }),
   setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
+  toggleMinimapForLeaf: (leafId) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, minimapHidden: !leaf.minimapHidden } };
+    return { viewSettings: next };
+  }),
+
+  setViewSetting: (leafId, key, value) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
+    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  updateViewSettings: (leafId, patch) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    // When direction changes, clear positions so the view re-derives
+    const next: Record<string, unknown> = { ...leaf, ...patch };
+    if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
+      next.positions = undefined;
+    }
+    const viewNext = { ...s.viewSettings, [leafId]: next };
+    return { viewSettings: viewNext, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setNodePositionForLeaf: (leafId, nodeId, pos) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const positions = { ...(leaf.positions ?? {}), [nodeId]: pos };
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
+    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
+  }),
+
+  setNodePositionsBatch: (leafId, entries) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const positions = { ...(leaf.positions ?? {}) };
+    for (const { id, pos } of entries) positions[id] = pos;
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
+    return { viewSettings: next }; // No graphVersion bump — RF already shows positions
+  }),
+
+  seedNodePositions: (leafId, fullMap) => set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    if (leaf.positions) return {}; // Already seeded — no-op
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: { ...fullMap } } };
+    return { viewSettings: next }; // Silent — no bump
+  }),
+
+  hideForLeaf: (leafId, ids) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers ?? { individual: [...s.hiddenIds], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    // Expand descendants (like the global hideNodes did): the folder goes into
+    // `individual`, its descendants into `subtrees[folderId]` so per-folder
+    // Show Children can reveal them without touching the folder itself.
+    const individual = new Set(layers.individual);
+    const subtrees = { ...layers.subtrees };
+    for (const id of ids) {
+      individual.add(id);
+      const queue = [id];
+      const descendants: string[] = [];
+      const seen = new Set([id]);
+      while (queue.length) {
+        const nid = queue.shift()!;
+        for (const e of s.edges) {
+          if (e.source === nid && !seen.has(e.target)) {
+            seen.add(e.target);
+            descendants.push(e.target);
+            queue.push(e.target);
+          }
+        }
+      }
+      if (descendants.length > 0) {
+        subtrees[id] = [...new Set([...(subtrees[id] ?? []), ...descendants])];
+      }
+    }
+    const next = { ...leaf, hideLayers: { ...layers, individual: [...individual], subtrees } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+  },
+
+  eyeRevealForLeaf: (leafId, id) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers;
+    if (!layers) return;
+    const individual = layers.individual.filter((i) => i !== id);
+    const sub: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(layers.subtrees)) {
+      const filtered = (v as string[]).filter((i) => i !== id);
+      if (filtered.length > 0) sub[k] = filtered;
+    }
+    const filesBulkExempt = layers.filesBulkActive ? [...layers.filesBulkExempt, id] : layers.filesBulkExempt;
+    const next = { ...leaf, hideLayers: { ...layers, individual, subtrees: sub, filesBulkExempt } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get().relayout();
+  },
+
+  hideSubtreeForLeaf: (leafId, folderId, descendantIds) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    // Merge (don't overwrite): re-hiding a folder must not re-hide children the
+    // user individually revealed since the last hide. Individually-hidden descendants
+    // are already filtered out by the caller (only visible descendants are passed).
+    const merged = [...new Set([...(layers.subtrees[folderId] ?? []), ...descendantIds])];
+    const next = { ...leaf, hideLayers: { ...layers, subtrees: { ...layers.subtrees, [folderId]: merged } } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+  },
+
+  showSubtreeForLeaf: (leafId, folderId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers;
+    if (!layers) return;
+    const subtrees = { ...layers.subtrees };
+    delete subtrees[folderId];
+    const next = { ...leaf, hideLayers: { ...layers, subtrees } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get().relayout();
+  },
+
+  setFilesBulkForLeaf: (leafId, active) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const next = { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } };
+    set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    // Relayout when showing files (unhide), not when hiding them
+    if (!active) get().relayout();
+  },
+  toggleCollapseForLeaf: (leafId, nodeId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const current = leaf.collapsedFolderIds ?? [];
+    const isExpanding = current.includes(nodeId);
+    const next = isExpanding
+      ? current.filter((id) => id !== nodeId)
+      : [...current, nodeId];
+
+    // Save the user's manual height before collapse so it can be restored on
+    // expand. Without this, the dimension-change handler would pin style.height
+    // to the compact pill's measured height, and expanding would lose the
+    // user's resize.
+    if (!isExpanding) {
+      const node = s.nodes.find((n) => n.id === nodeId);
+      const h = node?.style?.height as number | undefined;
+      if (h) savedFolderHeights.set(nodeId, h);
+    }
+
+    set((st) => ({
+      viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedFolderIds: next } },
+      nodes: (() => {
+      if (isExpanding) {
+        return st.nodes.map((n) => {
+          if (n.id !== nodeId) return n;
+          const saved = savedFolderHeights.get(nodeId);
+          savedFolderHeights.delete(nodeId);
+          return {
+            ...n,
+            // Restore the saved height (user's resize) or undefined (revert to nodeHeight).
+            style: { ...n.style, height: saved },
+            measured: n.measured ? { ...n.measured, height: saved } : n.measured,
+          };
+        });
+      }
+      // Collapsing: clear pinned height so the RF wrapper shrinks to the pill.
+      return st.nodes.map((n) => {
+        if (n.id !== nodeId) return n;
+        return {
+          ...n,
+          style: { ...n.style, height: undefined },
+          measured: n.measured ? { ...n.measured, height: undefined } : n.measured,
+        };
+      });
+    })(),
+      graphVersion: st.graphVersion + 1,
+    }));
+    get().relayout();
+  },
+
+  revealAllForLeaf: (leafId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId] ?? {};
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } };
+    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    get().relayout();
+  },
+
+  hideNodesForLeaf: (leafId, ids) => get().hideForLeaf(leafId, ids),
+
+  clearViewPositions: (leafId) => {
+    const s = get();
+    const leaf = s.viewSettings[leafId];
+    if (!leaf?.positions) return;
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: undefined } };
+    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+  },
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
@@ -379,5 +647,71 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (typeof window !== "undefined") {
       try { localStorage.removeItem(TUTORIAL_STORAGE_KEY); localStorage.removeItem(TUTORIAL_BEGINNER_DONE_KEY); } catch { /* ignore */ }
     }
+  },
+
+  // ── Panel layout actions ──
+
+  _persistLayout: () => {
+    const s = get();
+    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree });
+  },
+
+  setSidebarSide: (side) => {
+    set({ sidebarSide: side });
+    get()._persistLayout();
+  },
+
+  setPanelTree: (tree) => {
+    set({ panelTree: tree });
+    get()._persistLayout();
+  },
+
+  splitArea: (id, dir, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  joinArea: (id) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.joinLeaf(tree, id);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  setAreaEditor: (id, editor) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.setLeafEditor(tree, id, editor);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  insertAreaAtEdge: (side, editor) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
+    set({ panelTree: newTree });
+    get()._persistLayout();
+  },
+
+  setDividerRatio: (firstId, secondId, ratio) => {
+    const tree = get().panelTree;
+    const newTree = treeModule.setDividerRatio(tree, firstId, secondId, ratio);
+    if (newTree !== tree) {
+      set({ panelTree: newTree });
+      get()._persistLayout();
+    }
+  },
+
+  resetPanelLayout: () => {
+    const d = defaultLayout();
+    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree });
+    clearLayoutStorage();
   },
 });
