@@ -93,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar Tags section now has a "By tag" filter list (matching the Graph Analytics "By category" pattern) with tag counts and colored progress bars — click a tag to show only cards carrying it, click again to clear.
 - Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
 - Canvas batch selection menu now uses Radix submenus matching node context menu behavior
+- Remove icon from Tags context menu item for consistent text-only menu styling
 
 ### Security
 
