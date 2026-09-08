@@ -425,6 +425,7 @@ export function FewerApp() {
       <SectionDragLayer />
 
       <ExportPanel />
+      <SearchPanel />
       <BatchRenameDialog />
       <BatchTagDialog />
       <ParentPickerDialog />
