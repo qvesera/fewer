@@ -17,13 +17,22 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
-import { buildBatchActions } from "@/lib/fewer/batchActions";
-import { buildSelectActions } from "@/lib/fewer/batchSelect";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuLabel,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+} from "@/components/ui/context-menu";
 import { edgeDashPattern } from "@/lib/fewer/types";
 import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff, ChevronRight } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
@@ -277,7 +286,6 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
   const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
-  const [openBatchSub, setOpenBatchSub] = useState<string | null>(null);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
@@ -500,7 +508,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       </ReactFlow>
 
       {canvasMenu && (() => {
-        const close = () => { setCanvasMenu(null); setOpenBatchSub(null); };
+        const close = () => setCanvasMenu(null);
 
         // ── Edge right-click: minimal menu ──
         if (canvasMenu.kind === "edge" && lastClickedEdgeId) {
@@ -524,32 +532,47 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           return (
             <>
               <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
-              <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">{ids.length} items selected</div>
-                {top.map((a) => (
-                  <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98]">{a.label}</button>
-                ))}
-                {more.length > 0 && (<>
-                  <div className="my-1 h-px bg-border/40" />
-                  <button onClick={() => setOpenBatchSub(openBatchSub === "more" ? null : "more")} className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60">
-                    More Actions<ChevronRight className={`h-3 w-3 transition-transform ${openBatchSub === "more" ? "rotate-90" : ""}`} />
-                  </button>
-                  {openBatchSub === "more" && more.map((a) => (
-                    <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md pl-5 pr-2 py-1 text-xs text-foreground transition-colors hover:bg-muted/60">{a.label}</button>
+              <ContextMenu open onOpenChange={(o) => { if (!o) close(); }}>
+                <ContextMenuTrigger asChild>
+                  <div className="fixed z-50 h-px w-px" style={{ left: canvasMenu.x, top: canvasMenu.y }} />
+                </ContextMenuTrigger>
+                <ContextMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+                  <ContextMenuLabel>{ids.length} items selected</ContextMenuLabel>
+                  <ContextMenuSeparator />
+                  {top.map((a) => (
+                    <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
                   ))}
-                </>)}
-                <div className="my-1 h-px bg-border/40" />
-                <button onClick={() => setOpenBatchSub(openBatchSub === "select" ? null : "select")} className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60">
-                  Select<ChevronRight className={`h-3 w-3 transition-transform ${openBatchSub === "select" ? "rotate-90" : ""}`} />
-                </button>
-                {openBatchSub === "select" && select.map((a) => (
-                  <button key={a.id} onClick={() => { a.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md pl-5 pr-2 py-1 text-xs text-foreground transition-colors hover:bg-muted/60">{a.label}</button>
-                ))}
-                {del && (<>
-                  <div className="my-1 h-px bg-border/40" />
-                  <button onClick={() => { del.run(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">{del.label}</button>
-                </>)}
-              </div>
+                  {more.length > 0 && (
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>More Actions</ContextMenuSubTrigger>
+                      <ContextMenuSubContent className="w-48">
+                        {more.map((a) => (
+                          <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                  )}
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>Select</ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48">
+                      {select.map((a) => (
+                        <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  {del && (
+                    <>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        onSelect={() => { del.run(); close(); }}
+                        className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                      >
+                        {del.label}
+                      </ContextMenuItem>
+                    </>
+                  )}
+                </ContextMenuContent>
+              </ContextMenu>
             </>
           );
         }

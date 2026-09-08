@@ -64,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas selection menu: Select Descendants, Select Same Extension, Select Same Category
 - Batch Tags… action: assign/remove tags across a multi-selection via a shared tag picker
 - Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
+- Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
 
 ### Changed
 
@@ -90,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag filter now hides non-matching nodes from the canvas (same mechanism as the category filter in Graph Analytics) instead of dimming them. Toggle a tag chip in the search panel to show only cards carrying that tag; matching cards stay on canvas, non-matching ones are hidden and appear in the Hidden panel. Clear with the X button or uncheck the tag.
 - Sidebar Tags section now has a "By tag" filter list (matching the Graph Analytics "By category" pattern) with tag counts and colored progress bars — click a tag to show only cards carrying it, click again to clear.
 - Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
+- Canvas batch selection menu now uses Radix submenus matching node context menu behavior
 
 ### Security
 
