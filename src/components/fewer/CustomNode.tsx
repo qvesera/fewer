@@ -39,7 +39,7 @@ import { selectSameExtension, selectSameCategory } from "@/lib/fewer/batchSelect
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
-import { FEWER_ADD_NODE } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
@@ -339,6 +339,18 @@ function FolderContextMenu({
                 Unparent
               </ContextMenuItem>
             )}
+            <ContextMenuItem
+              onSelect={() => {
+                setSelectedNodeIds([nodeId]);
+                useGraphStore.setState((s) => ({
+                  nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+                }));
+                window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
+              }}
+              className="cursor-pointer"
+            >
+              Add Parent Card
+            </ContextMenuItem>
             {nodeWebUrl && (
               <ContextMenuItem
                 onSelect={() => window.open(nodeWebUrl, "_blank", "noopener,noreferrer")}
@@ -531,6 +543,18 @@ function FolderContextMenu({
             >
               Add Child Card
             </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => {
+                setSelectedNodeIds([nodeId]);
+                useGraphStore.setState((s) => ({
+                  nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+                }));
+                window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
+              }}
+              className="cursor-pointer"
+            >
+              Add Parent Card
+            </ContextMenuItem>
           </>
         )}
 
@@ -661,6 +685,7 @@ function FileEntryContextMenu({
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
+  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   // Same rule as the folder menu: multi-selection right-click → batch only.
@@ -747,6 +772,18 @@ function FileEntryContextMenu({
             Unparent
           </ContextMenuItem>
         )}
+        <ContextMenuItem
+          onSelect={() => {
+            setSelectedNodeIds([nodeId]);
+            useGraphStore.setState((s) => ({
+              nodes: s.nodes.map((n) => ({ ...n, selected: n.id === nodeId })),
+            }));
+            window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
+          }}
+          className="cursor-pointer"
+        >
+          Add Parent Card
+        </ContextMenuItem>
         {nodeWebUrl && (
           isCrawledFile ? (
             <ContextMenuItem

@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch Tags… action: assign/remove tags across a multi-selection via a shared tag picker
 - Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
 - Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
+- Add Parent Card option in file and folder context menus
 
 ### Changed
 
