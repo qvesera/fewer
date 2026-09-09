@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { applyUserSettings, settingsChanged } from "./userSettings";
+import { applyUserSettings, captureUserSettings, settingsChanged } from "./userSettings";
 import { useGraphStore } from "@/store/graphStore";
 import { parseLayoutStorage } from "./panelLayout";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
@@ -125,6 +125,40 @@ describe("userSettings panelLayout", () => {
     const a = makeStore();
     const b = makeStore();
     expect(settingsChanged(a, b)).toBe(false);
+  });
+
+  it("settingsChanged ignores per-leaf positions (view state, drag must not sync)", () => {
+    // ponytail: one check covers pick()'s strip — the diff and POST body share it.
+    const a = makeStore({ viewSettings: { leaf1: { edgeStyle: "angled" } } });
+    const b = makeStore({
+      viewSettings: { leaf1: { edgeStyle: "angled", positions: { n1: { x: 10, y: 20 } } } },
+    });
+    expect(settingsChanged(a, b)).toBe(false);
+  });
+
+  it("captureUserSettings strips positions from panelLayout payload", () => {
+    useGraphStore.setState({
+      viewSettings: { leaf1: { edgeStyle: "angled", positions: { n1: { x: 10, y: 20 } } } },
+    });
+    const settings = captureUserSettings();
+    expect(settings.panelLayout?.viewSettings?.["leaf1"]).not.toHaveProperty("positions");
+    expect(settings.panelLayout?.viewSettings?.["leaf1"]?.edgeStyle).toBe("angled");
+  });
+
+  it("applyUserSettings preserves device-local positions", () => {
+    useGraphStore.setState({
+      viewSettings: { leaf1: { positions: { n1: { x: 5, y: 6 } } } },
+    });
+    applyUserSettings(minimalSettings({
+      panelLayout: {
+        sidebarSide: "left",
+        panelTree: { kind: "leaf", area: { id: "leaf1", width: 480, editor: "graph" }, primary: true },
+        viewSettings: { leaf1: { edgeStyle: "angled" } },
+      },
+    }));
+    const vs = useGraphStore.getState().viewSettings["leaf1"];
+    expect(vs?.edgeStyle).toBe("angled");
+    expect(vs?.positions).toEqual({ n1: { x: 5, y: 6 } });
   });
 
   it("parseLayoutStorage roundtrips panelLayout payload", () => {

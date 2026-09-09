@@ -243,6 +243,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       if (leafId) {
         seedOnFirstDrag();
         for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
+        // Persist leaf positions locally (layout key) once per gesture — not
+        // per frame. Positions never enter the settings payload (stripped in
+        // pick()), so dragging can't trigger a cloud settings sync.
+        useGraphStore.getState()._persistLayout();
       } else {
         recordDragMoves(moves);
       }

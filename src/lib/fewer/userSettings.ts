@@ -107,7 +107,12 @@ function pick(store: Record<string, unknown>): UserSettings {
     exportSettings: store.exportSettings as ExportSettings,
     sidebarOpen: store.sidebarOpen as boolean,
     advancedOpen: store.advancedOpen as boolean,
-    // Panel layout snapshot — serialized tree + per-view settings
+    // Panel layout snapshot — serialized tree + per-view settings.
+    // Per-leaf node `positions` are view state, not settings: they persist
+    // locally via the panel-layout key and must never reach the settings
+    // payload, or every canvas drag would look like a settings change and
+    // trigger a cloud sync. Strip them here (both the diff in
+    // settingsChanged and the POST body share pick()).
     ...((): { panelLayout?: UserSettings["panelLayout"] } => {
       const panelTree = store.panelTree as PanelNode;
       const sidebarSide = store.sidebarSide as PanelSide;
@@ -120,7 +125,16 @@ function pick(store: Record<string, unknown>): UserSettings {
       });
       // Size guard: skip if layout blob is unreasonably large (cloud column cap)
       if (snap.length > 65_536) return {};
-      const vs = viewSettings && Object.keys(viewSettings).length > 0 ? viewSettings : undefined;
+      let vs: Record<string, ViewSettings> | undefined;
+      if (viewSettings && Object.keys(viewSettings).length > 0) {
+        const stripped = Object.fromEntries(
+          Object.entries(viewSettings).map(([id, leaf]) => {
+            const { positions: _drop, ...rest } = leaf as ViewSettings & { positions?: unknown };
+            return [id, rest as ViewSettings];
+          }),
+        );
+        if (Object.keys(stripped).length > 0) vs = stripped;
+      }
       return { panelLayout: { sidebarSide, panelTree: serialized as ReturnType<typeof serializeTree>, viewSettings: vs } };
     })(),
   };
@@ -191,11 +205,17 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
 
   if (data.exportSettings) s.setExportSettings(data.exportSettings);
 
-  // Panel layout — Blender-style docked areas (optional, newer field)
+  // Panel layout — Blender-style docked areas (optional, newer field).
+  // Cloud viewSettings never carry `positions` (stripped in pick()); keep
+  // the device-local positions so applying cloud settings can't wipe them.
   if (data.panelLayout) {
     const tree = parseTree(data.panelLayout.panelTree);
     const vs = parseViewSettings(data.panelLayout.viewSettings);
     if (tree) {
+      const local = useGraphStore.getState().viewSettings;
+      for (const [id, leaf] of Object.entries(local)) {
+        if (leaf.positions) vs[id] = { ...(vs[id] ?? {}), positions: leaf.positions };
+      }
       useGraphStore.setState({ sidebarSide: data.panelLayout.sidebarSide, viewSettings: vs });
       useGraphStore.getState().setPanelTree(tree);
     }
