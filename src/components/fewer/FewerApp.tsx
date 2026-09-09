@@ -22,6 +22,7 @@ import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
+import { saveHistoryLocal, loadHistoryLocal, clearHistoryLocal } from "@/lib/fewer/historyStorage";
 import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
@@ -301,13 +302,16 @@ export function FewerApp() {
   useEffect(() => {
     if (hashLoaded) return;
     const hash = window.location.hash.replace(/^#/, "");
-    if (hash) return;
+    if (hash) { clearHistoryLocal(); return; }
     const local = loadGraphLocal();
-    if (!local) return;
+    if (!local) { clearHistoryLocal(); return; }
     try {
       applySnapshot(local.data, { source: local.dataSource ?? "local" });
+      const hist = loadHistoryLocal();
+      if (hist) useGraphStore.setState({ past: hist.past, future: hist.future });
     } catch {
       /* corrupt/incompatible cache — start fresh */
+      clearHistoryLocal();
     }
   }, [hashLoaded]);
 
@@ -338,6 +342,21 @@ export function FewerApp() {
       unsub();
     };
   }, []);
+
+  // Persist undo/redo history to sessionStorage so a reload keeps
+  // undo/redo alive. Only fires when past/future actually change
+  // (pushOp, undo, redo, reset) - not per-drag frame.
+  useEffect(() => {
+    const unsub = useGraphStore.subscribe((state, prev) => {
+      if (state.past === prev.past && state.future === prev.future) return;
+      saveHistoryLocal(
+        state.past ?? [],
+        state.future ?? [],
+      );
+    });
+    return unsub;
+  }, []);
+
 
   // Handle OAuth callback query params (?cloud=connected|error)
   useEffect(() => {

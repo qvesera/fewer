@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
 - Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
 - Batch selection context menu now opens at cursor position instead of top-left corner of screen
+- Persist undo/redo history across page reload via sessionStorage
 
 ### Added
 
