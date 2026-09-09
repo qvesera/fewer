@@ -19,16 +19,16 @@ import "@xyflow/react/dist/style.css";
 import { CustomNode, KeyboardShortcuts } from ".";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuLabel,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
-} from "@/components/ui/context-menu";
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
 import { edgeDashPattern } from "@/lib/fewer/types";
 import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
@@ -538,47 +538,47 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           return (
             <>
               <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
-              <ContextMenu open onOpenChange={(o) => { if (!o) close(); }}>
-                <ContextMenuTrigger asChild>
+              <DropdownMenu open onOpenChange={(o) => { if (!o) close(); }}>
+                <DropdownMenuTrigger asChild>
                   <div className="fixed z-50 h-px w-px" style={{ left: canvasMenu.x, top: canvasMenu.y }} />
-                </ContextMenuTrigger>
-                <ContextMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
-                  <ContextMenuLabel>{ids.length} items selected</ContextMenuLabel>
-                  <ContextMenuSeparator />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+                  <DropdownMenuLabel>{ids.length} items selected</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   {top.map((a) => (
-                    <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
+                    <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
                   ))}
                   {more.length > 0 && (
-                    <ContextMenuSub>
-                      <ContextMenuSubTrigger>More Actions</ContextMenuSubTrigger>
-                      <ContextMenuSubContent className="w-48">
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-48">
                         {more.map((a) => (
-                          <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
+                          <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
                         ))}
-                      </ContextMenuSubContent>
-                    </ContextMenuSub>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                   )}
-                  <ContextMenuSub>
-                    <ContextMenuSubTrigger>Select</ContextMenuSubTrigger>
-                    <ContextMenuSubContent className="w-48">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-48">
                       {select.map((a) => (
-                        <ContextMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</ContextMenuItem>
+                        <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
                       ))}
-                    </ContextMenuSubContent>
-                  </ContextMenuSub>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   {del && (
                     <>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
                         onSelect={() => { del.run(); close(); }}
                         className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
                       >
                         {del.label}
-                      </ContextMenuItem>
+                      </DropdownMenuItem>
                     </>
                   )}
-                </ContextMenuContent>
-              </ContextMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           );
         }

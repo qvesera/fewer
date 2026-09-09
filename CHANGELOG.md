@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Touch: handle-drag node creation now uses changedTouches for touchend events
 - Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
 - Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Batch selection context menu now opens at cursor position instead of top-left corner of screen
 
 ### Added
 
