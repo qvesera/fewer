@@ -15,10 +15,7 @@ import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { applyBatchRename } from "@/lib/fewer/batchRename";
-
-/** Full display name of a node — label plus its stored extension, if any. */
-const fullName = (n: { data: { label: string; extension?: string } }) =>
-  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+import { fullName } from "@/lib/fewer/nodeName";
 
 /**
  * Batch rename for multi-selection. Opens via the "fewer-batch-rename" window

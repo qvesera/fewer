@@ -9,9 +9,7 @@ import { validateConnection, getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 
-/** Full display name for a node: label.ext for files, label for folders. */
-const fullName = (n: { data: { label: string; extension?: string } }) =>
-  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+import { fullName } from "@/lib/fewer/nodeName";
 
 import { captureViewState, viewStateOp } from "./historySlice";
 

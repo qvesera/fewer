@@ -115,6 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-select category filter: users can now select multiple file-type filters simultaneously (OR semantics), matching the existing tag filter pattern
 - Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
 - Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Split uiSlice into focused sub-slices (search/selection/visibility/folder/collapse/panel/dialogs) exposing the same store API
+- Extract shared fullName node-name helper (graphSlice + BatchRenameDialog) and reuse getDescendants for hide expansion
 
 ### Security
 
