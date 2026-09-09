@@ -12,6 +12,12 @@ import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import type { ImportOptions } from "./importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { useGraphStore } from "@/store/graphStore";
+import type { PanelSide } from "./panelLayout";
+import { parseLayoutStorage, serializeLayoutStorage } from "./panelLayout";
+import type { PanelNode } from "./panelTree";
+import { serializeTree, parseTree } from "./panelTree";
+import type { ViewSettings } from "./viewState";
+import { parseViewSettings } from "./viewState";
 
 const STORAGE_KEY = "fewer-user-settings";
 const VERSION = 1;
@@ -60,6 +66,12 @@ export interface UserSettings {
   // Sidebar
   sidebarOpen: boolean;
   advancedOpen: boolean;
+  // Panel layout (Blender-style docked areas) — synced across devices
+  panelLayout?: {
+    sidebarSide: PanelSide;
+    panelTree: ReturnType<typeof serializeTree>;
+    viewSettings?: Record<string, ViewSettings>;
+  };
 }
 
 /** The subset of store state that is a persisted user setting. */
@@ -95,6 +107,22 @@ function pick(store: Record<string, unknown>): UserSettings {
     exportSettings: store.exportSettings as ExportSettings,
     sidebarOpen: store.sidebarOpen as boolean,
     advancedOpen: store.advancedOpen as boolean,
+    // Panel layout snapshot — serialized tree + per-view settings
+    ...((): { panelLayout?: UserSettings["panelLayout"] } => {
+      const panelTree = store.panelTree as PanelNode;
+      const sidebarSide = store.sidebarSide as PanelSide;
+      const viewSettings = store.viewSettings as Record<string, ViewSettings> | undefined;
+      const serialized = serializeTree(panelTree);
+      const snap = serializeLayoutStorage({
+        sidebarSide,
+        panelTree: panelTree,
+        viewSettings,
+      });
+      // Size guard: skip if layout blob is unreasonably large (cloud column cap)
+      if (snap.length > 65_536) return {};
+      const vs = viewSettings && Object.keys(viewSettings).length > 0 ? viewSettings : undefined;
+      return { panelLayout: { sidebarSide, panelTree: serialized as ReturnType<typeof serializeTree>, viewSettings: vs } };
+    })(),
   };
 }
 
@@ -162,6 +190,16 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   if (data.cornerRadius !== undefined) s.setCornerRadius(data.cornerRadius);
 
   if (data.exportSettings) s.setExportSettings(data.exportSettings);
+
+  // Panel layout — Blender-style docked areas (optional, newer field)
+  if (data.panelLayout) {
+    const tree = parseTree(data.panelLayout.panelTree);
+    const vs = parseViewSettings(data.panelLayout.viewSettings);
+    if (tree) {
+      useGraphStore.setState({ sidebarSide: data.panelLayout.sidebarSide, viewSettings: vs });
+      useGraphStore.getState().setPanelTree(tree);
+    }
+  }
 }
 
 // ── Local persistence (works signed-out / offline) ──────────────────────────

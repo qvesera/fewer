@@ -105,6 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas batch selection menu now uses Radix submenus matching node context menu behavior
 - Remove icon from Tags context menu item for consistent text-only menu styling
 - Multi-select category filter: users can now select multiple file-type filters simultaneously (OR semantics), matching the existing tag filter pattern
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
 
 ### Security
 
