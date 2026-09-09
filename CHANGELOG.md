@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hiding a folder (H key) now hides its descendants too in split views — the per-view hide layer expands the subtree like the global hide always did. Hidden nodes now appear under Hidden Cards again (the panel reads the active view's resolved hide layers instead of a removed store field), and edges to leaf-hidden nodes no longer resurrect after graph updates.
 - Fix e2e context menu tests to wait for menu animation before clicking
 - Restore SearchPanel mount accidentally dropped in panel tree refactor
+- Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
 
 ### Added
 
