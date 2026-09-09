@@ -17,7 +17,7 @@ export function captureViewState(state: GraphState): ViewState {
     maxDisplayDepth: state.maxDisplayDepth as number,
     autoHideThreshold: state.autoHideThreshold as number,
     autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
-    categoryFilter: (state.categoryFilter ?? null) as FileCategory | null,
+    categoryFilter: (state.categoryFilter ?? []) as FileCategory[],
     categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
     independentlyHiddenIds: (state.independentlyHiddenIds ?? []) as string[],
   };
@@ -109,7 +109,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: GraphState["nodes"],
   query: string,
-  _categoryFilter?: FileCategory | null,
+  _categoryFilter?: FileCategory[],
 ): GraphState["nodes"] {
   if (!query.trim()) {
     return nodes.map((n) => ({

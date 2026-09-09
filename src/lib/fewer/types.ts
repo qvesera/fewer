@@ -275,8 +275,8 @@ export interface ViewState {
   maxDisplayDepth: number;
   autoHideThreshold: number;
   autoHiddenIds: string[];
-  /** Active file-type filter (null = none). Restored with the view state. */
-  categoryFilter: FileCategory | null;
+  /** Active file-type filters (OR semantics; empty = no filter). Restored with the view state. */
+  categoryFilter: FileCategory[];
   /** Ids that the category filter added to hiddenIds in this view state. */
   categoryHiddenIds: string[];
   /** Ids the user hid directly (toggleHidden / hideSelected roots) —

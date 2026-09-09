@@ -11,7 +11,7 @@ export function SearchPanel() {
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const query = useGraphStore((s) => s.searchQuery);
   const categoryFilter = useGraphStore((s) => s.categoryFilter);
-  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
+  const clearCategoryFilter = useGraphStore((s) => s.clearCategoryFilter);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const nodes = useGraphStore((s) => s.nodes);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
@@ -64,7 +64,7 @@ export function SearchPanel() {
     const q = query.toLowerCase();
     const filtered = nodes.filter((n) => {
       const categoryMatches =
-        !categoryFilter || n.data.type === "folder" || n.data.category === categoryFilter;
+        !categoryFilter.length || n.data.type === "folder" || categoryFilter.includes(n.data.category!);
       const queryMatches =
         !hasQuery ||
         fuzzyMatch(query, n.data.label) ||
@@ -168,12 +168,12 @@ export function SearchPanel() {
           )}
         </div>
 
-        {categoryFilter && (
+        {categoryFilter.length > 0 && (
           <div className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] text-primary">
             <span className="font-semibold uppercase tracking-wide">Filter:</span>
-            <span>{categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1)} files</span>
+            <span>{categoryFilter.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(", ")} files</span>
             <button
-              onClick={() => setCategoryFilter(null)}
+              onClick={() => clearCategoryFilter()}
               aria-label="Clear category filter"
               className="ml-auto rounded p-0.5 hover:bg-primary/20"
             >
@@ -228,7 +228,7 @@ export function SearchPanel() {
           ref={resultsContainerRef}
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
-          {!query && !categoryFilter ? (
+          {!query && categoryFilter.length === 0 ? (
             searchHistory.length > 0 ? (
               <div className="p-1.5 space-y-0.5 min-w-0">
                 <div className="flex items-center justify-between px-1 pb-1">

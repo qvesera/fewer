@@ -31,8 +31,8 @@ export type UiSliceCreator = StateCreator<
     activeLeafId: string | null;
     searchQuery: string;
     searchHistory: string[];
-    /** Active file-type (extension category) filter. `null` = no filter. */
-    categoryFilter: FileCategory | null;
+    /** Active file-type filters (OR semantics; empty = no filter). */
+    categoryFilter: FileCategory[];
     /** Ids that the active category filter has added to hiddenIds. */
     categoryHiddenIds: string[];
     /** Transient ids to ring on the canvas while a sidebar (Hidden panel) row is hovered.
@@ -84,7 +84,9 @@ export type UiSliceCreator = StateCreator<
     setSearchQuery: (q: string) => void;
     commitSearch: (q: string) => void;
     clearSearchHistory: () => void;
-    setCategoryFilter: (cat: FileCategory | null) => void;
+    setCategoryFilter: (cats: FileCategory[]) => void;
+    toggleCategoryFilter: (cat: FileCategory) => void;
+    clearCategoryFilter: () => void;
     setSelectedNodeIds: (ids: string[]) => void;
     setSelectionForLeaf: (leafId: string, ids: string[]) => void;
     setActiveLeaf: (leafId: string | null) => void;
@@ -178,7 +180,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   activeLeafId: null,
   searchQuery: "",
   searchHistory: [] as string[],
-  categoryFilter: null,
+  categoryFilter: [],
   categoryHiddenIds: [],
   hoverHighlightIds: [],
   hiddenIds: [],
@@ -237,22 +239,25 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     if (typeof window === "undefined") return;
     try { sessionStorage.removeItem(SEARCH_HISTORY_KEY); } catch { /* ignore */ }
   },
-  setCategoryFilter: (cat) => {
+  setCategoryFilter: (cats) => {
     const { nodes, hiddenIds, categoryHiddenIds } = get();
-    // Files to hide for this filter (folders are never hidden).
-    const nextCatHidden = categoryHiddenNodeIds(nodes, cat);
+    const nextCatHidden = categoryHiddenNodeIds(nodes, cats);
     const prevCatSet = new Set(categoryHiddenIds);
-    // Drop the ids the previous filter hid, then add the ids this one hides.
-    // Manual hides are preserved because only the tracked category-hidden ids are touched.
     const baseHidden = hiddenIds.filter((id) => !prevCatSet.has(id));
     const finalHidden = [...new Set([...baseHidden, ...nextCatHidden])];
     const before = captureViewState(get());
-    const after = { ...before, hiddenIds: finalHidden, categoryFilter: cat, categoryHiddenIds: nextCatHidden };
-    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds) || after.categoryFilter !== before.categoryFilter) {
+    const after = { ...before, hiddenIds: finalHidden, categoryFilter: cats, categoryHiddenIds: nextCatHidden };
+    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds) || after.categoryFilter.length !== before.categoryFilter.length) {
       get().pushOp(viewStateOp(before, after));
     }
-    set({ categoryFilter: cat, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
+    set({ categoryFilter: cats, categoryHiddenIds: nextCatHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
   },
+  toggleCategoryFilter: (cat) => {
+    const cur = get().categoryFilter;
+    const next = cur.includes(cat) ? cur.filter((c) => c !== cat) : [...cur, cat];
+    get().setCategoryFilter(next);
+  },
+  clearCategoryFilter: () => { get().setCategoryFilter([]); },
   // Keep the per-node `selected` mirror in sync with the canonical id list.
   // React Flow-driven selection changes (which #setSelectedNodeIds) don't flow
   // back into the store through onNodesChange, so a stale `selected: true`
@@ -348,10 +353,10 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   showAll: () => {
     const before = captureViewState(get());
-    if (before.hiddenIds.length === 0 && !before.categoryFilter) return;
-    const after = { ...before, hiddenIds: [], categoryFilter: null, categoryHiddenIds: [] };
+    if (before.hiddenIds.length === 0 && before.categoryFilter.length === 0) return;
+    const after = { ...before, hiddenIds: [], categoryFilter: [] as FileCategory[], categoryHiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], independentlyHiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: null, categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
+    set((s) => ({ hiddenIds: [], independentlyHiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: [], categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
   },
 
   setSearchOpen: (open) => set({ searchOpen: open }),
@@ -582,11 +587,12 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
         const parentId = parentMap.get(fid);
         return !parentId || !hiddenSet.has(parentId);
       });
-      // A category filter keeps non-matching files hidden even when "show files" reveals the rest.
-      const revealable = categoryFilter
+      // Category filters keep non-matching files hidden even when "show files" reveals the rest.
+      const revealable = categoryFilter.length > 0
         ? revealableFileIds.filter((id) => {
             const node = nodes.find((n) => n.id === id);
-            return node?.data.type === "folder" || node?.data.category === categoryFilter;
+            const cat = node?.data.category;
+            return node?.data.type === "folder" || (cat != null && categoryFilter.includes(cat));
           })
         : revealableFileIds;
       // The toggle must not bypass other hide mechanisms: keep files beyond the

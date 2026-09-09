@@ -97,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
 - Canvas batch selection menu now uses Radix submenus matching node context menu behavior
 - Remove icon from Tags context menu item for consistent text-only menu styling
+- Multi-select category filter: users can now select multiple file-type filters simultaneously (OR semantics), matching the existing tag filter pattern
 
 ### Security
 

@@ -22,7 +22,7 @@ const baseView: ViewState = {
   maxDisplayDepth: 6,
   autoHideThreshold: 10,
   autoHiddenIds: [],
-  categoryFilter: null,
+  categoryFilter: [],
   categoryHiddenIds: [],
   independentlyHiddenIds: [],
 };

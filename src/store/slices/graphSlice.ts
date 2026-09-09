@@ -1371,7 +1371,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     fsHandleStore.clear();
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
-      searchQuery: "", categoryFilter: null, categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
+      searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], independentlyHiddenIds: [], localRootPath: null,
       tags: [], tagFilter: [], tagFilterHiddenIds: [],
@@ -1382,7 +1382,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 function applySearchInternal(
   nodes: FewerNode[],
   query: string,
-  _categoryFilter?: FileCategory | null,
+  _categoryFilter?: FileCategory[],
 ): FewerNode[] {
   if (!query.trim()) {
     return nodes.map((n) => ({
