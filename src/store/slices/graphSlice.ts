@@ -299,6 +299,8 @@ export type GraphSliceCreator = StateCreator<
     pasteFromClipboard: (parentId?: string | null) => void;
     moveNode: (id: string) => void;
     _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
+    /** Drop-aware free position: visible nodes only, small padding, nudges away from collided card. */
+    _findCreationPosition: (baseX: number, baseY: number, boundsW: number, boundsH: number, originX?: number, originY?: number) => { x: number; y: number };
     deleteNodes: (ids: string[]) => void;
     applyFolderRefresh: (nodeId: string, childNodes: FewerNode[], childEdges: FewerEdge[]) => { added: number; removed: number };
     renameNode: (id: string, newLabel: string) => boolean;
@@ -681,6 +683,57 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     return { x, y };
   },
 
+  // ponytail: drop-position resolver for creation paths. Visible nodes only,
+  // small padding (12px), nudges away from the first collided card. Falls back
+  // to grid walk. originX/Y = center of the source node (for direction hint).
+  _findCreationPosition: (baseX, baseY, boundsW, boundsH, originX, originY) => {
+    const { nodes, nodeWidth, nodeHeight, hiddenIds, autoHiddenIds } = get();
+    const PADDING = 12;
+    const hiddenSet = new Set([...hiddenIds, ...autoHiddenIds]);
+    const isVisible = (n: any) => !hiddenSet.has(n.id);
+    const nodeDims = (n: any) => {
+      const nw = n.style?.width ?? nodeWidth;
+      const nh = n.data.type === "folder" ? (n.style?.height ?? nodeHeight) : 58;
+      return { nw, nh };
+    };
+    const aabbOverlap = (x: number, y: number, nx: number, ny: number, nw: number, nh: number) =>
+      !(x + boundsW + PADDING < nx || x > nx + nw + PADDING || y + boundsH + PADDING < ny || y > ny + nh + PADDING);
+    const collides = (x: number, y: number) => nodes.some((n) => {
+      if (!isVisible(n)) return false;
+      const { nw, nh } = nodeDims(n);
+      return aabbOverlap(x, y, n.position.x, n.position.y, nw, nh);
+    });
+    if (!collides(baseX, baseY)) return { x: baseX, y: baseY };
+    // Nudge away from the first collided card toward the drop point.
+    const hit = nodes.find((n) => {
+      if (!isVisible(n)) return false;
+      const { nw, nh } = nodeDims(n);
+      return aabbOverlap(baseX, baseY, n.position.x, n.position.y, nw, nh);
+    });
+    if (hit) {
+      const hitCx = hit.position.x + (nodeDims(hit).nw) / 2;
+      const hitCy = hit.position.y + (nodeDims(hit).nh) / 2;
+      const cx = baseX + boundsW / 2, cy = baseY + boundsH / 2;
+      let dx = originX != null ? cx - originX : 0;
+      let dy = originY != null ? cy - originY : 1; // default: nudge down
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      dx /= len; dy /= len;
+      for (let s = 1; s <= 15; s++) {
+        const nx = baseX + dx * s * 20, ny = baseY + dy * s * 20;
+        if (!collides(nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    // Fallback: grid walk with small padding.
+    let x = baseX, y = baseY, attempts = 0;
+    while (attempts < 50) {
+      if (!collides(x, y)) return { x, y };
+      x += boundsW + PADDING;
+      if (x > baseX + boundsW * 3) { x = baseX; y += boundsH + PADDING; }
+      attempts++;
+    }
+    return { x, y };
+  },
+
   pasteFromClipboard: (parentFolderId?) => {
     const clip = get().clipboard;
     if (!clip || clip.nodeIds.length === 0) return;
@@ -794,7 +847,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const rawPos = position
       ? { x: position.x - nodeWidth / 2, y: position.y - nh / 2 }
       : parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 };
-    const resolvedPos = get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nh);
+    const originCx = parent ? parent.position.x + nodeWidth / 2 : rawPos.x + nodeWidth / 2;
+    const originCy = parent ? parent.position.y + nodeHeight / 2 : rawPos.y + nh / 2;
+    const resolvedPos = position
+      ? get()._findCreationPosition(rawPos.x, rawPos.y, nodeWidth, nh, originCx, originCy)
+      : get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nh);
     const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: resolvedPos, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge: { id: string; source: string; target: string; type?: string } | null = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
@@ -823,7 +880,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
     const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
     const nh = type === "folder" ? nodeHeight : 58;
-    const resolvedPos = get()._findFreePositionForBounds(position.x, position.y, nodeWidth, nh);
+    const resolvedPos = get()._findCreationPosition(position.x, position.y, nodeWidth, nh);
     const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position: resolvedPos, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     // Targeted add-node op — stores only the new node
@@ -853,7 +910,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const rawPos = position
       ? { x: position.x - nodeWidth / 2, y: position.y - nodeHeight / 2 }
       : { x: node.position.x - 40, y: node.position.y - 120 };
-    const resolvedPos = get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nodeHeight);
+    const originCx = node.position.x + nodeWidth / 2;
+    const originCy = node.position.y + nodeHeight / 2;
+    const resolvedPos = position
+      ? get()._findCreationPosition(rawPos.x, rawPos.y, nodeWidth, nodeHeight, originCx, originCy)
+      : get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nodeHeight);
     const newNode: FewerNode = {
       id: `n-${uuid().slice(0, 8)}`, type: "folder",
       position: resolvedPos,

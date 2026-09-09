@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prune transient React Flow fields (selected, dragging, measured, highlighted, dimmed) from nodes before cloud save and session cache — smaller payloads, no false version diffs
 - Nodes created via handle drag now appear at the cursor drop position instead of a hardcoded offset
 - Newly created nodes never overlap existing nodes — collision resolution runs on every creation path (child, parent, standalone, drop)
+- Node creation drop position now uses direction-aware collision resolution — nudges away from collided card instead of grid-shifting right, with small 12px padding
+- Touch: handle-drag node creation now uses changedTouches for touchend events
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
 
 ### Added
 

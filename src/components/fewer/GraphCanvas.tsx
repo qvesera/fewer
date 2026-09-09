@@ -342,9 +342,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         const store = useGraphStore.getState();
         store.setSelectedNodeIds([connectionState.fromNode.id]);
         // Capture pointer position so the new node lands where the cursor is.
-        const e = event as MouseEvent | TouchEvent;
-        const clientX = "touches" in e ? e.touches[0]?.clientX ?? 0 : (e as MouseEvent).clientX;
-        const clientY = "touches" in e ? e.touches[0]?.clientY ?? 0 : (e as MouseEvent).clientY;
+        const e = event as MouseEvent & { changedTouches?: TouchList; touches?: TouchList };
+        const t = e.changedTouches?.[0] ?? e.touches?.[0];
+        const clientX = t?.clientX ?? e.clientX ?? 0;
+        const clientY = t?.clientY ?? e.clientY ?? 0;
         store.setPendingCreatePosition(screenToFlowPosition({ x: clientX, y: clientY }));
         if (connectionState.fromHandle?.type === "target") {
           // Dragging out of a node's entry handle → create a parent folder for it.
