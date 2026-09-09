@@ -165,6 +165,13 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
 }
 
 // ── Local persistence (works signed-out / offline) ──────────────────────────
+
+/** True while applyUserSettings is executing from a cross-tab sync handler.
+ *  Prevents the useSettingsSync subscriber from writing back the same values
+ *  to localStorage (feedback loop). */
+export let applyingFromSync = false;
+export function withSyncGuard<T>(fn: () => T): T { applyingFromSync = true; try { return fn(); } finally { applyingFromSync = false; } }
+
 export function saveSettingsLocal(settings: UserSettings): void {
   if (typeof window === "undefined") return;
   try {

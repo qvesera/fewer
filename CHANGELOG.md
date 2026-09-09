@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix e2e context menu tests to wait for menu animation before clicking
 - Restore SearchPanel mount accidentally dropped in panel tree refactor
 - Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
+- Multi-tab graph clobbering — working graph now lives in sessionStorage so each browser tab keeps its own independent canvas, eliminating silent last-write-wins data loss
 
 ### Added
 
@@ -69,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
 - Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
 - Add Parent Card option in file and folder context menus
+- Cross-tab preference sync — theme and app settings now update live in other open tabs via storage events, so all tabs stay in sync without a manual reload
 
 ### Changed
 

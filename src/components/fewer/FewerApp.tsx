@@ -17,11 +17,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
-import { loadSettingsLocal } from "@/lib/fewer/userSettings";
+import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer/userSettings";
 import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal } from "@/lib/fewer/snapshot";
+import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
@@ -137,6 +138,28 @@ export function FewerApp() {
       // explicitly picks a theme in Settings.
       useGraphStore.setState({ themeMode: deviceMode });
     }
+  }, []);
+
+  // Cross-tab sync: when another tab writes theme/settings/layout/tutorial
+  // prefs to localStorage, re-read them here so all tabs converge.
+  // storage events only fire in other tabs, so this never creates a feedback loop.
+  useEffect(() => {
+    const unsubs = [
+      onStorageKey("fewer-theme", (val) => {
+        const s = useGraphStore.getState();
+        if (val === "light" || val === "dark" || val === "custom") {
+          if (s.themeMode !== val) s.setThemeMode(val);
+        } else {
+          const deviceMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          if (s.themeMode !== deviceMode) useGraphStore.setState({ themeMode: deviceMode });
+        }
+      }),
+      onStorageKey("fewer-user-settings", () => {
+        const saved = loadSettingsLocal();
+        if (saved) withSyncGuard(() => applyUserSettings(saved));
+      }),
+    ];
+    return () => { unsubs.forEach((u) => u()); };
   }, []);
 
   // Advanced power-user options are available only to signed-in users.
@@ -259,7 +282,7 @@ export function FewerApp() {
     });
   }, [hashLoaded, toast]);
 
-  // Restore the last graph from localStorage on mount — unless a share/saved
+  // Restore the last graph from sessionStorage on mount — unless a share/saved
   // link hash is present, which loads its own graph and wins over the generic
   // local cache. Settings are applied separately (useSettingsSync); a graph
   // load never touches settings, so there's no ordering hazard.
@@ -277,7 +300,8 @@ export function FewerApp() {
   }, [hashLoaded]);
 
   // Persist the current graph (nodes/edges/dataSource/localRootPath) to
-  // localStorage so a reload restores the canvas. Debounced: dragging nodes
+  // sessionStorage so a reload restores the canvas. Per-tab isolation —
+  // each tab caches its own graph independently. Debounced: dragging nodes
   // commits a store update per frame, so writes are batched. Empty graph →
   // saveGraphLocal removes the key (covers Clear canvas).
   const graphTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -42,13 +42,14 @@ export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions)
   });
 }
 
-// ── Local reload-persistence cache ────────────────────────────────────────
+// ── Session-reload persistence cache ──────────────────────────────────────
 // Keeps the graph on canvas (imported, sample, cloud-opened, edited) across a
-// page reload. Follows the app's manual-localStorage pattern (fewer-user-settings,
-// fewer-theme): no zustand persist middleware. localStorage quota (~5MB) caps
-// huge graphs — a failed write is caught and simply skips caching.
+// page reload / crash restore. Uses sessionStorage so each tab gets its own
+// workspace — two tabs never clobber each other's graph.
+// ponytail: one-time migration lifts a legacy localStorage key on first load.
 
 const LOCAL_KEY = "fewer-graph";
+const LEGACY_KEY = "fewer-graph"; // same string — legacy was in localStorage
 const LOCAL_VERSION = 1;
 
 interface LocalGraphSnapshot {
@@ -71,11 +72,11 @@ export function saveGraphLocal(snap: {
   if (typeof window === "undefined") return;
   try {
     if (snap.nodes.length === 0) {
-      localStorage.removeItem(LOCAL_KEY);
+      sessionStorage.removeItem(LOCAL_KEY);
       return;
     }
     const payload: LocalGraphSnapshot = { version: LOCAL_VERSION, ...snap };
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
   } catch {
     /* quota/failure — just skip caching; never break the app */
   }
@@ -85,7 +86,18 @@ export function saveGraphLocal(snap: {
 export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | null } | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    // One-time migration: lift legacy localStorage graph into sessionStorage
+    // so existing users keep their canvas after this change, then remove the
+    // old key so other tabs stop sharing the same graph.
+    if (!sessionStorage.getItem(LOCAL_KEY)) {
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        sessionStorage.setItem(LOCAL_KEY, legacy);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+    }
+
+    const raw = sessionStorage.getItem(LOCAL_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LocalGraphSnapshot;
     if (parsed.version !== LOCAL_VERSION || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
