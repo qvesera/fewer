@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
 - Multi-tab graph clobbering — working graph now lives in sessionStorage so each browser tab keeps its own independent canvas, eliminating silent last-write-wins data loss
 - Prune transient React Flow fields (selected, dragging, measured, highlighted, dimmed) from nodes before cloud save and session cache — smaller payloads, no false version diffs
+- Nodes created via handle drag now appear at the cursor drop position instead of a hardcoded offset
+- Newly created nodes never overlap existing nodes — collision resolution runs on every creation path (child, parent, standalone, drop)
 
 ### Added
 

@@ -276,10 +276,10 @@ export type GraphSliceCreator = StateCreator<
     setGraph: (nodes: FewerNode[], edges: FewerEdge[], pushHistory?: boolean, hiddenFileIds?: string[], options?: { preservePositions?: boolean }) => void;
     setDataSource: (v: string | null) => void;
     setLocalRootPath: (v: string | null) => void;
-    addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
+    addNode: (parentId: string | null, label: string, type: "folder" | "file", position?: { x: number; y: number }) => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
     /** Create a new folder that becomes the parent of `nodeId`. If `nodeId` already has a parent, the new folder is inserted between the old parent and `nodeId` (reparenting `nodeId` under the new folder). Paths for `nodeId` and its descendants are rewritten; one composite history entry. */
-    addParentNode: (nodeId: string, label: string) => { ok: boolean; reason?: string; id?: string };
+    addParentNode: (nodeId: string, label: string, position?: { x: number; y: number }) => { ok: boolean; reason?: string; id?: string };
     removeNode: (id: string) => void;
     removeSelected: () => void;
     toggleCollapse: (id: string) => void;
@@ -773,7 +773,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     set({ nodes: applySearchInternal(filteredNodes, searchQuery, get().categoryFilter), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
 
-  addNode: (parentId, label, type) => {
+  addNode: (parentId, label, type, position) => {
     const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const ext = type === "file" ? getFileExtension(label) : "";
@@ -788,7 +788,14 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
     const newPath = parent ? `${parent.data.path}/${finalLabel}` : finalLabel;
     const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
-    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nh = type === "folder" ? nodeHeight : 58;
+    // ponytail: if explicit position given (handle drag drop), center node on it;
+    // otherwise fall back to parent-relative offset (keyboard shortcut path).
+    const rawPos = position
+      ? { x: position.x - nodeWidth / 2, y: position.y - nh / 2 }
+      : parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 };
+    const resolvedPos = get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nh);
+    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: resolvedPos, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge: { id: string; source: string; target: string; type?: string } | null = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
@@ -796,6 +803,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Targeted add-node op — stores only the new node, not the full array
     get().pushOp({ type: "add-node", node: newNode, edge: newEdge as FewerEdge | null });
     set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: sorted, graphVersion: get().graphVersion + 1 });
+    // If this creation came from a handle drag in a leaf view that already has per-view positions, honour the resolved position there too.
+    const leaf = get().activeLeafId;
+    if (leaf && get().viewSettings[leaf]?.positions) get().setNodePositionForLeaf(leaf, newNode.id, resolvedPos);
     return newNode.id;
   },
 
@@ -812,7 +822,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       finalLabel = `${baseLabel} (${counter})${ext ? `.${ext}` : ""}`;
     }
     const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nh = type === "folder" ? nodeHeight : 58;
+    const resolvedPos = get()._findFreePositionForBounds(position.x, position.y, nodeWidth, nh);
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position: resolvedPos, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     // Targeted add-node op — stores only the new node
     get().pushOp({ type: "add-node", node: newNode, edge: null });
@@ -820,7 +832,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     return newNode.id;
   },
 
-  addParentNode: (nodeId, label) => {
+  addParentNode: (nodeId, label, position) => {
     const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return { ok: false, reason: "Node not found." };
@@ -836,9 +848,15 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (siblingFullNames.has(trimmed)) return { ok: false, reason: `A node named "${trimmed}" already exists here.` };
     const newPath = oldParent ? `${oldParent.data.path}/${trimmed}` : trimmed;
     const edgeType = edgeTypeFromStyle(get().edgeStyle);
+    // ponytail: if explicit position given (handle drag drop), center on it;
+    // otherwise place above the target node (keyboard shortcut path).
+    const rawPos = position
+      ? { x: position.x - nodeWidth / 2, y: position.y - nodeHeight / 2 }
+      : { x: node.position.x - 40, y: node.position.y - 120 };
+    const resolvedPos = get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nodeHeight);
     const newNode: FewerNode = {
       id: `n-${uuid().slice(0, 8)}`, type: "folder",
-      position: { x: node.position.x - 40, y: node.position.y - 120 },
+      position: resolvedPos,
       data: { label: trimmed, path: newPath, type: "folder", size: 0, depth: oldParent ? (oldParent.data.depth ?? 0) + 1 : 0, isRoot: !oldParent },
       style: { width: nodeWidth, height: nodeHeight, minHeight: undefined },
     };
@@ -880,6 +898,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       graphVersion: get().graphVersion + 1,
       selectedNodeIds: [newNode.id],
     });
+    // Honour resolved position in per-leaf views that have explicit positions.
+    const leaf = get().activeLeafId;
+    if (leaf && get().viewSettings[leaf]?.positions) get().setNodePositionForLeaf(leaf, newNode.id, resolvedPos);
     return { ok: true, id: newNode.id };
   },
 

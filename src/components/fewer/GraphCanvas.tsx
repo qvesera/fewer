@@ -337,10 +337,15 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   );
 
   const onConnectEnd = useCallback(
-    (_: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } }; fromHandle?: { type?: "source" | "target" } }) => {
+    (event: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } }; fromHandle?: { type?: "source" | "target" } }) => {
       if (!connectionState.isValid && connectionState.fromNode) {
         const store = useGraphStore.getState();
         store.setSelectedNodeIds([connectionState.fromNode.id]);
+        // Capture pointer position so the new node lands where the cursor is.
+        const e = event as MouseEvent | TouchEvent;
+        const clientX = "touches" in e ? e.touches[0]?.clientX ?? 0 : (e as MouseEvent).clientX;
+        const clientY = "touches" in e ? e.touches[0]?.clientY ?? 0 : (e as MouseEvent).clientY;
+        store.setPendingCreatePosition(screenToFlowPosition({ x: clientX, y: clientY }));
         if (connectionState.fromHandle?.type === "target") {
           // Dragging out of a node's entry handle → create a parent folder for it.
           window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
@@ -349,7 +354,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         }
       }
     },
-    [],
+    [screenToFlowPosition],
   );
 
   const fitToSelection = useCallback(() => {

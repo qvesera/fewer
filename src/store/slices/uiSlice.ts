@@ -46,6 +46,8 @@ export type UiSliceCreator = StateCreator<
     zoomToNodeIds: string[] | null;
     mousePosition: { x: number; y: number } | null;
     pastePosition: { x: number; y: number } | null;
+    /** Flow-space position captured when creating a node via handle drag (onConnectEnd). */
+    pendingCreatePosition: { x: number; y: number } | null;
     focusedNodeId: string | null;
     searchOpen: boolean;
     exportOpen: boolean;
@@ -97,6 +99,7 @@ export type UiSliceCreator = StateCreator<
     setZoomToNodeIds: (ids: string[] | null) => void;
     setMousePosition: (pos: { x: number; y: number } | null) => void;
     setPastePosition: (pos: { x: number; y: number } | null) => void;
+    setPendingCreatePosition: (pos: { x: number; y: number } | null) => void;
     setFocusedNodeId: (id: string | null) => void;
     setHiddenIds: (ids: string[]) => void;
     toggleHidden: (id: string) => void;
@@ -191,6 +194,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   zoomToNodeIds: null,
   mousePosition: null,
   pastePosition: null,
+  pendingCreatePosition: null,
   focusedNodeId: null,
   searchOpen: false,
   exportOpen: false,
@@ -308,6 +312,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setZoomToNodeIds: (ids) => set({ zoomToNodeIds: ids }),
   setMousePosition: (pos) => set({ mousePosition: pos }),
   setPastePosition: (pos) => set({ pastePosition: pos }),
+  setPendingCreatePosition: (pos) => set({ pendingCreatePosition: pos }),
   setFocusedNodeId: (id) => set({ focusedNodeId: id }),
 
   toggleHidden: (id) => {
