@@ -370,19 +370,24 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
   setShareOpen: (open) => set({ shareOpen: open }),
   setAuthOpen: (open) => set({ authOpen: open }),
   setShowMiniMap: (show) => set({ showMiniMap: show }),
-  toggleMinimapForLeaf: (leafId) => set((s) => {
+  toggleMinimapForLeaf: (leafId) => {
+    const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, minimapHidden: !leaf.minimapHidden } };
-    return { viewSettings: next };
-  }),
+    set({ viewSettings: next });
+    get()._persistLayout();
+  },
 
-  setViewSetting: (leafId, key, value) => set((s) => {
+  setViewSetting: (leafId, key, value) => {
+    const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
-    return { viewSettings: next, graphVersion: s.graphVersion + 1 };
-  }),
+    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
+  },
 
-  updateViewSettings: (leafId, patch) => set((s) => {
+  updateViewSettings: (leafId, patch) => {
+    const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     // When direction changes, clear positions so the view re-derives
     const next: Record<string, unknown> = { ...leaf, ...patch };
@@ -390,8 +395,9 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       next.positions = undefined;
     }
     const viewNext = { ...s.viewSettings, [leafId]: next };
-    return { viewSettings: viewNext, graphVersion: s.graphVersion + 1 };
-  }),
+    set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
+  },
 
   setNodePositionForLeaf: (leafId, nodeId, pos) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
@@ -445,6 +451,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     }
     const next = { ...leaf, hideLayers: { ...layers, individual: [...individual], subtrees } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
   },
 
   eyeRevealForLeaf: (leafId, id) => {
@@ -461,6 +468,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const filesBulkExempt = layers.filesBulkActive ? [...layers.filesBulkExempt, id] : layers.filesBulkExempt;
     const next = { ...leaf, hideLayers: { ...layers, individual, subtrees: sub, filesBulkExempt } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
     get().relayout();
   },
 
@@ -474,6 +482,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const merged = [...new Set([...(layers.subtrees[folderId] ?? []), ...descendantIds])];
     const next = { ...leaf, hideLayers: { ...layers, subtrees: { ...layers.subtrees, [folderId]: merged } } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
   },
 
   showSubtreeForLeaf: (leafId, folderId) => {
@@ -485,6 +494,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     delete subtrees[folderId];
     const next = { ...leaf, hideLayers: { ...layers, subtrees } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
     get().relayout();
   },
 
@@ -494,6 +504,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
     const next = { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } };
     set({ viewSettings: { ...s.viewSettings, [leafId]: next }, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
     // Relayout when showing files (unhide), not when hiding them
     if (!active) get().relayout();
   },
@@ -545,6 +556,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
       graphVersion: st.graphVersion + 1,
     }));
     get().relayout();
+    get()._persistLayout();
   },
 
   revealAllForLeaf: (leafId) => {
@@ -552,6 +564,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    get()._persistLayout();
     get().relayout();
   },
 
@@ -659,7 +672,7 @@ export const createUiSlice: UiSliceCreator = (set, get) => ({
 
   _persistLayout: () => {
     const s = get();
-    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree });
+    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree, viewSettings: s.viewSettings });
   },
 
   setSidebarSide: (side) => {

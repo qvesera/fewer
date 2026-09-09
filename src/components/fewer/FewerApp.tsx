@@ -21,7 +21,7 @@ import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer
 import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
-import { applySnapshot, loadGraphLocal, saveGraphLocal } from "@/lib/fewer/snapshot";
+import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
 import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
@@ -107,6 +107,7 @@ export function FewerApp() {
     if (layout) {
       next.sidebarSide = layout.sidebarSide;
       next.panelTree = layout.panelTree;
+      if (layout.viewSettings) next.viewSettings = layout.viewSettings;
     }
     useGraphStore.setState(next);
   }, []);
@@ -157,6 +158,17 @@ export function FewerApp() {
       onStorageKey("fewer-user-settings", () => {
         const saved = loadSettingsLocal();
         if (saved) withSyncGuard(() => applyUserSettings(saved));
+      }),
+      onStorageKey("fewer:panelLayout", (val) => {
+        // Re-parse layout including viewSettings; only apply viewSettings
+        // since panelTree/sidebarSide are persisted via _persistLayout separately.
+        if (!val) return;
+        try {
+          const parsed = JSON.parse(val) as { viewSettings?: Record<string, import("@/lib/fewer/viewState").ViewSettings> };
+          if (parsed.viewSettings) {
+            useGraphStore.setState({ viewSettings: parsed.viewSettings });
+          }
+        } catch { /* corrupt — skip */ }
       }),
     ];
     return () => { unsubs.forEach((u) => u()); };
@@ -318,7 +330,7 @@ export function FewerApp() {
       if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
       graphTimerRef.current = setTimeout(() => {
         const s = useGraphStore.getState();
-        saveGraphLocal({ nodes: s.nodes, edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
+        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
       }, 500);
     });
     return () => {

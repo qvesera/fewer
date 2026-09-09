@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restore SearchPanel mount accidentally dropped in panel tree refactor
 - Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
 - Multi-tab graph clobbering — working graph now lives in sessionStorage so each browser tab keeps its own independent canvas, eliminating silent last-write-wins data loss
+- Prune transient React Flow fields (selected, dragging, measured, highlighted, dimmed) from nodes before cloud save and session cache — smaller payloads, no false version diffs
 
 ### Added
 
@@ -71,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
 - Add Parent Card option in file and folder context menus
 - Cross-tab preference sync — theme and app settings now update live in other open tabs via storage events, so all tabs stay in sync without a manual reload
+- Snapshot dataVersion field + normalizeSnapshot on load: validates tag registry, drops dangling tag refs, coerces invalid tag colors to fallback
+- Per-view settings (hide layers, collapse, minimap, edge style) now persist to localStorage and survive reload
+- Server-side 500k char size guard on saved graph API to prevent oversized payloads from tags/node growth
 
 ### Changed
 

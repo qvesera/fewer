@@ -1,6 +1,65 @@
 import { useGraphStore } from "@/store/graphStore";
 import type { SavedGraphData } from "./savedGraphs";
+import { SNAPSHOT_VERSION } from "./savedGraphs";
 import type { FewerNode, FewerEdge } from "./types";
+import { TAG_FALLBACK_COLOR, type Tag } from "./tags";
+
+// ── Node pruning (strip transient React Flow fields before save) ────────────
+
+/** Fields that React Flow adds at runtime but must not ride into cloud/sessionStorage. */
+const STRIP_NODE_KEYS = new Set(["selected", "dragging", "measured"]);
+
+/**
+ * Strip transient RF fields from a node before serialization.
+ * Keeps the node's typed `data` intact; only removes runtime UI flags
+ * that inflate payloads and trigger false diffs in version dedup.
+ */
+export function pruneNodeForSave(node: FewerNode): FewerNode {
+  const pruned: Record<string, unknown> = {};
+  for (const k of Object.keys(node)) {
+    if (STRIP_NODE_KEYS.has(k)) continue;
+    pruned[k] = node[k as keyof FewerNode];
+  }
+  // Also strip transient search-highlight flags from node.data
+  const data = pruned.data as Record<string, unknown> | undefined;
+  if (data) {
+    const d = { ...data };
+    delete d.highlighted;
+    delete d.dimmed;
+    pruned.data = d;
+  }
+  return pruned as unknown as FewerNode;
+}
+
+// ── Snapshot normalization (validate / migrate on load) ─────────────────────
+
+/**
+ * Normalize a loaded snapshot: coerce tag colors, drop dangling tag refs,
+ * strip unknown fields. Mutates in place for zero-copy; caller should not
+ * reuse the input for anything else.
+ */
+export function normalizeSnapshot(data: SavedGraphData): SavedGraphData {
+  // Tag registry: coerce invalid colors to fallback
+  const tags: Tag[] = (data.tags ?? []).map((t) => ({
+    id: t.id,
+    label: t.label ?? t.id,
+    color: typeof t.color === "string" && /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : TAG_FALLBACK_COLOR,
+  }));
+  const validTagIds = new Set(tags.map((t) => t.id));
+
+  // Nodes: drop tagIds not in registry, coerce colors
+  const nodes = data.nodes.map((n) => {
+    const node = { ...n, data: { ...n.data } };
+    if (Array.isArray(node.data.tagIds)) {
+      node.data.tagIds = node.data.tagIds.filter((id) => validTagIds.has(id));
+    }
+    return node;
+  });
+
+  return { ...data, dataVersion: SNAPSHOT_VERSION, nodes, tags };
+}
+
+// ── Build / Apply ───────────────────────────────────────────────────────────
 
 /**
  * Capture the current graph data into a serializable snapshot.
@@ -11,7 +70,8 @@ import type { FewerNode, FewerEdge } from "./types";
 export function buildSnapshot(): SavedGraphData {
   const s = useGraphStore.getState();
   return {
-    nodes: s.nodes,
+    dataVersion: SNAPSHOT_VERSION,
+    nodes: s.nodes.map(pruneNodeForSave),
     edges: s.edges,
     tags: s.tags,
     localRootPath: s.localRootPath,
@@ -31,14 +91,15 @@ export interface ApplySnapshotOptions {
  */
 export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions) {
   const s = useGraphStore.getState();
+  const normalized = normalizeSnapshot(data);
 
-  s.setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
+  s.setGraph(normalized.nodes as never, normalized.edges as never, false, undefined, { preservePositions: true });
 
   useGraphStore.setState({
     dataSource: opts?.source ?? "saved",
-    localRootPath: data.localRootPath ?? null,
+    localRootPath: normalized.localRootPath ?? null,
     skipNextAutoLayout: true,
-    tags: data.tags ?? [],
+    tags: normalized.tags ?? [],
   });
 }
 
@@ -54,6 +115,7 @@ const LOCAL_VERSION = 1;
 
 interface LocalGraphSnapshot {
   version: number;
+  dataVersion: number;
   nodes: FewerNode[];
   edges: FewerEdge[];
   tags: { id: string; label: string; color: string }[];
@@ -75,7 +137,7 @@ export function saveGraphLocal(snap: {
       sessionStorage.removeItem(LOCAL_KEY);
       return;
     }
-    const payload: LocalGraphSnapshot = { version: LOCAL_VERSION, ...snap };
+    const payload: LocalGraphSnapshot = { version: LOCAL_VERSION, dataVersion: SNAPSHOT_VERSION, ...snap };
     sessionStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
   } catch {
     /* quota/failure — just skip caching; never break the app */

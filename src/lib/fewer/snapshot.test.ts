@@ -65,7 +65,7 @@ test("buildSnapshot contains graph data only — no settings", () => {
   expect(snap.edges).toEqual([]);
   expect(snap.localRootPath).toBe("/tmp/root");
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["edges", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "localRootPath", "nodes", "tags"]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);
