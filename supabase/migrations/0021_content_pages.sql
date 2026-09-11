@@ -305,7 +305,7 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 A saved graph captures the full app state:
 
-- Nodes, edges, and their positions
+- Cards, edges, and their positions
 - Layout direction and edge style
 - Theme mode, custom theme colors, corner radius
 - Node dimensions and minimap settings
@@ -623,10 +623,10 @@ Account-type reality check:
 
 - [PWA Install](/docs/pwa-install): install the deployed app to your device
 - [Getting Started](/docs/getting-started): run locally for development', NULL, NULL, NULL, true),
-  ('docs', 'editing', 'Editing Nodes', 'Add, rename, copy, cut, paste, duplicate, delete, and connect nodes. Explore context menu actions for folders and files, plus the clipboard and undo/redo.', '
+  ('docs', 'editing', 'Editing Cards', 'Add, rename, copy, cut, paste, duplicate, delete, and connect nodes. Explore context menu actions for folders and files, plus the clipboard and undo/redo.', '
 Fewer treats your graph like an editable outline. Every node supports the full set of editing actions, either from the **context menu** (right-click) or via **keyboard shortcuts**.
 
-## Adding Nodes
+## Adding Cards
 
 - Click **Add File** or **Add Folder** in the sidebar (the File & Actions section)
 - Or press **Alt+N** and pick a type from the dialog
@@ -662,7 +662,7 @@ From the context menu, **Paste** on a folder pastes the clipboard contents into 
 
 Right-click a node that has a parent → **Unparent** to detach it from its parent and make it a root-level node.
 
-## Connecting Nodes
+## Connecting Cards
 
 Drag from a node''s **output handle** to another node''s **input handle** to create a parent→child connection. Fewer validates the connection:
 
@@ -674,7 +674,7 @@ Drag from a node''s **output handle** to another node''s **input handle** to cre
 
 In Power User mode, right-click a folder for:
 
-- **Hide Children**: collapse the folder''s children into the Hidden Nodes panel
+- **Hide Children**: collapse the folder''s children into the Hidden Cards panel
 - **Show Children**: reveal hidden children again
 
 ## Context Menu Actions
@@ -757,7 +757,7 @@ If **Power User mode** is enabled in Settings, you will see the below options in
 | ----------------------- | ------- | --------------------------------------- |
 | Max Depth               | 6       | How many folder levels to import        |
 | Include Hidden Files    | Off     | Include dotfiles (`.gitignore`, `.env`, etc.) |
-| Include File Nodes      | On      | Show files or folders only              |
+| Include File Cards      | On      | Show files or folders only              |
 | Extension Filter        | None    | Comma-separated whitelist               |
 | Auto-hide Large Folders | On      | Folders with >10 children hide children |
 
@@ -824,7 +824,7 @@ Right-click empty canvas space to open quick actions:
 - **Zoom In / Zoom Out**
 - **Delete Edge**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Nodes**: reveal hidden nodes (Power User mode)
+- **Show All Cards**: reveal hidden nodes (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
 ## Node Types
@@ -889,7 +889,7 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust via the sidebar Layout section (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust via the sidebar Layout section (Power User mode).
 
 ## Edge Styles
 
@@ -926,11 +926,11 @@ Shows selected node''s full path. Click any segment to navigate to that ancestor
 
 ## Auto-hide Large Folders
 
-Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Nodes** section as a nested tree.
+Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Cards** section as a nested tree.
 
 **Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
-## Hidden Nodes Panel
+## Hidden Cards Panel
 
 Access via sidebar. Shows all hidden nodes grouped by parent folder:
 
@@ -949,7 +949,7 @@ Fuzzy search across filenames, paths, and extensions.
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
-- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Nodes, Graph Analytics
+- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Cards, Graph Analytics
 
 ## Stats Panel
 
@@ -989,7 +989,7 @@ How deep to scan the directory tree. `0` = no limit.
 
 ### Max Display Depth
 
-How deep to display after import. Deeper nodes go to the Hidden Nodes panel.
+How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 
 ### Advanced Options (Power User mode)
 
@@ -1362,7 +1362,7 @@ Disabling **Power User mode** resets all settings to defaults, including the the
 
 - [Theming](/docs/theming): custom colors, presets, and the theme editor
 - [Graph Features](/docs/graph-features): minimap, layout, and canvas behavior
-- [Editing Nodes](/docs/editing): add, rename, delete, and connect nodes', NULL, NULL, NULL, true),
+- [Editing Cards](/docs/editing): add, rename, delete, and connect nodes', NULL, NULL, NULL, true),
   ('docs', 'sharing', 'Sharing Graphs', 'Generate shareable links for your graph. Small graphs embed in the URL; large graphs use a short server-backed link. Saved graphs can be shared publicly or invite-only.', '
 Fewer lets you share graphs with anyone via a link. Two ways to share:
 

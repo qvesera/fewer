@@ -5,9 +5,10 @@
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes } from "@/lib/fewer/importFlow";
+import { collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
 import { buildCloudTree } from "@/hooks/use-cloud";
 import { filterTree, treeToGraph } from "@/lib/fewer/treeToGraph";
+import type { TreeEntry } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runCloudImport(
@@ -23,18 +24,7 @@ export async function runCloudImport(
       };
     }
 
-    // Honor the shared scan-depth option. 0 = unlimited on the panel, but the
-    // provider API needs a bound — 10 covers the slider's full range.
-    const depth = options.maxDepth > 0 ? options.maxDepth : 10;
-    const raw = await buildCloudTree(
-      source.connectionId,
-      source.provider,
-      source.ref,
-      depth,
-    );
-    if (!raw) throw new Error("Empty tree");
-
-    const tree = filterTree(raw, options);
+    const tree = await buildFilteredCloudTree(source, options);
     if (!tree) {
       return {
         ok: false,
@@ -64,10 +54,20 @@ export async function runCloudImport(
       notes,
     };
   } catch (err) {
-    return {
-      ok: false,
-      title: "Import failed",
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
+    return importFailure(err);
   }
+}
+
+/** Fetch the provider tree for a cloud source and apply the shared import
+ *  filters. Throws on empty (caller's catch maps it to a failure result). */
+async function buildFilteredCloudTree(
+  source: Extract<OriginSource, { origin: "cloud" }>,
+  options: ImportOptions,
+): Promise<TreeEntry | null> {
+  // Honor the shared scan-depth option. 0 = unlimited on the panel, but the
+  // provider API needs a bound — 10 covers the slider's full range.
+  const depth = options.maxDepth > 0 ? options.maxDepth : 10;
+  const raw = await buildCloudTree(source.connectionId!, source.provider, source.ref!, depth);
+  if (!raw) throw new Error("Empty tree");
+  return filterTree(raw, options);
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { countOwned, getUserPlan, limitsFor, overLimit, PRO_LIMITS } from "@/lib/fewer/plans";
 
 /**
  * Build an authed Supabase client from the session cookie and return it with
@@ -77,6 +78,30 @@ export async function POST(request: Request) {
     const rawUrl = body?.url?.trim();
     if (!rawUrl || !isValidHttpUrl(rawUrl)) {
       return NextResponse.json({ error: "Invalid URL. Provide a public file index URL (http/https)." }, { status: 400 });
+    }
+
+    // Plan cap, but only for genuinely new watches — re-watching a URL the
+    // user already watches is an update (upsert), not a new slot.
+    const { data: existing } = await supabase
+      .from("watched_indexes")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("url", rawUrl)
+      .maybeSingle();
+    if (!existing) {
+      const limits = limitsFor(await getUserPlan(supabase, user.id));
+      if (
+        limits.watchedIndexes !== Infinity &&
+        overLimit(await countOwned(supabase, "watched_indexes", user.id), limits.watchedIndexes)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Free plan watches up to ${limits.watchedIndexes} indexes. Upgrade to Pro for up to ${PRO_LIMITS.watchedIndexes}.`,
+            code: "plan_limit",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     const { data, error } = await supabase

@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-12
+
+### Fixed
+
+- **Profiles row now created at signup**: new users automatically get a `profiles` row with the free plan — previously the row only existed after saving Settings → Account, causing plan-dependent features to fail. All existing users backfilled (migration 0025).
+- **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
+- **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
+
+- **Fix crash on New File button**: right-clicking a folder/file with no data source loaded (`dataSource` is `null`) still crashed with `Cannot read properties of null (reading 'startsWith')`. The earlier empty-graph fix only guarded `providerLabelFromSource`; the crawled-file check in `FileEntryContextMenu` now null-guards too.
+- ASCII tree imports are now header- and footer-aware: the "Directory Tree Structure" title, the "Created with fewer" credit line, and trailing "N directories, M files" style summaries are stripped instead of being imported as phantom nodes.
+- Selecting a node now highlights only its ancestor-path edges (from the node up to the root parent) instead of every incident edge — child edges are no longer colored when a folder is selected.
+- Highlighted ancestor-path edges now render on top of crossing default edges again — the sort comparator was inverted, so highlighted edges were ordered at the front of the array and painted underneath grey edges at intersection points. The highlight sort is corrected and the tree sort (relayout/connect/import) now keeps raised edges last.
+- PNG/SVG exports now match the live canvas: theme colors (light/dark/custom), full node cards (folder header + child rows + footer, file icon + extension/size), per-style edge geometry (curved/angled/straight) with width/dash pattern and correct anchors for TB/LR/RL/BT layouts, and the selected-folder glow ring. Hidden nodes are no longer emitted into image exports.
+- Fixed a crash when deleting a parent node that had hidden children: the deleted subtree stayed in the hidden-nodes list, and building the Hidden panel read an undefined node and threw TypeError on hiddenTreeSort. Deleting a parent now also purges its children from the hidden/auto-hide/reveal view-state (they're removed, as expected), and the hidden-tree builder ignores stale ids defensively.
+- Client-side input validation: every user-text field saved to the database (account profile, saved-graph names, gallery title/description, custom-theme names) now rejects non-string / broken-interpolated values like "null", "undefined" and "[object Object]", trims surrounding whitespace, and enforces length caps before submitting.
+- Prevent '@' in usernames: a username containing '@' collided with the login flow's email-vs-username detection (which keys off '@') and could never be used to sign in. Usernames are now rejected on save (client and server) if they contain '@'.
+- Signing in with a username now logs the user in immediately: /api/login returns the signed-in session, and the login dialog pushes it into the browser auth client via setSession (firing onAuthStateChange) so the app reflects the signed-in state without a page refresh. The session is only returned after a successful password check, so it doesn't introduce account enumeration.
+- Empty-state no longer shows Import / Load sample when a graph exists but every node is hidden. When 'Show Files' is off on a graph that is made only of file nodes (or all nodes are otherwise hidden), the canvas now shows an 'Everything is hidden' panel with a 'Show Files' button instead of the misleading 'No directory loaded' import/sample actions. Applies to the React Flow empty-canvas panel.
+- SVG and PNG exports are now blocked when every exportable node is hidden. Image exports mirror the live canvas and filter out hidden nodes, so exporting with all non-hidden count at zero produced a blank file. The Export panel now disables Download for SVG/PNG in that case (including when 'Export Selected' leaves nothing visible) and shows a hint pointing to the Hidden panel → Reveal All.
+- env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
+- Plans links in Settings and the History dialog open /docs/plans in a new tab, and the plans page now exists: the docs index and /docs/plans render the tier table from content_pages (seeded via scripts/gen-seed-plans.py).
+- Sign-up with an already-registered email no longer pretends to succeed: Supabase returns user:null (anti-enumeration) for duplicate emails and the dialog silently showed 'Check your email' — the dialog now detects it, tells the user the email is taken, and switches to the sign-in form with the email prefilled.
+- Password reset flow actually completes now: the reset email link previously landed the user back in the app signed-in without ever setting a new password. A new /auth/reset-password page (reached via the callback's next param) lets the user set and confirm the new password with the live requirements checklist.
+- Editing a gradient slot's base color no longer resets its gradient endpoint and angle
+- Tags: right-click menus on tagged cards no longer break (the tag ring wrapper intercepted the context-menu trigger — the ring is now an absolutely-positioned masked overlay inside the card), the ring no longer bleeds through translucent card bodies so only the thin border band is colored, and the Tags submenu is available on file cards without Power User mode.
+- Tags: tag filter now works (applyTagFilter was missing from the store type definition); shift+drag multi-select no longer triggers an infinite render loop (onSelectionChange was writing store edges which re-triggered the edge-highlight effect in a cycle — the effect now reads edges via getState() and the handler no longer writes them).
+- Tags: restore the original search-only applySearchInternal (3-arg) in graphSlice and historySlice, removing tag-filter dimming from the search path — tag filtering is now handled entirely by the hide mechanism in the tagsSlice, matching the category-filter pattern.
+- Ctrl/⌘+scroll now pans the canvas in Scroll to Zoom mode instead of continuing to zoom; trackpad pinch-zoom is unaffected
+- H / Shift+H now route through the active view's hide layers in split-view layouts: hiding selection writes to the active leaf's individual layer, and Shift+H clears both the leaf's layers and the global hidden list (previously Shift+H could not reveal nodes hidden in the active view, and its restored-count toast showed the selection size instead of the number of nodes restored)
+- Hiding a folder (H key) now hides its descendants too in split views — the per-view hide layer expands the subtree like the global hide always did. Hidden nodes now appear under Hidden Cards again (the panel reads the active view's resolved hide layers instead of a removed store field), and edges to leaf-hidden nodes no longer resurrect after graph updates.
+- Fix e2e context menu tests to wait for menu animation before clicking
+- Restore SearchPanel mount accidentally dropped in panel tree refactor
+- Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
+- Multi-tab graph clobbering — working graph now lives in sessionStorage so each browser tab keeps its own independent canvas, eliminating silent last-write-wins data loss
+- Prune transient React Flow fields (selected, dragging, measured, highlighted, dimmed) from nodes before cloud save and session cache — smaller payloads, no false version diffs
+- Nodes created via handle drag now appear at the cursor drop position instead of a hardcoded offset
+- Newly created nodes never overlap existing nodes — collision resolution runs on every creation path (child, parent, standalone, drop)
+- Node creation drop position now uses direction-aware collision resolution — nudges away from collided card instead of grid-shifting right, with small 12px padding
+- Touch: handle-drag node creation now uses changedTouches for touchend events
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Batch selection context menu now opens at cursor position instead of top-left corner of screen
+- Persist undo/redo history across page reload via sessionStorage
+- Split fileOps.ts into testable filePaths.ts + fileRender.ts; flatten nested moveFile/entryExists; add characterization tests
+
+### Added
+
+- Exports now carry a "Created with fewer — <url>" credit by default: a clickable watermark in corner of SVG/PNG, a comment line in CSV/DOT/sh/bat, a footer line in the ASCII directory tree, and a meta.generatedBy field in JSON. A toggle in the Export panel turns it off.
+- Version history for saved graphs: each save keeps an automatic snapshot of the graph (deduped + capped at 50 per graph), restored or deleted from a new History button on each saved graph. Restore loads the version as unsaved changes - hit Save to keep it. New graph_versions table (migration 0017) + /api/graphs/[id]/versions routes.
+- Public community gallery: signed-in owners can opt a public share into the gallery (toggle + title/description in the Share dialog). Browsed logged-out at /gallery (new /api/gallery listing with pagination); clicking a card opens the graph in the app. Unshare instantly delists. Migration 0018_gallery.sql adds in_gallery/gallery_title/gallery_description/node_count to shared_graphs.
+- Save dialog now has a Destination picker: create a new saved graph, or update an existing one by selecting it - updating keeps the graph's share link and records a fresh version history snapshot instead of always making a new graph.
+- Settings gains a dedicated Account tab (separate from About): signed-in users can save a first name, last name, and username — stored per account in the new owner-only `profiles` DB table (migration `0019_profiles.sql`, `/api/profile`) — and it keeps the Sign out and Delete account actions in the same tab. Usernames are unique (case-insensitive) — enforced by a partial unique index (migration `0020`) and a friendly "already taken" error in `/api/profile`.
+- Login now accepts a username OR email: the sign-in dialog has an Email/Username picker, and username credentials are resolved to the account email server-side in a new POST /api/login (service role, profiles table) before Supabase's normal email/password auth. Failed attempts return a single generic message so the endpoint can't be used to enumerate accounts.
+- Publishing a graph to the public gallery now requires the user to have set their first name and username: if either is missing, the share dialog blocks the publish (gallery toggle and Publish button) and redirects the user to Settings → Account to fill them in.
+- Blog and docs are now headless: posts/pages live in a Supabase content_pages table (migration 0021) and are read at request time with a 60s revalidate, so publishing a new blog post or fixing a doc typo no longer needs a deploy. Read via supabase from /blog, /blog/[slug], /docs and /docs/[slug]; the markdown in content/blog/ and content/docs/ stays in-repo as a source-of-record backup. Writes are done via Supabase Studio (service role), gated by a public-read-only RLS policy.
+- Internet Archive import: paste any archive.org item URL (details, download, or metadata link) into Import from URL and fewer builds the full file tree from the archive.org metadata API — a single request, so items import without the crawl page/depth limits, with real file sizes and per-file archive.org links (right-click Download / Open at source work as with other URL imports). Auto-generated thumbnails, item tiles, and \_meta.xml files are filtered out; results are cached 24h like other URL imports.
+- Account plans (free/pro) with server-side limits: new profiles.plan column (migration 0022, column-level revokes so only the service role can change a plan). Free accounts get 5 saved graphs and 3 watched indexes; cloud connectors (private GitHub/Drive/OneDrive/SharePoint/Azure) and invite-only sharing become Pro features — enforced in /api/graphs, /api/watch, /api/cloud/connect, and /api/share with clear 403 plan_limit errors (public links, updates to existing graphs, and re-watching existing indexes are never blocked). New /docs/plans page documents the tiers
+- Stripe billing: self-serve Pro checkout ($7/mo) from the History dialog's upgrade prompt, Stripe-hosted billing portal for payment method/invoices/cancellation, and a signature-verified /api/billing/webhook as the sole writer of profiles.plan (subscription status → pro/free). Billing routes are env-guarded (503 until STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/STRIPE_PRO_PRICE_ID are set) and profiles.stripe_customer_id is service-role-only (migration 0024). /docs/plans updated with the checkout flow.
+- Settings → Account gains a Plan & billing card: shows your current plan (Free/Pro) with an Upgrade to Pro button on free accounts, and a Manage subscription button on Pro that opens the Stripe billing portal (update card, invoices, cancel). /api/profile now returns the account plan; plans.md updated to point at the new card.
+- Account tiers split out into the four-tier table (Guest / Free / Pro / Team) with prices on /docs/plans; Guest is the signed-out tier (local import, watermarked exports, hash sharing < 2,000 chars), Free drops to ~3 saved graphs + 30-day version history, Pro gains 1-yr history, saved themes, 5-10 watched indexes, crawl quota, watermark removal and large-payload short links, and Team lists org workspaces / private gallery / shared theme libraries / admin controls as the next rollout.
+- Sign in with Google or GitHub: one-tap OAuth buttons on the sign-in and sign-up screens (Supabase OIDC providers, PKCE flow through the existing /auth/callback route). Provider credentials must be enabled in the Supabase dashboard first — see /docs/accounts.
+- Passwordless sign-in link: 'Sign in with a link' on the sign-in screen emails a one-tap sign-in link (expires in an hour); first use creates the account, so it doubles as passwordless sign-up.
+- Change email: signed-in users can update their account email from Settings → Account; a confirmation link is sent to the new address and the change only applies after it's confirmed.
+- Sibling sort controls: folders' children can now be ordered by Name, Size, or Type (ascending/descending) via Settings → Appearance → Sibling Sort, applying recursively and relayout immediately; the choice persists with your other preferences.
+- Drag from any node's input handle to create a parent folder for that node (always a folder, inserted between the node and its existing parent when it has one).
+- Custom theme gradients: canvas background, folder body, and file body slots can now render a two-stop linear gradient (endpoint color + angle) via the Custom Theme Editor; exposed as -gradient CSS variables
+- Per-section undo buttons (Canvas & Text, Folders, Files) in the Custom Theme Editor that revert a section's slots, with drag-coalesced steps
+- Tags: assign named, colored tags to folders and files. Each tagged card shows a permanent highlight ring with its tags colors split evenly around the border (stepped, up to 5 colors); the ring yields to the selection ring while the card is selected. Assign via right-click > Tags on any card, manage the palette in the sidebar Tags panel, filter the canvas with tag chips in search (non-matching cards dim), and sort siblings by tag via Settings > Appearance > Sibling Sort > Tag. Tags travel with saved and shared graphs.
+- Blender-style dockable panel areas: drag sidebar sections into separate columns, switch between Graph View and section editors per column, dock areas to left or right side. Sidebar can be relocated to left or right edge of screen. Column widths are resizable.
+- Blender-style corner-drag split and join for panel areas: split any area by dragging from its corner, merge areas back together by dragging toward a neighbor. Divider drag between areas adjusts ratio. Full binary split tree layout model (v2) with v1 migration.
+- Batch actions for multi-selection: Hide, Show, Collapse Folders, Expand Folders, Copy Paths
+- Canvas selection menu: Select Descendants, Select Same Extension, Select Same Category
+- Batch Tags… action: assign/remove tags across a multi-selection via a shared tag picker
+- Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
+- Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
+- Add Parent Card option in file and folder context menus
+- Cross-tab preference sync — theme and app settings now update live in other open tabs via storage events, so all tabs stay in sync without a manual reload
+- Snapshot dataVersion field + normalizeSnapshot on load: validates tag registry, drops dangling tag refs, coerces invalid tag colors to fallback
+- Per-view settings (hide layers, collapse, minimap, edge style) now persist to localStorage and survive reload
+- Server-side 500k char size guard on saved graph API to prevent oversized payloads from tags/node growth
+
+### Changed
+
+- Share dialog: when 'List in the public gallery' is on, the action becomes 'Publish to gallery' and the manual copy-link field hides (the graph is live at /gallery instead); publishing shows a confirmation toast.
+- Share dialog: 'Anyone with the link' is now a switch you can toggle off, and sharing defaults to off - so the default state is private (no sharing) without a separate 'Private' option. Both 'Anyone with the link' and 'Invite only' switches are mutually exclusive toggles; turning both off makes the graph private.
+- Share dialog: the access toggles now switch off when clicked (clicking the row no longer overrides the toggle, so you can turn a toggle back off), and the redundant footer Close button is removed - the dialog still closes via the corner X or clicking outside.
+- Updating a saved graph with no actual changes is now detected (order-independent deep compare of the snapshot vs the saved data): you're told 'no changes - no new version added' and nothing is written, instead of silently bumping the timestamp. Version-history dedupe now uses the same canonical comparison, so identical snapshots can't spawn duplicate versions.
+- Sign-in field now auto-detects email vs username: the Email/Username split is gone — one 'Email or username' field. Input containing '@' is an email, otherwise a username, matching /api/login's existing logic (usernames can't contain '@').
+- The account dropdown in the top-right corner now shows the user's display name instead of always the email: first name (plus last name when set), falling back to the username, then the email address as a last resort.
+- Watch-digest nightly job moved from Netlify scheduled functions to a GitHub Actions cron workflow (.github/workflows/watch-digest.yml, 23:59 UTC + manual dispatch): Netlify's free-tier 10s function timeout couldn't fit a multi-index crawl. Job logic extracted to src/lib/fewer/watchDigest.ts, run by scripts/watch-digest.ts; /api/watch/run stays as a cron-secret-protected manual trigger. Removed netlify/functions and the @netlify/functions dependency.
+- Plan metering: version history (automatic save snapshots, restore, delete) is now a Pro feature - free accounts save and update graphs as before but no longer record snapshots, and the History dialog shows a Pro upgrade note instead. Pro watched indexes are now capped at 10 (was unlimited; free stays 3) to match crawl/digest costs - the /docs/plans page reflects both.
+- Pro subscription now billed in EUR (€7/mo); currency switch is a single env var (STRIPE_PRO_PRICE_ID) per deployment
+- Payment gateway (Stripe) is now behind a BILLING_ENABLED / NEXT_PUBLIC_BILLING_ENABLED feature flag that is OFF by default: /api/billing/\* return 503 and the app hides all upgrade/checkout UI, showing 'managed by the administrator' instead. Account plans are assigned directly in the database (profiles.plan) with operator SQL documented on /docs/plans.
+- Plan metering rebalanced to the new tiers: free accounts get 3 saved graphs and an automatic 30-day version history (previously 5 saved graphs, no history), Pro keeps 1 year of history and 10 watched indexes, cloud-saved custom themes are now Pro-only, guests always export with the fewer watermark (branding toggle is signed-in only), and DB short links for large share payloads are Pro-only.
+- Settings → Account now shows the account status: a colored Free/Pro/Team plan badge, live usage meters (saved graphs and watched indexes against the plan's limits, red fill when over cap), the version-history retention window, email verification state, and member-since date. /api/profile now also returns current saved-graph and watched-index counts.
+- Plan-granted copy fixes: when billing is disabled the Account card now says 'Upgrades are granted by your administrator' on Free, 'Pro was granted by your administrator' on Pro, and 'Team is managed by your organization administrator' on Team — instead of the confusing blanket 'Plans are managed by the administrator'.
+- Removed the fictional admin from plan copy: Free now reads 'Self-serve upgrades are currently off', Pro reads 'Pro is enabled for this account', and the History dialog no longer blames an administrator for missing history.
+- Plan-copy lines in Settings and the History dialog now link to /docs/plans and drop the em-dash.
+- Sign-up now asks for the password twice: a confirm-password field with live mismatch feedback prevents typos, alongside the existing requirements checklist.
+- Account deletion now uses a 7-day grace window instead of immediate removal: 'Delete account' schedules the deletion (the account looks gone right away), the nightly purge job permanently removes data when the window lapses, and signing in again before then cancels the deletion — a free recovery path against accidental or takeover-driven deletion. Job runs via GitHub Actions cron (purge-deleted-accounts.yml), same pattern as the watch digest. Privacy policy and /docs/accounts updated to disclose the window.
+- Changing the layout direction or the Crown Shyness intensity no longer auto-relayouts the graph — nodes keep their positions and re-layout runs only via the Rearrange button or Alt+R
+- Crown Shyness multiplier can now be typed in as a custom value — click the value next to the slider in Settings → Advanced (store clamps to 0–3×)
+- Tags: color editing now uses the same react-colorful picker as the Custom Theme Editor (click a tag swatch in the sidebar Tags panel to expand it), and new tags pick a color from a palette swatch row at creation in both the context menu and the sidebar; fixed the assigned-tag checkmark overlapping the color dot in the Tags submenu.
+- Tag filter now hides non-matching nodes from the canvas (same mechanism as the category filter in Graph Analytics) instead of dimming them. Toggle a tag chip in the search panel to show only cards carrying that tag; matching cards stay on canvas, non-matching ones are hidden and appear in the Hidden panel. Clear with the X button or uncheck the tag.
+- Sidebar Tags section now has a "By tag" filter list (matching the Graph Analytics "By category" pattern) with tag counts and colored progress bars — click a tag to show only cards carrying it, click again to clear.
+- Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
+- Canvas batch selection menu now uses Radix submenus matching node context menu behavior
+- Remove icon from Tags context menu item for consistent text-only menu styling
+- Multi-select category filter: users can now select multiple file-type filters simultaneously (OR semantics), matching the existing tag filter pattern
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Split uiSlice into focused sub-slices (search/selection/visibility/folder/collapse/panel/dialogs) exposing the same store API
+- Extract shared fullName node-name helper (graphSlice + BatchRenameDialog) and reuse getDescendants for hide expansion
+- GraphCanvas: extract renderCanvasContextMenu as a pure sibling function, reducing CanvasInner by ~90 lines and its cyclomatic complexity
+- Refactored history.ts from two CCN-24 switch statements to a dispatch-table pattern with flat per-op handlers and shared helpers (repath/relocate/mergeNew/excludeIds)
+- Split monolithic fileOps.ts into fsPrimitives + folderSync + facade to break shotgun-surgery co-change pattern (25 partners → isolated modules). Flattened moveFile/entryExists nested complexity. Added 11 tests for entryExists, getUniqueName, refreshViaPathWalk.
+- Layout direction switches now regenerate edge ids with a deterministic counter instead of a timestamp+random suffix (visible in exported JSON/CSV edge ids)
+
+### Security
+
+- Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
+
+### Performance
+
+- Split fileSystem.ts into focused modules (fsHandleWalk, fsEntryWalk, fsInputFallback, fsFilters) to reduce nesting 5→3 and CCN 18→4-11 per function
+- Layout settings (edge style, animation, stroke, width, corner radius, node size) apply in a single store write instead of two, halving subscriber notifications
+
+## [0.6.1] - September 3, 2026
+
+### Changed
+
+- Extract bug-report GitHub issue builder into testable src/lib/fewer/bugReport module (reduces cyclomatic complexity, adds unit tests)
+- Reduce cyclomatic complexity of SVG export folder-card renderer by extracting child-row, metric, icon, and stroke helpers
+- Remove dead CustomThemeEditor component (superseded by ThemeEditorDialog)
+- Extract theme editor positioning/color logic into testable module with paired tests
+- Help tab links (Blog, Documentation) open in a new tab instead of navigating away
+- Unhiding a node from the Hidden nodes panel now auto-selects the revealed node on the canvas
+- Username uniqueness is now enforced exactly at the database level: stored usernames must be trimmed and lowercase (new CHECK constraints), so handles can never collide via spelling variants like "foo" vs "Foo" vs " foo " even when written outside the API.
+- Refactor KeyboardShortcuts into a command-table architecture with pure testable rules in keyboardShortcuts.ts; extract openFolderInExplorer to fileOps.ts; consolidate event-name constants across 5 files; add 32 keyboard-shortcut tests
+- Re-layout no longer runs automatically after actions (add node, collapse/expand, hide, direction/shyness/size changes, drag-merge, initial load) — it now runs only via the Rearrange Graph button or its keyboard shortcut
+- Hide the Export Selected option for non-image exports when only a single file node is selected (PNG/SVG image exports of a single file still keep the option)
+- Exported images no longer include the selection ring around selected nodes — selection is a canvas-only affordance
+- PNG and SVG exports now carry a fewer logo watermark badge (inline vector mark + wordmark, linked to the homepage) instead of the plain text credit line
+- Refresh from Disk now actually re-scans the folder (was a no-op stub); shows added/removed counts. Falls back to a local-path re-walk via the dev server when no File System Access handle exists (drag-imports delivered as a path, Flatpak/Snap portalized drops, subfolders)
+- Invert toast and minimized dock pill colors against page background, matching the tutorial dialog.
+
+### Fixed
+
+- Consolidated minimized dialog pill icon color — icons now inherit the pill's inverted text color (`text-current/60`) instead of hard-coded `text-muted-foreground`/`text-primary`, so they stay legible on both light and dark surfaces.
+- Sidebar hover ring on hidden-node rows now clears after unhiding a folder (was lingering on the revealed nodes)
+- Saving your first/last name and username in Settings -> Account no longer fails with 'permission denied for table profiles' — the profiles table was missing the required INSERT/UPDATE grants for authenticated users (RLS was already gating owner-only access).
+- Clicking a hidden search result now also reveals all of its parent folders up to the root, so the match is never left under a still-hidden ancestor
+- Fix infinite re-render cascade: Radix TooltipProvider context (moved to page-level), useToast [state] dep (→[]), Button forwardRef
+- Replace Button inside TooltipTrigger asChild with native <button> + buttonVariants() to break Slot+forwardRef infinite re-render loop in Sidebar
+- Remove Radix Tooltip from Sidebar trash button — Slot createRef loop causes infinite re-render on mount
+- Upgrade all @radix-ui packages to latest (React 19 ref-composition fix from radix-ui#3963) — restores styled Tooltip in Sidebar
+- Shift+drag box selection no longer makes hidden nodes reappear on the canvas (selection re-assert now maps only visible canvas nodes)
+- Selecting an edge and pressing Delete (or Backspace) now unparents the child node instead of doing nothing (React Flow's internal `selected` flag on edges was being wiped on every selection change by `setRfEdges`)
+- Loading a saved or shared graph no longer overwrites your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) — settings follow your account, not the graph. Saved-graph payloads are now graph-only; layout direction was removed from them.
+- Keyboard shortcut toasts (Deleted, Pasted, Duplicated, Graph relayouted, Cards parented) no longer fire when the shortcut performs no action — they only fire when the underlying store action actually mutates the graph
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
+- Clicking a dialog's open button while it is minimized now restores (maximizes) it instead of doing nothing.
+
+### Added
+
+- Search terms are now remembered per browser session and shown as recent searches in the search panel (stored in sessionStorage, with clear option)
+- Batch rename: `*` wildcard in Find matches anything; `*` in Replace keeps the matched part, so you can rename without retyping names (e.g. Find `*` → Replace `Photo *`)
+- Dialogs (settings, import, save/share graph, tutorial, shortcuts, auth, and others) are now draggable via a grip handle in the title area; dialog stays clamped to the viewport
+- Any dialog can be minimized to a dock pill (drag to snap to screen edges, click to restore); added minimize button next to close in every dialog and the theme editor
+- Search bar for docs page to filter documentation by title and description
+- The graph on your canvas now survives a page reload: nodes, edges, and positions are cached in localStorage and restored on your next visit, no account needed.
 
 ## [0.6.0] - 23rd August 2026
 
@@ -46,8 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit node zIndex:1000 + edge zIndex:0 defaults guarantee nodes always render above edges; added elevateNodesOnSelect prop
 - Hide/show nodes no longer triggers graph relayout — visibility changes only
 - File and folder siblings with different full names (e.g. 'foo' folder + 'foo.txt' file) no longer falsely conflict during add/connect/rename
-- The Include File Nodes toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
-- The auto-hide limit slider no longer reveals file nodes when Include File Nodes is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
+- The Include File Cards toggle no longer bypasses the auto-hide limit: re-enabling file nodes re-applies the large-folder auto-hide threshold (and the max display depth limit), so files under over-threshold folders or beyond the depth limit stay hidden instead of all flooding onto the canvas.
+- The auto-hide limit slider no longer reveals file nodes when Include File Cards is off: decreasing the threshold now correctly keeps file-hidden nodes hidden regardless of auto-hide reconciliation.
 - Revealing a hidden folder (Show Subtree) no longer reveals subtree entries the user had independently hidden before the folder was hidden: independently hidden nodes and their descendants are now preserved across parent hide/reveal cycles.
 - env-sync GitHub push no longer hangs: empty .env values are skipped with a warning instead of making gh prompt for a body interactively, and Netlify-only GITHUB\_\*-prefixed OAuth vars are skipped because GitHub Actions reserves that name prefix (they previously failed with HTTP 422 on every sync).
 - Shift-click multi-select no longer triggers unwanted native text selection across the canvas.
@@ -64,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tutorial hides the 'View keyboard shortcuts' step on touch-primary devices that have no physical keyboard
 - Folder output-edge anchors no longer drift from the handle dot after a layout-direction change: the handle hover micro-interaction transitioned the position-class `transform` (translate), so on direction switches the dot animated while React Flow's rAF-delayed re-measure read mid-flight bounds and parked the edge a few px off the settled handle. The hover spring now uses the independent `scale` property, leaving the `transform`-based position swap instant.
 - Search/hover highlight rings were invisible on folder/file cards because the custom node shadow (shadow-node-folder / shadow-node-file) overrode Tailwind's box-shadow ring; they now use an outline-based ring like the selection ring.
-- Reveal All Nodes (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
+- Reveal All Cards (and Shift+H) no longer immediately re-hides a folder's children: the handler ran showAll() before setShowFiles(true), and setShowFiles(true) re-runs the large-folder auto-hide filter against the just-revealed state, so a folder with more children than the auto-hide threshold got its children hidden again in the same click. The order is now reversed so the reveal is the last write and sticks.
 - Select Children in the folder context menu no longer undoes itself: the menu's post-activation click event bubbled through the React tree into React Flow's node handler, re-selecting the right-clicked folder after the children had been selected. Menu click/keyboard events are now contained inside the context menu (also fixes right-click → Escape selecting the node).
 - Batch Move to Folder now allows moving items up into ancestor folders (parent/grandparent) instead of failing with \"No eligible items\"
 - Open in File Explorer now works cross-platform: path resolution uses case-insensitive matching, BFS fallback across common user dirs (~/Downloads, ~/Desktop, ~/Documents), Windows backslash normalization, and ~-expansion instead of Linux-only dirname(cwd) guessing

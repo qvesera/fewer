@@ -17,10 +17,24 @@ import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useSettingsSync } from "@/hooks/use-settings";
-import { loadSettingsLocal } from "@/lib/fewer/userSettings";
+import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer/userSettings";
+import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
+import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
+import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
+import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
+import { saveHistoryLocal, loadHistoryLocal, clearHistoryLocal } from "@/lib/fewer/historyStorage";
+import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+
+// Client-only: tree layout is loaded from localStorage, so the server
+// always renders a single-leaf default and the client hydrates with the
+// actual stored tree.  Dynamic import with ssr:false prevents the
+// hydration mismatch that occurs when the two trees differ.
+const TreeRenderer = dynamic(() => import("./TreeRenderer").then((m) => m.TreeRenderer), { ssr: false });
+const SectionDragLayer = dynamic(() => import("./SectionDragLayer").then((m) => m.SectionDragLayer), { ssr: false });
 
 // Dialogs lazy-loaded: only fetched when opened. Keeps react-colorful,
 // export libs, and dialog code out of the startup bundle.
@@ -34,6 +48,7 @@ const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDia
 const ThemeEditorDialog = dynamic(() => import("./ThemeEditorDialog").then((m) => m.ThemeEditorDialog), { ssr: false });
 const AddNodeDialog = dynamic(() => import("./AddNodeDialog").then((m) => m.AddNodeDialog), { ssr: false });
 const BatchRenameDialog = dynamic(() => import("./BatchRenameDialog").then((m) => m.BatchRenameDialog), { ssr: false });
+const BatchTagDialog = dynamic(() => import("./BatchTagDialog").then((m) => m.BatchTagDialog), { ssr: false });
 const ParentPickerDialog = dynamic(() => import("./ParentPickerDialog").then((m) => m.ParentPickerDialog), { ssr: false });
 const NotificationPanel = dynamic(() => import("./NotificationPanel").then((m) => m.NotificationPanel), { ssr: false });
 const AuthDialog = dynamic(() => import("./AuthDialog").then((m) => m.AuthDialog), { ssr: false });
@@ -51,8 +66,10 @@ export function FewerApp() {
 
   const [importFlowOpen, setImportFlowOpen] = useState(false);
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
+  const [importFlowMounted, setImportFlowMounted] = useState(false);
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
+  const [addParentOpen, setAddParentOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
@@ -61,12 +78,40 @@ export function FewerApp() {
   const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
+  // Panel layout
+  const sidebarSide = useGraphStore((s) => s.sidebarSide);
+  const panelTree = useGraphStore((s) => s.panelTree);
+
   // On mobile, start with sidebar closed
   useEffect(() => {
     if (device.isMobile) {
       setSidebarOpen(false);
     }
   }, [device.isMobile, setSidebarOpen]);
+
+  // Hydrate browser-only state once on mount (panel layout, search history,
+  // tutorial flags). The store always starts with SSR-safe defaults to avoid
+  // hydration mismatches; this effect applies stored values on the client.
+  useEffect(() => {
+    const layout = loadLayoutFromStorage();
+    const searchHistory = (() => {
+      try { const v = sessionStorage.getItem(SEARCH_HISTORY_KEY); return v ? JSON.parse(v) as string[] : []; } catch { return []; }
+    })();
+    const tutorialBeginnerDone = (() => {
+      try { const v = localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY); return v ? JSON.parse(v) : []; } catch { return []; }
+    })();
+    const tutorialDismissed = (() => {
+      try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
+    })();
+
+    const next: Record<string, unknown> = { searchHistory, tutorialBeginnerDone, tutorialDismissed };
+    if (layout) {
+      next.sidebarSide = layout.sidebarSide;
+      next.panelTree = layout.panelTree;
+      if (layout.viewSettings) next.viewSettings = layout.viewSettings;
+    }
+    useGraphStore.setState(next);
+  }, []);
 
   // On mobile, the minimap defaults to OFF — but only when the user hasn't saved
   // a preference yet (mirroring the Sidebar's responsive-direction default), so
@@ -97,6 +142,39 @@ export function FewerApp() {
     }
   }, []);
 
+  // Cross-tab sync: when another tab writes theme/settings/layout/tutorial
+  // prefs to localStorage, re-read them here so all tabs converge.
+  // storage events only fire in other tabs, so this never creates a feedback loop.
+  useEffect(() => {
+    const unsubs = [
+      onStorageKey("fewer-theme", (val) => {
+        const s = useGraphStore.getState();
+        if (val === "light" || val === "dark" || val === "custom") {
+          if (s.themeMode !== val) s.setThemeMode(val);
+        } else {
+          const deviceMode = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          if (s.themeMode !== deviceMode) useGraphStore.setState({ themeMode: deviceMode });
+        }
+      }),
+      onStorageKey("fewer-user-settings", () => {
+        const saved = loadSettingsLocal();
+        if (saved) withSyncGuard(() => applyUserSettings(saved));
+      }),
+      onStorageKey("fewer:panelLayout", (val) => {
+        // Re-parse layout including viewSettings; only apply viewSettings
+        // since panelTree/sidebarSide are persisted via _persistLayout separately.
+        if (!val) return;
+        try {
+          const parsed = JSON.parse(val) as { viewSettings?: Record<string, import("@/lib/fewer/viewState").ViewSettings> };
+          if (parsed.viewSettings) {
+            useGraphStore.setState({ viewSettings: parsed.viewSettings });
+          }
+        } catch { /* corrupt — skip */ }
+      }),
+    ];
+    return () => { unsubs.forEach((u) => u()); };
+  }, []);
+
   // Advanced power-user options are available only to signed-in users.
   // The old PowerUserToggle is gone; the flag now tracks auth. Drive the
   // store flag directly (not via a reset-triggering setter) so a logged-in
@@ -105,11 +183,13 @@ export function FewerApp() {
     useGraphStore.setState({ advancedModeEnabled: !!user });
   }, [user]);
 
-  // Sidebar drag-resize handler
+  // Sidebar drag-resize handler — adapts to left/right side
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current) return;
-      const w = Math.min(560, Math.max(200, e.clientX));
+      const w = sidebarSide === "left"
+        ? Math.min(560, Math.max(200, e.clientX))
+        : Math.min(560, Math.max(200, window.innerWidth - e.clientX));
       setSidebarWidth(w);
     };
     const onUp = () => {
@@ -123,7 +203,7 @@ export function FewerApp() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [sidebarSide]);
 
   const startResize = useCallback(() => {
     resizingRef.current = true;
@@ -137,24 +217,14 @@ export function FewerApp() {
     const hash = window.location.hash.replace(/^#/, "");
     if (!hash) return;
 
-    const applyData = (data: { nodes: unknown[]; edges: unknown[]; direction: unknown; edgeStyle: unknown; customTheme?: unknown; themeMode: unknown; cornerRadius: unknown; nodeWidth: unknown; nodeHeight: unknown }) => {
-      // Apply appearance scalars without the layout setters (they re-run layout
-      // and would discard the saved node positions). setGraph below honours them
-      // while preserving positions.
-      useGraphStore.setState((s) => ({
-        direction: (data.direction as never) ?? s.direction,
-        edgeStyle: (data.edgeStyle as never) ?? s.edgeStyle,
-        nodeWidth: (data.nodeWidth as never) ?? s.nodeWidth,
-        nodeHeight: (data.nodeHeight as never) ?? s.nodeHeight,
-      }));
+    const applyData = (data: { nodes: unknown[]; edges: unknown[]; localRootPath?: string | null }) => {
+      // Graph data only — the viewer's app settings (direction, edge style,
+      // theme, corner radius, …) are theirs and are NOT overwritten by a shared
+      // graph. Node positions are preserved via preservePositions (no re-layout).
       useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
-      // Corner radius is applied after edges load (no re-layout).
-      useGraphStore.getState().setCornerRadius(data.cornerRadius as never);
-      // Theme is an account-level preference; shared loads keep the viewer's theme.
       useGraphStore.setState({
         dataSource: "shared",
-        localRootPath: (data as { localRootPath?: string | null }).localRootPath ?? null,
-        skipNextAutoLayout: true,
+        localRootPath: data.localRootPath ?? null,
       });
       setHashLoaded(true);
       // Clear hash from address bar
@@ -225,6 +295,69 @@ export function FewerApp() {
     });
   }, [hashLoaded, toast]);
 
+  // Restore the last graph from sessionStorage on mount — unless a share/saved
+  // link hash is present, which loads its own graph and wins over the generic
+  // local cache. Settings are applied separately (useSettingsSync); a graph
+  // load never touches settings, so there's no ordering hazard.
+  useEffect(() => {
+    if (hashLoaded) return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash) { clearHistoryLocal(); return; }
+    const local = loadGraphLocal();
+    if (!local) { clearHistoryLocal(); return; }
+    try {
+      applySnapshot(local.data, { source: local.dataSource ?? "local" });
+      const hist = loadHistoryLocal();
+      if (hist) useGraphStore.setState({ past: hist.past, future: hist.future });
+    } catch {
+      /* corrupt/incompatible cache — start fresh */
+      clearHistoryLocal();
+    }
+  }, [hashLoaded]);
+
+  // Persist the current graph (nodes/edges/dataSource/localRootPath) to
+  // sessionStorage so a reload restores the canvas. Per-tab isolation —
+  // each tab caches its own graph independently. Debounced: dragging nodes
+  // commits a store update per frame, so writes are batched. Empty graph →
+  // saveGraphLocal removes the key (covers Clear canvas).
+  const graphTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const unsub = useGraphStore.subscribe((state, prev) => {
+      if (
+        state.nodes === prev.nodes &&
+        state.edges === prev.edges &&
+        state.dataSource === prev.dataSource &&
+        state.localRootPath === prev.localRootPath
+      ) {
+        return;
+      }
+      if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
+      graphTimerRef.current = setTimeout(() => {
+        const s = useGraphStore.getState();
+        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
+      }, 500);
+    });
+    return () => {
+      if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
+      unsub();
+    };
+  }, []);
+
+  // Persist undo/redo history to sessionStorage so a reload keeps
+  // undo/redo alive. Only fires when past/future actually change
+  // (pushOp, undo, redo, reset) - not per-drag frame.
+  useEffect(() => {
+    const unsub = useGraphStore.subscribe((state, prev) => {
+      if (state.past === prev.past && state.future === prev.future) return;
+      saveHistoryLocal(
+        state.past ?? [],
+        state.future ?? [],
+      );
+    });
+    return unsub;
+  }, []);
+
+
   // Handle OAuth callback query params (?cloud=connected|error)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -250,16 +383,19 @@ export function FewerApp() {
   useEffect(() => {
     const openChild = () => setAddChildOpen(true);
     const openStandalone = () => setAddStandaloneOpen(true);
+    const openParent = () => setAddParentOpen(true);
     const openImportFolder = () => openImportFlow("folder");
     const restartTutorial = () => setTutorialRestartKey((k) => k + 1);
-    window.addEventListener("fewer-add-node", openChild);
-    window.addEventListener("fewer-add-node-standalone", openStandalone);
-    window.addEventListener("fewer-import-folder", openImportFolder);
+    window.addEventListener(FEWER_ADD_NODE, openChild);
+    window.addEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+    window.addEventListener(FEWER_ADD_NODE_PARENT, openParent);
+    window.addEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
     window.addEventListener("fewer-restart-tutorial", restartTutorial);
     return () => {
-      window.removeEventListener("fewer-add-node", openChild);
-      window.removeEventListener("fewer-add-node-standalone", openStandalone);
-      window.removeEventListener("fewer-import-folder", openImportFolder);
+      window.removeEventListener(FEWER_ADD_NODE, openChild);
+      window.removeEventListener(FEWER_ADD_NODE_STANDALONE, openStandalone);
+      window.removeEventListener(FEWER_ADD_NODE_PARENT, openParent);
+      window.removeEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
   }, [openImportFlow]);
@@ -280,9 +416,13 @@ export function FewerApp() {
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
+        {/* Sidebar wrapper — positioned by sidebarSide */}
         <div
           className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
-          style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+          style={{
+            width: sidebarOpen ? sidebarWidth : 0,
+            order: sidebarSide === "right" ? 999 : 0,
+          }}
         >
           <Sidebar
             onOpenDirectory={() => openImportFlow("folder")}
@@ -291,12 +431,17 @@ export function FewerApp() {
           {sidebarOpen && (
             <div
               onMouseDown={startResize}
-              className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors"
+              className={cn(
+                "absolute top-0 z-10 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border/80 transition-colors",
+                sidebarSide === "left" ? "right-0" : "left-0",
+              )}
               title="Drag to resize"
               aria-label="Resize sidebar"
             />
           )}
         </div>
+
+        {/* Mobile sidebar overlay */}
         <div
           className={cn(
             "sm:hidden fixed inset-0 z-40 flex transition-[opacity,visibility] duration-300 ease-out",
@@ -322,17 +467,22 @@ export function FewerApp() {
           />
           </div>
         </div>
-        <main id="main-content" className="relative min-w-0 flex-1 min-h-0">
-          <ErrorBoundary>
-            <GraphCanvas onOpenImport={() => openImportFlow("folder")} onLoadSample={handleLoadSample} />
-          </ErrorBoundary>
-          <BreadcrumbBar />
-          <SearchPanel />
-        </main>
+
+        {/* Tree-based layout: all areas including canvas */}
+        <TreeRenderer
+          tree={panelTree}
+          onOpenImport={() => openImportFlow("folder")}
+          onLoadSample={handleLoadSample}
+        />
       </div>
 
+      {/* Drag-to-dock overlay (ghost + edge strips) */}
+      <SectionDragLayer />
+
       <ExportPanel />
+      <SearchPanel />
       <BatchRenameDialog />
+      <BatchTagDialog />
       <ParentPickerDialog />
       <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
       <BugReportDialog />
@@ -341,15 +491,16 @@ export function FewerApp() {
       <SettingsDialog />
       <ThemeEditorDialog />
       <ShareDialog />
-      {/* Mounted only while open — shell hooks (useAuth/useWatch) must not
-          fire at app startup when the import flow is never used. */}
-      {importFlowOpen && (
-        <ImportFlowDialog
-          open={importFlowOpen}
-          onOpenChange={setImportFlowOpen}
-          initialOrigin={importFlowOrigin}
-        />
-      )}
+    {/* Lazy-mount once, then keep alive across minimize so the dock pill can render.
+        Shell hooks (useAuth/useWatch) still defer until first open. */}
+    {(importFlowMounted || importFlowOpen) && (
+      <ImportFlowDialog
+        open={importFlowOpen}
+        onOpenChange={setImportFlowOpen}
+        initialOrigin={importFlowOrigin}
+        onFirstOpen={() => setImportFlowMounted(true)}
+      />
+    )}
 
       <AddNodeDialog
         open={addChildOpen}
@@ -360,6 +511,11 @@ export function FewerApp() {
         open={addStandaloneOpen}
         onOpenChange={setAddStandaloneOpen}
         mode="standalone"
+      />
+      <AddNodeDialog
+        open={addParentOpen}
+        onOpenChange={setAddParentOpen}
+        mode="parent"
       />
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />

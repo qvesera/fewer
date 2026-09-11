@@ -38,7 +38,7 @@ function setup() {
     edge("c", "f2"),
     edge("c", "f3"),
   ];
-  useGraphStore.setState({ nodes, edges, searchQuery: "", categoryFilter: null });
+  useGraphStore.setState({ nodes, edges, searchQuery: "", categoryFilter: [] });
 }
 
 describe("parentNodesTo — move to ancestor folders", () => {

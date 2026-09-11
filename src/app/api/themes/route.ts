@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { isDangerousText } from "@/lib/fewer/textValidation";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
 /**
  * Authed CRUD for a user's saved custom themes. Uses the session cookie so RLS
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { supabase, user } = authed;
 
+  // Saved (cloud-synced) themes are a Pro feature (per-theme storage).
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (limits.savedThemes === false) {
+    return NextResponse.json(
+      { error: "Saved themes are a Pro feature. See /docs/plans.", code: "plan_limit" },
+      { status: 403 },
+    );
+  }
   let body: { name?: string; theme?: unknown; id?: string };
   try {
     body = await request.json();

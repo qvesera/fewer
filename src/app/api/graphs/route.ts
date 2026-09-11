@@ -3,6 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
+import { countOwned, limitsFor, getUserPlan, overLimit } from "@/lib/fewer/plans";
+
+/** Maximum size (in JSON-stringified characters) for a saved graph payload. */
+const MAX_SAVED_GRAPH_CHARS = 500_000;
 
 /**
  * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
@@ -81,6 +85,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
   }
 
+  // Guard: reject payloads that exceed the size limit to protect DB/storage.
+  const dataChars = JSON.stringify(body.data).length;
+  if (dataChars > MAX_SAVED_GRAPH_CHARS) {
+    return NextResponse.json(
+      { error: `Graph data too large (${Math.round(dataChars / 1000)}k chars, max ${MAX_SAVED_GRAPH_CHARS / 1000}k). Try removing unused nodes or tags.`, code: "plan_limit" },
+      { status: 403 },
+    );
+  }
+
   if (body.id) {
     // Upsert: update existing saved graph (owner-only via RLS).
     const { data, error } = await supabase
@@ -92,8 +105,28 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
-    await recordVersion(supabase, user.id, data.id, body.data);
+    // Retention window is per-plan (free 30 days, pro/team 1 year -- see plans.ts).
+    const updateLimits = limitsFor(await getUserPlan(supabase, user.id));
+    if (updateLimits.historyDays > 0) {
+      await recordVersion(supabase, user.id, data.id, body.data, updateLimits.historyDays);
+    }
     return NextResponse.json({ graph: data });
+  }
+
+  // Plan cap: creating a new saved graph is metered (updating an existing one
+  // isn't). Upserts to an existing id never reach this branch.
+  const limits = limitsFor(await getUserPlan(supabase, user.id));
+  if (
+    limits.savedGraphs !== Infinity &&
+    overLimit(await countOwned(supabase, "saved_graphs", user.id), limits.savedGraphs)
+  ) {
+    return NextResponse.json(
+      {
+        error: `Free plan saves up to ${limits.savedGraphs} graphs. See /docs/plans for the tier table.`,
+        code: "plan_limit",
+      },
+      { status: 403 },
+    );
   }
 
   const { data, error } = await supabase
@@ -103,6 +136,9 @@ export async function POST(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   // Best-effort history snapshot; never blocks the save on failure.
-  await recordVersion(supabase, user.id, data.id, body.data);
+  // Retention window is per-plan (free 30 days, pro/team 1 year).
+  if (limits.historyDays > 0) {
+    await recordVersion(supabase, user.id, data.id, body.data, limits.historyDays);
+  }
   return NextResponse.json({ graph: data });
 }

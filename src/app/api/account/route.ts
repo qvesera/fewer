@@ -2,19 +2,20 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { scheduledDeletionIso } from "@/lib/fewer/accountDeletion";
 
 /**
  * DELETE /api/account
- * Permanently deletes the signed-in user's account and all related data.
+ * Schedules the signed-in user's account for deletion.
  *
  * How it works:
  *  1. Resolve the user from the session cookie (403 if signed out).
- *  2. Using the service-role client (bypasses RLS), delete the user's owned
- *     `shared_graphs` rows. `share_invites` rows cascade on `shared_graphs`.
- *     (`shared_graphs.owner_id` has no FK, so they would otherwise orphan.)
- *  3. Delete the auth user itself. `saved_graphs`, `watched_indexes`, and
- *     `cloud_connections` all reference `auth.users` with `on delete cascade`,
- *     so those are removed automatically.
+ *  2. Using the service-role client (bypasses RLS), stamp a
+ *     `scheduled_deletion` timestamp (now + 7 days) into the user's
+ *     `app_metadata`. Nothing is deleted yet — see
+ *     src/lib/fewer/accountDeletion.ts for the purge semantics.
+ *  3. The nightly purge job deletes the user's data when the window lapses;
+ *     signing in again before that clears the marker (recovery path).
  *
  * Returns 204 on success. The client signs the user out afterwards.
  */
@@ -67,19 +68,12 @@ export async function DELETE() {
   }
 
   try {
-    // 1. Clean up owned shared graphs (cascades to share_invites).
-    const { error: shareError } = await service
-      .from("shared_graphs")
-      .delete()
-      .eq("owner_id", user.id);
-    if (shareError) {
-      return NextResponse.json({ error: shareError.message }, { status: 500 });
-    }
-
-    // 2. Delete the auth user (cascades saved_graphs, watched_indexes, cloud_connections).
-    const { error: deleteError } = await service.auth.admin.deleteUser(user.id);
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    // Schedule the deletion; the nightly purge job does the actual cleanup.
+    const { error } = await service.auth.admin.updateUserById(user.id, {
+      app_metadata: { scheduled_deletion: scheduledDeletionIso() },
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return new NextResponse(null, { status: 204 });

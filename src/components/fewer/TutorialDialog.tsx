@@ -12,9 +12,12 @@ import {
   Check,
   X,
   BookOpen,
+  Minus,
 } from "lucide-react";
+import { MinimizedDialogPill, useDialogDrag } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
+import { useDarkBackground } from "@/hooks/use-dark-background";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
 import { useDevice } from "@/hooks/use-device";
@@ -151,28 +154,6 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Surface polarity: is the page background dark?                            */
-/* -------------------------------------------------------------------------- */
-
-/** The inverted overlay can't rely on the `dark` class — custom themes strip
- *  both `light` and `dark` from <html> (see themeSlice.setThemeMode), so a
- *  custom dark theme looks "light" to Tailwind. Read the actual source of
- *  truth: themeMode, plus the custom background's luminance when custom.
- *  ponytail: ignores background opacity — a translucent dark bg still reads
- *  dark; if that ever breaks, compute against the composited canvas color. */
-function useDarkBackground() {
-  const themeMode = useGraphStore((s) => s.themeMode);
-  const customTheme = useGraphStore((s) => s.customTheme);
-  if (themeMode === "dark") return true;
-  if (themeMode === "light") return false;
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(customTheme.background.color);
-  if (!m) return true;
-  const n = parseInt(m[1], 16);
-  const lum = ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114;
-  return lum <= 128;
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Main Tutorial Dialog                                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -181,6 +162,8 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   const [open, setOpen] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
   const [mobileStep, setMobileStep] = useState(0);
+  const [minimized, setMinimized] = useState(false);
+  const { ref, offset, onDragStart } = useDialogDrag();
 
   const {
     tutorialBeginnerDone,
@@ -208,6 +191,11 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       demoPlayedRef.current = false;
     }
   }, [restartKey, resetTutorial]);
+
+  // Un-minimize on any genuine open transition (e.g. the restart button reopens).
+  useEffect(() => {
+    if (open) setMinimized(false);
+  }, [open]);
 
   // Auto-detect beginner steps
   useEffect(() => {
@@ -260,9 +248,25 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     }
   };
 
-  // If dismissed or local closed, show nothing
-  if (!open || (useGraphStore.getState().tutorialDismissed && restartKey === 0)) {
+  // If dismissed or local closed (and not minimized — pill renders below), show nothing.
+  if (!open && !minimized) {
     return null;
+  }
+  if (useGraphStore.getState().tutorialDismissed && restartKey === 0) {
+    return null;
+  }
+
+  /* ── Minimized ── */
+  if (minimized) {
+    return (
+      <Portal>
+        <MinimizedDialogPill
+          icon={<BookOpen className="h-3.5 w-3.5" />}
+          label="Tutorial"
+          onRestore={() => setMinimized(false)}
+        />
+      </Portal>
+    );
   }
 
   /* ── Welcome screen ── */
@@ -323,15 +327,36 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
           "fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] sm:w-[400px] rounded-2xl border border-primary/50 p-4 shadow-2xl shadow-primary/25 backdrop-blur-xl animate-[tutorial-pop-in_0.45s_cubic-bezier(0.16,1,0.3,1),tutorial-attention_1.2s_ease-in-out_0.6s_2]",
           darkCard ? "bg-zinc-950/95 text-zinc-100" : "bg-white/95 text-zinc-900",
         )}
-        style={{ zIndex: 2147483647, pointerEvents: "auto" }}
+        style={{
+          zIndex: 2147483647,
+          pointerEvents: "auto",
+          transform: offset ? `translate(${offset.x}px, ${offset.y}px)` : undefined,
+        }}
+        ref={ref}
       >
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-grab touch-none select-none active:cursor-grabbing"
+            onPointerDown={onDragStart}
+          >
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15">
               <BookOpen className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-xs font-bold">Tutorial</span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              // minimize = close + remember: drop open so a later reopen
+              // (restart button) is a real false->true transition.
+              setOpen(false)
+              setMinimized(true)
+            }}
+            className="rounded p-1 text-current opacity-40 transition-opacity hover:opacity-100"
+            title="Minimize"
+          >
+            <Minus className="h-3 w-3" />
+          </button>
           <button
             type="button"
             onClick={handleDismiss}

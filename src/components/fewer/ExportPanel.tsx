@@ -35,10 +35,10 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
@@ -102,8 +102,32 @@ export function ExportPanel() {
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+  // Guests always export with the fewer watermark (see /docs/plans); the
+  // toggle stays functional only for signed-in users.
+  const isGuest = authLoading ? false : !user;
+  const includeBranding = isGuest || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // A lone file node has no descendants, so for non-image formats "export
+  // selection" would export exactly one node — block it and hide the option
+  // (folders and multi-node selections still qualify). Image formats (PNG/SVG)
+  // still allow exporting a single file as an image.
+  const isImageFormat =
+    settings.format === "png" || settings.format === "svg";
+  const singleFileSelected =
+    selectedNodeIds.length === 1 &&
+    !isImageFormat &&
+    nodes.find((n) => n.id === selectedNodeIds[0])?.data?.type === "file";
+
+  // If the toggle was on and the selection collapses to a single file node,
+  // switch it off so the export falls back to the full canvas.
+  useEffect(() => {
+    if (exportSelected && singleFileSelected) {
+      setExportSelected(false);
+    }
+  }, [exportSelected, singleFileSelected]);
 
   const formats = advancedModeEnabled
     ? [...BASIC_FORMATS, ...ADVANCED_FORMATS]
@@ -121,7 +145,7 @@ export function ExportPanel() {
   }, [advancedModeEnabled, settings.format, setSettings]);
 
   const { exportNodes, exportEdges } = useMemo(() => {
-    if (!exportSelected || selectedNodeIds.length === 0) {
+    if (!exportSelected || selectedNodeIds.length === 0 || singleFileSelected) {
       return { exportNodes: nodes, exportEdges: edges };
     }
     const subgraphIds = new Set<string>();
@@ -137,19 +161,19 @@ export function ExportPanel() {
       (e) => subgraphIds.has(e.source) && subgraphIds.has(e.target),
     );
     return { exportNodes: subNodes, exportEdges: subEdges };
-  }, [exportSelected, selectedNodeIds, nodes, edges]);
+  }, [exportSelected, selectedNodeIds, nodes, edges, singleFileSelected]);
 
   const handleExport = () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
 
     if (settings.format === "script") {
-      exportDirectoryScript(nodesToExport, edgesToExport, settings.includeBranding);
+      exportDirectoryScript(nodesToExport, edgesToExport, includeBranding);
     } else if (settings.format === "tree") {
-      exportDirectoryTree(nodesToExport, edgesToExport, settings.includeBranding);
+      exportDirectoryTree(nodesToExport, edgesToExport, includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, settings, stats, {
+      exportGraph(nodesToExport, edgesToExport, { ...settings, includeBranding }, stats, {
         selectedIds: selectedNodeIds,
         hiddenIds,
         nodeWidth,
@@ -166,7 +190,7 @@ export function ExportPanel() {
   };
 
   const isRaster = settings.format === "png";
-  const canExportSelected = selectedNodeIds.length > 0;
+  const canExportSelected = selectedNodeIds.length > 0 && !singleFileSelected;
 
   // SVG/PNG render only the non-hidden subset of the export selection (hidden
   // nodes are filtered out by buildGraphSVG). If every exportable node is
@@ -176,7 +200,6 @@ export function ExportPanel() {
     () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
     [exportNodes, hiddenSet],
   );
-  const isImageFormat = settings.format === "png" || settings.format === "svg";
   const imageBlocked = isImageFormat && imageExportableCount === 0;
 
   return (
@@ -226,8 +249,7 @@ export function ExportPanel() {
                         {f.desc}
                       </div>
                     </div>
-                    <TooltipProvider>
-                      <Tooltip>
+                    <Tooltip>
                         <TooltipTrigger asChild>
                           <span 
                             onClick={(e) => e.stopPropagation()} 
@@ -240,7 +262,6 @@ export function ExportPanel() {
                           {f.info}
                         </TooltipContent>
                       </Tooltip>
-                    </TooltipProvider>
                   </button>
                 );
               })}
@@ -274,35 +295,40 @@ export function ExportPanel() {
             Generate Share Link
           </Button>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-            <div className="flex items-center gap-3 min-w-0">
-              <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />
-              <div className="min-w-0">
-                <Label className="text-xs font-semibold">Export Selected</Label>
-                <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
-                  {canExportSelected
-                    ? `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} + descendants`
-                    : "Select nodes first"}
-                </p>
+          {!singleFileSelected && (
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />
+                <div className="min-w-0">
+                  <Label className="text-xs font-semibold">Export Selected</Label>
+                  <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
+                    {canExportSelected
+                      ? `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} + descendants`
+                      : "Select nodes first"}
+                  </p>
+                </div>
               </div>
+              <Switch
+                checked={exportSelected && canExportSelected}
+                onCheckedChange={(v) => setExportSelected(v)}
+                disabled={!canExportSelected}
+              />
             </div>
-            <Switch
-              checked={exportSelected && canExportSelected}
-              onCheckedChange={(v) => setExportSelected(v)}
-              disabled={!canExportSelected}
-            />
-          </div>
+          )}
 
           <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
             <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">Include &quot;Created with fewer&quot; credit</Label>
+              <Label className="text-xs font-semibold">Include fewer branding</Label>
               <p className="text-xs text-muted-foreground">
-                Adds a link/watermark pointing back to fewer.
+                {isGuest
+                  ? "Signed out — exports carry the fewer watermark until you sign in."
+                  : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
               </p>
             </div>
             <Switch
-              checked={settings.includeBranding}
+              checked={includeBranding}
               onCheckedChange={(v) => setSettings({ includeBranding: v })}
+              disabled={isGuest}
             />
           </div>
 
@@ -364,7 +390,7 @@ export function ExportPanel() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-[collapsible-down_300ms_ease-out] data-[state=closed]:animate-[collapsible-up_300ms_ease-out] pt-2">
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-                  <span>Nodes</span>
+                  <span>Cards</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
                       ? `${exportNodes.length} nodes`

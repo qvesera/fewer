@@ -12,6 +12,19 @@ import { VENDORED_DIRS } from "./importOptions";
  * the local dev server read the folder directly. Semantics mirror
  * buildTreeFromHandle so a drag import behaves exactly like a picker import.
  */
+/** Extension filter for files, mirroring buildTreeFromHandle: files always pass
+ *  the filter when includeFiles is off (they get marked hidden downstream) or
+ *  when no extensions are configured. */
+function isAllowedFile(fileName: string, options: ImportOptions): boolean {
+  if (!options.includeFiles || options.extensions.length === 0) return true;
+  const ext = fileName.split(".").pop() ?? "";
+  const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
+  const allowedExts = options.caseSensitiveExtensions
+    ? options.extensions
+    : options.extensions.map((e) => e.toLowerCase());
+  return allowedExts.includes(extToCompare);
+}
+
 export async function buildTreeFromPath(
   dirPath: string,
   depth: number,
@@ -27,6 +40,8 @@ export async function buildTreeFromPath(
   if (shouldRecurse) {
     const dirents = await fs.readdir(dirPath, { withFileTypes: true });
 
+    const dirs: string[] = [];
+    const files: { name: string; path: string }[] = [];
     for (const dirent of dirents) {
       // Skip hidden files/folders if not included
       if (!options.includeHidden && dirent.name.startsWith(".")) continue;
@@ -38,35 +53,35 @@ export async function buildTreeFromPath(
       // links are common in repos, e.g. bin → res/…/bin).
       if (dirent.isSymbolicLink()) continue;
 
-      const fullPath = path.join(dirPath, dirent.name);
-
       if (dirent.isDirectory()) {
-        const childTree = await buildTreeFromPath(fullPath, depth + 1, options);
-        // Same empty-folder semantics as buildTreeFromHandle.
-        if (options.skipEmptyFolders && !childTree.children?.length) continue;
-        children.push(childTree);
-      } else if (dirent.isFile()) {
-        // Files are always included (as buildTreeFromHandle does) even when
-        // includeFiles is false — treeToGraph marks them hidden instead.
-        if (options.includeFiles && options.extensions.length > 0) {
-          const ext = dirent.name.split(".").pop() ?? "";
-          const extToCompare = options.caseSensitiveExtensions
-            ? ext
-            : ext.toLowerCase();
-          const allowedExts = options.caseSensitiveExtensions
-            ? options.extensions
-            : options.extensions.map((e) => e.toLowerCase());
-          if (!allowedExts.includes(extToCompare)) continue;
-        }
-        let size = 0;
-        try {
-          const stat = await fs.stat(fullPath);
-          size = stat.size;
-        } catch {
-          size = 0;
-        }
-        children.push({ name: dirent.name, type: "file", size });
+        dirs.push(path.join(dirPath, dirent.name));
+      } else if (dirent.isFile() && isAllowedFile(dirent.name, options)) {
+        files.push({ name: dirent.name, path: path.join(dirPath, dirent.name) });
       }
+    }
+
+    // Filesystem calls are data-independent — parallelize the recursion and the
+    // stats instead of awaiting each entry serially.
+    const [childTrees, fileSizes] = await Promise.all([
+      Promise.all(dirs.map((d) => buildTreeFromPath(d, depth + 1, options))),
+      Promise.all(
+        files.map(async (f) => {
+          try {
+            return (await fs.stat(f.path)).size;
+          } catch {
+            return 0;
+          }
+        }),
+      ),
+    ]);
+
+    for (let i = 0; i < childTrees.length; i++) {
+      // Same empty-folder semantics as buildTreeFromHandle.
+      if (options.skipEmptyFolders && !childTrees[i]!.children?.length) continue;
+      children.push(childTrees[i]!);
+    }
+    for (let i = 0; i < files.length; i++) {
+      children.push({ name: files[i]!.name, type: "file", size: fileSizes[i]! });
     }
   }
 

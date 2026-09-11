@@ -18,6 +18,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
 import { graphDataEqual } from "@/lib/fewer/versions";
+import { FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
@@ -43,8 +44,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -162,8 +162,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   // Alt+S (KeyboardShortcuts) opens the same save dialog as the button.
   useEffect(() => {
     const trigger = () => openSaveDialog();
-    window.addEventListener("fewer-save-graph", trigger);
-    return () => window.removeEventListener("fewer-save-graph", trigger);
+    window.addEventListener(FEWER_SAVE_GRAPH, trigger);
+    return () => window.removeEventListener(FEWER_SAVE_GRAPH, trigger);
   }, [user, nodes.length, onRequireAuth, toast]);
 
   const handleLoad = (graph: SavedGraph) => {
@@ -254,7 +254,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         onClick={openSaveDialog}
       >
         <Save className="h-4 w-4 shrink-0" />
-        Save Graph
+        Save
       </Button>
 
       {/* List */}
@@ -391,11 +391,11 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
       {/* Save dialog */}
       <Dialog open={savingOpen} onOpenChange={setSavingOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent dialogTitle="Save" dialogIcon={<Save className="h-3.5 w-3.5" />} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Save className="h-4 w-4 text-primary" />
-              Save Graph
+                <Save className="h-4 w-4 text-primary" />
+              Save
             </DialogTitle>
             <DialogDescription>
               Save the current graph to your account.
@@ -643,7 +643,7 @@ function ShareGraphDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent minimizeCloses={false} dialogTitle="Share" dialogIcon={<Link2 className="h-3.5 w-3.5 text-purple-500" />} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-purple-500" />

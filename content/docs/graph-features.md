@@ -11,7 +11,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 - Pan (drag empty space)
 - Zoom (scroll wheel or +/- keys)
-- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming
+- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming with Ctrl/⌘+scroll to pan vertically (trackpad pinch-zoom always works)
 - Fit view (Space key)
 - Minimap (bottom-right, configurable)
 - Controls (zoom in/out, fit view buttons)
@@ -26,7 +26,7 @@ Right-click empty canvas space to open quick actions:
 - **Zoom In / Zoom Out**
 - **Delete Edge**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Nodes**: reveal hidden nodes (Power User mode)
+- **Show All Cards**: reveal hidden nodes (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
 ## Node Types
@@ -58,6 +58,15 @@ Select a node to see resize handles:
 
 **Ctrl+click** a node's input or output handle removes all edges connected to that handle.
 
+### Build the Tree by Dragging Handles
+
+Every node has an **input handle** (entry, on the left/top) and an **output handle** (exit, on the right/bottom).
+
+- **Drag from a folder's output handle** and release over empty canvas → the **Add child card** dialog opens, letting you create a folder or file inside that folder.
+- **Drag from any node's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the node's new parent. The new parent is always a folder:
+  - If the node is already rooted elsewhere, the folder is inserted between the node and its current parent.
+  - If the node has no parent yet, the folder becomes the node's new root parent.
+
 ## Multi-Select
 
 - **Ctrl+A**: select all visible nodes
@@ -78,7 +87,7 @@ Fewer ships a single custom **Reingold-Tilford tree layout** with contour matchi
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode)
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom multiplier; it takes effect on the next Rearrange
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
@@ -92,9 +101,37 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 3. **Bottom → Top** (limited to advanced mode)
 4. **Right → Left** (limited to advanced mode)
 
+## Sibling Sort
+
+Children within each folder are drawn in a chosen order. The sort applies recursively at every level, so folders and files are laid out consistently across the whole graph. Change it in **Settings → Appearance → Sibling Sort**:
+
+- **Order by**:
+  - **Name** — alphabetical by label (default, A→Z)
+  - **Size** — ascending/descending by recorded node size. Folders whose size wasn't reported on import sort last.
+  - **Type** — folders first, then files grouped by extension. Extension order inverts with direction; folders stay first either way.
+- **Direction**: Ascending / Descending (only inverts the primary key — Name and Size both sort unknown/empty values last in either direction, and Type always keeps folders first).
+
+Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
+
+## Tags
+
+Tags are named, colored labels you can attach to any folder or file card.
+
+**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **New tag** row that creates one and assigns it in one step. A card can carry any number of tags; assigned tags also appear as colored dots on the card.
+
+**The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
+
+**Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
+
+**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — a card stays bright when it carries at least one selected tag (OR semantics); everything else dims, exactly like a text search. Clear with the ✕.
+
+**Sort by tag**: **Settings → Appearance → Sibling Sort → Order by: Tag** orders siblings by the alphabetical label of their first tag; untagged cards always trail.
+
+Tags are part of the graph data: they ride along with saved graphs, share links, version history, and the local reload cache.
+
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Nodes panel. Adjust in Settings → Advanced (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
 
 ## Edge Styles
 
@@ -146,11 +183,11 @@ Shows selected node's full path. Click any segment to navigate to that ancestor.
 
 ## Auto-hide Large Folders
 
-Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Nodes** section as a nested tree.
+Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Cards** section as a nested tree.
 
 **Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
-## Hidden Nodes Panel
+## Hidden Cards Panel
 
 Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
 
@@ -166,13 +203,14 @@ Access via sidebar. Shows all hidden nodes grouped by their visible parent folde
 Fuzzy search across filenames, paths, and extensions.
 
 - **Click result** → zoom to node
-- **Hidden matches** appear with badge, click to show & zoom
+- **Hidden matches** appear with badge; clicking reveals the match **and all its hidden ancestors** up to root, then zooms
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
-- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Nodes, Graph Analytics
+- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Cards, Graph Analytics
 
 ## Stats Panel
 

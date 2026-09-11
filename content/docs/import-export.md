@@ -48,18 +48,18 @@ How deep to scan the directory tree. `0` = no limit.
 
 ### Max Display Depth
 
-How deep to display after import. Deeper nodes go to the Hidden Nodes panel.
+How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 
 ### Advanced Options (Power User mode)
 
-| Option | Default | Description |
-| ------ | ------- | ----------- |
-| Include Hidden Files | Off | Include dotfiles (`.gitignore`, `.env`, etc.) |
-| Include dependency &amp; build folders | Off | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
-| Skip Empty Folders | On | Hide folders with no files inside |
-| Show Files on Canvas | On | Show file nodes. Off = directories only |
-| File Extensions | None | Comma-separated whitelist (e.g. `ts, tsx, js`) |
-| Case-Sensitive Match | Off | Match extensions case-sensitively |
+| Option                                 | Default | Description                                        |
+| -------------------------------------- | ------- | -------------------------------------------------- |
+| Include Hidden Files                   | Off     | Include dotfiles (`.gitignore`, `.env`, etc.)      |
+| Include dependency &amp; build folders | Off     | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
+| Skip Empty Folders                     | On      | Hide folders with no files inside                  |
+| Show Files on Canvas                   | On      | Show file nodes. Off = directories only            |
+| File Extensions                        | None    | Comma-separated whitelist (e.g. `ts, tsx, js`)     |
+| Case-Sensitive Match                   | Off     | Match extensions case-sensitively                  |
 
 ## Import from URL
 
