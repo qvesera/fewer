@@ -35,7 +35,7 @@ async function sharePlanError(
   const planLimits = limitsFor(await getUserPlan(supabase, userId));
   if (payloadChars > SHARE_FREE_MAX_CHARS && planLimits.largeShareLinks === false) {
     return {
-      error: "This graph is too large to share on the Free plan -- short links for large payloads are Pro. See /docs/plans.",
+      error: "This graph is too large to share on the Free plan -- short links for large payloads are Pro.",
       status: 403,
       code: "plan_limit",
     };

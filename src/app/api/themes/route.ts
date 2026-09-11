@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const limits = limitsFor(await getUserPlan(supabase, user.id));
   if (limits.savedThemes === false) {
     return NextResponse.json(
-      { error: "Saved themes are a Pro feature. See /docs/plans.", code: "plan_limit" },
+      { error: "Saved themes are a Pro feature.", code: "plan_limit" },
       { status: 403 },
     );
   }
