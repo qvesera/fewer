@@ -54,7 +54,7 @@ export function ShareDialog() {
       return;
     }
     // Guests and this graph are too big for the encoded hash — the DB short
-    // link requires an account (guest cap is < 2,000 chars, see /docs/plans).
+    // link requires an account (guest cap is < 2,000 chars).
     if (isGuest) {
       setBuilding(false);
       toast({

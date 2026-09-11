@@ -103,8 +103,8 @@ export function ExportPanel() {
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  // Guests always export with the fewer watermark (see /docs/plans); the
-  // toggle stays functional only for signed-in users.
+  // Guests always export with the fewer watermark; the toggle stays functional
+  // only for signed-in users.
   const isGuest = authLoading ? false : !user;
   const includeBranding = isGuest || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);

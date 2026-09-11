@@ -379,7 +379,7 @@ function AccountTab() {
                 <span className="text-[11px] text-muted-foreground/70">
                   {billingEnabledUi && plan !== "free"
                     ? "Update card, view invoices, or cancel anytime"
-                    : <>See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a> for the tier table</>}
+                    : "Tier limits apply to saved graphs, history, watches, and sharing"}
                 </span>
               </div>
             </div>
@@ -400,7 +400,7 @@ function AccountTab() {
                   ? "Team is managed by your organization."
                   : plan === "pro"
                     ? "Pro is enabled for this account."
-                    : <>Self-serve upgrades are currently off. See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a>.</>}
+                    : "Self-serve upgrades are currently off."}
               </span>
             )}
           </div>

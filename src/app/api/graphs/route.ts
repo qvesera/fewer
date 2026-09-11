@@ -122,7 +122,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error: `Free plan saves up to ${limits.savedGraphs} graphs. See /docs/plans for the tier table.`,
+        error: `Free plan saves up to ${limits.savedGraphs} graphs.`,
         code: "plan_limit",
       },
       { status: 403 },
