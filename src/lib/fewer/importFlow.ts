@@ -123,3 +123,13 @@ export function sourceLabel(source: OriginSource): string {
       return source.name || source.ref;
   }
 }
+
+/** Shared catch tail for the step-3 import actions: normalize a thrown error
+ *  into a failed ImportActionResult. */
+export function importFailure(err: unknown, title = "Import failed"): ImportActionResult {
+  return {
+    ok: false,
+    title,
+    error: err instanceof Error ? err.message : "Unknown error",
+  };
+}
