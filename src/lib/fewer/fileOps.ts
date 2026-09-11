@@ -4,6 +4,28 @@ import { fsHandleStore } from "./types";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 import { useGraphStore } from "@/store/graphStore";
 import { isLocalClient } from "./isLocalClient";
+import { nodeAbsolutePath } from "./filePaths";
+import {
+  RENDERABLE_PREFIXES,
+  RENDERABLE_TYPES,
+  RENDERABLE_EXT,
+  DOWNLOAD_TYPES,
+  isBrowserRenderable,
+  stripMimeParams,
+} from "./fileRender";
+
+// Re-export pure helpers (filePaths.ts, fileRender.ts) so existing callers
+// importing from fileOps keep working while the logic itself is testable
+// without the File System Access API or DOM.
+export {
+  nodeAbsolutePath,
+  RENDERABLE_PREFIXES,
+  RENDERABLE_TYPES,
+  RENDERABLE_EXT,
+  DOWNLOAD_TYPES,
+  isBrowserRenderable,
+  stripMimeParams,
+};
 
 /**
  * Real file system operations using the File System Access API.
@@ -42,27 +64,26 @@ export async function moveFile(
 ): Promise<FileSystemFileHandle> {
   const name = newName || sourceHandle.name;
 
-  // If same directory, just rename
+  // Same directory, no rename requested: nothing to do.
   if (sourceDir === targetDir && !newName) {
-    return sourceHandle; // nothing to do
+    return sourceHandle;
   }
 
-  if (sourceDir === targetDir && newName) {
-    // Use move() for rename within same dir (if supported)
-    const moveable = sourceHandle as unknown as {
-      move?: (name: string) => Promise<void>;
-    };
-    if (typeof moveable.move === "function") {
+  // Same directory with a new name: try the move() primitive first, fall back
+  // to copy + delete below on failure or unsupported environments.
+  if (sourceDir === targetDir) {
+    const movable = sourceHandle as unknown as { move?: (name: string) => Promise<void> };
+    if (typeof movable.move === "function") {
       try {
-        await moveable.move!(newName);
+        await movable.move!(name);
         return sourceHandle;
       } catch {
-        // Fallback to copy + delete
+        // Fallback to copy + delete below.
       }
     }
   }
 
-  // Copy to target, then delete source
+  // Move across directories (or same-dir rename fallback): copy then delete source.
   const newHandle = await copyFile(sourceHandle, targetDir, name);
   await sourceDir.removeEntry(sourceHandle.name);
   return newHandle;
@@ -149,58 +170,6 @@ export async function openFile(handle: FileSystemFileHandle): Promise<void> {
   window.open(url, "_blank");
   // Revoke after 60 seconds to allow viewing
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-/** Types browsers can render inline — opening a live handle for these in a new
- *  tab is fine. Everything else should go through the OS default app, or we'd
- *  silently trigger a download for the unsupported type. */
-const RENDERABLE_PREFIXES = ["image/", "text/", "video/", "audio/", "font/"];
-const RENDERABLE_TYPES = new Set([
-  "application/pdf",
-  "application/json",
-  "application/xml",
-  "application/javascript",
-  "application/x-javascript",
-  "application/svg+xml",
-]);
-const RENDERABLE_EXT =
-  /\.(?:png|jpe?g|gif|webp|avif|svg|bmp|ico|pdf|txt|md|json|xml|html?|css|js|mjs|mp3|wav|ogg|oga|m4a|flac|mp4|webm|ogv|mov|ttf|otf|woff2?)$/i;
-
-/** These look renderable (MIME starts with text/) but browsers simply download
- *  them on navigation. Send them to the OS default app instead. */
-const DOWNLOAD_TYPES = new Set([
-  "text/csv",
-  "application/csv",
-  "text/tab-separated-values",
-  "application/vnd.ms-excel",
-]);
-
-function isBrowserRenderable(name: string, mime?: string): boolean {
-  const type = (mime || "").trim().toLowerCase().split(";")[0];
-  if (DOWNLOAD_TYPES.has(type) || /\.(?:csv|tsv|tab)$/i.test(name)) return false;
-  if (RENDERABLE_PREFIXES.some((p) => type.startsWith(p))) return true;
-  if (RENDERABLE_TYPES.has(type)) return true;
-  return RENDERABLE_EXT.test(name);
-}
-
-/**
- * Absolute path of a node on the dev machine, given the graph's saved/known
- * absolute root folder (`localRootPath`) and the root node's relative
- * `data.path` (which is just the root folder's name). Returns null when the
- * node doesn't live under the root (detached/renamed) — callers then fall back
- * to the server's path-search.
- */
-export function nodeAbsolutePath(
-  nodePath: string | undefined,
-  rootPath: string | undefined,
-  localRootPath: string | null | undefined,
-): string | null {
-  if (!nodePath || !rootPath || !localRootPath) return null;
-  if (nodePath === rootPath) return localRootPath;
-  if (nodePath.startsWith(`${rootPath}/`)) {
-    return `${localRootPath}/${nodePath.slice(rootPath.length + 1)}`;
-  }
-  return null;
 }
 
 /**
@@ -383,12 +352,14 @@ export async function entryExists(
     await dirHandle.getFileHandle(name);
     return "file";
   } catch {
-    try {
-      await dirHandle.getDirectoryHandle(name);
-      return "directory";
-    } catch {
-      return null;
-    }
+    // Not a file — try directory before giving up.
+  }
+
+  try {
+    await dirHandle.getDirectoryHandle(name);
+    return "directory";
+  } catch {
+    return null;
   }
 }
 

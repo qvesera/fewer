@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
 - Batch selection context menu now opens at cursor position instead of top-left corner of screen
 - Persist undo/redo history across page reload via sessionStorage
+- Split fileOps.ts into testable filePaths.ts + fileRender.ts; flatten nested moveFile/entryExists; add characterization tests
 
 ### Added
 
