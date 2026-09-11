@@ -1,0 +1,212 @@
+name: Migrations
+
+# Verifies migration files on every PR, then applies pending migrations to the
+# linked Supabase project after a merge.
+#
+#   pull_request -> verify   : static + git checks (no secrets needed)
+#   push to dev  -> apply-dev : fewer-dev project (environment: development)
+#   push to main -> apply-prod: production project (environment: production)
+#   workflow_dispatch        : one-off baseline repair (see AGENTS.md)
+#
+# Required secrets / variables (Settings -> Secrets and variables -> Actions):
+#   secrets.SUPABASE_ACCESS_TOKEN      personal access token for `supabase link`
+#   secrets.SUPABASE_DB_PASSWORD_DEV   dev database password
+#   secrets.SUPABASE_DB_PASSWORD_PROD  production database password
+#   vars.SUPABASE_PROJECT_REF_DEV      optional, defaults to the dev ref below
+#   vars.SUPABASE_PROJECT_REF_PROD     optional, defaults to the prod ref below
+#
+# Add "verify" to the required status checks of the dev/main rulesets so an
+# invalid migration cannot merge.
+
+on:
+  pull_request:
+    branches: [main, dev, release/prod]
+    # Deliberately no `paths` filter: a required status check must report on
+    # every PR, otherwise PRs without migration changes block forever. The
+    # checks are cheap no-ops when no migration changed.
+  push:
+    branches: [dev, main]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Project to repair"
+        type: choice
+        options: [dev, prod]
+        default: dev
+      repair_versions:
+        description: "Space-separated versions to mark as applied (e.g. 0016 0017). Leave empty to do nothing."
+        required: false
+        default: ""
+
+concurrency:
+  # Never cancel a running migration; queue instead.
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Pinned for reproducible applies.
+  SUPABASE_CLI_VERSION: 2.117.0
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the checks diff against the base ref / previous commit.
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin ${{ github.base_ref }}
+
+      - name: Verify migration files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+            # First push to a branch (or a force-push) has no usable "before".
+            case "$BASE" in ""|*0000000000*) BASE="HEAD^" ;; esac
+          fi
+          echo "diffing migrations against $BASE"
+          python3 scripts/migrations.py verify --base "$BASE"
+
+  apply-dev:
+    name: apply-dev
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    # Attach an environment so reviewers/approvals can be configured per project.
+    environment: development
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_DEV || 'aorhvfihnjhpxgjiacfg' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link dev project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Verify baseline, then dry-run
+        run: |
+          supabase migration list --linked | tee /tmp/migration-list.txt
+          git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
+            > /tmp/added-migrations.txt || true
+          python3 scripts/migrations.py baseline \
+            --list /tmp/migration-list.txt --added /tmp/added-migrations.txt
+          supabase db push --dry-run
+
+      - name: Apply migrations
+        run: supabase db push
+
+      - name: Confirm applied
+        run: supabase migration list --linked
+
+  apply-prod:
+    name: apply-prod
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Protect production: Environment "production" -> required reviewers.
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_PROD || 'rzzbhboedvezamqjjuoe' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Verify baseline, then dry-run
+        run: |
+          supabase migration list --linked | tee /tmp/migration-list.txt
+          git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
+            > /tmp/added-migrations.txt || true
+          python3 scripts/migrations.py baseline \
+            --list /tmp/migration-list.txt --added /tmp/added-migrations.txt
+          supabase db push --dry-run
+
+      - name: Apply migrations
+        run: supabase db push
+
+      - name: Confirm applied
+        run: supabase migration list --linked
+
+  # One-off baseline repair for existing history drift. `migration repair`
+  # only rewrites the history table (schema_migrations); it executes no DDL.
+  # See the Migrations section in AGENTS.md.
+  repair-dev:
+    name: repair-dev
+    if: github.event_name == 'workflow_dispatch' && inputs.project == 'dev' && inputs.repair_versions != ''
+    runs-on: ubuntu-latest
+    environment: development
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_DEV || 'aorhvfihnjhpxgjiacfg' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Record versions as applied
+        env:
+          VERSIONS: ${{ inputs.repair_versions }}
+        run: |
+          # Digits and spaces only: the value is interpolated into the command.
+          if ! printf '%s' "$VERSIONS" | grep -Eq '^[0-9 ]+$'; then
+            echo "repair_versions must be space-separated digits, got: $VERSIONS" >&2
+            exit 1
+          fi
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase migration repair --status applied $VERSIONS
+          supabase migration list --linked
+
+  repair-prod:
+    name: repair-prod
+    if: github.event_name == 'workflow_dispatch' && inputs.project == 'prod' && inputs.repair_versions != ''
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_PROD || 'rzzbhboedvezamqjjuoe' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Record versions as applied
+        env:
+          VERSIONS: ${{ inputs.repair_versions }}
+        run: |
+          if ! printf '%s' "$VERSIONS" | grep -Eq '^[0-9 ]+$'; then
+            echo "repair_versions must be space-separated digits, got: $VERSIONS" >&2
+            exit 1
+          fi
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase migration repair --status applied $VERSIONS
+          supabase migration list --linked
+
