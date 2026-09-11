@@ -6,6 +6,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const MAX_VERSIONS_PER_GRAPH = 50;
 
+export const DAY_MS = 86_400_000;
+
+/** ISO timestamp `days` before now — the plan retention cutoff. */
+export function retentionCutoffIso(days: number): string {
+  return new Date(Date.now() - days * DAY_MS).toISOString();
+}
+
 /**
  * Order-independent deep equality for graph snapshots. Compares object keys by
  * name (not insertion order) and arrays index-wise. Needed because the server
@@ -39,23 +46,19 @@ export interface GraphVersionMeta {
   created_at: string;
 }
 
-/**
- * Record a new version for a saved graph. Skips when the latest recorded
- * snapshot is byte-identical (re-saving without changes shouldn't spam
- * history), then prunes to the newest {@link MAX_VERSIONS_PER_GRAPH}.
- */
-export async function recordVersion(
-  supabase: SupabaseClient,
-  user_id: string,
-  saved_graph_id: string,
-  data: unknown,
-): Promise<{ recorded: boolean; error?: string }> {
-  const nodeCount = typeof data === "object" && data !== null
+/** Count `data.nodes` when the payload carries a nodes array, else 0. */
+function nodeCountOf(data: unknown): number {
+  return typeof data === "object" && data !== null
     && Array.isArray((data as { nodes?: unknown[] }).nodes)
     ? (data as { nodes: unknown[] }).nodes.length
     : 0;
+}
 
-  // Dedup: if the latest recorded version matches, skip.
+/** Fetch the most recent graph_versions row for a saved graph (or null). */
+async function fetchLatestRow(
+  supabase: SupabaseClient,
+  saved_graph_id: string,
+): Promise<{ data: unknown } | null> {
   const { data: latest } = await supabase
     .from("graph_versions")
     .select("data")
@@ -63,8 +66,51 @@ export async function recordVersion(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  return latest ?? null;
+}
 
-  if (latest && graphDataEqual(latest.data, data)) {
+/** One-pass prune (ponytail: single bounded DELETE set, no trigger): drop
+ *  anything older than the retention window and keep at most
+ *  MAX_VERSIONS_PER_GRAPH. RLS scopes reads to this owner. */
+async function pruneVersions(
+  supabase: SupabaseClient,
+  saved_graph_id: string,
+  retentionDays: number,
+): Promise<void> {
+  const cutoffIso = retentionCutoffIso(retentionDays);
+  const { data: all } = await supabase
+    .from("graph_versions")
+    .select("id, created_at")
+    .eq("saved_graph_id", saved_graph_id)
+    .order("created_at", { ascending: false });
+  const stale = (all ?? []).filter(
+    (v, i) => v.created_at < cutoffIso || i >= MAX_VERSIONS_PER_GRAPH,
+  );
+  if (stale.length > 0) {
+    const ids = stale.map((v) => v.id);
+    await supabase.from("graph_versions").delete().in("id", ids);
+  }
+}
+
+/**
+ * Record a new version for a saved graph. Skips when the latest recorded
+ * snapshot is byte-identical (re-saving without changes shouldn't spam
+ * history), then prunes: at most {@link MAX_VERSIONS_PER_GRAPH} snapshots
+ * per graph, and nothing older than the plan's `retentionDays` window
+ * (free = 30, pro/team = 365 — see plans.ts).
+ */
+export async function recordVersion(
+  supabase: SupabaseClient,
+  user_id: string,
+  saved_graph_id: string,
+  data: unknown,
+  retentionDays: number,
+): Promise<{ recorded: boolean; error?: string }> {
+  const nodeCount = nodeCountOf(data);
+
+  // Dedup: if the latest recorded version matches, skip.
+  const latestRow = await fetchLatestRow(supabase, saved_graph_id);
+  if (latestRow && graphDataEqual(latestRow.data, data)) {
     return { recorded: false };
   }
 
@@ -76,18 +122,7 @@ export async function recordVersion(
   });
   if (error) return { recorded: false, error: error.message };
 
-  // Prune to the newest window (ponytail: single bounded DELETE, no trigger).
-  // RLS scopes reads to this owner.
-  const { data: all } = await supabase
-    .from("graph_versions")
-    .select("id")
-    .eq("saved_graph_id", saved_graph_id)
-    .order("created_at", { ascending: false });
-  const overflow = (all ?? []).slice(MAX_VERSIONS_PER_GRAPH);
-  if (overflow.length > 0) {
-    const ids = overflow.map((v) => v.id);
-    await supabase.from("graph_versions").delete().in("id", ids);
-  }
+  await pruneVersions(supabase, saved_graph_id, retentionDays);
 
   return { recorded: true };
 }

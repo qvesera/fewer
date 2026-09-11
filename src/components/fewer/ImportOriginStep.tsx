@@ -280,7 +280,7 @@ function FolderSource() {
       <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs leading-relaxed text-muted-foreground">
         <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
         Your device's folder picker opens when you press{" "}
-        <span className="font-medium text-foreground">Import</span>. This
+        <span className="font-medium text-foreground">Browse</span>. This
         browser uses the legacy picker — everything still stays local.
       </div>
     );
@@ -290,8 +290,8 @@ function FolderSource() {
     <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs leading-relaxed text-muted-foreground">
       <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
       Your device's folder picker opens when you press{" "}
-      <span className="font-medium text-foreground">Import</span>. Everything
-      is processed locally — nothing is uploaded.
+      <span className="font-medium text-foreground">Browse</span>. Everything
+      is processed in browser — nothing is uploaded.
     </div>
   );
 }

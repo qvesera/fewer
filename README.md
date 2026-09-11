@@ -96,6 +96,7 @@ docker run -p 3000:3000 fewer
 
 - **Rename** a node: **F2** or right-click
 - **Add** a node: **Alt+N**
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
@@ -113,6 +114,8 @@ docker run -p 3000:3000 fewer
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
 - **3 edge styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
+- **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
+- **Tags**: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
 - **Breadcrumb bar**: selected node's full path
 
 </details>
@@ -142,8 +145,9 @@ docker run -p 3000:3000 fewer
 
 - **Fuzzy search** across filenames, paths, extensions
 - **Click result** → zoom to node
-- **Hidden nodes** appear with badge: click to show & zoom
+- **Hidden nodes** appear with badge: clicking shows the node **and its whole hidden ancestor chain** up to root, then zooms
 - **Highlight/dim** matched/unmatched nodes
+- **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 
 </details>
 
@@ -175,7 +179,8 @@ docker run -p 3000:3000 fewer
 
 - **Light / Dark / Custom** modes
 - **16 CSS color variables**: separate folder and file colors
-- **Live custom theme editor** with hex input + native color swatch
+- **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
+- **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
 - Changes apply instantly to all nodes
 
 </details>
@@ -192,7 +197,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Accounts & Saved Graphs</b></summary>
 
-- **Optional accounts**: email/password sign-in via Supabase Auth. The app works fully logged-out
+- **Optional accounts**: email/password sign-in, Google/GitHub sign-in, or passwordless email links (magic link) via Supabase Auth. Account deletion runs with a 7-day grace window (sign in again to cancel). The app works fully logged-out
 - **Save graphs**: save the current graph (nodes, layout, theme, settings) to your account
 - **Your Directories**: load, rename, share, and delete saved graphs from the sidebar
 - **Selective sharing**: share saved graphs as "anyone with the link" or invite-only
@@ -296,7 +301,7 @@ src/
 │   ├── ShortcutsDialog.tsx   # All keyboard shortcuts
 │   ├── TutorialDialog.tsx    # Interactive spotlight walkthrough
 │   ├── BreadcrumbBar.tsx     # Path breadcrumb navigation
-│   ├── CustomThemeEditor.tsx # 16 color pickers
+│   ├── ThemeEditorDialog.tsx  # Draggable custom theme editor + presets
 │   ├── ErrorBoundary.tsx     # Crash recovery
 │   └── KeyboardShortcuts.tsx # Global hotkey handler
 ├── lib/fewer/
@@ -376,7 +381,7 @@ A: Delete the repo folder. That's it. No background processes, no config files, 
 
 **Q: Do I need an account?**
 
-A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
+A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing. See [Plans](/docs/plans) for the Guest / Free / Pro / Team tier table.
 
 ---
 

@@ -10,12 +10,11 @@
  * Only the import action changes per origin; steps 2 is identical everywhere.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -77,13 +76,23 @@ interface ImportFlowDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Which origin card is preselected when the dialog opens. */
   initialOrigin?: ImportOrigin;
+  /** Called once when the dialog is first opened (for lazy-mount tracking). */
+  onFirstOpen?: () => void;
 }
 
 export function ImportFlowDialog({
   open,
   onOpenChange,
   initialOrigin = "folder",
+  onFirstOpen,
 }: ImportFlowDialogProps) {
+  const firstOpenDone = useRef(false);
+  const handleFirstOpen = () => {
+    if (!firstOpenDone.current) {
+      firstOpenDone.current = true;
+      onFirstOpen?.();
+    }
+  };
   const { toast } = useToast();
   const { user } = useAuth();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
@@ -102,19 +111,18 @@ export function ImportFlowDialog({
   const [importing, setImporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Reset the flow every time the dialog opens.
-  const [wasOpen, setWasOpen] = useState(false);
-  if (open && !wasOpen) {
-    setWasOpen(true);
-    setStep(1);
-    setOrigin(initialOrigin);
-    setSource(defaultSourceFor(initialOrigin));
-    setOptions({ ...useGraphStore.getState().importOptions });
-    setActionError(null);
-    setImporting(false);
-  } else if (!open && wasOpen) {
-    setWasOpen(false);
-  }
+  // Reset the flow on each genuine open transition (open false->true).
+  useEffect(() => {
+    if (open) {
+      handleFirstOpen();
+      setStep(1);
+      setOrigin(initialOrigin);
+      setSource(defaultSourceFor(initialOrigin));
+      setOptions({ ...useGraphStore.getState().importOptions });
+      setActionError(null);
+      setImporting(false);
+    }
+  }, [open, initialOrigin]);
 
   // Advanced mode off → advanced options fall back to defaults (same as old dialog).
   useEffect(() => {
@@ -215,6 +223,8 @@ export function ImportFlowDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        dialogTitle="Import"
+        minimizable
         onKeyDown={handleStepKeyDown}
         className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md"
       >
@@ -224,8 +234,7 @@ export function ImportFlowDialog({
             Import {step === 1 ? "" : `· ${ORIGIN_META[origin].label}`}
           </DialogTitle>
           <DialogDescription className="mt-1 text-xs font-normal leading-normal text-muted-foreground">
-            fewer does not store or upload any data. All data is processed
-            locally.
+            fewer does not store or upload any data. All data is processed locally, in browser.
           </DialogDescription>
 
           {/* Stepper: exactly 3 steps for every origin */}
@@ -435,7 +444,7 @@ export function ImportFlowDialog({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                {importing ? "Importing..." : "Import"}
+                {importing ? "Importing..." : "Browse"}
               </Button>
             </>
           )}

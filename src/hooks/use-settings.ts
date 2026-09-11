@@ -9,6 +9,7 @@ import {
   settingsChanged,
   saveSettingsLocal,
   loadSettingsLocal,
+  applyingFromSync,
 } from "@/lib/fewer/userSettings";
 
 /**
@@ -53,6 +54,7 @@ export function useSettingsSync() {
 
     const unsub = useGraphStore.subscribe((state, prev) => {
       if (!readyRef.current) return; // ignore the initial local/cloud apply
+      if (applyingFromSync) return; // ignore cross-tab sync writes
       if (settingsChanged(prev as never, state as never)) schedule();
     });
 

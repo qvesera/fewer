@@ -69,6 +69,15 @@ function resolveCaseless(base: string, segments: string[]): string | null {
 }
 
 /**
+ * Normalize separators so Windows-style paths resolve on any platform, and
+ * expand `~` like a shell would.
+ */
+function expandUserPath(rawPath: string): string {
+  const rel = rawPath.replace(/\\/g, "/");
+  return rel.startsWith("~/") ? path.join(os.homedir(), rel.slice(2)) : rel;
+}
+
+/**
  * Resolve a node's `data.path` to a real absolute path on this machine.
  *
  * The browser never exposes the absolute location of a user-picked folder
@@ -89,12 +98,7 @@ export async function resolveLocalPath(
   rawPath: string,
   opts: ResolveLocalPathOptions = {},
 ): Promise<string | null> {
-  // Normalize separators so Windows-style paths resolve on any platform, and
-  // expand `~` like a shell would.
-  const rel = rawPath.replace(/\\/g, "/");
-  const expanded = rel.startsWith("~/")
-    ? path.join(os.homedir(), rel.slice(2))
-    : rel;
+  const expanded = expandUserPath(rawPath);
   const segments = expanded.split("/").filter(Boolean);
 
   if (path.isAbsolute(expanded)) {

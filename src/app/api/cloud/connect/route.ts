@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthedClient } from "@/lib/fewer/cloud/server";
 import { getAdapter } from "@/lib/fewer/cloud/registry";
 import { randomState } from "@/lib/fewer/cloud/oauth";
+import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
 
 export async function GET(request: Request) {
@@ -11,6 +12,18 @@ export async function GET(request: Request) {
 
   const authed = await getAuthedClient();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  // Cloud connectors are a Pro feature (server-stored OAuth tokens have real
+  // hosting cost). Surfaced via the same cloud=error redirect the UI shows for
+  // unconfigured providers.
+  const limits = limitsFor(await getUserPlan(authed.supabase, authed.user.id));
+  if (!limits.cloudConnections) {
+    return NextResponse.redirect(
+      `${origin}/?cloud=error&msg=${encodeURIComponent(
+        "Cloud connections are a Pro feature. Public imports (URL, GitHub, local disk) stay free.",
+      )}`
+    );
+  }
 
   const adapter = await getAdapter(provider);
   const state = randomState();

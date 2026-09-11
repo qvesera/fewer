@@ -29,7 +29,7 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   includeFiles: true,
   extensions: [],
   caseSensitiveExtensions: false,
-  displayMaxDepth: 5,
+  displayMaxDepth: 6,
 };
 
 /** Directories that are typically vendored/generated and skipped by default. */

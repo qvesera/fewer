@@ -29,6 +29,36 @@ function parseSize(raw: string): number | undefined {
 }
 
 /**
+ * Byte-count-looking token (e.g. "34K", "1.5G") from the columns following an
+ * anchor. Dates contain "-", so tokens with one are ignored.
+ */
+function sizeFromColumns(rest: string): number | undefined {
+  const tokens = rest.split(/\s{2,}|\t/).map((t) => t.trim()).filter(Boolean);
+  const sizeTok = tokens.find((t) => !t.includes("-") && SIZE_RE.test(t));
+  return sizeTok ? parseSize(sizeTok) : undefined;
+}
+
+/**
+ * Map one anchor match to an entry, or null to skip it (sort links, the
+ * parent directory link, empty inner text).
+ */
+function anchorToEntry(href: string, inner: string, rest: string): AutoIndexEntry | null {
+  let name = inner.replace(/<[^>]+>/g, "").trim();
+  if (href.startsWith("?")) return null;
+  if (name === "Parent Directory" || name === "../") return null;
+  if (!name) return null;
+
+  const isDir = href.endsWith("/");
+  if (isDir) name = name.replace(/\/+$/, "");
+
+  return {
+    name,
+    type: isDir ? "folder" : "file",
+    size: isDir || !rest ? undefined : sizeFromColumns(rest),
+  };
+}
+
+/**
  * Extract entries from an auto-index HTML document.
  * Returns [] if the page is not an auto-index listing.
  */
@@ -43,30 +73,8 @@ export function parseAutoIndex(html: string): AutoIndexEntry[] {
   const anchorRe = /<a\s+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>\s*([^\n<]*)/gi;
   let m: RegExpExecArray | null;
   while ((m = anchorRe.exec(block)) !== null) {
-    const href = m[1];
-    let name = m[2].replace(/<[^>]+>/g, "").trim();
-    const rest = m[3].trim();
-
-    // Skip sort links (?C=N;O=D) and parent directory.
-    if (href.startsWith("?")) continue;
-    if (name === "Parent Directory" || name === "../") continue;
-    if (!name) continue;
-
-    const isDir = href.endsWith("/");
-    if (isDir) name = name.replace(/\/+$/, "");
-
-    // Size is the whitespace-delimited column that looks like a byte count
-    // (e.g. "34K", "1.5G"). Dates contain "-", so filter those out.
-    const size =
-      isDir || !rest
-        ? undefined
-        : (() => {
-            const tokens = rest.split(/\s{2,}|\t/).map((t) => t.trim()).filter(Boolean);
-            const sizeTok = tokens.find((t) => !t.includes("-") && SIZE_RE.test(t));
-            return sizeTok ? parseSize(sizeTok) : undefined;
-          })();
-
-    entries.push({ name, type: isDir ? "folder" : "file", size });
+    const entry = anchorToEntry(m[1]!, m[2]!, m[3]!);
+    if (entry) entries.push(entry);
   }
 
   return entries;

@@ -7,9 +7,11 @@ export interface Profile {
   first_name: string;
   last_name: string;
   username: string;
+  /** Account plan — read-only mirror of profiles.plan ("team" reports as "pro"). */
+  plan: "free" | "pro";
 }
 
-const EMPTY_PROFILE: Profile = { first_name: "", last_name: "", username: "" };
+const EMPTY_PROFILE: Profile = { first_name: "", last_name: "", username: "", plan: "free" };
 
 /**
  * Loads the signed-in user's profile (first/last name, username) from
@@ -30,11 +32,12 @@ export function useProfile(): Profile {
         const res = await fetch("/api/profile");
         const json = await res.json();
         if (mounted && json.profile) {
-          const p = json.profile as { first_name?: unknown; last_name?: unknown; username?: unknown };
+          const p = json.profile as { first_name?: unknown; last_name?: unknown; username?: unknown; plan?: unknown };
           setProfile({
             first_name: typeof p.first_name === "string" ? p.first_name : "",
             last_name: typeof p.last_name === "string" ? p.last_name : "",
             username: typeof p.username === "string" ? p.username : "",
+            plan: p.plan === "pro" || p.plan === "team" ? "pro" : "free",
           });
         }
       } catch {

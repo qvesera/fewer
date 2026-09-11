@@ -62,6 +62,9 @@ const REGISTRY: Record<string, {
   MICROSOFT_CLIENT_SECRET:              { env: "both", secret: true,  scope: "functions", github: "secret" },
   MICROSOFT_TENANT:                     { env: "both", secret: false, scope: "builds",    github: "var", placeholder: "common" },
   AZURE_BLOB_STORAGE_ACCOUNT:           { env: "both", secret: false, scope: "builds",    github: "var", placeholder: "optional" },
+  STRIPE_SECRET_KEY:                    { env: "both", secret: true,  scope: "functions", github: "secret", placeholder: "YOUR_STRIPE_SECRET_KEY" },
+  STRIPE_WEBHOOK_SECRET:                { env: "both", secret: true,  scope: "functions", github: "secret", placeholder: "YOUR_STRIPE_WEBHOOK_SECRET" },
+  STRIPE_PRO_PRICE_ID:                  { env: "both", secret: false, scope: "runtime",   github: "var", placeholder: "YOUR_STRIPE_PRO_PRICE_ID" },
 };
 
 /* Vars referenced by code; used by check(). */
@@ -71,6 +74,7 @@ const CODE_VARS = [
   "RESEND_API_KEY", "RESEND_FROM_EMAIL", "CRON_SECRET", "CONNECTIONS_ENCRYPTION_KEY",
   "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
   "MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT", "AZURE_BLOB_STORAGE_ACCOUNT",
+  "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRO_PRICE_ID",
 ];
 
 /* ---- check ---- */

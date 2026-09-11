@@ -3,6 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry } from "./types";
 import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
 import { applyOps, undoOps, getUndoViewState, getRedoViewState } from "@/lib/fewer/history";
+import { applySearchHighlight } from "./searchHighlight";
 
 const MAX_HISTORY = 50;
 
@@ -17,7 +18,7 @@ export function captureViewState(state: GraphState): ViewState {
     maxDisplayDepth: state.maxDisplayDepth as number,
     autoHideThreshold: state.autoHideThreshold as number,
     autoHiddenIds: (state.autoHiddenIds ?? []) as string[],
-    categoryFilter: (state.categoryFilter ?? null) as FileCategory | null,
+    categoryFilter: (state.categoryFilter ?? []) as FileCategory[],
     categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
     independentlyHiddenIds: (state.independentlyHiddenIds ?? []) as string[],
   };
@@ -79,7 +80,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
-      nodes: applySearchInternal(prevNodes, searchQuery, categoryFilter),
+      nodes: applySearchHighlight(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
@@ -98,33 +99,10 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     set({
       future: future.slice(1),
       past: [...past, entry].slice(-MAX_HISTORY),
-      nodes: applySearchInternal(nextNodes, searchQuery, categoryFilter),
+      nodes: applySearchHighlight(nextNodes, searchQuery, categoryFilter),
       edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
     });
   },
 });
-
-function applySearchInternal(
-  nodes: GraphState["nodes"],
-  query: string,
-  _categoryFilter?: FileCategory | null,
-): GraphState["nodes"] {
-  if (!query.trim()) {
-    return nodes.map((n) => ({
-      ...n,
-      data: { ...n.data, highlighted: false, dimmed: false },
-    }));
-  }
-  const q = query.toLowerCase();
-  return nodes.map((n) => {
-    const matches =
-      n.data.label.toLowerCase().includes(q) ||
-      (n.data.extension ?? "").toLowerCase().includes(q);
-    return {
-      ...n,
-      data: { ...n.data, highlighted: matches, dimmed: !matches },
-    };
-  });
-}

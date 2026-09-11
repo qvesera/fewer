@@ -1,18 +1,18 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { FewerNode, FewerEdge, HistoryOp, FileCategory } from "@/lib/fewer/types";
+import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection } from "@/lib/fewer/validation";
-import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
+import { validateConnection, getDescendants } from "@/lib/fewer/validation";
+import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
+import { makeTagLabelLookup } from "@/lib/fewer/tags";
 
-/** Full display name for a node: label.ext for files, label for folders. */
-const fullName = (n: { data: { label: string; extension?: string } }) =>
-  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+import { fullName } from "@/lib/fewer/nodeName";
 
 import { captureViewState, viewStateOp } from "./historySlice";
+import { applySearchHighlight } from "./searchHighlight";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
@@ -84,7 +84,7 @@ export function collectShowSubtrees(
     const nid = queue.shift()!;
     for (const e of edges) {
       if (e.source !== nid || !hiddenSet.has(e.target)) continue;
-      // Nodes the user hid directly and all descendants stay hidden.
+      // Cards the user hid directly and all descendants stay hidden.
       if (indieSet.has(e.target)) continue;
       if (!toShow.has(e.target)) {
         toShow.add(e.target);
@@ -93,6 +93,34 @@ export function collectShowSubtrees(
     }
   }
   return toShow;
+}
+
+/**
+ * Shared commit tail for the show-subtree actions: snapshot view state for
+ * undo, then apply the filtered hidden sets and bump graphVersion. When
+ * `clearIndie` is true, shown ids are also dropped from
+ * independentlyHiddenIds — batch subtree shows un-hide user-hidden roots,
+ * while a single-subtree show leaves them hidden by design.
+ */
+function commitShow(
+  set: Parameters<GraphSliceCreator>[0],
+  get: () => GraphState,
+  toShow: Set<string>,
+  clearIndie: boolean,
+): void {
+  const shown = (ids: string[]) => ids.filter((h) => !toShow.has(h));
+  const before = captureViewState(get());
+  const after = clearIndie
+    ? { ...before, hiddenIds: shown(before.hiddenIds), independentlyHiddenIds: shown(before.independentlyHiddenIds) }
+    : { ...before, hiddenIds: shown(before.hiddenIds) };
+  get().pushOp(viewStateOp(before, after));
+  set({
+    hiddenIds: shown(get().hiddenIds),
+    ...(clearIndie ? { independentlyHiddenIds: shown(get().independentlyHiddenIds) } : {}),
+    autoHiddenIds: shown(get().autoHiddenIds),
+    graphVersion: get().graphVersion + 1,
+  });
+  get().relayout();
 }
 
 /**
@@ -138,15 +166,6 @@ export function reconcileAutoHide(
   return { hiddenIds: [...nextHidden], autoHiddenIds: [...nextAuto] };
 }
 
-function edgeTypeFromStyle(style: string): FewerEdge["type"] {
-  switch (style) {
-    case "curved": return "default";
-    case "angled": return "smoothstep";
-    case "straight": return "straight";
-    default: return "default";
-  }
-}
-
 function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   return [...edges].sort((a, b) => {
@@ -176,7 +195,7 @@ function unparentSubtree(
   edges: FewerEdge[],
   removedEdges: FewerEdge[],
 ): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
-  // Nodes whose last parent edge was removed.
+  // Cards whose last parent edge was removed.
   const incoming = new Map<string, string[]>();
   for (const e of edges) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
@@ -247,8 +266,10 @@ export type GraphSliceCreator = StateCreator<
     setGraph: (nodes: FewerNode[], edges: FewerEdge[], pushHistory?: boolean, hiddenFileIds?: string[], options?: { preservePositions?: boolean }) => void;
     setDataSource: (v: string | null) => void;
     setLocalRootPath: (v: string | null) => void;
-    addNode: (parentId: string | null, label: string, type: "folder" | "file") => string;
+    addNode: (parentId: string | null, label: string, type: "folder" | "file", position?: { x: number; y: number }) => string;
     addStandaloneNode: (label: string, type: "folder" | "file", position: { x: number; y: number }) => string;
+    /** Create a new folder that becomes the parent of `nodeId`. If `nodeId` already has a parent, the new folder is inserted between the old parent and `nodeId` (reparenting `nodeId` under the new folder). Paths for `nodeId` and its descendants are rewritten; one composite history entry. */
+    addParentNode: (nodeId: string, label: string, position?: { x: number; y: number }) => { ok: boolean; reason?: string; id?: string };
     removeNode: (id: string) => void;
     removeSelected: () => void;
     toggleCollapse: (id: string) => void;
@@ -268,7 +289,10 @@ export type GraphSliceCreator = StateCreator<
     pasteFromClipboard: (parentId?: string | null) => void;
     moveNode: (id: string) => void;
     _findFreePositionForBounds: (baseX: number, baseY: number, boundsWidth: number, boundsHeight: number) => { x: number; y: number };
+    /** Drop-aware free position: visible nodes only, small padding, nudges away from collided card. */
+    _findCreationPosition: (baseX: number, baseY: number, boundsW: number, boundsH: number, originX?: number, originY?: number) => { x: number; y: number };
     deleteNodes: (ids: string[]) => void;
+    applyFolderRefresh: (nodeId: string, childNodes: FewerNode[], childEdges: FewerEdge[]) => { added: number; removed: number };
     renameNode: (id: string, newLabel: string) => boolean;
     duplicateNode: (id: string) => void;
     connectNodes: (connection: { source: string; target: string }) => { ok: boolean; reason?: string };
@@ -362,8 +386,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
-      ? applySearchInternal(styledNodes, state.searchQuery, state.categoryFilter)
-      : applySearchInternal(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale }), state.searchQuery, state.categoryFilter);
+      ? applySearchHighlight(styledNodes, state.searchQuery, state.categoryFilter)
+    : applySearchHighlight(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale, sortKey: state.sortKey, sortDir: state.sortDir, tagLabelById: makeTagLabelLookup(state.tags) }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
@@ -373,19 +397,83 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   },
 
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();
     if (nodes.length === 0) return;
     // hiddenIds already includes category-filtered ids, so layout exclusion covers them.
     const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale });
-    const searched = applySearchInternal(laid, searchQuery, categoryFilter);
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
+    const searched = applySearchHighlight(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
   },
 
   applySearch: () => {
     const { nodes, searchQuery, categoryFilter, graphVersion } = get();
-    set({ nodes: applySearchInternal(nodes, searchQuery, categoryFilter), graphVersion: graphVersion + 1 });
+    set({ nodes: applySearchHighlight(nodes, searchQuery, categoryFilter), graphVersion: graphVersion + 1 });
   },
+
+  applyFolderRefresh: (nodeId, childNodes, childEdges) => {
+    const {
+      nodes, edges, searchQuery, categoryFilter, hiddenIds,
+      revealedRootIds, autoHideThreshold, maxDisplayDepth,
+      direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, sortKey, sortDir, graphVersion, showFiles,
+    } = get();
+    const folderNode = nodes.find((n) => n.id === nodeId);
+    if (!folderNode || folderNode.data.type !== "folder") return { added: 0, removed: 0 };
+
+    // Old descendants of this folder (folder itself is preserved).
+    const oldIds = new Set(getDescendants(nodeId, edges));
+    const oldNodes = nodes.filter((n) => oldIds.has(n.id));
+    const oldEdges = edges.filter((e) => oldIds.has(e.source) && oldIds.has(e.target));
+
+    // Lay the refreshed subtree out around the folder's current position.
+    const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(edgeStyle) }));
+    const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
+    const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
+    const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
+    const newChildNodes = laid.slice(1).map((n) => ({
+      ...n,
+      position: { x: (n.position.x ?? 0) + dx, y: (n.position.y ?? 0) + dy },
+      style: { width: nodeWidth, height: n.data.type === "folder" ? nodeHeight : undefined, minHeight: undefined },
+    }));
+
+    // Clear stale fs handles for removed descendants.
+    for (const id of oldIds) fsHandleStore.delete(id);
+
+    // Recompute hidden ids over the full graph, preserving manual hides outside the subtree.
+    const finalNodes = [...nodes.filter((n) => n.id !== nodeId && !oldIds.has(n.id)), folderNode, ...newChildNodes];
+    const finalEdges = [...edges.filter((e) => !oldIds.has(e.source) && !oldIds.has(e.target)), ...subtreeEdges];
+    const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, autoHideThreshold, new Set(revealedRootIds as string[]));
+    const depthIds = computeDisplayDepthHiddenIds(finalNodes, maxDisplayDepth);
+    const catHiddenIds = categoryHiddenNodeIds(finalNodes, categoryFilter);
+    let idsToHide: string[] = [...(hiddenIds as string[]).filter((h) => !oldIds.has(h))];
+    if (!showFiles) idsToHide = [...new Set([...idsToHide, ...finalNodes.filter((n) => n.data.type === "file").map((n) => n.id)])];
+    idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...depthIds, ...catHiddenIds])];
+
+    const before = captureViewState(get());
+    set({
+      nodes: applySearchHighlight(finalNodes, searchQuery, categoryFilter),
+      edges: sortEdges(finalEdges, finalNodes),
+      hiddenIds: idsToHide,
+      categoryHiddenIds: catHiddenIds,
+      autoHiddenIds: autoHideIds,
+      graphVersion: graphVersion + 1,
+    });
+    const after = captureViewState(get());
+
+    get().pushOp({
+      type: "refresh-subtree",
+      nodeId,
+      oldNodes,
+      oldEdges,
+      newNodes: newChildNodes,
+      newEdges: subtreeEdges,
+      before,
+      after,
+    });
+    return { added: newChildNodes.length, removed: oldNodes.length };
+  },
+
+
 
   setClipboard: (mode, nodeIds) => {
     const { nodes, edges } = get();
@@ -432,7 +520,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       });
     }
     set((s) => ({
-      nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter),
+      nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter),
       edges: newEdges,
       selectedNodeIds: [],
       // Purge the deleted subtree from the view-state so it no longer appears
@@ -499,7 +587,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     });
     // Targeted rename op — stores only the diff, not the full array
     get().pushOp({ type: "rename", nodeId: id, oldLabel, newLabel: newLabelOnly });
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
     return true;
   },
 
@@ -554,7 +642,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   pasteNode: (id, parentFolderId?) => {
@@ -567,7 +655,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   _findFreePosition: (baseX, baseY, nodeWidth, nodeHeight) => {
@@ -581,6 +669,57 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     while (attempts < 50) {
       const overlapping = nodes.some((n) => { const nw = n.style?.width ?? nodeWidth; const nh = n.data.type === "folder" ? (n.style?.height ?? nodeHeight) : 60; return !(x + boundsWidth + PADDING < n.position.x || x > n.position.x + Number(nw) + PADDING || y + boundsHeight + PADDING < n.position.y || y > n.position.y + Number(nh) + PADDING); });
       if (!overlapping) break; x += boundsWidth + PADDING; if (x > baseX + boundsWidth * 3) { x = baseX; y += boundsHeight + PADDING; } attempts++;
+    }
+    return { x, y };
+  },
+
+  // ponytail: drop-position resolver for creation paths. Visible nodes only,
+  // small padding (12px), nudges away from the first collided card. Falls back
+  // to grid walk. originX/Y = center of the source node (for direction hint).
+  _findCreationPosition: (baseX, baseY, boundsW, boundsH, originX, originY) => {
+    const { nodes, nodeWidth, nodeHeight, hiddenIds, autoHiddenIds } = get();
+    const PADDING = 12;
+    const hiddenSet = new Set([...hiddenIds, ...autoHiddenIds]);
+    const isVisible = (n: any) => !hiddenSet.has(n.id);
+    const nodeDims = (n: any) => {
+      const nw = n.style?.width ?? nodeWidth;
+      const nh = n.data.type === "folder" ? (n.style?.height ?? nodeHeight) : 58;
+      return { nw, nh };
+    };
+    const aabbOverlap = (x: number, y: number, nx: number, ny: number, nw: number, nh: number) =>
+      !(x + boundsW + PADDING < nx || x > nx + nw + PADDING || y + boundsH + PADDING < ny || y > ny + nh + PADDING);
+    const collides = (x: number, y: number) => nodes.some((n) => {
+      if (!isVisible(n)) return false;
+      const { nw, nh } = nodeDims(n);
+      return aabbOverlap(x, y, n.position.x, n.position.y, nw, nh);
+    });
+    if (!collides(baseX, baseY)) return { x: baseX, y: baseY };
+    // Nudge away from the first collided card toward the drop point.
+    const hit = nodes.find((n) => {
+      if (!isVisible(n)) return false;
+      const { nw, nh } = nodeDims(n);
+      return aabbOverlap(baseX, baseY, n.position.x, n.position.y, nw, nh);
+    });
+    if (hit) {
+      const hitCx = hit.position.x + (nodeDims(hit).nw) / 2;
+      const hitCy = hit.position.y + (nodeDims(hit).nh) / 2;
+      const cx = baseX + boundsW / 2, cy = baseY + boundsH / 2;
+      let dx = originX != null ? cx - originX : 0;
+      let dy = originY != null ? cy - originY : 1; // default: nudge down
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      dx /= len; dy /= len;
+      for (let s = 1; s <= 15; s++) {
+        const nx = baseX + dx * s * 20, ny = baseY + dy * s * 20;
+        if (!collides(nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    // Fallback: grid walk with small padding.
+    let x = baseX, y = baseY, attempts = 0;
+    while (attempts < 50) {
+      if (!collides(x, y)) return { x, y };
+      x += boundsW + PADDING;
+      if (x > baseX + boundsW * 3) { x = baseX; y += boundsH + PADDING; }
+      attempts++;
     }
     return { x, y };
   },
@@ -646,7 +785,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
     const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
     const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchInternal([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
   },
 
   duplicateNode: (id) => { get().duplicateNodeUnderParent(id); },
@@ -674,10 +813,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
         after,
       });
     }
-    set({ nodes: applySearchInternal(filteredNodes, searchQuery, get().categoryFilter), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(filteredNodes, searchQuery, get().categoryFilter), edges: filteredEdges, selectedNodeIds: [], graphVersion: get().graphVersion + 1 });
   },
 
-  addNode: (parentId, label, type) => {
+  addNode: (parentId, label, type, position) => {
     const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
     const parent = nodes.find((n) => n.id === parentId);
     const ext = type === "file" ? getFileExtension(label) : "";
@@ -692,15 +831,28 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
     const newPath = parent ? `${parent.data.path}/${finalLabel}` : finalLabel;
     const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
-    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 }, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nh = type === "folder" ? nodeHeight : 58;
+    // ponytail: if explicit position given (handle drag drop), center node on it;
+    // otherwise fall back to parent-relative offset (keyboard shortcut path).
+    const rawPos = position
+      ? { x: position.x - nodeWidth / 2, y: position.y - nh / 2 }
+      : parent ? { x: parent.position.x + 30, y: parent.position.y + 80 } : { x: 0, y: 0 };
+    const originCx = parent ? parent.position.x + nodeWidth / 2 : rawPos.x + nodeWidth / 2;
+    const originCy = parent ? parent.position.y + nodeHeight / 2 : rawPos.y + nh / 2;
+    const resolvedPos = position
+      ? get()._findCreationPosition(rawPos.x, rawPos.y, nodeWidth, nh, originCx, originCy)
+      : get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nh);
+    const newNode: FewerNode = { id: `n-new-${Date.now()}`, type, position: resolvedPos, data: { label: nodeLabel, path: newPath, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: parent ? (parent.data.depth ?? 0) + 1 : 0, isRoot: parentId === null }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newEdge: { id: string; source: string; target: string; type?: string } | null = parentId ? { id: `e-${parentId}-${newNode.id}`, source: parentId, target: newNode.id, type: edgeTypeFromStyle(get().edgeStyle) } : null;
     const newEdgesUnordered = newEdge ? [...edges, newEdge] : edges;
     const newNodes = [...nodes, newNode];
     const sorted = sortEdges(newEdgesUnordered, newNodes);
     // Targeted add-node op — stores only the new node, not the full array
     get().pushOp({ type: "add-node", node: newNode, edge: newEdge as FewerEdge | null });
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), edges: sorted, graphVersion: get().graphVersion + 1 });
-    get().relayout();
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), edges: sorted, graphVersion: get().graphVersion + 1 });
+    // If this creation came from a handle drag in a leaf view that already has per-view positions, honour the resolved position there too.
+    const leaf = get().activeLeafId;
+    if (leaf && get().viewSettings[leaf]?.positions) get().setNodePositionForLeaf(leaf, newNode.id, resolvedPos);
     return newNode.id;
   },
 
@@ -717,12 +869,90 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       finalLabel = `${baseLabel} (${counter})${ext ? `.${ext}` : ""}`;
     }
     const nodeLabel = ext ? finalLabel.slice(0, -(ext.length + 1)) : finalLabel;
-    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
+    const nh = type === "folder" ? nodeHeight : 58;
+    const resolvedPos = get()._findCreationPosition(position.x, position.y, nodeWidth, nh);
+    const newNode: FewerNode = { id: `n-${uuid().slice(0, 8)}`, type, position: resolvedPos, data: { label: nodeLabel, path: finalLabel, type, extension: ext, category: type === "file" ? categorizeByExtension(ext) : undefined, size: 0, depth: 0, isRoot: true }, style: { width: nodeWidth, height: type === "folder" ? nodeHeight : undefined, minHeight: undefined } };
     const newNodes = [...nodes, newNode];
     // Targeted add-node op — stores only the new node
     get().pushOp({ type: "add-node", node: newNode, edge: null });
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
     return newNode.id;
+  },
+
+  addParentNode: (nodeId, label, position) => {
+    const { nodes, edges, nodeWidth, nodeHeight, searchQuery } = get();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return { ok: false, reason: "Node not found." };
+    const trimmed = label.trim() || "New Folder";
+    // The node's current parent edge (if any) — inserting the folder between them.
+    const oldEdge = edges.find((e) => e.target === nodeId);
+    const oldParent = oldEdge ? nodes.find((n) => n.id === oldEdge.source) : null;
+    // Duplicate check in the same sibling scope the node already lives in.
+    const siblingIds = oldParent ? edges.filter((e) => e.source === oldParent.id).map((e) => e.target) : null;
+    const siblingFullNames = siblingIds
+      ? new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName))
+      : new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map(fullName));
+    if (siblingFullNames.has(trimmed)) return { ok: false, reason: `A node named "${trimmed}" already exists here.` };
+    const newPath = oldParent ? `${oldParent.data.path}/${trimmed}` : trimmed;
+    const edgeType = edgeTypeFromStyle(get().edgeStyle);
+    // ponytail: if explicit position given (handle drag drop), center on it;
+    // otherwise place above the target node (keyboard shortcut path).
+    const rawPos = position
+      ? { x: position.x - nodeWidth / 2, y: position.y - nodeHeight / 2 }
+      : { x: node.position.x - 40, y: node.position.y - 120 };
+    const originCx = node.position.x + nodeWidth / 2;
+    const originCy = node.position.y + nodeHeight / 2;
+    const resolvedPos = position
+      ? get()._findCreationPosition(rawPos.x, rawPos.y, nodeWidth, nodeHeight, originCx, originCy)
+      : get()._findFreePositionForBounds(rawPos.x, rawPos.y, nodeWidth, nodeHeight);
+    const newNode: FewerNode = {
+      id: `n-${uuid().slice(0, 8)}`, type: "folder",
+      position: resolvedPos,
+      data: { label: trimmed, path: newPath, type: "folder", size: 0, depth: oldParent ? (oldParent.data.depth ?? 0) + 1 : 0, isRoot: !oldParent },
+      style: { width: nodeWidth, height: nodeHeight, minHeight: undefined },
+    };
+    const parentEdge: FewerEdge | null = oldParent ? { id: `e-${oldParent.id}-${newNode.id}`, source: oldParent.id, target: newNode.id, type: edgeType } : null;
+    const childEdge: FewerEdge = { id: `e-${newNode.id}-${nodeId}`, source: newNode.id, target: nodeId, type: edgeType };
+    // Rewrite paths for the node + descendants (same semantics as connectNodes).
+    const nodeFullLabel = node.data.extension ? `${node.data.label}.${node.data.extension}` : node.data.label;
+    const oldChildPath = node.data.path;
+    const newChildPath = `${newPath}/${nodeFullLabel}`;
+    const isFolder = node.data.type === "folder";
+    const descendantIds = isFolder ? getDescendants(nodeId, edges).filter((d) => d !== nodeId) : [];
+    const changedNodeIds = [nodeId, ...descendantIds];
+    const prevPaths = changedNodeIds
+      .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
+      .filter((p) => p.path !== "");
+    const nextPaths = changedNodeIds
+      .map((nid) => {
+        if (nid === nodeId) return { nodeId: nid, path: newChildPath };
+        const d = nodes.find((n) => n.id === nid);
+        return { nodeId: nid, path: d ? d.data.path.replace(oldChildPath, newChildPath) : "" };
+      })
+      .filter((p) => p.path !== "");
+    const updatedNodes = nodes.map((n) => {
+      if (n.id === nodeId) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
+      if (descendantIds.includes(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
+      return n;
+    });
+    let nextEdges = oldEdge ? edges.filter((e) => e.id !== oldEdge.id) : edges;
+    nextEdges = [...nextEdges, ...(parentEdge ? [parentEdge] : []), childEdge];
+    nextEdges = sortEdges(nextEdges, [...updatedNodes, newNode]);
+    // Single composite history entry: add folder node → detach old edge (if any) → attach node under folder.
+    const ops: HistoryOp[] = [{ type: "add-node", node: newNode, edge: parentEdge }];
+    if (oldEdge) ops.push({ type: "remove-edges", edges: [oldEdge] });
+    ops.push({ type: "connect", edge: childEdge, prevPaths, nextPaths });
+    get().pushOp(ops);
+    set({
+      nodes: applySearchHighlight([...updatedNodes, newNode], searchQuery, get().categoryFilter),
+      edges: nextEdges,
+      graphVersion: get().graphVersion + 1,
+      selectedNodeIds: [newNode.id],
+    });
+    // Honour resolved position in per-leaf views that have explicit positions.
+    const leaf = get().activeLeafId;
+    if (leaf && get().viewSettings[leaf]?.positions) get().setNodePositionForLeaf(leaf, newNode.id, resolvedPos);
+    return { ok: true, id: newNode.id };
   },
 
   connectNodes: (connection) => {
@@ -765,7 +995,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       .filter((p) => p.path !== "");
     get().pushOp({ type: "connect", edge: newEdge, prevPaths, nextPaths });
     const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
-    set({ nodes: applySearchInternal(updatedNodes, searchQuery, get().categoryFilter), edges: nextEdges, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(updatedNodes, searchQuery, get().categoryFilter), edges: nextEdges, graphVersion: get().graphVersion + 1 });
     return { ok: true };
   },
 
@@ -776,7 +1006,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => !filteredEdges.includes(e));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
-    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
   },
 
   renameNodes: (ids, transform) => {
@@ -831,7 +1061,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       return 0;
     }
     get().pushOp(ops);
-    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(nextNodes, searchQuery, get().categoryFilter), renamingId: null, graphVersion: get().graphVersion + 1 });
     return ops.length;
   },
 
@@ -853,7 +1083,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const filteredEdges = edges.filter((e) => !removedKey.has(e.id));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
-    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
   },
 
   parentNodesTo: (ids, parentId) => {
@@ -897,7 +1127,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
 
     // Step 2 — attach each root under the target folder (same path rewrite as
-    // connectNodes). Nodes failing validation (duplicate name, …) are skipped.
+    // connectNodes). Cards failing validation (duplicate name, …) are skipped.
     const addedEdges: FewerEdge[] = [];
     for (const id of roots) {
       const combinedEdges = [...workEdges, ...addedEdges];
@@ -937,7 +1167,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     }
     get().pushOp(ops);
     set({
-      nodes: applySearchInternal(workNodes, searchQuery, get().categoryFilter),
+      nodes: applySearchHighlight(workNodes, searchQuery, get().categoryFilter),
       edges: sortEdges([...workEdges, ...addedEdges], workNodes),
       graphVersion: get().graphVersion + 1,
     });
@@ -952,7 +1182,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const removedEdges = edges.filter((e) => idSet.has(e.id));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filtered, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
-    set({ nodes: applySearchInternal(nextNodes, searchQuery, get().categoryFilter), edges: filtered, graphVersion: get().graphVersion + 1 });
+    set({ nodes: applySearchHighlight(nextNodes, searchQuery, get().categoryFilter), edges: filtered, graphVersion: get().graphVersion + 1 });
   },
 
   hideNode: (id) => {
@@ -994,6 +1224,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id), graphVersion: s.graphVersion + 1 }));
+    get().relayout();
   },
 
   showAncestors: (id) => {
@@ -1009,10 +1240,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
     set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
+    get().relayout();
   },
 
   showSubtree: (id) => {
-    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const { hiddenIds, edges, independentlyHiddenIds } = get();
     const indieSet = new Set(independentlyHiddenIds);
     const toShow = new Set([id]);
     const queue = [id];
@@ -1020,26 +1252,20 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       const nid = queue.shift()!;
       for (const e of edges) {
         if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
-        // Nodes the user hid directly and all descendants stay hidden.
+        // Cards the user hid directly and all descendants stay hidden.
         if (indieSet.has(e.target)) continue;
         toShow.add(e.target);
         queue.push(e.target);
       }
     }
-    const before = captureViewState(get());
-    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)) };
-    get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
+    commitShow(set, get, toShow, false);
   },
 
   showSubtrees: (ids) => {
-    const { hiddenIds, edges, autoHiddenIds, independentlyHiddenIds } = get();
+    const { hiddenIds, edges, independentlyHiddenIds } = get();
     const toShow = collectShowSubtrees(edges, hiddenIds, independentlyHiddenIds, ids);
     if (toShow.size === 0) return;
-    const before = captureViewState(get());
-    const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
-    get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), graphVersion: get().graphVersion + 1 });
+    commitShow(set, get, toShow, true);
   },
 
 
@@ -1049,6 +1275,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
+    get().relayout();
   },
 
   revealSubtree: (id) => {
@@ -1061,6 +1288,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Re-apply auto-hide so folders with >10 children underneath stay hidden,
     // while the explicitly-revealed root is protected from being re-hidden.
     get().autoHideLargeFolders();
+    get().relayout();
   },
 
   setMaxDisplayDepth: (maxDepth) => {
@@ -1099,8 +1327,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
-    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale });
-    const searched = applySearchInternal(laid, searchQuery, get().categoryFilter);
+    const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale, sortKey: get().sortKey, sortDir: get().sortDir, tagLabelById: makeTagLabelLookup(get().tags) })
+    const searched = applySearchHighlight(laid, searchQuery, get().categoryFilter);
     const after = { ...before, maxDisplayDepth: maxDepth, hiddenIds: mergedIds };
     get().pushOp(viewStateOp(before, after));
     const { autoHiddenIds: nextAutoHidden } = reconcileAutoHide(
@@ -1132,7 +1360,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       thresholdValue,
     );
     // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
-    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // target set. When Include File Cards is off, file nodes must stay hidden
     // regardless of the auto-hide calculation — re-hide them.
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds
@@ -1157,7 +1385,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       threshold,
     );
     // reconcileAutoHide reveals any autoHiddenIds entry that falls out of the
-    // target set. When Include File Nodes is off, file nodes must stay hidden
+    // target set. When Include File Cards is off, file nodes must stay hidden
     // regardless of the auto-hide calculation — re-hide them.
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds
@@ -1181,8 +1409,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const wasCollapsed = node.data.collapsed ?? false;
     get().pushOp({ type: "toggle-collapse", nodeId: id, wasCollapsed });
     const newNodes = nodes.map((n) => n.id === id ? { ...n, data: { ...n.data, collapsed: !wasCollapsed } } : n);
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
   },
 
   collapseAll: () => {
@@ -1192,8 +1419,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       .map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: true }));
     const newNodes = nodes.map((n) => n.data.type === "folder" ? { ...n, data: { ...n.data, collapsed: true } } : n);
     get().pushOp({ type: "collapse-batch", changes });
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
   },
 
   expandAll: () => {
@@ -1201,8 +1427,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const changes = nodes.map((n) => ({ nodeId: n.id, wasCollapsed: !!n.data.collapsed, willCollapse: false }));
     const newNodes = nodes.map((n) => ({ ...n, data: { ...n.data, collapsed: false } }));
     get().pushOp({ type: "collapse-batch", changes });
-    set({ nodes: applySearchInternal(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
-    setTimeout(() => get().relayout(), 50);
+    set({ nodes: applySearchHighlight(newNodes, searchQuery, get().categoryFilter), graphVersion: get().graphVersion + 1 });
   },
 
   removeNode: (id) => {
@@ -1218,32 +1443,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     fsHandleStore.clear();
     set({
       nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
-      searchQuery: "", categoryFilter: null, categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
+      searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], independentlyHiddenIds: [], localRootPath: null,
+      tags: [], tagFilter: [], tagFilterHiddenIds: [],
     });
   },
 });
-
-function applySearchInternal(
-  nodes: FewerNode[],
-  query: string,
-  _categoryFilter?: FileCategory | null,
-): FewerNode[] {
-  if (!query.trim()) {
-    return nodes.map((n) => ({
-      ...n,
-      data: { ...n.data, highlighted: false, dimmed: false },
-    }));
-  }
-  const q = query.toLowerCase();
-  return nodes.map((n) => {
-    const matches =
-      n.data.label.toLowerCase().includes(q) ||
-      (n.data.extension ?? "").toLowerCase().includes(q);
-    return {
-      ...n,
-      data: { ...n.data, highlighted: matches, dimmed: !matches },
-    };
-  });
-}

@@ -6,6 +6,7 @@ import { createGraphSlice } from "./slices/graphSlice";
 import { createUiSlice } from "./slices/uiSlice";
 import { createLayoutSlice } from "./slices/layoutSlice";
 import { createThemeSlice } from "./slices/themeSlice";
+import { createTagsSlice } from "./slices/tagsSlice";
 
 export const useGraphStore = create<GraphState>()((set, get, api) => ({
   ...createHistorySlice(set, get, api),
@@ -13,6 +14,7 @@ export const useGraphStore = create<GraphState>()((set, get, api) => ({
   ...createUiSlice(set, get, api),
   ...createLayoutSlice(set, get, api),
   ...createThemeSlice(set, get, api),
+  ...createTagsSlice(set, get, api),
   // Legacy methods that call through to the new ones
   _pushPast: () => {},
   canUndo: () => get().past.length > 0,

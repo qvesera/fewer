@@ -5,95 +5,28 @@ import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil } from "lucide-react";
-import { toCssColor } from "@/lib/fewer/themeColors";
-import { THEME_COLOR_META, type CustomTheme, type CustomThemeColor, type ThemeColorMeta, type SavedTheme } from "@/lib/fewer/types";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2 } from "lucide-react";
+import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
+import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
+import { MinimizedDialogPill } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-
-const DIALOG_WIDTH = 360;
-const TOP_OFFSET = 80; // navbar + toolbar
-
-/** Dialog width clamped to viewport (mobile-safe). */
-function dialogWidth() {
-  return Math.min(DIALOG_WIDTH, window.innerWidth - 16);
-}
-
-function clampPosition(x: number, y: number, dialogHeight?: number) {
-  const w = dialogWidth();
-  const minX = 0;
-  const maxX = Math.max(0, window.innerWidth - w);
-  const minY = TOP_OFFSET;
-  const h = dialogHeight ?? Math.min(window.innerHeight * 0.85, 600);
-  const maxY = Math.max(TOP_OFFSET, window.innerHeight - h);
-  return {
-    x: Math.max(minX, Math.min(maxX, x)),
-    y: Math.max(minY, Math.min(maxY, y)),
-  };
-}
-
-type DockEdge = "top" | "bottom" | "left" | "right";
-
-/** Snap to nearest canvas edge, keeping the perpendicular position */
-function snapDockPosition(x: number, y: number): { x: number; y: number; edge: DockEdge } {
-  const b = getCanvasBounds();
-  const pad = 12;
-  const vPillW = 26;
-  const vPillH = 48;
-  const hPillW = 80;
-  const hPillH = 26;
-
-  // Distance from each edge
-  const distTop = y - b.top;
-  const distBottom = (b.top + b.height) - y;
-  const distLeft = x - b.left;
-  const distRight = (b.left + b.width) - x;
-  const minDist = Math.min(distTop, distBottom, distLeft, distRight);
-
-  if (minDist === distTop) {
-    // Top edge: keep x, snap y to top
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + pad, edge: "top" };
-  }
-  if (minDist === distBottom) {
-    return { x: Math.max(b.left + pad, Math.min(b.left + b.width - pad - hPillW, x - hPillW / 2)), y: b.top + b.height - pad - hPillH, edge: "bottom" };
-  }
-  if (minDist === distLeft) {
-    return { x: b.left + pad, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "left" };
-  }
-  // Right edge
-  return { x: b.left + b.width - pad - vPillW, y: Math.max(b.top + pad, Math.min(b.top + b.height - pad - vPillH, y - vPillH / 2)), edge: "right" };
-}
-
-/** Get the canvas area bounds (excludes sidebar, navbar, toolbar) */
-function getCanvasBounds() {
-  const main = document.getElementById("main-content");
-  if (main) {
-    const r = main.getBoundingClientRect();
-    return { left: r.left, top: r.top, width: r.width, height: r.height };
-  }
-  return { left: 0, top: TOP_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_OFFSET };
-}
-
-/** Clamp raw dock drag position to canvas area */
-function clampDockRaw(x: number, y: number) {
-  const b = getCanvasBounds();
-  const pillSize = 36;
-  return {
-    x: Math.max(b.left, Math.min(b.left + b.width - pillSize, x)),
-    y: Math.max(b.top, Math.min(b.top + b.height - pillSize, y)),
-  };
-}
-
-const SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
-  { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge", "selectRing"].includes(m.key)) },
-  { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },
-  { title: "Files", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("file")) },
-];
+import {
+  TOP_OFFSET,
+  THEME_EDITOR_SECTIONS,
+  clampPosition,
+  colorOpacityToHexAlpha,
+  dialogWidth,
+  hexAlphaToColorOpacity,
+  recordSectionChange,
+  popSectionUndo,
+  sectionUndoDepth,
+} from "@/lib/fewer/themeEditor";
 
 export function ThemeEditorDialog() {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -213,42 +146,111 @@ export function ThemeEditorDialog() {
   };
 
   const handleChange = (key: keyof CustomTheme, value: CustomThemeColor) => {
-    setCustomTheme({ [key]: value } as Partial<CustomTheme>);
+    // Merge with the current slot so partial updates (e.g. the main color
+    // picker's {color, opacity}) never drop the slot's gradient fields.
+    setCustomTheme({ [key]: { ...customTheme[key], ...value } } as Partial<CustomTheme>);
   };
 
+  /** Patch a slot, preserving gradient fields and opacity unless overridden. */
+  const patchSlot = useCallback(
+    (key: keyof CustomTheme, patch: Partial<CustomThemeColor>) => {
+      const current = customTheme[key];
+      handleChange(key, { ...current, ...patch });
+    },
+    [customTheme, handleChange],
+  );
+
+  const toggleGradient = useCallback(
+    (key: keyof CustomTheme) => {
+      const current = customTheme[key];
+      const has = Boolean(current.gradientTo && current.gradientTo.length > 0);
+      if (has) {
+        patchSlot(key, { gradientTo: null, gradientAngle: 135 });
+      } else {
+        // Suggest a sensible endpoint (darker for light colors, lighter for dark).
+        patchSlot(key, { gradientTo: suggestGradientEnd(current.color), gradientAngle: 135 });
+      }
+    },
+    [customTheme, patchSlot],
+  );
+
+  const updateGradientEnd = useCallback(
+    (key: keyof CustomTheme, c: string) => {
+      patchSlot(key, { gradientTo: c.replace(/^#?/, "#").slice(0, 7) });
+    },
+    [patchSlot],
+  );
+
   const handleColorChange = (key: string, c: string) => {
-    const hex = c.startsWith("#") ? c : `#${c}`;
-    if (hex.length === 9) {
-      const a = parseInt(hex.slice(7, 9), 16) / 255;
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: Math.round(a * 100) / 100 });
-    } else {
-      handleChange(key as keyof CustomTheme, { color: hex.slice(0, 7), opacity: customTheme[key as keyof CustomTheme].opacity });
-    }
+    handleChange(key as keyof CustomTheme, hexAlphaToColorOpacity(c, customTheme[key as keyof CustomTheme].opacity));
   };
 
   const getColorWithAlpha = (key: string) => {
     const theme = customTheme[key as keyof CustomTheme];
-    const a = Math.round(theme.opacity * 255).toString(16).padStart(2, "0");
-    return `${theme.color}${a}`;
+    return colorOpacityToHexAlpha(theme.color, theme.opacity);
   };
+
+  const isGradientOn = (key: string) => {
+    const c = customTheme[key as keyof CustomTheme];
+    return Boolean(c.gradientTo && c.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(c.gradientTo));
+  };
+
+  // --- per-section undo -------------------------------------------------
+  // Diff-based: an effect watches the store's customTheme and records a
+  // snapshot of each section *before* it changes. Coalescing collapses a
+  // picker drag into one step. History lives in component state — the dialog
+  // instance stays mounted (FewerApp renders it unconditionally), so undo
+  // survives open/close/minimize within the session.
+  const [sectionStacks, setSectionStacks] = useState<Record<string, Partial<CustomTheme>[]>>({});
+  const prevThemeRef = useRef(customTheme);
+  const lastChangeAtRef = useRef<Record<string, number>>({});
+  const undoingRef = useRef(false);
+
+  useEffect(() => {
+    const prev = prevThemeRef.current;
+    if (prev === customTheme) return;
+    const { stacks } = recordSectionChange(
+      THEME_EDITOR_SECTIONS,
+      prev,
+      customTheme,
+      sectionStacks,
+      lastChangeAtRef.current,
+      Date.now(),
+      undoingRef.current,
+    );
+    lastChangeAtRef.current = {}; // reset burst timers after any change
+    prevThemeRef.current = customTheme;
+    setSectionStacks(stacks);
+  }, [customTheme, sectionStacks]);
+
+  const undoSection = useCallback(
+    (sectionTitle: string) => {
+      const currentStack = sectionStacks[sectionTitle] ?? [];
+      const { snapshot, stack } = popSectionUndo(currentStack);
+      if (!snapshot) return;
+      undoingRef.current = true;
+      lastChangeAtRef.current[sectionTitle] = 0; // next real edit starts a fresh burst
+      setSectionStacks((s) => ({ ...s, [sectionTitle]: stack }));
+      setCustomTheme(snapshot);
+      // Release on next tick so the resulting store change isn't recorded.
+      queueMicrotask(() => { undoingRef.current = false; });
+    },
+    [sectionStacks],
+  );
 
   // Position + minimize + drag state
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [minimized, setMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [isDraggingDock, setIsDraggingDock] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const dockDragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const [dockPosition, setDockPosition] = useState({ x: 0, y: 0 });
-  const [dockEdge, setDockEdge] = useState<DockEdge>("bottom");
-  const dockMovedRef = useRef(false);
-  const dockPosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setPosition(clampPosition(
-      Math.max(0, window.innerWidth - dialogWidth() - 20),
+      Math.max(0, window.innerWidth - dialogWidth(window.innerWidth) - 20),
       Math.max(TOP_OFFSET, window.innerHeight / 2 - 250),
+      window.innerWidth,
+      window.innerHeight,
     ));
   }, []);
 
@@ -265,7 +267,7 @@ export function ThemeEditorDialog() {
       const newX = dragStartRef.current.posX + (e.clientX - dragStartRef.current.x);
       const newY = dragStartRef.current.posY + (e.clientY - dragStartRef.current.y);
       const h = dialogRef.current?.offsetHeight;
-      setPosition(clampPosition(newX, newY, h));
+      setPosition(clampPosition(newX, newY, window.innerWidth, window.innerHeight, h));
     };
     const handlePointerUp = () => setIsDragging(false);
     window.addEventListener("pointermove", handlePointerMove);
@@ -278,58 +280,32 @@ export function ThemeEditorDialog() {
     };
   }, [isDragging]);
 
-  // Dock pill drag with snap-to-edge
-  const handleDockPointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    dockMovedRef.current = false;
-    setIsDraggingDock(true);
-    dockDragStartRef.current = { x: e.clientX, y: e.clientY, posX: dockPosition.x, posY: dockPosition.y };
-    e.preventDefault();
-  }, [dockPosition]);
-
-  useEffect(() => {
-    if (!isDraggingDock) return;
-    const handlePointerMove = (e: PointerEvent) => {
-      dockMovedRef.current = true;
-      const newX = dockDragStartRef.current.posX + (e.clientX - dockDragStartRef.current.x);
-      const newY = dockDragStartRef.current.posY + (e.clientY - dockDragStartRef.current.y);
-      const clamped = clampDockRaw(newX, newY);
-      dockPosRef.current = clamped;
-      setDockPosition(clamped);
-    };
-    const handlePointerUp = () => {
-      setIsDraggingDock(false);
-      if (!dockMovedRef.current) {
-        setMinimized(false);
-        return;
-      }
-      // Snap to nearest dock point using ref for latest position
-      const snapped = snapDockPosition(dockPosRef.current.x, dockPosRef.current.y);
-      dockPosRef.current = snapped;
-      setDockPosition(snapped);
-      setDockEdge(snapped.edge);
-    };
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
-    };
-  }, [isDraggingDock]);
-
   const handleMinimize = useCallback(() => {
-    const centerX = position.x + dialogWidth() / 2;
-    const centerY = position.y + 200;
-    const snapped = snapDockPosition(centerX, centerY);
-    dockPosRef.current = snapped;
-    setDockPosition(snapped);
-    setDockEdge(snapped.edge);
-    setMinimized(true);
-  }, [position]);
+    // minimize = close + remember: drop open state so the toolbar button's
+    // setThemeEditorOpen(true) becomes a real false->true transition later.
+    setMinimized(true)
+    setThemeEditorOpen(false)
+  }, [])
 
-  if (!themeEditorOpen) return null;
+  // Un-minimize on any genuine open transition (e.g. the toolbar button reopens).
+  // Must run before the early returns below (rules-of-hooks).
+  useEffect(() => {
+    if (themeEditorOpen) setMinimized(false)
+  }, [themeEditorOpen])
+
+  // Minimized: small docked pill (draggable, snaps to edges). Check this BEFORE
+  // the !themeEditorOpen guard so the pill survives the close.
+  if (minimized) {
+    return (
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
+    )
+  }
+
+  if (!themeEditorOpen) return null
 
   // Group presets by category
   const groupedPresets = THEME_PRESETS.reduce((acc, preset) => {
@@ -340,27 +316,12 @@ export function ThemeEditorDialog() {
 
   // Minimized: small docked pill (draggable, snaps to edges)
   if (minimized) {
-    const isVertical = dockEdge === "left" || dockEdge === "right";
-
     return (
-      <div
-        className={`fixed z-50 flex rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg select-none hover:shadow-xl ${isVertical ? "flex-col items-center gap-1" : "flex-row items-center gap-2"}`}
-        style={{
-          left: dockPosition.x,
-          top: dockPosition.y,
-          padding: isVertical ? "10px 6px" : "8px 14px",
-          cursor: isDraggingDock ? "grabbing" : "grab",
-          touchAction: "none",
-          transition: isDraggingDock ? "box-shadow 150ms ease" : "left 300ms cubic-bezier(0.34,1.56,0.64,1), top 300ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease",
-        }}
-        onPointerDown={handleDockPointerDown}
-        title="Drag to snap · Click to restore"
-      >
-        <Palette className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className={`text-[10px] font-medium text-foreground/80 ${isVertical ? "writing-vertical" : ""}`} style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}>
-          Theme
-        </span>
-      </div>
+      <MinimizedDialogPill
+        icon={<Palette className="h-3.5 w-3.5" />}
+        label="Theme"
+        onRestore={() => setMinimized(false)}
+      />
     );
   }
 
@@ -369,7 +330,7 @@ export function ThemeEditorDialog() {
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
-      style={{ left: position.x, top: position.y, width: dialogWidth(), maxHeight: "85vh", touchAction: "none" }}
+      style={{ left: position.x, top: position.y, width: dialogWidth(window.innerWidth), maxHeight: "85vh", touchAction: "none" }}
     >
       {/* Header - draggable */}
       <div
@@ -577,11 +538,22 @@ export function ThemeEditorDialog() {
             </PopoverContent>
           </Popover>
         </div>
-        {SECTIONS.map((section) => (
+        {THEME_EDITOR_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1.5">
-            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              {section.title}
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                {section.title}
+              </Label>
+              <button
+                type="button"
+                onClick={() => undoSection(section.title)}
+                disabled={sectionUndoDepth(section.title, sectionStacks) === 0}
+                title={`Undo changes to ${section.title}`}
+                className="rounded-md p-0.5 text-muted-foreground/60 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Undo2 className="h-3 w-3" />
+              </button>
+            </div>
             <div className="space-y-1.5">
               {section.keys.map((meta) => (
                 <div key={meta.key}>
@@ -592,7 +564,7 @@ export function ThemeEditorDialog() {
                     <div className="flex min-w-0 items-center gap-2">
                       <div
                         className="h-5 w-5 shrink-0 rounded-md border border-border"
-                        style={{ background: toCssColor(customTheme[meta.key].color, customTheme[meta.key].opacity) }}
+                        style={{ background: toCssValue(customTheme[meta.key]) }}
                         title={`${meta.label}: ${meta.description}`}
                       />
                       <Label
@@ -601,12 +573,19 @@ export function ThemeEditorDialog() {
                       >
                         {meta.label}
                       </Label>
+                      {meta.gradientCssVar && isGradientOn(meta.key) && (
+                        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Gradient
+                        </span>
+                      )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="text"
                         value={customTheme[meta.key].color}
-                        onChange={(e) => handleChange(meta.key, { color: e.target.value, opacity: customTheme[meta.key].opacity })}
+                        onChange={(e) =>
+                          handleChange(meta.key, { color: e.target.value, opacity: customTheme[meta.key].opacity })
+                        }
                         className="w-20 rounded-md border border-border bg-background px-1.5 py-1 font-mono text-[10px] text-foreground"
                       />
                     </div>
@@ -620,6 +599,78 @@ export function ThemeEditorDialog() {
                           style={{ width: "100%", height: 160 }}
                         />
                       </div>
+                      {meta.gradientCssVar && (
+                        <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                              Gradient
+                            </Label>
+                            <button
+                              type="button"
+                              onClick={() => toggleGradient(meta.key)}
+                              className={`rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                isGradientOn(meta.key)
+                                  ? "border-border/60 bg-foreground/5 text-foreground"
+                                  : "border-border/40 text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              {isGradientOn(meta.key) ? "On" : "Add"}
+                            </button>
+                          </div>
+                          {isGradientOn(meta.key) && (
+                            <div className="space-y-3">
+                              <div
+                                className="h-4 w-full rounded-md border border-border"
+                                style={{ background: toCssValue(customTheme[meta.key]) }}
+                                title="Gradient preview"
+                              />
+                              <div className="rounded-lg overflow-hidden">
+                                <HexAlphaColorPicker
+                                  color={colorOpacityToHexAlpha(
+                                    customTheme[meta.key].gradientTo!,
+                                    customTheme[meta.key].opacity,
+                                  )}
+                                  onChange={(c) => updateGradientEnd(meta.key, c)}
+                                  style={{ width: "100%", height: 160 }}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                  <HexColorInput
+                                    color={customTheme[meta.key].gradientTo!}
+                                    onChange={(c) => updateGradientEnd(meta.key, c)}
+                                    prefixed
+                                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
+                                  />
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                    #
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="shrink-0 text-[10px] text-muted-foreground">
+                                  Angle
+                                </Label>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={360}
+                                  step={15}
+                                  value={customTheme[meta.key].gradientAngle ?? 135}
+                                  onChange={(e) =>
+                                    patchSlot(meta.key, { gradientAngle: Number(e.target.value) })
+                                  }
+                                  className="flex-1 cursor-pointer accent-foreground"
+                                  title="Gradient angle (degrees)"
+                                />
+                                <span className="shrink-0 w-10 text-right font-mono text-xs tabular-nums text-foreground/70">
+                                  {customTheme[meta.key].gradientAngle ?? 135}°
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <HexColorInput

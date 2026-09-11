@@ -6,6 +6,7 @@ import { computeStats, formatBytes } from "@/lib/fewer/stats";
 import { Folder, HardDrive, File as FileIcon } from "lucide-react";
 import { CATEGORY_META } from "@/lib/fewer/categoryMeta";
 import type { FileCategory } from "@/lib/fewer/types";
+import type { Tag } from "@/lib/fewer/tags";
 import { cn } from "@/lib/utils";
 
 export function StatsPanel() {
@@ -14,8 +15,24 @@ export function StatsPanel() {
   const hiddenCount = useGraphStore((s) => s.hiddenIds.length);
   const selectedCount = useGraphStore((s) => s.selectedNodeIds.length);
   const categoryFilter = useGraphStore((s) => s.categoryFilter);
-  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
+  const toggleCategoryFilter = useGraphStore((s) => s.toggleCategoryFilter);
+  const clearCategoryFilter = useGraphStore((s) => s.clearCategoryFilter);
+  const tags = useGraphStore((s) => s.tags);
+  const tagFilter = useGraphStore((s) => s.tagFilter);
+  const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const stats = useMemo(() => computeStats(nodes, edges), [nodes, edges]);
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tag of tags) {
+      let n = 0;
+      for (const node of nodes) {
+        if ((node.data.tagIds ?? []).includes(tag.id)) n++;
+      }
+      if (n > 0) counts.set(tag.id, n);
+    }
+    return counts;
+  }, [tags, nodes]);
 
   if (nodes.length === 0) return null;
 
@@ -66,9 +83,9 @@ export function StatsPanel() {
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               By category
             </span>
-            {categoryFilter && (
+            {categoryFilter.length > 0 && (
               <button
-                onClick={() => setCategoryFilter(null)}
+                onClick={() => clearCategoryFilter()}
                 className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
               >
                 Clear filter
@@ -80,12 +97,12 @@ export function StatsPanel() {
               const meta = CATEGORY_META[cat];
               const Icon = meta.icon;
               const pct = (count / total) * 100;
-              const active = categoryFilter === cat;
+              const active = categoryFilter.includes(cat);
               return (
                 <button
                   key={cat}
-                  onClick={() => setCategoryFilter(active ? null : cat)}
-                  title={active ? `Showing only ${meta.label} — click to clear` : `Show only ${meta.label} files`}
+                  onClick={() => toggleCategoryFilter(cat)}
+                  title={active ? `${meta.label} — click to remove from filter` : `Add ${meta.label} to filter`}
                   className={cn(
                     "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
                     active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",
@@ -114,11 +131,64 @@ export function StatsPanel() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border/40 bg-card/40 p-3 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Edges</span>
-          <span className="tabular-nums font-medium">{edges.length}</span>
+      {/* ── By tag ── */}
+      {tags.length > 0 && (
+        <div className="rounded-xl border border-border/40 bg-card/40 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              By tag
+            </span>
+            {tagFilter.length > 0 && (
+              <button
+                onClick={() => useGraphStore.getState().setTagFilter([])}
+                className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
+          <div className="space-y-1">
+            {tags.map((tag) => {
+              const count = tagCounts.get(tag.id) ?? 0;
+              if (count === 0) return null;
+              const pct = (count / (total || 1)) * 100;
+              const active = tagFilter.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTagFilter(tag.id)}
+                  title={active ? `Showing only "${tag.label}" — click to clear` : `Show only "${tag.label}" cards`}
+                  className={cn(
+                    "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
+                    active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className="h-3 w-3 shrink-0 rounded-full ring-1 ring-white/30"
+                        style={{ background: tag.color }}
+                        aria-hidden="true"
+                      />
+                      <span className={cn("font-medium", active && "text-foreground")}>{tag.label}</span>
+                      {active && <span className="text-[9px] font-semibold uppercase tracking-wide text-primary">Filtering</span>}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">{count}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-500"
+                      style={{ width: `${pct}%`, background: tag.color }}
+                    />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      )}
+
+      <div className="rounded-xl border border-border/40 bg-card/40 p-3 text-xs">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Selected</span>
           <span className="tabular-nums font-medium">{selectedCount}</span>

@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
+  DialogDescription,  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -45,13 +45,16 @@ import {
   Cloud,
   Trash2,
   Loader2,
+  CreditCard,
+  Mail,
   Spline,
   SlidersHorizontal,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
+import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { CustomThemeEditor, ThemeEditorDialog, Logo, CloudPanel } from ".";
+import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import {
   AlertDialog,
@@ -66,7 +69,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
+import { limitsFor, formatUsage } from "@/lib/fewer/plans";
 import { useAuth } from "@/hooks/use-auth";
+import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -76,12 +81,21 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function AccountTab() {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const { loading: billingBusy, startCheckout, openPortal } = useBilling();
+  const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [plan, setPlan] = useState<"free" | "pro" | "team">("free");
+  const [usage, setUsage] = useState<{ savedGraphs: number; watchedIndexes: number } | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -91,10 +105,19 @@ function AccountTab() {
     last_name: "",
     username: "",
   });
+  // Derived after the state declarations: plan is a hook state above.
+  const billingEnabledUi = BILLING_UI;
+  const planLabel =
+    plan === "pro" ? "Pro plan" : plan === "team" ? "Team plan" : "Free plan";
+  const limits = limitsFor(plan);
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPlan("free");
+      setUsage(null);
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
@@ -105,6 +128,7 @@ function AccountTab() {
             first_name?: unknown;
             last_name?: unknown;
             username?: unknown;
+            plan?: unknown;
           };
           const first_name = typeof p.first_name === "string" ? p.first_name : "";
           const last_name = typeof p.last_name === "string" ? p.last_name : "";
@@ -112,7 +136,16 @@ function AccountTab() {
           setFirstName(first_name);
           setLastName(last_name);
           setUsername(username);
+          setPlan(p.plan === "pro" || p.plan === "team" ? (p.plan as "pro" | "team") : "free");
           setSavedProfile({ first_name, last_name, username });
+          const { savedGraphs, watchedIndexes } = (json.counts ?? {
+            savedGraphs: -1,
+            watchedIndexes: -1,
+          }) as { savedGraphs?: number; watchedIndexes?: number };
+          setUsage({
+            savedGraphs: typeof savedGraphs === "number" ? savedGraphs : -1,
+            watchedIndexes: typeof watchedIndexes === "number" ? watchedIndexes : -1,
+          });
         }
       } catch {
         /* ignore */
@@ -176,12 +209,50 @@ function AccountTab() {
     }
   };
 
+  const handleBilling = async (action: () => Promise<boolean>) => {
+    try {
+      await action(); // navigates away to Stripe on success
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Billing is unavailable";
+      toast({ title: "Could not open billing", description: msg, variant: "destructive" });
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await getBrowserSupabase().auth.signOut();
       toast({ title: "Signed out" });
     } catch {
       toast({ title: "Could not sign out", variant: "destructive" });
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    const value = newEmail.trim();
+    if (!EMAIL_RE.test(value)) {
+      toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    if (user && value.toLowerCase() === user.email?.toLowerCase()) {
+      toast({ title: "Already your email", description: "Enter a different address." });
+      return;
+    }
+    setChangingEmail(true);
+    try {
+      // Supabase emails a confirmation link to the NEW address; the email
+      // (and login) only changes after the link is confirmed.
+      const { error } = await getBrowserSupabase().auth.updateUser({ email: value });
+      if (error) throw error;
+      toast({
+        title: "Check your inbox",
+        description: `We sent a confirmation link to ${value}. Your email changes after you confirm it.`,
+      });
+      setNewEmail("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not change email";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -207,7 +278,10 @@ function AccountTab() {
       }
       useGraphStore.getState().setSettingsOpen(false);
       setConfirmOpen(false);
-      toast({ title: "Account deleted", description: "Your account and data have been removed." });
+      toast({
+        title: "Deletion scheduled",
+        description: "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not delete account";
       toast({ title: "Could not delete account", description: msg, variant: "destructive" });
@@ -289,6 +363,125 @@ function AccountTab() {
         </div>
       )}
 
+      {/* Account status card — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-3.5 space-y-3">
+          {/* Row 1: plan badge + billing action */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+                <CreditCard className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-foreground">
+                  {planLabel}
+                </span>
+                <span className="text-[11px] text-muted-foreground/70">
+                  {billingEnabledUi && plan !== "free"
+                    ? "Update card, view invoices, or cancel anytime"
+                    : <>See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a> for the tier table</>}
+                </span>
+              </div>
+            </div>
+            {billingEnabledUi ? (
+              <Button
+                variant={plan !== "free" ? "outline" : "default"}
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                disabled={billingBusy}
+                onClick={() => handleBilling(plan !== "free" ? openPortal : startCheckout)}
+              >
+                {billingBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {plan !== "free" ? "Manage subscription" : "Upgrade to Pro"}
+              </Button>
+            ) : (
+              <span className="text-[11px] text-muted-foreground/70">
+                {plan === "team"
+                  ? "Team is managed by your organization."
+                  : plan === "pro"
+                    ? "Pro is enabled for this account."
+                    : <>Self-serve upgrades are currently off. See <a href="/docs/plans" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">plans</a>.</>}
+              </span>
+            )}
+          </div>
+
+          {/* Row 2: usage meters + account-level status */}
+          <div className="border-t border-border/40 pt-3 space-y-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Saved graphs</span>
+                <span className="font-medium text-foreground/80">
+                  {usage === null ? "…" : formatUsage(usage.savedGraphs, limits.savedGraphs)}
+                </span>
+              </div>
+              {usage !== null && limits.savedGraphs !== Infinity && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      usage.savedGraphs >= limits.savedGraphs
+                        ? "bg-destructive"
+                        : "bg-primary/70",
+                    )}
+                    style={{ width: `${Math.min(100, (usage.savedGraphs / limits.savedGraphs) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Watched indexes</span>
+                <span className="font-medium text-foreground/80">
+                  {usage === null ? "…" : formatUsage(usage.watchedIndexes, limits.watchedIndexes)}
+                </span>
+              </div>
+              {usage !== null && limits.watchedIndexes !== Infinity && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      usage.watchedIndexes >= limits.watchedIndexes
+                        ? "bg-destructive"
+                        : "bg-primary/70",
+                    )}
+                    style={{ width: `${Math.min(100, (usage.watchedIndexes / limits.watchedIndexes) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground/80">Version history</span>
+              <span className="font-medium text-foreground/80">
+                {limits.historyDays > 0 ? `${limits.historyDays}-day history` : "Not available"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground/80">Email</span>
+              <span className="font-medium text-foreground/80 flex items-center gap-1">
+                {user.email ?? "—"}
+                {user.email_confirmed_at ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">✓ Verified</span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">Not verified</span>
+                )}
+              </span>
+            </div>
+
+            {user.created_at && (
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground/80">Member since</span>
+                <span className="font-medium text-foreground/80">
+                  {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Account Card */}
       <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-card/40 p-3.5">
         <div className="flex items-center gap-3">
@@ -331,6 +524,44 @@ function AccountTab() {
           )
         )}
       </div>
+      {/* Change Email — only shown to signed-in users */}
+      {!loading && user && (
+        <div className="rounded-2xl border border-border/50 bg-card/40 p-3.5 space-y-2.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <Mail className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-foreground">Email</span>
+              <span className="text-[11px] text-muted-foreground/70">
+                Current: {user.email ?? "—"} — a confirmation link is sent to the new address
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              id="account-new-email"
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="new-you@example.com"
+              autoComplete="email"
+              className="h-8 text-xs"
+            />
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs shrink-0"
+              disabled={changingEmail || newEmail.trim().length === 0}
+              onClick={handleChangeEmail}
+            >
+              {changingEmail && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Change
+            </Button>
+          </div>
+        </div>
+      )}
+
+
 {/* Danger Zone — only shown to signed-in users */}
       {!loading && user && (
         <div className="flex items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/5 p-3.5">
@@ -341,7 +572,7 @@ function AccountTab() {
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Delete account</span>
               <span className="text-[11px] text-muted-foreground/70">
-                Permanently remove your account, saved graphs, and related data
+                Schedules permanent removal in 7 days — sign in again to cancel
               </span>
             </div>
           </div>
@@ -361,8 +592,9 @@ function AccountTab() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete your account?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This permanently deletes your account, saved graphs, watch lists, cloud
-                  connections, and any shared graphs you own. This action cannot be undone.
+                  Your account is scheduled for permanent deletion in 7 days. Your saved graphs,
+                  watch lists, cloud connections, and any shared graphs you own are removed then.
+                  Signing in again before that cancels the deletion.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -464,10 +696,11 @@ function AboutTab() {
 /* -------------------------------------------------------------------------- */
 
 function AppearanceTab() {
-  const themeMode = useGraphStore((s) => s.themeMode);
+  const activeLeaf = useActiveLeaf();
+  const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
   const setCornerRadius = useGraphStore((s) => s.setCornerRadius);
@@ -481,6 +714,12 @@ function AppearanceTab() {
   const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
+
+  const sortKey = useGraphStore((s) => s.sortKey);
+  const sortDir = useGraphStore((s) => s.sortDir);
+  const setSortKey = useGraphStore((s) => s.setSortKey);
+  const setSortDir = useGraphStore((s) => s.setSortDir);
+
 
   const edgeStyleOptions = useMemo(() => [
     { value: "curved" as EdgeStyle, label: "Curved" },
@@ -509,7 +748,7 @@ function AppearanceTab() {
         <div className="grid grid-cols-3 gap-2.5">
           {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
-            const active = themeMode === mode;
+            const active = themeModeGlobal === mode;
             return (
               <button
                 key={mode}
@@ -554,14 +793,14 @@ function AppearanceTab() {
             <Label className="text-xs font-medium text-muted-foreground">Style</Label>
             <SlidingToggle
               options={edgeStyleOptions}
-              value={edgeStyle}
-              onValueChange={(v) => setEdgeStyle(v as EdgeStyle)}
+              value={activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal}
+              onValueChange={(v) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { edgeStyle: v as EdgeStyle }); else setEdgeStyle(v as EdgeStyle); }}
             />
           </div>
 
           {advancedModeEnabled && (
             <div className="flex flex-col gap-4 border-t border-border/30 pt-4">
-              {edgeStyle === "angled" && (
+              {(activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal) === "angled" && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium text-muted-foreground">Corner Radius</Label>
@@ -613,6 +852,49 @@ function AppearanceTab() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Sibling Sort
+          </Label>
+        </div>
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Order by</Label>
+            <SlidingToggle
+              options={[
+                { value: "name" as const, label: "Name" },
+                { value: "size" as const, label: "Size" },
+                { value: "type" as const, label: "Type" },
+                { value: "tag" as const, label: "Tag" },
+              ]}
+              value={sortKey}
+              onValueChange={(v) => setSortKey(v as SortKey)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
+            <SlidingToggle
+              options={[
+                { value: "asc" as const, label: "Ascending" },
+                { value: "desc" as const, label: "Descending" },
+              ]}
+              value={sortDir}
+              onValueChange={(v) => setSortDir(v as SortDir)}
+            />
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            Controls how siblings are ordered within each folder. Sort keys
+            apply recursively and re-layout the whole graph immediately — the new
+            order is saved with your other preferences and remembered next time
+            you open the app (it does not travel with a saved graph). Folder
+            size uses the value recorded when the graph was imported; if a
+            folder's size wasn't reported, it sorts last in ascending order.
+          </p>
         </div>
       </div>
 
@@ -811,7 +1093,8 @@ function AdvancedTab() {
   const setShynessScale = useGraphStore((s) => s.setShynessScale);
 
   // Crown-shyness slider: local value for live drag preview; the store commit
-  // (and relayout) happens on drag release so large graphs don't relayout per tick.
+  // happens on drag release (or when a custom value is typed). No auto-relayout:
+  // the new intensity is picked up on the next explicit Rearrange.
   const [shynessPreview, setShynessPreview] = useState(shynessScale);
   useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
@@ -865,7 +1148,9 @@ function AdvancedTab() {
                 <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
                 <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.</p>
               </div>
-              <span className="text-xs font-mono tabular-nums text-foreground/80">{shynessPreview.toFixed(1)}×</span>
+              <span className="text-xs font-mono tabular-nums text-foreground/80">
+                <EditableNumber value={shynessPreview} onCommit={(v) => setShynessScale(v)} labelFn={(v) => `${v.toFixed(1)}×`} />
+              </span>
             </div>
             <Slider
               value={[shynessPreview]}
@@ -878,7 +1163,7 @@ function AdvancedTab() {
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Changes apply immediately — the graph re-lays itself out as you adjust.
+            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is rearranged (Rearrange button or Alt+R).
           </p>
         </div>
       )}
@@ -900,7 +1185,7 @@ function AdvancedTab() {
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             {scrollAction === "zoom"
-              ? "The mouse wheel zooms the canvas directly."
+              ? "The mouse wheel zooms the canvas directly; hold Ctrl (⌘) and scroll to pan."
               : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
           </p>
         </div>
@@ -911,7 +1196,7 @@ function AdvancedTab() {
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              Node Metrics
+              Card Metrics
             </Label>
           </div>
           <div className="space-y-2">
@@ -1006,8 +1291,8 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "Blog", icon: Newspaper, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/blog"); } },
-    { label: "Documentation", icon: BookOpen, onClick: () => { useGraphStore.getState().setSettingsOpen(false); window.location.assign("/docs"); } },
+    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
+    { label: "Documentation", icon: BookOpen, onClick: () => window.open("/docs", "_blank", "noreferrer") },
   ];
 
   const supportActions = [
@@ -1092,7 +1377,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">

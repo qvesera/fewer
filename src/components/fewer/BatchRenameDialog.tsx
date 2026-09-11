@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
+  DialogDescription,  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,10 +15,7 @@ import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { applyBatchRename } from "@/lib/fewer/batchRename";
-
-/** Full display name of a node — label plus its stored extension, if any. */
-const fullName = (n: { data: { label: string; extension?: string } }) =>
-  n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
+import { fullName } from "@/lib/fewer/nodeName";
 
 /**
  * Batch rename for multi-selection. Opens via the "fewer-batch-rename" window
@@ -94,13 +90,11 @@ export function BatchRenameDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent dialogTitle="Rename" className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Rename {ids.length} items</DialogTitle>
           <DialogDescription>
-            Applies to item names. Find &amp; replace also matches extensions
-            (e.g. .tsx → .jsx); prefixes/suffixes are added before the
-            extension.
+            Applies to item names. Find &amp; replace also matches file extensions.
           </DialogDescription>
         </DialogHeader>
 

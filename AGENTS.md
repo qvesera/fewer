@@ -62,7 +62,7 @@ FewerApp
 ├── ImportDialog / ImportFromFileDialog
 ├── AddNodeDialog
 ├── ShortcutsDialog / TutorialDialog / BugReportDialog
-├── CustomThemeEditor
+├── ThemeEditorDialog
 └── ErrorBoundary
 ```
 

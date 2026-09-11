@@ -103,7 +103,7 @@ export async function collectAutoHideNotes(): Promise<
   return [
     {
       title: "Large folders collapsed",
-      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Nodes in the sidebar to reveal them.`,
+      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Cards in the sidebar to reveal them.`,
     },
   ];
 }
@@ -122,4 +122,14 @@ export function sourceLabel(source: OriginSource): string {
     case "cloud":
       return source.name || source.ref;
   }
+}
+
+/** Shared catch tail for the step-3 import actions: normalize a thrown error
+ *  into a failed ImportActionResult. */
+export function importFailure(err: unknown, title = "Import failed"): ImportActionResult {
+  return {
+    ok: false,
+    title,
+    error: err instanceof Error ? err.message : "Unknown error",
+  };
 }

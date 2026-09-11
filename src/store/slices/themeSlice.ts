@@ -3,7 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
-import { toCssColor, migrateCustomTheme } from "@/lib/fewer/themeColors";
+import { toCssColor, toGradientCss, migrateCustomTheme } from "@/lib/fewer/themeColors";
 
 const STORAGE_THEME = "fewer-theme";
 const STORAGE_CUSTOM = "fewer-custom-theme";
@@ -90,13 +90,33 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   const root = document.documentElement;
   for (const meta of THEME_COLOR_META) {
     const c = theme[meta.key];
+    // Main var always stays a solid color: `background-color` consumers
+    // (minimap, SVG export, shadcn derivations) can't take a gradient.
     root.style.setProperty(meta.cssVar, toCssColor(c.color, c.opacity));
+    // Gradient-capable slots expose a companion `-gradient` var that CSS
+    // consumers opt into via `background: var(<grad>, var(<solid>))`.
+    if (meta.gradientCssVar) {
+      const gradient = toGradientCss(c);
+      if (gradient) root.style.setProperty(meta.gradientCssVar, gradient);
+      else root.style.removeProperty(meta.gradientCssVar);
+    }
   }
   // Auto-derive border colors from body colors (same color, higher opacity)
   root.style.setProperty("--fewer-folder-border", toCssColor(theme.folderBg.color, 0.45));
   root.style.setProperty("--fewer-file-border", toCssColor(theme.fileBg.color, 0.45));
 
   // Map custom theme to shadcn/ui CSS variables for all UI elements
+  for (const [cssVar, value] of deriveShadcnVars(theme)) {
+    root.style.setProperty(cssVar, value);
+  }
+}
+
+/**
+ * Derive the shadcn/ui CSS variables from a custom theme (pure — no DOM).
+ * Card/muted backgrounds, border tones, and foreground contrast are computed
+ * from the theme's background / text / accent slots.
+ */
+function deriveShadcnVars(theme: CustomTheme): [string, string][] {
   const bg = theme.background.color;
   const fg = theme.defaultText.color;
   const subtle = theme.subtleText.color;
@@ -145,32 +165,37 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
   const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
 
-  root.style.setProperty("--background", toCssColor(bg, theme.background.opacity));
-  root.style.setProperty("--foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--card", cardBg);
-  root.style.setProperty("--card-foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--popover", cardBg);
-  root.style.setProperty("--popover-foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--primary", toCssColor(accent, 1));
-  root.style.setProperty("--primary-foreground", primaryFgFinal);
-  root.style.setProperty("--secondary", mutedBg);
-  root.style.setProperty("--secondary-foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--muted", mutedBg);
-  root.style.setProperty("--muted-foreground", toCssColor(subtle, theme.subtleText.opacity));
-  root.style.setProperty("--accent", toCssColor(accent, 0.15));
-  root.style.setProperty("--accent-foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--border", borderColor);
-  root.style.setProperty("--input", borderLight);
-  root.style.setProperty("--ring", toCssColor(handle, theme.handle.opacity));
-  root.style.setProperty("--sidebar", cardBg);
-  root.style.setProperty("--sidebar-foreground", toCssColor(fg, theme.defaultText.opacity));
-  root.style.setProperty("--sidebar-border", borderLight);
+  return [
+    ["--background", toCssColor(bg, theme.background.opacity)],
+    ["--foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--card", cardBg],
+    ["--card-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--popover", cardBg],
+    ["--popover-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--primary", toCssColor(accent, 1)],
+    ["--primary-foreground", primaryFgFinal],
+    ["--secondary", mutedBg],
+    ["--secondary-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--muted", mutedBg],
+    ["--muted-foreground", toCssColor(subtle, theme.subtleText.opacity)],
+    ["--accent", toCssColor(accent, 0.15)],
+    ["--accent-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--border", borderColor],
+    ["--input", borderLight],
+    ["--ring", toCssColor(handle, theme.handle.opacity)],
+    ["--sidebar", cardBg],
+    ["--sidebar-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--sidebar-border", borderLight],
+  ];
 }
 
 export function clearCustomThemeFromDOM() {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  for (const meta of THEME_COLOR_META) root.style.removeProperty(meta.cssVar);
+  for (const meta of THEME_COLOR_META) {
+    root.style.removeProperty(meta.cssVar);
+    if (meta.gradientCssVar) root.style.removeProperty(meta.gradientCssVar);
+  }
   // Also remove shadcn/ui CSS variables that were set by applyCustomThemeToDOM
   const uiVars = [
     "--background", "--foreground", "--card", "--card-foreground",

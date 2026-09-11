@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { FewerApp } from "@/components/fewer";
 
 export const metadata: Metadata = {
@@ -9,7 +10,14 @@ export const metadata: Metadata = {
 
 /**
  * The interactive app. Served at `/app` (app.fewer.directory/app).
+ *
+ * TooltipProvider at the page level (stable mount point — never re-renders)
+ * prevents Radix tooltip context cascading on every FewerApp re-render.
  */
 export default function AppPage() {
-  return <FewerApp />;
+  return (
+    <TooltipProvider delayDuration={0}>
+      <FewerApp />
+    </TooltipProvider>
+  );
 }

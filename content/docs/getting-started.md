@@ -36,13 +36,13 @@ Open `http://localhost:3000`.
 
 If **Power User mode** is enabled in Settings, you will see the below options in the import dialog.
 
-| Option                  | Default | Description                             |
-| ----------------------- | ------- | --------------------------------------- |
-| Max Depth               | 6       | How many folder levels to import        |
+| Option                  | Default | Description                                   |
+| ----------------------- | ------- | --------------------------------------------- |
+| Max Depth               | 6       | How many folder levels to import              |
 | Include Hidden Files    | Off     | Include dotfiles (`.gitignore`, `.env`, etc.) |
-| Include File Nodes      | On      | Show files or folders only              |
-| Extension Filter        | None    | Comma-separated whitelist               |
-| Auto-hide Large Folders | On      | Folders with >10 children hide children |
+| Include File Cards      | On      | Show files or folders only                    |
+| Extension Filter        | None    | Comma-separated whitelist                     |
+| Auto-hide Large Folders | On      | Folders with >10 children hide children       |
 
 ## First Graph
 
@@ -53,6 +53,10 @@ After import, you'll see:
 - **Edges** connecting parent → child with 3 style options
 - **Minimap** in bottom-right for navigation
 - **Breadcrumb bar** showing selected node's full path
+
+## Reload Persistence
+
+The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph — including node positions and edits — without re-importing. No account needed. Clearing the canvas removes the cache.
 
 ## Keyboard Navigation
 

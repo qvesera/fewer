@@ -65,15 +65,15 @@ test("renders theme colors + background rect", () => {
   expect(scene.svg).toContain("Empty folder");
 });
 
-test("selection draws the accent ring stroke on the selected node only", () => {
-  const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
+test("selection is not drawn in exports — selected card keeps its normal border", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { type: "file", x: 300, w: 220 })];
   const edges = [makeEdge("e0", "r", "c")];
   const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["c"]) }));
-  // The pulsing glow filter def is gone; selection is a static accent ring.
-  expect(scene.svg).not.toContain("filter-glow");
-  // Selected node c carries the accent ring stroke + width.
-  expect(scene.svg).toContain('stroke="#22d3ee"');
-  expect(scene.svg).toContain('stroke-width="2"');
+  // The selection ring is a canvas-only affordance and must not bake into the image.
+  expect(scene.svg).not.toContain("#22d3ee");
+  // The selected node renders with its normal file border + 1px stroke.
+  expect(scene.svg).toContain('stroke="rgba(190, 75, 219, 0.45)"');
+  expect(scene.svg).toContain('stroke-width="1"');
 });
 
 test("edge path geometry differs per edge style", () => {
