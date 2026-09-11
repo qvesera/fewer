@@ -168,9 +168,10 @@ Setup (Settings → Secrets and variables → Actions):
 - optional vars: `SUPABASE_PROJECT_REF_DEV`, `SUPABASE_PROJECT_REF_PROD`
   (defaults are baked into the workflow)
 
-Add `verify` to the required status checks of the `dev` and `main` rulesets, and
-attach required reviewers to the `production` environment so applies to prod are
-gated.
+Add `verify` to the required status checks of the `dev` and `main` rulesets. The
+apply/repair jobs use the existing **`dev`** and **`prod`** environments — `prod`
+already has a required-reviewers rule, so applies to production wait for
+approval.
 
 ### Baseline drift and repair
 
@@ -186,6 +187,14 @@ supabase migration repair --status applied 0016 0017  # history only, no DDL
 
 Or run the `Migrations` workflow manually with the `project` and
 `repair_versions` inputs. Repair rewrites only `schema_migrations`.
+
+> **Repair asserts a migration is applied — it does not run it.** Before marking
+> a version applied, confirm its change really exists in that database (check the
+> column/table/index). If it is genuinely missing, apply it **first** and only
+> then record the version — repairing a missing migration skips it forever.
+> `0024_billing` was exactly this on production: the history drift made it look
+> pending, but `profiles.stripe_customer_id` genuinely did not exist, so the
+> column had to be added before its version was recorded.
 
 ### Local commands
 
