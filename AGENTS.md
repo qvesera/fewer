@@ -92,6 +92,7 @@ FewerApp
 bun run lint           # Must pass before commit
 bun run build          # Must succeed
 python3 scripts/changelog.py validate   # Must exit 0 before committing changelog changes
+python3 scripts/migrations.py verify --base origin/dev   # migration rules (CI runs this too)
 ```
 
 ## Changelog
@@ -107,6 +108,92 @@ python3 scripts/changelog.py validate       # gate: format + package.json sync
 ```
 
 Map Conventional Commits → group: `feat`→Added, `fix`→Fixed, `perf`→Performance, `refactor`/`style`/`docs` (user-visible)→Changed, `security`→Security, `pwa`→PWA. Skip `chore`/`build`/`ci`/`test` with no user impact. Full rules live in `.agents/skills/changelog/SKILL.md`.
+
+## Database Migrations
+
+Migrations live in `supabase/migrations/` and are applied with the Supabase CLI
+(`supabase link` + `supabase db push`).
+
+### Hard rules
+
+1. **An applied migration is immutable. Never edit or delete one.** The runner
+   records versions in `supabase_migrations.schema_migrations` and never
+   re-executes them, so edits silently miss every existing environment
+   (production included). Change the schema with a **new** migration.
+2. **Every migration must be idempotent** — safe to run twice on a database
+   that already has the change: `if not exists`, `on conflict do nothing`,
+   `create or replace`, `drop … if exists`, guarded `do $$ … $$` blocks.
+3. **Number new files above the current maximum**, `NNNN_lower_snake_case.sql`
+   (e.g. `0028_add_thing.sql`). `db push` only applies versions above the
+   newest known one, so a lower number is silently skipped. Never reuse a
+   number.
+4. **Never grant table-level INSERT/UPDATE on `profiles`.** RLS gates rows, not
+   columns, and users may update their own row — so table-level UPDATE lets a
+   signed-in user set their own `plan`. `0022` + `0026` establish the
+   column-level model: insert/update only the columns the account form owns,
+   keep `plan` / `stripe_customer_id` service-role-only.
+
+> Why this is spelled out: v0.7.0 edited the already-applied `0019_profiles.sql`
+> and `0021_content_pages.sql`. The grants reached production only out-of-band,
+> silently re-opening a plan self-upgrade hole, and the docs copy never
+> re-seeded. Both needed follow-up migrations (`0026`, `0027`) to repair.
+
+### Adding a migration
+
+```bash
+supabase migration new add_thing        # creates supabase/migrations/<ts>_add_thing.sql
+python3 scripts/migrations.py verify --base origin/dev   # same checks CI runs
+```
+
+### Pipeline
+
+`.github/workflows/migrations.yml`:
+
+| Trigger | Job | What it does |
+| --- | --- | --- |
+| any PR to `main`/`dev`/`release/prod` | `verify` | static + git checks (see below) |
+| push to `dev` | `apply-dev` | baseline check → dry-run → `db push` to `fewer-dev` |
+| push to `main` | `apply-prod` | baseline check → dry-run → `db push` to production |
+| manual dispatch | `repair-dev` / `repair-prod` | record versions as applied (history only) |
+
+`verify` fails when a PR modifies/deletes an existing migration, adds an
+out-of-order or duplicate number, or adds an empty file. `apply-*` re-checks the
+baseline against the project's recorded history and refuses to push when a local
+migration is missing from history but was not added by the change — that means
+drift and `db push` would replay old migrations.
+
+Setup (Settings → Secrets and variables → Actions):
+
+- secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_DB_PASSWORD_PROD`
+- optional vars: `SUPABASE_PROJECT_REF_DEV`, `SUPABASE_PROJECT_REF_PROD`
+  (defaults are baked into the workflow)
+
+Add `verify` to the required status checks of the `dev` and `main` rulesets, and
+attach required reviewers to the `production` environment so applies to prod are
+gated.
+
+### Baseline drift and repair
+
+Project history can drift from the repo when migrations were applied under
+timestamps (or renamed) — the CLI then reads local versions as "pending" and
+would replay them. To fix:
+
+```bash
+supabase link --project-ref <ref>
+supabase migration list --linked                      # local vs remote
+supabase migration repair --status applied 0016 0017  # history only, no DDL
+```
+
+Or run the `Migrations` workflow manually with the `project` and
+`repair_versions` inputs. Repair rewrites only `schema_migrations`.
+
+### Local commands
+
+```bash
+python3 scripts/migrations.py verify --base origin/dev         # PR checks
+python3 scripts/migrations.py baseline --list <list-output>     # drift gate
+bun run migrations:verify                                       # wrapper
+```
 
 ## Landing the Plane (Session Completion)
 
