@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-12
+
 ### Fixed
 
 - **Profiles row now created at signup**: new users automatically get a `profiles` row with the free plan — previously the row only existed after saving Settings → Account, causing plan-dependent features to fail. All existing users backfilled (migration 0025).
