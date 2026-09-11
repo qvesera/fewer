@@ -1,6 +1,5 @@
 import "server-only";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getSupabaseCookieClient } from "../supabaseServer";
 import { decryptToken, encryptToken } from "./crypto";
 import { getAdapter } from "./registry";
 import type { CloudConnection, CloudProvider } from "./types";
@@ -8,24 +7,8 @@ import { isTokenExpiringSoon } from "./tokenExpiry";
 
 /** Authed Supabase client from the session cookie. Null when not signed in. */
 export async function getAuthedClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
+  const supabase = await getSupabaseCookieClient();
+  if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
   return { supabase, user: data.user };

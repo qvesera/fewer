@@ -1,28 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getSupabaseCookieClient } from "@/lib/fewer/supabaseServer";
+import { isShareExpired, serverError } from "@/lib/fewer/apiHelpers";
 
 /** Resolve the current user's email from the session cookie, if any. */
 async function getCurrentUserEmail(): Promise<string | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
+  const supabase = await getSupabaseCookieClient();
+  if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
   return data.user?.email ?? null;
 }
@@ -52,7 +36,7 @@ export async function GET(
     }
 
     // Lazy expiry: if past expires_at (NULL = never expires), delete and 404.
-    if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
+    if (isShareExpired(data.expires_at)) {
       await supabase.from("shared_graphs").delete().eq("id", id);
       return NextResponse.json({ error: "Share link not found or expired" }, { status: 404 });
     }
@@ -71,7 +55,6 @@ export async function GET(
 
     return NextResponse.json({ data: data.data });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
