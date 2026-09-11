@@ -6,7 +6,7 @@ import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection, getDescendants } from "@/lib/fewer/validation";
-import { fsHandleStore, edgeDashPattern } from "@/lib/fewer/types";
+import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 
 import { fullName } from "@/lib/fewer/nodeName";
@@ -164,15 +164,6 @@ export function reconcileAutoHide(
     nextAuto.add(id);
   }
   return { hiddenIds: [...nextHidden], autoHiddenIds: [...nextAuto] };
-}
-
-function edgeTypeFromStyle(style: string): FewerEdge["type"] {
-  switch (style) {
-    case "curved": return "default";
-    case "angled": return "smoothstep";
-    case "straight": return "straight";
-    default: return "default";
-  }
 }
 
 function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {

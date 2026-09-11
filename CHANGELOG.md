@@ -121,6 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GraphCanvas: extract renderCanvasContextMenu as a pure sibling function, reducing CanvasInner by ~90 lines and its cyclomatic complexity
 - Refactored history.ts from two CCN-24 switch statements to a dispatch-table pattern with flat per-op handlers and shared helpers (repath/relocate/mergeNew/excludeIds)
 - Split monolithic fileOps.ts into fsPrimitives + folderSync + facade to break shotgun-surgery co-change pattern (25 partners → isolated modules). Flattened moveFile/entryExists nested complexity. Added 11 tests for entryExists, getUniqueName, refreshViaPathWalk.
+- Layout direction switches now regenerate edge ids with a deterministic counter instead of a timestamp+random suffix (visible in exported JSON/CSV edge ids)
 
 ### Security
 
@@ -129,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - Split fileSystem.ts into focused modules (fsHandleWalk, fsEntryWalk, fsInputFallback, fsFilters) to reduce nesting 5→3 and CCN 18→4-11 per function
+- Layout settings (edge style, animation, stroke, width, corner radius, node size) apply in a single store write instead of two, halving subscriber notifications
 
 ## [0.6.1] - September 3, 2026
 

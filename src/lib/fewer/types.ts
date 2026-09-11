@@ -78,6 +78,20 @@ export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
   }
 }
 
+/**
+ * React Flow edge renderer type for a Settings edge style. Single source of
+ * truth shared by the graph and layout slices (curved → built-in "default"
+ * renderer, angled → "smoothstep", straight → "straight").
+ */
+export function edgeTypeFromStyle(style: EdgeStyle): FewerEdge["type"] {
+  switch (style) {
+    case "curved": return "default";
+    case "angled": return "smoothstep";
+    case "straight": return "straight";
+    default: return "default";
+  }
+}
+
 export interface GraphSnapshot {
   nodes: FewerNode[];
   edges: FewerEdge[];

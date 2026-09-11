@@ -156,13 +156,27 @@ describe("setDirection", () => {
     expect(s().direction).toBe("BT");
   });
 
-  it("regenerates every edge id (shape + prefix preserved, never exact)", () => {
+  it("regenerates every edge id (deterministic counter, unique within a call)", () => {
     const before = s().edges.map((e) => e.id);
     s().setDirection("LR");
     const after = s().edges.map((e) => e.id);
     before.forEach((old, i) => {
       expect(after[i]).not.toBe(old);
-      expect(after[i]).toMatch(/^e-[^-]+-[^-]+-[0-9]+-[0-9a-z]{5}$/);
+      expect(after[i]).toMatch(/^e-[^-]+-[^-]+-[0-9]+$/);
+    });
+    // No two edges may share an id after a direction switch (parallel edges
+    // included) — the counter guarantees it.
+    expect(new Set(after).size).toBe(after.length);
+  });
+
+  it("keeps regenerating ids across repeated direction switches", () => {
+    s().setDirection("LR");
+    const first = s().edges.map((e) => e.id);
+    s().setDirection("TB");
+    const second = s().edges.map((e) => e.id);
+    second.forEach((id, i) => {
+      expect(id).not.toBe(first[i]);
+      expect(id).toMatch(/^e-[^-]+-[^-]+-[0-9]+$/);
     });
   });
 
