@@ -125,6 +125,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
 
+### Performance
+
+- Split fileSystem.ts into focused modules (fsHandleWalk, fsEntryWalk, fsInputFallback, fsFilters) to reduce nesting 5→3 and CCN 18→4-11 per function
+
 ## [0.6.1] - September 3, 2026
 
 ### Changed
