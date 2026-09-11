@@ -120,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract shared fullName node-name helper (graphSlice + BatchRenameDialog) and reuse getDescendants for hide expansion
 - GraphCanvas: extract renderCanvasContextMenu as a pure sibling function, reducing CanvasInner by ~90 lines and its cyclomatic complexity
 - Refactored history.ts from two CCN-24 switch statements to a dispatch-table pattern with flat per-op handlers and shared helpers (repath/relocate/mergeNew/excludeIds)
+- Split monolithic fileOps.ts into fsPrimitives + folderSync + facade to break shotgun-surgery co-change pattern (25 partners → isolated modules). Flattened moveFile/entryExists nested complexity. Added 11 tests for entryExists, getUniqueName, refreshViaPathWalk.
 
 ### Security
 
