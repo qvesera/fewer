@@ -144,3 +144,33 @@ export function resolveCss(theme: CustomTheme, key: keyof CustomTheme): string {
   const c = theme[key] as CustomThemeColor;
   return toCssColor(c.color, c.opacity);
 }
+
+/**
+ * Adaptive chip colors for the "N nodes hidden" pill on the canvas. Derives a
+ * readable background/text pair from the canvas background's luminance:
+ * dark backgrounds get a lightened chip, light backgrounds a darkened one.
+ * Pass the raw `--fewer-background` var (or undefined when unavailable);
+ * non-hex values (gradients) fall back to no styling.
+ */
+export interface CanvasChipStyle {
+  backgroundColor?: string;
+  color?: string;
+}
+
+export function canvasChipStyle(rawBackground: string | undefined): CanvasChipStyle {
+  const bg = rawBackground?.trim() || "#0b0b13";
+  const rgb = hexToRgb(bg);
+  if (!rgb) return {};
+  const { r, g, b } = rgb;
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  if (luminance > 128) {
+    return {
+      backgroundColor: `rgba(${Math.round(r * 0.25)}, ${Math.round(g * 0.25)}, ${Math.round(b * 0.25)}, 0.8)`,
+      color: "rgba(255, 255, 255, 0.9)",
+    };
+  }
+  return {
+    backgroundColor: `rgba(${Math.min(255, Math.round(r * 0.5 + 128))}, ${Math.min(255, Math.round(g * 0.5 + 128))}, ${Math.min(255, Math.round(b * 0.5 + 128))}, 0.8)`,
+    color: "rgba(0, 0, 0, 0.85)",
+  };
+}

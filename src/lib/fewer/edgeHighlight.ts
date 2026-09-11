@@ -1,5 +1,30 @@
-import type { EdgeStrokeStyle, FewerEdge, FewerNode } from "./types";
+import type { EdgeStrokeStyle, EdgeStyle, FewerEdge, FewerNode } from "./types";
 import { edgeDashPattern } from "./types";
+
+/** React Flow edge subtype for a UI edge-style choice. */
+export function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
+  switch (style) {
+    case "curved": return "default";
+    case "angled": return "smoothstep";
+    case "straight": return "straight";
+  }
+}
+
+/**
+ * Static stroke-dash pattern used for the canvas's default (unhighlighted)
+ * edges. Deliberately NOT `edgeDashPattern` from types.ts: the animated
+ * edges must share a dash-clock period (a common multiple of every period in
+ * play), while static edges use a lighter hand-tuned spacing. Keep the two
+ * consistent only when changing both dash clocks together.
+ */
+export function staticEdgeDashArray(style: EdgeStrokeStyle): string | undefined {
+  switch (style) {
+    case "dashed": return "6 6";
+    case "dotted": return "2 6";
+    case "solid":
+    default: return undefined;
+  }
+}
 
 /** Themed edge colors resolved once per theme change (see GraphCanvas). */
 export interface EdgeThemeColors {

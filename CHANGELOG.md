@@ -117,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
 - Split uiSlice into focused sub-slices (search/selection/visibility/folder/collapse/panel/dialogs) exposing the same store API
 - Extract shared fullName node-name helper (graphSlice + BatchRenameDialog) and reuse getDescendants for hide expansion
+- GraphCanvas: extract renderCanvasContextMenu as a pure sibling function, reducing CanvasInner by ~90 lines and its cyclomatic complexity
 
 ### Security
 

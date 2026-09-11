@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { FewerEdge, FewerNode } from "./types";
-import { applyEdgeSelection, buildSelectedEdgeHighlight } from "./edgeHighlight";
+import { applyEdgeSelection, buildSelectedEdgeHighlight, edgeTypeFor, staticEdgeDashArray } from "./edgeHighlight";
 
 function makeNode(id: string, type: "folder" | "file" = "folder"): FewerNode {
   return { id, type, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type } };
@@ -159,5 +159,21 @@ describe("applyEdgeSelection", () => {
     expect(bc.target).toBe("c");
     expect(bc.type).toBe("default");
     expect(bc.selected).toBe(true);
+  });
+
+  describe("edgeTypeFor", () => {
+    test("maps UI edge styles to React Flow edge types", () => {
+      expect(edgeTypeFor("curved")).toBe("default");
+      expect(edgeTypeFor("angled")).toBe("smoothstep");
+      expect(edgeTypeFor("straight")).toBe("straight");
+    });
+  });
+
+  describe("staticEdgeDashArray", () => {
+    test("returns the static canvas dash patterns (distinct from the animated edgeDashPattern)", () => {
+      expect(staticEdgeDashArray("dashed")).toBe("6 6");
+      expect(staticEdgeDashArray("dotted")).toBe("2 6");
+      expect(staticEdgeDashArray("solid")).toBeUndefined();
+    });
   });
 });

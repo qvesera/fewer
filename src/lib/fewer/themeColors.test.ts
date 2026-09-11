@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import {
   hexToRgb,
   clampOpacity,
@@ -9,6 +9,7 @@ import {
   clampAngle,
   mixHex,
   suggestGradientEnd,
+  canvasChipStyle,
 } from "./themeColors";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "./types";
 
@@ -127,4 +128,25 @@ test("migrateCustomTheme preserves valid gradient fields", () => {
 test("gradient-capable slots carry gradientCssVar in THEME_COLOR_META", () => {
   const withGrad = THEME_COLOR_META.filter((m) => m.gradientCssVar).map((m) => m.key);
   expect(withGrad).toEqual(["background", "folderBg", "fileBg"]);
+});
+
+describe("canvasChipStyle", () => {
+  test("light background gets a darkened chip with light text", () => {
+    expect(canvasChipStyle("#ffffff")).toEqual({
+      backgroundColor: "rgba(64, 64, 64, 0.8)",
+      color: "rgba(255, 255, 255, 0.9)",
+    });
+  });
+
+  test("dark background gets a lightened chip with dark text", () => {
+    expect(canvasChipStyle("#0b0b13")).toEqual({
+            backgroundColor: "rgba(134, 134, 138, 0.8)",
+      color: "rgba(0, 0, 0, 0.85)",
+    });
+  });
+
+  test("undefined/empty falls back to the dark default; non-hex returns {}", () => {
+        expect(canvasChipStyle(undefined)).toEqual(canvasChipStyle("#0b0b13"));
+    expect(canvasChipStyle("  rgb(1,2,3) ")).toEqual({});
+  });
 });

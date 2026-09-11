@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ReactFlow,
   Background,
@@ -29,16 +29,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { edgeDashPattern } from "@/lib/fewer/types";
-import { applyEdgeSelection, buildSelectedEdgeHighlight } from "@/lib/fewer/edgeHighlight";
+import { edgeTypeFor } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStyle, EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
-import type { OnSelectionChangeParams } from "@xyflow/react";
+import type { EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
-import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 
 // Hooks (Phase C extraction — each is a cohesive, single-concern unit).
 import { useCanvasResize } from "@/hooks/use-canvas-resize";
@@ -56,22 +53,21 @@ import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handl
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
 import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
+import { useCanvasEdges } from "@/hooks/use-canvas-edges";
+import { useCanvasConnect } from "@/hooks/use-canvas-connect";
+import { useCanvasSelection } from "@/hooks/use-canvas-selection";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
+import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { canvasChipStyle, type CanvasChipStyle } from "@/lib/fewer/themeColors";
 import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
 
-function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
-  switch (style) {
-    case "curved": return "default";
-    case "angled": return "smoothstep";
-    case "straight": return "straight";
-  }
-}
-
 interface CanvasMenuPosition { x: number; y: number; }
 interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; leafId?: string; }
+type CanvasMenu = CanvasMenuPosition & { kind: "pane" | "edge" | "selection" };
+type CanvasToast = ReturnType<typeof useToast>["toast"];
 
 /** Shared edge-animation configuration assembled from store state. */
 function useEdgeAnimationOpts(
@@ -89,6 +85,197 @@ function useEdgeAnimationOpts(
       baseStrokeStyle: edgeStrokeStyle,
     }),
     [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle],
+  );
+}
+
+/** Canvas overlays: loading skeleton, "everything hidden", empty-slate CTA, hidden-count chip. */
+function renderCanvasOverlays({
+  loading,
+  rfNodesCount,
+  graphsExists,
+  vs,
+  leafId,
+  onOpenImport,
+  onLoadSample,
+  hiddenCount,
+  hiddenChipStyle,
+}: {
+  loading: boolean;
+  rfNodesCount: number;
+  graphsExists: boolean;
+  vs: ResolvedViewSettings;
+  leafId?: string | null;
+  onOpenImport: () => void;
+  onLoadSample: () => void;
+  hiddenCount: number;
+  hiddenChipStyle: CanvasChipStyle;
+}): ReactNode {
+  return (
+    <>
+      {loading && (
+        <Panel position="top-center" className="!top-[15%]">
+          <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
+            <div className="h-12 w-12 animate-pulse rounded-full bg-muted" />
+            <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+          </div>
+        </Panel>
+      )}
+      {!loading && rfNodesCount === 0 && graphsExists && (
+        <Panel position="top-center" className="!top-[15%]">
+          <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
+            <EyeOff className="h-12 w-12 text-muted-foreground/60" />
+            <div className="text-lg font-semibold">Everything is hidden</div>
+            <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
+              {vs.showFiles
+                ? "All nodes on this graph are currently hidden on the canvas."
+                : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
+            </div>
+            {!vs.showFiles && (
+              <Button variant="outline" onClick={() => leafId ? useGraphStore.getState().setFilesBulkForLeaf(leafId, false) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
+                <FolderOpen className="h-4 w-4" />
+                Show Files
+              </Button>
+            )}
+          </div>
+        </Panel>
+      )}
+      {!loading && rfNodesCount === 0 && !graphsExists && (
+        <Panel position="top-center" className="!top-[15%]">
+          <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
+            <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
+            <div className="text-lg font-semibold">No directory loaded</div>
+            <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">Use the sidebar to open a directory from your file system, or load one of the sample datasets to explore the visualization.</div>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <Button onClick={onOpenImport} data-tutorial="sample-button">
+                <FolderOpen className="h-4 w-4" />
+                Import
+              </Button>
+              <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Load sample
+              </Button>
+            </div>
+          </div>
+        </Panel>
+      )}
+      {hiddenCount > 0 && (
+        <Panel position="top-right">
+          <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md" style={hiddenChipStyle}
+            onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
+            {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
+          </button>
+        </Panel>
+      )}
+    </>
+    );
+}
+
+/**
+ * Context-menu renderer for the 3 menu kinds: edge, selection (multi-node),
+ * and pane (background). Moved out of CanvasInner so the component body
+ * stays declarative. Reads live store state via getState() — no hooks.
+ */
+function renderCanvasContextMenu(
+  menu: CanvasMenu,
+  lastClickedEdgeId: string | null,
+  vs: ResolvedViewSettings,
+  leafId: string | undefined,
+  advancedModeEnabled: boolean,
+  hiddenCount: number,
+  allNodes: FewerNode[],
+  selectAll: () => void,
+  toast: CanvasToast,
+  close: () => void,
+): ReactNode {
+  // ── Edge right-click: minimal menu ──
+  if (menu.kind === "edge" && lastClickedEdgeId) {
+    const eid = lastClickedEdgeId;
+    return (
+      <>
+        <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
+        <div className="gm-float fixed z-50 min-w-[160px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: menu.x, top: menu.y }}>
+          <button onClick={() => { useGraphStore.getState().deleteEdges([eid]); toast({ title: "Edge deleted", description: "1 edge removed" }); close(); }}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>
+        </div>
+      </>
+    );
+  }
+
+  const ids = useGraphStore.getState().selectedNodeIds;
+  const isSelectionMenu = menu.kind === "selection" && ids.length >= 2;
+
+  if (isSelectionMenu) {
+    const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: ids });
+    return (
+      <>
+        <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
+        <DropdownMenu open onOpenChange={(o) => { if (!o) close(); }}>
+          <DropdownMenuTrigger asChild>
+            <div className="fixed z-50 h-px w-px" style={{ left: menu.x, top: menu.y }} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+            <DropdownMenuLabel>{ids.length} items selected</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {top.map((a) => (
+              <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
+            ))}
+            {more.length > 0 && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-48">
+                  {more.map((a) => (
+                    <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48">
+                {select.map((a) => (
+                  <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            {del && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => { del.run(); close(); }}
+                  className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                >
+                  {del.label}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </>
+    );
+  }
+
+    // ── Pane right-click ──
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
+      <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: menu.x, top: menu.y }}>
+        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">View</div>
+        <div className="my-1 h-px bg-border/40" />
+            {leafId && (<>
+            <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minim" : "Hide Minim"}</button>
+            <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
+          </>)}
+        <div className="my-1 h-px bg-border/40" />
+        <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
+        {advancedModeEnabled && (<>
+            <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
+            <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
+          </>)}
+        <div className="my-1 h-px bg-border/40" />
+        <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
+      </div>
+    </>
   );
 }
 
@@ -180,26 +367,6 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
 
-  // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
-  const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
-  // Protect double-click selection from being cleared by the subsequent onSelectionChange.
-  const doubleClickedIdRef = useRef<string | null>(null);
-  const handleEdgesChange = useCallback(
-    (changes: import("@xyflow/react").EdgeChange<FewerEdge>[]) => {
-      for (const c of changes) {
-        if (c.type === "select") {
-          if (c.selected) selectedEdgeIdsRef.current.add(c.id);
-          else selectedEdgeIdsRef.current.delete(c.id);
-        } else if (c.type === "remove") {
-          selectedEdgeIdsRef.current.delete(c.id);
-        }
-        // `add` changes carry no id (the edge is the payload) — nothing to track.
-      }
-      onEdgesChange(changes);
-    },
-    [onEdgesChange],
-  );
-
   useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
   useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
@@ -261,134 +428,27 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const animation = useEdgeAnimationOpts(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
 
-  // Edge highlight: read selections INSIDE the effect from the store to avoid
-  // unstable empty-array references in deps that cause infinite re-renders.
-  useEffect(() => {
-    const state = useGraphStore.getState();
-    const leafSel = leafId ? state.leafSelections[leafId] : undefined;
-    const selectedForHighlight = leafSel ?? state.selectedNodeIds;
-    const hoverForHighlight = isActive ? state.hoverHighlightIds : [];
-    const latestEdges = state.edges;
-    const updatedEdges = buildSelectedEdgeHighlight(selectedForHighlight, hoverForHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
-    const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
-    setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
-      // Filter by the view's EFFECTIVE hidden set (layers + global), not just global.
-      const hidden = new Set(vs.hiddenIds);
-      return !hidden.has(e.source) && !hidden.has(e.target);
-    }));
-  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle, advancedModeEnabled, animation, setRfEdges, vs.hiddenIds,
-      leafId, isActive]);
-
-  const dashArray = useMemo(() => {
-    switch (vs.edgeStrokeStyle) {
-      case "dashed": return "6 6";
-      case "dotted": return "2 6";
-      case "solid":
-      default: return undefined;
-    }
-  }, [vs.edgeStrokeStyle]);
+  // Edge handling (selection tracking + highlight rebuild + static dash) lives
+  // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
+  // live store state to avoid unstable reference deps.
+  const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
+    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive,
+  });
 
   const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
   const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
 
-  // ── Selection: highlight ancestor path for EVERY selected node ──
-  const onSelectionChange = useCallback(
-    ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
-            const selectedIds = new Set(selected.map((n) => n.id));
-      // If a double-click just selected a node, ensure it stays selected
-      // even if RF's onSelectionChange reports a stale/empty selection.
-      if (doubleClickedIdRef.current) {
-        selectedIds.add(doubleClickedIdRef.current);
-        doubleClickedIdRef.current = null;
-      }
-      // Sync the live edge-selection ref from RF's authoritative full-selection
-      // snapshot so the upcoming rebuild (and any later one) preserves it.
-      selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
-      const prevIds = useGraphStore.getState().selectedNodeIds;
-      const base = boxSelectBaseRef.current;
-      const newIds = base
-        ? [...new Set([...base, ...selectedIds])]
-        : [
-            ...prevIds.filter((id: string) => selectedIds.has(id)),
-                        ...selected.filter((n) => !prevIds.includes(n.id)).map((n) => n.id),
-          ];
-      // Write to per-leaf selection (and global for keyboard shortcut compatibility)
-      if (leafId) {
-        useGraphStore.getState().setSelectionForLeaf(leafId, newIds);
-      } else {
-        setSelectedNodeIds(newIds);
-      }
+  const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
+    setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
+  });
 
-      // NOTE: we intentionally do NOT write store edges here. Writing edges
-      // would change `allEdges` in the store, re-triggering the edge-highlight
-      // effect below and causing an infinite onSelectionChange ↔ effect loop.
-      // The effect handles both RF-edge highlighting and store-edge sync on
-      // every selection / graphVersion / theme change.
-    },
-    [setSelectedNodeIds, setRfEdges, vs.edgeWidth, themeColors, advancedModeEnabled, boxSelectBaseRef, leafId],
-  );
-
-  const onConnect = useCallback(
-    (connection) => {
-      const result = connectNodes(connection);
-      if (!result.ok) {
-        toast({ title: "Connection rejected", description: result.reason, variant: "destructive" });
-      } else if (connection.source && connection.target) {
-        setRfEdges((eds) => [...eds, { id: `e-${connection.source}-${connection.target}-${Date.now()}`, source: connection.source, target: connection.target, type: edgeTypeFor(vs.edgeStyle) }]);
-      }
-    },
-    [connectNodes, toast, setRfEdges, vs.edgeStyle],
-  );
-
-  const onConnectEnd = useCallback(
-    (event: unknown, connectionState: { isValid: boolean | null; fromNode?: { id: string; data?: { type?: string } }; fromHandle?: { type?: "source" | "target" } }) => {
-      if (!connectionState.isValid && connectionState.fromNode) {
-        const store = useGraphStore.getState();
-        store.setSelectedNodeIds([connectionState.fromNode.id]);
-        // Capture pointer position so the new node lands where the cursor is.
-        const e = event as MouseEvent & { changedTouches?: TouchList; touches?: TouchList };
-        const t = e.changedTouches?.[0] ?? e.touches?.[0];
-        const clientX = t?.clientX ?? e.clientX ?? 0;
-        const clientY = t?.clientY ?? e.clientY ?? 0;
-        store.setPendingCreatePosition(screenToFlowPosition({ x: clientX, y: clientY }));
-        if (connectionState.fromHandle?.type === "target") {
-          // Dragging out of a node's entry handle → create a parent folder for it.
-          window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE_PARENT));
-        } else if (connectionState.fromNode.data?.type === "folder") {
-          window.dispatchEvent(new CustomEvent(FEWER_ADD_NODE));
-        }
-      }
-    },
-    [screenToFlowPosition],
-  );
-
-  const fitToSelection = useCallback(() => {
-    const selected = useGraphStore.getState().selectedNodeIds;
-    if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
-    fitView({ nodes: selected.map((id: string) => ({ id })), duration: 600, padding: 0.3 });
-  }, [fitView]);
-
-  const selectAll = useCallback(() => {
-    const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n: FewerNode) => ({ ...n, selected: true })), selectedNodeIds: ids }));
-    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
-  }, [setRfNodes]);
+  const { onConnect, onConnectEnd } = useCanvasConnect({
+    connectNodes, setRfEdges, edgeStyle: vs.edgeStyle, screenToFlowPosition, toast,
+  });
 
   const hiddenChipStyle = useMemo(() => {
-    const bg = (() => {
-      if (typeof document === "undefined") return "#0b0b13";
-      const v = getComputedStyle(document.documentElement).getPropertyValue("--fewer-background").trim();
-      return v || "#0b0b13";
-    })();
-    const m = /^#?([0-9a-fA-F]{6})$/.exec(bg.trim());
-    if (!m) return {};
-    const n = parseInt(m[1], 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-    if (luminance > 128) {
-      return { backgroundColor: `rgba(${Math.round(r * 0.25)}, ${Math.round(g * 0.25)}, ${Math.round(b * 0.25)}, 0.8)`, color: "rgba(255, 255, 255, 0.9)" };
-    }
-    return { backgroundColor: `rgba(${Math.min(255, Math.round(r * 0.5 + 128))}, ${Math.min(255, Math.round(g * 0.5 + 128))}, ${Math.min(255, Math.round(b * 0.5 + 128))}, 0.8)`, color: "rgba(0, 0, 0, 0.85)" };
+    const rawBackground = typeof document === "undefined" ? undefined : getComputedStyle(document.documentElement).getPropertyValue("--fewer-background").trim();
+    return canvasChipStyle(rawBackground || undefined);
   }, []);
 
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
@@ -409,11 +469,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
-        onNodeDoubleClick={(_, node) => {
-          doubleClickedIdRef.current = node.id;
-          useGraphStore.getState().setSelectedNodeIds([node.id]);
-          requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
-        }}
+        onNodeDoubleClick={onNodeDoubleClick}
         onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
           if (deletedNodes.length > 0) {
             deleteNodes(deletedNodes.map((n: FewerNode) => n.id));
@@ -460,156 +516,23 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
             <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={fitToSelection} title="Zoom to selection"><Crosshair className="h-4 w-4" /></Button>
           </div>
         </Panel>
-        {loading && (
-          <Panel position="top-center" className="!top-[15%]">
-            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
-              <div className="h-12 w-12 animate-pulse rounded-full bg-muted" />
-              <div className="h-5 w-48 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-64 animate-pulse rounded bg-muted" />
-            </div>
-          </Panel>
-        )}
-        {!loading && rfNodes.length === 0 && graphsExists && (
-          <Panel position="top-center" className="!top-[15%]">
-            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
-              <EyeOff className="h-12 w-12 text-muted-foreground/60" />
-              <div className="text-lg font-semibold">Everything is hidden</div>
-              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
-                {vs.showFiles
-                  ? "All nodes on this graph are currently hidden on the canvas."
-                  : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
-              </div>
-              {!vs.showFiles && (
-                <Button variant="outline" onClick={() => leafId ? useGraphStore.getState().setFilesBulkForLeaf(leafId, false) : useGraphStore.getState().setShowFiles(true)} data-tutorial="show-files-button">
-                  <FolderOpen className="h-4 w-4" />
-                  Show Files
-                </Button>
-              )}
-            </div>
-          </Panel>
-        )}
-        {!loading && rfNodes.length === 0 && !graphsExists && (
-          <Panel position="top-center" className="!top-[15%]">
-            <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
-              <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
-              <div className="text-lg font-semibold">No directory loaded</div>
-              <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">Use the sidebar to open a directory from your file system, or load one of the sample datasets to explore the visualization.</div>
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <Button onClick={onOpenImport} data-tutorial="sample-button">
-                  <FolderOpen className="h-4 w-4" />
-                  Import
-                </Button>
-                <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Load sample
-                </Button>
-              </div>
-            </div>
-          </Panel>
-        )}
-        {hiddenCount > 0 && (
-          <Panel position="top-right">
-            <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md" style={hiddenChipStyle}
-              onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
-              {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
-            </button>
-          </Panel>
-        )}
+        {renderCanvasOverlays({
+          loading,
+          rfNodesCount: rfNodes.length,
+          graphsExists,
+          vs,
+          leafId,
+          onOpenImport,
+          onLoadSample,
+          hiddenCount,
+          hiddenChipStyle,
+        })}
       </ReactFlow>
 
-      {canvasMenu && (() => {
-        const close = () => setCanvasMenu(null);
-
-        // ── Edge right-click: minimal menu ──
-        if (canvasMenu.kind === "edge" && lastClickedEdgeId) {
-          const eid = lastClickedEdgeId;
-          return (
-            <>
-              <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
-              <div className="gm-float fixed z-50 min-w-[160px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
-                <button onClick={() => { useGraphStore.getState().deleteEdges([eid]); toast({ title: "Edge deleted", description: "1 edge removed" }); close(); }}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]">Delete Edge</button>
-              </div>
-            </>
-          );
-        }
-
-        const ids = useGraphStore.getState().selectedNodeIds;
-        const isSelectionMenu = canvasMenu.kind === "selection" && ids.length >= 2;
-
-        if (isSelectionMenu) {
-          const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: ids });
-          return (
-            <>
-              <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
-              <DropdownMenu open onOpenChange={(o) => { if (!o) close(); }}>
-                <DropdownMenuTrigger asChild>
-                  <div className="fixed z-50 h-px w-px" style={{ left: canvasMenu.x, top: canvasMenu.y }} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
-                  <DropdownMenuLabel>{ids.length} items selected</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {top.map((a) => (
-                    <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
-                  ))}
-                  {more.length > 0 && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-48">
-                        {more.map((a) => (
-                          <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-48">
-                      {select.map((a) => (
-                        <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  {del && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={() => { del.run(); close(); }}
-                        className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                      >
-                        {del.label}
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          );
-        }
-
-        // ── Pane right-click ──
-        return (
-          <>
-            <div className="fixed inset-0 z-40" onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }} />
-            <div className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150" style={{ left: canvasMenu.x, top: canvasMenu.y }}>
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">View</div>
-              <div className="my-1 h-px bg-border/40" />
-                  {leafId && (<>
-                  <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
-                  <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
-                </>)}
-              <div className="my-1 h-px bg-border/40" />
-              <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
-              {advancedModeEnabled && (<>
-                  <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
-                  <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
-                </>)}
-              <div className="my-1 h-px bg-border/40" />
-              <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
-            </div>
-          </>
-        );
-      })()}
+      {canvasMenu && renderCanvasContextMenu(
+        canvasMenu, lastClickedEdgeId, vs, leafId, advancedModeEnabled,
+        hiddenCount, allNodes, selectAll, toast, () => setCanvasMenu(null),
+      )}
       {primary && <KeyboardShortcuts />}
     </div>
     </GraphViewProvider>
