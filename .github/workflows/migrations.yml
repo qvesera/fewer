@@ -4,8 +4,8 @@ name: Migrations
 # linked Supabase project after a merge.
 #
 #   pull_request -> verify   : static + git checks (no secrets needed)
-#   push to dev  -> apply-dev : fewer-dev project (environment: development)
-#   push to main -> apply-prod: production project (environment: production)
+#   push to dev  -> apply-dev : fewer-dev project (environment: dev)
+#   push to main -> apply-prod: production project (environment: prod, gated by required reviewers)
 #   workflow_dispatch        : one-off baseline repair (see AGENTS.md)
 #
 # Required secrets / variables (Settings -> Secrets and variables -> Actions):
@@ -84,7 +84,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     # Attach an environment so reviewers/approvals can be configured per project.
-    environment: development
+    environment: dev
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
@@ -121,8 +121,9 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # Protect production: Environment "production" -> required reviewers.
-    environment: production
+    # Protect production: the existing "prod" environment carries a
+    # required-reviewers rule, so an apply to production waits for approval.
+    environment: prod
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
@@ -161,7 +162,7 @@ jobs:
     name: repair-dev
     if: github.event_name == 'workflow_dispatch' && inputs.project == 'dev' && inputs.repair_versions != ''
     runs-on: ubuntu-latest
-    environment: development
+    environment: dev
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
@@ -188,7 +189,7 @@ jobs:
     name: repair-prod
     if: github.event_name == 'workflow_dispatch' && inputs.project == 'prod' && inputs.repair_versions != ''
     runs-on: ubuntu-latest
-    environment: production
+    environment: prod
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
