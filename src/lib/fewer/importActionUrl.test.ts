@@ -1,23 +1,35 @@
-import { describe, expect, mock, test } from "bun:test";
-
-// Mock the store (importActionUrl only reads nodes.length) and the shared
-// import-flow helpers so the action is exercised in isolation.
-mock.module("@/store/graphStore", () => ({
-  useGraphStore: { getState: () => ({ nodes: [{}, {}, {}] }) },
-}));
-mock.module("@/lib/fewer/importFlow", () => ({
-  collectAutoHideNotes: async () => [{ title: "Auto-hidden", description: "2 folders" }],
-  importFailure: (err: unknown, title = "Import failed") => ({
-    ok: false,
-    title,
-    error: err instanceof Error ? err.message : "Unknown error",
-  }),
-  isGitHubUrl: (value: string) => /github\.com/i.test(value),
-}));
-
-const { runUrlImport } = await import("./importActionUrl");
+import { describe, expect, test, beforeEach } from "bun:test";
+import { useGraphStore } from "@/store/graphStore";
+import { runUrlImport } from "./importActionUrl";
 import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from "./importOptions";
 import type { OriginSource } from "./importFlow";
+
+/**
+ * Seed the real store instead of mocking the modules.
+ *
+ * runUrlImport reads only two things from the store — the node count and
+ * collectAutoHideNotes' autoHideCount/autoHideThreshold — and every other
+ * collaborator is injected via ctx. A `mock.module("@/store/graphStore")`
+ * here would leak into every later test file in bun's shared process and
+ * replace their store binding with a stub that lacks setState/createTag
+ * (observed breaking tagsStore and other store suites depending on file
+ * evaluation order).
+ */
+function seedStore({ nodeCount = 3, autoHideCount = 0 }: { nodeCount?: number; autoHideCount?: number } = {}) {
+  useGraphStore.setState({
+    nodes: Array.from({ length: nodeCount }, (_, i) => ({
+      id: `n${i}`,
+      type: "folder",
+      position: { x: 0, y: 0 },
+      data: { label: `n${i}`, path: `/n${i}`, type: "folder" },
+    })) as never,
+    edges: [],
+    autoHideCount,
+    autoHideThreshold: 5,
+  });
+}
+
+beforeEach(() => seedStore());
 
 function opts(n: Partial<ImportOptions> = {}): ImportOptions {
   return { ...DEFAULT_IMPORT_OPTIONS, ...n };
@@ -61,14 +73,25 @@ describe("runUrlImport", () => {
   });
 
   test("success → node count description + auto-hide note", async () => {
+    seedStore({ autoHideCount: 2 });
     const c = ctx();
     const r = await runUrlImport(urlSource(), opts(), c);
     expect(r.ok).toBe(true);
     expect(r.description).toBe("3 nodes loaded.");
-    expect(r.notes).toEqual([{ title: "Auto-hidden", description: "2 folders" }]);
+    expect(r.notes).toHaveLength(1);
+    expect(r.notes![0]!.title).toBe("Large folders collapsed");
+    expect(r.notes![0]!.description).toContain("2 items were auto-hidden");
+  });
+
+  test("success with nothing auto-hidden → no notes", async () => {
+    const c = ctx();
+    const r = await runUrlImport(urlSource(), opts(), c);
+    expect(r.ok).toBe(true);
+    expect(r.notes).toEqual([]);
   });
 
   test("truncation note prepended before auto-hide notes", async () => {
+    seedStore({ autoHideCount: 2 });
     const c = ctx({ getTruncated: () => true });
     const r = await runUrlImport(urlSource(), opts(), c);
     expect(r.notes![0]!.title).toBe("Crawl limit reached");

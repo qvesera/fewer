@@ -1,10 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
-// Import the real store module directly: importActionUrl.test.ts registers a
-// bun mock.module on "@/store/graphStore" (a getState-only stub) and bun's
-// mock registry leaks across test files in the same process, which would
-// replace this binding with the stub. createStore.ts is the underlying
-// singleton re-exported by graphStore.ts and is not mocked anywhere.
-import { useGraphStore } from "@/store/createStore";
+// NOTE: never register a bun mock.module on a shared module (e.g.
+// "@/store/graphStore") in this suite — mocks leak across test files in the
+// shared process and replace other files' bindings with stubs.
+import { useGraphStore } from "@/store/graphStore";
 import { defaultDirection } from "@/store/slices/layoutSlice";
 import { edgeDashPattern } from "./types";
 import type { FewerNode, FewerEdge } from "./types";
