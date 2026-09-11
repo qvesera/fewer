@@ -76,6 +76,36 @@ export function suggestGradientEnd(base: string): string {
   return mixHex(base, luminance > 128 ? "#000000" : "#ffffff", 0.6);
 }
 
+/** Resolve one color slot from a possibly-legacy raw value, filling gaps from
+ *  the slot's default. */
+function migrateSlot(raw: unknown, def: CustomThemeColor): CustomThemeColor {
+  let color = def.color;
+  let opacity = def.opacity;
+  if (typeof raw === "string") {
+    // legacy plain CSS string (e.g. "rgba(...)" or "#hex")
+    const parsed = parseLegacyColor(raw);
+    if (parsed) {
+      color = parsed.color;
+      opacity = parsed.opacity;
+    }
+  } else if (raw && typeof raw === "object") {
+    const c = (raw as { color?: unknown }).color;
+    const o = (raw as { opacity?: unknown }).opacity;
+    if (typeof c === "string" && hexToRgb(c)) color = c;
+    if (typeof o === "number") opacity = clampOpacity(o);
+  }
+  const slot: CustomThemeColor = { color, opacity };
+  // Carry optional gradient fields through (lazily — only when valid), so
+  // gradient themes survive save/load and partial updates keep their gradient.
+  if (raw && typeof raw === "object") {
+    const g = (raw as { gradientTo?: unknown }).gradientTo;
+    const a = (raw as { gradientAngle?: unknown }).gradientAngle;
+    if (typeof g === "string" && hexToRgb(g)) slot.gradientTo = g;
+    if (typeof a === "number") slot.gradientAngle = clampAngle(a);
+  }
+  return slot;
+}
+
 /**
  * Coerce an unknown (possibly legacy plain-string) custom theme into the
  * structured `{ color, opacity }` shape, filling gaps from defaults.
@@ -84,33 +114,7 @@ export function migrateCustomTheme(input: unknown): CustomTheme {
   const out = {} as CustomTheme;
   const src = (input ?? {}) as Record<string, unknown>;
   for (const meta of THEME_COLOR_META) {
-    const def = DEFAULT_CUSTOM_THEME[meta.key];
-    const raw = src[meta.key];
-    let color = def.color;
-    let opacity = def.opacity;
-    if (typeof raw === "string") {
-      // legacy plain CSS string (e.g. "rgba(...)" or "#hex")
-      const parsed = parseLegacyColor(raw);
-      if (parsed) {
-        color = parsed.color;
-        opacity = parsed.opacity;
-      }
-    } else if (raw && typeof raw === "object") {
-      const c = (raw as { color?: unknown }).color;
-      const o = (raw as { opacity?: unknown }).opacity;
-      if (typeof c === "string" && hexToRgb(c)) color = c;
-      if (typeof o === "number") opacity = clampOpacity(o);
-    }
-    const slot: CustomThemeColor = { color, opacity };
-    // Carry optional gradient fields through (lazily — only when valid), so
-    // gradient themes survive save/load and partial updates keep their gradient.
-    if (raw && typeof raw === "object") {
-      const g = (raw as { gradientTo?: unknown }).gradientTo;
-      const a = (raw as { gradientAngle?: unknown }).gradientAngle;
-      if (typeof g === "string" && hexToRgb(g)) slot.gradientTo = g;
-      if (typeof a === "number") slot.gradientAngle = clampAngle(a);
-    }
-    out[meta.key] = slot;
+    out[meta.key] = migrateSlot(src[meta.key], DEFAULT_CUSTOM_THEME[meta.key]);
   }
   return out;
 }

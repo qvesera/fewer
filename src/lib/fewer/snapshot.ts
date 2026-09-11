@@ -33,28 +33,35 @@ export function pruneNodeForSave(node: FewerNode): FewerNode {
 
 // ── Snapshot normalization (validate / migrate on load) ─────────────────────
 
-/**
- * Normalize a loaded snapshot: coerce tag colors, drop dangling tag refs,
- * strip unknown fields. Mutates in place for zero-copy; caller should not
- * reuse the input for anything else.
- */
-export function normalizeSnapshot(data: SavedGraphData): SavedGraphData {
-  // Tag registry: coerce invalid colors to fallback
-  const tags: Tag[] = (data.tags ?? []).map((t) => ({
+/** Coerce invalid tag colors to the fallback color. */
+function normalizeTags(tags: Tag[] | undefined): Tag[] {
+  return (tags ?? []).map((t) => ({
     id: t.id,
     label: t.label ?? t.id,
     color: typeof t.color === "string" && /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : TAG_FALLBACK_COLOR,
   }));
-  const validTagIds = new Set(tags.map((t) => t.id));
+}
 
-  // Nodes: drop tagIds not in registry, coerce colors
-  const nodes = data.nodes.map((n) => {
+/** Drop node tagIds that don't exist in the (already normalized) registry. */
+function pruneTagRefs(nodes: FewerNode[], validTagIds: Set<string>): FewerNode[] {
+  return nodes.map((n) => {
     const node = { ...n, data: { ...n.data } };
     if (Array.isArray(node.data.tagIds)) {
       node.data.tagIds = node.data.tagIds.filter((id) => validTagIds.has(id));
     }
     return node;
   });
+}
+
+/**
+ * Normalize a loaded snapshot: coerce tag colors, drop dangling tag refs,
+ * strip unknown fields. Mutates in place for zero-copy; caller should not
+ * reuse the input for anything else.
+ */
+export function normalizeSnapshot(data: SavedGraphData): SavedGraphData {
+  const tags = normalizeTags(data.tags);
+  const validTagIds = new Set(tags.map((t) => t.id));
+  const nodes = pruneTagRefs(data.nodes, validTagIds);
 
   return { ...data, dataVersion: SNAPSHOT_VERSION, nodes, tags };
 }

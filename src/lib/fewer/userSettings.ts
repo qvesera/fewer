@@ -153,6 +153,24 @@ export function settingsChanged(
   return JSON.stringify(pick(prev)) !== JSON.stringify(pick(next));
 }
 
+/** Apply the panel-layout snapshot (Blender-style docked areas; optional,
+ *  newer field). Cloud viewSettings never carry `positions` (stripped in
+ *  pick()); keep the device-local positions so applying cloud settings can't
+ *  wipe them. */
+function applyPanelLayout(data: Partial<UserSettings>): void {
+  if (!data.panelLayout) return;
+  const tree = parseTree(data.panelLayout.panelTree);
+  const vs = parseViewSettings(data.panelLayout.viewSettings);
+  if (tree) {
+    const local: Record<string, ViewSettings> = useGraphStore.getState().viewSettings;
+    for (const [id, leaf] of Object.entries(local)) {
+      if (leaf.positions) vs[id] = { ...(vs[id] ?? {}), positions: leaf.positions };
+    }
+    useGraphStore.setState({ sidebarSide: data.panelLayout.sidebarSide, viewSettings: vs });
+    useGraphStore.getState().setPanelTree(tree);
+  }
+}
+
 /**
  * Apply saved settings to the store. Missing/optional fields are left at their
  * current values. Appearance scalars are set directly (NOT via setDirection /
@@ -206,20 +224,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   if (data.exportSettings) s.setExportSettings(data.exportSettings);
 
   // Panel layout — Blender-style docked areas (optional, newer field).
-  // Cloud viewSettings never carry `positions` (stripped in pick()); keep
-  // the device-local positions so applying cloud settings can't wipe them.
-  if (data.panelLayout) {
-    const tree = parseTree(data.panelLayout.panelTree);
-    const vs = parseViewSettings(data.panelLayout.viewSettings);
-    if (tree) {
-      const local = useGraphStore.getState().viewSettings;
-      for (const [id, leaf] of Object.entries(local)) {
-        if (leaf.positions) vs[id] = { ...(vs[id] ?? {}), positions: leaf.positions };
-      }
-      useGraphStore.setState({ sidebarSide: data.panelLayout.sidebarSide, viewSettings: vs });
-      useGraphStore.getState().setPanelTree(tree);
-    }
-  }
+  applyPanelLayout(data);
 }
 
 // ── Local persistence (works signed-out / offline) ──────────────────────────
