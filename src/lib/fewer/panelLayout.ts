@@ -68,10 +68,13 @@ export function dropSideForPointerX(x: number, viewportWidth: number): PanelSide
 
 import type { PanelNode } from "./panelTree";
 import { parseTree, migrateV1ToTree, serializeTree } from "./panelTree";
+import type { ViewSettings } from "./viewState";
+import { parseViewSettings } from "./viewState";
 
 interface LayoutSnapshot {
   sidebarSide: PanelSide;
   panelTree: PanelNode;
+  viewSettings?: Record<string, ViewSettings>;
 }
 
 const STORAGE_KEY = "fewer:panelLayout";
@@ -92,7 +95,7 @@ function isValidArea(v: unknown): v is PanelArea {
   );
 }
 
-/** Parse a localStorage value into a valid layout snapshot. Handles both v1 (flat arrays) and v2 (tree). Returns null on failure. */
+/** Parse a localStorage value into a valid layout snapshot. Handles v1 (flat arrays), v2 (tree), and v3 (+ viewSettings). Returns null on failure. */
 export function parseLayoutStorage(raw: string | null): LayoutSnapshot | null {
   if (!raw) return null;
   try {
@@ -100,10 +103,13 @@ export function parseLayoutStorage(raw: string | null): LayoutSnapshot | null {
     if (!v || typeof v !== "object") return null;
     const sidebarSide: PanelSide = VALID_SIDES.has(v.sidebarSide) ? v.sidebarSide : "left";
 
-    // v2: tree format
+    // v2/v3: tree format
     if (v.panelTree) {
       const tree = parseTree(v.panelTree);
-      if (tree) return { sidebarSide, panelTree: tree };
+      if (!tree) return null;
+      // v3: include viewSettings if present
+      const viewSettings = v.viewSettings ? parseViewSettings(v.viewSettings) : undefined;
+      return { sidebarSide, panelTree: tree, ...(viewSettings && Object.keys(viewSettings).length > 0 ? { viewSettings } : {}) };
     }
 
     // v1: flat leftAreas/rightAreas → migrate
@@ -120,7 +126,11 @@ export function parseLayoutStorage(raw: string | null): LayoutSnapshot | null {
 
 /** Serialize a layout snapshot for localStorage. */
 export function serializeLayoutStorage(snap: LayoutSnapshot): string {
-  return JSON.stringify({ sidebarSide: snap.sidebarSide, panelTree: serializeTree(snap.panelTree) });
+  const out: Record<string, unknown> = { sidebarSide: snap.sidebarSide, panelTree: serializeTree(snap.panelTree) };
+  if (snap.viewSettings && Object.keys(snap.viewSettings).length > 0) {
+    out.viewSettings = snap.viewSettings;
+  }
+  return JSON.stringify(out);
 }
 
 /** Load layout from localStorage (SSR-safe). */

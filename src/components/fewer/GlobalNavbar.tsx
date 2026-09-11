@@ -36,7 +36,8 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
   const searchOpen = useGraphStore((s) => s.searchOpen);
   const setOpen = useGraphStore((s) => s.setSearchOpen);
   const categoryFilter = useGraphStore((s) => s.categoryFilter);
-  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
+  const toggleCategoryFilter = useGraphStore((s) => s.toggleCategoryFilter);
+  const clearCategoryFilter = useGraphStore((s) => s.clearCategoryFilter);
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const stats = useMemo(() => computeStats(nodes, edges), [nodes, edges]);
@@ -96,7 +97,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
                 aria-label="Filter by file type"
                 className={cn(
                   "inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-                  categoryFilter ? "text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  categoryFilter.length > 0 ? "text-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 <Filter className="h-3.5 w-3.5" />
@@ -109,12 +110,12 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
                 {FILE_CATEGORIES.map((cat) => {
                   const meta = CATEGORY_META[cat];
                   const Icon = meta.icon;
-                  const active = categoryFilter === cat;
+                  const active = categoryFilter.includes(cat);
                   const count = stats.byCategory[cat] ?? 0;
                   return (
                     <DropdownMenuItem
                       key={cat}
-                      onClick={() => setCategoryFilter(active ? null : cat)}
+                      onClick={() => toggleCategoryFilter(cat)}
                       className="flex items-center justify-between gap-2 text-xs cursor-pointer"
                     >
                       <span className="flex min-w-0 items-center gap-2">
@@ -131,8 +132,8 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => setCategoryFilter(null)}
-                disabled={!categoryFilter}
+                onClick={() => clearCategoryFilter()}
+                disabled={categoryFilter.length === 0}
                 className="text-xs cursor-pointer"
               >
                 <X className="mr-2 h-3.5 w-3.5" /> Clear filter

@@ -4,6 +4,7 @@ import { getAuthedClient } from "@/lib/fewer/cloud/server";
 import { getAdapter } from "@/lib/fewer/cloud/registry";
 import { encryptToken } from "@/lib/fewer/cloud/crypto";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -30,39 +31,46 @@ export async function GET(request: Request) {
   if (!authed) return bad("Not signed in");
 
   try {
-    const adapter = await getAdapter(provider);
-    const tok = await adapter.exchangeCode(code);
-
-    const { supabase, user } = authed;
-    const expiresAt = tok.expiresIn ? new Date(Date.now() + tok.expiresIn * 1000).toISOString() : null;
-
-    const { data: existing, error: selErr } = await supabase
-      .from("cloud_connections")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("provider", provider)
-      .eq("account_id", tok.accountId)
-      .maybeSingle();
-
-    const payload = {
-      provider,
-      account_id: tok.accountId,
-      account_name: tok.accountName,
-      access_token_enc: encryptToken(tok.accessToken),
-      refresh_token_enc: tok.refreshToken ? encryptToken(tok.refreshToken) : null,
-      expires_at: expiresAt,
-      config: tok.config || {},
-    };
-
-    if (existing) {
-      await supabase.from("cloud_connections").update(payload).eq("id", existing.id);
-    } else {
-      await supabase.from("cloud_connections").insert({ ...payload, user_id: user.id });
-    }
-
+    await persistConnection(authed.supabase, provider, authed.user.id, code);
     return NextResponse.redirect(`${origin}/?cloud=connected&provider=${provider}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return bad(`Connection failed: ${msg}`);
+  }
+}
+
+/** Exchange the OAuth code for tokens and upsert the connection row (one row
+ *  per user + provider + account, so reconnecting refreshes in place). */
+async function persistConnection(
+  supabase: SupabaseClient,
+  provider: CloudProvider,
+  userId: string,
+  code: string,
+): Promise<void> {
+  const adapter = await getAdapter(provider);
+  const tok = await adapter.exchangeCode(code);
+
+  const { data: existing } = await supabase
+    .from("cloud_connections")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("provider", provider)
+    .eq("account_id", tok.accountId)
+    .maybeSingle();
+
+  const payload = {
+    provider,
+    account_id: tok.accountId,
+    account_name: tok.accountName,
+    access_token_enc: encryptToken(tok.accessToken),
+    refresh_token_enc: tok.refreshToken ? encryptToken(tok.refreshToken) : null,
+    expires_at: tok.expiresIn ? new Date(Date.now() + tok.expiresIn * 1000).toISOString() : null,
+    config: tok.config || {},
+  };
+
+  if (existing) {
+    await supabase.from("cloud_connections").update(payload).eq("id", existing.id);
+  } else {
+    await supabase.from("cloud_connections").insert({ ...payload, user_id: userId });
   }
 }

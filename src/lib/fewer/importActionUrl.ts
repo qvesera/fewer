@@ -5,7 +5,7 @@
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes, isGitHubUrl } from "@/lib/fewer/importFlow";
+import { collectAutoHideNotes, importFailure, isGitHubUrl } from "@/lib/fewer/importFlow";
 import { useGraphStore } from "@/store/graphStore";
 
 export interface UrlImportContext {
@@ -50,19 +50,8 @@ export async function runUrlImport(
 
     notes.push(...(await collectAutoHideNotes()));
 
-    // The watch toggle hides for GitHub URLs; ignore a stale flag so editing
-    // the URL to github.com after enabling watch never registers a watch.
-    if (source.watch && ctx.watchUrl && !isGitHubUrl(url)) {
-      const watched = await ctx.watchUrl(url);
-      notes.push(
-        watched
-          ? {
-              title: "Watching for changes",
-              description: "You'll get a daily digest when this index changes.",
-            }
-          : { title: "Could not watch", description: "Watch setup failed." },
-      );
-    }
+    const watchNote = await collectWatchNote(url, source, ctx);
+    if (watchNote) notes.push(watchNote);
 
     return {
       ok: true,
@@ -71,10 +60,25 @@ export async function runUrlImport(
       notes,
     };
   } catch (err) {
-    return {
-      ok: false,
-      title: "Import failed",
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
+    return importFailure(err);
   }
+}
+
+/** Register a watch for this URL and turn the outcome into a toast note.
+ *  Returns null when no watch was requested. The watch toggle hides for
+ *  GitHub URLs; ignore a stale flag so editing the URL to github.com after
+ *  enabling watch never registers a watch. */
+async function collectWatchNote(
+  url: string,
+  source: Extract<OriginSource, { origin: "url" }>,
+  ctx: UrlImportContext,
+): Promise<{ title: string; description: string } | null> {
+  if (!source.watch || !ctx.watchUrl || isGitHubUrl(url)) return null;
+  const watched = await ctx.watchUrl(url);
+  return watched
+    ? {
+        title: "Watching for changes",
+        description: "You'll get a daily digest when this index changes.",
+      }
+    : { title: "Could not watch", description: "Watch setup failed." };
 }

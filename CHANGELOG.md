@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Profiles row now created at signup**: new users automatically get a `profiles` row with the free plan — previously the row only existed after saving Settings → Account, causing plan-dependent features to fail. All existing users backfilled (migration 0025).
 - **`app.fewer.directory` now lands on the app**: the app origin's root redirects to `/app` in `middleware.ts` (302) instead of relying on Netlify `Host`-conditioned redirect rules, which were not honored for these custom domains in production (the root served the marketing homepage). The `www.fewer.directory` → apex redirect already ran in middleware, confirming middleware executes, so the routing move uses that same reliable path.
 - **Google Drive OAuth scope reduced to minimum**: the Drive cloud adapter now requests `https://www.googleapis.com/auth/drive.metadata.readonly` instead of `drive.readonly`. The app only reads file/folder metadata (names, types, sizes, web links) to build the graph and never touches file contents, so the narrower readonly-metadata scope satisfies the Google OAuth "minimum scopes" verification requirement. Deployment docs updated accordingly.
 
@@ -36,6 +37,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hiding a folder (H key) now hides its descendants too in split views — the per-view hide layer expands the subtree like the global hide always did. Hidden nodes now appear under Hidden Cards again (the panel reads the active view's resolved hide layers instead of a removed store field), and edges to leaf-hidden nodes no longer resurrect after graph updates.
 - Fix e2e context menu tests to wait for menu animation before clicking
 - Restore SearchPanel mount accidentally dropped in panel tree refactor
+- Rename input now selects only the label part of the filename (e.g. "package" in "package.json") and keeps that selection stable while the context menu closes
+- Multi-tab graph clobbering — working graph now lives in sessionStorage so each browser tab keeps its own independent canvas, eliminating silent last-write-wins data loss
+- Prune transient React Flow fields (selected, dragging, measured, highlighted, dimmed) from nodes before cloud save and session cache — smaller payloads, no false version diffs
+- Nodes created via handle drag now appear at the cursor drop position instead of a hardcoded offset
+- Newly created nodes never overlap existing nodes — collision resolution runs on every creation path (child, parent, standalone, drop)
+- Node creation drop position now uses direction-aware collision resolution — nudges away from collided card instead of grid-shifting right, with small 12px padding
+- Touch: handle-drag node creation now uses changedTouches for touchend events
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Collision resolution during node creation skips hidden nodes — drops no longer displaced by invisible file cards
+- Batch selection context menu now opens at cursor position instead of top-left corner of screen
+- Persist undo/redo history across page reload via sessionStorage
+- Split fileOps.ts into testable filePaths.ts + fileRender.ts; flatten nested moveFile/entryExists; add characterization tests
 
 ### Added
 
@@ -68,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collapse/expand folder cards: compact file-size pill for collapsed folders with chevron toggle in the header, per-leaf view state, leaf-aware batch actions, and context menu items
 - Select by Type and Select by Category options in file context menu to quickly select all files sharing the same extension or category
 - Add Parent Card option in file and folder context menus
+- Cross-tab preference sync — theme and app settings now update live in other open tabs via storage events, so all tabs stay in sync without a manual reload
+- Snapshot dataVersion field + normalizeSnapshot on load: validates tag registry, drops dangling tag refs, coerces invalid tag colors to fallback
+- Per-view settings (hide layers, collapse, minimap, edge style) now persist to localStorage and survive reload
+- Server-side 500k char size guard on saved graph API to prevent oversized payloads from tags/node growth
 
 ### Changed
 
@@ -96,10 +113,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reorganized context menus into grouped sections with submenus: folder menus use Arrange/Visibility/Info submenus in advanced mode, batch menus show Copy/Cut/Duplicate/Hide top-level with More Actions and Select submenus, canvas edge right-click shows minimal Delete Edge menu, pane menu groups View controls separately from actions, Delete always last and red across all menus
 - Canvas batch selection menu now uses Radix submenus matching node context menu behavior
 - Remove icon from Tags context menu item for consistent text-only menu styling
+- Multi-select category filter: users can now select multiple file-type filters simultaneously (OR semantics), matching the existing tag filter pattern
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Cloud-synced panel layout: Blender-style docked area tree (splits, leaf editors, per-view settings) is now included in user_settings and synced across devices alongside theme/appearance/display preferences; invalid trees from cloud are gracefully skipped.
+- Split uiSlice into focused sub-slices (search/selection/visibility/folder/collapse/panel/dialogs) exposing the same store API
+- Extract shared fullName node-name helper (graphSlice + BatchRenameDialog) and reuse getDescendants for hide expansion
+- GraphCanvas: extract renderCanvasContextMenu as a pure sibling function, reducing CanvasInner by ~90 lines and its cyclomatic complexity
+- Refactored history.ts from two CCN-24 switch statements to a dispatch-table pattern with flat per-op handlers and shared helpers (repath/relocate/mergeNew/excludeIds)
+- Split monolithic fileOps.ts into fsPrimitives + folderSync + facade to break shotgun-surgery co-change pattern (25 partners → isolated modules). Flattened moveFile/entryExists nested complexity. Added 11 tests for entryExists, getUniqueName, refreshViaPathWalk.
+- Layout direction switches now regenerate edge ids with a deterministic counter instead of a timestamp+random suffix (visible in exported JSON/CSV edge ids)
 
 ### Security
 
 - Server-side input validation: the /api/profile, /api/graphs, /api/themes and /api/share routes now re-validate every user-text field with the same shared validator the client uses, rejecting non-string / broken-interpolated values ("null", "[object Object]", control characters) with a 400 before anything is written to the database.
+
+### Performance
+
+- Split fileSystem.ts into focused modules (fsHandleWalk, fsEntryWalk, fsInputFallback, fsFilters) to reduce nesting 5→3 and CCN 18→4-11 per function
+- Layout settings (edge style, animation, stroke, width, corner radius, node size) apply in a single store write instead of two, halving subscriber notifications
 
 ## [0.6.1] - September 3, 2026
 

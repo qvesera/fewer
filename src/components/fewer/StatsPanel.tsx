@@ -15,7 +15,8 @@ export function StatsPanel() {
   const hiddenCount = useGraphStore((s) => s.hiddenIds.length);
   const selectedCount = useGraphStore((s) => s.selectedNodeIds.length);
   const categoryFilter = useGraphStore((s) => s.categoryFilter);
-  const setCategoryFilter = useGraphStore((s) => s.setCategoryFilter);
+  const toggleCategoryFilter = useGraphStore((s) => s.toggleCategoryFilter);
+  const clearCategoryFilter = useGraphStore((s) => s.clearCategoryFilter);
   const tags = useGraphStore((s) => s.tags);
   const tagFilter = useGraphStore((s) => s.tagFilter);
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
@@ -82,9 +83,9 @@ export function StatsPanel() {
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               By category
             </span>
-            {categoryFilter && (
+            {categoryFilter.length > 0 && (
               <button
-                onClick={() => setCategoryFilter(null)}
+                onClick={() => clearCategoryFilter()}
                 className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
               >
                 Clear filter
@@ -96,12 +97,12 @@ export function StatsPanel() {
               const meta = CATEGORY_META[cat];
               const Icon = meta.icon;
               const pct = (count / total) * 100;
-              const active = categoryFilter === cat;
+              const active = categoryFilter.includes(cat);
               return (
                 <button
                   key={cat}
-                  onClick={() => setCategoryFilter(active ? null : cat)}
-                  title={active ? `Showing only ${meta.label} — click to clear` : `Show only ${meta.label} files`}
+                  onClick={() => toggleCategoryFilter(cat)}
+                  title={active ? `${meta.label} — click to remove from filter` : `Add ${meta.label} to filter`}
                   className={cn(
                     "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
                     active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",

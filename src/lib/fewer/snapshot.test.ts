@@ -4,8 +4,9 @@ import { buildSnapshot, applySnapshot, saveGraphLocal, loadGraphLocal } from "./
 import type { FewerNode, FewerEdge } from "./types";
 
 // ─── Test harness ─────────────────────────────────────────────
-// localStorage is not present in bun's test env; snapshot.ts gate-guards on
-// `typeof window === "undefined"`, so stub both. Each test gets a fresh store.
+// localStorage / sessionStorage not present in bun's test env;
+// snapshot.ts gate-guards on `typeof window === "undefined"`, so stub both.
+// Each test gets a fresh store.
 
 function folder(id: string, label: string, x = 0, y = 0): FewerNode {
   return { id, type: "folder", position: { x, y }, data: { label, path: `/${label}`, type: "folder" } } as FewerNode;
@@ -14,14 +15,21 @@ function edge(source: string, target: string, id = `e-${source}-${target}`): Few
   return { id, source, target } as FewerEdge;
 }
 
-const storage = new Map<string, string>();
+function makeStorage() {
+  const store = new Map<string, string>();
+  return {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => { store.set(k, v); },
+    removeItem: (k: string) => { store.delete(k); },
+    clear: () => store.clear(),
+  };
+}
+
+const localStorage = makeStorage();
+const sessionStorage = makeStorage();
 (globalThis as Record<string, unknown>).window = globalThis;
-(globalThis as Record<string, unknown>).localStorage = {
-  getItem: (k: string) => storage.get(k) ?? null,
-  setItem: (k: string, v: string) => { storage.set(k, v); },
-  removeItem: (k: string) => { storage.delete(k); },
-  clear: () => storage.clear(),
-};
+(globalThis as Record<string, unknown>).localStorage = localStorage;
+(globalThis as Record<string, unknown>).sessionStorage = sessionStorage;
 
 function resetStore() {
   useGraphStore.setState({
@@ -34,7 +42,8 @@ function resetStore() {
     cornerRadius: 8,
     skipNextAutoLayout: false,
   });
-  storage.clear();
+  localStorage.clear();
+  sessionStorage.clear();
 }
 
 // ─── buildSnapshot ────────────────────────────────────────────
@@ -56,7 +65,7 @@ test("buildSnapshot contains graph data only — no settings", () => {
   expect(snap.edges).toEqual([]);
   expect(snap.localRootPath).toBe("/tmp/root");
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["edges", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "localRootPath", "nodes", "tags"]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);
@@ -138,12 +147,12 @@ test("loadGraphLocal returns null for corrupt/absent caches", () => {
   resetStore();
   expect(loadGraphLocal()).toBeNull();
 
-  storage.set("fewer-graph", "{not json");
+  sessionStorage.setItem("fewer-graph", "{not json");
   expect(loadGraphLocal()).toBeNull();
 
-  storage.set("fewer-graph", JSON.stringify({ version: 999, nodes: [], edges: [] }));
+  sessionStorage.setItem("fewer-graph", JSON.stringify({ version: 999, nodes: [], edges: [] }));
   expect(loadGraphLocal()).toBeNull();
 
-  storage.set("fewer-graph", JSON.stringify({ version: 1, nodes: "nope", edges: [] }));
+  sessionStorage.setItem("fewer-graph", JSON.stringify({ version: 1, nodes: "nope", edges: [] }));
   expect(loadGraphLocal()).toBeNull();
 });

@@ -123,8 +123,12 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
       triggerShake();
       return;
     }
+    // Grab any pending position (set by onConnectEnd handle drag) and clear it
+    // so a later keyboard shortcut doesn't reuse a stale drop point.
+    const pending = useGraphStore.getState().pendingCreatePosition;
+    useGraphStore.getState().setPendingCreatePosition(null);
     if (mode === "child") {
-      addNode(selectedNodeIds[0] ?? null, trimmed, type);
+      addNode(selectedNodeIds[0] ?? null, trimmed, type, pending ?? undefined);
       onOpenChange(false);
       toast({
         title: type === "folder" ? "Folder added" : "File added",
@@ -132,7 +136,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
       });
     } else if (mode === "parent") {
       const targetId = selectedNodeIds[0] ?? null;
-      const result = targetId ? addParentNode(targetId, trimmed) : null;
+      const result = targetId ? addParentNode(targetId, trimmed, pending ?? undefined) : null;
       if (!result || !result.ok) {
         triggerShake();
         return;
@@ -143,7 +147,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
         description: `"${trimmed}" is now the parent card`,
       });
     } else {
-      addStandaloneNode(trimmed, type, { x: 1000, y: 600 });
+      addStandaloneNode(trimmed, type, pending ?? { x: 1000, y: 600 });
       onOpenChange(false);
       toast({
         title: type === "folder" ? "Folder added" : "File added",

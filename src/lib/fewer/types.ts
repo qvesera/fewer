@@ -78,6 +78,20 @@ export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
   }
 }
 
+/**
+ * React Flow edge renderer type for a Settings edge style. Single source of
+ * truth shared by the graph and layout slices (curved → built-in "default"
+ * renderer, angled → "smoothstep", straight → "straight").
+ */
+export function edgeTypeFromStyle(style: EdgeStyle): FewerEdge["type"] {
+  switch (style) {
+    case "curved": return "default";
+    case "angled": return "smoothstep";
+    case "straight": return "straight";
+    default: return "default";
+  }
+}
+
 export interface GraphSnapshot {
   nodes: FewerNode[];
   edges: FewerEdge[];
@@ -275,8 +289,8 @@ export interface ViewState {
   maxDisplayDepth: number;
   autoHideThreshold: number;
   autoHiddenIds: string[];
-  /** Active file-type filter (null = none). Restored with the view state. */
-  categoryFilter: FileCategory | null;
+  /** Active file-type filters (OR semantics; empty = no filter). Restored with the view state. */
+  categoryFilter: FileCategory[];
   /** Ids that the category filter added to hiddenIds in this view state. */
   categoryHiddenIds: string[];
   /** Ids the user hid directly (toggleHidden / hideSelected roots) —

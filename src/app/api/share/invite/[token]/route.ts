@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { serverError } from "@/lib/fewer/apiHelpers";
 
 /**
  * GET /api/share/invite/<token>
@@ -25,7 +26,6 @@ export async function GET(
 
     return NextResponse.json({ data });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

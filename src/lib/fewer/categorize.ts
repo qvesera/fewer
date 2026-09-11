@@ -97,14 +97,15 @@ export function getFileExtension(name: string): string {
 }
 
 /**
- * Ids of file nodes to hide when a category filter is active — every file whose
- * category does NOT match (folders are never hidden, so the tree stays intact).
- * Returns [] when no filter.
+ * Ids of file nodes to hide when category filters are active — every file whose
+ * category is NOT in the selected set (folders are never hidden, so the tree
+ * stays intact). Returns [] when no filter.
  */
-export function categoryHiddenNodeIds(nodes: FewerNode[], filter: FileCategory | null): string[] {
-  if (!filter) return [];
+export function categoryHiddenNodeIds(nodes: FewerNode[], filter: FileCategory[]): string[] {
+  if (filter.length === 0) return [];
+  const catSet = new Set(filter);
   return nodes
-    .filter((n) => n.data.type !== "folder" && n.data.category !== filter)
+    .filter((n) => n.data.type !== "folder" && !catSet.has(n.data.category!))
     .map((n) => n.id);
 }
 

@@ -119,6 +119,26 @@ function RenameInput({
   const committedRef = useRef(false);
   // Latest value, readable from the outside-click listener without re-binding.
   const valueRef = useRef(initialValue);
+  // While the user hasn't interacted (typed, clicked, arrowed), we keep
+  // re-applying the initial selection: the context menu's close animation and
+  // canvas re-renders steal focus, and blur clears the selection.
+  const untouchedRef = useRef(true);
+
+  // Initial selection covers only the label part of the name (VS Code / Explorer
+  // style): "package.json" selects "package"; dotfiles (".gitignore") and names
+  // without an extension select everything.
+  const [selStart, selEnd] = useMemo(() => {
+    const dot = initialValue.lastIndexOf(".");
+    return [0, dot > 0 ? dot : initialValue.length] as const;
+  }, [initialValue]);
+
+  const applyInitialSelection = useCallback(() => {
+    if (!untouchedRef.current) return;
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(selStart, selEnd);
+  }, [selStart, selEnd]);
 
   // Commit only when the user clicks outside the field. Blur alone is ignored —
   // it fires for unrelated reasons (the context menu closing / focus restore /
@@ -140,32 +160,52 @@ function RenameInput({
     return () => document.removeEventListener("mousedown", onMouseDown, true);
   }, [initialValue, onCancel, onCommit]);
 
-  // Re-focus on every render (handles canvas re-renders losing focus)
+  // Re-focus on every render (handles canvas re-renders losing focus). While
+  // the field is untouched, also restore the label selection a blur may have
+  // cleared.
   useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
-    input.focus();
+    if (untouchedRef.current) {
+      applyInitialSelection();
+    } else {
+      inputRef.current?.focus();
+    }
   });
 
-  // Select text only on initial mount (not on every keystroke re-render)
+  // Re-apply the selection a few times after mount: the context menu closing
+  // right after "Rename" steals focus and clears the selection ~100ms in.
+  // Retries are a no-op once the user has interacted (untouchedRef).
   useEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
-    input.select();
-  }, []);
+    applyInitialSelection();
+    const timers = [50, 250, 700].map((ms) => setTimeout(applyInitialSelection, ms));
+    return () => timers.forEach(clearTimeout);
+  }, [applyInitialSelection]);
 
   return (
     <input
       ref={inputRef}
       value={value}
-      onChange={(e) => { setValue(e.target.value); valueRef.current = e.target.value; }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        untouchedRef.current = false;
+        setValue(e.target.value);
+        valueRef.current = e.target.value;
+      }}
+      onClick={(e) => {
+        untouchedRef.current = false;
+        e.stopPropagation();
+      }}
+      onMouseDown={(e) => {
+        untouchedRef.current = false;
+        e.stopPropagation();
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation();
+        untouchedRef.current = false;
         (e.target as HTMLInputElement).select();
       }}
       onKeyDown={(e) => {
+        // Any key hands selection control back to the user — stop re-applying
+        // the initial selection.
+        untouchedRef.current = false;
         if (e.key === "Enter") {
           e.preventDefault();
           committedRef.current = true;

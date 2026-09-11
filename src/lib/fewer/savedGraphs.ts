@@ -9,7 +9,11 @@ import type { Tag } from "./tags";
  * settings, synced separately, and must NOT ride along with the graph. On load
  * the viewer's current settings win, so restoring a graph never clobbers them.
  */
+export const SNAPSHOT_VERSION = 1;
+
 export interface SavedGraphData {
+  /** Schema version for snapshot normalization. Absent = legacy (treated as v0). */
+  dataVersion?: number;
   nodes: FewerNode[];
   edges: FewerEdge[];
   /** Tag registry (id → Tag) so assigned colors/labels survive save/load & share. */

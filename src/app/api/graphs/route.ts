@@ -5,6 +5,9 @@ import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
 import { countOwned, limitsFor, getUserPlan, overLimit } from "@/lib/fewer/plans";
 
+/** Maximum size (in JSON-stringified characters) for a saved graph payload. */
+const MAX_SAVED_GRAPH_CHARS = 500_000;
+
 /**
  * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
  * (owner-only) is enforced server-side. Returns 401 when not signed in.
@@ -80,6 +83,15 @@ export async function POST(request: Request) {
   const name = body.name && body.name.trim() ? body.name.trim().slice(0, 200) : "Untitled";
   if (!body.data || typeof body.data !== "object") {
     return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
+  }
+
+  // Guard: reject payloads that exceed the size limit to protect DB/storage.
+  const dataChars = JSON.stringify(body.data).length;
+  if (dataChars > MAX_SAVED_GRAPH_CHARS) {
+    return NextResponse.json(
+      { error: `Graph data too large (${Math.round(dataChars / 1000)}k chars, max ${MAX_SAVED_GRAPH_CHARS / 1000}k). Try removing unused nodes or tags.`, code: "plan_limit" },
+      { status: 403 },
+    );
   }
 
   if (body.id) {
