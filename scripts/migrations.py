@@ -190,18 +190,39 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def parse_migration_list(text: str) -> tuple[set[str], set[str]]:
-    """Parse `supabase migration list` output into (local, remote) versions."""
+    """Parse `supabase migration list` output into (local, remote) versions.
+
+    The CLI renders the table with backticks around each cell and `|` between
+    columns, e.g.
+
+        `0001` | `0001`           | `0001`
+           ` ` | `20260819101337` | `2026-08-19 10:13:37`
+
+    Cells are stripped of backticks/whitespace and read as digits only, so the
+    header row ("LOCAL"/"REMOTE") and separator rules contribute nothing. A
+    backtick-free rendering is handled the same way.
+    """
     local: set[str] = set()
     remote: set[str] = set()
-    row_re = re.compile(r"^\s*([0-9]*)\s*[│|]\s*([0-9]*)\s*[│|]")
+
+    def version(cell: str) -> str:
+        digits = re.sub(r"[^0-9]", "", cell)
+        # Migration versions are 4 digits (repo) or 14 (timestamp); anything
+        # shorter is header/decoration noise.
+        return digits if len(digits) >= 4 else ""
+
     for line in text.splitlines():
-        m = row_re.match(line)
-        if not m:
+        if "|" not in line and "│" not in line:
             continue
-        if m.group(1):
-            local.add(m.group(1))
-        if m.group(2):
-            remote.add(m.group(2))
+        cells = re.split(r"[|│]", line)
+        if len(cells) < 2:
+            continue
+        local_version = version(cells[0])
+        remote_version = version(cells[1])
+        if local_version:
+            local.add(local_version)
+        if remote_version:
+            remote.add(remote_version)
     return local, remote
 
 
