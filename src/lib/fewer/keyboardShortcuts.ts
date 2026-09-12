@@ -163,9 +163,9 @@ export function buildKeyboardRules(): ShortcutRule[] {
         window.dispatchEvent(new CustomEvent(
           st.selectedNodeIds.length===1 && st.nodes.some((n)=>n.id===st.selectedNodeIds[0]&&n.data.type==="folder")
           ? FEWER_ADD_NODE : FEWER_ADD_NODE_STANDALONE)); } },
-    // Alt+R — re-layout
+    // Alt+R — organize (relayout)
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
-            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph relayouted" }); } },
+            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph organized" }); } },
     // Alt+F — zoom to selection
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();

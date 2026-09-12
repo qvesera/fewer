@@ -238,7 +238,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               advancedModeEnabled={advancedModeEnabled}
             />
 
-            {/* Rearrange Action Button — clears per-view positions for active leaf, else global relayout */}
+            {/* Organize Action Button — clears per-view positions for active leaf, else global relayout */}
             <Button
               size="sm"
               className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
@@ -249,11 +249,11 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 } else {
                   relayout();
                 }
-                toast({ title: "Graph rearranged" });
+                toast({ title: "Graph organized" });
               }}
             >
               <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
-              <span className="truncate">Rearrange</span>
+              <span className="truncate">Organize</span>
             </Button>
           </div>
 

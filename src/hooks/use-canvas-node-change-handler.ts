@@ -39,7 +39,7 @@ export function flipBoxSelectDeselects(
  *   - position changes → commit to the store immediately
  *   - dimension changes → resize via store setState; commit a resize op once
  *     the gesture settles (300ms debounce). Layout is NEVER recomputed here —
- *     re-layout only runs when the user clicks Rearrange Graph.
+ *     re-layout only runs when the user clicks Organize Graph.
  *
  * Private refs (`hasMeasuredRef`, `resizeStartDimensions`, `resizeTimerRef`)
  * are owned here so the handler has no external state coupling.

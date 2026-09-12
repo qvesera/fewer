@@ -57,7 +57,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **0**      | Reset zoom to 100%                                                      |
 | **Ctrl+L** | Cycle layout direction (Top→Bottom, Left→Right, Bottom→Top, Right→Left) |
 | **Alt+F**  | Zoom to selection                                                       |
-| **Alt+R**  | Re-layout graph                                                         |
+| **Alt+R**  | Organize graph                                                           |
 
 ## Export
 

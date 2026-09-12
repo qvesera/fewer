@@ -1094,7 +1094,7 @@ function AdvancedTab() {
 
   // Crown-shyness slider: local value for live drag preview; the store commit
   // happens on drag release (or when a custom value is typed). No auto-relayout:
-  // the new intensity is picked up on the next explicit Rearrange.
+  // the new intensity is picked up on the next explicit Organize.
   const [shynessPreview, setShynessPreview] = useState(shynessScale);
   useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
@@ -1163,7 +1163,7 @@ function AdvancedTab() {
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is rearranged (Rearrange button or Alt+R).
+            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is organized (Organize button or Alt+R).
           </p>
         </div>
       )}

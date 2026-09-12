@@ -88,7 +88,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["←"], action: "Navigate left / sibling" },
       { keys: ["→"], action: "Navigate right / sibling" },
       { keys: ["Shift", "↑↓←→"], action: "Add to selection" },
-      { keys: ["Alt", "R"], action: "Re-layout graph" },
+      { keys: ["Alt", "R"], action: "Organize graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
       { keys: ["Alt", "I"], action: "Import" },
       { keys: ["Alt", "O"], action: "Open in file explorer", featureKey: "openInOs" },

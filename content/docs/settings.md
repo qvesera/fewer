@@ -39,7 +39,7 @@ Settings in Advanced:
 | **Minimap Size**     | Slider, 80–300px                               |
 | **Node Width**       | Card width slider, 120–400px                   |
 | **Node Height**      | Card height slider, 40–300px                   |
-| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Rearrange** |
+| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Organize** |
 
 ## Help
 
@@ -84,7 +84,7 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 The bell icon in the navbar opens the **notification history** panel. Every major action posts a toast:
 
-- Delete, copy, cut, duplicate, paste, unparent, connect, relayout
+- Delete, copy, cut, duplicate, paste, unparent, connect, organize
 - Show/hide nodes, open file, refresh from disk
 - Auto-hide notifications on import
 

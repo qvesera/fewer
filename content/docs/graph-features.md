@@ -23,6 +23,7 @@ Right-click empty canvas space to open quick actions:
 
 - **Fit View**: zoom to show all nodes
 - **Select All**: select every visible node
+- **Organize**: re-run the tree layout to reflow the graph
 - **Zoom In / Zoom Out**
 - **Delete Edge**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
@@ -92,7 +93,7 @@ Fewer ships a single custom **Reingold-Tilford tree layout** with contour matchi
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom multiplier; it takes effect on the next Rearrange
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom multiplier; it takes effect on the next Organize
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
