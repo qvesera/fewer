@@ -58,53 +58,60 @@ function perimeterPointAngle(s: number, w: number, h: number): number {
  * split the ring evenly: 2 colors → 50/50, 3 → 33/33/33, etc. A single color
  * yields a solid ring. Capped at TAG_RING_CAP slices for legibility.
  *
- * Colors are laid out so the FIRST color starts on the LEFT side of the ring,
- * matching left-to-right reading order and the TagDots row on the card
- * (green, pink → green left, pink right). This requires reversing the list:
- * a CSS conic-gradient starts at 12 o'clock and runs clockwise, so an
- * un-reversed list would put the first color on the RIGHT instead.
+ * Colors follow TAG ORDER clockwise around the ring, starting at the left:
+ * the seam sits at the bottom-left corner, so reading the ring clockwise from
+ * the left (up the left edge, across the top) meets the first tag, then the
+ * second, and so on — first color left, next across the top, last wrapping the
+ * right/bottom to the seam. This matches the TagDots row and keeps odd tag
+ * counts from reading backwards (an un-reversed list starting at the top reads
+ * g1 → gN, which looks anti-clockwise).
  *
- * With `dims`, stops are placed by equal OUTLINE LENGTH instead of equal angle.
- * A conic-gradient divides by angle from center, so on a rectangular card an
- * odd number of equal-angle wedges paints visibly unequal bands (the middle
- * color is short on a 2:1 card). Perimeter stops keep every color's band the
- * same length around the ring, regardless of aspect ratio. Falls back to
- * equal-angle stops when no dims are given (or they are non-positive).
+ * With `dims`, stops are placed by equal OUTLINE LENGTH instead of equal angle:
+ * a conic-gradient divides by angle from the center, so equal-angle wedges
+ * paint visibly unequal bands on a rectangular card (worse for odd counts).
+ * Falls back to equal-angle (square) stops when no dims are given (or they are
+ * non-positive) — e.g. before React Flow has measured the node.
  *
  * @example
- * buildTagRingGradient(["#f00", "#00f"]) // "conic-gradient(#00f 0% 50%, #f00 50% 100%)"
+ * buildTagRingGradient(["#f00", "#00f"]) // "conic-gradient(from 225deg, #f00 0%, #f00 50%, #00f 50%, #00f 100%)"
  * buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 240, height: 120 })
- *   // "conic-gradient(#00f 0%, #00f 32.38%, #0f0 32.38%, #0f0 67.62%, #f00 67.62%, #f00 100%)"
- *   // boundaries land on the bottom-left/bottom-right corners → equal thirds
+ *   // "conic-gradient(from 243.43deg, #f00 0%, #f00 32.38%, #0f0 32.38%, #0f0 64.76%, #00f 64.76%, #00f 100%)"
+ *   // top edge reads red → green left-to-right, blue wraps the bottom
  */
 export function buildTagRingGradient(colors: string[], dims?: TagRingDims): string {
-  // Cap keeps the first DISPLAY-order tags, then reverses for ring geometry.
-  const capped = [...colors].slice(0, TAG_RING_CAP).reverse();
+  // Display order — the FIRST tag is the ring's starting color at the left.
+  const capped = colors.slice(0, TAG_RING_CAP);
   if (capped.length === 0) return "";
   if (capped.length === 1) return capped[0];
 
   const n = capped.length;
   const usePerimeter = !!dims && dims.width > 0 && dims.height > 0;
-  const perim = usePerimeter ? 2 * (dims!.width + dims!.height) : 0;
+  const w = usePerimeter ? dims!.width : 0;
+  const h = usePerimeter ? dims!.height : 0;
 
-  const extent = (i: number): [number, number] => {
-    if (!usePerimeter) {
-      const step = 100 / n;
-      return [+(i * step).toFixed(2), +((i + 1) * step).toFixed(2)];
+  // Seam = bottom-left corner (perimeter coordinate measured clockwise from
+  // top-center; 225° on the square/equal-angle fallback).
+  const seamPerim = usePerimeter ? 3 * (w / 2) + h : 0;
+  const seamAngle = usePerimeter ? perimeterPointAngle(seamPerim, w, h) : 225;
+
+  /** Percent offset (clockwise from the seam) to the k-th color boundary. */
+  const offsetPercent = (k: number): number => {
+    if (usePerimeter) {
+      const perim = 2 * (w + h);
+      const ang = perimeterPointAngle(seamPerim + (k * perim) / n, w, h);
+      const offsetDeg = (ang - seamAngle + 360) % 360;
+      return +(offsetDeg / 3.6).toFixed(2);
     }
-    const a = (perimeterPointAngle((i * perim) / n, dims!.width, dims!.height) / 360) * 100;
-    let b = (perimeterPointAngle(((i + 1) * perim) / n, dims!.width, dims!.height) / 360) * 100;
-    // The final boundary wraps to 0° (same seam as 100%) — render it as 100%
-    // so the last color's end stop is canonical instead of "0%".
-    if (i === n - 1) b = 100;
-    return [+a.toFixed(2), +b.toFixed(2)];
+    return +((k * 100) / n).toFixed(2);
   };
 
   const stops = capped.flatMap((c, i) => {
-    const [start, end] = extent(i);
+    const start = i === 0 ? 0 : offsetPercent(i);
+    const end = i === n - 1 ? 100 : offsetPercent(i + 1);
     return [`${c} ${start}%`, `${c} ${end}%`];
   });
-  return `conic-gradient(${stops.join(", ")})`;
+  const from = +seamAngle.toFixed(2); // 243.435… → 243.43, 225 → 225
+  return `conic-gradient(from ${from}deg, ${stops.join(", ")})`;
 }
 
 /**
