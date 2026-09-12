@@ -64,9 +64,15 @@ jobs:
           # Full history: the checks diff against the base ref / previous commit.
           fetch-depth: 0
 
-      - name: Fetch base branch
-        if: github.event_name == 'pull_request'
-        run: git fetch --no-tags origin ${{ github.base_ref }}
+      - name: Fetch comparison refs
+        run: |
+          # main is the canonical record of applied migrations; the verify check
+          # uses it to tell "this change edited a migration" apart from "the base
+          # branch is behind". The base ref is only needed for pull requests.
+          git fetch --no-tags origin main
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+          fi
 
       - name: Verify migration files
         run: |
