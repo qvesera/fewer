@@ -157,7 +157,10 @@ python3 scripts/migrations.py verify --base origin/dev   # same checks CI runs
 | manual dispatch | `repair-dev` / `repair-prod` | record versions as applied (history only) |
 
 `verify` fails when a PR modifies/deletes an existing migration, adds an
-out-of-order or duplicate number, or adds an empty file. `apply-*` re-checks the
+out-of-order or duplicate number, or adds an empty file. A difference from the
+PR base that **matches `main`** is reported as a warning instead: that means the
+base branch is simply behind (e.g. `release/prod` between releases), not that
+this change edited an applied migration. `apply-*` re-checks the
 baseline against the project's recorded history and refuses to push when a local
 migration is missing from history but was not added by the change — that means
 drift and `db push` would replay old migrations.
