@@ -125,7 +125,7 @@ test("Select Children selects the folder's children, not the folder", async ({ p
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 
-  const search = page.getByPlaceholder("Search directory nodes...");
+  const search = page.getByPlaceholder("Search directory cards...");
   await search.click();
   await search.fill("CustomNode");
 
