@@ -164,9 +164,19 @@ drift and `db push` would replay old migrations.
 
 Setup (Settings → Secrets and variables → Actions):
 
-- secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_DB_PASSWORD_PROD`
-- optional vars: `SUPABASE_PROJECT_REF_DEV`, `SUPABASE_PROJECT_REF_PROD`
-  (defaults are baked into the workflow)
+- secrets: `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_DB_PASSWORD_PROD`
+- vars: `SUPABASE_PROJECT_REF_DEV` / `SUPABASE_PROJECT_REF_PROD`, and
+  `SUPABASE_POOLER_HOST_DEV` / `SUPABASE_POOLER_HOST_PROD`
+  (all have working defaults baked into the workflow, so only set them if a
+  project moves)
+
+The jobs connect with `--db-url` through the **session pooler**, so they need
+only the database password — no Management API token. `supabase link` was
+replaced because it needs Management API capabilities that scoped personal
+access tokens (alpha) do not expose; it failed with "your account does not have
+the necessary privileges" on the dev project. Pooler hosts are pinned per project
+(`fewer-dev`: `aws-0-ap-south-1`, `fewer`: `aws-1-eu-west-1`) — the mixed `aws-0`
+/ `aws-1` prefixes are why they are explicit rather than derived.
 
 Add `verify` to the required status checks of the `dev` and `main` rulesets. The
 apply/repair jobs use the existing **`dev`** and **`prod`** environments — `prod`
