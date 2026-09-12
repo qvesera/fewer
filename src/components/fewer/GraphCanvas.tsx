@@ -128,7 +128,7 @@ function renderCanvasOverlays({
             <div className="text-lg font-semibold">Everything is hidden</div>
             <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
               {vs.showFiles
-                ? "All nodes on this graph are currently hidden on the canvas."
+                ? "All cards on this graph are currently hidden on the canvas."
                 : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
             </div>
             {!vs.showFiles && (
@@ -163,7 +163,7 @@ function renderCanvasOverlays({
         <Panel position="top-right">
           <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md" style={hiddenChipStyle}
             onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
-            {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
+            {hiddenCount} card{hiddenCount === 1 ? "" : "s"} hidden
           </button>
         </Panel>
       )}
@@ -270,10 +270,10 @@ function renderCanvasContextMenu(
         <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
         {advancedModeEnabled && (<>
             <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
-            <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
+            <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all cards", description: `${hiddenCount} card${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
           </>)}
         <div className="my-1 h-px bg-border/40" />
-        <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
+        <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} card${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
       </div>
     </>
   );

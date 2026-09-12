@@ -937,7 +937,7 @@ function AppearanceTab() {
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             {edgeAnimatedSelectedOnly
-              ? "Only the edges along the selected nodes' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the Edge Styling controls above."
+              ? "Only the edges along the selected cards' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the Edge Styling controls above."
               : "Turn this on to animate just the selection path; every other edge follows the Edge Styling controls above."}
           </p>
         </div>
@@ -1112,7 +1112,7 @@ function AdvancedTab() {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Max Depth</Label>
-                <p className="text-[11px] text-muted-foreground/70">Hide nodes deeper than this level.</p>
+                <p className="text-[11px] text-muted-foreground/70">Hide cards deeper than this level.</p>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80">
                 <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />

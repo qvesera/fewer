@@ -78,7 +78,7 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "layout", label: "Layout / Beautify" },
   { value: "import", label: "Import / File System" },
   { value: "export", label: "Export" },
-  { value: "resize", label: "Node Resizing" },
+  { value: "resize", label: "Card Resizing" },
   { value: "theme", label: "Theme / Colors" },
   { value: "context-menu", label: "Context Menu" },
   { value: "keyboard", label: "Keyboard Shortcuts" },
@@ -461,7 +461,7 @@ export function BugReportDialog() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Hidden nodes</span>
+                <span>Hidden cards</span>
                 <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.hiddenNodes}
                 </span>

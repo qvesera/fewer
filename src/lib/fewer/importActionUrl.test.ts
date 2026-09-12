@@ -72,12 +72,12 @@ describe("runUrlImport", () => {
     expect(r.error).toBe("Could not fetch or parse the URL.");
   });
 
-  test("success → node count description + auto-hide note", async () => {
+  test("success → card count description + auto-hide note", async () => {
     seedStore({ autoHideCount: 2 });
     const c = ctx();
     const r = await runUrlImport(urlSource(), opts(), c);
     expect(r.ok).toBe(true);
-    expect(r.description).toBe("3 nodes loaded.");
+    expect(r.description).toBe("3 cards loaded.");
     expect(r.notes).toHaveLength(1);
     expect(r.notes![0]!.title).toBe("Large folders collapsed");
     expect(r.notes![0]!.description).toContain("2 items were auto-hidden");

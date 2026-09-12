@@ -483,7 +483,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
-                          toast({ title: "Children hidden", description: `${visibleDescendants.length} node${visibleDescendants.length === 1 ? "" : "s"} hidden` });
+                          toast({ title: "Children hidden", description: `${visibleDescendants.length} card${visibleDescendants.length === 1 ? "" : "s"} hidden` });
                         }}
                         className="cursor-pointer"
                       >

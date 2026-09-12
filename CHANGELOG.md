@@ -12,11 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
 - Docs now state that OS integration is off in the web build (Open in File Explorer, Open File, OS drag-and-drop import, File System Access picker), and the deployment guide documents the LOCAL_FS_FEATURES build flags
 - Deployment guide documents the Stripe billing variables (off by default), NEXT_PUBLIC_HOME_URL and NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY, and the Advanced Crown Shyness setting is documented
+- UI copy now says cards instead of nodes everywhere user-facing: hidden-cards chip and toasts (N cards hidden/restored/removed), Show All reveal toast, Children hidden toast, export toast and blocked-image hint, H/Shift+H hide toasts, Alt+P unparent/parent toasts, URL import loaded toast, shortcuts dialog (Rename selected card, Open add card dialog), Add-node duplicate-name warning, bug report Node Resizing category, and the theme editor Selection Ring description.
 
 ### Fixed
 
 - Docs served from the database were stale: content_pages is re-seeded from content/docs/ so the live pages match the repo markdown (cards/batch/gallery/version-history copy was missing from the served rows)
 - README stops claiming Prisma/SQLite (Supabase only), stops listing OS-integration features as available per browser, gains Alt+S in the shortcut reference, and states that Enter opens a file only where the OS flags are on
+- Hidden Cards sidebar badge no longer double-counts hidden files: resolved.hiddenIds already includes file ids from the bulk hide layer, but the badge added fileCount on top, showing 60 when 30 files were hidden. Badge now reads resolved.hiddenIds.length only.
 
 ### Added
 
