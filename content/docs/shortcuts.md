@@ -69,7 +69,10 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | Key       | Action             |
 | --------- | ------------------ |
 | **Alt+I** | Open import dialog (choose folder / file / URL / cloud source) |
-| **Alt+O** | Open selected folder in file explorer |
+| **Alt+O** | Open selected folder in file explorer (disabled in the web build) |
+
+> **Alt+O is disabled in the shipped web build** — it needs the server-side OS
+> opener gated by `LOCAL_FS_FEATURES.openInOs` (`src/lib/fewer/features.ts`).
 
 ## Reference
 

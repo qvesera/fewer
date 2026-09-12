@@ -75,11 +75,16 @@ Every node has an **input handle** (entry, on the left/top) and an **output hand
 - **Alt+Shift+P**: unparent all selected nodes
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
-## Drag & Drop
+## Drag & Drop (from your OS)
 
-Drag a folder from your file system onto the canvas to expand it and load its contents from disk. Dropped folders become standalone nodes with their children loaded.
+**Disabled in the web build.** Dropping a folder from your file system onto the
+canvas — to expand it from disk, or to import it directly on an empty canvas —
+needs OS drop events and File System Access handles, which are switched off by
+the `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`. Use **Import from
+disk** (**Alt+I**) instead.
 
-On an **empty** canvas, dropping a folder starts a full import using your saved import settings (no picker or dialog) — the shortcut for "import this directory with the settings I use every time".
+Dragging **nodes within the canvas** (reparenting, adding a child from a folder's
+output handle) is unaffected: it uses the app's own drag payload, not the OS.
 
 ## Layout Engine
 

@@ -82,6 +82,35 @@ The repo includes a `Caddyfile` that proxies port 81 to the app on port 3000:
 
 It also supports a `?XTransformPort=` query parameter for port forwarding during development.
 
+## Local Filesystem Features (build-time flags)
+
+A few features reach outside the browser tab: **Open in File Explorer**
+(**Alt+O**), **Open File** (**Enter**), dragging a folder from your OS onto the
+canvas (import on an empty canvas, expand-from-disk otherwise), and the File
+System Access directory picker. They depend on server-side OS openers
+(`/api/open-folder`, `/api/open-file`, `/api/list-directory` — all restricted to
+localhost requests) or on browser APIs that do not exist in every webview, so
+they are **switched off by default** in `src/lib/fewer/features.ts`:
+
+```ts
+export const LOCAL_FS_FEATURES = {
+  openInOs: false, // "Open in File Explorer" (folder menu + Alt+O)
+  openFileInOs: false, // "Open File" (file menu + Enter)
+  dragDropImport: false, // OS folder drop on an empty canvas → import
+  dropToExpand: false, // OS folder drop on a canvas → expand from disk
+  fsaDirectoryPicker: false, // showDirectoryPicker()
+} as const;
+```
+
+Set a flag to `true` and rebuild to restore that feature (useful for a
+self-hosted instance you access over localhost, or a native/Tauri build that
+replaces the OS openers with native commands). These are **build-time constants,
+not environment variables** — nothing to add to `.env`.
+
+Folder import itself is never gated: it uses the legacy `webkitdirectory` picker,
+which works in every browser and webview. The same applies to file/URL/cloud
+imports and in-app node dragging.
+
 ## PWA & Static Assets
 
 The `public/` directory ships:

@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
+- Docs now state that OS integration is off in the web build (Open in File Explorer, Open File, OS drag-and-drop import, File System Access picker), and the deployment guide documents the LOCAL_FS_FEATURES build flags
+
+### Fixed
+
+- Docs served from the database were stale: content_pages is re-seeded from content/docs/ so the live pages match the repo markdown (cards/batch/gallery/version-history copy was missing from the served rows)
+
+### Added
+
+- Blog post for v0.6.0: community gallery, version history, unified 3-step import, and the accounts upgrade (content/blog/v060-release.md, seeded to content_pages)
 
 ## [0.7.1] - 2026-09-12
 
