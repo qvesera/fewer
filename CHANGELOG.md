@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs served from the database were stale: content_pages is re-seeded from content/docs/ so the live pages match the repo markdown (cards/batch/gallery/version-history copy was missing from the served rows)
 - README stops claiming Prisma/SQLite (Supabase only), stops listing OS-integration features as available per browser, gains Alt+S in the shortcut reference, and states that Enter opens a file only where the OS flags are on
 - Hidden Cards sidebar badge no longer double-counts hidden files: resolved.hiddenIds already includes file ids from the bulk hide layer, but the badge added fileCount on top, showing 60 when 30 files were hidden. Badge now reads resolved.hiddenIds.length only.
+- Choosing a color when creating a tag from the node context menu no longer silently falls back to the default palette color
 
 ### Added
 

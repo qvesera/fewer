@@ -4,8 +4,18 @@ import { useGraphStore } from "@/store/graphStore";
 function resetStore() {
   useGraphStore.setState({
     nodes: [
-      { id: "n1", type: "folder", position: { x: 0, y: 0 }, data: { label: "Folder", path: "/Folder", type: "folder" } },
-      { id: "n2", type: "file", position: { x: 0, y: 0 }, data: { label: "File", path: "/File", type: "file" } },
+      {
+        id: "n1",
+        type: "folder",
+        position: { x: 0, y: 0 },
+        data: { label: "Folder", path: "/Folder", type: "folder" },
+      },
+      {
+        id: "n2",
+        type: "file",
+        position: { x: 0, y: 0 },
+        data: { label: "File", path: "/File", type: "file" },
+      },
     ] as never,
     edges: [],
     tags: [],
@@ -77,7 +87,9 @@ test("tagFilter hides folders without matching descendants and non-matching file
   const b = s.createTag("B");
   // n1 folder -> n2 file; n2 carries tag A
   s.assignTag("n2", a.id);
-  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  useGraphStore.setState({
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+  } as never);
   // Filter by B only: n2 file (no B) is hidden; n1 folder has no B and no descendant B -> hidden.
   s.setTagFilter([b.id]);
   const { hiddenIds } = useGraphStore.getState();
@@ -93,7 +105,9 @@ test("tagFilter keeps folders that anchor a matching descendant file", () => {
   const s = useGraphStore.getState();
   const a = s.createTag("A");
   s.assignTag("n2", a.id);
-  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  useGraphStore.setState({
+    edges: [{ id: "e1", source: "n1", target: "n2" }],
+  } as never);
   s.setTagFilter([a.id]);
   const { hiddenIds } = useGraphStore.getState();
   // n2 matches A; ancestor folder n1 is kept as a structural anchor.

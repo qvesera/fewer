@@ -122,7 +122,7 @@ Changing either control re-lays out the graph immediately. The choice is saved w
 
 Tags are named, colored labels you can attach to any folder or file card.
 
-**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **New tag** row that creates one and assigns it in one step. A card can carry any number of tags; assigned tags also appear as colored dots on the card.
+**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
 **The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
 

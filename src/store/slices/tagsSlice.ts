@@ -21,7 +21,10 @@ export type TagsSliceCreator = StateCreator<
 
     setTags: (tags: Tag[]) => void;
     createTag: (label: string, color?: string) => Tag;
-    updateTag: (id: string, patch: Partial<Pick<Tag, "label" | "color">>) => void;
+    updateTag: (
+      id: string,
+      patch: Partial<Pick<Tag, "label" | "color">>,
+    ) => void;
     deleteTag: (id: string) => void;
     assignTag: (nodeId: string, tagId: string) => void;
     unassignTag: (nodeId: string, tagId: string) => void;
@@ -55,7 +58,11 @@ function nextColor(existing: Tag[]): string {
  * Layout excludes hidden folders from the tree as roots, promoting their
  * matching children up a level, so a match is never orphaned from the canvas.
  */
-function tagFilterHiddenNodeIds(nodes: FewerNode[], edges: FewerEdge[], tagFilter: string[]): string[] {
+function tagFilterHiddenNodeIds(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  tagFilter: string[],
+): string[] {
   if (tagFilter.length === 0) return [];
   const tagSet = new Set(tagFilter);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
@@ -109,7 +116,11 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
 
   createTag: (label, color) => {
     const trimmed = label.trim() || "Untitled";
-    const tag: Tag = { id: `tag-${uuid().slice(0, 8)}`, label: trimmed, color: color ?? nextColor(get().tags) };
+    const tag: Tag = {
+      id: `tag-${uuid().slice(0, 8)}`,
+      label: trimmed,
+      color: color ?? nextColor(get().tags),
+    };
     set({ tags: [...get().tags, tag] });
     return tag;
   },
@@ -125,7 +136,10 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     // Strip the tag from every node that carries it.
     const nodes = get().nodes.map((n: FewerNode) =>
       n.data.tagIds?.includes(id)
-        ? { ...n, data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== id) } }
+        ? {
+            ...n,
+            data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== id) },
+          }
         : n,
     );
     // Also remove from the active filter if present.
@@ -153,7 +167,10 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   unassignTag: (nodeId, tagId) => {
     const nodes = get().nodes.map((n) => {
       if (n.id !== nodeId || !n.data.tagIds) return n;
-      return { ...n, data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) } };
+      return {
+        ...n,
+        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
+      };
     });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
@@ -181,7 +198,10 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     const nodes = get().nodes.map((n) => {
       if (!idSet.has(n.id) || !n.data.tagIds) return n;
       if (!n.data.tagIds.includes(tagId)) return n;
-      return { ...n, data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) } };
+      return {
+        ...n,
+        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
+      };
     });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
@@ -200,7 +220,12 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds)) {
       get().pushOp(viewStateOp(before, after));
     }
-    set({ tagFilter: ids, tagFilterHiddenIds: nextTagHidden, hiddenIds: finalHidden, graphVersion: get().graphVersion + 1 });
+    set({
+      tagFilter: ids,
+      tagFilterHiddenIds: nextTagHidden,
+      hiddenIds: finalHidden,
+      graphVersion: get().graphVersion + 1,
+    });
   },
 
   toggleTagFilter: (id) => {
