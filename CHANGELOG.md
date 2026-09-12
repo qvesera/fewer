@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show Children on a folder now reveals its files even when Hide Files is on (or files were hidden globally)
 - Settings → Account save no longer fails with "permission denied for table profiles" (PostgREST upsert needs UPDATE on conflict-target column user_id)
 - Corner split/merge grips render inside the canvas area only (no longer overlap the area title bar), and the primary area title — Graph View — is vertically centered in the header
+- Tag ring colors now match assignment order left-to-right: the first-assigned tag's color sits on the LEFT side of the card ring (matching the TagDots row), so green-then-pink reads green left, pink right instead of the reversed split
 
 ### Added
 

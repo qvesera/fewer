@@ -32,11 +32,18 @@ export const TAG_RING_CAP = 5;
  * split the ring evenly: 2 colors → 50/50, 3 → 33/33/33, etc. A single color
  * yields a solid ring. Capped at TAG_RING_CAP slices for legibility.
  *
+ * Colors are laid out so the FIRST color starts on the LEFT side of the ring,
+ * matching left-to-right reading order and the TagDots row on the card
+ * (green, pink → green left, pink right). This requires reversing the list:
+ * a CSS conic-gradient starts at 12 o'clock and runs clockwise, so an
+ * un-reversed list would put the first color on the RIGHT instead.
+ *
  * @example
- * buildTagRingGradient(["#f00", "#00f"]) // "conic-gradient(#f00 0% 50%, #00f 50% 100%)"
+ * buildTagRingGradient(["#f00", "#00f"]) // "conic-gradient(#00f 0% 50%, #f00 50% 100%)"
  */
 export function buildTagRingGradient(colors: string[]): string {
-  const capped = colors.slice(0, TAG_RING_CAP);
+  // Cap keeps the first DISPLAY-order tags, then reverses for ring geometry.
+  const capped = [...colors].slice(0, TAG_RING_CAP).reverse();
   if (capped.length === 0) return "";
   if (capped.length === 1) return capped[0];
   const step = 100 / capped.length;

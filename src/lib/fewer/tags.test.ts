@@ -28,15 +28,17 @@ test("buildTagRingGradient: single color → solid", () => {
   expect(buildTagRingGradient(["#f87171"])).toBe("#f87171");
 });
 
-test("buildTagRingGradient: two colors split 50/50 (hard stops)", () => {
-  expect(buildTagRingGradient(["#f00", "#00f"])).toBe("conic-gradient(#f00 0%, #f00 50%, #00f 50%, #00f 100%)");
+test("buildTagRingGradient: two colors — first color lands on the LEFT side", () => {
+  // CSS conic-gradient starts at 12 o'clock clockwise; reversing the list puts
+  // the first color (#f00) in the 50–100% span = the LEFT half of the ring.
+  expect(buildTagRingGradient(["#f00", "#00f"])).toBe("conic-gradient(#00f 0%, #00f 50%, #f00 50%, #f00 100%)");
 });
 
-test("buildTagRingGradient: three colors split evenly (33.33 each)", () => {
+test("buildTagRingGradient: three colors step evenly, first color last (left side)", () => {
   const g = buildTagRingGradient(["#f00", "#0f0", "#00f"]);
-  expect(g).toContain("#f00 0%");
+  expect(g).toContain("#00f 0%");
   expect(g).toContain("#0f0 33.33%");
-  expect(g).toContain("#00f 66.67%");
+  expect(g).toContain("#f00 66.67%");
 });
 
 test("buildTagRingGradient: caps at 5 slices", () => {
