@@ -117,6 +117,35 @@ def base_file_names(base: str) -> set[str]:
     return {Path(p).name for p in out.splitlines() if p.strip()}
 
 
+def file_content_at(ref: str, path: str) -> str | None:
+    """Content of `path` at `ref`, or None when the ref or path is unavailable."""
+    result = subprocess.run(["git", "show", f"{ref}:{path}"], capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    return result.stdout.replace("\r\n", "\n")
+
+
+def ref_exists(ref: str) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", ref], capture_output=True, text=True
+    )
+    return result.returncode == 0
+
+
+def matches_canonical(path: str, canonical: str) -> bool:
+    """True when the working-tree file is identical to `canonical`'s copy.
+
+    A base branch that is merely *behind* (release/prod between releases) makes an
+    already-approved change look like an edit to an applied migration. Matching
+    the canonical branch means this change did not make the edit, so it must not
+    be reported as one.
+    """
+    current = Path(path)
+    if not current.is_file():
+        return False
+    return file_content_at(canonical, path) == current.read_text().replace("\r\n", "\n")
+
+
 
 def cmd_verify(args: argparse.Namespace) -> int:
     res = Result()
@@ -141,13 +170,28 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if args.base:
         base_names = base_file_names(args.base)
         added = {p.name for p in files} - base_names
+        if not ref_exists(args.canonical):
+            res.warn(
+                f"canonical ref {args.canonical} not found — every difference from "
+                f"{args.base} will be treated as an edit. Fetch it (git fetch origin "
+                "main) to avoid false positives on branches that are behind."
+            )
         for path, status in sorted(git_changes(args.base).items()):
-            if status in {"M", "D", "R", "C"}:
-                res.error(
-                    f"{path}: an existing migration was modified or deleted. "
-                    "Applied migrations are immutable — add a NEW migration instead "
-                    "(see the Migrations section in AGENTS.md)."
+            if status not in {"M", "D", "R", "C"}:
+                continue
+            # Deletions always fail: there is no content that could already match
+            # the canonical branch, so a stale base can never explain them.
+            if status in {"M", "R", "C"} and matches_canonical(path, args.canonical):
+                res.warn(
+                    f"{path}: differs from {args.base} but matches {args.canonical} — "
+                    "the base branch is behind, not an edit made here"
                 )
+                continue
+            res.error(
+                f"{path}: an existing migration was modified or deleted. "
+                "Applied migrations are immutable — add a NEW migration instead "
+                "(see the Migrations section in AGENTS.md)."
+            )
     else:
         res.warn("no --base given: skipping git-based checks (edits to existing migrations)")
 
@@ -268,6 +312,14 @@ def main(argv: list[str]) -> int:
 
     p_verify = sub.add_parser("verify", help="static + git checks on migration files")
     p_verify.add_argument("--base", help="git ref to diff against, e.g. origin/dev")
+    p_verify.add_argument(
+        "--canonical",
+        default="origin/main",
+        help=(
+            "branch that records applied migrations; a difference from --base that "
+            "matches it means the base is behind, not an edit (default: origin/main)"
+        ),
+    )
     p_verify.set_defaults(func=cmd_verify)
 
     p_baseline = sub.add_parser("baseline", help="compare local migrations with a project's history")
