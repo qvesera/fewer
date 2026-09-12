@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { FewerNode } from "@/lib/fewer/types";
+import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import type { Tag } from "@/lib/fewer/tags";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
@@ -46,20 +46,56 @@ function nextColor(existing: Tag[]): string {
 }
 
 /**
- * Compute node ids that should be hidden because they don't match the active
- * tag filter. A node matches when it carries at least one of the selected tags
- * (OR semantics). Folders are never hidden — only files and untagged entries.
+ * Node ids that the active tag filter should hide. A file node is hidden when
+ * it carries none of the selected tags (OR semantics). A folder is hidden only
+ * when neither it nor any node in its subtree carries a selected tag, so folders
+ * that contain a match stay visible as structural anchors while folders that
+ * are entirely free of matches collapse away. Returns [] when no filter.
+ *
+ * Layout excludes hidden folders from the tree as roots, promoting their
+ * matching children up a level, so a match is never orphaned from the canvas.
  */
-function tagFilterHiddenNodeIds(nodes: FewerNode[], tagFilter: string[]): string[] {
+function tagFilterHiddenNodeIds(nodes: FewerNode[], edges: FewerEdge[], tagFilter: string[]): string[] {
   if (tagFilter.length === 0) return [];
   const tagSet = new Set(tagFilter);
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const childrenMap = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
+    childrenMap.get(e.source)!.push(e.target);
+  }
+  const tagged = (n: FewerNode): boolean => {
+    const nodeTags = n.data.tagIds ?? [];
+    return nodeTags.some((t) => tagSet.has(t));
+  };
+  const cache = new Map<string, boolean>();
+  function hasTaggedDescendant(id: string): boolean {
+    const seen = cache.get(id);
+    if (seen !== undefined) return seen;
+    const node = nodeMap.get(id);
+    if (!node) {
+      cache.set(id, false);
+      return false;
+    }
+    if (tagged(node)) {
+      cache.set(id, true);
+      return true;
+    }
+    for (const child of childrenMap.get(id) ?? []) {
+      if (hasTaggedDescendant(child)) {
+        cache.set(id, true);
+        return true;
+      }
+    }
+    cache.set(id, false);
+    return false;
+  }
   return nodes
     .filter((n) => {
-      // Folders are never hidden by tag filter (same as category filter).
-      if (n.data.type === "folder") return false;
-      const nodeTags = n.data.tagIds ?? [];
-      // A node is hidden when it carries NONE of the selected tags.
-      return !nodeTags.some((t) => tagSet.has(t));
+      if (n.data.type === "file") return !tagged(n);
+      // Folders stay visible only when they or a descendant matches the filter.
+      if (n.data.type === "folder") return !hasTaggedDescendant(n.id);
+      return false;
     })
     .map((n) => n.id);
 }
@@ -94,7 +130,7 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     );
     // Also remove from the active filter if present.
     const nextFilter = tagFilter.filter((t) => t !== id);
-    const nextHidden = tagFilterHiddenNodeIds(nodes, nextFilter);
+    const nextHidden = tagFilterHiddenNodeIds(nodes, get().edges, nextFilter);
     set({
       tags: tags.filter((t) => t.id !== id),
       tagFilter: nextFilter,
@@ -152,7 +188,7 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
 
   setTagFilter: (ids) => {
     const { nodes, hiddenIds, tagFilterHiddenIds } = get();
-    const nextTagHidden = tagFilterHiddenNodeIds(nodes, ids);
+    const nextTagHidden = tagFilterHiddenNodeIds(nodes, get().edges, ids);
     const prevTagSet = new Set(tagFilterHiddenIds);
     // Drop the ids the previous tag filter hid, then add the ids this one hides.
     // Manual hides (from the Hidden panel) are preserved — only tracked

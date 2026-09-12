@@ -71,20 +71,34 @@ test("deleteTag also clears the id from tagFilter", () => {
   expect(useGraphStore.getState().tagFilter).toEqual([]);
 });
 
-test("tagFilter hides non-matching files via hiddenIds", () => {
+test("tagFilter hides folders without matching descendants and non-matching files", () => {
   const s = useGraphStore.getState();
   const a = s.createTag("A");
   const b = s.createTag("B");
-  s.assignTag("n1", a.id);
-  // Filter by B only → file n2 (no tags) should be hidden, folder n1 stays.
+  // n1 folder -> n2 file; n2 carries tag A
+  s.assignTag("n2", a.id);
+  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  // Filter by B only: n2 file (no B) is hidden; n1 folder has no B and no descendant B -> hidden.
   s.setTagFilter([b.id]);
   const { hiddenIds } = useGraphStore.getState();
   expect(hiddenIds).toContain("n2");
-  // Folder is never hidden by tag filter.
-  expect(hiddenIds).not.toContain("n1");
+  expect(hiddenIds).toContain("n1");
   // Clear the filter.
   s.clearTagFilter();
   expect(useGraphStore.getState().hiddenIds).not.toContain("n2");
+  expect(useGraphStore.getState().hiddenIds).not.toContain("n1");
+});
+
+test("tagFilter keeps folders that anchor a matching descendant file", () => {
+  const s = useGraphStore.getState();
+  const a = s.createTag("A");
+  s.assignTag("n2", a.id);
+  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  s.setTagFilter([a.id]);
+  const { hiddenIds } = useGraphStore.getState();
+  // n2 matches A; ancestor folder n1 is kept as a structural anchor.
+  expect(hiddenIds).not.toContain("n2");
+  expect(hiddenIds).not.toContain("n1");
 });
 
 test("toggleTagFilter toggles a tag in the filter", () => {

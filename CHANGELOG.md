@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs now state that OS integration is off in the web build (Open in File Explorer, Open File, OS drag-and-drop import, File System Access picker), and the deployment guide documents the LOCAL_FS_FEATURES build flags
 - Deployment guide documents the Stripe billing variables (off by default), NEXT_PUBLIC_HOME_URL and NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY, and the Advanced Crown Shyness setting is documented
 - UI copy now says cards instead of nodes everywhere user-facing: hidden-cards chip and toasts (N cards hidden/restored/removed), Show All reveal toast, Children hidden toast, export toast and blocked-image hint, H/Shift+H hide toasts, Alt+P unparent/parent toasts, URL import loaded toast, shortcuts dialog (Rename selected card, Open add card dialog), Add-node duplicate-name warning, bug report Node Resizing category, and the theme editor Selection Ring description.
+- Tag filter now hides folders too: a folder disappears when neither it nor any file inside it carries a selected tag, while folders that contain a match stay visible as structural anchors
 
 ### Fixed
 
