@@ -1165,7 +1165,7 @@ if (isCollapsed) {
             )}
             style={{ width: width ?? 240 }}
           >
-            <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+            <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
             <Handle
               type="target"
               position={target}
@@ -1239,7 +1239,7 @@ if (isCollapsed) {
         )}
         style={{ height: manualHeight ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
-        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
         {selected && (
           <NodeResizer
             minWidth={180}
@@ -1409,7 +1409,7 @@ if (isCollapsed) {
         )}
         style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
-        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
         <Handle
           type="target"
           position={target}

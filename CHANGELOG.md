@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Account save no longer fails with "permission denied for table profiles" (PostgREST upsert needs UPDATE on conflict-target column user_id)
 - Corner split/merge grips render inside the canvas area only (no longer overlap the area title bar), and the primary area title — Graph View — is vertically centered in the header
 - Tag ring colors now match assignment order left-to-right: the first-assigned tag's color sits on the LEFT side of the card ring (matching the TagDots row), so green-then-pink reads green left, pink right instead of the reversed split
+- Tag rings with an odd number of tags now split by equal outline length instead of equal angle, so every color's band is the same size on rectangular cards (collapsed folders, file cards) regardless of aspect ratio; the ring also uses the node's measured dimensions
 
 ### Added
 

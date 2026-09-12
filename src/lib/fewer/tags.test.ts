@@ -48,6 +48,30 @@ test("buildTagRingGradient: caps at 5 slices", () => {
   expect(stops.length).toBe(10);
 });
 
+test("buildTagRingGradient: odd count splits by OUTLINE LENGTH on a 2:1 card", () => {
+  // Equal-angle thirds would render a short middle band on a 240×120 rect.
+  // Perimeter stops put the boundaries exactly on the bottom corners → equal
+  // band lengths. First color (#f00) is on the left, as the display order.
+  const g = buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 240, height: 120 });
+  expect(g).toBe(
+    "conic-gradient(#00f 0%, #00f 32.38%, #0f0 32.38%, #0f0 67.62%, #f00 67.62%, #f00 100%)",
+  );
+});
+
+test("buildTagRingGradient: equal-angle fallback when dims are invalid", () => {
+  // Invalid dims fall back to equal-angle stops; ring geometry still reversed.
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 0, height: 120 }))
+    .toContain("#00f 0%");
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: -1, height: 0 }))
+    .toContain("#0f0 33.33%");
+});
+
+test("buildTagRingGradient: square card keeps uniform angle stops", () => {
+  // On a square, equal perimeter = equal angle, so a 50/50 split is unchanged.
+  expect(buildTagRingGradient(["#f00", "#00f"], { width: 200, height: 200 }))
+    .toBe("conic-gradient(#00f 0%, #00f 50%, #f00 50%, #f00 100%)");
+});
+
 test("firstTagId returns first id or null", () => {
   expect(firstTagId(node("a", "A", ["t2", "t1"]))).toBe("t2");
   expect(firstTagId(node("b", "B"))).toBeNull();
