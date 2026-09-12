@@ -82,44 +82,54 @@ function LeafNode({
     >
       {/* Unified header bar for all leaf types */}
       <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20 shrink-0 bg-card/30">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-1 justify-between gap-1 h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1.5"
-            >
-              <span className="truncate text-left">
-                {isGraph ? AREA_EDITOR_LABELS.graph : meta?.title ?? leaf.area.editor}
-              </span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Editor Type
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, "graph")}
-              className="text-xs cursor-pointer"
-              disabled={isGraph}
-            >
-              {AREA_EDITOR_LABELS.graph}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {SECTION_CATALOG.filter((s) => !NON_DOCKABLE_SECTIONS.has(s.id)).map((s) => (
-              <DropdownMenuItem
-                key={s.id}
-                onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, s.id)}
-                className="text-xs cursor-pointer"
-                disabled={leaf.area.editor === s.id}
+        {leaf.primary ? (
+          // The primary leaf is always the main graph viewport — no editor-type picker.
+          <span
+            className="flex-1 truncate text-left h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1.5"
+            title={AREA_EDITOR_LABELS.graph}
+          >
+            {AREA_EDITOR_LABELS.graph}
+          </span>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 justify-between gap-1 h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1.5"
               >
-                {s.title}
+                <span className="truncate text-left">
+                  {isGraph ? AREA_EDITOR_LABELS.graph : meta?.title ?? leaf.area.editor}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Editor Type
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, "graph")}
+                className="text-xs cursor-pointer"
+                disabled={isGraph}
+              >
+                {AREA_EDITOR_LABELS.graph}
               </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuSeparator />
+              {SECTION_CATALOG.filter((s) => !NON_DOCKABLE_SECTIONS.has(s.id)).map((s) => (
+                <DropdownMenuItem
+                  key={s.id}
+                  onClick={() => useGraphStore.getState().setAreaEditor(leaf.area.id, s.id)}
+                  className="text-xs cursor-pointer"
+                  disabled={leaf.area.editor === s.id}
+                >
+                  {s.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {!leaf.primary && (
           <Button

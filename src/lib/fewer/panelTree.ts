@@ -105,6 +105,8 @@ function replaceChild(root: PanelNode, leafId: string, replacement: PanelNode): 
 // ── Set leaf editor ──
 
 export function setLeafEditor(root: PanelNode, id: string, editor: AreaEditor): PanelNode {
+  const target = findLeaf(root, id);
+  if (!target || target.primary) return root;
   return patchLeaf(root, id, (l) => ({ ...l, area: { ...l.area, editor } }));
 }
 
@@ -253,6 +255,11 @@ export function dedupeLeafIds(root: PanelNode): PanelNode {
   if (!getPrimary(out)) {
     const graphLeaf = leafList(out).find((l) => l.area.editor === "graph");
     if (graphLeaf) out = patchLeaf(out, graphLeaf.area.id, (l) => ({ ...l, primary: true }));
+  }
+  // The primary leaf is always the main graph viewport — pin its editor to graph.
+  const primary = getPrimary(out);
+  if (primary && primary.area.editor !== "graph") {
+    out = patchLeaf(out, primary.area.id, (l) => ({ ...l, area: { ...l.area, editor: "graph" } }));
   }
   return out;
 }

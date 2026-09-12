@@ -2,8 +2,8 @@ import { describe, it, expect } from "bun:test";
 import { createArea } from "./panelLayout";
 import {
   defaultTree, makeLeaf, leafList, leafCount,
-  getPrimary, splitLeaf, joinLeaf,
-  serializeTree, parseTree, migrateV1ToTree, isLeaf, dedupeLeafIds,
+  getPrimary, splitLeaf, joinLeaf, findLeaf,
+  serializeTree, parseTree, migrateV1ToTree, isLeaf, dedupeLeafIds, setLeafEditor,
 } from "./panelTree";
 import {
   computeEffectiveHidden, type HideLayers,
@@ -52,6 +52,28 @@ describe("panelTree", () => {
     const p = leafList(result).find((l) => l.primary);
     expect(p).not.toBeNull();
     expect(p!.area.id).toBe(root.area.id);
+  });
+});
+
+describe("primary leaf pinned to graph", () => {
+  it("setLeafEditor cannot change the primary leaf", () => {
+    const root = defaultTree();
+    const changed = setLeafEditor(root, root.area.id, "tags");
+    expect(changed).toBe(root);
+    expect(getPrimary(changed)!.area.editor).toBe("graph");
+  });
+  it("setLeafEditor still works on non-primary leaves", () => {
+    const base = defaultTree();
+    const root = splitLeaf(base, base.area.id, "h");
+    const secondary = leafList(root).find((l) => !l.primary)!;
+    const changed = setLeafEditor(root, secondary.area.id, "tags");
+    expect(changed).not.toBe(root);
+    expect(findLeaf(changed, secondary.area.id)!.area.editor).toBe("tags");
+  });
+  it("dedupeLeafIds pins an existing primary leaf back to graph", () => {
+    const root = makeLeaf({ id: "p1", width: 480, editor: "tags" }, true);
+    const p = getPrimary(dedupeLeafIds(root))!;
+    expect(p.area.editor).toBe("graph");
   });
 });
 
