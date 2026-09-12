@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
 - Docs now state that OS integration is off in the web build (Open in File Explorer, Open File, OS drag-and-drop import, File System Access picker), and the deployment guide documents the LOCAL_FS_FEATURES build flags
+- Deployment guide documents the Stripe billing variables (off by default), NEXT_PUBLIC_HOME_URL and NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY, and the Advanced Crown Shyness setting is documented
 
 ### Fixed
 
 - Docs served from the database were stale: content_pages is re-seeded from content/docs/ so the live pages match the repo markdown (cards/batch/gallery/version-history copy was missing from the served rows)
+- README stops claiming Prisma/SQLite (Supabase only), stops listing OS-integration features as available per browser, gains Alt+S in the shortcut reference, and states that Enter opens a file only where the OS flags are on
 
 ### Added
 

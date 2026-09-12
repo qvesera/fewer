@@ -57,7 +57,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: ["⌘", "Ctrl", "A"], action: "Select all nodes" },
       { keys: ["F2"], action: "Rename selected node" },
-      { keys: ["Enter"], action: "Open selected file" },
+      { keys: ["Enter"], action: "Open file (off in the web build) / focus first child" },
       { keys: ["Delete"], action: "Delete selected nodes" },
       { keys: ["H"], action: "Hide selected nodes" },
       { keys: ["Shift", "H"], action: "Show all nodes" },

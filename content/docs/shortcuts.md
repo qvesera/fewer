@@ -30,7 +30,8 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **Ctrl+Shift+Z / Ctrl+Y** | Redo last action              |
 | **H**                  | Hide selected nodes              |
 | **Shift+H**            | Show all nodes                   |
-| **Enter**              | Open selected file, or focus first child of folder |
+| **Alt+S**              | Save current graph (signed in)   |
+| **Enter**              | Focus the folder's first child; opens the selected file when OS integration is enabled |
 
 ## Parent / Unparent
 

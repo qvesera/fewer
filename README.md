@@ -341,7 +341,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links, headless blog/docs) |
+| Database  | Supabase (Postgres) — auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 
@@ -352,12 +352,17 @@ src/
 | Feature                            | Chrome/Edge | Firefox | Safari |
 | ---------------------------------- | :---------: | :-----: | :----: |
 | Graph visualization                |     ✅      |   ✅    |   ✅   |
-| Import directory (FS Access API)   |     ✅      |   ❌    |   ❌   |
 | Import directory (webkitdirectory) |     ✅      |   ✅    |   ✅   |
-| Open files from disk               |     ✅      |   ❌    |   ❌   |
 | Export (all formats)               |     ✅      |   ✅    |   ✅   |
 | Keyboard shortcuts                 |     ✅      |   ✅    |   ✅   |
 | Custom theme                       |     ✅      |   ✅    |   ✅   |
+
+> **OS integration is switched off in the web build.** The File System Access
+> directory picker, "Open File", and "Open in File Explorer" are gated behind
+> `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts` (all flags `false`), so they
+> are unavailable in every browser until a build flips them — see
+> [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
+> Folder import works everywhere through the `webkitdirectory` fallback.
 
 ---
 
@@ -365,7 +370,7 @@ src/
 
 **Q: Does fewer send my directory data anywhere?**
 
-A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
+A: Your directory is never uploaded — local import, editing, layout, and export run entirely in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
 
@@ -373,7 +378,7 @@ A: Yes. The standalone version is available at [app.fewer.directory](https://app
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
-A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback, which works for import but can't write back to disk.
+A: Folder import works in every browser — Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only — and are currently switched off entirely in the web build (see the note above).
 
 **Q: How do I uninstall?**
 
