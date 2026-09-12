@@ -24,8 +24,8 @@ interface CornerConfig extends CornerSide {
 }
 
 const CORNERS: CornerConfig[] = [
-  { key: "tl", h: "start", v: "start", position: "top-[34px] left-1", cursor: "cursor-nwse-resize" },
-  { key: "tr", h: "end",   v: "start", position: "top-[34px] right-1", cursor: "cursor-nesw-resize" },
+  { key: "tl", h: "start", v: "start", position: "top-1 left-1", cursor: "cursor-nwse-resize" },
+  { key: "tr", h: "end",   v: "start", position: "top-1 right-1", cursor: "cursor-nesw-resize" },
   { key: "bl", h: "start", v: "end",   position: "bottom-1 left-1", cursor: "cursor-nesw-resize" },
   { key: "br", h: "end",   v: "end",   position: "bottom-1 right-1", cursor: "cursor-nwse-resize" },
 ];

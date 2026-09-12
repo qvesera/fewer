@@ -70,13 +70,12 @@ function LeafNode({
   onOpenImport: () => void;
   onLoadSample: () => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const isGraph = leaf.area.editor === "graph";
   const meta = sectionMetaById(leaf.area.editor);
 
   return (
     <div
-      ref={containerRef}
       data-leaf-id={leaf.area.id}
       className="group relative flex flex-col h-full w-full min-h-0 min-w-0 border-border/20"
     >
@@ -85,7 +84,7 @@ function LeafNode({
         {leaf.primary ? (
           // The primary leaf is always the main graph viewport — no editor-type picker.
           <span
-            className="flex-1 truncate text-left h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1.5"
+            className="flex-1 flex items-center truncate text-left h-7 px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
             title={AREA_EDITOR_LABELS.graph}
           >
             {AREA_EDITOR_LABELS.graph}
@@ -144,21 +143,23 @@ function LeafNode({
         )}
       </div>
 
-      {/* Content */}
-      {isGraph ? (
-        <div className="relative min-w-0 flex-1 min-h-0">
+      {/* Content — corner grips live INSIDE the canvas area, below the header */}
+      <div
+        ref={contentRef}
+        className={cn("relative min-w-0 flex-1 min-h-0", isGraph ? "" : "flex flex-col")}
+      >
+        {isGraph ? (
           <GraphCanvasForLeaf
             onOpenImport={onOpenImport}
             onLoadSample={onLoadSample}
             primary={!!leaf.primary}
             leafId={leaf.area.id}
           />
-        </div>
-      ) : (
-        <DockArea area={leaf.area} />
-      )}
-
-      <CornerGrip leafId={leaf.area.id} containerRef={containerRef} />
+        ) : (
+          <DockArea area={leaf.area} />
+        )}
+        <CornerGrip leafId={leaf.area.id} containerRef={contentRef} />
+      </div>
     </div>
   );
 }
