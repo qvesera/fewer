@@ -1,0 +1,27 @@
+-- 0030_profiles_grants_update_user_id.sql
+--
+-- Fix: Settings → Account save (PUT /api/profile) returned
+--   "permission denied for table profiles" (42501) when writing
+--   first_name / last_name / username.
+--
+-- Why: 0026 narrowed profile writes to column-level grants
+--   grant insert (user_id, first_name, last_name, username) ...
+--   grant update (first_name, last_name, username) ...
+-- but PostgREST turns the client upsert (onConflict: "user_id") into
+--   INSERT ... ON CONFLICT (user_id) DO UPDATE SET
+--     user_id = excluded.user_id, first_name = excluded.first_name, ...
+-- i.e. the conflict-target column appears in the DO UPDATE SET list.
+-- Postgres then requires column-level UPDATE on user_id — which 0026 never
+-- granted — and reports the denial as "permission denied for table profiles"
+-- (column-level denials name the table, not the column).
+--
+-- This is safe: RLS keeps every row owner-only (profiles_update is
+-- "using (auth.uid() = user_id) with check (auth.uid() = user_id)"), so a
+-- signed-in user can only ever write their own row's user_id back to its
+-- current value. INSERT remains (user_id, first_name, last_name, username)
+-- and plan / stripe_customer_id stay service-role-only (0022/0026 model).
+--
+-- Idempotent: re-running on any environment (including one that inherited
+-- the v0.7.0 table-level regression) just re-asserts the same column grant.
+
+grant update (user_id) on public.profiles to anon, authenticated;

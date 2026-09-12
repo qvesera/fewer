@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hidden Cards sidebar badge no longer double-counts hidden files: resolved.hiddenIds already includes file ids from the bulk hide layer, but the badge added fileCount on top, showing 60 when 30 files were hidden. Badge now reads resolved.hiddenIds.length only.
 - Choosing a color when creating a tag from the node context menu no longer silently falls back to the default palette color
 - Show Children on a folder now reveals its files even when Hide Files is on (or files were hidden globally)
+- Settings → Account save no longer fails with "permission denied for table profiles" (PostgREST upsert needs UPDATE on conflict-target column user_id)
 
 ### Added
 
