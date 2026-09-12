@@ -17,6 +17,24 @@ interface NodeChangeHandlerDeps {
 }
 
 /**
+ * During a Shift+drag box select, React Flow deselects every node outside the
+ * rect — including the nodes that were selected when the gesture began. Flip
+ * those deselects back on so the box ADDS to the selection instead of
+ * replacing it (onSelectionChange merges the id lists to match).
+ *
+ * No base set → the changes pass through untouched (same array ref).
+ */
+export function flipBoxSelectDeselects(
+  changes: NodeChange<FewerNode>[],
+  base: Set<string> | null,
+): NodeChange<FewerNode>[] {
+  if (!base) return changes;
+  return changes.map((c) =>
+    c.type === "select" && !c.selected && base.has(c.id) ? { ...c, selected: true } : c,
+  );
+}
+
+/**
  * Handle React Flow node position + dimension changes:
  *   - position changes → commit to the store immediately
  *   - dimension changes → resize via store setState; commit a resize op once
@@ -41,19 +59,8 @@ export function useCanvasNodeChangeHandler({
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<FewerNode>[]) => {
-      // During a Shift+drag box select, React Flow deselects every node
-      // outside the rect — including the nodes that were selected when the
-      // gesture began. Flip those deselects back on so the box ADDS to the
-      // selection instead of replacing it (onSelectionChange merges the id
-      // lists to match).
       const base = boxSelectBaseRef.current;
-      onNodesChange(
-        base
-          ? changes.map((c) =>
-              c.type === "select" && !c.selected && base.has(c.id) ? { ...c, selected: true } : c,
-            )
-          : changes,
-      );
+      onNodesChange(flipBoxSelectDeselects(changes, base));
 
       const dimensionChanges = changes.filter(
         (c): c is NodeChange<FewerNode> & { id: string; dimensions: { width: number; height: number } } =>
