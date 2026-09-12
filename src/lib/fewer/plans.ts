@@ -62,7 +62,7 @@ export const PRO_LIMITS: PlanLimits = {
 };
 
 // Team shares pro limits for now; org workspaces, shared theme libraries and
-// admin controls are planned — see /docs/plans.
+// admin controls are planned.
 export const TEAM_LIMITS: PlanLimits = PRO_LIMITS;
 
 export function limitsFor(plan: Plan | null | undefined): PlanLimits {
