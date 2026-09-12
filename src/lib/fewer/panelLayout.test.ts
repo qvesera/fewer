@@ -3,7 +3,9 @@ import { createArea } from "./panelLayout";
 import {
   defaultTree, makeLeaf, leafList, leafCount,
   getPrimary, splitLeaf, joinLeaf, findLeaf,
-  serializeTree, parseTree, migrateV1ToTree, isLeaf, dedupeLeafIds, setLeafEditor,
+  serializeTree, parseTree, migrateV1ToTree, isLeaf, isSplit, dedupeLeafIds, setLeafEditor,
+  type PanelLeaf,
+  type PanelSplit,
 } from "./panelTree";
 import {
   computeEffectiveHidden, type HideLayers,
@@ -52,6 +54,30 @@ describe("panelTree", () => {
     const p = leafList(result).find((l) => l.primary);
     expect(p).not.toBeNull();
     expect(p!.area.id).toBe(root.area.id);
+  });
+  it("splitLeaf side=start places the new sibling on the left/top", () => {
+    const base = defaultTree();
+    const root = splitLeaf(base, base.area.id, "h", 0.25, "start");
+    const splitNode = root as PanelSplit;
+    const newLeaf = splitNode.first as PanelLeaf;
+    const original = splitNode.second as PanelLeaf;
+    expect(isSplit(root)).toBe(true);
+    expect(newLeaf.area.editor).toBe("graph");
+    expect(newLeaf.area.id).not.toBe(base.area.id);
+    expect(original.area.id).toBe(base.area.id);
+    // Primary stays on the ORIGINAL leaf (now the second/right child)
+    const primary = leafList(root).find((l) => l.primary)!;
+    expect(primary.area.id).toBe(base.area.id);
+  });
+  it("splitLeaf side=end keeps the target first (right/bottom placement)", () => {
+    const base = defaultTree();
+    const root = splitLeaf(base, base.area.id, "v", 0.3, "end");
+    const splitNode = root as PanelSplit;
+    const original = splitNode.first as PanelLeaf;
+    const newLeaf = splitNode.second as PanelLeaf;
+    expect(isSplit(root)).toBe(true);
+    expect(original.area.id).toBe(base.area.id);
+    expect(newLeaf.area.id).not.toBe(base.area.id);
   });
 });
 

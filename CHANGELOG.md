@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UI copy now says cards instead of nodes everywhere user-facing: hidden-cards chip and toasts (N cards hidden/restored/removed), Show All reveal toast, Children hidden toast, export toast and blocked-image hint, H/Shift+H hide toasts, Alt+P unparent/parent toasts, URL import loaded toast, shortcuts dialog (Rename selected card, Open add card dialog), Add-node duplicate-name warning, bug report Node Resizing category, and the theme editor Selection Ring description.
 - Tag filter now hides folders too: a folder disappears when neither it nor any file inside it carries a selected tag, while folders that contain a match stay visible as structural anchors
 - Primary (graph) area is locked to Graph View — the editor-type header dropdown is removed from it, `setAreaEditor` refuses to change it, and saved layouts with a non-graph primary are normalized back to graph on load
+- Corner-drag split grips now appear on all four corners of every panel area — drag from any corner toward the interior to pull off a new leaf in that corner's direction (left from left-hand corners, right from right-hand, top from the top corners, bottom from the bottom), and drag outward to merge
 
 ### Fixed
 
