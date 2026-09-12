@@ -1,0 +1,246 @@
+name: Migrations
+
+# Verifies migration files on every PR, and applies pending migrations to the
+# Supabase project after a merge.
+#
+#   pull_request      -> verify     : static + git checks (no secrets needed)
+#   push to dev       -> apply-dev  : fewer-dev  (environment: dev)
+#   push to main      -> apply-prod : production (environment: prod)
+#   workflow_dispatch -> repair-dev / repair-prod : migration history repair
+#
+# Connections use `--db-url` (session pooler) instead of `supabase link`, so the
+# jobs need only the database password. `link` requires Management API
+# capabilities that scoped personal access tokens (alpha) do not expose; it was
+# rejected with "your account does not have the necessary privileges" against the
+# dev project. --db-url needs no API token at all.
+#
+# Secrets and variables (Settings -> Secrets and variables -> Actions):
+#   secrets.SUPABASE_DB_PASSWORD_DEV    dev database password
+#   secrets.SUPABASE_DB_PASSWORD_PROD   production database password
+#   vars.SUPABASE_PROJECT_REF_DEV       default aorhvfihnjhpxgjiacfg
+#   vars.SUPABASE_PROJECT_REF_PROD      default rzzbhboedvezamqjjuoe
+#   vars.SUPABASE_POOLER_HOST_DEV       default aws-0-ap-south-1.pooler.supabase.com
+#   vars.SUPABASE_POOLER_HOST_PROD      default aws-1-eu-west-1.pooler.supabase.com
+#     Both hosts were confirmed by connecting to the pooler. If a project moves,
+#     copy the Session pooler host from Dashboard -> Connect.
+#
+# Add "verify" to the required status checks of the dev and main rulesets.
+
+on:
+  pull_request:
+    branches: [main, dev, release/prod]
+    # Deliberately no `paths` filter: a required status check must report on
+    # every PR, otherwise PRs without migration changes block forever.
+  push:
+    branches: [dev, main]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch:
+    inputs:
+      project:
+        description: "Project to repair"
+        type: choice
+        options: [dev, prod]
+        default: dev
+      repair_versions:
+        description: "Space-separated versions to mark as applied (e.g. 0016 0017). Leave empty to do nothing."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # Pinned for reproducible applies.
+  SUPABASE_CLI_VERSION: 2.117.0
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the checks diff against the base ref / previous commit.
+          fetch-depth: 0
+
+      - name: Fetch comparison refs
+        run: |
+          # main is the canonical record of applied migrations; the verify check
+          # uses it to tell "this change edited a migration" apart from "the base
+          # branch is behind". The base ref is only needed for pull requests.
+          git fetch --no-tags origin main
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+          fi
+
+      - name: Verify migration files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+            # First push to a branch (or a force-push) has no usable "before".
+            case "$BASE" in ""|*0000000000*) BASE="HEAD^" ;; esac
+          fi
+          echo "diffing migrations against $BASE"
+          python3 scripts/migrations.py verify --base "$BASE"
+
+  apply-dev:
+    name: apply-dev
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    # Per-job concurrency: a repair must not queue behind an apply that is
+    # waiting for environment approval (the shared workflow group deadlocked).
+    concurrency:
+      group: migrations-apply-dev
+      cancel-in-progress: false
+    environment: dev
+    env:
+      DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_DEV || 'aorhvfihnjhpxgjiacfg' }}
+      POOLER_HOST: ${{ vars.SUPABASE_POOLER_HOST_DEV || 'aws-0-ap-south-1.pooler.supabase.com' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Build pooler connection URL
+        run: |
+          if [ -z "$DB_PASSWORD" ]; then
+            echo "secrets.SUPABASE_DB_PASSWORD_DEV is not set" >&2
+            exit 1
+          fi
+          ENCODED=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+          echo "SUPABASE_DB_URL=postgresql://postgres.${PROJECT_REF}:${ENCODED}@${POOLER_HOST}:5432/postgres" >> "$GITHUB_ENV"
+
+      - name: Verify baseline, then dry-run
+        run: |
+          supabase migration list --db-url "$SUPABASE_DB_URL" | tee /tmp/migration-list.txt
+          git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
+            > /tmp/added-migrations.txt || true
+          python3 scripts/migrations.py baseline \
+            --list /tmp/migration-list.txt --added /tmp/added-migrations.txt
+          supabase db push --dry-run --yes --db-url "$SUPABASE_DB_URL"
+
+      - name: Apply migrations
+        run: supabase db push --yes --db-url "$SUPABASE_DB_URL"
+
+      - name: Confirm applied
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+
+  apply-prod:
+    name: apply-prod
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: migrations-apply-prod
+      cancel-in-progress: false
+    # The existing "prod" environment carries a required-reviewers rule, so an
+    # apply to production waits for approval.
+    environment: prod
+    env:
+      DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_PROD || 'rzzbhboedvezamqjjuoe' }}
+      POOLER_HOST: ${{ vars.SUPABASE_POOLER_HOST_PROD || 'aws-1-eu-west-1.pooler.supabase.com' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Build pooler connection URL
+        run: |
+          if [ -z "$DB_PASSWORD" ]; then
+            echo "secrets.SUPABASE_DB_PASSWORD_PROD is not set" >&2
+            exit 1
+          fi
+          ENCODED=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+          echo "SUPABASE_DB_URL=postgresql://postgres.${PROJECT_REF}:${ENCODED}@${POOLER_HOST}:5432/postgres" >> "$GITHUB_ENV"
+
+      - name: Verify baseline, then dry-run
+        run: |
+          supabase migration list --db-url "$SUPABASE_DB_URL" | tee /tmp/migration-list.txt
+          git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
+            > /tmp/added-migrations.txt || true
+          python3 scripts/migrations.py baseline \
+            --list /tmp/migration-list.txt --added /tmp/added-migrations.txt
+          supabase db push --dry-run --yes --db-url "$SUPABASE_DB_URL"
+
+      - name: Apply migrations
+        run: supabase db push --yes --db-url "$SUPABASE_DB_URL"
+
+      - name: Confirm applied
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+
+  # One-off baseline repair for history drift. `migration repair` only rewrites
+  # schema_migrations; it executes no DDL. See the Migrations section in
+  # AGENTS.md — repair asserts a version is applied, so a genuinely missing
+  # migration must be applied BEFORE its version is recorded.
+  repair-dev:
+    name: repair-dev
+    if: github.event_name == 'workflow_dispatch' && inputs.project == 'dev' && inputs.repair_versions != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: migrations-repair-dev
+      cancel-in-progress: false
+    environment: dev
+    env:
+      DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_DEV || 'aorhvfihnjhpxgjiacfg' }}
+      POOLER_HOST: ${{ vars.SUPABASE_POOLER_HOST_DEV || 'aws-0-ap-south-1.pooler.supabase.com' }}
+      VERSIONS: ${{ inputs.repair_versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Record versions as applied
+        run: |
+          # Digits and spaces only: the value is interpolated into the command.
+          if ! printf '%s' "$VERSIONS" | grep -Eq '^[0-9 ]+$'; then
+            echo "repair_versions must be space-separated digits, got: $VERSIONS" >&2
+            exit 1
+          fi
+          ENCODED=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED}@${POOLER_HOST}:5432/postgres"
+          supabase migration repair --status applied --yes --db-url "$DB_URL" $VERSIONS
+          supabase migration list --db-url "$DB_URL"
+
+  repair-prod:
+    name: repair-prod
+    if: github.event_name == 'workflow_dispatch' && inputs.project == 'prod' && inputs.repair_versions != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: migrations-repair-prod
+      cancel-in-progress: false
+    environment: prod
+    env:
+      DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF_PROD || 'rzzbhboedvezamqjjuoe' }}
+      POOLER_HOST: ${{ vars.SUPABASE_POOLER_HOST_PROD || 'aws-1-eu-west-1.pooler.supabase.com' }}
+      VERSIONS: ${{ inputs.repair_versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Record versions as applied
+        run: |
+          if ! printf '%s' "$VERSIONS" | grep -Eq '^[0-9 ]+$'; then
+            echo "repair_versions must be space-separated digits, got: $VERSIONS" >&2
+            exit 1
+          fi
+          ENCODED=$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED}@${POOLER_HOST}:5432/postgres"
+          supabase migration repair --status applied --yes --db-url "$DB_URL" $VERSIONS
+          supabase migration list --db-url "$DB_URL"

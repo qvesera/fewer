@@ -1,6 +1,6 @@
 {
   "name": "fewer",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "description": "Interactive File & System Graph Visualizer",
   "author": "qvesera",
@@ -21,7 +21,9 @@
     "test": "bun test src/lib/fewer",
     "build:netlify": "bun next build",
     "env": "bun run scripts/env-sync.ts",
-    "env:check": "bun run scripts/env-sync.ts check"
+    "env:check": "bun run scripts/env-sync.ts check",
+    "migrations:verify": "python3 scripts/migrations.py verify",
+    "migrations:baseline": "python3 scripts/migrations.py baseline"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

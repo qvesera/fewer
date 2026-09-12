@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
+
+## [0.7.1] - 2026-09-12
+
+### Security
+
+- Restored column-level privileges on profiles: the table-level INSERT/UPDATE granted during v0.7.0 let a signed-in user set their own plan over the REST API (migration 0026)
+
+### Fixed
+
+- Docs pages are re-seeded so the Nodes to Cards copy rename reaches environments where the seed had already been applied (migration 0027)
+
 ## [0.7.0] - 2026-09-12
 
 ### Fixed
