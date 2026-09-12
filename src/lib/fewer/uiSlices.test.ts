@@ -182,6 +182,27 @@ describe("folderSlice (per-leaf hide layers)", () => {
     expect(s().viewSettings["leaf1"].hideLayers!.subtrees["outer"]).toBeUndefined();
   });
 
+  it("showSubtreeForLeaf reveals files hidden by the bulk Hide Files layer", () => {
+    s().setFilesBulkForLeaf("leaf1", true);
+    s().showSubtreeForLeaf("leaf1", "outer");
+    const layers = s().viewSettings["leaf1"].hideLayers!;
+    // The folder's files are exempted so Show Children wins over Hide Files…
+    expect(layers.filesBulkExempt).toEqual(expect.arrayContaining(["inner1", "inner2"]));
+    // …while the bulk layer stays on and other files remain hidden.
+    expect(layers.filesBulkActive).toBe(true);
+    expect(layers.filesBulkExempt).not.toContain("sibling");
+  });
+
+  it("showSubtreeForLeaf reveals descendants hidden globally (show files off)", () => {
+    s().setShowFiles(false);
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner1", "inner2", "sibling"]));
+    s().showSubtreeForLeaf("leaf1", "outer");
+    expect(s().hiddenIds).not.toContain("inner1");
+    expect(s().hiddenIds).not.toContain("inner2");
+    // Files outside the folder stay hidden — only this folder's subtree is revealed.
+    expect(s().hiddenIds).toContain("sibling");
+  });
+
   it("setFilesBulkForLeaf toggles bulk layer; revealAllForLeaf clears all", () => {
     s().setFilesBulkForLeaf("leaf1", true);
     expect(s().viewSettings["leaf1"].hideLayers!.filesBulkActive).toBe(true);

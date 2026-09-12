@@ -192,6 +192,11 @@ Folders with more than N children (default: 10) auto-hide their children on impo
 
 **Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
+## Visibility: Hide Files / Show Children
+
+- **Hide Files / Show Files** (canvas toolbar or right-click → **Visibility**) hides or reveals every file card. Folders stay visible either way.
+- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree — and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
+
 ## Hidden Cards Panel
 
 Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
