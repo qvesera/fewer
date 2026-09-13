@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import {
   ContextMenuSub,
   ContextMenuSubTrigger,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
+import { selectByTag } from "@/lib/fewer/batchSelect";
 
 /**
  * "Tags" submenu inside a node's context menu. Lists every tag as a checkbox
@@ -140,6 +142,53 @@ export function TagMenu({
             <Plus className="mr-2 h-3.5 w-3.5" />
             New tag
           </ContextMenuItem>
+        )}
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  );
+}
+
+/**
+ * "By Tag" submenu that selects every card carrying a chosen tag. Rendered inside
+ * the "Select" submenu of file/batch menus and standalone on folder menus (where
+ * it is labeled "Select by Tag"). Replaces the current selection, mirroring the
+ * other selection helpers (By Type / By Category / Select Descendants).
+ */
+export function SelectByTagSubmenu({ label = "Select by Tag" }: { label?: string }) {
+  const tags = useGraphStore((s) => s.tags);
+  const { toast } = useToast();
+
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger className="cursor-pointer">{label}</ContextMenuSubTrigger>
+      <ContextMenuSubContent className="w-48">
+        {tags.length === 0 ? (
+          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+            No tags yet
+          </div>
+        ) : (
+          tags.map((tag) => (
+            <ContextMenuItem
+              key={tag.id}
+              onSelect={() => {
+                const store = useGraphStore.getState();
+                const ids = selectByTag(store.nodes, tag.id);
+                store.setSelectedNodeIds(ids);
+                toast({
+                  title: "Selected by tag",
+                  description: `${ids.length} card${ids.length === 1 ? "" : "s"} tagged "${tag.label}"`,
+                });
+              }}
+              className="cursor-pointer"
+            >
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/40"
+                style={{ background: tag.color }}
+                aria-hidden="true"
+              />
+              <span className="truncate">{tag.label}</span>
+            </ContextMenuItem>
+          ))
         )}
       </ContextMenuSubContent>
     </ContextMenuSub>

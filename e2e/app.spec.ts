@@ -23,6 +23,14 @@ async function openCanvas(page: Page) {
 const nodeByName = (page: Page, name: string) =>
   page.locator(".react-flow__node").filter({ hasText: name });
 
+// The src folder card, matched by its header title. The root card also lists
+// "src" as a child (and .first() on a substring can land on a mid-layout
+// collapsed card), so select-by-header keeps these tests on the folder itself.
+const srcHeader = (page: Page) =>
+  page
+    .locator(".react-flow__node")
+    .filter({ has: page.locator(".text-sm.font-semibold", { hasText: /^src$/ }) });
+
 // React Flow marks a selected node with a bare `selected` class token.
 const selected = () => /(^|\s)selected(\s|$)/;
 
@@ -72,23 +80,28 @@ test("adds a node, then undoes and redoes", async ({ page }) => {
 test("deletes a node from the context menu, then undoes", async ({ page }) => {
   await openCanvas(page);
 
-  const node = nodeByName(page, "src").first();
-  await node.click({ button: "right" });
+  // Match the src card by its header title (the root card contains "src" in its
+  // child list too, and .first() on a substring can land on a mid-layout card).
+  const node = srcHeader(page).first();
+  const box = await node.boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
 
   const deleteItem = page.getByRole("menuitem", { name: "Delete", exact: true });
   await expect(deleteItem).toBeVisible({ timeout: 5000 });
   await deleteItem.click({ force: true });
-  await expect(node).toHaveCount(0);
+  await expect(srcHeader(page).first()).toHaveCount(0);
 
   // Undo brings the node (and its whole deleted subtree) back.
   await page.keyboard.press("Control+z");
-  await expect(node).toHaveCount(1);
+  await expect(srcHeader(page).first()).toHaveCount(1);
 });
 
 test("node context menu offers cut, duplicate, and delete", async ({ page }) => {
   await openCanvas(page);
 
-  await nodeByName(page, "src").first().click({ button: "right" });
+  await srcHeader(page).first().hover();
+  const box = await srcHeader(page).first().boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
 
   await expect(page.getByText("Duplicate", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Delete", { exact: true }).first()).toBeVisible();

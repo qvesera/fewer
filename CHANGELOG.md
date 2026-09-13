@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Blog post for v0.6.0: community gallery, version history, unified 3-step import, and the accounts upgrade (content/blog/v060-release.md, seeded to content_pages)
+- Select by Tag in the context menus: right-click a folder, file, or a batch selection and pick a tag to select every card carrying it (folder menus show a standalone 'Select by Tag' submenu; file and batch menus add 'By Tag' inside their existing Select submenu)
 
 ## [0.7.1] - 2026-09-12
 

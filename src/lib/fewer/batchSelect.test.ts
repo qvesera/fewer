@@ -3,8 +3,9 @@ import {
   selectDescendants,
   selectSameExtension,
   selectSameCategory,
+  selectByTag,
 } from "./batchSelect";
-import type { FewerEdge } from "./types";
+import type { FewerEdge, FewerNode } from "./types";
 
 const edges: FewerEdge[] = [
   { id: "e1", source: "root", target: "a", type: "smoothstep" },
@@ -57,5 +58,24 @@ describe("selectSameCategory", () => {
       { id: "x", data: { label: "x", type: "file", path: "/x" } },
     ] as unknown as Parameters<typeof selectSameCategory>[0];
     expect(selectSameCategory(bare, ["x"])).toEqual(["x"]);
+  });
+});
+
+describe("selectByTag", () => {
+  const tagged = [
+    { id: "a", data: { label: "a", type: "folder", path: "/a", tagIds: ["t1"] } },
+    { id: "b", data: { label: "b", type: "file", path: "/b", tagIds: ["t1", "t2"] } },
+    { id: "c", data: { label: "c", type: "file", path: "/c", tagIds: ["t2"] } },
+  ] as unknown as FewerNode[];
+  it("selects every node carrying the tag (folders and files)", () => {
+    expect(selectByTag(tagged, "t1").sort()).toEqual(["a", "b"]);
+    expect(selectByTag(tagged, "t2").sort()).toEqual(["b", "c"]);
+  });
+  it("returns [] when nothing carries the tag", () => {
+    const bare = [
+      { id: "x", data: { label: "x", type: "file", path: "/x" } },
+    ] as unknown as FewerNode[];
+    expect(selectByTag(bare, "t1")).toEqual([]);
+    expect(selectByTag(tagged, "missing")).toEqual([]);
   });
 });

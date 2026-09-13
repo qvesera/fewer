@@ -41,7 +41,7 @@ import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
-import { TagMenu } from "./TagMenu";
+import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
@@ -401,6 +401,7 @@ function FolderContextMenu({
             )}
             <ContextMenuSeparator />
             <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+            <SelectByTagSubmenu label="Select by Tag" />
           </>
         )}
         {advancedModeEnabled && (
@@ -570,6 +571,7 @@ function FolderContextMenu({
             </ContextMenuSub>
 
             <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+            <SelectByTagSubmenu label="Select by Tag" />
 
             <ContextMenuItem
               onSelect={() => {
@@ -675,6 +677,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
               {action.label}
             </ContextMenuItem>
           ))}
+          <SelectByTagSubmenu label="By Tag" />
         </ContextMenuSubContent>
       </ContextMenuSub>
       {del && (
@@ -875,6 +878,7 @@ function FileEntryContextMenu({
             >
               By Category
             </ContextMenuItem>
+            <SelectByTagSubmenu label="By Tag" />
           </ContextMenuSubContent>
         </ContextMenuSub>
         {advancedModeEnabled && (

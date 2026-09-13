@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
+import { selectByTag } from "@/lib/fewer/batchSelect";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -236,6 +237,33 @@ function renderCanvasContextMenu(
                 {select.map((a) => (
                   <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
                 ))}
+                {(() => {
+                  const store = useGraphStore.getState();
+                  const allTags = store.tags;
+                  return (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>By Tag</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-48">
+                        {allTags.length === 0 ? (
+                          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">No tags yet</div>
+                        ) : allTags.map((tag) => (
+                          <DropdownMenuItem
+                            key={tag.id}
+                            onSelect={() => {
+                              const ids = selectByTag(store.nodes, tag.id);
+                              store.setSelectedNodeIds(ids);
+                              toast({ title: "Selected by tag", description: `${ids.length} card${ids.length === 1 ? "" : "s"} tagged "${tag.label}"` });
+                              close();
+                            }}
+                          >
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/40" style={{ background: tag.color }} aria-hidden="true" />
+                            <span className="truncate">{tag.label}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                })()}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             {del && (
