@@ -260,11 +260,15 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   if (minimized) {
     return (
       <Portal>
-        <MinimizedDialogPill
-          icon={<BookOpen className="h-3.5 w-3.5" />}
-          label="Tutorial"
-          onRestore={() => setMinimized(false)}
-        />
+        {/* Same pointer-events override as above: stay clickable while a Radix
+            modal dialog has shielded `body` with `pointer-events: none`. */}
+        <div style={{ pointerEvents: "auto" }}>
+          <MinimizedDialogPill
+            icon={<BookOpen className="h-3.5 w-3.5" />}
+            label="Tutorial"
+            onRestore={() => setMinimized(false)}
+          />
+        </div>
       </Portal>
     );
   }
@@ -274,7 +278,14 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     return (
       <Portal>
         <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+        <div
+          className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+          // Parent `body` gets `pointer-events: none` while any Radix modal
+          // dialog is open (outside-click shielding). This portal lives
+          // outside that tree, so re-enable clicks to keep z + click priority
+          // identical.
+          style={{ pointerEvents: "auto" }}
+        >
   <div className="w-full max-w-[380px] overflow-hidden rounded-3xl border border-primary/40 bg-card/90 p-6 shadow-2xl shadow-primary/25 backdrop-blur-2xl transition-all animate-in fade-in zoom-in-95 duration-200">
     
     {/* Header & Logo */}
