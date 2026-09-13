@@ -41,7 +41,7 @@ import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
-import { TagMenu } from "./TagMenu";
+import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
@@ -401,6 +401,7 @@ function FolderContextMenu({
             )}
             <ContextMenuSeparator />
             <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+            <SelectByTagSubmenu label="Select by Tag" />
           </>
         )}
         {advancedModeEnabled && (
@@ -483,7 +484,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
-                          toast({ title: "Children hidden", description: `${visibleDescendants.length} node${visibleDescendants.length === 1 ? "" : "s"} hidden` });
+                          toast({ title: "Children hidden", description: `${visibleDescendants.length} card${visibleDescendants.length === 1 ? "" : "s"} hidden` });
                         }}
                         className="cursor-pointer"
                       >
@@ -570,6 +571,7 @@ function FolderContextMenu({
             </ContextMenuSub>
 
             <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+            <SelectByTagSubmenu label="Select by Tag" />
 
             <ContextMenuItem
               onSelect={() => {
@@ -675,6 +677,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
               {action.label}
             </ContextMenuItem>
           ))}
+          <SelectByTagSubmenu label="By Tag" />
         </ContextMenuSubContent>
       </ContextMenuSub>
       {del && (
@@ -875,6 +878,7 @@ function FileEntryContextMenu({
             >
               By Category
             </ContextMenuItem>
+            <SelectByTagSubmenu label="By Tag" />
           </ContextMenuSubContent>
         </ContextMenuSub>
         {advancedModeEnabled && (
@@ -1165,7 +1169,7 @@ if (isCollapsed) {
             )}
             style={{ width: width ?? 240 }}
           >
-            <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+            <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
             <Handle
               type="target"
               position={target}
@@ -1239,7 +1243,7 @@ if (isCollapsed) {
         )}
         style={{ height: manualHeight ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
-        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
         {selected && (
           <NodeResizer
             minWidth={180}
@@ -1409,7 +1413,7 @@ if (isCollapsed) {
         )}
         style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
-        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} />
+        <TagRing tags={tags} tagIds={nodeTagIds} selected={!!selected} width={width} height={height} />
         <Handle
           type="target"
           position={target}

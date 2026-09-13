@@ -42,6 +42,23 @@ If you've signed in and saved a graph (see [Settings](/docs/settings)), you can 
 
 Invite-only links require the recipient to sign in with an invited email address.
 
+## Publish to the Community Gallery
+
+A **public** share can also be listed in Fewer's community gallery at
+[`/gallery`](https://fewer.directory/gallery) — a browsable, logged-out index of
+graphs other people have published.
+
+1. Open the **share** dialog for a saved graph and choose **Anyone with the link**
+2. Tick **List in the community gallery**
+3. Add a **title** (max 200 characters) and an optional **description** (max 1000)
+4. Click **Generate link** — the toast confirms it is live
+
+Publishing requires your profile to have a **first name and a username** (that is
+how gallery entries are attributed — Fewer sends you to Settings → Account if
+either is missing). The gallery lists **metadata only**: title, description, card
+count, and date — never the graph payload, which is only fetched when someone
+opens the share link. Untick the box and generate the link again to unlist it.
+
 ## Limitations
 
 - **File handles**: disk file handles are not encoded. Shared graphs are read-only snapshots; "Open File" and "Refresh from Disk" actions are unavailable.

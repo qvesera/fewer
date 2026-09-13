@@ -82,7 +82,7 @@ export function buildBatchActions(opts: {
         else s.hideNodes(list);
         toast({
           title: "Cards hidden",
-          description: `${pluralizeCount(list.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore`,
+          description: `${pluralizeCount(list.length, "card")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subcard")})` : ""}: press Shift+H to restore`,
         });
       },
     },

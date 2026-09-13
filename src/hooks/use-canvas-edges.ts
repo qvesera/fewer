@@ -13,6 +13,21 @@ import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { useGraphStore } from "@/store/graphStore";
 
+/**
+ * Apply React Flow edge changes to the live selection set. `add` changes carry
+ * no id (the edge is the payload) — nothing to track.
+ */
+export function trackEdgeSelection(selectedEdgeIds: Set<string>, changes: EdgeChange<FewerEdge>[]): void {
+  for (const c of changes) {
+    if (c.type === "select") {
+      if (c.selected) selectedEdgeIds.add(c.id);
+      else selectedEdgeIds.delete(c.id);
+    } else if (c.type === "remove") {
+      selectedEdgeIds.delete(c.id);
+    }
+  }
+}
+
 export interface CanvasEdgesHandlers {
   /** Wraps RF's edge updates, tracking live selection so rebuilds preserve it. */
   handleEdgesChange: (changes: EdgeChange<FewerEdge>[]) => void;
@@ -48,15 +63,8 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNod
 
   const handleEdgesChange = useCallback(
     (changes: EdgeChange<FewerEdge>[]) => {
-      for (const c of changes) {
-        if (c.type === "select") {
-          if (c.selected) selectedEdgeIdsRef.current.add(c.id);
-          else selectedEdgeIdsRef.current.delete(c.id);
-        } else if (c.type === "remove") {
-          selectedEdgeIdsRef.current.delete(c.id);
-        }
-        // `add` changes carry no id (the edge is the payload) — nothing to track.
-      }
+      // Keep RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
+      trackEdgeSelection(selectedEdgeIdsRef.current, changes);
       onEdgesChange(changes);
     },
     [onEdgesChange],

@@ -78,7 +78,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           value={query}
           onFocus={() => setOpen(true)}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search directory nodes..."
+          placeholder="Search directory cards..."
           className="w-full rounded-lg border border-border/50 bg-muted/40 pl-9 pr-10 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/60 focus:bg-background transition-all"
           onKeyDown={(e) => {
             if (e.key === "Escape") {

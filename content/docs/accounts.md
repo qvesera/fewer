@@ -52,6 +52,20 @@ The **Your Directories** section lists your saved graphs. Each row lets you:
 - **Share**: click the link icon (see [Sharing](/docs/sharing))
 - **Delete**: click the trash icon
 
+## Version History
+
+Every saved graph keeps automatic snapshots — save it again and the previous
+state is retained, so a bad edit never means losing the good version.
+
+- Click the **clock icon** on a row in **Your Directories** to open **Version
+  history**. Each entry shows when it was taken and how many cards it held.
+- **Restore** loads that snapshot back into the canvas (and saves it as the
+  latest state); **Delete** removes a single snapshot.
+- Saving without changing anything records nothing — identical snapshots are
+  skipped, so history stays meaningful.
+- The window depends on your plan: **30 days** on Free, **365 days** on Pro, and
+  at most **50 snapshots per graph** are kept (older ones are pruned).
+
 ## Sharing Saved Graphs
 
 Saved graphs can be shared as:
