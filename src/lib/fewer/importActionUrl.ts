@@ -56,7 +56,7 @@ export async function runUrlImport(
     return {
       ok: true,
       title: "Imported",
-      description: `${nodeCount} node${nodeCount === 1 ? "" : "s"} loaded.`,
+      description: `${nodeCount} card${nodeCount === 1 ? "" : "s"} loaded.`,
       notes,
     };
   } catch (err) {

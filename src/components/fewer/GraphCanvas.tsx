@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
+import { selectByTag } from "@/lib/fewer/batchSelect";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -128,7 +129,7 @@ function renderCanvasOverlays({
             <div className="text-lg font-semibold">Everything is hidden</div>
             <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
               {vs.showFiles
-                ? "All nodes on this graph are currently hidden on the canvas."
+                ? "All cards on this graph are currently hidden on the canvas."
                 : "This graph is made only of files and \"Show Files\" is off, so nothing is displayed."}
             </div>
             {!vs.showFiles && (
@@ -163,7 +164,7 @@ function renderCanvasOverlays({
         <Panel position="top-right">
           <button className="rounded-full px-3 py-1.5 text-xs cursor-pointer transition-colors animate-in fade-in slide-in-from-right-2 duration-200 backdrop-blur-md" style={hiddenChipStyle}
             onClick={() => { useGraphStore.getState().setSidebarOpen(true); useGraphStore.getState().triggerHiddenPanelExpand(); }}>
-            {hiddenCount} node{hiddenCount === 1 ? "" : "s"} hidden
+            {hiddenCount} card{hiddenCount === 1 ? "" : "s"} hidden
           </button>
         </Panel>
       )}
@@ -236,6 +237,33 @@ function renderCanvasContextMenu(
                 {select.map((a) => (
                   <DropdownMenuItem key={a.id} onSelect={() => { a.run(); close(); }}>{a.label}</DropdownMenuItem>
                 ))}
+                {(() => {
+                  const store = useGraphStore.getState();
+                  const allTags = store.tags;
+                  return (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>By Tag</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-48">
+                        {allTags.length === 0 ? (
+                          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">No tags yet</div>
+                        ) : allTags.map((tag) => (
+                          <DropdownMenuItem
+                            key={tag.id}
+                            onSelect={() => {
+                              const ids = selectByTag(store.nodes, tag.id);
+                              store.setSelectedNodeIds(ids);
+                              toast({ title: "Selected by tag", description: `${ids.length} card${ids.length === 1 ? "" : "s"} tagged "${tag.label}"` });
+                              close();
+                            }}
+                          >
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/40" style={{ background: tag.color }} aria-hidden="true" />
+                            <span className="truncate">{tag.label}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                })()}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             {del && (
@@ -263,17 +291,27 @@ function renderCanvasContextMenu(
         <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">View</div>
         <div className="my-1 h-px bg-border/40" />
             {leafId && (<>
-            <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minim" : "Hide Minim"}</button>
+            <button onClick={() => { useGraphStore.getState().toggleMinimapForLeaf(leafId); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}</button>
             <button onClick={() => { useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">{vs.showFiles ? "Hide Files" : "Show Files"}</button>
           </>)}
         <div className="my-1 h-px bg-border/40" />
         <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
+        <button onClick={() => {
+          const store = useGraphStore.getState();
+          if (leafId && Object.keys(store.viewSettings[leafId] ?? {}).length > 0) {
+            store.clearViewPositions(leafId);
+          } else {
+            store.relayout();
+          }
+          toast({ title: "Graph organized" });
+          close();
+        }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Organize</button>
         {advancedModeEnabled && (<>
             <button onClick={() => { const clip = useGraphStore.getState().clipboard; if (clip && clip.nodeIds.length > 0) { useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition); useGraphStore.getState().pasteFromClipboard(); toast({ title: "Pasted", description: `${clip.nodeIds.length} item${clip.nodeIds.length === 1 ? "" : "s"} pasted` }); } close(); }} disabled={!useGraphStore.getState().clipboard} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Paste</button>
-            <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all nodes", description: `${hiddenCount} node${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
+            <button onClick={() => { if (leafId) useGraphStore.getState().revealAllForLeaf(leafId); else useGraphStore.getState().showAll(); toast({ title: "Unhid all cards", description: `${hiddenCount} card${hiddenCount === 1 ? "" : "s"} restored` }); close(); }} disabled={hiddenCount === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Show All</button>
           </>)}
         <div className="my-1 h-px bg-border/40" />
-        <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} node${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
+        <button onClick={() => { useGraphStore.getState().reset(); toast({ title: "Canvas cleared", description: `${allNodes.length} card${allNodes.length === 1 ? "" : "s"} removed` }); close(); }} disabled={allNodes.length === 0} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">Clear Canvas</button>
       </div>
     </>
   );

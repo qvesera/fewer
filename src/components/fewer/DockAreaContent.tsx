@@ -124,7 +124,7 @@ function LayoutSection() {
         }}
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">Rearrange</span>
+        <span className="truncate">Organize</span>
       </Button>
       <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
         <Label className="text-xs font-medium cursor-pointer truncate">Show File Cards</Label>

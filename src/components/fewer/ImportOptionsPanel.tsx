@@ -97,7 +97,7 @@ export function ImportOptionsPanel({
           step={1}
         />
         <p className="text-xs text-muted-foreground leading-normal">
-          How deep to display after import. Deeper nodes go to Hidden Cards.
+          How deep to display after import. Deeper cards go to Hidden Cards.
         </p>
       </div>
 
@@ -180,7 +180,7 @@ export function ImportOptionsPanel({
                   Show Files on Canvas
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Show file nodes. Off = directories only.
+                  Show file cards. Off = directories only.
                 </p>
               </div>
             </div>

@@ -88,9 +88,9 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
-> **Tip:** On an empty canvas you can also **drag a folder** from your file
-> system straight onto the canvas — it imports immediately with your saved
-> import settings (Chromium-based browsers).
+> **Note:** Drag-and-drop import from your OS, "Open in File Explorer", and
+> "Open File" are switched off in the web build (build-time `LOCAL_FS_FEATURES`
+> flags in `src/lib/fewer/features.ts`) — use **Import → From disk** instead.
 
 ### Edit the graph
 
@@ -157,7 +157,7 @@ docker run -p 3000:3000 fewer
 | Target     | Actions                                                          |
 | ---------- | ---------------------------------------------------------------- |
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
-| **File**   | Rename, Open File, Copy Name, Copy, Cut, Delete                  |
+| **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
 | **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
 | **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
 
@@ -166,7 +166,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Import</b></summary>
 
-- **File System Access API** (Chrome/Edge): real directory read with depth, hidden file, and extension filters
+- **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
@@ -341,7 +341,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links, headless blog/docs) |
+| Database  | Supabase (Postgres) — auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 
@@ -352,12 +352,17 @@ src/
 | Feature                            | Chrome/Edge | Firefox | Safari |
 | ---------------------------------- | :---------: | :-----: | :----: |
 | Graph visualization                |     ✅      |   ✅    |   ✅   |
-| Import directory (FS Access API)   |     ✅      |   ❌    |   ❌   |
 | Import directory (webkitdirectory) |     ✅      |   ✅    |   ✅   |
-| Open files from disk               |     ✅      |   ❌    |   ❌   |
 | Export (all formats)               |     ✅      |   ✅    |   ✅   |
 | Keyboard shortcuts                 |     ✅      |   ✅    |   ✅   |
 | Custom theme                       |     ✅      |   ✅    |   ✅   |
+
+> **OS integration is switched off in the web build.** The File System Access
+> directory picker, "Open File", and "Open in File Explorer" are gated behind
+> `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts` (all flags `false`), so they
+> are unavailable in every browser until a build flips them — see
+> [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
+> Folder import works everywhere through the `webkitdirectory` fallback.
 
 ---
 
@@ -365,7 +370,7 @@ src/
 
 **Q: Does fewer send my directory data anywhere?**
 
-A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
+A: Your directory is never uploaded — local import, editing, layout, and export run entirely in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
 
@@ -373,7 +378,7 @@ A: Yes. The standalone version is available at [app.fewer.directory](https://app
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
-A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback, which works for import but can't write back to disk.
+A: Folder import works in every browser — Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only — and are currently switched off entirely in the web build (see the note above).
 
 **Q: How do I uninstall?**
 

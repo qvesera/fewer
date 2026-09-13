@@ -93,7 +93,7 @@ export default function GalleryPage() {
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{g.description}</p>
                   )}
                   <div className="mt-auto pt-4 text-[11px] text-muted-foreground/70">
-                    {g.node_count} nodes · {prettyDate(g.created_at)}
+                    {g.node_count} cards · {prettyDate(g.created_at)}
                   </div>
                 </Link>
               ))}

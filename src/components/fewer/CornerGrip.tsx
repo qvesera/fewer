@@ -15,10 +15,28 @@ function findNeighborLeafId(x: number, y: number, excludeId: string): string | n
   return null;
 }
 
+/** Where the new sibling lands per axis, for each of the four corners. */
+interface CornerSide { h: "start" | "end"; v: "start" | "end" }
+interface CornerConfig extends CornerSide {
+  key: string;
+  position: string;
+  cursor: string;
+}
+
+const CORNERS: CornerConfig[] = [
+  { key: "tl", h: "start", v: "start", position: "top-1 left-1", cursor: "cursor-nwse-resize" },
+  { key: "tr", h: "end",   v: "start", position: "top-1 right-1", cursor: "cursor-nesw-resize" },
+  { key: "bl", h: "start", v: "end",   position: "bottom-1 left-1", cursor: "cursor-nesw-resize" },
+  { key: "br", h: "end",   v: "end",   position: "bottom-1 right-1", cursor: "cursor-nwse-resize" },
+];
+
 interface GestureState {
   leafId: string;
+  cornerKey: string;
+  corner: CornerSide;
   mode: "split" | "join" | null;
   dir: "h" | "v";
+  side: "start" | "end";
   joinTargetId: string | null;
   previewRatio: number;
   leafRect: DOMRect | null;
@@ -29,11 +47,15 @@ export function CornerGrip({ leafId, containerRef }: { leafId: string; container
   const gestureRef = useRef<GestureState | null>(null);
   const startPos = useRef({ x: 0, y: 0 });
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const makeOnPointerDown = useCallback((corner: CornerConfig) => (e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     startPos.current = { x: e.clientX, y: e.clientY };
-    gestureRef.current = { leafId, mode: null, dir: "h", joinTargetId: null, previewRatio: 0.5, leafRect: containerRef.current?.getBoundingClientRect() ?? null };
+    gestureRef.current = {
+      leafId, cornerKey: corner.key, corner,
+      mode: null, dir: "h", side: "end", joinTargetId: null,
+      previewRatio: 0.5, leafRect: containerRef.current?.getBoundingClientRect() ?? null,
+    };
     setGesture(gestureRef.current);
   }, [leafId, containerRef]);
 
@@ -51,6 +73,7 @@ export function CornerGrip({ leafId, containerRef }: { leafId: string; container
     if (!g.mode && dist > 5) {
       if (inside) {
         g.dir = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
+        g.side = g.dir === "h" ? g.corner.h : g.corner.v;
         g.mode = "split";
       } else {
         g.mode = "join";
@@ -73,7 +96,7 @@ export function CornerGrip({ leafId, containerRef }: { leafId: string; container
     const g = gestureRef.current;
     if (g?.mode === "split") {
       const store = useGraphStore.getState();
-      const newTree = splitLeaf(store.panelTree, leafId, g.dir, g.previewRatio);
+      const newTree = splitLeaf(store.panelTree, leafId, g.dir, g.previewRatio, g.side);
       store.setPanelTree(newTree);
     } else if (g?.mode === "join" && g.joinTargetId) {
       const store = useGraphStore.getState();
@@ -85,18 +108,23 @@ export function CornerGrip({ leafId, containerRef }: { leafId: string; container
 
   return (
     <>
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={gesture ? onPointerMove : undefined}
-        onPointerUp={gesture ? onPointerUp : undefined}
-        className={cn(
-          "absolute bottom-1 right-1 z-30 w-3 h-3 rounded-full cursor-crosshair",
-          "opacity-0 group-hover:opacity-100 transition-opacity",
-          "bg-muted-foreground/40 hover:bg-primary/60",
-          gesture && "opacity-100 bg-primary/80",
-        )}
-        title="Drag to split or merge"
-      />
+      {CORNERS.map((corner) => (
+        <div
+          key={corner.key}
+          onPointerDown={makeOnPointerDown(corner)}
+          onPointerMove={gesture?.cornerKey === corner.key ? onPointerMove : undefined}
+          onPointerUp={gesture?.cornerKey === corner.key ? onPointerUp : undefined}
+          className={cn(
+            "absolute z-30 w-3 h-3 rounded-full",
+            corner.position,
+            corner.cursor,
+            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "bg-muted-foreground/40 hover:bg-primary/60",
+            gesture?.cornerKey === corner.key && "opacity-100 bg-primary/80",
+          )}
+          title="Drag to split or merge"
+        />
+      ))}
       {gesture?.mode === "split" && gesture.leafRect && (
         <div className="absolute z-30 pointer-events-none" style={
           gesture.dir === "h"

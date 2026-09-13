@@ -82,6 +82,35 @@ The repo includes a `Caddyfile` that proxies port 81 to the app on port 3000:
 
 It also supports a `?XTransformPort=` query parameter for port forwarding during development.
 
+## Local Filesystem Features (build-time flags)
+
+A few features reach outside the browser tab: **Open in File Explorer**
+(**Alt+O**), **Open File** (**Enter**), dragging a folder from your OS onto the
+canvas (import on an empty canvas, expand-from-disk otherwise), and the File
+System Access directory picker. They depend on server-side OS openers
+(`/api/open-folder`, `/api/open-file`, `/api/list-directory` — all restricted to
+localhost requests) or on browser APIs that do not exist in every webview, so
+they are **switched off by default** in `src/lib/fewer/features.ts`:
+
+```ts
+export const LOCAL_FS_FEATURES = {
+  openInOs: false, // "Open in File Explorer" (folder menu + Alt+O)
+  openFileInOs: false, // "Open File" (file menu + Enter)
+  dragDropImport: false, // OS folder drop on an empty canvas → import
+  dropToExpand: false, // OS folder drop on a canvas → expand from disk
+  fsaDirectoryPicker: false, // showDirectoryPicker()
+} as const;
+```
+
+Set a flag to `true` and rebuild to restore that feature (useful for a
+self-hosted instance you access over localhost, or a native/Tauri build that
+replaces the OS openers with native commands). These are **build-time constants,
+not environment variables** — nothing to add to `.env`.
+
+Folder import itself is never gated: it uses the legacy `webkitdirectory` picker,
+which works in every browser and webview. The same applies to file/URL/cloud
+imports and in-app node dragging.
+
 ## PWA & Static Assets
 
 The `public/` directory ships:
@@ -134,6 +163,9 @@ One-time settings to verify before real users arrive:
 | -------- | ------- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The publishable (anon) key. RLS protects data; auth is enforced via the user's JWT |
+| `NEXT_PUBLIC_APP_URL` | The app origin, used for emailed links and OAuth redirect URIs (`https://app.fewer.directory` in production) |
+| `NEXT_PUBLIC_HOME_URL` | The marketing homepage origin used by the navbar's home link (`https://fewer.directory`); leave empty in dev to fall back to `/` |
+| `NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY` | Web3Forms access key for the bug-report/contact form |
 | `NEXT_PUBLIC_APP_VERSION` | Injected at build time from `package.json` version + git commit SHA |
 | `COMMIT_REF` | Git commit SHA (Netlify provides this automatically) |
 | `NETLIFY` | Set by Netlify builds; disables standalone output |
@@ -153,6 +185,28 @@ Watching file indexes and emailing daily change digests uses **Resend** for emai
 | `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` route (manual/debug trigger) |
 
 The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts` — crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables — same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
+
+## Billing (Stripe) — off by default
+
+Self-serve Pro checkout, the billing portal, and the Stripe webhook all sit behind
+a feature flag and ship **disabled**: while `BILLING_ENABLED=false`, every
+`/api/billing/*` route returns 503 and the client hides the upgrade UI, so plans
+are assigned directly in the database (`profiles.plan` — seed the tier table with
+`python3 scripts/gen-seed-plans.py`; the Plans docs page stays unpublished while
+billing is untested).
+
+| Variable | Purpose |
+| -------- | ------- |
+| `BILLING_ENABLED` | Server-side gate for `/api/billing/*`. Keep `false` until checkout is tested end to end |
+| `NEXT_PUBLIC_BILLING_ENABLED` | Client-side gate: hides upgrade UI while off. Must match `BILLING_ENABLED` |
+| `STRIPE_SECRET_KEY` | Server-side Stripe key (`sk_test_…` in dev). Only read when billing is enabled |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/billing/webhook` (`whsec_…` — from `stripe listen` in dev) |
+| `STRIPE_PRO_PRICE_ID` | Recurring monthly price ID of the "fewer Pro" product (`price_…`) |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Accepted but unused — every Stripe call is server-side |
+
+**Never grant plan changes through the client.** `profiles.plan` and
+`stripe_customer_id` are service-role-only columns; migrations `0022`/`0026` keep
+them out of the authenticated user's update grant.
 
 ## Cloud Connections (OAuth)
 

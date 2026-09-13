@@ -231,7 +231,7 @@ export function FewerApp() {
       window.history.replaceState(null, "", window.location.pathname);
       toast({
         title: "Shared graph loaded",
-        description: `${(data.nodes as unknown[]).length} node${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
+        description: `${(data.nodes as unknown[]).length} card${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
       });
     };
 

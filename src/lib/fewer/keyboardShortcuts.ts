@@ -163,9 +163,9 @@ export function buildKeyboardRules(): ShortcutRule[] {
         window.dispatchEvent(new CustomEvent(
           st.selectedNodeIds.length===1 && st.nodes.some((n)=>n.id===st.selectedNodeIds[0]&&n.data.type==="folder")
           ? FEWER_ADD_NODE : FEWER_ADD_NODE_STANDALONE)); } },
-    // Alt+R — re-layout
+    // Alt+R — organize (relayout)
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
-            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph relayouted" }); } },
+            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph organized" }); } },
     // Alt+F — zoom to selection
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();
@@ -192,11 +192,11 @@ export function buildKeyboardRules(): ShortcutRule[] {
       handle(e,ctx,_kc) { e.preventDefault(); const ids=ctx.getState().selectedNodeIds;
         if(ids.length>=2){const last=ctx.getState().nodes.find((n)=>n.id===ids[ids.length-1]);if(last?.data.type==="folder"){
           let ok=0,fail=0;for(const c of ids.slice(0,-1)){if(ctx.connectNodes({source:ids[ids.length-1],target:c}).ok)ok++;else fail++;}
-                    if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
+                    if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} card${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
     // Alt+Shift+P — unparent
     { test(_e,_ctx,kc) { return kc.alt&&kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;
-        if(ids.length>0){for(const id of ids)ctx.removeEdgesFromHandle(id,"target");ctx.toast({title:"Unparented",description:`${ids.length} node${ids.length!==1?"s":""} unparented`});}}},
+        if(ids.length>0){for(const id of ids)ctx.removeEdgesFromHandle(id,"target");ctx.toast({title:"Unparented",description:`${ids.length} card${ids.length!==1?"s":""} unparented`});}}},
     // Ctrl/Cmd+E — open export
     { test(_e,_ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="e"; },
       handle(e,ctx,_kc) { e.preventDefault(); ctx.setExportOpen(true); } },
@@ -251,7 +251,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           }
           if (n > 0) {
             if (st.hiddenIds.length > 0) ctx.showAll();
-            ctx.toast({ title: "Unhid all nodes", description: `${pluralizeCount(n, "node")} restored` });
+            ctx.toast({ title: "Unhid all cards", description: `${pluralizeCount(n, "card")} restored` });
           }
           ctx.setShowFiles(true);
         } else {
@@ -261,7 +261,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
             // Leaf-aware hide: route selection into the active leaf's hide layer.
             if (st.activeLeafId) ctx.hideNodesForLeaf(st.activeLeafId, ids);
             else ctx.hideNodes(ids);
-            ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore` });
+            ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "card")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subcard")})` : ""}: press Shift+H to restore` });
           }
         }
       },

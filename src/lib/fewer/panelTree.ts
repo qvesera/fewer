@@ -105,6 +105,8 @@ function replaceChild(root: PanelNode, leafId: string, replacement: PanelNode): 
 // ── Set leaf editor ──
 
 export function setLeafEditor(root: PanelNode, id: string, editor: AreaEditor): PanelNode {
+  const target = findLeaf(root, id);
+  if (!target || target.primary) return root;
   return patchLeaf(root, id, (l) => ({ ...l, area: { ...l.area, editor } }));
 }
 
@@ -113,12 +115,17 @@ export function setLeafEditor(root: PanelNode, id: string, editor: AreaEditor): 
 /**
  * Split a leaf in two. Existing leaf keeps position; new sibling with same
  * editor type appears beside or above it. `dir` = "h" → side-by-side.
+ * `side` = "end" (default) places the new sibling after the target (right /
+ * bottom); `side` = "start" places it before (left / top). `ratio` is the
+ * first child's share in both cases, so the divider always tracks the pointer.
  */
-export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", ratio = 0.5): PanelNode {
+export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", ratio = 0.5, side: "start" | "end" = "end"): PanelNode {
   const target = findLeaf(root, targetId);
   if (!target) return root;
   const sibling: PanelLeaf = { kind: "leaf", area: createArea(target.area.editor) };
-  const splitNode = makeSplit(dir, { ...target }, sibling, ratio);
+  const first = side === "start" ? sibling : { ...target };
+  const second = side === "start" ? { ...target } : sibling;
+  const splitNode = makeSplit(dir, first, second, ratio);
   if (isLeaf(root) && root.area.id === targetId) return splitNode;
   return replaceChild(root, targetId, splitNode);
 }
@@ -253,6 +260,11 @@ export function dedupeLeafIds(root: PanelNode): PanelNode {
   if (!getPrimary(out)) {
     const graphLeaf = leafList(out).find((l) => l.area.editor === "graph");
     if (graphLeaf) out = patchLeaf(out, graphLeaf.area.id, (l) => ({ ...l, primary: true }));
+  }
+  // The primary leaf is always the main graph viewport — pin its editor to graph.
+  const primary = getPrimary(out);
+  if (primary && primary.area.editor !== "graph") {
+    out = patchLeaf(out, primary.area.id, (l) => ({ ...l, area: { ...l.area, editor: "graph" } }));
   }
   return out;
 }

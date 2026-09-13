@@ -49,6 +49,7 @@ import { computeStats } from "@/lib/fewer/stats";
 import { getDescendants } from "@/lib/fewer/validation";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
+import { plural } from "@/lib/fewer/plural";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -185,7 +186,7 @@ export function ExportPanel() {
     setOpen(false);
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} node${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
     });
   };
 
@@ -271,7 +272,7 @@ export function ExportPanel() {
           {/* Action Buttons (Standard shadcn Button) */}
           {imageBlocked && (
             <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
-              Every node that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide nodes
+              Every card that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide cards
               (Hidden panel → Reveal All) to export an image.
             </div>
           )}
@@ -303,8 +304,8 @@ export function ExportPanel() {
                   <Label className="text-xs font-semibold">Export Selected</Label>
                   <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
                     {canExportSelected
-                      ? `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} + descendants`
-                      : "Select nodes first"}
+                      ? `${plural(selectedNodeIds.length, "card")} + descendants`
+                      : "Select cards first"}
                   </p>
                 </div>
               </div>
@@ -393,8 +394,8 @@ export function ExportPanel() {
                   <span>Cards</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
-                      ? `${exportNodes.length} nodes`
-                      : `${nodes.length} nodes`}
+                      ? `${exportNodes.length} cards`
+                      : `${nodes.length} cards`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">

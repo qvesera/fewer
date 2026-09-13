@@ -10,6 +10,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
+- Docs now state that OS integration is off in the web build (Open in File Explorer, Open File, OS drag-and-drop import, File System Access picker), and the deployment guide documents the LOCAL_FS_FEATURES build flags
+- Deployment guide documents the Stripe billing variables (off by default), NEXT_PUBLIC_HOME_URL and NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY, and the Advanced Crown Shyness setting is documented
+- UI copy now says cards instead of nodes everywhere user-facing: hidden-cards chip and toasts (N cards hidden/restored/removed), Show All reveal toast, Children hidden toast, export toast and blocked-image hint, H/Shift+H hide toasts, Alt+P unparent/parent toasts, URL import loaded toast, shortcuts dialog (Rename selected card, Open add card dialog), Add-node duplicate-name warning, bug report Node Resizing category, and the theme editor Selection Ring description.
+- Tag filter now hides folders too: a folder disappears when neither it nor any file inside it carries a selected tag, while folders that contain a match stay visible as structural anchors
+- Primary (graph) area is locked to Graph View — the editor-type header dropdown is removed from it, `setAreaEditor` refuses to change it, and saved layouts with a non-graph primary are normalized back to graph on load
+- Corner-drag split grips now appear on all four corners of every panel area — drag from any corner toward the interior to pull off a new leaf in that corner's direction (left from left-hand corners, right from right-hand, top from the top corners, bottom from the bottom), and drag outward to merge
+- The relayout action is renamed Rearrange -> Organize everywhere (sidebar, Layout panel, Alt+R label and toast), and Organize is added to the canvas context menu (Select All -> Organize) so the tree can be re-flowed from a right-click on empty canvas
+
+### Fixed
+
+- Docs served from the database were stale: content_pages is re-seeded from content/docs/ so the live pages match the repo markdown (cards/batch/gallery/version-history copy was missing from the served rows)
+- README stops claiming Prisma/SQLite (Supabase only), stops listing OS-integration features as available per browser, gains Alt+S in the shortcut reference, and states that Enter opens a file only where the OS flags are on
+- Hidden Cards sidebar badge no longer double-counts hidden files: resolved.hiddenIds already includes file ids from the bulk hide layer, but the badge added fileCount on top, showing 60 when 30 files were hidden. Badge now reads resolved.hiddenIds.length only.
+- Choosing a color when creating a tag from the node context menu no longer silently falls back to the default palette color
+- Show Children on a folder now reveals its files even when Hide Files is on (or files were hidden globally)
+- Settings → Account save no longer fails with "permission denied for table profiles" (PostgREST upsert needs UPDATE on conflict-target column user_id)
+- Corner split/merge grips render inside the canvas area only (no longer overlap the area title bar), and the primary area title — Graph View — is vertically centered in the header
+- Tag ring colors now match assignment order left-to-right: the first-assigned tag's color sits on the LEFT side of the card ring (matching the TagDots row), so green-then-pink reads green left, pink right instead of the reversed split
+- Tag rings with an odd number of tags now split by equal outline length instead of equal angle, so every color's band is the same size on rectangular cards (collapsed folders, file cards) regardless of aspect ratio; the ring also uses the node's measured dimensions
+- Tag rings always read in tag order clockwise from the left: the seam sits at the bottom-left corner, so odd tag counts (3, 5) no longer look anti-clockwise — the top edge shows the first-assigned tag on the left with later tags progressing rightward (green, pink, blue read green → pink → blue)
+
+### Added
+
+- Blog post for v0.6.0: community gallery, version history, unified 3-step import, and the accounts upgrade (content/blog/v060-release.md, seeded to content_pages)
+- Select by Tag in the context menus: right-click a folder, file, or a batch selection and pick a tag to select every card carrying it (folder menus show a standalone 'Select by Tag' submenu; file and batch menus add 'By Tag' inside their existing Select submenu)
 
 ## [0.7.1] - 2026-09-12
 
