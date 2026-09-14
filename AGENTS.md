@@ -119,7 +119,9 @@ Migrations live in `supabase/migrations/` and are applied with the Supabase CLI
 1. **An applied migration is immutable. Never edit or delete one.** The runner
    records versions in `supabase_migrations.schema_migrations` and never
    re-executes them, so edits silently miss every existing environment
-   (production included). Change the schema with a **new** migration.
+   (production included). Change the schema with a **new** migration. (One
+   exception: a version collision that makes a file unrecordable — see
+   *The one sanctioned rename* below.)
 2. **Every migration must be idempotent** — safe to run twice on a database
    that already has the change: `if not exists`, `on conflict do nothing`,
    `create or replace`, `drop … if exists`, guarded `do $$ … $$` blocks.
@@ -137,6 +139,26 @@ Migrations live in `supabase/migrations/` and are applied with the Supabase CLI
 > and `0021_content_pages.sql`. The grants reached production only out-of-band,
 > silently re-opening a plan self-upgrade hole, and the docs copy never
 > re-seeded. Both needed follow-up migrations (`0026`, `0027`) to repair.
+
+### The one sanctioned rename
+
+Rule 1 has a single allowlisted exception, `SANCTIONED_RENAMES` in
+`scripts/migrations.py`: `0022_profiles_username_normalization.sql` →
+`0033_profiles_username_normalization.sql`.
+
+Two files claimed version `0022`, and `schema_migrations` has
+`PRIMARY KEY (version)`, so the second one could **never** be recorded: every
+`supabase db push` refused it ("Found local migration files to be inserted before
+the last migration on remote database") and `--include-all` failed on a duplicate
+key. Giving it a free number is the only way to make it recordable, and it is
+safe precisely because it never had a recorded version to miss — its effects were
+verified present in dev and production before the move (the two
+`profiles_username_*` check constraints and `profiles_username_unique_idx`), and
+its content is byte-identical after it.
+
+`verify` honours a rename only when the target exists **and** matches the source
+at `--base` byte for byte; an edited file, or a deletion with no replacement,
+still fails. Nothing else may be renamed.
 
 ### Adding a migration
 
