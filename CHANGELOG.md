@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag ring colors now match assignment order left-to-right: the first-assigned tag's color sits on the LEFT side of the card ring (matching the TagDots row), so green-then-pink reads green left, pink right instead of the reversed split
 - Tag rings with an odd number of tags now split by equal outline length instead of equal angle, so every color's band is the same size on rectangular cards (collapsed folders, file cards) regardless of aspect ratio; the ring also uses the node's measured dimensions
 - Tag rings always read in tag order clockwise from the left: the seam sits at the bottom-left corner, so odd tag counts (3, 5) no longer look anti-clockwise — the top edge shows the first-assigned tag on the left with later tags progressing rightward (green, pink, blue read green → pink → blue)
+- Tutorial dialog stays clickable (pointer-events) even when another modal dialog is open — its surfaces now re-enable pointer events so visual z-priority and click priority never diverge, fixing a soft lock on the intro screen.
 
 ### Added
 

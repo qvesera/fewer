@@ -1,6 +1,7 @@
 "use client";
 
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
+import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
 
@@ -99,7 +100,8 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
 }
 
 export interface ShortcutCtx {
-  getState(): StoreReader;
+  getState(): GraphState;
+  isAnyDialogOpen: (state: GraphState) => boolean;
   undo(): void; redo(): void; setSearchOpen(v: boolean): void; setDirection(d: LayoutDirection): void;
   setSelectedNodeIds(ids: string[]): void; deleteNodes(ids: string[]): void;
   setRenamingId(id: string | null, source?: "canvas" | "folder"): void;
@@ -370,6 +372,8 @@ export function handleKeyboardShortcut(
   ctx: ShortcutCtx,
 ): boolean {
   const kc = buildKeyContext(e);
+  const st = ctx.getState();
+  if (ctx.isAnyDialogOpen(st)) return false;
   for (const rule of rules) {
     if (rule.test(e, ctx, kc)) {
       rule.handle(e, ctx, kc);

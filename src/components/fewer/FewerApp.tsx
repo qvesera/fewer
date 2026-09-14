@@ -64,21 +64,25 @@ export function FewerApp() {
   const device = useDevice();
   const { user } = useAuth();
 
-  const [importFlowOpen, setImportFlowOpen] = useState(false);
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
   const [importFlowMounted, setImportFlowMounted] = useState(false);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
-  const [addParentOpen, setAddParentOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const authOpen = useGraphStore((s) => s.authOpen);
-  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
-  // Panel layout
+  const importFlowOpen = useGraphStore((s) => s.importFlowOpen);
+  const setImportFlowOpen = useGraphStore((s) => s.setImportFlowOpen);
+  const addChildOpen = useGraphStore((s) => s.addChildOpen);
+  const setAddChildOpen = useGraphStore((s) => s.setAddChildOpen);
+  const addStandaloneOpen = useGraphStore((s) => s.addStandaloneOpen);
+  const setAddStandaloneOpen = useGraphStore((s) => s.setAddStandaloneOpen);
+  const addParentOpen = useGraphStore((s) => s.addParentOpen);
+  const setAddParentOpen = useGraphStore((s) => s.setAddParentOpen);
+  const notificationOpen = useGraphStore((s) => s.notificationOpen);
+  const setNotificationOpen = useGraphStore((s) => s.setNotificationOpen);
+  const authOpen = useGraphStore((s) => s.authOpen);
+  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);  // Panel layout
   const sidebarSide = useGraphStore((s) => s.sidebarSide);
   const panelTree = useGraphStore((s) => s.panelTree);
 
@@ -412,7 +416,7 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
+      <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -484,7 +488,7 @@ export function FewerApp() {
       <BatchRenameDialog />
       <BatchTagDialog />
       <ParentPickerDialog />
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       <BugReportDialog />
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
