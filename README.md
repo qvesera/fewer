@@ -99,7 +99,7 @@ docker run -p 3000:3000 fewer
 - **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
-- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
+- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; node moves included)
 
 ---
 
@@ -273,7 +273,7 @@ Writes go through the service role (RLS is public-read-only for published rows).
 User action → KeyboardShortcuts / ContextMenu → graphStore (Zustand) → React Flow re-render
 ```
 
-The **Zustand store** is the single source of truth. React Flow nodes/edges are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer.
+The **Zustand store** is the single source of truth. React Flow nodes/edges are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
 
 <details>
 <summary><b>Architecture</b></summary>

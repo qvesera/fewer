@@ -124,11 +124,16 @@ In Power User mode, right-click a folder for:
 
 ## Undo / Redo
 
-Every editing operation records an undo step:
+Every editing operation records an undo step — including node moves (drag a
+node, then **Ctrl+Z** to snap it back):
 
 - **Ctrl+Z**: undo
 - **Ctrl+Shift+Z / Ctrl+Y**: redo
 - 50-step history buffer
+
+With a **split panel layout**, each panel view keeps its own 50-step history.
+Undo/redo act on the view you last interacted with, so a drag in one view never
+rolls back an edit made in another.
 
 Use **Relayout** after heavy manual edits to tidy the graph.
 

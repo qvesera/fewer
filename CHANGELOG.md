@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primary (graph) area is locked to Graph View — the editor-type header dropdown is removed from it, `setAreaEditor` refuses to change it, and saved layouts with a non-graph primary are normalized back to graph on load
 - Corner-drag split grips now appear on all four corners of every panel area — drag from any corner toward the interior to pull off a new leaf in that corner's direction (left from left-hand corners, right from right-hand, top from the top corners, bottom from the bottom), and drag outward to merge
 - The relayout action is renamed Rearrange -> Organize everywhere (sidebar, Layout panel, Alt+R label and toast), and Organize is added to the canvas context menu (Select All -> Organize) so the tree can be re-flowed from a right-click on empty canvas
+- Each panel view keeps its own 50-step undo/redo history; undo acts on the view you last interacted with
 
 ### Fixed
 
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag ring colors now match assignment order left-to-right: the first-assigned tag's color sits on the LEFT side of the card ring (matching the TagDots row), so green-then-pink reads green left, pink right instead of the reversed split
 - Tag rings with an odd number of tags now split by equal outline length instead of equal angle, so every color's band is the same size on rectangular cards (collapsed folders, file cards) regardless of aspect ratio; the ring also uses the node's measured dimensions
 - Tag rings always read in tag order clockwise from the left: the seam sits at the bottom-left corner, so odd tag counts (3, 5) no longer look anti-clockwise — the top edge shows the first-assigned tag on the left with later tags progressing rightward (green, pink, blue read green → pink → blue)
+- Dragging a node in a panel view is now undoable — moves were only recorded for the shared canvas, so Ctrl+Z did nothing
 - Tutorial dialog stays clickable (pointer-events) even when another modal dialog is open — its surfaces now re-enable pointer events so visual z-priority and click priority never diverge, fixing a soft lock on the intro screen.
 
 ### Added

@@ -1,6 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "../types";
+import { swapLeafHistory } from "../historySlice";
 
 export type SelectionSliceCreator = StateCreator<
   GraphState,
@@ -77,6 +78,7 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
 
   setSelectionForLeaf: (leafId, ids) => set((s) => ({
+    ...swapLeafHistory(s, leafId),
     leafSelections: { ...s.leafSelections, [leafId]: ids },
     activeLeafId: leafId,
     selectedNodeIds: ids,
@@ -86,7 +88,9 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   setActiveLeaf: (leafId) => set((s) => {
     if (!leafId || leafId === s.activeLeafId) return {};
     const ids = s.leafSelections[leafId] ?? [];
-    return { activeLeafId: leafId, selectedNodeIds: ids };
+    // Each leaf owns its own 50-step undo history — swapping the live
+    // `past`/`future` stacks is what makes undo/redo leaf-scoped.
+    return { ...swapLeafHistory(s, leafId), activeLeafId: leafId, selectedNodeIds: ids };
   }),
 
   setRenamingId: (id, source) => {
