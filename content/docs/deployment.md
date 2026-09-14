@@ -116,7 +116,10 @@ imports and in-app node dragging.
 The `public/` directory ships:
 
 - `manifest.json`: PWA manifest with 192x192 and 512x512 icons
-- `robots.txt`: search engine rules
+- `robots.txt`: search engine rules, points at the XML sitemaps below
+- `sitemap.xml` (marketing site) and `app/sitemap.xml` (app host): generated
+  from `src/app/sitemap.ts` + `src/app/app/sitemap.ts`; include published
+  docs/blog from Supabase and revalidate every 60s
 - `logo*.png/svg`: brand assets
 
 The standalone build copies `public/` automatically. If you self-host with a custom server, make sure `public/` is served so the manifest resolves correctly.

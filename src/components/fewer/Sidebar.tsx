@@ -276,7 +276,29 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 5. HIDDEN NODES RECOVERY ── */}
+        {/* ── 4. TAGS ── */}
+        {!dockedIds.has("tags") && nodes.length > 0 && (
+          <CollapsibleSection
+            title="Tags"
+            icon={TagIcon}
+            badge={tags.length > 0 ? String(tags.length) : undefined}
+            defaultOpen={false}
+            {...dragProps("tags")}
+          >
+            <TagsPanel />
+          </CollapsibleSection>
+        )}
+
+        {/* ── 5. GRAPH ANALYTICS ── */}
+        {!dockedIds.has("analytics") && (
+        <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
+          <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
+            <StatsPanel />
+          </CollapsibleSection>
+        </AnimatedConditional>
+        )}
+
+        {/* ── 6. HIDDEN NODES RECOVERY ── */}
         {!dockedIds.has("hidden") && (() => {
           const viewHidden = activeLeaf ? activeLeaf.resolved.hiddenIds.length > 0 : hiddenIds.length > 0;
           const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
@@ -298,28 +320,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           </CollapsibleSection>
           );
         })()}
-
-        {/* ── 6. TAGS ── */}
-        {!dockedIds.has("tags") && nodes.length > 0 && (
-          <CollapsibleSection
-            title="Tags"
-            icon={TagIcon}
-            badge={tags.length > 0 ? String(tags.length) : undefined}
-            defaultOpen={false}
-            {...dragProps("tags")}
-          >
-            <TagsPanel />
-          </CollapsibleSection>
-        )}
-
-        {/* ── 7. GRAPH ANALYTICS ── */}
-        {!dockedIds.has("analytics") && (
-        <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
-          <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
-            <StatsPanel />
-          </CollapsibleSection>
-        </AnimatedConditional>
-        )}
 
       </div>
 
