@@ -96,6 +96,31 @@ test("deletes a node from the context menu, then undoes", async ({ page }) => {
   await expect(srcHeader(page).first()).toHaveCount(1);
 });
 
+test("dragging a node is undoable", async ({ page }) => {
+  await openCanvas(page);
+
+  const node = srcHeader(page).first();
+  const before = await node.boundingBox();
+  const startX = before!.x + before!.width / 2;
+  const startY = before!.y + 10;
+
+  // Drag the card by its header, well clear of the child list.
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 180, startY + 140, { steps: 15 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await node.boundingBox())!.x, { timeout: 10000 })
+    .toBeGreaterThan(before!.x + 120);
+
+  // Panel views record moves now — undo snaps the card back to where it was.
+  await page.keyboard.press("Control+z");
+  await expect
+    .poll(async () => (await node.boundingBox())!.x, { timeout: 10000 })
+    .toBeLessThan(before!.x + 40);
+});
+
 test("node context menu offers cut, duplicate, and delete", async ({ page }) => {
   await openCanvas(page);
 
