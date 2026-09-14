@@ -448,6 +448,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       if (leafId) {
         seedOnFirstDrag();
         for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
+        // Record the move so it's undoable (no-op drags are filtered inside
+        // recordDragMoves). The op is tagged with this canvas's leaf so a drag
+        // in an inactive split viewport lands in that leaf's stack, and
+        // undo/redo restores `viewSettings[leafId].positions` — leaf canvases
+        // don't render from shared node positions.
+        recordDragMoves(moves, leafId);
         // Persist leaf positions locally (layout key) once per gesture — not
         // per frame. Positions never enter the settings payload (stripped in
         // pick()), so dragging can't trigger a cloud settings sync.
