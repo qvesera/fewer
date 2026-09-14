@@ -180,6 +180,7 @@ docker run -p 3000:3000 fewer
 - **Light / Dark / Custom** modes
 - **16 CSS color variables**: separate folder and file colors
 - **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
+- **Community theme gallery**: publish your saved themes (attributed to your profile), search themes and authors, apply any theme instantly on the gallery page, and open `#t:` links that set it as your last-used theme
 - **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
 - Changes apply instantly to all nodes
 

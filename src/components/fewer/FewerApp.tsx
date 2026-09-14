@@ -261,6 +261,37 @@ export function FewerApp() {
         return;
       }
 
+      // Theme gallery deep link: #t:<id> — apply a published theme on load.
+      // Goes through the normal store actions, so the existing settings sync
+      // persists it as the user's last-used theme (localStorage + cloud).
+      if (hash.startsWith("t:")) {
+        const themeId = hash.slice(2);
+        if (!themeId) {
+          toast({ title: "Invalid theme link", description: "Could not load the theme from the URL.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/themes/shared/${themeId}`);
+          const json = await res.json();
+          if (!res.ok || !json.theme?.theme) {
+            toast({ title: "Theme link invalid", description: json.error || "Could not load the theme.", variant: "destructive" });
+            return;
+          }
+          const s = useGraphStore.getState();
+          s.setCustomTheme(json.theme.theme);
+          s.setThemeMode("custom");
+          setHashLoaded(true);
+          window.history.replaceState(null, "", window.location.pathname);
+          toast({
+            title: "Theme applied",
+            description: `"${json.theme.name}" is now your theme — saved as last used.`,
+          });
+        } catch {
+          toast({ title: "Theme link error", description: "Could not load the theme from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
       if (isDbShareHash(hash)) {
         const id = parseDbShareId(hash);
         if (!id) {

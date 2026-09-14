@@ -6,6 +6,7 @@ Blog-post backlog. Major features merged to `dev` get a one-line entry here (see
 
 ## To write
 
+- [ ] 2026-09-14 · Theme gallery: publish saved themes to the community gallery (search, author attribution, instant Apply on the page, `#t:<id>` deep links) · feature — write alongside a future gallery/routing post.
 - [ ] 2026-08-19 · Account plans (Free/Pro/Team): server-side entitlements, plan column + enforcement · PR #61 — **blocked**: self-serve billing is unshipped (`BILLING_ENABLED=false`, `/docs/plans` unpublished). Write it when checkout goes live.
 - [ ] 2026-08-18 · v0.5.0 leftovers: file-type filters + cloud-synced settings & custom themes · 0.5.0 — two small features, one combined post.
 - [ ] 2026-09-12 · v0.7.x maintenance: `profiles` grants security fix, migration verify/apply CI pipeline · PR #85–#116 — optional; only if the migration rules deserve a write-up.
