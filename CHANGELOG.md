@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blog post for v0.6.0: community gallery, version history, unified 3-step import, and the accounts upgrade (content/blog/v060-release.md, seeded to content_pages)
 - Select by Tag in the context menus: right-click a folder, file, or a batch selection and pick a tag to select every card carrying it (folder menus show a standalone 'Select by Tag' submenu; file and batch menus add 'By Tag' inside their existing Select submenu)
 - Generate XML sitemaps (fewer.directory/sitemap.xml + app.fewer.directory/app/sitemap.xml) so search engines can index the site; robots.txt now points at both.
+- Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
 
 ## [0.7.1] - 2026-09-12
 
