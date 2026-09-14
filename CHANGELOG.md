@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag rings with an odd number of tags now split by equal outline length instead of equal angle, so every color's band is the same size on rectangular cards (collapsed folders, file cards) regardless of aspect ratio; the ring also uses the node's measured dimensions
 - Tag rings always read in tag order clockwise from the left: the seam sits at the bottom-left corner, so odd tag counts (3, 5) no longer look anti-clockwise — the top edge shows the first-assigned tag on the left with later tags progressing rightward (green, pink, blue read green → pink → blue)
 - Dragging a node in a panel view is now undoable — moves were only recorded for the shared canvas, so Ctrl+Z did nothing
+- Tutorial dialog stays clickable (pointer-events) even when another modal dialog is open — its surfaces now re-enable pointer events so visual z-priority and click priority never diverge, fixing a soft lock on the intro screen.
 
 ### Added
 
