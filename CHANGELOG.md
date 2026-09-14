@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag rings always read in tag order clockwise from the left: the seam sits at the bottom-left corner, so odd tag counts (3, 5) no longer look anti-clockwise — the top edge shows the first-assigned tag on the left with later tags progressing rightward (green, pink, blue read green → pink → blue)
 - Dragging a node in a panel view is now undoable — moves were only recorded for the shared canvas, so Ctrl+Z did nothing
 - Tutorial dialog stays clickable (pointer-events) even when another modal dialog is open — its surfaces now re-enable pointer events so visual z-priority and click priority never diverge, fixing a soft lock on the intro screen.
+- Migration history is recordable again: two files claimed version 0022, and because schema_migrations has a primary key on version, 0022_profiles_username_normalization.sql could never be marked applied, so every supabase db push refused it and --include-all failed on a duplicate key. The file is now 0033_profiles_username_normalization.sql, byte-identical, with its effects verified present in dev and production
 
 ### Added
 
