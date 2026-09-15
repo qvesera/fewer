@@ -96,7 +96,7 @@ docker run -p 3000:3000 fewer
 
 - **Rename** a node: **F2** or right-click
 - **Add** a node: **Alt+N**
-- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release)
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; node moves included)

@@ -134,6 +134,7 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
     moveNode: (id) => { a.moveNode = id; },
     connectNodes: () => ({ ok: true }),
     removeEdgesFromHandle: (id, t) => { a.removeEdgesFromHandle = [id, t]; },
+    unparentNodes: (ids) => { a.unparentNodes = ids; return ids.length; },
     deleteEdges: (ids) => { a.deleteEdges = ids; },
     duplicateNodeUnderParent: (id) => { a.duplicateNodeUnderParent = id; },
     setAuthOpen: (v) => { a.setAuthOpen = v; },
@@ -302,6 +303,24 @@ test("Alt+P parent toasts partial success", () => {
   expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "p" })).toBe(true);
   expect(calls).toBe(2);
   expect(a.toast).toBeDefined();
+});
+
+test("Alt+Shift+P unparent routes the whole selection through unparentNodes", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["n1", "n2"] }),
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, shiftKey: true, key: "p" })).toBe(true);
+  expect(a.unparentNodes).toEqual(["n1", "n2"]);
+  expect(a.removeEdgesFromHandle).toBeUndefined();
+});
+
+test("Alt+Shift+P unparent stays silent on a no-op", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["root", "child"] }),
+    unparentNodes: () => 0,
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, shiftKey: true, key: "p" })).toBe(true);
+  expect(a.toast).toBeUndefined();
 });
 
 test("Ctrl+D duplicate stays silent for stale selection", () => {

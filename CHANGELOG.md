@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Each panel view keeps its own 50-step undo/redo history; undo acts on the view you last interacted with
 - Crown Shyness is a much stronger effect across its range: sibling-subtree gaps scale harder with depth and size, so 0 to 3 is roughly +28% spread top-to-bottom and +71% left-to-right against about +10% before — the ends of the slider are visibly different now. The top of the range is capped: 3 lands where 2 used to, because full strength spread a wide graph further apart than is useful to read
 - The Crown Shyness slider responds on a curve instead of linearly: 1 (the default) keeps the spacing a default canvas has always had, while 2 is clearly looser and 3 opens the tree right up — as far as the range goes, since 3 is the cap. A linear response gave the same top end but inflated every default layout, and the initial fit clamps its zoom, so the far side of the tree was pushed outside the viewport (where React Flow culls it) — the canvas looked like it had lost cards
+- Alt+Shift+P (unparent) now detaches only the top-most selected cards and records a single undo step, matching the batch Unparent menu action
 
 ### Fixed
 
@@ -45,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Image exports no longer anchor edges to the last shared layout: edge geometry follows the active view's layout direction (like the canvas handles do), so a view that only overrides the direction no longer draws lines out of the wrong sides of correctly placed cards
 - Image exports include the current selection again alongside the active view: each selected card draws the themed selection ring outside its border and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses, so a selected subtree no longer exports as an unmarked graph
 - Keep folder collapse per-view: collapsing a folder in one split view no longer squishes the expanded card in the other views
+- Batch "Unparent" no longer reports success when it detached nothing (a selection of a card plus its own descendants) — the toast is now driven by the detached count, and Alt+Shift+P shares the same top-most-only rule with one undo step
+- Adding a parent card is no longer rejected when you name it after the card it wraps (self-nesting docs/docs) — only names already taken by other cards in that scope are blocked
 
 ### Added
 

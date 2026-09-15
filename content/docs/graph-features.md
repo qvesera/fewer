@@ -67,13 +67,14 @@ Every node has an **input handle** (entry, on the left/top) and an **output hand
 - **Drag from any node's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the node's new parent. The new parent is always a folder:
   - If the node is already rooted elsewhere, the folder is inserted between the node and its current parent.
   - If the node has no parent yet, the folder becomes the node's new root parent.
+  - The new folder may share the node's own name (a self-nesting `docs/docs`) — the node moves inside it, so it is no longer a sibling. Only a name already taken by another card in that scope is rejected.
 
 ## Multi-Select
 
 - **Ctrl+A**: select all visible nodes
 - **Shift+Arrow keys**: add nodes to the selection while navigating
 - **Set as Parent**: batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
-- **Alt+Shift+P**: unparent all selected nodes
+- **Alt+Shift+P**: unparent all selected nodes — only the top-most selected cards detach (a selected descendant whose selected ancestor also detaches stays put); one undo step, and nothing is toasted when there was nothing to detach
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
 ## Drag & Drop (from your OS)

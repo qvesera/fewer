@@ -51,6 +51,7 @@ export function KeyboardShortcuts() {
       moveNode: getStore().moveNode,
       connectNodes: getStore().connectNodes,
       removeEdgesFromHandle: getStore().removeEdgesFromHandle,
+      unparentNodes: getStore().unparentNodes,
       deleteEdges: getStore().deleteEdges,
       duplicateNodeUnderParent: getStore().duplicateNodeUnderParent,
       setAuthOpen: getStore().setAuthOpen,
