@@ -66,15 +66,55 @@ test("renders theme colors + background rect", () => {
   expect(scene.svg).toContain("Empty folder");
 });
 
-test("selection is not drawn in exports — selected card keeps its normal border", () => {
+test("selection draws the accent ring around the selected card only", () => {
   const nodes = [makeNode("r", "root"), makeNode("c", "child", { type: "file", x: 300, w: 220 })];
   const edges = [makeEdge("e0", "r", "c")];
   const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["c"]) }));
-  // The selection ring is a canvas-only affordance and must not bake into the image.
-  expect(scene.svg).not.toContain("#22d3ee");
-  // The selected node renders with its normal file border + 1px stroke.
+  // The selected card gets an outline ring outside its border — the canvas's
+  // `.gm-selected-ring` — at 2px, in the themed selection color.
+  expect(scene.svg).toContain(`fill="none" stroke="${palette.selectRing}" stroke-width="2"`);
+  // Exactly one ring: the unselected card has none.
+  const rings = scene.svg.match(new RegExp(`stroke="${palette.selectRing}"`, "g")) ?? [];
+  expect(rings.length).toBe(1);
+  // Both cards keep their own themed border: the ring never replaces it.
   expect(scene.svg).toContain('stroke="rgba(190, 75, 219, 0.45)"');
-  expect(scene.svg).toContain('stroke-width="1"');
+});
+
+test("no selection ring is drawn when nothing is selected", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
+  const scene = buildGraphSVG(nodes, [makeEdge("e0", "r", "c")], opts({ selectedIds: new Set() }));
+  expect(scene.svg).not.toContain(palette.selectRing);
+});
+
+test("selecting a card highlights every ancestor-path edge, and only those", () => {
+  // root -> mid -> leaf ; selecting `leaf` lights up both edges on its path.
+  const nodes = [
+    makeNode("root", "root"),
+    makeNode("mid", "mid", { x: 300 }),
+    makeNode("leaf", "leaf", { type: "file", x: 600, w: 220 }),
+    makeNode("other", "other", { type: "file", x: 900, y: 300, w: 220 }),
+  ];
+  const edges = [
+    makeEdge("e0", "root", "mid"),
+    makeEdge("e1", "mid", "leaf"),
+    makeEdge("e2", "root", "other"),
+  ];
+  const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["leaf"]) }));
+  // Path edges stroke with the TARGET node's themed icon color, floor 3px wide —
+  // the same rule the canvas's buildSelectedEdgeHighlight applies.
+  expect(scene.svg).toContain(`stroke="${palette.folderIcon}" stroke-width="3"`); // root->mid (target folder)
+  expect(scene.svg).toContain(`stroke="${palette.fileIcon}" stroke-width="3"`); // mid->leaf (target file)
+  // The unrelated edge keeps the theme edge color.
+  expect(scene.svg).toContain(`stroke="${palette.edge}"`);
+  const highlighted = scene.svg.match(/stroke-width="3"/g) ?? [];
+  expect(highlighted.length).toBe(2);
+});
+
+test("an empty selection leaves every edge in the theme color", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
+  const scene = buildGraphSVG(nodes, [makeEdge("e0", "r", "c")], opts({ selectedIds: new Set() }));
+  expect(scene.svg).toContain(`stroke="${palette.edge}"`);
+  expect(scene.svg).not.toContain('stroke-width="3"');
 });
 
 test("edge path geometry differs per edge style", () => {

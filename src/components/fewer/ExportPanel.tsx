@@ -272,6 +272,9 @@ export function ExportPanel() {
         { ...settings, includeBranding },
         stats,
         {
+          // Selection travels with the image: the renderer draws the accent
+          // selection ring on each selected card and highlights the ancestor-path
+          // edges feeding them, mirroring the canvas.
           selectedIds: selectedNodeIds,
           hiddenIds: viewHiddenIds,
           nodeWidth,

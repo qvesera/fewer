@@ -133,7 +133,8 @@ SVG and PNG render exactly what the active graph view shows, not the raw graph s
 - cards the view hides stay out of the image (hidden children still appear as faded rows inside their folder card)
 - per-view card positions and the view's own derived layout (Layout Direction override, Crown Shyness intensity, sibling sort) are used as-is
 - collapsed folders export as their one-line pill
-- tag rings and tag dots use the same colors as the canvas; a selected card shows its dot row but no ring, as on canvas
+- tag rings and tag dots use the same colors as the canvas
+- the current selection carries over: each selected card gets the themed selection ring outside its border, and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses
 - the view's edge style, stroke pattern, and edge width win over the global ones, and edges anchor to the view's layout direction exactly as the canvas handles do
 
 Click the graph view you want before exporting. Data formats (JSON, CSV, DOT, script, tree) always export the full graph and ignore view settings. The active-view marker shown in a split layout is a UI affordance and is never drawn into an export.

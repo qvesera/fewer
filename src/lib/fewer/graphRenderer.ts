@@ -12,6 +12,7 @@ import {
 } from "@xyflow/react";
 import { FEWER_HOME_URL } from "./branding";
 import { colorForTag, TAG_RING_CAP, type Tag } from "./tags";
+import { ancestorPathHighlight, buildTreeLookups } from "./edgeHighlight";
 
 /* -------------------------------------------------------------------------- */
 /*  graphRenderer.ts - faithful vector scene builder for PNG/SVG export.      */
@@ -93,6 +94,10 @@ const PADDING = 40;
 const PILL_HEIGHT = 38;
 /** `.gm-tag-ring` band: 3px wide, hugging the outside of the card border. */
 const TAG_RING_WIDTH = 3;
+/** `.gm-selected-ring`: `outline: 2px solid` with `outline-offset: 2px`, i.e. a
+    2px accent band whose INNER edge sits 2px outside the card border. */
+const SELECT_RING_WIDTH = 2;
+const SELECT_RING_OFFSET = 2;
 
 /* ------------------------------- helpers ---------------------------------- */
 
@@ -263,6 +268,8 @@ function renderEdge(
   srcSize: { w: number; h: number },
   dstSize: { w: number; h: number },
   o: GraphRenderOptions,
+  /** Ancestor-path highlight for this edge (a selected card is on its path). */
+  highlight?: { stroke: string; width: number },
 ): string {
   const dir = o.direction ?? dirOf(src);
   const sa = anchor(dir, srcSize.w, srcSize.h, true);
@@ -298,8 +305,12 @@ function renderEdge(
     });
   }
 
-  const stroke = typeof e.style?.stroke === "string" ? e.style.stroke : o.palette.edge;
-  const strokeWidth = typeof e.style?.strokeWidth === "number" ? e.style.strokeWidth : o.defaultEdgeWidth ?? 2;
+  // A highlighted ancestor-path edge wins outright: the canvas's highlight
+  // rebuild overwrites stroke + width on exactly these edges, so the image must
+  // not fall back to the theme edge color for them.
+  const stroke = highlight?.stroke ?? (typeof e.style?.stroke === "string" ? e.style.stroke : o.palette.edge);
+  const strokeWidth = highlight?.width
+    ?? (typeof e.style?.strokeWidth === "number" ? e.style.strokeWidth : o.defaultEdgeWidth ?? 2);
   const dash = typeof e.style?.strokeDasharray === "string" ? e.style.strokeDasharray : undefined;
 
   const attrs = [`d="${path}"`, `stroke="${escapeXml(stroke)}"`, `stroke-width="${strokeWidth}"`, "fill=\"none\""];
@@ -455,6 +466,30 @@ function renderTagRing(
 }
 
 /**
+ * Selection ring, mirroring the canvas's `.gm-selected-ring`
+ * (`outline: 2px solid var(--fewer-select-ring); outline-offset: 2px`). Drawn as a
+ * rounded-rect outline stroke 2px outside the card border. Returns "" when the
+ * node isn't selected, so unselected cards emit no extra element.
+ *
+ * ponytail: SVG has no `outline-offset`, so the band is approximated by a
+ * stroked rounded rect (stroke centreline at -3px, spanning -4…-2px). Arc joins
+ * are circular where the DOM's are mitered, so at a 2px width the corner drift
+ * is sub-pixel.
+ */
+function renderSelectionRing(
+  n: FewerNode,
+  size: { w: number; h: number },
+  color: string,
+): string {
+  const r = cardRadius(n) + SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2;
+  const x = n.position.x - SELECT_RING_OFFSET - SELECT_RING_WIDTH / 2;
+  const y = n.position.y - SELECT_RING_OFFSET - SELECT_RING_WIDTH / 2;
+  const w = size.w + (SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2) * 2;
+  const h = size.h + (SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2) * 2;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="none" stroke="${escapeXml(color)}" stroke-width="${SELECT_RING_WIDTH}"/>`;
+}
+
+/**
  * Tag assignment dots (canvas: TagDots): one 10px dot per tag, starting at `x`
  * and vertically centred on `y`; anything past the cap collapses to "+N".
  */
@@ -479,9 +514,11 @@ function renderTagDots(
   return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 4}" font-size="9" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
 }
 
-/** Shared highlight/border ring logic for folder + file cards. The selection
-    ring is intentionally NOT drawn in exports: it is a canvas interaction
-    affordance, so exporting never bakes the current selection into the image. */
+/** Shared highlight/border ring logic for folder + file cards. `highlighted`
+    (search/ancestor) wins over the plain border. Selection is NOT painted into
+    the border — it is drawn as a separate ring OUTSIDE the card
+    (`renderSelectionRing`), exactly like the canvas's `.gm-selected-ring`
+    outline, so the card keeps its own themed border underneath. */
 function cardStroke(
   n: FewerNode,
   border: string,
@@ -513,9 +550,11 @@ function renderCollapsedFolderCard(
   const textColor = selected ? p.text : p.folderText;
   const subtleColor = selected ? p.subtle : p.folderSubtle;
   const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
@@ -566,6 +605,7 @@ function renderFolderCard(
 
   const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
   const rowsCount = itemCountLabel(rows.length);
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
   // Header tag dots sit right-aligned (canvas: TagDots + chevron in the header
   // row), so the label keeps whatever width they don't use.
@@ -573,6 +613,7 @@ function renderFolderCard(
   const dotsX = x + w - 14 - dotsW;
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
@@ -621,8 +662,10 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const labelBaseline = colTop + 13;
   const metaBaseline = colTop + labelLH + 10;
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.fileBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
     <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
@@ -702,12 +745,34 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const sizeByNode = new Map<string, { w: number; h: number }>();
   for (const n of nodes) sizeByNode.set(n.id, nodeSize(n, o));
 
+  // Ancestor-path highlight, identical to the canvas's edge highlighting
+  // (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
+  // selected card up to its root parent lights up, stroked with the target
+  // node's themed folder/file color at width max(edgeWidth, 3). Without this the
+  // image showed selected cards with all edges still in the default theme color.
+  const selectedIds = [...(o.selectedIds ?? [])];
+  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
+  if (selectedIds.length > 0) {
+    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
+    edgeHighlight = ancestorPathHighlight(
+      selectedIds,
+      parentEdgeOf,
+      typeByNodeId,
+      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
+      Math.max(o.defaultEdgeWidth ?? 2, 3),
+    );
+  }
+
   const edgesHtml = connectEdges
+    // Highlighted edges paint last so they sit above the rest, like the canvas
+    // (which sorts highlighted edges to the end of the array).
+    .slice()
+    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
     .map((e) => {
       const s = nodes.find((nn) => nn.id === e.source);
       const d = nodes.find((nn) => nn.id === e.target);
       if (!s || !d) return "";
-      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o);
+      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
     })
     .join("\n  ");
 

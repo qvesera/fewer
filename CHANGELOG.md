@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clearing a view's manual card positions now persists: it left an empty positions key behind in the stored layout and skipped the localStorage write, so dragged positions came back after a reload
 - SVG and PNG exports mirror the active graph view instead of the raw graph state: cards hidden by that view stay out (hidden children still list as faded folder rows), per-view card positions and the view's own derived layout are honoured, collapsed folders export as their one-line pill, tag rings and dots use the canvas colors, and the view's edge style, pattern and width win over the global ones
 - Image exports no longer anchor edges to the last shared layout: edge geometry follows the active view's layout direction (like the canvas handles do), so a view that only overrides the direction no longer draws lines out of the wrong sides of correctly placed cards
+- Image exports include the current selection again alongside the active view: each selected card draws the themed selection ring outside its border and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses, so a selected subtree no longer exports as an unmarked graph
 
 ### Added
 
