@@ -223,6 +223,17 @@ describe("collapseSlice", () => {
     s().toggleCollapseForLeaf("leaf1", "outer");
     expect(s().viewSettings["leaf1"].collapsedFolderIds ?? []).not.toContain("outer");
   });
+
+  it("is view-only: the shared node keeps the geometry other views draw from", () => {
+    const before = s().nodes.find((n) => n.id === "outer")!;
+    s().toggleCollapseForLeaf("leaf1", "outer");
+    const after = s().nodes.find((n) => n.id === "outer")!;
+    // Untouched by identity — no height cleared, no pill measurement pinned.
+    expect(after).toBe(before);
+    expect(after.style?.height).toBe(120);
+    // Only the toggling leaf's own settings change.
+    expect(s().viewSettings["leaf2"]?.collapsedFolderIds ?? []).not.toContain("outer");
+  });
 });
 
 describe("selectionSlice", () => {

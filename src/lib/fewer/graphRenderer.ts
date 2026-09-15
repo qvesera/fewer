@@ -1,8 +1,9 @@
-import type {
-  FewerNode,
-  FewerEdge,
-  FileCategory,
-  LayoutDirection,
+import {
+  COLLAPSED_PILL_HEIGHT,
+  type FewerNode,
+  type FewerEdge,
+  type FileCategory,
+  type LayoutDirection,
 } from "./types";
 import {
   getBezierPath,
@@ -91,7 +92,7 @@ const HEADER_HEIGHT = 52; // py-2 + h-9 icon box + border-b
 const FOOTER_HEIGHT = 28; // item-count footer
 const PADDING = 40;
 /** Collapsed folder pill: 36px icon box + 1px border either side (CustomNode). */
-const PILL_HEIGHT = 38;
+const PILL_HEIGHT = COLLAPSED_PILL_HEIGHT;
 /** `.gm-tag-ring` band: 3px wide, hugging the outside of the card border. */
 const TAG_RING_WIDTH = 3;
 /** `.gm-selected-ring`: `outline: 2px solid` with `outline-offset: 2px`, i.e. a

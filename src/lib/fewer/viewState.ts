@@ -5,12 +5,13 @@
  * Every graph leaf can override global defaults (edge style, theme, showFiles,
  * minimap visibility). Resolved settings = leaf override ?? global value.
  */
-import type {
-  EdgeStyle,
-  EdgeStrokeStyle,
-  FewerEdge,
-  FewerNode,
-  LayoutDirection,
+import {
+  COLLAPSED_PILL_HEIGHT,
+  type EdgeStyle,
+  type EdgeStrokeStyle,
+  type FewerEdge,
+  type FewerNode,
+  type LayoutDirection,
 } from "./types";
 import { layoutGraphContour, type LayoutOptions } from "./layout";
 
@@ -112,6 +113,29 @@ export function needsLayoutDerivation(
   if (vs.direction !== undefined && vs.direction !== global.direction) return true;
   if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
+}
+
+// ── Collapsed-folder pill geometry ──
+
+/**
+ * Stamp the compact-pill height onto THIS leaf's copies of the folders it has
+ * collapsed. The shared store node keeps its expanded height, so collapsing a
+ * folder in one view can never squish the expanded card another view paints
+ * (nor the slot a global relayout reserves for it).
+ *
+ * Returns `nodes` by identity when the leaf collapses nothing.
+ */
+export function withCollapsedPillGeometry(
+  nodes: FewerNode[],
+  collapsedIds: string[],
+): FewerNode[] {
+  if (collapsedIds.length === 0) return nodes;
+  const collapsed = new Set(collapsedIds);
+  return nodes.map((n) =>
+    n.data.type === "folder" && collapsed.has(n.id)
+      ? { ...n, style: { ...n.style, height: COLLAPSED_PILL_HEIGHT } }
+      : n,
+  );
 }
 
 // ── View node resolution ──

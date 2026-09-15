@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { NodeChange } from "@xyflow/react";
 import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
@@ -12,6 +12,13 @@ interface NodeChangeHandlerDeps {
   boxSelectBaseRef: { current: Set<string> | null };
   /** When set, position changes route to per-view instead of shared store. */
   leafId?: string;
+  /**
+   * Folder ids THIS leaf paints as a compact pill (its own view state). Their
+   * measured height is a pill artifact, not a user-chosen size, so it must
+   * never be pinned into the shared node — that is what used to squish the
+   * expanded card every other view draws.
+   */
+  collapsedIds?: string[];
   /** Called before per-view position writes — CanvasInner seeds full map on first drag. */
   onBeforePositionCommit?: () => void;
 }
@@ -50,12 +57,14 @@ export function useCanvasNodeChangeHandler({
   recordResize,
   boxSelectBaseRef,
   leafId,
+  collapsedIds,
   onBeforePositionCommit,
 }: NodeChangeHandlerDeps) {
   void fitView; // reserved for parity with original signature; not used directly
 
   const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
   const resizeTimerRef = useRef<number | null>(null);
+  const collapsedSet = useMemo(() => new Set(collapsedIds ?? []), [collapsedIds]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<FewerNode>[]) => {
@@ -92,6 +101,11 @@ export function useCanvasNodeChangeHandler({
           nodes: s.nodes.map((n) => {
             const change = dimensionChanges.find((c) => c.id === n.id);
             if (change) {
+              // This leaf draws the folder as a compact pill (~38px). That is a
+              // rendering artifact of the pill, not a size the user picked, so
+              // keep it out of the shared node: pinning it would shrink the
+              // expanded card every other view draws (and the layout slot).
+              if (collapsedSet.has(n.id)) return n;
               // Record the pre-resize dimensions the first time we see this node resize.
               if (!resizeStartDimensions.current.has(n.id)) {
                 const prev = (n.style?.width as number) ?? (n.measured?.width as number) ?? 0;
@@ -124,7 +138,7 @@ export function useCanvasNodeChangeHandler({
         }, 300);
       }
     },
-            [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, onBeforePositionCommit],
+            [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedSet, onBeforePositionCommit],
   );
 
   return handleNodesChange;

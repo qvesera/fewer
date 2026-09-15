@@ -46,7 +46,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { resolveViewNodes } from "@/lib/fewer/viewState";
+import { resolveViewNodes, withCollapsedPillGeometry } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -382,6 +382,15 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
+  // This leaf's own copies: folders it has collapsed paint as a compact pill.
+  // Stamped before `resolveViewNodes` so the leaf's derived layout reserves a
+  // pill-sized slot, and never written back — the shared store node keeps its
+  // expanded height for every other view.
+  const viewNodes = useMemo(
+    () => withCollapsedPillGeometry(visibleNodes, vs.collapsedFolderIds),
+    [visibleNodes, vs.collapsedFolderIds],
+  );
+
   // ── Per-view positions: derive when direction overrides OR visible set diverges ──
   // Same predicate the Organize action uses (viewState.needsLayoutDerivation, via
   // resolveViewNodes) so a view never ends up half-organised — and the exporter
@@ -389,19 +398,19 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const positionedNodes = useMemo(
     () =>
       resolveViewNodes(
-        visibleNodes,
+        viewNodes,
         visibleEdges,
         leafId ? viewSettingsMap[leafId] : undefined,
         vs,
         { direction, hiddenIds, fileIds },
         { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
       ),
-    [visibleNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
+    [viewNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
   );
 
   const graphsExists = allNodes.length > 0;
 
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(visibleNodes);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(viewNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
 
   useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
@@ -465,7 +474,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   );
   const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, onBeforePositionCommit: seedOnFirstDrag });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 

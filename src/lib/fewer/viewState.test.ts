@@ -7,10 +7,11 @@ import {
   parseViewSettings,
   resolveViewNodes,
   resolveViewSettings,
+  withCollapsedPillGeometry,
   type ResolvedViewSettings,
   type ViewSettings,
 } from "./viewState";
-import type { FewerEdge, FewerNode } from "./types";
+import { COLLAPSED_PILL_HEIGHT, type FewerEdge, type FewerNode } from "./types";
 
 const GLOBAL: ResolvedViewSettings = {
   showFiles: true,
@@ -279,6 +280,37 @@ describe("needsLayoutDerivation", () => {
   test("hiding an id that is globally hidden already does not derive", () => {
     const withGlobal: { direction: "TB"; hiddenIds: string[] } = { direction: "TB", hiddenIds: ["a"] };
     expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, withGlobal, files)).toBe(false);
+  });
+});
+
+describe("withCollapsedPillGeometry", () => {
+  const node = (id: string, type: "folder" | "file", height: number): FewerNode =>
+    ({
+      id,
+      position: { x: 0, y: 0 },
+      data: { label: id, path: `/${id}`, type },
+      style: { width: 200, height },
+    }) as unknown as FewerNode;
+
+  test("leaf collapses nothing → same array identity", () => {
+    const nodes = [node("a", "folder", 240)];
+    expect(withCollapsedPillGeometry(nodes, [])).toBe(nodes);
+  });
+
+  test("only the collapsed folder takes the pill height; shared nodes stay untouched", () => {
+    const nodes = [node("a", "folder", 240), node("b", "folder", 240), node("c", "file", 58)];
+    const out = withCollapsedPillGeometry(nodes, ["a"]);
+    expect(out[0]!.style?.height).toBe(COLLAPSED_PILL_HEIGHT);
+    // A sibling folder in the SAME leaf keeps its expanded height…
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).toBe(nodes[2]);
+    // …and the shared node the leaf copied from is never mutated.
+    expect(nodes[0]!.style?.height).toBe(240);
+  });
+
+  test("a file id in the collapsed list is ignored", () => {
+    const nodes = [node("c", "file", 58)];
+    expect(withCollapsedPillGeometry(nodes, ["c"])[0]).toBe(nodes[0]);
   });
 });
 });
