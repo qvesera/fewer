@@ -100,6 +100,23 @@ test("LR layout places source anchor on the right edge", () => {
   expect(scene.svg).toContain('d="M 240,100');
 });
 
+test("edge anchors follow the view direction, not a card's stale layout stamp", () => {
+  // Cards were laid out TB (their stamps still say so) but the exported view
+  // overrides the direction to LR — the canvas puts handles on the view's sides,
+  // so the source must anchor on its right edge, not its bottom.
+  const nodes = [
+    makeNode("r", "root", { dir: "TB" }),
+    makeNode("c", "child", { dir: "TB", x: 300 }),
+  ];
+  const edges = [makeEdge("e0", "r", "c", "straight")];
+  const path = (svg: string) => (svg.match(/<path d="([^"]+)"/) ?? ["", ""])[1];
+
+  // Fallback (no view direction given): the stamp wins, as before.
+  expect(path(buildGraphSVG(nodes, edges, opts()).svg)).toContain("M 120,200");
+  // View direction wins over the stamp.
+  expect(path(buildGraphSVG(nodes, edges, opts({ direction: "LR" })).svg)).toContain("M 240,100");
+});
+
 test("file card text is aligned to the icon box and vertically centered", () => {
   const file = makeNode("f", "index.ts", { type: "file", category: "code" });
   file.measured = { width: 240, height: 36 };

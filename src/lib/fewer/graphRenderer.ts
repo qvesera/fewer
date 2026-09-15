@@ -1,4 +1,9 @@
-import type { FewerNode, FewerEdge, FileCategory } from "./types";
+import type {
+  FewerNode,
+  FewerEdge,
+  FileCategory,
+  LayoutDirection,
+} from "./types";
 import {
   getBezierPath,
   getSmoothStepPath,
@@ -58,6 +63,14 @@ export interface GraphRenderOptions {
   collapsedIds?: Set<string>;
   /** Tag registry, so exported rings/dots use the same colors as the canvas. */
   tags?: Tag[];
+  /**
+   * The layout direction the exported view uses. The canvas places handles from
+   * the VIEW's direction (GraphViewContext), not from each card's
+   * `data.layoutDirection` stamp, so edges must anchor the same way — otherwise
+   * a view that only overrides the direction draws lines out of the wrong sides
+   * of correctly-placed cards. Falls back to the per-node stamp when omitted.
+   */
+  direction?: LayoutDirection;
 }
 
 export interface GraphScene {
@@ -251,7 +264,7 @@ function renderEdge(
   dstSize: { w: number; h: number },
   o: GraphRenderOptions,
 ): string {
-  const dir = dirOf(src);
+  const dir = o.direction ?? dirOf(src);
   const sa = anchor(dir, srcSize.w, srcSize.h, true);
   const sxa = src.position.x + sa.x;
   const sya = src.position.y + sa.y;

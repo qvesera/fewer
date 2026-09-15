@@ -217,12 +217,22 @@ export function ExportPanel() {
           { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
         )
       : visibleAll;
-    const posById = new Map(positioned.map((n) => [n.id, n.position]));
+    const viewById = new Map(positioned.map((n) => [n.id, n]));
     // Keep the scope-filtered list whole (hidden children still show as folder
-    // rows) but move every visible card onto the position the view paints it at.
+    // rows) but take the position AND the layout stamp the view paints, so edge
+    // geometry never reads a stale `layoutDirection` from the shared layout.
     const imageNodes = exportNodes.map((n) => {
-      const p = posById.get(n.id);
-      return p ? { ...n, position: p } : n;
+      const v = viewById.get(n.id);
+      if (!v) return n;
+      return {
+        ...n,
+        position: v.position,
+        data: {
+          ...n.data,
+          layoutDirection: v.data.layoutDirection,
+          isHorizontal: v.data.isHorizontal,
+        },
+      };
     });
     // Per-view edge style/width/stroke come from the resolved settings, exactly
     // as the canvas applies them to its own edges.
@@ -270,6 +280,8 @@ export function ExportPanel() {
           cornerRadius,
           collapsedIds: imageGraph.collapsedIds,
           tags,
+          // Canvas handles follow the view's direction; edges must too.
+          direction: resolved?.direction ?? direction,
         },
       );
     }

@@ -3,6 +3,7 @@ import type {
   FewerEdge,
   ExportSettings,
   DirectoryStats,
+  LayoutDirection,
 } from "./types";
 import {
   buildGraphSVG,
@@ -54,6 +55,8 @@ export interface ImageExportOptions {
   collapsedIds?: Set<string>;
   /** Tag registry — exported rings/dots use the same colors as the canvas. */
   tags?: Tag[];
+  /** Layout direction of the active view — edges anchor to it, as on canvas. */
+  direction?: LayoutDirection;
 }
 
 /** Fold the shared image options into the renderer's option bag. */
@@ -75,6 +78,7 @@ function imageRenderOptions(
     dashOffset: readDashOffset(),
     collapsedIds: opts.collapsedIds?.size ? opts.collapsedIds : undefined,
     tags: opts.tags,
+    direction: opts.direction,
   };
 }
 
