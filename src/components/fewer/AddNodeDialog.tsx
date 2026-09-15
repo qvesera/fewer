@@ -90,14 +90,16 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     if (mode === "parent") {
       const targetId = selectedNodeIds[0] ?? null;
       if (!targetId) return false;
-      // The new folder becomes a sibling of the target node (child of its
-      // current parent, or a root-level node if the target is unparented).
+      // The new folder takes over the target's slot (child of its current
+      // parent, or root-level if the target is unparented). The target itself
+      // is excluded — it moves under the new folder, so naming the parent after
+      // the target is legal; only other cards in this scope can collide.
       const parentEdge = edges.find((e) => e.target === targetId);
       const siblingNodeIds = parentEdge
         ? edges.filter((e) => e.source === parentEdge.source).map((e) => e.target)
         : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
       return nodes.some((n) => {
-        if (!siblingNodeIds.includes(n.id)) return false;
+        if (n.id === targetId || !siblingNodeIds.includes(n.id)) return false;
         const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
         return nFull.toLowerCase() === inputFullName;
       });

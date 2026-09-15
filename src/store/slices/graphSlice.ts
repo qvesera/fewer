@@ -307,8 +307,8 @@ export type GraphSliceCreator = StateCreator<
     removeEdgesFromHandle: (nodeId: string, handleType: "source" | "target") => void;
     /** Batch-rename selected nodes via a label transform. One history entry. Returns renamed count. */
     renameNodes: (ids: string[], transform: (node: FewerNode, index: number) => string | null) => number;
-    /** Detach the top-most selected roots from their parents. One history entry. */
-    unparentNodes: (ids: string[]) => void;
+    /** Detach the top-most selected roots from their parents. One history entry. Returns how many cards were detached (0 = no-op, no history entry). */
+    unparentNodes: (ids: string[]) => number;
     /** Move the top-most selected roots under a target folder (reparent). One history entry. */
     parentNodesTo: (ids: string[], parentId: string) => { moved: number; reason?: string };
     deleteEdges: (ids: string[]) => void;
@@ -928,10 +928,13 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const oldEdge = edges.find((e) => e.target === nodeId);
     const oldParent = oldEdge ? nodes.find((n) => n.id === oldEdge.source) : null;
     // Duplicate check in the same sibling scope the node already lives in.
+    // The target itself is excluded: wrapping it in the new folder moves it out
+    // of this scope, so a parent named after the target (e.g. self-referential
+    // "docs/docs") is legal — only collisions with *other* cards here block it.
     const siblingIds = oldParent ? edges.filter((e) => e.source === oldParent.id).map((e) => e.target) : null;
     const siblingFullNames = siblingIds
-      ? new Set(nodes.filter((n) => siblingIds.includes(n.id)).map(fullName))
-      : new Set(nodes.filter((n) => !edges.some((e) => e.target === n.id)).map(fullName));
+      ? new Set(nodes.filter((n) => n.id !== nodeId && siblingIds.includes(n.id)).map(fullName))
+      : new Set(nodes.filter((n) => n.id !== nodeId && !edges.some((e) => e.target === n.id)).map(fullName));
     if (siblingFullNames.has(trimmed)) return { ok: false, reason: `A node named "${trimmed}" already exists here.` };
     const newPath = oldParent ? `${oldParent.data.path}/${trimmed}` : trimmed;
     const edgeType = edgeTypeFromStyle(get().edgeStyle);
@@ -1118,12 +1121,15 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       return true;
     });
     const removedEdges = edges.filter((e) => roots.includes(e.target));
-    if (removedEdges.length === 0) return;
+    // Nothing to detach (every selected root is already root-level) — no-op, and
+    // no history entry, so callers must not claim success either.
+    if (removedEdges.length === 0) return 0;
     const removedKey = new Set(removedEdges.map((e) => e.id));
     const filteredEdges = edges.filter((e) => !removedKey.has(e.id));
     const { nodes: nextNodes, pathChanges } = unparentSubtree(nodes, filteredEdges, removedEdges);
     get().pushOp({ type: "remove-edges", edges: removedEdges, pathChanges });
     set({ nodes: applySearchHighlight(nextNodes, searchQuery, get().categoryFilter), edges: filteredEdges, graphVersion: get().graphVersion + 1 });
+    return removedEdges.length;
   },
 
   parentNodesTo: (ids, parentId) => {

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import type { NodeChange } from "@xyflow/react";
 import type { FewerNode } from "@/lib/fewer/types";
+import { isResizeGestureFor, nodeDims, pendingResizeOps, type Dims } from "@/lib/fewer/resizeGesture";
 import { useGraphStore } from "@/store/graphStore";
 
 interface NodeChangeHandlerDeps {
@@ -48,8 +49,14 @@ export function flipBoxSelectDeselects(
  *     the gesture settles (300ms debounce). Layout is NEVER recomputed here —
  *     re-layout only runs when the user clicks Organize Graph.
  *
- * Private refs (`hasMeasuredRef`, `resizeStartDimensions`, `resizeTimerRef`)
- * are owned here so the handler has no external state coupling.
+ * Only dimensions captured while a NodeResizer gesture is live ever become
+ * history ops (`resizeGesture.ts`). React Flow also re-measures on CONTENT
+ * change — renaming to a longer label wraps the card — and recording those as
+ * resizes pushed phantom `resize` entries that the next undo consumed, and the
+ * redo after that replayed as `height: 0`, hiding the renamed card.
+ *
+ * Private refs (`resizeStartDimensions`, `resizeTimerRef`) are owned here so
+ * the handler has no external state coupling.
  */
 export function useCanvasNodeChangeHandler({
   onNodesChange,
@@ -62,7 +69,7 @@ export function useCanvasNodeChangeHandler({
 }: NodeChangeHandlerDeps) {
   void fitView; // reserved for parity with original signature; not used directly
 
-  const resizeStartDimensions = useRef<Map<string, { w: number; h: number }>>(new Map());
+  const resizeStartDimensions = useRef<Map<string, Dims>>(new Map());
   const resizeTimerRef = useRef<number | null>(null);
   const collapsedSet = useMemo(() => new Set(collapsedIds ?? []), [collapsedIds]);
 
@@ -106,11 +113,11 @@ export function useCanvasNodeChangeHandler({
               // keep it out of the shared node: pinning it would shrink the
               // expanded card every other view draws (and the layout slot).
               if (collapsedSet.has(n.id)) return n;
-              // Record the pre-resize dimensions the first time we see this node resize.
-              if (!resizeStartDimensions.current.has(n.id)) {
-                const prev = (n.style?.width as number) ?? (n.measured?.width as number) ?? 0;
-                const prevH = (n.style?.height as number) ?? (n.measured?.height as number) ?? 0;
-                resizeStartDimensions.current.set(n.id, { w: prev, h: prevH });
+              // Record the pre-resize dimensions the first time we see this node
+              // resize — but only for a real gesture. A re-measure must not be
+              // captured, or the debounce below turns it into a phantom op.
+              if (isResizeGestureFor(n.id) && !resizeStartDimensions.current.has(n.id)) {
+                resizeStartDimensions.current.set(n.id, nodeDims(n));
               }
               return {
                 ...n,
@@ -122,20 +129,17 @@ export function useCanvasNodeChangeHandler({
           }),
         }));
 
-        // Commit a resize op once the resize gesture settles (debounced).
-        if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
-        resizeTimerRef.current = window.setTimeout(() => {
-          const store = useGraphStore.getState();
-          const changes: { nodeId: string; from: { w: number; h: number }; to: { w: number; h: number } }[] = [];
-          for (const [id, from] of resizeStartDimensions.current) {
-            const node = store.nodes.find((n) => n.id === id);
-            if (!node) continue;
-            const to = { w: (node.style?.width as number) ?? 0, h: (node.style?.height as number) ?? 0 };
-            if (from.w !== to.w || from.h !== to.h) changes.push({ nodeId: id, from, to });
-          }
-          if (changes.length > 0) recordResize(changes);
-          resizeStartDimensions.current.clear();
-        }, 300);
+        // Commit a resize op once the gesture settles (debounced). Nothing
+        // captured → no gesture → nothing to commit (skips the timer entirely
+        // for the re-measures that a rename / relabel produces).
+        if (resizeStartDimensions.current.size > 0) {
+          if (resizeTimerRef.current) window.clearTimeout(resizeTimerRef.current);
+          resizeTimerRef.current = window.setTimeout(() => {
+            const ops = pendingResizeOps(useGraphStore.getState().nodes, resizeStartDimensions.current);
+            if (ops.length > 0) recordResize(ops);
+            resizeStartDimensions.current.clear();
+          }, 300);
+        }
       }
     },
             [onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedSet, onBeforePositionCommit],

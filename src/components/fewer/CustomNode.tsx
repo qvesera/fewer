@@ -43,6 +43,7 @@ import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShort
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
+import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -1250,6 +1251,11 @@ if (isCollapsed) {
             minHeight={120}
             isVisible={!!selected}
             shouldResize={() => true}
+            /* Arm/disarm the resize recorder: React Flow re-measures a card on
+               any content change (a rename wraps the label), and only a real
+               handle drag may be recorded as an undoable resize. */
+            onResizeStart={() => beginResizeGesture(id)}
+            onResizeEnd={() => endResizeGesture()}
             /* Line stays draggable but invisible — the themed select ring is
                the single visible ring on a selected folder card. */
             lineClassName="!border-transparent"

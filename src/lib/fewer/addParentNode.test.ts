@@ -104,6 +104,48 @@ test("addParentNode rejects duplicate sibling names", () => {
   expect(edges.length).toBe(0);
 });
 
+test("addParentNode allows a parent named after the target when the target is a root", () => {
+  // Wrapping the root moves it out of the root scope, so "docs/docs" is legal.
+  seed([makeFolder("root", "docs", "/docs")], []);
+
+  const res = useGraphStore.getState().addParentNode("root", "docs");
+  expect(res.ok).toBe(true);
+
+  const { nodes, edges } = useGraphStore.getState();
+  expect(nodes.length).toBe(2);
+  expect(nodes.find((n) => n.id === res.id)!.data.path).toBe("docs");
+  expect(nodes.find((n) => n.id === res.id)!.data.isRoot).toBe(true);
+  expect(nodes.find((n) => n.id === "root")!.data.path).toBe("docs/docs");
+  expect(edges.some((e) => e.source === res.id && e.target === "root")).toBe(true);
+});
+
+test("addParentNode allows a parent named after the target when the target has a parent", () => {
+  const root = makeFolder("root", "root", "/root", { isRoot: true });
+  const a = makeFolder("a", "mid", "/root/mid", { isRoot: false, depth: 1 });
+  seed([root, a], [makeEdge("e1", "root", "a")]);
+
+  const res = useGraphStore.getState().addParentNode("a", "mid");
+  expect(res.ok).toBe(true);
+
+  const { nodes, edges } = useGraphStore.getState();
+  expect(nodes.find((n) => n.id === res.id)!.data.path).toBe("/root/mid");
+  expect(nodes.find((n) => n.id === "a")!.data.path).toBe("/root/mid/mid");
+  expect(edges.some((e) => e.source === "root" && e.target === res.id)).toBe(true);
+  expect(edges.some((e) => e.source === res.id && e.target === "a")).toBe(true);
+});
+
+test("addParentNode still rejects a name taken by a genuine sibling", () => {
+  const root = makeFolder("root", "root", "/root", { isRoot: true });
+  const a = makeFolder("a", "a", "/root/a", { isRoot: false, depth: 1 });
+  const b = makeFolder("b", "b", "/root/b", { isRoot: false, depth: 1 });
+  seed([root, a, b], [makeEdge("e1", "root", "a"), makeEdge("e2", "root", "b")]);
+
+  const res = useGraphStore.getState().addParentNode("a", "b");
+  expect(res.ok).toBe(false);
+
+  expect(useGraphStore.getState().nodes.length).toBe(3);
+});
+
 test("addParentNode rejects a missing node", () => {
   seed([makeFolder("x", "x", "/x")], []);
 
