@@ -46,8 +46,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { layoutGraphContour } from "@/lib/fewer/layout";
-import { needsLayoutDerivation } from "@/lib/fewer/viewState";
+import { resolveViewNodes } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -384,29 +383,21 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
   // ── Per-view positions: derive when direction overrides OR visible set diverges ──
-  // Same predicate the Organize action uses (viewState.needsLayoutDerivation), so
-  // a view never ends up half-organised.
-  const needsDerivation = needsLayoutDerivation(leafId ? viewSettingsMap[leafId] : undefined, { direction, hiddenIds }, fileIds);
-  const positionedNodes = useMemo(() => {
-    // 1. Explicit per-view positions (set by drag) take priority
-    if (vs.positions) {
-      return visibleNodes.map((n) => vs.positions![n.id] ? { ...n, position: vs.positions![n.id] } : n);
-    }
-    // 2. Direction override OR diverged visible set: derive from layout engine.
-    // Layout policy is global (Crown Shyness intensity, sibling sort), so the
-    // derived per-view layout must receive it too — without these options the
-    // engine falls back to its own defaults and the Settings sliders look inert.
-    if (needsDerivation) {
-      return layoutGraphContour(visibleNodes, visibleEdges, vs.direction, {
-        shynessScale,
-        sortKey,
-        sortDir,
-        tagLabelById: makeTagLabelLookup(tags),
-      });
-    }
-    // 3. No override, shared visible set: use shared (store) positions
-    return visibleNodes;
-  }, [vs.positions, vs.direction, needsDerivation, visibleNodes, visibleEdges, vs.collapsedFolderIds, shynessScale, sortKey, sortDir, tags]);
+  // Same predicate the Organize action uses (viewState.needsLayoutDerivation, via
+  // resolveViewNodes) so a view never ends up half-organised — and the exporter
+  // runs the identical resolution, so an image export mirrors the active view.
+  const positionedNodes = useMemo(
+    () =>
+      resolveViewNodes(
+        visibleNodes,
+        visibleEdges,
+        leafId ? viewSettingsMap[leafId] : undefined,
+        vs,
+        { direction, hiddenIds, fileIds },
+        { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
+      ),
+    [visibleNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
+  );
 
   const graphsExists = allNodes.length > 0;
 

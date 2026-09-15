@@ -251,6 +251,8 @@ docker run -p 3000:3000 fewer
 
 Toggle **Export Selected** to export only the selected subtree.
 
+Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and edge style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
+
 ---
 
 ## Docs & Blog

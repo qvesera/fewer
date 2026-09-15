@@ -2,6 +2,7 @@ import { test, expect } from "bun:test";
 import { buildGraphSVG, truncateToWidth, estimateTextWidth } from "./graphRenderer";
 import type { FewerNode, FewerEdge } from "./types";
 import type { RenderPalette, GraphRenderOptions } from "./graphRenderer";
+import type { Tag } from "./tags";
 
 const palette: RenderPalette = {
   background: "#0b0b13",
@@ -128,6 +129,62 @@ test("hidden nodes are excluded from the scene, kept as folder rows", () => {
   // row inside folder "a" (mirroring how the canvas shows hidden children).
   expect(scene.svg).not.toContain(">/bbb<");
   expect(scene.svg).toContain(">ama<");
+  // ...and that row is faded, exactly like CustomNode desaturates hidden entries.
+  expect(scene.svg).toContain('opacity="0.4"');
+});
+
+test("collapsed folder renders the one-line pill, not a card", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "kid", { type: "file", x: 300, w: 220 })];
+  const edges = [makeEdge("e0", "r", "c")];
+
+  const expanded = buildGraphSVG(nodes, edges, opts());
+  expect(expanded.svg).toContain('y="76"'); // first child-list row (HEADER 52 + 6 + 18)
+  expect(expanded.svg).toContain('rx="16"'); // full folder card radius
+  expect(expanded.height).toBe(200 + 80); // folder height + scene padding
+
+  const collapsed = buildGraphSVG(nodes, edges, opts({ collapsedIds: new Set(["r"]) }));
+  // Pill: label + item count remain, the child list (and its rows) is gone.
+  expect(collapsed.svg).toContain(">root<");
+  expect(collapsed.svg).toContain(">1 item<");
+  expect(collapsed.svg).not.toContain('y="76"');
+  expect(collapsed.svg).toContain('rx="12"'); // pill corner radius, not the card's
+  // The pill's own height drives the scene box, so it shrinks: the 58px file card
+  // now sets the bottom edge instead of the folder's 200px card.
+  expect(collapsed.height).toBe(58 + 80);
+  expect(collapsed.height).toBeLessThan(expanded.height);
+});
+
+test("tag ring and dots use the registry colors; selection hides the ring", () => {
+  const tags: Tag[] = [
+    { id: "t1", label: "One", color: "#f87171" },
+    { id: "t2", label: "Two", color: "#38bdf8" },
+  ];
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  file.data.tagIds = ["t1", "t2"];
+
+  const scene = buildGraphSVG([file], [], opts({ tags }));
+  // Two ring bands (dashed strokes) …
+  expect(scene.svg.match(/stroke-dasharray/g)?.length).toBe(2);
+  expect(scene.svg).toContain('stroke="#f87171"');
+  expect(scene.svg).toContain('stroke="#38bdf8"');
+  // … plus one dot per tag (ring stroke + dot fill each carry the color).
+  expect(scene.svg.match(/#f87171/g)?.length).toBe(2);
+
+  // No registry → no ring and no dots (nothing to resolve colors from).
+  expect(buildGraphSVG([file], [], opts()).svg).not.toContain("#f87171");
+
+  // Selected cards hide the ring on the canvas (the selection ring wins), so the
+  // export must not paint one either.
+  const selected = buildGraphSVG([file], [], opts({ tags, selectedIds: new Set(["f"]) }));
+  expect(selected.svg).not.toContain("stroke-dasharray");
+  expect(selected.svg).toContain('fill="#f87171"'); // the dot remains
+
+  // A single tag is a solid band, not a split one.
+  file.data.tagIds = ["t1"];
+  const single = buildGraphSVG([file], [], opts({ tags }));
+  expect(single.svg).not.toContain("stroke-dasharray");
+  expect(single.svg.match(/#f87171/g)?.length).toBe(2); // ring + dot
 });
 
 test("label truncation is width-aware so long names never spill past the card", () => {

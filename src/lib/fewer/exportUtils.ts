@@ -9,7 +9,9 @@ import {
   readThemePalette,
   readBodyFont,
   readDashOffset,
+  type GraphRenderOptions,
 } from "./graphRenderer";
+import type { Tag } from "./tags";
 import { FEWER_CREDIT } from "./branding";
   
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
@@ -38,7 +40,8 @@ function timestamp(): string {
 
 /**
  * Extra image-export options passed from the ExportPanel so the renderer can
- * mirror the live canvas (selection, hidden nodes, edge + node settings).
+ * mirror the live canvas (hidden nodes, per-view positions, collapsed folders,
+ * tags, edge + node settings).
  */
 export interface ImageExportOptions {
   selectedIds?: string[];
@@ -47,6 +50,32 @@ export interface ImageExportOptions {
   nodeHeight?: number;
   edgeWidth?: number;
   cornerRadius?: number;
+  /** Folder ids the active view renders as a collapsed pill. */
+  collapsedIds?: Set<string>;
+  /** Tag registry — exported rings/dots use the same colors as the canvas. */
+  tags?: Tag[];
+}
+
+/** Fold the shared image options into the renderer's option bag. */
+function imageRenderOptions(
+  settings: ExportSettings,
+  opts: ImageExportOptions,
+): GraphRenderOptions {
+  return {
+    palette: readThemePalette(),
+    fontFamily: readBodyFont(),
+    selectedIds: new Set(opts.selectedIds ?? []),
+    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
+    transparentBackground: settings.transparentBackground,
+    includeBranding: settings.includeBranding,
+    nodeWidth: opts.nodeWidth,
+    nodeHeight: opts.nodeHeight,
+    defaultEdgeWidth: opts.edgeWidth,
+    cornerRadius: opts.cornerRadius,
+    dashOffset: readDashOffset(),
+    collapsedIds: opts.collapsedIds?.size ? opts.collapsedIds : undefined,
+    tags: opts.tags,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -60,19 +89,7 @@ export function exportSVG(
   opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const { svg, width } = buildGraphSVG(nodes, edges, {
-    palette: readThemePalette(),
-    fontFamily: readBodyFont(),
-    selectedIds: new Set(opts.selectedIds ?? []),
-    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
-    transparentBackground: settings.transparentBackground,
-    includeBranding: settings.includeBranding,
-    nodeWidth: opts.nodeWidth,
-    nodeHeight: opts.nodeHeight,
-    defaultEdgeWidth: opts.edgeWidth,
-    cornerRadius: opts.cornerRadius,
-    dashOffset: readDashOffset(),
-  });
+  const { svg, width } = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
   if (width === 0) return;
   downloadBlob(svg, `fewer-${timestamp()}.svg`, "image/svg+xml");
 }
@@ -88,19 +105,7 @@ export function exportPNG(
   opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const scene = buildGraphSVG(nodes, edges, {
-    palette: readThemePalette(),
-    fontFamily: readBodyFont(),
-    selectedIds: new Set(opts.selectedIds ?? []),
-    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
-    transparentBackground: settings.transparentBackground,
-    includeBranding: settings.includeBranding,
-    nodeWidth: opts.nodeWidth,
-    nodeHeight: opts.nodeHeight,
-    defaultEdgeWidth: opts.edgeWidth,
-    cornerRadius: opts.cornerRadius,
-    dashOffset: readDashOffset(),
-  });
+  const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
   if (scene.width === 0 || scene.height === 0) return;
 
   const scale = Math.max(1, settings.quality / 50);

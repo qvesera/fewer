@@ -40,6 +40,11 @@ import {
 import { useGraphStore } from "@/store/graphStore";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
+import {
+  filterVisibleEdges,
+  filterVisibleNodes,
+} from "@/hooks/use-canvas-visible-graph";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
   exportDirectoryScript,
@@ -47,6 +52,9 @@ import {
 } from "@/lib/fewer/scriptExport";
 import { computeStats } from "@/lib/fewer/stats";
 import { getDescendants } from "@/lib/fewer/validation";
+import { resolveViewNodes } from "@/lib/fewer/viewState";
+import { makeTagLabelLookup } from "@/lib/fewer/tags";
+import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
@@ -101,6 +109,14 @@ export function ExportPanel() {
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const edgeWidth = useGraphStore((s) => s.edgeWidth);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
+  const edgeStyle = useGraphStore((s) => s.edgeStyle);
+  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
+  const direction = useGraphStore((s) => s.direction);
+  const shynessScale = useGraphStore((s) => s.shynessScale);
+  const sortKey = useGraphStore((s) => s.sortKey);
+  const sortDir = useGraphStore((s) => s.sortDir);
+  const tags = useGraphStore((s) => s.tags);
+  const viewSettings = useGraphStore((s) => s.viewSettings);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -164,6 +180,71 @@ export function ExportPanel() {
     return { exportNodes: subNodes, exportEdges: subEdges };
   }, [exportSelected, selectedNodeIds, nodes, edges, singleFileSelected]);
 
+  // ── Image export mirrors the ACTIVE leaf's resolved view ──
+  // A canvas paints a per-view graph: view hidden layers, per-view card
+  // positions or its own derived layout, collapsed folders, tag rings, per-view
+  // edge style. Reusing the canvas's own resolver (resolveViewNodes) keeps the
+  // two in lockstep. The active-leaf indicator is a DOM overlay inside the leaf
+  // header, never part of the scene builder — exports stay clean by design.
+  const activeLeaf = useActiveLeaf();
+  const resolved = activeLeaf?.resolved;
+  // Raw per-view settings — the derivation predicate reads which keys are set.
+  const rawViewSettings = activeLeaf ? viewSettings[activeLeaf.leafId] : undefined;
+  const fileIds = useMemo(
+    () => nodes.filter((n) => n.data.type === "file").map((n) => n.id),
+    [nodes],
+  );
+  const viewHiddenIds = resolved?.hiddenIds ?? hiddenIds;
+  const viewHiddenSet = useMemo(() => new Set(viewHiddenIds), [viewHiddenIds]);
+
+  const imageGraph = useMemo(() => {
+    if (!isImageFormat) {
+      return {
+        nodes: exportNodes,
+        edges: exportEdges,
+        collapsedIds: undefined as Set<string> | undefined,
+      };
+    }
+    const visibleAll = filterVisibleNodes(nodes, viewHiddenIds);
+    const visibleEdgesAll = filterVisibleEdges(edges, viewHiddenIds);
+    const positioned = resolved
+      ? resolveViewNodes(
+          visibleAll,
+          visibleEdgesAll,
+          rawViewSettings,
+          resolved,
+          { direction, hiddenIds, fileIds },
+          { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
+        )
+      : visibleAll;
+    const posById = new Map(positioned.map((n) => [n.id, n.position]));
+    // Keep the scope-filtered list whole (hidden children still show as folder
+    // rows) but move every visible card onto the position the view paints it at.
+    const imageNodes = exportNodes.map((n) => {
+      const p = posById.get(n.id);
+      return p ? { ...n, position: p } : n;
+    });
+    // Per-view edge style/width/stroke come from the resolved settings, exactly
+    // as the canvas applies them to its own edges.
+    const viewEdgeType = edgeTypeFromStyle(resolved?.edgeStyle ?? edgeStyle);
+    const viewDash = edgeDashPattern(resolved?.edgeStrokeStyle ?? edgeStrokeStyle);
+    const viewEdgeWidth = resolved?.edgeWidth ?? edgeWidth;
+    const imageEdges = exportEdges.map((e) => ({
+      ...e,
+      type: viewEdgeType,
+      style: { ...e.style, strokeWidth: viewEdgeWidth, strokeDasharray: viewDash },
+    }));
+    const collapsedIds = new Set<string>([
+      ...(resolved?.collapsedFolderIds ?? []),
+      ...nodes.filter((n) => n.data.collapsed).map((n) => n.id),
+    ]);
+    return { nodes: imageNodes, edges: imageEdges, collapsedIds };
+  }, [
+    isImageFormat, exportNodes, exportEdges, nodes, edges, viewHiddenIds, resolved,
+    rawViewSettings, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir,
+    tags, edgeStyle, edgeStrokeStyle, edgeWidth,
+  ]);
+
   const handleExport = () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
@@ -174,14 +255,23 @@ export function ExportPanel() {
       exportDirectoryTree(nodesToExport, edgesToExport, includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, { ...settings, includeBranding }, stats, {
-        selectedIds: selectedNodeIds,
-        hiddenIds,
-        nodeWidth,
-        nodeHeight,
-        edgeWidth,
-        cornerRadius,
-      });
+      // Images export the active view's graph; data formats export the raw graph.
+      exportGraph(
+        isImageFormat ? imageGraph.nodes : nodesToExport,
+        isImageFormat ? imageGraph.edges : edgesToExport,
+        { ...settings, includeBranding },
+        stats,
+        {
+          selectedIds: selectedNodeIds,
+          hiddenIds: viewHiddenIds,
+          nodeWidth,
+          nodeHeight,
+          edgeWidth: resolved?.edgeWidth ?? edgeWidth,
+          cornerRadius,
+          collapsedIds: imageGraph.collapsedIds,
+          tags,
+        },
+      );
     }
     setOpen(false);
     toast({
@@ -193,13 +283,12 @@ export function ExportPanel() {
   const isRaster = settings.format === "png";
   const canExportSelected = selectedNodeIds.length > 0 && !singleFileSelected;
 
-  // SVG/PNG render only the non-hidden subset of the export selection (hidden
-  // nodes are filtered out by buildGraphSVG). If every exportable node is
-  // hidden the image would be blank, so block those two formats.
-  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  // SVG/PNG render only the non-hidden subset of the export selection (the
+  // active view's hidden set), so if every exportable node is hidden the image
+  // would be blank — block those two formats.
   const imageExportableCount = useMemo(
-    () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
-    [exportNodes, hiddenSet],
+    () => exportNodes.filter((n) => !viewHiddenSet.has(n.id)).length,
+    [exportNodes, viewHiddenSet],
   );
   const imageBlocked = isImageFormat && imageExportableCount === 0;
 
