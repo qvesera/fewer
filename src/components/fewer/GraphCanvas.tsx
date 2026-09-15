@@ -47,6 +47,7 @@ import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
 import { layoutGraphContour } from "@/lib/fewer/layout";
+import { needsLayoutDerivation } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -298,12 +299,7 @@ function renderCanvasContextMenu(
         <div className="my-1 h-px bg-border/40" />
         <button onClick={() => { selectAll(); close(); }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]">Select All</button>
         <button onClick={() => {
-          const store = useGraphStore.getState();
-          if (leafId && Object.keys(store.viewSettings[leafId] ?? {}).length > 0) {
-            store.clearViewPositions(leafId);
-          } else {
-            store.relayout();
-          }
+          useGraphStore.getState().organize(leafId ?? null);
           toast({ title: "Graph organized" });
           close();
         }} className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]">Organize</button>
@@ -353,7 +349,6 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
   const graphVersion = useGraphStore((s) => s.graphVersion);
-  const relayout = useGraphStore((s) => s.relayout);
 
   // Per-view scope
   const isActive = leafId ? leafId === activeLeafId : true;
@@ -389,9 +384,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
   // ── Per-view positions: derive when direction overrides OR visible set diverges ──
-  const hasDirectionOverride = vs.direction !== direction;
-  const visibleSetDiverges = effectiveHiddenIds.length !== hiddenIds.length;
-  const needsDerivation = hasDirectionOverride || visibleSetDiverges || vs.collapsedFolderIds.length > 0;
+  // Same predicate the Organize action uses (viewState.needsLayoutDerivation), so
+  // a view never ends up half-organised.
+  const needsDerivation = needsLayoutDerivation(leafId ? viewSettingsMap[leafId] : undefined, { direction, hiddenIds }, fileIds);
   const positionedNodes = useMemo(() => {
     // 1. Explicit per-view positions (set by drag) take priority
     if (vs.positions) {

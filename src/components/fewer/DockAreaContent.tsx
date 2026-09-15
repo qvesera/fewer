@@ -98,7 +98,6 @@ function LayoutSection() {
   const updateViewSettings = useGraphStore((s) => s.updateViewSettings);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const directionGlobal = useGraphStore((s) => s.direction);
-  const relayout = useGraphStore((s) => s.relayout);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
 
   const showFiles = activeLeaf?.resolved.showFiles ?? true;
@@ -115,12 +114,7 @@ function LayoutSection() {
         size="sm"
         className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
         onClick={() => {
-          const store = useGraphStore.getState();
-          if (activeLeaf && Object.keys(store.viewSettings[activeLeaf.leafId] ?? {}).length > 0) {
-            store.clearViewPositions(activeLeaf.leafId);
-          } else {
-            relayout();
-          }
+          useGraphStore.getState().organize(activeLeaf?.leafId ?? null);
         }}
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />

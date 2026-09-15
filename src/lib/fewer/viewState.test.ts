@@ -3,6 +3,7 @@ import {
   computeEffectiveHidden,
   emptyHideLayers,
   mergeViewSettings,
+  needsLayoutDerivation,
   parseViewSettings,
   resolveViewSettings,
   type ResolvedViewSettings,
@@ -159,4 +160,40 @@ describe("mergeViewSettings — v1/v2 → v3 migration", () => {
     expect(out.l1!.minimapHidden).toBe(true);
     expect(out.l3!.minimapHidden).toBe(true);
   });
+describe("needsLayoutDerivation", () => {
+  const global = { direction: "TB" as const, hiddenIds: [] as string[] };
+  const files = ["f1", "f2"];
+
+  test("no view settings → shared layout", () => {
+    expect(needsLayoutDerivation(undefined, global, files)).toBe(false);
+    expect(needsLayoutDerivation({}, global, files)).toBe(false);
+  });
+
+  test("per-view card positions alone are not a derivation", () => {
+    expect(needsLayoutDerivation({ positions: { n1: { x: 1, y: 2 } } }, global, files)).toBe(false);
+  });
+
+  test("a direction that differs from the global one derives", () => {
+    expect(needsLayoutDerivation({ direction: "LR" }, global, files)).toBe(true);
+    // Explicitly re-declaring the global direction is not a divergence.
+    expect(needsLayoutDerivation({ direction: "TB" }, global, files)).toBe(false);
+  });
+
+  test("collapsed folders derive", () => {
+    expect(needsLayoutDerivation({ collapsedFolderIds: ["a"] }, global, files)).toBe(true);
+    expect(needsLayoutDerivation({ collapsedFolderIds: [] }, global, files)).toBe(false);
+  });
+
+  test("hide layers only derive when they actually change the visible set", () => {
+    expect(needsLayoutDerivation({ hideLayers: emptyHideLayers() }, global, files)).toBe(false);
+    expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, global, files)).toBe(true);
+    expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), filesBulkActive: true } }, global, files)).toBe(true);
+    expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), subtrees: { a: [] } } }, global, files)).toBe(false);
+  });
+
+  test("hiding an id that is globally hidden already does not derive", () => {
+    const withGlobal: { direction: "TB"; hiddenIds: string[] } = { direction: "TB", hiddenIds: ["a"] };
+    expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, withGlobal, files)).toBe(false);
+  });
+});
 });
