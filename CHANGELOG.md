@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep folder collapse per-view: collapsing a folder in one split view no longer squishes the expanded card in the other views
 - Batch "Unparent" no longer reports success when it detached nothing (a selection of a card plus its own descendants) — the toast is now driven by the detached count, and Alt+Shift+P shares the same top-most-only rule with one undo step
 - Adding a parent card is no longer rejected when you name it after the card it wraps (self-nesting docs/docs) — only names already taken by other cards in that scope are blocked
+- Renaming a card no longer corrupts undo/redo: React Flow re-measures a card whenever the label wraps onto another line, and that measurement was recorded as a phantom resize whose redo replayed height 0 - the card stayed in the graph but painted nothing on the canvas. Resize history is now recorded only during a real folder resize-handle drag
 
 ### Added
 
