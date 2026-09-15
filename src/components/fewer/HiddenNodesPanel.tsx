@@ -240,7 +240,7 @@ export function HiddenNodesPanel() {
         <Input
           value={hiddenSearch}
           onChange={(e) => setHiddenSearch(e.target.value)}
-          placeholder="Search hidden nodes…"
+          placeholder="Search hidden cards..."
           className="h-8 pl-8 text-xs"
         />
       </div>
@@ -259,7 +259,7 @@ export function HiddenNodesPanel() {
           }
           // Also clear global hiddenIds + global showFiles (affects other views' defaults)
           showAll();
-          if (count > 0) toast({ title: "Unhid all nodes", description: `${count} node${count === 1 ? "" : "s"} restored` });
+          if (count > 0) toast({ title: "Unhid all cards", description: `${count} card${count === 1 ? "" : "s"} restored` });
         }}
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
@@ -272,7 +272,7 @@ export function HiddenNodesPanel() {
           ))
         ) : (
           <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-            No hidden nodes match “{hiddenSearch.trim()}”.
+            No hidden cards match “{hiddenSearch.trim()}”.
           </p>
         )}
       </div>

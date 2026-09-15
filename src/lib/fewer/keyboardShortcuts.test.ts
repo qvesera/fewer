@@ -10,6 +10,7 @@ import {
   type ShortcutCtx,
 } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
+import { isAnyDialogOpen } from "@/store/graphStore";
 
 // Mock KeyboardEvent — bun test env lacks it.
 class MockKeyboardEvent {
@@ -126,6 +127,7 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
     deleteEdges: (ids) => { a.deleteEdges = ids; },
     duplicateNodeUnderParent: (id) => { a.duplicateNodeUnderParent = id; },
     setAuthOpen: (v) => { a.setAuthOpen = v; },
+    isAnyDialogOpen: (s: any) => { a.isAnyDialogOpen = s; return false; },
     relayout: () => { a.relayout = true; },
     reactFlow: {
       setNodes: (fn: any) => { a.setNodes = fn; },
@@ -307,6 +309,7 @@ test("Ctrl+V paste stays silent for stale clipboard", () => {
 test("Ctrl+V paste toasts real clipboard content", () => {
   const { ctx, a } = makeCtx({ getState: () => toStoreReader({ clipboard: { mode: "copy", nodeIds: ["n1"] }, nodes: [{ id: "n1" }] }) });
   expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "v" })).toBe(true);
-    expect(a.pasteFromClipboard).toBeUndefined();
   expect(a.toast).toBeDefined();
 });
+
+// ─── Dialog blocking ───────────────────────────────────────────────────

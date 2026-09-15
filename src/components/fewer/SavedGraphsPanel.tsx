@@ -152,7 +152,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const openSaveDialog = () => {
     if (!user) return onRequireAuth();
     if (nodes.length === 0) {
-      toast({ title: "Nothing to save", description: "Add nodes to your canvas first." });
+      toast({ title: "Nothing to save", description: "Add cards to your canvas first." });
       return;
     }
     setSaveTarget("new");
@@ -310,7 +310,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     )}
                     {g.name}
                     <span className="ml-1 text-[10px] text-muted-foreground/60">
-                      {nodeCount(g)} nodes · {timeAgo(g.updated_at)}
+                      {nodeCount(g)} cards · {timeAgo(g.updated_at)}
                     </span>
                   </span>
                 )}

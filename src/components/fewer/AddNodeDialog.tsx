@@ -213,7 +213,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
               {isDuplicate && name.trim() && (
                 <div className="flex items-center gap-1.5 text-[11px] text-red-400 animate-[tutorial-fade-in_0.2s_ease-out]">
                   <AlertTriangle className="h-3 w-3 shrink-0" />
-                  <span>A node with this name already exists here</span>
+                  <span>A card with this name already exists here</span>
                 </div>
               )}
             </div>

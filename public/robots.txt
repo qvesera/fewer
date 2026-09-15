@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://fewer.directory/sitemap.xml
+Sitemap: https://app.fewer.directory/app/sitemap.xml

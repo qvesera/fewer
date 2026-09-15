@@ -23,11 +23,18 @@ export function TagRing({
   tags,
   tagIds,
   selected,
+  width,
+  height,
 }: {
   tags: Tag[];
   /** Tag ids assigned to this node, in display order. */
   tagIds: string[];
   selected: boolean;
+  /** Card dimensions — split the ring equally by outline length, so odd tag
+   * counts stay even on wide (folder/file) cards. Optional: falls back to an
+   * equal-angle split when the node isn't measured yet. */
+  width?: number;
+  height?: number;
 }) {
   const colors = useMemo(
     () => tagIds.map((id) => colorForTag(tags, id)).filter(Boolean),
@@ -39,7 +46,12 @@ export function TagRing({
   return (
     <div
       className="gm-tag-ring"
-      style={{ background: buildTagRingGradient(colors) }}
+      style={{
+        background:
+          width && height
+            ? buildTagRingGradient(colors, { width, height })
+            : buildTagRingGradient(colors),
+      }}
       aria-hidden="true"
     />
   );

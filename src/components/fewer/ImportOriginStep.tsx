@@ -310,7 +310,7 @@ const FILE_FORMATS: {
 ];
 
 const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
-  json: `{\n  "nodes": [...],\n  "edges": [...]\n}`,
+  json: `{\n  "cards": [...],\n  "edges": [...]\n}`,
   tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
   script: `mkdir -p "src/components"\nmkdir -p "src/hooks"\nmkdir -p "public"`,
 };

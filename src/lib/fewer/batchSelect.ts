@@ -85,3 +85,10 @@ export function selectSameCategory(
   if (cats.size === 0) return selectedIds;
   return nodes.filter((n) => n.data.category && cats.has(n.data.category)).map((n) => n.id);
 }
+
+/** Every node carrying the given tag id (`node.data.tagIds`). */
+export function selectByTag(nodes: FewerNode[], tagId: string): string[] {
+  return nodes
+    .filter((n) => (n.data.tagIds ?? []).includes(tagId))
+    .map((n) => n.id);
+}

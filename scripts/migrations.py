@@ -147,6 +147,50 @@ def matches_canonical(path: str, canonical: str) -> bool:
 
 
 
+# Renames sanctioned despite hard rule 1 (an applied migration is immutable).
+#
+# Each entry exists because the source file could NEVER be recorded under its own
+# version, so no environment can silently miss it:
+#
+#   Two files claimed `0022` (`0022_account_plans.sql` and
+#   `0022_profiles_username_normalization.sql`) and
+#   `supabase_migrations.schema_migrations` has PRIMARY KEY (version), so
+#   recording the second raised 23505 — `db push` refused it forever ("Found
+#   local migration files to be inserted before the last migration on remote
+#   database") and `--include-all` could not help, because the history insert
+#   died on a duplicate key. Its effects were verified present in both projects
+#   (the two `profiles_username_*` check constraints and
+#   `profiles_username_unique_idx`) before the rename, and its content is
+#   byte-identical afterwards.
+#
+# A rename is only honoured when the target file exists and its content is
+# byte-identical to the source at `--base`: moved, never edited.
+SANCTIONED_RENAMES: dict[str, str] = {
+    "0022_profiles_username_normalization.sql": "0033_profiles_username_normalization.sql",
+}
+
+
+def sanctioned_rename(base: str, path: str) -> tuple[str, str] | None:
+    """Return the (old, new) pair when `path` is one side of a sanctioned rename.
+
+    Returns None when the path is unrelated, the target is missing, or the target
+    content differs from the source at `base` — an edited file, or a deletion with
+    no replacement, still fails the immutability check.
+    """
+    name = Path(path).name
+    for old, new in SANCTIONED_RENAMES.items():
+        if name not in {old, new}:
+            continue
+        target = MIGRATIONS_DIR / new
+        if not target.is_file():
+            continue
+        source_at_base = file_content_at(base, str(MIGRATIONS_DIR / old))
+        if source_at_base != target.read_text().replace("\r\n", "\n"):
+            continue
+        return old, new
+    return None
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     res = Result()
     files = migration_files()
@@ -178,6 +222,18 @@ def cmd_verify(args: argparse.Namespace) -> int:
             )
         for path, status in sorted(git_changes(args.base).items()):
             if status not in {"M", "D", "R", "C"}:
+                continue
+            # A sanctioned rename is a move to a free number, not an edit (see
+            # SANCTIONED_RENAMES). git reports it as `R` keyed on the NEW path
+            # (rename detection is on by default), or as `D` + `A` when it is off
+            # — both shapes resolve to the same pair.
+            pair = sanctioned_rename(args.base, path)
+            if pair is not None:
+                old, new = pair
+                res.warn(
+                    f"{old}: renamed to {new} — sanctioned rename, content unchanged "
+                    "(see SANCTIONED_RENAMES in scripts/migrations.py)"
+                )
                 continue
             # Deletions always fail: there is no content that could already match
             # the canonical branch, so a stale base can never explain them.

@@ -99,7 +99,7 @@ In Power User mode, right-click a folder for:
 | Delete                | Cascade                |
 | Show/Hide Children    | Power User mode        |
 | Add Child Node        | Power User mode        |
-| Open in File Explorer | Directory imports only |
+| Open in File Explorer | Disabled in the web build |
 | Copy Path             | Power User mode        |
 | Refresh from Disk     | Directory imports only |
 
@@ -111,15 +111,29 @@ In Power User mode, right-click a folder for:
 | Copy / Cut / Duplicate | Clipboard-aware                         |
 | Copy Name              | Copies filename to clipboard            |
 | Delete                 | Single node                             |
-| Open File              | Power User mode, directory imports only |
+| Open File              | Disabled in the web build               |
+
+> **OS integration is switched off in the web build.** "Open in File Explorer"
+> and "Open File" go through server-side OS openers (`/api/open-folder`,
+> `/api/open-file`) that only exist on a locally-running server, and those routes
+> are restricted to localhost requests. Both actions are gated by
+> `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts`, where every flag defaults to
+> `false`; a native build that replaces these paths with OS commands flips them.
+> Importing folders from disk is unaffected — it uses the `webkitdirectory`
+> fallback in every browser.
 
 ## Undo / Redo
 
-Every editing operation records an undo step:
+Every editing operation records an undo step — including node moves (drag a
+node, then **Ctrl+Z** to snap it back):
 
 - **Ctrl+Z**: undo
 - **Ctrl+Shift+Z / Ctrl+Y**: redo
 - 50-step history buffer
+
+With a **split panel layout**, each panel view keeps its own 50-step history.
+Undo/redo act on the view you last interacted with, so a drag in one view never
+rolls back an edit made in another.
 
 Use **Relayout** after heavy manual edits to tidy the graph.
 

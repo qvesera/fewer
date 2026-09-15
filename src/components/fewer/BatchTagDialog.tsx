@@ -15,7 +15,8 @@ import { Checkbox } from "@/components/ui/checkbox";
  * one store call. A "+ New tag" row creates a tag and immediately assigns it.
  */
 export function BatchTagDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useGraphStore((s) => s.batchTagOpen);
+  const setOpen = useGraphStore((s) => s.setBatchTagOpen);
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");

@@ -8,6 +8,7 @@ import {
   defaultLayout,
 } from "@/lib/fewer/panelLayout";
 import * as treeModule from "@/lib/fewer/panelTree";
+import { dropLeafHistory } from "../historySlice";
 
 export type PanelUiSliceCreator = StateCreator<
   GraphState,
@@ -174,7 +175,8 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const tree = get().panelTree;
     const newTree = treeModule.joinLeaf(tree, id);
     if (newTree !== tree) {
-      set({ panelTree: newTree });
+      // The joined leaf is gone — its undo/redo stack goes with it.
+      set({ panelTree: newTree, ...dropLeafHistory(get(), id) });
       get()._persistLayout();
     }
   },

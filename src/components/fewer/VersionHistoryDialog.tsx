@@ -174,7 +174,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] text-foreground/90">{prettyDate(v.created_at)}</p>
-                  <p className="text-[10px] text-muted-foreground/60">{v.node_count} nodes</p>
+                  <p className="text-[10px] text-muted-foreground/60">{v.node_count} cards</p>
                 </div>
                 <Button
                   variant="outline"
