@@ -108,7 +108,11 @@ const doRemoveEdges: AnyHandler = (nodes, edges, op) => {
 };
 const doMovePositions: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "move-positions" }>;
-  return { nodes: relocate(nodes, o.moves, "to"), edges };
+  // Leaf-tagged drag: only that view's position map moved (GraphCanvas writes
+  // `viewSettings[leafId].positions`, never shared positions), so redo must not
+  // plant this view's coordinates into the shared layout seed — every view
+  // without a map of its own renders from there.
+  return { nodes: o.leafId ? nodes : relocate(nodes, o.moves, "to"), edges };
 };
 const doResize: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "resize" }>;
@@ -176,7 +180,7 @@ const undoRemoveEdges: AnyHandler = (nodes, edges, op) => {
 };
 const undoMovePositions: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "move-positions" }>;
-  return { nodes: relocate(nodes, o.moves, "from"), edges };
+  return { nodes: o.leafId ? nodes : relocate(nodes, o.moves, "from"), edges };
 };
 const undoResize: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "resize" }>;
@@ -227,6 +231,18 @@ export function leafPositionsFor(
     }
   }
   return changed ? out : null;
+}
+
+/**
+ * The leaf that recorded the drags in this op batch, if any. Used to aim the
+ * per-view position patch at the view that actually moved the cards instead of
+ * assuming the active one, and to tell leaf-scoped drags from shared-space ones.
+ */
+export function leafMoveOrigin(ops: HistoryOp[]): string | null {
+  for (const op of ops) {
+    if (op.type === "move-positions" && op.leafId) return op.leafId;
+  }
+  return null;
 }
 
 /**
