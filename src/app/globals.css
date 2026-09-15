@@ -471,6 +471,15 @@ aside::-webkit-scrollbar-thumb:hover {
   filter: saturate(1.25) brightness(1.08);
 }
 
+/* Active leaf in a split layout: which leaf owns clicks and keyboard is
+   otherwise invisible. An inset accent border (plus a dot in the header) marks
+   it, drawn only when more than one leaf exists. Inset box-shadow rather than
+   outline: the leaf fills its grid cell, so an outline would be clipped by the
+   split container. */
+.gm-active-leaf {
+  box-shadow: inset 0 0 0 1px var(--fewer-select-ring, var(--brand-cyan-400));
+}
+
 /* Amber highlight ring for node cards (global search matches + sidebar Hidden-panel
    hover). Uses `outline` (like .gm-selected-ring) instead of Tailwind's box-shadow
    ring so it survives the custom .shadow-node-folder/.shadow-node-file box-shadow —

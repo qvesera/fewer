@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crown Shyness now takes effect the moment you release the slider: setShynessScale routes through Organize, so the canvas re-flows immediately instead of waiting for an unrelated action (a card click or a direction change) to re-render the tree
 - Organize wakes the canvas even when the view had nothing to clear: a view that derives its own layout (direction override, view-specific hiding, collapsed folders) bumped no state at all, so the button was a true no-op
 - Clearing a view's manual card positions now persists: it left an empty positions key behind in the stored layout and skipped the localStorage write, so dragged positions came back after a reload
+- SVG and PNG exports mirror the active graph view instead of the raw graph state: cards hidden by that view stay out (hidden children still list as faded folder rows), per-view card positions and the view's own derived layout are honoured, collapsed folders export as their one-line pill, tag rings and dots use the canvas colors, and the view's edge style, pattern and width win over the global ones
+- Image exports no longer anchor edges to the last shared layout: edge geometry follows the active view's layout direction (like the canvas handles do), so a view that only overrides the direction no longer draws lines out of the wrong sides of correctly placed cards
+- Image exports include the current selection again alongside the active view: each selected card draws the themed selection ring outside its border and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses, so a selected subtree no longer exports as an unmarked graph
+- Keep folder collapse per-view: collapsing a folder in one split view no longer squishes the expanded card in the other views
 
 ### Added
 
@@ -48,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Select by Tag in the context menus: right-click a folder, file, or a batch selection and pick a tag to select every card carrying it (folder menus show a standalone 'Select by Tag' submenu; file and batch menus add 'By Tag' inside their existing Select submenu)
 - Generate XML sitemaps (fewer.directory/sitemap.xml + app.fewer.directory/app/sitemap.xml) so search engines can index the site; robots.txt now points at both.
 - Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
+- The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
 
 ## [0.7.1] - 2026-09-12
 

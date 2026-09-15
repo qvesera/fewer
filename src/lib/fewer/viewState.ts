@@ -5,7 +5,15 @@
  * Every graph leaf can override global defaults (edge style, theme, showFiles,
  * minimap visibility). Resolved settings = leaf override ?? global value.
  */
-import type { EdgeStyle, EdgeStrokeStyle } from "./types";
+import {
+  COLLAPSED_PILL_HEIGHT,
+  type EdgeStyle,
+  type EdgeStrokeStyle,
+  type FewerEdge,
+  type FewerNode,
+  type LayoutDirection,
+} from "./types";
+import { layoutGraphContour, type LayoutOptions } from "./layout";
 
 // ── Types ──
 
@@ -105,6 +113,74 @@ export function needsLayoutDerivation(
   if (vs.direction !== undefined && vs.direction !== global.direction) return true;
   if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
+}
+
+// ── Collapsed-folder pill geometry ──
+
+/**
+ * Stamp the compact-pill height onto THIS leaf's copies of the folders it has
+ * collapsed. The shared store node keeps its expanded height, so collapsing a
+ * folder in one view can never squish the expanded card another view paints
+ * (nor the slot a global relayout reserves for it).
+ *
+ * Returns `nodes` by identity when the leaf collapses nothing.
+ */
+export function withCollapsedPillGeometry(
+  nodes: FewerNode[],
+  collapsedIds: string[],
+): FewerNode[] {
+  if (collapsedIds.length === 0) return nodes;
+  const collapsed = new Set(collapsedIds);
+  return nodes.map((n) =>
+    n.data.type === "folder" && collapsed.has(n.id)
+      ? { ...n, style: { ...n.style, height: COLLAPSED_PILL_HEIGHT } }
+      : n,
+  );
+}
+
+// ── View node resolution ──
+
+/**
+ * The node set + positions a leaf actually paints: explicit per-view card
+ * positions win, otherwise the layout engine re-derives when the view diverges
+ * (`needsLayoutDerivation`), otherwise the shared store positions pass through.
+ *
+ * Single source of truth for the canvas AND the image exporter, so exporting
+ * `nodes` from the store is no longer what an export shows — a view that hides
+ * nodes, overrides the direction or drags its own cards exports that way.
+ *
+ * `visibleNodes`/`visibleEdges` are the already-hidden-filtered graph; hidden
+ * nodes stay in the caller's full list so folder child rows can still show them.
+ */
+export function resolveViewNodes(
+  visibleNodes: FewerNode[],
+  visibleEdges: FewerEdge[],
+  raw: ViewSettings | undefined,
+  resolved: ResolvedViewSettings,
+  global: {
+    direction: LayoutDirection;
+    hiddenIds: string[];
+    /** All file ids — needed by the derivation predicate (bulk files layer). */
+    fileIds: string[];
+  },
+  layout: LayoutOptions = {},
+): FewerNode[] {
+  // 1. Explicit per-view positions (set by drag) take priority.
+  const positions = resolved.positions;
+  if (positions) {
+    return visibleNodes.map((n) =>
+      positions[n.id] ? { ...n, position: positions[n.id] } : n,
+    );
+  }
+  // 2. Direction override OR diverged visible set: derive from layout engine.
+  // Layout policy is global (Crown Shyness intensity, sibling sort), so the
+  // caller passes it in — without it the engine falls back to its own defaults
+  // and the Settings sliders look inert on per-view canvases.
+  if (needsLayoutDerivation(raw, global, global.fileIds)) {
+    return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
+  }
+  // 3. No override, shared visible set: use shared (store) positions.
+  return visibleNodes;
 }
 
 // ── Resolution ──

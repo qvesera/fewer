@@ -5,10 +5,13 @@ import {
   mergeViewSettings,
   needsLayoutDerivation,
   parseViewSettings,
+  resolveViewNodes,
   resolveViewSettings,
+  withCollapsedPillGeometry,
   type ResolvedViewSettings,
   type ViewSettings,
 } from "./viewState";
+import { COLLAPSED_PILL_HEIGHT, type FewerEdge, type FewerNode } from "./types";
 
 const GLOBAL: ResolvedViewSettings = {
   showFiles: true,
@@ -160,6 +163,89 @@ describe("mergeViewSettings — v1/v2 → v3 migration", () => {
     expect(out.l1!.minimapHidden).toBe(true);
     expect(out.l3!.minimapHidden).toBe(true);
   });
+describe("resolveViewNodes", () => {
+  const global = {
+    direction: "TB" as const,
+    hiddenIds: [] as string[],
+    fileIds: [] as string[],
+  };
+  const node = (id: string, x: number, y: number): FewerNode =>
+    ({
+      id,
+      position: { x, y },
+      data: { label: id, path: `/${id}`, type: "folder" },
+    }) as unknown as FewerNode;
+  const resolved = (
+    extra: Partial<ResolvedViewSettings> = {},
+  ): ResolvedViewSettings => ({ ...GLOBAL, ...extra });
+  const chain = (ids: string[]): FewerEdge[] =>
+    ids.slice(1).map((id, i) => ({
+      id: `e${i}`,
+      source: ids[i],
+      target: id,
+    })) as FewerEdge[];
+  const samePosition = (out: FewerNode[]) => out[1]!.position;
+
+  test("no overrides → shared positions pass through untouched", () => {
+    const nodes = [node("a", 1, 2)];
+    expect(resolveViewNodes(nodes, [], undefined, resolved(), global)).toBe(nodes);
+  });
+
+  test("per-view card positions win over the shared ones", () => {
+    const nodes = [node("a", 0, 0), node("b", 10, 10)];
+    const positions = { b: { x: 99, y: 88 } };
+    const out = resolveViewNodes(nodes, [], { positions }, resolved({ positions }), global);
+    expect(out.find((n) => n.id === "b")!.position).toEqual({ x: 99, y: 88 });
+    // A card the view has no position for keeps the shared one — and its identity.
+    expect(out[0]).toBe(nodes[0]);
+  });
+
+  test("a direction override re-derives instead of reusing shared positions", () => {
+    const nodes = [node("a", 5, 5), node("b", 5, 5)];
+    const out = resolveViewNodes(
+      nodes,
+      chain(["a", "b"]),
+      { direction: "LR" },
+      resolved({ direction: "LR" }),
+      global,
+    );
+    expect(samePosition(out)).not.toEqual({ x: 5, y: 5 });
+  });
+
+  test("a collapsed folder alone forces a derived layout too", () => {
+    const nodes = [node("a", 5, 5), node("b", 5, 5)];
+    const out = resolveViewNodes(
+      nodes,
+      chain(["a", "b"]),
+      { collapsedFolderIds: ["a"] },
+      resolved({ collapsedFolderIds: ["a"] }),
+      global,
+    );
+    expect(samePosition(out)).not.toEqual({ x: 5, y: 5 });
+  });
+
+  test("derived layouts honour the global Crown Shyness intensity", () => {
+    const nodes = [node("a", 0, 0), node("b", 0, 0), node("c", 0, 0)];
+    const edges = [
+      { id: "e0", source: "a", target: "b" },
+      { id: "e1", source: "a", target: "c" },
+    ] as FewerEdge[];
+    const view = { direction: "LR" } as ViewSettings;
+    // Siblings in an LR layout separate along Y.
+    const span = (out: FewerNode[]) => {
+      const ys = out.map((n) => n.position.y);
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    const tight = resolveViewNodes(nodes, edges, view, resolved({ direction: "LR" }), global, {
+      shynessScale: 0,
+    });
+    const loose = resolveViewNodes(nodes, edges, view, resolved({ direction: "LR" }), global, {
+      shynessScale: 3,
+    });
+    expect(span(loose)).toBeGreaterThan(span(tight));
+  });
+});
+
 describe("needsLayoutDerivation", () => {
   const global = { direction: "TB" as const, hiddenIds: [] as string[] };
   const files = ["f1", "f2"];
@@ -194,6 +280,37 @@ describe("needsLayoutDerivation", () => {
   test("hiding an id that is globally hidden already does not derive", () => {
     const withGlobal: { direction: "TB"; hiddenIds: string[] } = { direction: "TB", hiddenIds: ["a"] };
     expect(needsLayoutDerivation({ hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, withGlobal, files)).toBe(false);
+  });
+});
+
+describe("withCollapsedPillGeometry", () => {
+  const node = (id: string, type: "folder" | "file", height: number): FewerNode =>
+    ({
+      id,
+      position: { x: 0, y: 0 },
+      data: { label: id, path: `/${id}`, type },
+      style: { width: 200, height },
+    }) as unknown as FewerNode;
+
+  test("leaf collapses nothing → same array identity", () => {
+    const nodes = [node("a", "folder", 240)];
+    expect(withCollapsedPillGeometry(nodes, [])).toBe(nodes);
+  });
+
+  test("only the collapsed folder takes the pill height; shared nodes stay untouched", () => {
+    const nodes = [node("a", "folder", 240), node("b", "folder", 240), node("c", "file", 58)];
+    const out = withCollapsedPillGeometry(nodes, ["a"]);
+    expect(out[0]!.style?.height).toBe(COLLAPSED_PILL_HEIGHT);
+    // A sibling folder in the SAME leaf keeps its expanded height…
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).toBe(nodes[2]);
+    // …and the shared node the leaf copied from is never mutated.
+    expect(nodes[0]!.style?.height).toBe(240);
+  });
+
+  test("a file id in the collapsed list is ignored", () => {
+    const nodes = [node("c", "file", 58)];
+    expect(withCollapsedPillGeometry(nodes, ["c"])[0]).toBe(nodes[0]);
   });
 });
 });

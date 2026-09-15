@@ -2,6 +2,7 @@ import { test, expect } from "bun:test";
 import { buildGraphSVG, truncateToWidth, estimateTextWidth } from "./graphRenderer";
 import type { FewerNode, FewerEdge } from "./types";
 import type { RenderPalette, GraphRenderOptions } from "./graphRenderer";
+import type { Tag } from "./tags";
 
 const palette: RenderPalette = {
   background: "#0b0b13",
@@ -65,15 +66,55 @@ test("renders theme colors + background rect", () => {
   expect(scene.svg).toContain("Empty folder");
 });
 
-test("selection is not drawn in exports — selected card keeps its normal border", () => {
+test("selection draws the accent ring around the selected card only", () => {
   const nodes = [makeNode("r", "root"), makeNode("c", "child", { type: "file", x: 300, w: 220 })];
   const edges = [makeEdge("e0", "r", "c")];
   const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["c"]) }));
-  // The selection ring is a canvas-only affordance and must not bake into the image.
-  expect(scene.svg).not.toContain("#22d3ee");
-  // The selected node renders with its normal file border + 1px stroke.
+  // The selected card gets an outline ring outside its border — the canvas's
+  // `.gm-selected-ring` — at 2px, in the themed selection color.
+  expect(scene.svg).toContain(`fill="none" stroke="${palette.selectRing}" stroke-width="2"`);
+  // Exactly one ring: the unselected card has none.
+  const rings = scene.svg.match(new RegExp(`stroke="${palette.selectRing}"`, "g")) ?? [];
+  expect(rings.length).toBe(1);
+  // Both cards keep their own themed border: the ring never replaces it.
   expect(scene.svg).toContain('stroke="rgba(190, 75, 219, 0.45)"');
-  expect(scene.svg).toContain('stroke-width="1"');
+});
+
+test("no selection ring is drawn when nothing is selected", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
+  const scene = buildGraphSVG(nodes, [makeEdge("e0", "r", "c")], opts({ selectedIds: new Set() }));
+  expect(scene.svg).not.toContain(palette.selectRing);
+});
+
+test("selecting a card highlights every ancestor-path edge, and only those", () => {
+  // root -> mid -> leaf ; selecting `leaf` lights up both edges on its path.
+  const nodes = [
+    makeNode("root", "root"),
+    makeNode("mid", "mid", { x: 300 }),
+    makeNode("leaf", "leaf", { type: "file", x: 600, w: 220 }),
+    makeNode("other", "other", { type: "file", x: 900, y: 300, w: 220 }),
+  ];
+  const edges = [
+    makeEdge("e0", "root", "mid"),
+    makeEdge("e1", "mid", "leaf"),
+    makeEdge("e2", "root", "other"),
+  ];
+  const scene = buildGraphSVG(nodes, edges, opts({ selectedIds: new Set(["leaf"]) }));
+  // Path edges stroke with the TARGET node's themed icon color, floor 3px wide —
+  // the same rule the canvas's buildSelectedEdgeHighlight applies.
+  expect(scene.svg).toContain(`stroke="${palette.folderIcon}" stroke-width="3"`); // root->mid (target folder)
+  expect(scene.svg).toContain(`stroke="${palette.fileIcon}" stroke-width="3"`); // mid->leaf (target file)
+  // The unrelated edge keeps the theme edge color.
+  expect(scene.svg).toContain(`stroke="${palette.edge}"`);
+  const highlighted = scene.svg.match(/stroke-width="3"/g) ?? [];
+  expect(highlighted.length).toBe(2);
+});
+
+test("an empty selection leaves every edge in the theme color", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { x: 300 })];
+  const scene = buildGraphSVG(nodes, [makeEdge("e0", "r", "c")], opts({ selectedIds: new Set() }));
+  expect(scene.svg).toContain(`stroke="${palette.edge}"`);
+  expect(scene.svg).not.toContain('stroke-width="3"');
 });
 
 test("edge path geometry differs per edge style", () => {
@@ -97,6 +138,23 @@ test("LR layout places source anchor on the right edge", () => {
   const scene = buildGraphSVG(nodes, [makeEdge("e0", "r", "c", "straight")], opts());
   // source anchor on the right edge of root at y-centre => M 240,100
   expect(scene.svg).toContain('d="M 240,100');
+});
+
+test("edge anchors follow the view direction, not a card's stale layout stamp", () => {
+  // Cards were laid out TB (their stamps still say so) but the exported view
+  // overrides the direction to LR — the canvas puts handles on the view's sides,
+  // so the source must anchor on its right edge, not its bottom.
+  const nodes = [
+    makeNode("r", "root", { dir: "TB" }),
+    makeNode("c", "child", { dir: "TB", x: 300 }),
+  ];
+  const edges = [makeEdge("e0", "r", "c", "straight")];
+  const path = (svg: string) => (svg.match(/<path d="([^"]+)"/) ?? ["", ""])[1];
+
+  // Fallback (no view direction given): the stamp wins, as before.
+  expect(path(buildGraphSVG(nodes, edges, opts()).svg)).toContain("M 120,200");
+  // View direction wins over the stamp.
+  expect(path(buildGraphSVG(nodes, edges, opts({ direction: "LR" })).svg)).toContain("M 240,100");
 });
 
 test("file card text is aligned to the icon box and vertically centered", () => {
@@ -128,6 +186,62 @@ test("hidden nodes are excluded from the scene, kept as folder rows", () => {
   // row inside folder "a" (mirroring how the canvas shows hidden children).
   expect(scene.svg).not.toContain(">/bbb<");
   expect(scene.svg).toContain(">ama<");
+  // ...and that row is faded, exactly like CustomNode desaturates hidden entries.
+  expect(scene.svg).toContain('opacity="0.4"');
+});
+
+test("collapsed folder renders the one-line pill, not a card", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "kid", { type: "file", x: 300, w: 220 })];
+  const edges = [makeEdge("e0", "r", "c")];
+
+  const expanded = buildGraphSVG(nodes, edges, opts());
+  expect(expanded.svg).toContain('y="76"'); // first child-list row (HEADER 52 + 6 + 18)
+  expect(expanded.svg).toContain('rx="16"'); // full folder card radius
+  expect(expanded.height).toBe(200 + 80); // folder height + scene padding
+
+  const collapsed = buildGraphSVG(nodes, edges, opts({ collapsedIds: new Set(["r"]) }));
+  // Pill: label + item count remain, the child list (and its rows) is gone.
+  expect(collapsed.svg).toContain(">root<");
+  expect(collapsed.svg).toContain(">1 item<");
+  expect(collapsed.svg).not.toContain('y="76"');
+  expect(collapsed.svg).toContain('rx="12"'); // pill corner radius, not the card's
+  // The pill's own height drives the scene box, so it shrinks: the 58px file card
+  // now sets the bottom edge instead of the folder's 200px card.
+  expect(collapsed.height).toBe(58 + 80);
+  expect(collapsed.height).toBeLessThan(expanded.height);
+});
+
+test("tag ring and dots use the registry colors; selection hides the ring", () => {
+  const tags: Tag[] = [
+    { id: "t1", label: "One", color: "#f87171" },
+    { id: "t2", label: "Two", color: "#38bdf8" },
+  ];
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  file.data.tagIds = ["t1", "t2"];
+
+  const scene = buildGraphSVG([file], [], opts({ tags }));
+  // Two ring bands (dashed strokes) …
+  expect(scene.svg.match(/stroke-dasharray/g)?.length).toBe(2);
+  expect(scene.svg).toContain('stroke="#f87171"');
+  expect(scene.svg).toContain('stroke="#38bdf8"');
+  // … plus one dot per tag (ring stroke + dot fill each carry the color).
+  expect(scene.svg.match(/#f87171/g)?.length).toBe(2);
+
+  // No registry → no ring and no dots (nothing to resolve colors from).
+  expect(buildGraphSVG([file], [], opts()).svg).not.toContain("#f87171");
+
+  // Selected cards hide the ring on the canvas (the selection ring wins), so the
+  // export must not paint one either.
+  const selected = buildGraphSVG([file], [], opts({ tags, selectedIds: new Set(["f"]) }));
+  expect(selected.svg).not.toContain("stroke-dasharray");
+  expect(selected.svg).toContain('fill="#f87171"'); // the dot remains
+
+  // A single tag is a solid band, not a split one.
+  file.data.tagIds = ["t1"];
+  const single = buildGraphSVG([file], [], opts({ tags }));
+  expect(single.svg).not.toContain("stroke-dasharray");
+  expect(single.svg.match(/#f87171/g)?.length).toBe(2); // ring + dot
 });
 
 test("label truncation is width-aware so long names never spill past the card", () => {

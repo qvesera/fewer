@@ -1,4 +1,10 @@
-import type { FewerNode, FewerEdge, FileCategory } from "./types";
+import {
+  COLLAPSED_PILL_HEIGHT,
+  type FewerNode,
+  type FewerEdge,
+  type FileCategory,
+  type LayoutDirection,
+} from "./types";
 import {
   getBezierPath,
   getSmoothStepPath,
@@ -6,6 +12,8 @@ import {
   Position,
 } from "@xyflow/react";
 import { FEWER_HOME_URL } from "./branding";
+import { colorForTag, TAG_RING_CAP, type Tag } from "./tags";
+import { ancestorPathHighlight, buildTreeLookups } from "./edgeHighlight";
 
 /* -------------------------------------------------------------------------- */
 /*  graphRenderer.ts - faithful vector scene builder for PNG/SVG export.      */
@@ -53,6 +61,18 @@ export interface GraphRenderOptions {
   cornerRadius?: number;
   /** Live dash phase for animated edges (read from --gm-dash-offset). */
   dashOffset?: number;
+  /** Folder ids the active view renders as a collapsed pill (not a full card). */
+  collapsedIds?: Set<string>;
+  /** Tag registry, so exported rings/dots use the same colors as the canvas. */
+  tags?: Tag[];
+  /**
+   * The layout direction the exported view uses. The canvas places handles from
+   * the VIEW's direction (GraphViewContext), not from each card's
+   * `data.layoutDirection` stamp, so edges must anchor the same way — otherwise
+   * a view that only overrides the direction draws lines out of the wrong sides
+   * of correctly-placed cards. Falls back to the per-node stamp when omitted.
+   */
+  direction?: LayoutDirection;
 }
 
 export interface GraphScene {
@@ -71,6 +91,14 @@ const ITEM_HEIGHT = 28; // matches CustomNode ITEM_HEIGHT
 const HEADER_HEIGHT = 52; // py-2 + h-9 icon box + border-b
 const FOOTER_HEIGHT = 28; // item-count footer
 const PADDING = 40;
+/** Collapsed folder pill: 36px icon box + 1px border either side (CustomNode). */
+const PILL_HEIGHT = COLLAPSED_PILL_HEIGHT;
+/** `.gm-tag-ring` band: 3px wide, hugging the outside of the card border. */
+const TAG_RING_WIDTH = 3;
+/** `.gm-selected-ring`: `outline: 2px solid` with `outline-offset: 2px`, i.e. a
+    2px accent band whose INNER edge sits 2px outside the card border. */
+const SELECT_RING_WIDTH = 2;
+const SELECT_RING_OFFSET = 2;
 
 /* ------------------------------- helpers ---------------------------------- */
 
@@ -128,6 +156,13 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/** A folder the active view shows as a collapsed pill (legacy per-node flag or
+ *  the leaf's per-view collapsed list). */
+function isCollapsedNode(n: FewerNode, o: GraphRenderOptions): boolean {
+  if (n.data.type !== "folder") return false;
+  return n.data.collapsed === true || (o.collapsedIds?.has(n.id) ?? false);
+}
+
 function nodeSize(n: FewerNode, o: GraphRenderOptions): { w: number; h: number } {
   const isFolder = n.data.type === "folder";
   const styleW = typeof n.style?.width === "number" ? n.style.width : undefined;
@@ -136,6 +171,9 @@ function nodeSize(n: FewerNode, o: GraphRenderOptions): { w: number; h: number }
   const mH = n.measured?.height;
   const defaultW = o.nodeWidth || DEFAULT_NODE_WIDTH;
   const w = styleW ?? mW ?? defaultW;
+  // A collapsed folder is a one-line pill on the canvas whatever its stored
+  // height says (CustomNode renders the pill with height auto).
+  if (isCollapsedNode(n, o)) return { w, h: PILL_HEIGHT };
   const h = isFolder ? (styleH ?? mH ?? (o.nodeHeight || DEFAULT_NODE_HEIGHT)) : mH ?? FILE_HEIGHT;
   return { w, h };
 }
@@ -231,8 +269,10 @@ function renderEdge(
   srcSize: { w: number; h: number },
   dstSize: { w: number; h: number },
   o: GraphRenderOptions,
+  /** Ancestor-path highlight for this edge (a selected card is on its path). */
+  highlight?: { stroke: string; width: number },
 ): string {
-  const dir = dirOf(src);
+  const dir = o.direction ?? dirOf(src);
   const sa = anchor(dir, srcSize.w, srcSize.h, true);
   const sxa = src.position.x + sa.x;
   const sya = src.position.y + sa.y;
@@ -266,8 +306,12 @@ function renderEdge(
     });
   }
 
-  const stroke = typeof e.style?.stroke === "string" ? e.style.stroke : o.palette.edge;
-  const strokeWidth = typeof e.style?.strokeWidth === "number" ? e.style.strokeWidth : o.defaultEdgeWidth ?? 2;
+  // A highlighted ancestor-path edge wins outright: the canvas's highlight
+  // rebuild overwrites stroke + width on exactly these edges, so the image must
+  // not fall back to the theme edge color for them.
+  const stroke = highlight?.stroke ?? (typeof e.style?.stroke === "string" ? e.style.stroke : o.palette.edge);
+  const strokeWidth = highlight?.width
+    ?? (typeof e.style?.strokeWidth === "number" ? e.style.strokeWidth : o.defaultEdgeWidth ?? 2);
   const dash = typeof e.style?.strokeDasharray === "string" ? e.style.strokeDasharray : undefined;
 
   const attrs = [`d="${path}"`, `stroke="${escapeXml(stroke)}"`, `stroke-width="${strokeWidth}"`, "fill=\"none\""];
@@ -317,6 +361,8 @@ interface FolderRowCtx {
   subtleColor: string;
   p: RenderPalette;
   edges: FewerEdge[];
+  /** Hidden ids — hidden children stay listed but render desaturated (canvas behavior). */
+  hidden?: Set<string>;
 }
 
 function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string {
@@ -328,7 +374,10 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
   const label = truncateToWidth(child.data.label, w - 96, 12, 400);
   const metric = childMetric(child, edges);
   const chevronX = w - 18;
-  return `<g>
+  // A hidden child is still listed (the canvas lists every child) but faded, the
+  // same way CustomNode desaturates hidden entries.
+  const dim = ctx.hidden?.has(child.id) ? ' opacity="0.4"' : "";
+  return `<g${dim}>
       <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
       <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
       <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
@@ -336,9 +385,141 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
     </g>`;
 }
 
-/** Shared highlight/border ring logic for folder + file cards. The selection
-    ring is intentionally NOT drawn in exports: it is a canvas interaction
-    affordance, so exporting never bakes the current selection into the image. */
+/* --------------------------------- tags ----------------------------------- */
+
+/** Card corner radius, mirroring the rounded-* class per node type. */
+function cardRadius(n: FewerNode): number {
+  return n.data.type === "folder" ? FOLDER_RADIUS : FILE_RADIUS;
+}
+
+/** Tag colors assigned to a node, in display order (capped like the canvas). */
+function tagColors(n: FewerNode, o: GraphRenderOptions): string[] {
+  const ids = n.data.tagIds;
+  if (!ids?.length || !o.tags?.length) return [];
+  const tags = o.tags;
+  return ids.slice(0, TAG_RING_CAP).map((id) => colorForTag(tags, id));
+}
+
+/** Width the tag dots row needs (14px pitch + a 14px slack for the "+N"). */
+function tagDotsWidth(n: FewerNode): number {
+  const count = n.data.tagIds?.length ?? 0;
+  if (count === 0) return 0;
+  return Math.min(count, TAG_RING_CAP) * 14 + (count > TAG_RING_CAP ? 14 : 0);
+}
+
+/**
+ * Tag ring. The canvas paints `.gm-tag-ring` as a conic-gradient masked down to
+ * the 3px band hugging the outside of the border. SVG has no conic-gradient, so
+ * each tag is one stroke of the same rounded-rect outline, split into equal
+ * arc-length bands with stroke-dasharray. Band order and the bottom-left seam
+ * match `buildTagRingGradient` (first tag starts at the seam, clockwise).
+ *
+ * ponytail: the DOM splits a SHARP rect by perimeter while this walks the
+ * rounded outline, so a boundary landing on a corner drifts by up to the corner
+ * sagitta (~1px). Upgrade path: emit explicit per-band path segments.
+ */
+function renderTagRing(
+  n: FewerNode,
+  size: { w: number; h: number },
+  colors: string[],
+): string {
+  if (colors.length === 0) return "";
+  const r = cardRadius(n) + TAG_RING_WIDTH / 2;
+  // The band spans -3px…0px around the border, so its centreline sits at -1.5px.
+  const pad = TAG_RING_WIDTH / 2;
+  const x = n.position.x - pad;
+  const y = n.position.y - pad;
+  const w = size.w + TAG_RING_WIDTH;
+  const h = size.h + TAG_RING_WIDTH;
+  const d = [
+    `M ${x + r} ${y}`,
+    `H ${x + w - r}`,
+    `A ${r} ${r} 0 0 1 ${x + w} ${y + r}`,
+    `V ${y + h - r}`,
+    `A ${r} ${r} 0 0 1 ${x + w - r} ${y + h}`,
+    `H ${x + r}`,
+    `A ${r} ${r} 0 0 1 ${x} ${y + h - r}`,
+    `V ${y + r}`,
+    `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
+    "Z",
+  ].join(" ");
+  const path = (color: string, dash?: string, offset?: string) =>
+    `<path d="${d}" fill="none" stroke="${escapeXml(color)}" stroke-width="${TAG_RING_WIDTH}"` +
+    (dash ? ` stroke-dasharray="${dash}" stroke-dashoffset="${offset}"/>` : "/>");
+
+  if (colors.length === 1) return path(colors[0]);
+
+  const straight = (w - 2 * r) * 2 + (h - 2 * r) * 2;
+  const perimeter = straight + 2 * Math.PI * r;
+  // Arc length from the path start (top-left corner arc end) to the middle of
+  // the bottom-left corner — the seam both the canvas and exports start from.
+  const seam = (w - 2 * r) * 2 + (h - 2 * r) + Math.PI * r + (Math.PI * r) / 2;
+  const band = perimeter / colors.length;
+  return colors
+    .map((c, i) =>
+      path(
+        c,
+        `${band.toFixed(2)} ${perimeter.toFixed(2)}`,
+        (-(seam + i * band)).toFixed(2),
+      ),
+    )
+    .join("");
+}
+
+/**
+ * Selection ring, mirroring the canvas's `.gm-selected-ring`
+ * (`outline: 2px solid var(--fewer-select-ring); outline-offset: 2px`). Drawn as a
+ * rounded-rect outline stroke 2px outside the card border. Returns "" when the
+ * node isn't selected, so unselected cards emit no extra element.
+ *
+ * ponytail: SVG has no `outline-offset`, so the band is approximated by a
+ * stroked rounded rect (stroke centreline at -3px, spanning -4…-2px). Arc joins
+ * are circular where the DOM's are mitered, so at a 2px width the corner drift
+ * is sub-pixel.
+ */
+function renderSelectionRing(
+  n: FewerNode,
+  size: { w: number; h: number },
+  color: string,
+): string {
+  const r = cardRadius(n) + SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2;
+  const x = n.position.x - SELECT_RING_OFFSET - SELECT_RING_WIDTH / 2;
+  const y = n.position.y - SELECT_RING_OFFSET - SELECT_RING_WIDTH / 2;
+  const w = size.w + (SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2) * 2;
+  const h = size.h + (SELECT_RING_OFFSET + SELECT_RING_WIDTH / 2) * 2;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="none" stroke="${escapeXml(color)}" stroke-width="${SELECT_RING_WIDTH}"/>`;
+}
+
+/**
+ * Tag assignment dots (canvas: TagDots): one 10px dot per tag, starting at `x`
+ * and vertically centred on `y`; anything past the cap collapses to "+N".
+ */
+function renderTagDots(
+  n: FewerNode,
+  o: GraphRenderOptions,
+  x: number,
+  y: number,
+): string {
+  const ids = n.data.tagIds;
+  if (!ids?.length || !o.tags?.length) return "";
+  const tags = o.tags;
+  const shown = ids.slice(0, TAG_RING_CAP);
+  const dots = shown
+    .map(
+      (id, i) =>
+        `<circle cx="${x + i * 14 + 5}" cy="${y}" r="5" fill="${escapeXml(colorForTag(tags, id))}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>`,
+    )
+    .join("");
+  const overflow = ids.length - shown.length;
+  if (overflow <= 0) return dots;
+  return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 4}" font-size="9" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
+}
+
+/** Shared highlight/border ring logic for folder + file cards. `highlighted`
+    (search/ancestor) wins over the plain border. Selection is NOT painted into
+    the border — it is drawn as a separate ring OUTSIDE the card
+    (`renderSelectionRing`), exactly like the canvas's `.gm-selected-ring`
+    outline, so the card keeps its own themed border underneath. */
 function cardStroke(
   n: FewerNode,
   border: string,
@@ -347,6 +528,42 @@ function cardStroke(
     stroke: n.data.highlighted ? "#fbbf24" : border,
     width: n.data.highlighted ? 2 : 1,
   };
+}
+
+/**
+ * Collapsed folder: the one-line pill CustomNode renders instead of a full
+ * card — icon box, label over the item count, tag dots and an expand chevron.
+ * Child rows are dropped (they belong to the expanded card); the child cards
+ * themselves stay on the canvas, exactly as the canvas draws them.
+ */
+function renderCollapsedFolderCard(
+  n: FewerNode,
+  childCount: number,
+  size: { w: number; h: number },
+  o: GraphRenderOptions,
+): string {
+  const p = o.palette;
+  const x = n.position.x;
+  const y = n.position.y;
+  const w = size.w;
+  const h = size.h;
+  const selected = o.selectedIds?.has(n.id) ?? false;
+  const textColor = selected ? p.text : p.folderText;
+  const subtleColor = selected ? p.subtle : p.folderSubtle;
+  const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
+  const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
+
+  return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
+    ${ring}
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
+    <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
+    <text x="${x + 60}" y="${y + 16}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 96, 14, 600))}</text>
+    <text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(itemCountLabel(childCount))}</text>
+    ${renderTagDots(n, o, x + w - 34 - Math.min(n.data.tagIds?.length ?? 0, TAG_RING_CAP) * 14, y + h / 2)}
+    <g transform="translate(${x + w - 30}, ${y + 11})">${iconSvg("chevron-right", 16, subtleColor)}</g>
+  </g>`;
 }
 
 function renderFolderCard(
@@ -364,6 +581,9 @@ function renderFolderCard(
   const selected = o.selectedIds?.has(n.id) ?? false;
 
   const rows = childRows(n, edges, nodes);
+  if (isCollapsedNode(n, o)) {
+    return renderCollapsedFolderCard(n, rows.length, size, o);
+  }
   const childListMaxHeight = Math.max(60, h - 72);
   const visibleRows = Math.min(rows.length, Math.max(0, Math.floor((childListMaxHeight - 12) / ITEM_HEIGHT)));
 
@@ -376,7 +596,7 @@ function renderFolderCard(
 
   const listRowsHtml = rows
     .slice(0, visibleRows)
-    .map((child, i) => renderChildRow(child, i, { w, rowBase, subtleColor, p, edges, selected }))
+    .map((child, i) => renderChildRow(child, i, { w, rowBase, subtleColor, p, edges, selected, hidden: o.hiddenIds }))
     .join("");
 
   const bodyHtml =
@@ -386,12 +606,21 @@ function renderFolderCard(
 
   const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
   const rowsCount = itemCountLabel(rows.length);
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
+  const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
+  // Header tag dots sit right-aligned (canvas: TagDots + chevron in the header
+  // row), so the label keeps whatever width they don't use.
+  const dotsW = tagDotsWidth(n);
+  const dotsX = x + w - 14 - dotsW;
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
+    ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
-    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48, 14, 600))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48, 10, 400))}</text>
+    <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48 - dotsW, 14, 600))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48 - dotsW, 10, 400))}</text>
+    ${renderTagDots(n, o, dotsX, y + 26)}
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
     <line x1="${x}" y1="${y + footerTop}" x2="${x + w}" y2="${y + footerTop}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
@@ -411,7 +640,6 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
   const { stroke, width: strokeWidth } = cardStroke(n, p.fileBorder);
-  const label = truncateToWidth(n.data.label, w - 59, 14, 600);
   const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
 
   // Mirror the canvas file card layout: no horizontal padding (icon box sits
@@ -423,18 +651,28 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const gap = 12;
   const iconX = x + boxX + (boxW - 20) / 2; // icon (20px) centered in the 36px box
   const iconY = y + (h - 20) / 2;
+  // Canvas: TagDots sit in a `shrink-0 pr-2` slot after the text column, so the
+  // label's budget shrinks by whatever the dots need.
+  const dotsW = tagDotsWidth(n);
   const textX = x + boxX + boxW + gap;
+  const labelBudget = w - (textX - x) - 10 - dotsW;
+  const label = truncateToWidth(n.data.label, labelBudget, 14, 600);
   const labelLH = 20;
   const metaLH = 14;
   const colTop = y + (h - (labelLH + metaLH)) / 2;
   const labelBaseline = colTop + 13;
   const metaBaseline = colTop + labelLH + 10;
+  const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
+  const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
+    ${selRing}
+    ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.fileBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
     <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
     <text x="${textX}" y="${labelBaseline}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
     <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(meta)}</text>
+    ${renderTagDots(n, o, x + w - 8 - dotsW, y + h / 2)}
   </g>`;
 }
 
@@ -508,12 +746,34 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const sizeByNode = new Map<string, { w: number; h: number }>();
   for (const n of nodes) sizeByNode.set(n.id, nodeSize(n, o));
 
+  // Ancestor-path highlight, identical to the canvas's edge highlighting
+  // (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
+  // selected card up to its root parent lights up, stroked with the target
+  // node's themed folder/file color at width max(edgeWidth, 3). Without this the
+  // image showed selected cards with all edges still in the default theme color.
+  const selectedIds = [...(o.selectedIds ?? [])];
+  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
+  if (selectedIds.length > 0) {
+    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
+    edgeHighlight = ancestorPathHighlight(
+      selectedIds,
+      parentEdgeOf,
+      typeByNodeId,
+      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
+      Math.max(o.defaultEdgeWidth ?? 2, 3),
+    );
+  }
+
   const edgesHtml = connectEdges
+    // Highlighted edges paint last so they sit above the rest, like the canvas
+    // (which sorts highlighted edges to the end of the array).
+    .slice()
+    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
     .map((e) => {
       const s = nodes.find((nn) => nn.id === e.source);
       const d = nodes.find((nn) => nn.id === e.target);
       if (!s || !d) return "";
-      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o);
+      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
     })
     .join("\n  ");
 
