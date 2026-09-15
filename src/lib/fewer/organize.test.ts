@@ -102,11 +102,24 @@ describe("organize", () => {
       nodes: parked,
       viewSettings: { leafA: { direction: "LR", positions: { root: { x: 10, y: 10 } } } },
     });
+    const versionBefore = useGraphStore.getState().graphVersion;
     useGraphStore.getState().organize("leafA");
 
     const s = useGraphStore.getState();
     expect(s.viewSettings.leafA?.positions).toBeUndefined(); // positions dropped → canvas re-derives
     expect(s.nodes.every((n) => n.position.x === 99999)).toBe(true); // shared layout untouched
+    expect(s.graphVersion).toBeGreaterThan(versionBefore); // canvas memo re-runs
+  });
+
+  it("bumps graphVersion for a deriving view that had nothing to clear", () => {
+    // Regression: with no per-view positions to drop, clearViewPositions
+    // early-returns and relayout is skipped, so organize touched no state at
+    // all — no version bump, no re-render, a dead button. Crown Shyness only
+    // shows up through a re-derivation, so it has to wake the canvas.
+    useGraphStore.setState({ viewSettings: { leafA: { direction: "LR" } } });
+    const versionBefore = useGraphStore.getState().graphVersion;
+    useGraphStore.getState().organize("leafA");
+    expect(useGraphStore.getState().graphVersion).toBeGreaterThan(versionBefore);
   });
 
   it("applies the current Crown Shyness intensity to the shared layout", () => {

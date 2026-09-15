@@ -1,6 +1,22 @@
 import { test, expect } from "bun:test";
-import { layoutGraphSync, shynessGap, SHYNESS_DEPTH_K, SHYNESS_SIZE_K, SHYNESS_MAX_MULTIPLE } from "./layout";
-import type { FewerNode, FewerEdge } from "./types";
+import { layoutGraphSync, shynessGap, effectiveShynessScale, SHYNESS_DEPTH_K, SHYNESS_SIZE_K, SHYNESS_MAX_MULTIPLE, SHYNESS_TOP } from "./layout";
+import { treeToGraph } from "./treeToGraph";
+import { SAMPLE_TREE } from "./sampleData";
+import type { FewerNode, FewerEdge, TreeEntry } from "./types";
+
+/** Card styles the app applies before layout (folder cards are fixed-height). */
+function styleNodes(nodes: FewerNode[]): FewerNode[] {
+  return nodes.map((n) => ({
+    ...n,
+    style: { ...n.style, width: 240, height: n.data.type === "folder" ? 120 : undefined },
+  }));
+}
+
+/** Spread of the layout along the axis siblings are separated on. */
+function primarySpan(laid: FewerNode[], direction: string): number {
+  const primary = laid.map((n) => (direction === "TB" || direction === "BT" ? n.position.x : n.position.y));
+  return Math.max(...primary) - Math.min(...primary);
+}
 
 function makeNode(id: string, label: string, w: number, h: number): FewerNode {
   const type = "folder";
@@ -75,6 +91,28 @@ test("shynessGap: scale multiplies the extra shyness only", () => {
   expect(shynessGap(base, 2, 5, 5, 0)).toBe(base); // 0 = flat gaps
   expect(shynessGap(base, 2, 5, 5, 1)).toBe(base + extra);
   expect(shynessGap(base, 2, 5, 5, 2)).toBe(base + 2 * extra);
+});
+
+test("effectiveShynessScale: cubic response, calm default, top of the dial capped", () => {
+  // The slider value is mapped onto the coefficients here (layoutGraphContour
+  // applies it once, so shynessGap itself stays linear). The dial tops out at
+  // SHYNESS_TOP — the strength 2x produced before the cap — so 3x is the
+  // strongest setting without being the full coefficient set.
+  expect(SHYNESS_TOP).toBeCloseTo(8 / 9);
+  expect(effectiveShynessScale(0)).toBe(0);
+  expect(effectiveShynessScale(1)).toBeCloseTo(SHYNESS_TOP / 27); // default: near the old flat spacing
+  expect(effectiveShynessScale(2)).toBeCloseTo(SHYNESS_TOP * (8 / 27));
+  expect(effectiveShynessScale(3)).toBeCloseTo(SHYNESS_TOP);
+  // Clamped like the store's slider, so an out-of-range value cannot blow the
+  // layout up.
+  expect(effectiveShynessScale(9)).toBeCloseTo(SHYNESS_TOP);
+  expect(effectiveShynessScale(-1)).toBe(0);
+  // Monotonic: no dead spot anywhere on the slider.
+  for (let s = 0.5; s <= 3; s += 0.5) {
+    expect(effectiveShynessScale(s)).toBeGreaterThan(effectiveShynessScale(s - 0.5));
+  }
+  // The range lives at the top end: 3x opens up many times what 1x does.
+  expect(effectiveShynessScale(3)).toBeGreaterThan(20 * effectiveShynessScale(1));
 });
 
 test("layout: shynessScale=0 matches shyness off; scale 2 doubles the extra spread", () => {
@@ -154,6 +192,81 @@ test("layout: bigger crowns are shier — deep subtree pairs space out more", ()
   expect(spread(big, "a0", "b0")).toBeGreaterThan(spread(small, "a0", "b0"));
 });
 
+test("layout: 0 -> 3 is a visibly larger spread on a real project tree", () => {
+  // Regression for "the difference between 0 and 3 is very marginal": the slider
+  // multiplies the extra gap, so this asserts the coefficients actually move the
+  // end-to-end spread of a realistic tree, not just a two-node fixture.
+  const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" }) as unknown as {
+    nodes: FewerNode[];
+    edges: FewerEdge[];
+  };
+  const styled = styleNodes(nodes);
+
+  for (const direction of ["TB", "LR"] as const) {
+    const spans = [0, 1, 2, 3].map((scale) => primarySpan(layoutGraphSync(styled, edges, direction, { shynessScale: scale }), direction));
+    for (let i = 1; i < spans.length; i++) {
+      expect(spans[i]).toBeGreaterThan(spans[i - 1]); // monotonic: no dead slider region
+    }
+    // TB's sibling axis is dominated by card width, so its relative growth is
+    // smaller than LR's; both must still be well clear of the old ~2% no-op.
+    // Measured at the (capped) 3x top of the dial: 1.28 TB / 1.71 LR.
+    const ratio = spans[3] / spans[0];
+    expect(ratio).toBeGreaterThan(direction === "LR" ? 1.5 : 1.15);
+  }
+});
+
+test("layout: large trees grow proportionally, not explosively", () => {
+  // 1.7K-node wide+deep tree. Shyness compounds down the contour, so this
+  // guards against a coefficient bump that only looks reasonable on a 10-node
+  // fixture and then explodes (or crawls) on a real project.
+  let counter = 0;
+  const file = (): TreeEntry => ({ name: `f${counter++}.ts`, type: "file", size: 10 });
+  const folder = (depth: number, fan: number): TreeEntry => ({
+    name: `d${counter++}`,
+    type: "folder",
+    children: depth === 0 ? Array.from({ length: fan }, file) : Array.from({ length: fan }, () => folder(depth - 1, fan)),
+  });
+  const tree: TreeEntry = { name: "root", type: "folder", children: Array.from({ length: 5 }, () => folder(3, 4)) };
+  const { nodes, edges } = treeToGraph(tree, { idPrefix: "big" }) as unknown as {
+    nodes: FewerNode[];
+    edges: FewerEdge[];
+  };
+  const styled = styleNodes(nodes);
+  expect(styled.length).toBeGreaterThan(1000);
+
+  for (const direction of ["TB", "LR"] as const) {
+    const spans = [0, 1, 2, 3].map((scale) => primarySpan(layoutGraphSync(styled, edges, direction, { shynessScale: scale }), direction));
+    for (let i = 1; i < spans.length; i++) {
+      expect(spans[i]).toBeGreaterThan(spans[i - 1]); // every step does something
+    }
+    // Proportional: the 0 -> 3 spread stays within one order of magnitude.
+    expect(spans[3] / spans[0]).toBeLessThan(6);
+  }
+});
+
+test("layout: no node overlaps at maximum shyness on the sample tree", () => {
+  const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" }) as unknown as {
+    nodes: FewerNode[];
+    edges: FewerEdge[];
+  };
+  const styled = styleNodes(nodes);
+  for (const direction of ["TB", "LR"] as const) {
+    const laid = layoutGraphSync(styled, edges, direction, { shynessScale: 3 });
+    const boxes = laid.map((n) => ({
+      x1: n.position.x,
+      y1: n.position.y,
+      x2: n.position.x + ((n.style?.width as number) ?? 0),
+      y2: n.position.y + ((n.style?.height as number) ?? 0),
+    }));
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        const overlaps = a.x1 < b.x2 - 0.5 && b.x1 < a.x2 - 0.5 && a.y1 < b.y2 - 0.5 && b.y1 < a.y2 - 0.5;
+        expect(overlaps).toBe(false);
+      }
+    }
+  }
+});
 test("layout: no node overlaps anywhere with shyness on", () => {
   const { nodes, edges } = bushyTree();
   for (const direction of ["TB", "LR"] as const) {

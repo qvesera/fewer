@@ -427,12 +427,23 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       allFileIds,
     );
     // Per-view card positions pin the spacing the user last saw, so drop them.
+    // This bumps graphVersion (and persists) when it actually clears something.
     s.clearViewPositions(leafId);
     // A view with its own direction/hidden set re-derives from the layout engine
     // as soon as its positions are gone. One that falls back to the shared
     // positions needs a global relayout to pick up the current settings
     // (Crown Shyness intensity, sibling sort…).
-    if (!derivesOwnLayout) s.relayout();
+    if (!derivesOwnLayout) {
+      s.relayout();
+    } else {
+      // Nothing above touched the store, so the canvas memo would not re-run and
+      // Organize read as a dead button on a view that had no per-view positions
+      // to clear (the common case). Bump graphVersion so the derived layout
+      // re-runs and the canvas redraws the shared positions with the current
+      // settings. (A deriving view ignores per-view positions anyway, so there
+      // is nothing else to clear here.)
+      set({ graphVersion: get().graphVersion + 1 });
+    }
   },
 
   applySearch: () => {
