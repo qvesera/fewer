@@ -24,17 +24,17 @@ export function buildSelectActions(selectedIds: string[]): SelectAction[] {
   return [
     {
       id: "select-descendants",
-      label: "Select Descendants",
+      label: "Descendants",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectDescendants(selectedIds, useGraphStore.getState().edges)),
     },
     {
       id: "select-same-extension",
-      label: "Select Same Extension",
+      label: "By Extension",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectSameExtension(useGraphStore.getState().nodes, selectedIds)),
     },
     {
       id: "select-same-category",
-      label: "Select Same Category",
+      label: "By Category",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectSameCategory(useGraphStore.getState().nodes, selectedIds)),
     },
   ];
