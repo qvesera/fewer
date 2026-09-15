@@ -39,7 +39,7 @@ Settings in Advanced:
 | **Minimap Size**     | Slider, 80–300px                               |
 | **Node Width**       | Card width slider, 120–400px                   |
 | **Node Height**      | Card height slider, 40–300px                   |
-| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Organize** |
+| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Organize** (per-view canvases that re-derive their own layout pick it up immediately) |
 
 ## Help
 

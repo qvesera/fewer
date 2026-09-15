@@ -1093,8 +1093,10 @@ function AdvancedTab() {
   const setShynessScale = useGraphStore((s) => s.setShynessScale);
 
   // Crown-shyness slider: local value for live drag preview; the store commit
-  // happens on drag release (or when a custom value is typed). No auto-relayout:
-  // the new intensity is picked up on the next explicit Organize.
+  // happens on drag release (or when a custom value is typed). No auto-relayout
+  // of shared positions: the main canvas picks the new intensity up on the next
+  // explicit Organize, while per-view canvases that derive their own layout react
+  // immediately (see the derived layout in GraphCanvas).
   const [shynessPreview, setShynessPreview] = useState(shynessScale);
   useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
@@ -1163,7 +1165,7 @@ function AdvancedTab() {
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is organized (Organize button or Alt+R).
+            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect on the next Organize (Organize button or Alt+R) — per-view canvases that already re-derive their own layout (view-specific hiding or direction) pick it up immediately.
           </p>
         </div>
       )}
