@@ -28,15 +28,20 @@ test("buildTagRingGradient: single color → solid", () => {
   expect(buildTagRingGradient(["#f87171"])).toBe("#f87171");
 });
 
-test("buildTagRingGradient: two colors split 50/50 (hard stops)", () => {
-  expect(buildTagRingGradient(["#f00", "#00f"])).toBe("conic-gradient(#f00 0%, #f00 50%, #00f 50%, #00f 100%)");
+test("buildTagRingGradient: two colors — first color starts at the LEFT seam", () => {
+  // Seam = bottom-left corner (225° square fallback); color 1 runs clockwise
+  // from there (left edge + top), color 2 wraps right + bottom back to the seam.
+  expect(buildTagRingGradient(["#f00", "#00f"]))
+    .toBe("conic-gradient(from 225deg, #f00 0%, #f00 50%, #00f 50%, #00f 100%)");
 });
 
-test("buildTagRingGradient: three colors split evenly (33.33 each)", () => {
+test("buildTagRingGradient: three colors step clockwise in tag order", () => {
+  // Equal-angle thirds from the 225° seam; #f00 (first tag) starts there, so
+  // reading clockwise from the left is #f00 → #0f0 → #00f — never backwards.
   const g = buildTagRingGradient(["#f00", "#0f0", "#00f"]);
-  expect(g).toContain("#f00 0%");
-  expect(g).toContain("#0f0 33.33%");
-  expect(g).toContain("#00f 66.67%");
+  expect(g).toBe(
+    "conic-gradient(from 225deg, #f00 0%, #f00 33.33%, #0f0 33.33%, #0f0 66.67%, #00f 66.67%, #00f 100%)",
+  );
 });
 
 test("buildTagRingGradient: caps at 5 slices", () => {
@@ -44,6 +49,31 @@ test("buildTagRingGradient: caps at 5 slices", () => {
   const stops = g.match(/#/g) ?? [];
   // 5 colors × 2 stops each = 10 hex markers
   expect(stops.length).toBe(10);
+});
+
+test("buildTagRingGradient: odd count splits by OUTLINE LENGTH on a 2:1 card", () => {
+  // Equal-angle thirds would render a short middle band on a 240×120 rect.
+  // Perimeter stops from the bottom-left seam (243.43°) keep every band the
+  // same outline length; the top edge reads #f00 → #0f0 left-to-right, #00f
+  // wraps the bottom back to the seam.
+  const g = buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 240, height: 120 });
+  expect(g).toBe(
+    "conic-gradient(from 243.43deg, #f00 0%, #f00 32.38%, #0f0 32.38%, #0f0 64.76%, #00f 64.76%, #00f 100%)",
+  );
+});
+
+test("buildTagRingGradient: equal-angle fallback when dims are invalid", () => {
+  // Invalid dims fall back to equal-angle stops from the 225° seam.
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 0, height: 120 }))
+    .toContain("#f00 0%");
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: -1, height: 0 }))
+    .toContain("#0f0 33.33%");
+});
+
+test("buildTagRingGradient: square card keeps uniform angle stops", () => {
+  // On a square, equal perimeter = equal angle; the seam stays at 225°.
+  expect(buildTagRingGradient(["#f00", "#00f"], { width: 200, height: 200 }))
+    .toBe("conic-gradient(from 225deg, #f00 0%, #f00 50%, #00f 50%, #00f 100%)");
 });
 
 test("firstTagId returns first id or null", () => {

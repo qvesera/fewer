@@ -21,6 +21,17 @@ export type DialogsSliceCreator = StateCreator<
     settingsOpen: boolean;
     shareOpen: boolean;
     authOpen: boolean;
+
+    tutorialOpen: boolean;
+    importFlowOpen: boolean;
+    addChildOpen: boolean;
+    addStandaloneOpen: boolean;
+    addParentOpen: boolean;
+    batchRenameOpen: boolean;
+    batchTagOpen: boolean;
+    parentPickerOpen: boolean;
+    notificationOpen: boolean;
+
     advancedModeEnabled: boolean;
     showFiles: boolean;
     loading: boolean;
@@ -41,6 +52,17 @@ export type DialogsSliceCreator = StateCreator<
     setSettingsOpen: (open: boolean) => void;
     setShareOpen: (open: boolean) => void;
     setAuthOpen: (open: boolean) => void;
+
+    setTutorialOpen: (open: boolean) => void;
+    setImportFlowOpen: (open: boolean) => void;
+    setAddChildOpen: (open: boolean) => void;
+    setAddStandaloneOpen: (open: boolean) => void;
+    setAddParentOpen: (open: boolean) => void;
+    setBatchRenameOpen: (open: boolean) => void;
+    setBatchTagOpen: (open: boolean) => void;
+    setParentPickerOpen: (open: boolean) => void;
+    setNotificationOpen: (open: boolean) => void;
+
     setLoading: (loading: boolean) => void;
     setExportSettings: (settings: Partial<ExportSettings>) => void;
     setImportOptions: (options: ImportOptions) => void;
@@ -64,6 +86,15 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   settingsOpen: false,
   shareOpen: false,
   authOpen: false,
+  tutorialOpen: false,
+  importFlowOpen: false,
+  addChildOpen: false,
+  addStandaloneOpen: false,
+  addParentOpen: false,
+  batchRenameOpen: false,
+  batchTagOpen: false,
+  parentPickerOpen: false,
+  notificationOpen: false,
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
@@ -85,6 +116,15 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setShareOpen: (open) => set({ shareOpen: open }),
   setAuthOpen: (open) => set({ authOpen: open }),
+  setTutorialOpen: (open) => set({ tutorialOpen: open }),
+  setImportFlowOpen: (open) => set({ importFlowOpen: open }),
+  setAddChildOpen: (open) => set({ addChildOpen: open }),
+  setAddStandaloneOpen: (open) => set({ addStandaloneOpen: open }),
+  setAddParentOpen: (open) => set({ addParentOpen: open }),
+  setBatchRenameOpen: (open) => set({ batchRenameOpen: open }),
+  setBatchTagOpen: (open) => set({ batchTagOpen: open }),
+  setParentPickerOpen: (open) => set({ parentPickerOpen: open }),
+  setNotificationOpen: (open) => set({ notificationOpen: open }),
   setLoading: (loading) => set({ loading }),
 
   setExportSettings: (settings) => set((s) => ({ exportSettings: { ...s.exportSettings, ...settings } })),
@@ -117,3 +157,31 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
     }
   },
 });
+
+/**
+ * Returns true when any blocking dialog/panel is currently on screen.
+ * Search (slide-in panel) and sidebar (collapsible rail) are intentionally
+ * excluded — they are transient UI chrome, not modal contexts, and should not
+ * block keyboard shortcuts (PR #119).
+ */
+export function isAnyDialogOpen(s: GraphState): boolean {
+  return !!(
+    s.exportOpen ||
+    s.advancedOpen ||
+    s.themeEditorOpen ||
+    s.bugReportOpen ||
+    s.shortcutsOpen ||
+    s.settingsOpen ||
+    s.shareOpen ||
+    s.authOpen ||
+    s.tutorialOpen ||
+    s.importFlowOpen ||
+    s.addChildOpen ||
+    s.addStandaloneOpen ||
+    s.addParentOpen ||
+    s.batchRenameOpen ||
+    s.batchTagOpen ||
+    s.parentPickerOpen ||
+    s.notificationOpen
+  );
+}

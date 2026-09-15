@@ -1,0 +1,24 @@
+# Accepted architectural decisions for this repository.
+#
+# Generated and rewritten by repowise; edits survive, comments do not.
+# Commit this file: it is the source of truth, and the index is a copy.
+# Candidates and evidence stay out of it on purpose.
+version: 1
+decisions:
+- id: 7c1cd6c3f686ba264622902b0dd7c98d
+  title: GraphCanvas stays thin wiring over use-canvas-* hooks
+  decision: Keep GraphCanvas/CanvasInner as thin wiring and push canvas behaviour into one-purpose hooks
+    under src/hooks/use-canvas-*.ts, with pure helpers exported from those modules and covered by bun
+    tests under src/hooks/. Do not merge the hooks back or re-inline logic.
+  reason: The defect mass is concentrated in the wiring and the two render helpers, not in the layout/pure
+    logic; per-concern hooks keep behaviour testable without a React renderer, which the repo has no dependency
+    for and will not add.
+  scope:
+  - src/components/fewer/GraphCanvas.tsx
+  - src/hooks
+  currency: active
+  source: cli
+  accepted_at: '2026-09-12T16:55:18.860546'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava

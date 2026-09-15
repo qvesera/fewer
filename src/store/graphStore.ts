@@ -4,3 +4,4 @@
 // This file exists for backward compatibility — all components import from here.
 export { useGraphStore } from "./createStore";
 export type { GraphState } from "./slices/types";
+export { isAnyDialogOpen } from "./slices/ui/dialogsSlice";

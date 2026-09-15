@@ -1442,7 +1442,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   reset: () => {
     fsHandleStore.clear();
     set({
-      nodes: [], edges: [], past: [], future: [], selectedNodeIds: [],
+      nodes: [], edges: [], past: [], future: [], leafHistories: {}, selectedNodeIds: [],
       searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], independentlyHiddenIds: [], localRootPath: null,

@@ -5,16 +5,18 @@ import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2 } from "lucide-react";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
 import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown } from "lucide-react";
 import { MinimizedDialogPill } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
 import {
   TOP_OFFSET,
@@ -36,6 +38,7 @@ export function ThemeEditorDialog() {
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
   const [expandedPicker, setExpandedPicker] = useState<string | null>(null);
   const { user } = useAuth();
+  const profile = useProfile();
   const { toast } = useToast();
 
   // Saved-to-cloud custom themes (grouped under "Custom" in the preset list).
@@ -48,10 +51,31 @@ export function ThemeEditorDialog() {
   const [presetOpen, setPresetOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  // Gallery publishing: opt-in when saving + per-theme publish state. One row
+  // per saved theme in shared_themes; saved_theme_id keys the Set.
+  const [shareGallery, setShareGallery] = useState(false);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryDescription, setGalleryDescription] = useState("");
+  const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
+  const [sharingId, setSharingId] = useState<string | null>(null);
+
+  // Publishing to the gallery requires a completed profile (first name +
+  // username) for attribution — same gate as the graph gallery.
+  const requireGalleryProfile = (): boolean => {
+    if (profile.first_name.trim() && profile.username.trim()) return true;
+    toast({
+      title: "Profile required",
+      description: "Add your first name and a username to publish a theme to the gallery.",
+      variant: "destructive",
+    });
+    window.dispatchEvent(new Event("fewer-open-settings-account"));
+    return false;
+  };
 
   const loadThemes = useCallback(async () => {
     if (!user) {
       setSavedThemes([]);
+      setSharedIds(new Set());
       return;
     }
     setThemesLoading(true);
@@ -59,11 +83,20 @@ export function ThemeEditorDialog() {
       const res = await fetch("/api/themes");
       if (res.status === 401) {
         setSavedThemes([]);
+        setSharedIds(new Set());
         return;
       }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
       if (Array.isArray(json.themes)) setSavedThemes(json.themes);
+      // Track which saved themes are currently published to the gallery.
+      const shareRes = await fetch("/api/themes/share");
+      if (shareRes.ok) {
+        const shareJson = await shareRes.json();
+        if (Array.isArray(shareJson.shares)) {
+          setSharedIds(new Set(shareJson.shares.map((s: { saved_theme_id: string }) => s.saved_theme_id)));
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not load saved themes";
       toast({ title: "Could not load saved themes", description: msg, variant: "destructive" });
@@ -89,15 +122,71 @@ export function ThemeEditorDialog() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
+      const savedId: string = json.theme?.id ?? "";
       setSaveOpen(false);
       setSaveName("");
       await loadThemes();
-      toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+      if (shareGallery && savedId) {
+        await publishTheme(savedId, name);
+      } else {
+        toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+      }
+      setShareGallery(false);
+      setGalleryTitle("");
+      setGalleryDescription("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save theme";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Publish a saved theme to the gallery (one row per saved theme; idempotent). */
+  const publishTheme = async (id: string, themeName: string) => {
+    if (!user) return;
+    if (!requireGalleryProfile()) return;
+    setSharingId(id);
+    try {
+      const res = await fetch("/api/themes/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, title: safeText(galleryTitle), description: safeText(galleryDescription) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Publish failed");
+      // Reload shares so the editor stays in sync even if the saved theme name
+      // was edited since the last publish.
+      setSharedIds((prev) => new Set(prev).add(id));
+      toast({
+        title: "Published to the gallery",
+        description: `"${galleryTitle.trim() || themeName}" is now live in the community gallery.`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not publish theme";
+      toast({ title: "Could not publish", description: msg, variant: "destructive" });
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  /** Remove a saved theme from the gallery (keeps the saved theme itself). */
+  const unpublishTheme = async (id: string, themeName: string) => {
+    if (!user) return;
+    setSharingId(id);
+    try {
+      const res = await fetch(`/api/themes/share?saved_theme_id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unpublish failed");
+      setSharedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      toast({ title: "Removed from the gallery", description: `"${themeName}" is no longer listed.` });
+    } catch {
+      toast({ title: "Could not unpublish theme", variant: "destructive" });
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -358,7 +447,7 @@ export function ThemeEditorDialog() {
                 Save
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-60 p-2 space-y-2" align="start" sideOffset={4}>
+            <PopoverContent className="w-72 p-2 space-y-2" align="start" sideOffset={4}>
               <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 Save custom theme
               </Label>
@@ -375,9 +464,36 @@ export function ThemeEditorDialog() {
                 className="h-8 text-xs"
                 autoFocus
               />
+              {user && (
+                <>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <Checkbox
+                      checked={shareGallery}
+                      onCheckedChange={(checked) => setShareGallery(checked === true)}
+                    />
+                    <span className="text-[10px] text-foreground/80">Share to the community gallery</span>
+                  </label>
+                  {shareGallery && (
+                    <>
+                      <Input
+                        value={galleryTitle}
+                        onChange={(e) => setGalleryTitle(e.target.value)}
+                        placeholder="Gallery title (defaults to theme name)"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        value={galleryDescription}
+                        onChange={(e) => setGalleryDescription(e.target.value)}
+                        placeholder="Short description (optional)"
+                        className="h-8 text-xs"
+                      />
+                    </>
+                  )}
+                </>
+              )}
               <Button size="sm" className="w-full h-8 text-xs" disabled={saving} onClick={handleSaveTheme}>
                 {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                Save to account
+                {user && shareGallery ? "Save & publish" : "Save to account"}
               </Button>
             </PopoverContent>
           </Popover>
@@ -490,6 +606,29 @@ export function ThemeEditorDialog() {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => {
+                              const shared = sharedIds.has(t.id);
+                              if (sharingId == null) {
+                                if (shared) unpublishTheme(t.id, t.name);
+                                else publishTheme(t.id, t.name);
+                              }
+                            }}
+                            className={`shrink-0 rounded p-0.5 transition-colors ${
+                              sharingId === t.id
+                                ? "text-muted-foreground animate-pulse"
+                                : sharedIds.has(t.id)
+                                  ? "text-green-600 hover:bg-green-500/10"
+                                  : "text-muted-foreground/50 hover:text-foreground"
+                            }`}
+                            title={
+                              sharedIds.has(t.id)
+                                ? `"${t.name}" is in the gallery — click to unshare`
+                                : `Publish "${t.name}" to the gallery`
+                            }
+                          >
+                            <Globe className="h-3 w-3" />
+                          </button>
                           <button
                             onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
                             className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"

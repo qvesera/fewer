@@ -201,6 +201,35 @@ export function undoOps(nodes: FewerNode[], edges: FewerEdge[], ops: HistoryOp[]
   return result;
 }
 /**
+ * Leaf-view positions to restore for a batch of ops, or null when the leaf has
+ * no per-view position map / nothing to move. Per-leaf canvases render from
+ * `viewSettings[leafId].positions`, not the shared node positions, so a drag
+ * undo has to land in both.
+ *
+ * `pick` is "from" for undo, "to" for redo. Ops are walked in reverse for
+ * "from" so the earliest recorded position wins if one node moved twice in a
+ * batch.
+ */
+export function leafPositionsFor(
+  positions: Record<string, { x: number; y: number }> | undefined,
+  ops: HistoryOp[],
+  pick: "from" | "to",
+): Record<string, { x: number; y: number }> | null {
+  if (!positions) return null;
+  const ordered = pick === "from" ? [...ops].reverse() : ops;
+  const out = { ...positions };
+  let changed = false;
+  for (const op of ordered) {
+    if (op.type !== "move-positions") continue;
+    for (const m of op.moves) {
+      out[m.nodeId] = m[pick];
+      changed = true;
+    }
+  }
+  return changed ? out : null;
+}
+
+/**
  * Extract the "before" view-state that a batched op wants restored on undo.
  */
 export function getUndoViewState(op: HistoryOp): Partial<ViewState> | null {

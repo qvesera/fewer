@@ -64,21 +64,25 @@ export function FewerApp() {
   const device = useDevice();
   const { user } = useAuth();
 
-  const [importFlowOpen, setImportFlowOpen] = useState(false);
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
   const [importFlowMounted, setImportFlowMounted] = useState(false);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const [addStandaloneOpen, setAddStandaloneOpen] = useState(false);
-  const [addParentOpen, setAddParentOpen] = useState(false);
   const [tutorialRestartKey, setTutorialRestartKey] = useState(0);
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const authOpen = useGraphStore((s) => s.authOpen);
-  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);
   const resizingRef = useRef(false);
 
-  // Panel layout
+  const importFlowOpen = useGraphStore((s) => s.importFlowOpen);
+  const setImportFlowOpen = useGraphStore((s) => s.setImportFlowOpen);
+  const addChildOpen = useGraphStore((s) => s.addChildOpen);
+  const setAddChildOpen = useGraphStore((s) => s.setAddChildOpen);
+  const addStandaloneOpen = useGraphStore((s) => s.addStandaloneOpen);
+  const setAddStandaloneOpen = useGraphStore((s) => s.setAddStandaloneOpen);
+  const addParentOpen = useGraphStore((s) => s.addParentOpen);
+  const setAddParentOpen = useGraphStore((s) => s.setAddParentOpen);
+  const notificationOpen = useGraphStore((s) => s.notificationOpen);
+  const setNotificationOpen = useGraphStore((s) => s.setNotificationOpen);
+  const authOpen = useGraphStore((s) => s.authOpen);
+  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);  // Panel layout
   const sidebarSide = useGraphStore((s) => s.sidebarSide);
   const panelTree = useGraphStore((s) => s.panelTree);
 
@@ -231,7 +235,7 @@ export function FewerApp() {
       window.history.replaceState(null, "", window.location.pathname);
       toast({
         title: "Shared graph loaded",
-        description: `${(data.nodes as unknown[]).length} node${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
+        description: `${(data.nodes as unknown[]).length} card${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
       });
     };
 
@@ -253,6 +257,37 @@ export function FewerApp() {
           applyData(json.data);
         } catch {
           toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" });
+        }
+        return;
+      }
+
+      // Theme gallery deep link: #t:<id> — apply a published theme on load.
+      // Goes through the normal store actions, so the existing settings sync
+      // persists it as the user's last-used theme (localStorage + cloud).
+      if (hash.startsWith("t:")) {
+        const themeId = hash.slice(2);
+        if (!themeId) {
+          toast({ title: "Invalid theme link", description: "Could not load the theme from the URL.", variant: "destructive" });
+          return;
+        }
+        try {
+          const res = await fetch(`/api/themes/shared/${themeId}`);
+          const json = await res.json();
+          if (!res.ok || !json.theme?.theme) {
+            toast({ title: "Theme link invalid", description: json.error || "Could not load the theme.", variant: "destructive" });
+            return;
+          }
+          const s = useGraphStore.getState();
+          s.setCustomTheme(json.theme.theme);
+          s.setThemeMode("custom");
+          setHashLoaded(true);
+          window.history.replaceState(null, "", window.location.pathname);
+          toast({
+            title: "Theme applied",
+            description: `"${json.theme.name}" is now your theme — saved as last used.`,
+          });
+        } catch {
+          toast({ title: "Theme link error", description: "Could not load the theme from the server.", variant: "destructive" });
         }
         return;
       }
@@ -412,7 +447,7 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotifOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
+      <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
       <div className="flex min-h-0 flex-1">
@@ -484,7 +519,7 @@ export function FewerApp() {
       <BatchRenameDialog />
       <BatchTagDialog />
       <ParentPickerDialog />
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       <BugReportDialog />
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />

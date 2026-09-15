@@ -20,6 +20,12 @@ const withLeaf = (set: Parameters<FolderSliceCreator>[0], get: () => GraphState,
   get()._persistLayout();
 };
 
+/** Ids of the given nodes that are files. */
+function fileIdSet(s: GraphState, ids: string[]): string[] {
+  const byId = new Map<string, GraphState["nodes"][number]>(s.nodes.map((n) => [n.id, n]));
+  return ids.filter((id) => byId.get(id)?.data.type === "file");
+}
+
 export type FolderSliceCreator = StateCreator<
   GraphState,
   [],
@@ -94,10 +100,26 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     const layers = leaf.hideLayers;
-    if (!layers) return;
-    const subtrees = { ...layers.subtrees };
-    delete subtrees[folderId];
-    withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, subtrees } });
+    const descendants = getDescendants(folderId, s.edges);
+    if (layers) {
+      const subtrees = { ...layers.subtrees };
+      delete subtrees[folderId];
+      // Show Children must win over the bulk "Hide Files" layer too: exempt this
+      // folder's descendant files (same mechanism the eye-reveal uses), so the
+      // children actually appear while the bulk layer stays on for everywhere else.
+      const filesBulkExempt = layers.filesBulkActive
+        ? [...new Set([...layers.filesBulkExempt, ...fileIdSet(s, descendants)])]
+        : layers.filesBulkExempt;
+      withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, subtrees, filesBulkExempt } });
+    }
+    // Files may also be hidden GLOBALLY (no leaf, or a leaf seeded from a global
+    // "Show Files" off state) — the folder's hidden descendants live in hiddenIds,
+    // so reveal them there too. collectShowSubtrees stops at independently-hidden
+    // nodes, matching showSubtree: per-node user hides stay hidden.
+    const indieSet = new Set(get().independentlyHiddenIds);
+    const globalHidden = new Set(get().hiddenIds);
+    const hiddenDesc = descendants.filter((d) => globalHidden.has(d) && !indieSet.has(d));
+    if (hiddenDesc.length > 0) get().showSubtrees(hiddenDesc);
     get().relayout();
   },
 

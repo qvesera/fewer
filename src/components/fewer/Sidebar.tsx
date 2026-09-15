@@ -238,7 +238,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               advancedModeEnabled={advancedModeEnabled}
             />
 
-            {/* Rearrange Action Button — clears per-view positions for active leaf, else global relayout */}
+            {/* Organize Action Button — clears per-view positions for active leaf, else global relayout */}
             <Button
               size="sm"
               className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
@@ -249,11 +249,11 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 } else {
                   relayout();
                 }
-                toast({ title: "Graph rearranged" });
+                toast({ title: "Graph organized" });
               }}
             >
               <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
-              <span className="truncate">Rearrange</span>
+              <span className="truncate">Organize</span>
             </Button>
           </div>
 
@@ -276,27 +276,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 5. HIDDEN NODES RECOVERY ── */}
-        {!dockedIds.has("hidden") && (() => {
-          const viewHidden = activeLeaf ? activeLeaf.resolved.hiddenIds.length > 0 : hiddenIds.length > 0;
-          const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
-          const hiddenCount = activeLeaf ? activeLeaf.resolved.hiddenIds.length : hiddenIds.length;
-          const fileCount = viewFiltersFiles ? nodes.filter((n) => n.data.type === "file").length : 0;
-          return (viewHidden || viewFiltersFiles) && (
-          <CollapsibleSection
-            title="Hidden Cards"
-            icon={EyeOff}
-            badge={String(hiddenCount + fileCount)}
-            forceOpen={hiddenPanelExpandTrigger}
-            defaultOpen
-            {...dragProps("hidden")}
-          >
-            <HiddenNodesPanel />
-          </CollapsibleSection>
-          );
-        })()}
-
-        {/* ── 6. TAGS ── */}
+        {/* ── 4. TAGS ── */}
         {!dockedIds.has("tags") && nodes.length > 0 && (
           <CollapsibleSection
             title="Tags"
@@ -309,7 +289,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           </CollapsibleSection>
         )}
 
-        {/* ── 7. GRAPH ANALYTICS ── */}
+        {/* ── 5. GRAPH ANALYTICS ── */}
         {!dockedIds.has("analytics") && (
         <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
           <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
@@ -318,6 +298,29 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </AnimatedConditional>
         )}
 
+        {/* ── 6. HIDDEN NODES RECOVERY ── */}
+        {!dockedIds.has("hidden") && (() => {
+          const viewHidden = activeLeaf ? activeLeaf.resolved.hiddenIds.length > 0 : hiddenIds.length > 0;
+          const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
+          const hiddenCount = activeLeaf ? activeLeaf.resolved.hiddenIds.length : hiddenIds.length;
+          // ponytail: resolved.hiddenIds already includes file ids when files are
+          // bulk-hidden (computeEffectiveHidden adds allFileIds) or when global
+          // showFiles=false (setShowFiles adds fileIds to hiddenIds) — adding
+          // fileCount here double-counted every hidden file (30 files -> badge 60).
+          return (viewHidden || viewFiltersFiles) && (
+          <CollapsibleSection
+            title="Hidden Cards"
+            icon={EyeOff}
+            badge={String(hiddenCount)}
+            forceOpen={hiddenPanelExpandTrigger}
+            defaultOpen
+            {...dragProps("hidden")}
+          >
+            <HiddenNodesPanel />
+          </CollapsibleSection>
+          );
+        })()}
+
       </div>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
@@ -325,7 +328,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-medium">Clear canvas?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs font-normal">
-              This will remove all {plural(nodes.length, "node")} and{" "}
+              This will remove all {plural(nodes.length, "card")} and{" "}
               {plural(edges.length, "edge")} from your graph.
             </AlertDialogDescription>
           </AlertDialogHeader>
