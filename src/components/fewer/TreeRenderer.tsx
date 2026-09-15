@@ -4,7 +4,7 @@ import { useCallback, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import type { PanelNode, PanelSplit } from "@/lib/fewer/panelTree";
-import { isLeaf, isSplit, setDividerRatio as treeSetDividerRatio } from "@/lib/fewer/panelTree";
+import { getPrimary, isLeaf, isSplit, leafCount, setDividerRatio as treeSetDividerRatio } from "@/lib/fewer/panelTree";
 import { DockArea } from "./DockArea";
 import { CornerGrip } from "./CornerGrip";
 import { saveLayoutToStorage, AREA_EDITOR_LABELS, type PanelArea } from "@/lib/fewer/panelLayout";
@@ -73,14 +73,34 @@ function LeafNode({
   const contentRef = useRef<HTMLDivElement>(null);
   const isGraph = leaf.area.editor === "graph";
   const meta = sectionMetaById(leaf.area.editor);
+  // Which leaf owns clicks/keys is invisible in a split view, so mark it — but
+  // only when there is a choice to make. Same fallback useActiveLeaf uses, so
+  // the ring can never point at a different canvas than the one that responds.
+  const activeLeafId = useGraphStore((s) => s.activeLeafId);
+  const panelTree = useGraphStore((s) => s.panelTree);
+  const multiLeaf = leafCount(panelTree) > 1;
+  const isActiveLeaf =
+    (activeLeafId ?? getPrimary(panelTree)?.area.id) === leaf.area.id;
+  const showActive = multiLeaf && isActiveLeaf;
 
   return (
     <div
       data-leaf-id={leaf.area.id}
-      className="group relative flex flex-col h-full w-full min-h-0 min-w-0 border-border/20"
+      data-active-leaf={showActive ? "true" : undefined}
+      className={cn(
+        "group relative flex flex-col h-full w-full min-h-0 min-w-0 border-border/20",
+        showActive && "gm-active-leaf",
+      )}
     >
       {/* Unified header bar for all leaf types */}
       <div className="flex items-center gap-1 px-2 py-1 border-b border-border/20 shrink-0 bg-card/30">
+        {showActive && (
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: "var(--fewer-select-ring, var(--brand-cyan-400))" }}
+            aria-hidden="true"
+          />
+        )}
         {leaf.primary ? (
           // The primary leaf is always the main graph viewport — no editor-type picker.
           <span

@@ -218,6 +218,14 @@ Fuzzy search across filenames, paths, and extensions.
 - **Highlight/dim** matched/unmatched nodes
 - **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
+## Multiple Graph Views
+
+Split the workspace into two or more areas and every graph view keeps its own settings: hidden cards, collapsed folders, card positions, layout direction, edge style and edge width. Clicking a card, its pane, or its header makes that view the active one — the view that owns clicks, selection and keyboard actions.
+
+The active view is marked with an accent inset border plus a dot in its header, so it is obvious which pane will respond. The marker only appears when the workspace holds more than one view, keeping a single-view layout unmarked. It is a UI affordance: it is never drawn into SVG/PNG exports.
+
+Image exports mirror the active view (see [Import & Export](/docs/import-export)); JSON, CSV, DOT, script and tree exports always cover the full graph.
+
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
