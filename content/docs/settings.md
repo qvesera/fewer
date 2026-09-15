@@ -39,7 +39,7 @@ Settings in Advanced:
 | **Minimap Size**     | Slider, 80–300px                               |
 | **Node Width**       | Card width slider, 120–400px                   |
 | **Node Height**      | Card height slider, 40–300px                   |
-| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Organize** |
+| **Crown Shyness**    | Branch-spacing intensity, 0–3 — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value — changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as it gets |
 
 ## Help
 

@@ -1093,8 +1093,10 @@ function AdvancedTab() {
   const setShynessScale = useGraphStore((s) => s.setShynessScale);
 
   // Crown-shyness slider: local value for live drag preview; the store commit
-  // happens on drag release (or when a custom value is typed). No auto-relayout:
-  // the new intensity is picked up on the next explicit Organize.
+  // happens on drag release (or when a custom value is typed). No auto-relayout
+  // of shared positions: the main canvas picks the new intensity up on the next
+  // explicit Organize, while per-view canvases that derive their own layout react
+  // immediately (see the derived layout in GraphCanvas).
   const [shynessPreview, setShynessPreview] = useState(shynessScale);
   useEffect(() => setShynessPreview(shynessScale), [shynessScale]);
 
@@ -1146,7 +1148,7 @@ function AdvancedTab() {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
-                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it.</p>
+                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it, 1 is the usual spacing, and the response curves upward from there: 2 is clearly looser and 3 opens the tree right up, which is where the range is capped — 3 is as loose as the layout gets.</p>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80">
                 <EditableNumber value={shynessPreview} onCommit={(v) => setShynessScale(v)} labelFn={(v) => `${v.toFixed(1)}×`} />
@@ -1163,7 +1165,7 @@ function AdvancedTab() {
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Max Depth and Auto-hide apply immediately. Crown Shyness takes effect the next time the graph is organized (Organize button or Alt+R).
+            Max Depth and Auto-hide apply immediately. Crown Shyness re-runs the layout as soon as you release the slider (or commit a typed value). Changing it clears the current view's manual card positions, since those were spaced for the old intensity.
           </p>
         </div>
       )}

@@ -8,6 +8,7 @@ import {
   handleKeyboardShortcut,
   toStoreReader,
   type ShortcutCtx,
+  type StoreReader,
 } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
 import { isAnyDialogOpen } from "@/store/graphStore";
@@ -99,10 +100,19 @@ test("toStoreReader defaults for missing fields", () => {
   expect(r.activeLeafId).toBeNull(); expect(r.showFilesByLeaf).toEqual({});
 });
 // ─── Test harness ─────────────────────────────────────────────────
+
+/** Store reader plus the store actions a shortcut calls directly (organize). */
+function withActions(reader: StoreReader, a: Record<string, any>): StoreReader & { organize(leafId?: string | null): void } {
+  return {
+    ...reader,
+    organize: (leafId) => { a.organize = leafId ?? null; a.organizeCalls = (a.organizeCalls ?? 0) + 1; },
+  };
+}
+
 function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Record<string, any> } {
   const a: Record<string, any> = {};
   const ctx: ShortcutCtx = {
-    getState: () => toStoreReader({}),
+    getState: () => withActions(toStoreReader({}), a),
     undo: () => { a.undo = true; }, redo: () => { a.redo = true; },
     setSearchOpen: (v) => { a.setSearchOpen = v; },
     setDirection: (d) => { a.setDirection = d; },
@@ -128,7 +138,7 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
     duplicateNodeUnderParent: (id) => { a.duplicateNodeUnderParent = id; },
     setAuthOpen: (v) => { a.setAuthOpen = v; },
     isAnyDialogOpen: (s: any) => { a.isAnyDialogOpen = s; return false; },
-    relayout: () => { a.relayout = true; },
+    organize: (leafId) => { a.organize = leafId ?? null; a.organizeCalls = (a.organizeCalls ?? 0) + 1; },
     reactFlow: {
       setNodes: (fn: any) => { a.setNodes = fn; },
       fitView: (opts) => { a.fitView = opts; },
@@ -261,14 +271,16 @@ test("Delete with selected nodes toasts", () => {
   expect(a.toast).toBeDefined();
 });
 
-test("Alt+R relayout toasts only when nodes exist", () => {
+test("Alt+R organizes the active view and toasts only when nodes exist", () => {
   const { ctx, a } = makeCtx();
   expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "r" })).toBe(true);
-  expect(a.relayout).toBe(true);
+  expect(a.organizeCalls).toBe(1);
+  expect(a.organize).toBeNull(); // no active leaf -> shared layout
   expect(a.toast).toBeUndefined();
 
-  const { ctx: c2, a: b } = makeCtx({ getState: () => toStoreReader({ nodes: [{ id: "n1" }] }) });
+  const { ctx: c2, a: b } = makeCtx({ getState: () => withActions(toStoreReader({ nodes: [{ id: "n1" }], activeLeafId: "leaf-1" } as any), b) });
   expect(fire(buildKeyboardRules(), c2, { altKey: true, key: "r" })).toBe(true);
+  expect(b.organize).toBe("leaf-1");
   expect(b.toast).toBeDefined();
 });
 

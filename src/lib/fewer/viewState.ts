@@ -83,6 +83,30 @@ export function computeEffectiveHidden(
   return [...result];
 }
 
+// ── Derivation predicate ──
+
+/**
+ * True when a leaf renders a layout of its own instead of the shared (store)
+ * positions: its direction differs from the global one, it collapses folders,
+ * or its hide layers change the visible set.
+ *
+ * This is the single source of truth for both the canvas (which then runs the
+ * layout engine locally) and the Organize action (which knows that clearing a
+ * view's card positions is enough — no global relayout needed). Keys explicitly
+ * set to `undefined`, as `updateViewSettings` leaves behind when it clears
+ * positions, are not overrides.
+ */
+export function needsLayoutDerivation(
+  vs: ViewSettings | undefined,
+  global: { direction: "TB" | "LR" | "BT" | "RL"; hiddenIds: string[] },
+  allFileIds: string[],
+): boolean {
+  if (!vs) return false;
+  if (vs.direction !== undefined && vs.direction !== global.direction) return true;
+  if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
+  return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
+}
+
 // ── Resolution ──
 
 /** Resolve a single setting: leaf override takes precedence over global. */

@@ -42,6 +42,10 @@ function seedSmall() {
     shynessScale: 1,
     sortKey: "name",
     sortDir: "asc",
+    // Organize (and therefore setShynessScale) keys off the active view; pin it
+    // so a leaking sibling test can't make these assertions view-dependent.
+    activeLeafId: null,
+    viewSettings: {},
   });
 }
 
@@ -474,15 +478,28 @@ describe("setShynessScale", () => {
     expect(s().shynessScale).toBe(before);
   });
 
-  it("does not trigger relayout", () => {
+  it("re-runs the layout so the new intensity is visible", () => {
+    // Regression: writing the value and stopping made the slider look inert —
+    // Crown Shyness is only observable through a relayout.
     s().setShynessScale(2);
-    expect(relayoutCount).toBe(0);
+    expect(relayoutCount).toBe(1);
   });
 
-  it("does not bump graphVersion", () => {
+  it("drops the active view's per-view positions, which were spaced for the old intensity", () => {
+    // The reported bug: after dragging a card the view held per-view positions,
+    // and those outrank the layout engine, so the slider left the canvas
+    // untouched. Organize clears them; setShynessScale has to route through it.
+    useGraphStore.setState({
+      activeLeafId: "leaf-1",
+      viewSettings: { "leaf-1": { positions: { root: { x: 1, y: 2 } } } },
+    });
     const before = s().graphVersion;
+
     s().setShynessScale(2);
-    expect(s().graphVersion).toBe(before);
+
+    expect(s().viewSettings["leaf-1"]).toBeUndefined();
+    expect(s().graphVersion).toBeGreaterThan(before);
+    expect(relayoutCount).toBe(1);
   });
 });
 

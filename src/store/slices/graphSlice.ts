@@ -8,6 +8,7 @@ import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
 import { validateConnection, getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
+import { needsLayoutDerivation } from "@/lib/fewer/viewState";
 
 import { fullName } from "@/lib/fewer/nodeName";
 
@@ -279,6 +280,13 @@ export type GraphSliceCreator = StateCreator<
     reset: () => void;
     applySearch: () => void;
     relayout: () => void;
+    /**
+     * Organize (Alt+R, sidebar/panel button, canvas context menu). `leafId` is the
+     * view the user is looking at, if any: its per-view card positions are dropped
+     * and, when it does not derive a layout of its own, the shared positions are
+     * relaid out so the result matches the current settings (Crown Shyness, sort…).
+     */
+    organize: (leafId?: string | null) => void;
     triggerHiddenPanelExpand: () => void;
     setClipboard: (mode: "copy" | "cut", nodeIds: string[]) => void;
     clearClipboard: () => void;
@@ -404,6 +412,38 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
     const searched = applySearchHighlight(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
+  },
+
+  organize: (leafId) => {
+    const s = get();
+    if (!leafId) {
+      s.relayout();
+      return;
+    }
+    const allFileIds = (s.nodes as FewerNode[]).filter((n) => n.data.type === "file").map((n) => n.id);
+    const derivesOwnLayout = needsLayoutDerivation(
+      s.viewSettings[leafId],
+      { direction: s.direction, hiddenIds: s.hiddenIds as string[] },
+      allFileIds,
+    );
+    // Per-view card positions pin the spacing the user last saw, so drop them.
+    // This bumps graphVersion (and persists) when it actually clears something.
+    s.clearViewPositions(leafId);
+    // A view with its own direction/hidden set re-derives from the layout engine
+    // as soon as its positions are gone. One that falls back to the shared
+    // positions needs a global relayout to pick up the current settings
+    // (Crown Shyness intensity, sibling sort…).
+    if (!derivesOwnLayout) {
+      s.relayout();
+    } else {
+      // Nothing above touched the store, so the canvas memo would not re-run and
+      // Organize read as a dead button on a view that had no per-view positions
+      // to clear (the common case). Bump graphVersion so the derived layout
+      // re-runs and the canvas redraws the shared positions with the current
+      // settings. (A deriving view ignores per-view positions anyway, so there
+      // is nothing else to clear here.)
+      set({ graphVersion: get().graphVersion + 1 });
+    }
   },
 
   applySearch: () => {

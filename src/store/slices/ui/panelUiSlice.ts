@@ -135,8 +135,20 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const s = get();
     const leaf = s.viewSettings[leafId];
     if (!leaf?.positions) return;
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: undefined } };
-    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    // Drop the entry entirely when positions were its only field. An empty
+    // `{ positions: undefined }` entry still reads as "this view has per-view
+    // settings" to needsLayoutDerivation and to the parse/sanitize round-trip.
+    const remaining = { ...leaf };
+    delete remaining.positions;
+    const viewNext = { ...s.viewSettings };
+    if (Object.keys(remaining).length > 0) viewNext[leafId] = remaining;
+    else delete viewNext[leafId];
+    set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+    // Persist like every other viewSettings mutator. Without this the cleared
+    // positions are still in localStorage, so the next load restores them and
+    // the per-view positions outrank the layout engine again — which made
+    // Organize and the Crown Shyness slider look inert after a drag.
+    get()._persistLayout();
   },
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),

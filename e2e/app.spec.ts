@@ -121,6 +121,39 @@ test("dragging a node is undoable", async ({ page }) => {
     .toBeLessThan(before!.x + 40);
 });
 
+// Regression: Organize went inert as soon as the active view held a
+// viewSettings entry — dragging any card creates one, and clearing the per-view
+// positions left the entry behind, so every later click only cleared positions
+// that were already empty. The tree kept whatever arrangement it had, which is
+// why a new Crown Shyness intensity rendered identically at 0 and 3×. Organize
+// must hand the view back to the layout engine.
+test("Organize re-flows the tree after a card was dragged", async ({ page }) => {
+  await openCanvas(page);
+
+  const node = srcHeader(page).first();
+  const before = await node.boundingBox();
+
+  // Drag the card by its header, well clear of the child list.
+  const startX = before!.x + before!.width / 2;
+  const startY = before!.y + 10;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 180, startY + 140, { steps: 15 });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await node.boundingBox())!.x, { timeout: 10000 })
+    .toBeGreaterThan(before!.x + 120);
+
+  await page.getByRole("button", { name: "Organize" }).first().click();
+
+  // The card snaps back to the arrangement the sample loaded with, i.e. the
+  // per-view override was dropped and the layout really re-ran.
+  await expect
+    .poll(async () => Math.abs((await node.boundingBox())!.x - before!.x), { timeout: 10000 })
+    .toBeLessThan(40);
+});
+
 test("node context menu offers cut, duplicate, and delete", async ({ page }) => {
   await openCanvas(page);
 

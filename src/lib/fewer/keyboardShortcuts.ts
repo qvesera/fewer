@@ -115,7 +115,9 @@ export interface ShortcutCtx {
   connectNodes(connection: { source: string; target: string }): { ok: boolean; reason?: string };
   removeEdgesFromHandle(nodeId: string, handleType: "source" | "target"): void;
   deleteEdges(ids: string[]): void; duplicateNodeUnderParent(id: string): void;
-  setAuthOpen(v: boolean): void; relayout(): void;
+  setAuthOpen(v: boolean): void;
+  /** Organize the view the user is looking at (Alt+R). `leafId` is that view, if any. */
+  organize(leafId?: string | null): void;
   reactFlow: {
     setNodes(fn: (prev: readonly any[]) => any[]): void;
     fitView(opts?: { nodes?: { id: string }[]; duration?: number; padding?: number }): void;
@@ -165,9 +167,9 @@ export function buildKeyboardRules(): ShortcutRule[] {
         window.dispatchEvent(new CustomEvent(
           st.selectedNodeIds.length===1 && st.nodes.some((n)=>n.id===st.selectedNodeIds[0]&&n.data.type==="folder")
           ? FEWER_ADD_NODE : FEWER_ADD_NODE_STANDALONE)); } },
-    // Alt+R — organize (relayout)
+    // Alt+R — organize
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
-            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph organized" }); } },
+            handle(e,ctx,_kc) { e.preventDefault(); const st=ctx.getState(); const before=st.nodes.length; st.organize(st.activeLeafId); if(before>0)ctx.toast({ title:"Graph organized" }); } },
     // Alt+F — zoom to selection
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();

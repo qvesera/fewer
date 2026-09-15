@@ -88,8 +88,9 @@ header = """-- Re-seed content_pages from the markdown in content/docs/ and cont
 --
 -- 0021_content_pages.sql stays the source of record for fresh installs; this
 -- migration brings environments where the seed has already run back in sync
--- (docs pages had drifted: cards/batch/gallery/version-history copy was missing
--- from the served rows).
+-- (the Crown Shyness copy on the graph-features and settings pages had drifted
+-- from the repo markdown: the response curve, its capped top end, and the
+-- Organize re-flow).
 --
 -- Idempotent: upserts on (type, slug). `published` is set only on INSERT, so
 -- docs/plans stays hidden in environments where 0028 already applied.

@@ -63,7 +63,6 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const setDirection = useGraphStore((s) => s.setDirection);
   const edgeStyle = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
-  const relayout = useGraphStore((s) => s.relayout);
   const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
   const nodes = useGraphStore((s) => s.nodes);
@@ -238,17 +237,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               advancedModeEnabled={advancedModeEnabled}
             />
 
-            {/* Organize Action Button — clears per-view positions for active leaf, else global relayout */}
+            {/* Organize action — store.organize() drops this view's per-view
+                positions and re-runs the layout when the view does not derive
+                one of its own */}
             <Button
               size="sm"
               className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
               onClick={() => {
-                const store = useGraphStore.getState();
-                if (activeLeaf && Object.keys(store.viewSettings[activeLeaf.leafId] ?? {}).length > 0) {
-                  store.clearViewPositions(activeLeaf.leafId);
-                } else {
-                  relayout();
-                }
+                useGraphStore.getState().organize(activeLeaf?.leafId ?? null);
                 toast({ title: "Graph organized" });
               }}
             >

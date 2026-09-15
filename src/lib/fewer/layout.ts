@@ -43,11 +43,58 @@ export interface LayoutOptions {
   tagLabelById?: (id: string) => string;
 }
 
-// ponytail: linear per-level/per-log-size gap growth, capped at 3x base —
+// ponytail: linear per-level/per-log-size gap growth, capped at 20x base —
 // upgrade path is per-contour-point gap shaping if trees ever need it.
-export const SHYNESS_DEPTH_K = 8; // extra px per contour level below the sibling pair
-export const SHYNESS_SIZE_K = 2; // extra px per log2(1 + smaller subtree's node count)
-export const SHYNESS_MAX_MULTIPLE = 3; // gap never exceeds baseGap * this
+// Coefficients are full-strength values: the slider applies a fraction of them
+// (SHYNESS_TOP at the top, scaled down further by effectiveShynessScale below).
+// Tuned against the real SAMPLE_TREE plus a 1.7K-node synthetic tree so every
+// step of the slider is worth seeing (measured with
+// `bun test src/lib/fewer/layout.shyness.tuning.test.ts` while tuning; re-measure
+// before changing these):
+//   sample TB: 0 -> 1 +1%, 0 -> 2 +8%, 0 -> 3 +28% span
+//   sample LR: 0 -> 1 +3%, 0 -> 2 +21%, 0 -> 3 +71% span
+// The sibling axis in TB is dominated by card width, so its relative growth is
+// smaller than LR's, where the sibling axis is card height — both ends of the
+// slider are clearly different. Growth stays proportional on large trees (the
+// 1.7K node probe spreads the same ~3x over 0 -> 3, no accumulation blow-up).
+// A big SHYNESS_SIZE_K is what opens up leaf-pair layers: sibling separation is
+// otherwise dominated by card widths, which is why the old 8/2 pair with a 3x
+// cap moved a wide flat project by ~2% end to end — below the threshold of
+// noticing, the "0 and 3 look the same" report.
+export const SHYNESS_DEPTH_K = 40; // extra px per contour level below the sibling pair, at full strength
+export const SHYNESS_SIZE_K = 70; // extra px per log2(1 + smaller subtree's node count), at full strength
+export const SHYNESS_MAX_MULTIPLE = 20; // gap never exceeds baseGap * this
+
+/** Cubic slider response: the dial is a position, not the strength. */
+export const SHYNESS_CURVE = 3;
+
+/**
+ * Strength the top of the slider applies, as a multiple of the tuned
+ * coefficients: 3 * (2/3)^SHYNESS_CURVE = 8/9, the value 2x produced before the
+ * cap. Full strength spaced a wide graph out further than is useful to read, so
+ * the dial now stops where 2x used to — 3x is still the strongest setting, it
+ * just tops out at 8/9 of the coefficients instead of all of them.
+ */
+export const SHYNESS_TOP = 3 * Math.pow(2 / 3, SHYNESS_CURVE); // = 8/9
+
+/**
+ * Crown Shyness slider value → coefficient multiplier.
+ *
+ * Deliberately superlinear, and capped below full strength. 1x is the default,
+ * and the initial fit clamps at zoom 0.35 (use-canvas-initial-fit.ts), so a fat
+ * default pushes the far side of the tree outside the viewport, where
+ * `onlyRenderVisibleElements` culls it (measured on a 1280x600 canvas: a linear
+ * response spread the sample tree's LR layout 78% wider at 1x and dropped the
+ * initial-fit coverage from 71% to 40%, which is how the e2e suite lost nodes on
+ * the initial view). Curving the response keeps the default at the spacing a
+ * default canvas has always had, while the top of the range — SHYNESS_TOP, the
+ * strength 2x used to produce — is where the slider does its work: 0 -> 3 is
+ * +28% (TB) / +71% (LR) on the sample tree.
+ */
+export function effectiveShynessScale(scale: number): number {
+  const clamped = Math.max(0, Math.min(3, scale));
+  return SHYNESS_TOP * Math.pow(clamped / 3, SHYNESS_CURVE);
+}
 
 /** Crown-shyness gap between two sibling crowns at a given contour level. */
 export function shynessGap(
@@ -81,7 +128,10 @@ export function layoutGraphContour(
 ): FewerNode[] {
   const excludeSet = options?.excludeFromLayout ?? new Set();
   const shyness = options?.shyness ?? true;
-  const shynessScale = Math.max(0, Math.min(3, options?.shynessScale ?? 1));
+  // The slider value is mapped through the cubic response here — the single
+  // funnel every layout call goes through — so shynessGap stays a plain
+  // "base + extra * scale" primitive.
+  const shynessScale = effectiveShynessScale(options?.shynessScale ?? 1);
   const isHorizontal = direction === "LR" || direction === "RL";
   const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
   const layerGap = 70; // Spacing between tree depths

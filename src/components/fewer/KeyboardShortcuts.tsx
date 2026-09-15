@@ -54,7 +54,7 @@ export function KeyboardShortcuts() {
       deleteEdges: getStore().deleteEdges,
       duplicateNodeUnderParent: getStore().duplicateNodeUnderParent,
       setAuthOpen: getStore().setAuthOpen,
-      relayout: getStore().relayout,
+      organize: getStore().organize,
       reactFlow,
       toast,
       user,
