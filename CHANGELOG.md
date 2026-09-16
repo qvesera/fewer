@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Crown Shyness slider responds on a curve instead of linearly: 1 (the default) keeps the spacing a default canvas has always had, while 2 is clearly looser and 3 opens the tree right up — as far as the range goes, since 3 is the cap. A linear response gave the same top end but inflated every default layout, and the initial fit clamps its zoom, so the far side of the tree was pushed outside the viewport (where React Flow culls it) — the canvas looked like it had lost cards
 - Alt+Shift+P (unparent) now detaches only the top-most selected cards and records a single undo step, matching the batch Unparent menu action
 - Auth and Settings dialogs now share one validation module (src/lib/fewer/authValidation.ts): the auth form rules (email vs username, password policy, confirm) are pure and unit-tested, and the dialog submit path is split per mode (magic link, reset, sign up, sign in) behind one shared loading/error handler
+- Delete and move now collect descendants through the shared getDescendants helper instead of three hand-rolled breadth-first copies (store slice and its test), and the singular showSubtree path gains real store-level test coverage
+- Crawl and OS path resolution split into small documented helpers — crawlTree is a flat ~25-line orchestrator (sortTree / fetchBatch / attachEntries) and resolveLocalPath delegates to a fast root match plus a budgeted BFS — behavior unchanged, with new crawl budget and ordering tests
 
 ### Fixed
 

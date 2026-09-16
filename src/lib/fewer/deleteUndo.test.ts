@@ -1,6 +1,8 @@
 import { test, expect } from "bun:test";
 import { applyOps, undoOps } from "./history";
 import { reconcileAutoHide } from "@/store/slices/graphSlice";
+import { getDescendants } from "./validation";
+import { useGraphStore } from "@/store/graphStore";
 import type { FewerNode, FewerEdge, ViewState, RemoveSubtreeOp } from "./types";
 
 function makeNode(id: string, label: string, parentId?: string | null, opts: Partial<FewerNode["data"]> = {}): FewerNode {
@@ -20,13 +22,12 @@ function makeEdge(id: string, source: string, target: string): FewerEdge {
 const baseView: ViewState = { hiddenIds: [], showFiles: true, maxDisplayDepth: 6, autoHideThreshold: 10, autoHiddenIds: [], categoryFilter: [], categoryHiddenIds: [], independentlyHiddenIds: [] };
 
 /**
- * Mirror the exact subtree-collection + op-building logic used by graphSlice.deleteNodes
- * so the test exercises the real integration path, not a hand-built op.
+ * Build the same remove-subtree op graphSlice.deleteNodes records, using the
+ * shared getDescendants helper the store uses — so the test can't drift from
+ * production behaviour the way a hand-rolled BFS copy did.
  */
 function buildDeleteOp(nodes: FewerNode[], edges: FewerEdge[], ids: string[]) {
-  const toRemove = new Set<string>();
-  const queue = [...ids];
-  while (queue.length) { const id = queue.shift()!; toRemove.add(id); for (const e of edges) { if (e.source === id && !toRemove.has(e.target)) queue.push(e.target); } }
+  const toRemove = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
   const removedNodes = nodes.filter((n) => toRemove.has(n.id));
   const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
   const newNodes = nodes.filter((n) => !toRemove.has(n.id));
@@ -197,7 +198,7 @@ test("setShowFiles(true) reveal re-applies the auto-hide limit (files under over
   expect(under.autoHiddenIds).toEqual([]);
 });
 
-test("showSubtree BFS skips independentlyHiddenIds and their descendants", () => {
+test("showSubtree skips independentlyHiddenIds and their descendants", () => {
   // Tree: root -> a -> [a1, a2], root -> b -> [b1, b2]
   // All nodes hidden (hideSelected on root). 'a' was independently hidden
   // before the root hide — showSubtree("root") must reveal root, b, b1, b2
@@ -213,22 +214,20 @@ test("showSubtree BFS skips independentlyHiddenIds and their descendants", () =>
     makeEdge("e1", "root", "a"), makeEdge("e2", "a", "a1"), makeEdge("e3", "a", "a2"),
     makeEdge("e4", "root", "b"), makeEdge("e5", "b", "b1"), makeEdge("e6", "b", "b2"),
   ];
-  const hiddenIds = ["root", "a", "a1", "a2", "b", "b1", "b2"];
-  const indieSet = new Set(["a"]);
 
-  // Mirror showSubtree BFS
-  const toShow = new Set(["root"]);
-  const queue = ["root"];
-  while (queue.length) {
-    const nid = queue.shift()!;
-    for (const e of edges) {
-      if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
-      if (indieSet.has(e.target)) continue;
-      toShow.add(e.target);
-      queue.push(e.target);
-    }
-  }
+  // Drive the real store action — the batched equivalent (collectShowSubtrees)
+  // is covered in showSubtrees.test.ts, so this is the only real coverage of
+  // the singular showSubtree path.
+  useGraphStore.setState({
+    nodes: [root, a, a1, a2, b, b1, b2],
+    edges,
+    hiddenIds: ["root", "a", "a1", "a2", "b", "b1", "b2"],
+    independentlyHiddenIds: ["a"],
+    autoHiddenIds: [],
+    revealedFromHidden: [],
+    selectedNodeIds: [],
+  });
+  useGraphStore.getState().showSubtree("root");
 
-  const kept = hiddenIds.filter((h) => !toShow.has(h));
-  expect(new Set(kept)).toEqual(new Set(["a", "a1", "a2"]));
+  expect(new Set(useGraphStore.getState().hiddenIds)).toEqual(new Set(["a", "a1", "a2"]));
 });

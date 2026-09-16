@@ -535,10 +535,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   deleteNodes: (ids) => {
     const { nodes, edges, searchQuery } = get();
-    // Collect all nodes to remove (including descendants)
-    const toRemove = new Set<string>();
-    const queue = [...ids];
-    while (queue.length) { const id = queue.shift()!; toRemove.add(id); for (const e of edges) { if (e.source === id && !toRemove.has(e.target)) queue.push(e.target); } }
+    // Collect all nodes to remove (including descendants) via the shared
+    // validation helper — no hand-rolled BFS (see deleteUndo.test.ts).
+    const toRemove = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
     const removedNodes = nodes.filter((n) => toRemove.has(n.id));
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const newNodes = nodes.filter((n) => !toRemove.has(n.id));
@@ -832,8 +831,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   moveNode: (id) => {
     const { nodes, edges, searchQuery } = get();
-    const toRemove = new Set([id]); const queue = [id];
-    while (queue.length) { const qid = queue.shift()!; for (const e of edges) { if (e.source === qid && !toRemove.has(e.target)) { toRemove.add(e.target); queue.push(e.target); } } }
+    const toRemove = new Set([id, ...getDescendants(id, edges)]);
     const removedNodes = nodes.filter((n) => toRemove.has(n.id));
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const filteredNodes = nodes.filter((n) => !toRemove.has(n.id));

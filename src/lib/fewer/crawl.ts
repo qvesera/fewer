@@ -30,6 +30,71 @@ export async function fetchEntries(url: string): Promise<ReturnType<typeof parse
   }
 }
 
+/** Sort a tree in place: folders first, then alphabetical. */
+function sortTree(entry: TreeEntry): void {
+  if (!entry.children) return;
+  entry.children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  for (const c of entry.children) sortTree(c);
+}
+
+interface CrawlState {
+  pages: number;
+  visited: Set<string>;
+  nodeByUrl: Map<string, TreeEntry>;
+  queue: { url: string; depth: number }[];
+}
+
+/**
+ * Attach one fetched listing's entries to its node. Folders become new nodes
+ * (enqueued unless the depth cap is hit); files have no listing page, so they
+ * point at their direct item URL to keep "Open at source" working.
+ */
+function attachEntries(
+  node: TreeEntry,
+  url: string,
+  depth: number,
+  entries: ReturnType<typeof parseAutoIndex>,
+  maxDepth: number,
+  state: CrawlState,
+): void {
+  for (const entry of entries) {
+    if (entry.type !== "folder") {
+      node.children!.push({
+        name: entry.name,
+        type: "file",
+        size: entry.size,
+        webUrl: new URL(entry.name, url).href,
+      });
+      continue;
+    }
+    const childUrl = new URL(entry.name + "/", url).href;
+    if (state.visited.has(childUrl) || state.nodeByUrl.has(childUrl)) continue;
+    const child: TreeEntry = { name: entry.name, type: "folder", children: [], webUrl: childUrl };
+    node.children!.push(child);
+    state.nodeByUrl.set(childUrl, child);
+    // Only enqueue if we haven't hit the depth cap.
+    if (maxDepth === 0 || depth + 1 < maxDepth) {
+      state.queue.push({ url: childUrl, depth: depth + 1 });
+    }
+  }
+}
+
+/** Fetch up to `limit` queued pages concurrently, counting visits + page budget. */
+async function fetchBatch(state: CrawlState, limit: number) {
+  const batch = state.queue.splice(0, limit);
+  return Promise.all(
+    batch.map(async ({ url, depth }) => {
+      if (state.visited.has(url)) return null;
+      state.visited.add(url);
+      state.pages++;
+      return { url, depth, entries: await fetchEntries(url) };
+    })
+  );
+}
+
 /**
  * Crawl a public file index (Apache/nginx auto-index) breadth-first with a
  * small concurrency pool, building a TreeEntry. Returns partial tree if the
@@ -40,76 +105,29 @@ export async function crawlTree(
   maxDepth: number,
   maxPages: number
 ): Promise<{ tree: TreeEntry; truncated: boolean }> {
-  const state = { pages: 0, visited: new Set<string>() };
-
   // BFS queue of { url, depth }. We build the tree by walking the queue and
   // attaching children to a node map, so we can bound concurrency cleanly.
   const rootName = decodeURIComponent(rootUrl.split("/").filter(Boolean).pop() ?? "root");
   const root: TreeEntry = { name: rootName, type: "folder", children: [], webUrl: rootUrl };
-  const nodeByUrl = new Map<string, TreeEntry>([[rootUrl, root]]);
-  const queue: { url: string; depth: number }[] = [{ url: rootUrl, depth: 0 }];
-  let truncated = false;
+  const state: CrawlState = {
+    pages: 0,
+    visited: new Set<string>(),
+    nodeByUrl: new Map<string, TreeEntry>([[rootUrl, root]]),
+    queue: [{ url: rootUrl, depth: 0 }],
+  };
 
-  while (queue.length > 0 && state.pages < maxPages) {
+  while (state.queue.length > 0 && state.pages < maxPages) {
     // Take up to CONCURRENCY items, respecting remaining page budget.
-    const batch = queue.splice(0, Math.min(CONCURRENCY, maxPages - state.pages));
-    const results = await Promise.all(
-      batch.map(async ({ url, depth }) => {
-        if (state.visited.has(url)) return null;
-        state.visited.add(url);
-        state.pages++;
-        const entries = await fetchEntries(url);
-        return { url, depth, entries };
-      })
-    );
-
+    const results = await fetchBatch(state, Math.min(CONCURRENCY, maxPages - state.pages));
     for (const r of results) {
-      if (!r) continue;
-      const { url, depth, entries } = r;
-      const node = nodeByUrl.get(url);
-      if (!node || !entries) continue;
-
-      for (const entry of entries) {
-        if (entry.type === "folder") {
-          const childUrl = new URL(entry.name + "/", url).href;
-          if (state.visited.has(childUrl) || nodeByUrl.has(childUrl)) continue;
-          const child: TreeEntry = {
-            name: entry.name,
-            type: "folder",
-            children: [],
-            webUrl: childUrl,
-          };
-          node.children!.push(child);
-          nodeByUrl.set(childUrl, child);
-          // Only enqueue if we haven't hit the depth cap.
-          if (maxDepth === 0 || depth + 1 < maxDepth) {
-            queue.push({ url: childUrl, depth: depth + 1 });
-          }
-        } else {
-          // A file has no listing page; point it at the direct item URL so
-          // "Open at source" still lands on the actual resource on the index.
-          node.children!.push({
-            name: entry.name,
-            type: "file",
-            size: entry.size,
-            webUrl: new URL(entry.name, url).href,
-          });
-        }
-      }
+      if (!r?.entries) continue;
+      const node = state.nodeByUrl.get(r.url);
+      if (!node) continue;
+      attachEntries(node, r.url, r.depth, r.entries, maxDepth, state);
     }
   }
 
-  if (state.pages >= maxPages && queue.length > 0) truncated = true;
-
-  // Sort: folders first, then alphabetical.
-  const sortTree = (entry: TreeEntry) => {
-    if (!entry.children) return;
-    entry.children.sort((a, b) => {
-      if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-    for (const c of entry.children) sortTree(c);
-  };
+  const truncated = state.pages >= maxPages && state.queue.length > 0;
   sortTree(root);
 
   return { tree: root, truncated };
