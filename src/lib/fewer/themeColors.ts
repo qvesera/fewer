@@ -17,6 +17,31 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
+/**
+ * Relative luminance (ITU-R BT.601 luma) of an rgb triplet, on the 0-255 scale.
+ *
+ * Integer inputs make this exact to three decimals, so a threshold decision can
+ * never straddle a boundary through a rounding error — the legacy
+ * `r * 0.299 + g * 0.587 + b * 0.114` form returned 127.99999999999999 for
+ * #808080, where this returns exactly 128.
+ *
+ * Single source of truth for every "is this color light or dark?" call.
+ */
+export function luma(rgb: { r: number; g: number; b: number }): number {
+  return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+}
+
+/** Luma of a `#rrggbb` string, or null when unparseable. */
+export function lumaHex(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  return rgb ? luma(rgb) : null;
+}
+
+/** The 128 midpoint: true when a color reads as light (luma strictly above). */
+export function isLightRgb(rgb: { r: number; g: number; b: number }): boolean {
+  return luma(rgb) > 128;
+}
+
 /** Clamp opacity to [0, 1] with two decimal precision. */
 export function clampOpacity(opacity: number): number {
   if (!Number.isFinite(opacity)) return 1;
@@ -72,8 +97,7 @@ export function mixHex(a: string, b: string, t: number): string {
 export function suggestGradientEnd(base: string): string {
   const rgb = hexToRgb(base);
   if (!rgb) return base;
-  const luminance = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
-  return mixHex(base, luminance > 128 ? "#000000" : "#ffffff", 0.6);
+  return mixHex(base, isLightRgb(rgb) ? "#000000" : "#ffffff", 0.6);
 }
 
 /** Resolve one color slot from a possibly-legacy raw value, filling gaps from
@@ -121,10 +145,8 @@ export function migrateCustomTheme(input: unknown): CustomTheme {
 
 /** Extract a hex color + opacity from a legacy CSS string (hex or rgba). */
 function parseLegacyColor(value: string): { color: string; opacity: number } | null {
-  const hex = /^#?([0-9a-fA-F]{6})$/.exec(value.trim());
-  if (hex) {
-    const rgb = hexToRgb(value.trim());
-    if (!rgb) return null;
+  const rgb = hexToRgb(value.trim());
+  if (rgb) {
     const color = `#${rgb.r.toString(16).padStart(2, "0")}${rgb.g.toString(16).padStart(2, "0")}${rgb.b.toString(16).padStart(2, "0")}`;
     return { color, opacity: 1 };
   }
@@ -162,8 +184,7 @@ export function canvasChipStyle(rawBackground: string | undefined): CanvasChipSt
   const rgb = hexToRgb(bg);
   if (!rgb) return {};
   const { r, g, b } = rgb;
-  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-  if (luminance > 128) {
+  if (isLightRgb(rgb)) {
     return {
       backgroundColor: `rgba(${Math.round(r * 0.25)}, ${Math.round(g * 0.25)}, ${Math.round(b * 0.25)}, 0.8)`,
       color: "rgba(255, 255, 255, 0.9)",

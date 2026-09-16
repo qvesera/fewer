@@ -10,6 +10,9 @@ import {
   mixHex,
   suggestGradientEnd,
   canvasChipStyle,
+  luma,
+  lumaHex,
+  isLightRgb,
 } from "./themeColors";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "./types";
 
@@ -104,13 +107,12 @@ test("mixHex interpolates between two hex colors", () => {
 });
 
 test("suggestGradientEnd returns a darker endpoint for light colors and lighter for dark", () => {
-  const light = suggestGradientEnd("#ffffff");
-  const luminanceLight = hexToRgb(light);
-  expect(luminanceLight ? (luminanceLight.r * 299 + luminanceLight.g * 587 + luminanceLight.b * 114) / 1000 : 0).toBeLessThan(128);
-
-  const dark = suggestGradientEnd("#000000");
-  const luminanceDark = hexToRgb(dark);
-  expect(luminanceDark ? (luminanceDark.r * 299 + luminanceDark.g * 587 + luminanceDark.b * 114) / 1000 : 0).toBeGreaterThan(128);
+  const lightLuma = lumaHex(suggestGradientEnd("#ffffff"));
+  const darkLuma = lumaHex(suggestGradientEnd("#000000"));
+  expect(lightLuma).not.toBeNull();
+  expect(darkLuma).not.toBeNull();
+  expect(lightLuma!).toBeLessThan(128);
+  expect(darkLuma!).toBeGreaterThan(128);
 });
 
 test("migrateCustomTheme preserves valid gradient fields", () => {
@@ -148,5 +150,43 @@ describe("canvasChipStyle", () => {
   test("undefined/empty falls back to the dark default; non-hex returns {}", () => {
         expect(canvasChipStyle(undefined)).toEqual(canvasChipStyle("#0b0b13"));
     expect(canvasChipStyle("  rgb(1,2,3) ")).toEqual({});
+  });
+});
+
+describe("luma / light-dark primitives", () => {
+  test("luma is the BT.601 weighted sum on the 0-255 scale", () => {
+    expect(luma({ r: 255, g: 255, b: 255 })).toBe(255);
+    expect(luma({ r: 0, g: 0, b: 0 })).toBe(0);
+    expect(luma({ r: 255, g: 0, b: 0 })).toBeCloseTo(76.245, 10);
+  });
+
+  test("luma is exact at integer greys, so thresholds cannot straddle", () => {
+    // The old `r * 0.299 + g * 0.587 + b * 0.114` form returned 127.99999999999999
+    // for #808080 — just under an integer threshold. The shared form is exact.
+    for (const v of [127, 128, 129, 139, 140, 141, 255]) {
+      expect(luma({ r: v, g: v, b: v })).toBe(v);
+    }
+  });
+
+  test("lumaHex parses hex with or without #, and nulls when invalid", () => {
+    expect(lumaHex("#808080")).toBe(128);
+    expect(lumaHex("808080")).toBe(128);
+    expect(lumaHex("#ffffff")).toBe(255);
+    expect(lumaHex("rgb(1,2,3)")).toBeNull();
+    expect(lumaHex("nope")).toBeNull();
+  });
+
+  test("isLightRgb uses the 128 midpoint, strictly greater", () => {
+    expect(isLightRgb({ r: 128, g: 128, b: 128 })).toBe(false);
+    expect(isLightRgb({ r: 129, g: 129, b: 129 })).toBe(true);
+    expect(isLightRgb({ r: 255, g: 255, b: 255 })).toBe(true);
+    expect(isLightRgb({ r: 0, g: 0, b: 0 })).toBe(false);
+  });
+
+  test("the 140 primary-foreground cutoff stays distinct from the 128 surface midpoint", () => {
+    // Guards the two thresholds against being accidentally merged: a luma-135
+    // accent is "light" for surfaces, but must still take white primary text.
+    expect(isLightRgb({ r: 135, g: 135, b: 135 })).toBe(true);
+    expect(luma({ r: 135, g: 135, b: 135 }) > 140).toBe(false);
   });
 });

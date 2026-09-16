@@ -3,7 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
-import { toCssColor, toGradientCss, migrateCustomTheme } from "@/lib/fewer/themeColors";
+import { toCssColor, toGradientCss, migrateCustomTheme, hexToRgb, isLightRgb, lumaHex } from "@/lib/fewer/themeColors";
 
 const STORAGE_THEME = "fewer-theme";
 const STORAGE_CUSTOM = "fewer-custom-theme";
@@ -112,26 +112,19 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
 }
 
 /**
+ * Luma cutoff for `--primary-foreground`. Deliberately above the 128 surface
+ * midpoint: a mid-tone accent keeps white text instead of flipping to black.
+ * Carried over unchanged from the previous hand-rolled implementation.
+ */
+const PRIMARY_FG_LUMA_THRESHOLD = 140;
+
+/**
  * Compute `--primary-foreground` so primary text contrasts with the primary
  * accent (black on bright accents, white otherwise).
  */
-function computePrimaryFgFinal(accent: string, fg: string, isLight: boolean): string {
-  // Ensure foreground text always has good contrast
-  const fgHex = fg.replace("#", "");
-  const fgR = parseInt(fgHex.substring(0, 2), 16) || 0;
-  const fgG = parseInt(fgHex.substring(2, 4), 16) || 0;
-  const fgB = parseInt(fgHex.substring(4, 6), 16) || 0;
-  const fgLum = fgR * 0.299 + fgG * 0.587 + fgB * 0.114;
-  const fgIsLight = fgLum > 128;
-  const primaryFg = isLight === fgIsLight ? (isLight ? "#ffffff" : "#ffffff") : (isLight ? "#ffffff" : "#ffffff");
-  // Primary foreground should contrast with primary accent
-  const accHex = accent.replace("#", "");
-  const accR = parseInt(accHex.substring(0, 2), 16) || 0;
-  const accG = parseInt(accHex.substring(2, 4), 16) || 0;
-  const accB = parseInt(accHex.substring(4, 6), 16) || 0;
-  const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
-  const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
-  return primaryFgFinal;
+function computePrimaryFgFinal(accent: string): string {
+  // An unparseable accent reads as black, which lands on the white branch.
+  return (lumaHex(accent) ?? 0) > PRIMARY_FG_LUMA_THRESHOLD ? "#000000" : "#ffffff";
 }
 
 /**
@@ -147,14 +140,12 @@ function deriveShadcnVars(theme: CustomTheme): [string, string][] {
   const handle = theme.handle.color;
 
   // Determine if background is light or dark for contrast
-  const bgRgb = (() => { const m = /^#?([0-9a-fA-F]{6})$/.exec(bg); if (!m) return null; const n = parseInt(m[1], 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; })();
-  const isLight = bgRgb ? (bgRgb.r * 0.299 + bgRgb.g * 0.587 + bgRgb.b * 0.114) > 128 : true;
+  const bgRgb = hexToRgb(bg);
+  const isLight = bgRgb ? isLightRgb(bgRgb) : true;
 
-  // Derive card/muted backgrounds from the actual theme background
-  const bgHex = bg.replace("#", "");
-  const r = parseInt(bgHex.substring(0, 2), 16) || 0;
-  const g = parseInt(bgHex.substring(2, 4), 16) || 0;
-  const b = parseInt(bgHex.substring(4, 6), 16) || 0;
+  // Derive card/muted backgrounds from the actual theme background. An
+  // unparseable background reads as black, matching the previous `|| 0`.
+  const { r, g, b } = bgRgb ?? { r: 0, g: 0, b: 0 };
 
   // Card: slightly lighter than background for light themes, slightly darker for dark
   const cardR = isLight ? Math.min(255, r + 8) : Math.max(0, r - 8);
@@ -172,7 +163,7 @@ function deriveShadcnVars(theme: CustomTheme): [string, string][] {
   const borderColor = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.2)` : `rgba(255, 255, 255, 0.08)`;
   const borderLight = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.12)` : `rgba(255, 255, 255, 0.05)`;
 
-  const primaryFgFinal = computePrimaryFgFinal(accent, fg, isLight);
+  const primaryFgFinal = computePrimaryFgFinal(accent);
 
   return [
     ["--background", toCssColor(bg, theme.background.opacity)],
