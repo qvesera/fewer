@@ -1,5 +1,5 @@
 import type { FewerNode, FewerEdge } from "./types";
-import { childrenMapOf, parentMapOf } from "./validation";
+import { ancestorChainOf, childrenMapOf, parentMapOf } from "./validation";
 
 export interface HiddenTreeNode {
   node: FewerNode;
@@ -70,9 +70,10 @@ function buildHiddenTrees(
 /** Nearest node id that is NOT in the hidden set, walking up from `id`. Null if it
  *  is its own top-of-tree. Used to find the visible folder a hidden node sits in. */
 function nearestVisibleId(id: string, parentMap: Map<string, string>, hiddenSet: Set<string>): string | null {
-  let cur = parentMap.get(id) ?? null;
-  while (cur && hiddenSet.has(cur)) cur = parentMap.get(cur) ?? null;
-  return cur;
+  for (const ancestorId of ancestorChainOf(id, parentMap)) {
+    if (!hiddenSet.has(ancestorId)) return ancestorId;
+  }
+  return null;
 }
 
 /** Group the top-level hidden roots by their nearest *visible* ancestor folder. */
@@ -164,14 +165,7 @@ export function filterHiddenGroups(groups: HiddenGroup[], query: string): Hidden
 
 /** Every ancestor id of a node (parent, grandparent, … up to the root). */
 export function ancestorChain(id: string, edges: FewerEdge[]): string[] {
-  const parentMap = parentMapOf(edges);
-  const out: string[] = [];
-  let cur: string | undefined = parentMap.get(id);
-  while (cur) {
-    out.push(cur);
-    cur = parentMap.get(cur);
-  }
-  return out;
+  return ancestorChainOf(id, parentMapOf(edges));
 }
 
 /**

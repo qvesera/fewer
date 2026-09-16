@@ -69,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exported tag rings now start from the same point on the outline as the canvas. The SVG/PNG seam sat at the END of the bottom-left corner fillet instead of its midpoint, so every band was rotated off the canvas by a quarter of that corner (about 10px of arc), and the export only lined up with the canvas when a single tag made the seam invisible.
 - The "Hide Children" context-menu toast no longer over-counts on graphs where a descendant is reachable by more than one path: getDescendants listed such a node once per path, so the toast reported more cards than were actually hidden (the hide itself was always de-duplicated via a Set). getDescendants now guarantees one entry per node, matching its sibling countDescendants.
 - Fixed the graph freezing while renaming a folder in a graph whose cycle does not pass back through that folder (reachable from a raw import: setGraph stores edges verbatim, and validateConnection is the only cycle guard). renameNode re-queued any node reachable by more than one path; the walk now uses the shared cycle-safe, duplicate-free getDescendants helper, as do the hide, hide-selected, copy, unparent, connect, clipboard and parent-picker walks.
+- Fixed the app freezing on graphs whose cycle sits above the node you act on (reachable from a raw import: setGraph stores edges verbatim, and validateConnection only guards the connect UI). Unparent, Move to folder, Show ancestors, the display-depth limit and the Hidden panel all followed parent links with no visited set, so the walk re-entered the cycle forever: Hide/reactivate on an imported cyclic graph could hang the UI with no way back. All of them now go through one cycle-safe ancestorChainOf helper (src/lib/fewer/validation.ts), which emits each id at most once.
+- Fixed a RangeError crash when laying out an imported graph containing a cycle: calculateDepths, computeSubtreeSize, layoutSubtree and assignPositions in layout.ts all recursed into children without a repeat guard, so any relayout overflowed the stack. Each now cuts a back-edge into the chain it is walking, which cannot fire on an acyclic graph (a node is never its own ancestor), so positions for normal trees are untouched.
 
 ### Added
 
@@ -77,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generate XML sitemaps (fewer.directory/sitemap.xml + app.fewer.directory/app/sitemap.xml) so search engines can index the site; robots.txt now points at both.
 - Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
 - The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
+
+### Performance
+
+- Connecting two cards no longer rescans the whole edge list at every node it walks: isAncestor re-filtered all edges per visited node (O(nodes x edges) per connect attempt) and now indexes the parents once. It also still considers every parent of a node, so the cycle check stays as strict as before on an imported multi-parent graph.
 
 ## [0.7.1] - 2026-09-12
 

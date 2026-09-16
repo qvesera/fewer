@@ -5,7 +5,7 @@ import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection, getDescendants, childrenMapOf, parentMapOf } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants, childrenMapOf, parentMapOf, ancestorChainOf } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
@@ -1102,11 +1102,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parentMap = parentMapOf(edges);
     // Only top-most selection roots detach: a node whose ancestor is also
     // selected keeps its in-selection parent edge.
-    const roots = ids.filter((id) => {
-      let p = parentMap.get(id);
-      while (p) { if (idSet.has(p)) return false; p = parentMap.get(p); }
-      return true;
-    });
+    const roots = ids.filter((id) => !ancestorChainOf(id, parentMap).some((a) => idSet.has(a)));
     const removedEdges = edges.filter((e) => roots.includes(e.target));
     // Nothing to detach (every selected root is already root-level) — no-op, and
     // no history entry, so callers must not claim success either.
@@ -1131,12 +1127,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const roots = ids.filter((id) => {
       if (id === parentId) return false;
       if (parentMap.get(id) === parentId) return false;
-      let p = parentMap.get(id);
-      while (p) {
-        if (idSet.has(p)) return false;
-        p = parentMap.get(p);
-      }
-      return true;
+      return !ancestorChainOf(id, parentMap).some((a) => idSet.has(a));
     });
     if (roots.length === 0) {
       const alreadyThere = ids.length > 0 && ids.every((id) => id === parentId || parentMap.get(id) === parentId);
@@ -1257,8 +1248,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
     const parentMap = parentMapOf(edges);
-    const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
-    while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
+    const toShow = new Set<string>([id]);
+    for (const ancestorId of ancestorChainOf(id, parentMap)) {
+      if (!hiddenSet.has(ancestorId)) break;
+      toShow.add(ancestorId);
+    }
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
@@ -1323,14 +1317,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       // If this node was hidden by old depth limit and is now within new limit, reveal it
       if (oldDepthHidden.has(id)) {
         // Check if any ancestor was hidden by non-depth reasons (manual/auto-hide)
-        let ancestorId = parentMap.get(id);
-        while (ancestorId) {
-          if (revealedSet.has(ancestorId) || (hiddenSet.has(ancestorId) && !oldDepthHidden.has(ancestorId))) {
-            // Ancestor was hidden by manual/auto-hide, not depth → keep this node hidden
-            return true;
-          }
-          ancestorId = parentMap.get(ancestorId);
-        }
+        // An ancestor hidden by manual/auto-hide (not depth) keeps this node hidden
+        const blocked = ancestorChainOf(id, parentMap).some(
+          (ancestorId) => revealedSet.has(ancestorId) || (hiddenSet.has(ancestorId) && !oldDepthHidden.has(ancestorId)),
+        );
+        if (blocked) return true;
         // All hidden ancestors were depth-hidden → reveal
         return false;
       }

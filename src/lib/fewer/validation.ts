@@ -73,25 +73,37 @@ export function validateConnection(
 }
 
 /**
- * Walk the edge list to determine if `ancestorId` is an ancestor of `descendantId`.
- * Used for circular dependency prevention.
+ * Whether `ancestorId` can be reached by walking parent edges upward from
+ * `descendantId`. Used for circular dependency prevention.
+ *
+ * The old form re-scanned the whole edge list at every node it visited, so a
+ * connect attempt cost O(nodes × edges); this indexes the parents once and
+ * keeps the same reachability. Unlike the other upward walks it must consider
+ * EVERY parent of a node — `parentMapOf` keeps only one (last edge wins), which
+ * would miss an ancestor that is reachable through the other parent of an
+ * imported multi-parent node.
  */
 export function isAncestor(
   ancestorId: string,
   descendantId: string,
   edges: FewerEdge[]
 ): boolean {
-  // BFS upward from descendantId — does ancestorId appear in its parent chain?
-  const visited = new Set<string>();
-  const queue = [descendantId];
-  while (queue.length) {
-    const current = queue.shift()!;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    const parents = edges.filter((e) => e.target === current).map((e) => e.source);
-    for (const p of parents) {
-      if (p === ancestorId) return true;
-      queue.push(p);
+  const parentsOf = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = parentsOf.get(e.target);
+    if (list) list.push(e.source);
+    else parentsOf.set(e.target, [e.source]);
+  }
+  const seen = new Set<string>([descendantId]);
+  const stack: string[] = [descendantId];
+  while (stack.length) {
+    const current = stack.pop()!;
+    for (const parentId of parentsOf.get(current) ?? []) {
+      if (parentId === ancestorId) return true;
+      if (!seen.has(parentId)) {
+        seen.add(parentId);
+        stack.push(parentId);
+      }
     }
   }
   return false;
@@ -123,6 +135,29 @@ export function parentMapOf(edges: FewerEdge[]): Map<string, string> {
   const parentMap = new Map<string, string>();
   for (const e of edges) parentMap.set(e.target, e.source);
   return parentMap;
+}
+
+/**
+ * Every ancestor id of a node, walking up the parent map: parent, grandparent,
+ * … up to the root. Never includes `id` itself.
+ *
+ * Cycle-safe — each id is emitted at most once, so an imported cycle ends the
+ * walk instead of looping forever. That is reachable because `setGraph`
+ * (saved-graph load, JSON/CSV import) stores edges verbatim, and
+ * `validateConnection` is the only acyclicity guard, which only the connect UI
+ * calls. Every upward walk in the app goes through here so none of them can
+ * spin on such a graph.
+ */
+export function ancestorChainOf(id: string, parentMap: Map<string, string>): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>([id]);
+  let cur = parentMap.get(id);
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    out.push(cur);
+    cur = parentMap.get(cur);
+  }
+  return out;
 }
 
 /**

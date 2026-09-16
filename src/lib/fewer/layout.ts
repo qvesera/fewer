@@ -144,15 +144,23 @@ function computeDepths(
   childrenMap: Map<string, string[]>
 ): Map<string, number> {
   const nodeDepths = new Map<string, number>();
-  function calculateDepths(nodeId: string, currentDepth: number) {
+  // `path` is the chain currently being walked, so a back-edge into it is cut
+  // instead of recursing forever. On an acyclic graph it can never contain
+  // `nodeId` on entry — a node is not its own ancestor — so the traversal, and
+  // the last-write-wins depth, are unchanged. On an imported cycle it stops the
+  // unbounded recursion that used to overflow the stack.
+  function calculateDepths(nodeId: string, currentDepth: number, path: Set<string>) {
     nodeDepths.set(nodeId, currentDepth);
+    if (path.has(nodeId)) return;
+    path.add(nodeId);
     const children = childrenMap.get(nodeId) ?? [];
     for (const childId of children) {
-      calculateDepths(childId, currentDepth + 1);
+      calculateDepths(childId, currentDepth + 1, path);
     }
+    path.delete(nodeId);
   }
   for (const root of roots) {
-    calculateDepths(root.id, 0);
+    calculateDepths(root.id, 0, new Set<string>());
   }
   return nodeDepths;
 }
@@ -188,13 +196,21 @@ function computeSubtreeSizes(
   childrenMap: Map<string, string[]>
 ): Map<string, number> {
   const subtreeSizes = new Map<string, number>();
+  // Nodes on the chain currently being walked. The memo is written *after* the
+  // recursion returns, so a back-edge would otherwise never hit the cache and
+  // would recurse forever. On an acyclic graph this never fires, so sizes are
+  // unchanged; on an imported cycle the repeated node counts once.
+  const visiting = new Set<string>();
   function computeSubtreeSize(nodeId: string): number {
     const cached = subtreeSizes.get(nodeId);
     if (cached !== undefined) return cached;
+    if (visiting.has(nodeId)) return 1;
+    visiting.add(nodeId);
     let count = 1;
     for (const childId of childrenMap.get(nodeId) ?? []) {
       count += computeSubtreeSize(childId);
     }
+    visiting.delete(nodeId);
     subtreeSizes.set(nodeId, count);
     return count;
   }
@@ -256,26 +272,30 @@ function mergeIntoParent(target: TreeContour, child: TreeContour, relX: number):
  * against every sibling already placed, centers the parent over the group, and
  * records each child's offset from that parent center in pass.relativeXMap.
  */
-function layoutSubtree(pass: LayoutPass, nodeId: string): TreeContour {
+function layoutSubtree(pass: LayoutPass, nodeId: string, path: Set<string>): TreeContour {
   const node = pass.nodeMap.get(nodeId)!;
   const { w, h } = getNodeDimensions(node);
   const nodeSize = pass.isHorizontal ? h : w;
   const children = pass.childrenMap.get(nodeId) ?? [];
 
-  if (children.length === 0) {
+  // A back-edge into the chain being walked would recurse forever. On an
+  // acyclic graph it never fires; on an imported cycle the repeated node is
+  // laid out as a leaf, which keeps the whole layout finite.
+  if (children.length === 0 || path.has(nodeId)) {
     pass.relativeXMap.set(nodeId, 0);
     return {
       left: [-nodeSize / 2],
       right: [nodeSize / 2],
     };
   }
+  path.add(nodeId);
 
   const childContours: TreeContour[] = [];
   const childOffsets: number[] = [];
 
   for (let i = 0; i < children.length; i++) {
     const childId = children[i];
-    const contour = layoutSubtree(pass, childId);
+    const contour = layoutSubtree(pass, childId, path);
     childContours.push(contour);
 
     if (i === 0) {
@@ -313,6 +333,7 @@ function layoutSubtree(pass: LayoutPass, nodeId: string): TreeContour {
   }
 
   pass.relativeXMap.set(nodeId, 0);
+  path.delete(nodeId);
   return merged;
 }
 
@@ -321,14 +342,19 @@ function assignPositions(
   pass: LayoutPass,
   nodeId: string,
   currentAbsoluteX: number,
-  out: Map<string, number>
+  out: Map<string, number>,
+  path: Set<string>
 ): void {
   out.set(nodeId, currentAbsoluteX);
+  // Same back-edge cut as layoutSubtree: a no-op on acyclic graphs.
+  if (path.has(nodeId)) return;
+  path.add(nodeId);
 
   for (const childId of pass.childrenMap.get(nodeId) ?? []) {
     const relX = pass.relativeXMap.get(childId) ?? 0;
-    assignPositions(pass, childId, currentAbsoluteX + relX, out);
+    assignPositions(pass, childId, currentAbsoluteX + relX, out, path);
   }
+  path.delete(nodeId);
 }
 
 /** Depth-layer position + sibling position → final x/y for the direction. */
@@ -405,11 +431,11 @@ export function layoutGraphContour(
   const rootXMap = new Map<string, number>();
   let rootXOffset = 0;
   for (const root of roots) {
-    const contour = layoutSubtree(pass, root.id);
+    const contour = layoutSubtree(pass, root.id, new Set<string>());
     const minL = Math.min(...contour.left);
     const maxR = Math.max(...contour.right);
 
-    assignPositions(pass, root.id, rootXOffset - minL, rootXMap);
+    assignPositions(pass, root.id, rootXOffset - minL, rootXMap, new Set<string>());
     rootXOffset += (maxR - minL) + 120;
   }
 
