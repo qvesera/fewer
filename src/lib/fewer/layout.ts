@@ -27,11 +27,6 @@ function getNodeDimensions(node: FewerNode): { w: number; h: number } {
 
 export interface LayoutOptions {
   excludeFromLayout?: Set<string>;
-  /**
-   * Crown shyness: sibling subtrees ("crowns") keep gaps that scale with
-   * contour depth and subtree size, like real tree canopies that never touch.
-   * Default true.
-   */
   shyness?: boolean;
   /** Crown-shyness intensity multiplier. 0 = flat gaps, 1 = default, up to 3. Default 1. */
   shynessScale?: number;
@@ -43,24 +38,7 @@ export interface LayoutOptions {
   tagLabelById?: (id: string) => string;
 }
 
-// ponytail: linear per-level/per-log-size gap growth, capped at 20x base —
-// upgrade path is per-contour-point gap shaping if trees ever need it.
-// Coefficients are full-strength values: the slider applies a fraction of them
-// (SHYNESS_TOP at the top, scaled down further by effectiveShynessScale below).
-// Tuned against the real SAMPLE_TREE plus a 1.7K-node synthetic tree so every
-// step of the slider is worth seeing (measured with
-// `bun test src/lib/fewer/layout.shyness.tuning.test.ts` while tuning; re-measure
-// before changing these):
-//   sample TB: 0 -> 1 +1%, 0 -> 2 +8%, 0 -> 3 +28% span
-//   sample LR: 0 -> 1 +3%, 0 -> 2 +21%, 0 -> 3 +71% span
-// The sibling axis in TB is dominated by card width, so its relative growth is
-// smaller than LR's, where the sibling axis is card height — both ends of the
-// slider are clearly different. Growth stays proportional on large trees (the
-// 1.7K node probe spreads the same ~3x over 0 -> 3, no accumulation blow-up).
-// A big SHYNESS_SIZE_K is what opens up leaf-pair layers: sibling separation is
-// otherwise dominated by card widths, which is why the old 8/2 pair with a 3x
-// cap moved a wide flat project by ~2% end to end — below the threshold of
-// noticing, the "0 and 3 look the same" report.
+
 export const SHYNESS_DEPTH_K = 40; // extra px per contour level below the sibling pair, at full strength
 export const SHYNESS_SIZE_K = 70; // extra px per log2(1 + smaller subtree's node count), at full strength
 export const SHYNESS_MAX_MULTIPLE = 20; // gap never exceeds baseGap * this
@@ -77,20 +55,6 @@ export const SHYNESS_CURVE = 3;
  */
 export const SHYNESS_TOP = 3 * Math.pow(2 / 3, SHYNESS_CURVE); // = 8/9
 
-/**
- * Crown Shyness slider value → coefficient multiplier.
- *
- * Deliberately superlinear, and capped below full strength. 1x is the default,
- * and the initial fit clamps at zoom 0.35 (use-canvas-initial-fit.ts), so a fat
- * default pushes the far side of the tree outside the viewport, where
- * `onlyRenderVisibleElements` culls it (measured on a 1280x600 canvas: a linear
- * response spread the sample tree's LR layout 78% wider at 1x and dropped the
- * initial-fit coverage from 71% to 40%, which is how the e2e suite lost nodes on
- * the initial view). Curving the response keeps the default at the spacing a
- * default canvas has always had, while the top of the range — SHYNESS_TOP, the
- * strength 2x used to produce — is where the slider does its work: 0 -> 3 is
- * +28% (TB) / +71% (LR) on the sample tree.
- */
 export function effectiveShynessScale(scale: number): number {
   const clamped = Math.max(0, Math.min(3, scale));
   return SHYNESS_TOP * Math.pow(clamped / 3, SHYNESS_CURVE);
@@ -117,6 +81,279 @@ interface TreeContour {
 }
 
 /**
+ * State the bottom-up contour pass reads and fills. The maps are as much an
+ * output as an input (relativeXMap is written as subtrees are placed), so they
+ * travel together instead of as eight positional arguments.
+ */
+interface LayoutPass {
+  nodeMap: Map<string, FewerNode>;
+  childrenMap: Map<string, string[]>;
+  subtreeSizes: Map<string, number>;
+  relativeXMap: Map<string, number>;
+  isHorizontal: boolean;
+  nodeGap: number; // spacing between adjacent subtrees on the sibling axis
+  shyness: boolean;
+  shynessScale: number;
+}
+
+/** childrenMap + parentMap over the edges that survive excludeFromLayout. */
+function buildHierarchy(
+  edges: FewerEdge[],
+  excludeSet: Set<string>
+): { childrenMap: Map<string, string[]>; parentMap: Map<string, string> } {
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+
+  for (const edge of edges) {
+    if (excludeSet.has(edge.source) || excludeSet.has(edge.target)) continue;
+    if (!childrenMap.has(edge.source)) childrenMap.set(edge.source, []);
+    childrenMap.get(edge.source)!.push(edge.target);
+    parentMap.set(edge.target, edge.source);
+  }
+  return { childrenMap, parentMap };
+}
+
+/** Order every sibling list by the requested sort. */
+function sortChildLists(
+  childrenMap: Map<string, string[]>,
+  nodeMap: Map<string, FewerNode>,
+  options?: LayoutOptions
+): void {
+  const sortKey = options?.sortKey ?? DEFAULT_SORT_KEY;
+  const sortDir = options?.sortDir ?? DEFAULT_SORT_DIR;
+  const tagLabelById = options?.tagLabelById;
+
+  for (const childIds of childrenMap.values()) {
+    childIds.sort((a, b) => {
+      const nodeA = nodeMap.get(a);
+      const nodeB = nodeMap.get(b);
+      if (!nodeA || !nodeB) {
+        // Fallback to the original label sort when a node hasn't been built yet.
+        const labelA = nodeA?.data?.label || a;
+        const labelB = nodeB?.data?.label || b;
+        return labelA.localeCompare(labelB);
+      }
+      return compareSiblings(nodeA, nodeB, sortKey, sortDir, tagLabelById);
+    });
+  }
+}
+
+/** Depth of every node reachable from the roots; roots sit at 0. */
+function computeDepths(
+  roots: FewerNode[],
+  childrenMap: Map<string, string[]>
+): Map<string, number> {
+  const nodeDepths = new Map<string, number>();
+  function calculateDepths(nodeId: string, currentDepth: number) {
+    nodeDepths.set(nodeId, currentDepth);
+    const children = childrenMap.get(nodeId) ?? [];
+    for (const childId of children) {
+      calculateDepths(childId, currentDepth + 1);
+    }
+  }
+  for (const root of roots) {
+    calculateDepths(root.id, 0);
+  }
+  return nodeDepths;
+}
+
+/** Primary-axis start of every depth layer: deepest card in the layer + layer gap. */
+function computeDepthPositions(
+  nodeDepths: Map<string, number>,
+  nodeMap: Map<string, FewerNode>,
+  isHorizontal: boolean,
+  layerGap: number
+): number[] {
+  const depthMaxBreadth: number[] = [];
+  nodeDepths.forEach((depth, nodeId) => {
+    const node = nodeMap.get(nodeId);
+    if (!node) return;
+    const { w, h } = getNodeDimensions(node);
+    const b = isHorizontal ? w : h;
+    depthMaxBreadth[depth] = Math.max(depthMaxBreadth[depth] ?? 0, b);
+  });
+
+  const effectiveLayerGap = isHorizontal ? layerGap + 60 : layerGap + 30; // Extra clearance between layers for folders
+
+  const depthPositions: number[] = [0];
+  for (let d = 0; d < depthMaxBreadth.length; d++) {
+    depthPositions[d + 1] = depthPositions[d] + depthMaxBreadth[d] + effectiveLayerGap;
+  }
+  return depthPositions;
+}
+
+/** Node count per subtree, post-order and memoized — the crown-shyness size term. */
+function computeSubtreeSizes(
+  roots: FewerNode[],
+  childrenMap: Map<string, string[]>
+): Map<string, number> {
+  const subtreeSizes = new Map<string, number>();
+  function computeSubtreeSize(nodeId: string): number {
+    const cached = subtreeSizes.get(nodeId);
+    if (cached !== undefined) return cached;
+    let count = 1;
+    for (const childId of childrenMap.get(nodeId) ?? []) {
+      count += computeSubtreeSize(childId);
+    }
+    subtreeSizes.set(nodeId, count);
+    return count;
+  }
+  for (const root of roots) computeSubtreeSize(root.id);
+  return subtreeSizes;
+}
+
+/**
+ * How far `contour` must sit right of one already-placed sibling: the worst
+ * required shift over every contour level the two crowns share, widened by
+ * crown shyness.
+ */
+function shiftClearOf(
+  pass: LayoutPass,
+  prevContour: TreeContour,
+  prevOffset: number,
+  contour: TreeContour,
+  prevSize: number,
+  size: number
+): number {
+  const baseGap = pass.isHorizontal ? 50 : pass.nodeGap;
+  const compareDepth = Math.min(prevContour.right.length, contour.left.length);
+  let maxOverlapShift = 0;
+
+  for (let d = 0; d < compareDepth; d++) {
+    const prevRight = prevOffset + prevContour.right[d];
+    const currLeft = contour.left[d];
+    // Crown shyness: gap grows with crown depth + crown size
+    const gap = pass.shyness
+      ? shynessGap(baseGap, d, prevSize, size, pass.shynessScale)
+      : baseGap;
+    const requiredShift = prevRight - currLeft + gap;
+    if (requiredShift > maxOverlapShift) {
+      maxOverlapShift = requiredShift;
+    }
+  }
+  return maxOverlapShift;
+}
+
+/** Fold a child's contour into its parent's, shifted by the child's offset. */
+function mergeIntoParent(target: TreeContour, child: TreeContour, relX: number): void {
+  for (let d = 0; d < child.left.length; d++) {
+    const targetDepth = d + 1;
+    const cLeft = child.left[d] + relX;
+    const cRight = child.right[d] + relX;
+
+    if (target.left[targetDepth] === undefined) {
+      target.left[targetDepth] = cLeft;
+      target.right[targetDepth] = cRight;
+    } else {
+      target.left[targetDepth] = Math.min(target.left[targetDepth], cLeft);
+      target.right[targetDepth] = Math.max(target.right[targetDepth], cRight);
+    }
+  }
+}
+
+/**
+ * Bottom-up contour pass over one subtree: places its siblings left to right
+ * against every sibling already placed, centers the parent over the group, and
+ * records each child's offset from that parent center in pass.relativeXMap.
+ */
+function layoutSubtree(pass: LayoutPass, nodeId: string): TreeContour {
+  const node = pass.nodeMap.get(nodeId)!;
+  const { w, h } = getNodeDimensions(node);
+  const nodeSize = pass.isHorizontal ? h : w;
+  const children = pass.childrenMap.get(nodeId) ?? [];
+
+  if (children.length === 0) {
+    pass.relativeXMap.set(nodeId, 0);
+    return {
+      left: [-nodeSize / 2],
+      right: [nodeSize / 2],
+    };
+  }
+
+  const childContours: TreeContour[] = [];
+  const childOffsets: number[] = [];
+
+  for (let i = 0; i < children.length; i++) {
+    const childId = children[i];
+    const contour = layoutSubtree(pass, childId);
+    childContours.push(contour);
+
+    if (i === 0) {
+      childOffsets.push(0);
+      continue;
+    }
+
+    // Compare against ALL previously placed siblings to prevent cross-subtree overlap
+    let maxOverlapShift = 0;
+    for (let j = 0; j < i; j++) {
+      const shift = shiftClearOf(
+        pass,
+        childContours[j],
+        childOffsets[j],
+        contour,
+        pass.subtreeSizes.get(children[j]) ?? 1,
+        pass.subtreeSizes.get(childId) ?? 1
+      );
+      if (shift > maxOverlapShift) {
+        maxOverlapShift = shift;
+      }
+    }
+    childOffsets.push(maxOverlapShift);
+  }
+
+  // Center parent over children group
+  const childrenCenter = (childOffsets[0] + childOffsets[childOffsets.length - 1]) / 2;
+
+  const merged: TreeContour = { left: [-nodeSize / 2], right: [nodeSize / 2] };
+  for (let i = 0; i < children.length; i++) {
+    // Final relative position from parent
+    const relX = childOffsets[i] - childrenCenter;
+    pass.relativeXMap.set(children[i], relX);
+    mergeIntoParent(merged, childContours[i], relX);
+  }
+
+  pass.relativeXMap.set(nodeId, 0);
+  return merged;
+}
+
+/** Top-down absolute sibling-axis position for every node of a subtree. */
+function assignPositions(
+  pass: LayoutPass,
+  nodeId: string,
+  currentAbsoluteX: number,
+  out: Map<string, number>
+): void {
+  out.set(nodeId, currentAbsoluteX);
+
+  for (const childId of pass.childrenMap.get(nodeId) ?? []) {
+    const relX = pass.relativeXMap.get(childId) ?? 0;
+    assignPositions(pass, childId, currentAbsoluteX + relX, out);
+  }
+}
+
+/** Depth-layer position + sibling position → final x/y for the direction. */
+function directionPosition(
+  node: FewerNode,
+  direction: LayoutDirection,
+  depthPos: number,
+  xPos: number,
+  maxDepthPos: number
+): { x: number; y: number } {
+  const { w, h } = getNodeDimensions(node);
+  switch (direction) {
+    case "LR":
+      return { x: depthPos, y: xPos - h / 2 };
+    case "RL":
+      return { x: maxDepthPos - depthPos - w, y: xPos - h / 2 };
+    case "BT":
+      return { x: xPos - w / 2, y: maxDepthPos - depthPos - h };
+    case "TB":
+    default:
+      return { x: xPos - w / 2, y: depthPos };
+  }
+}
+
+/**
  * Strict Reingold-Tilford Tree Layout with Contour Matching.
  * Guarantees parents stay centered over children while preventing cross-level collisions.
  */
@@ -136,241 +373,66 @@ export function layoutGraphContour(
   const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
   const layerGap = 70; // Spacing between tree depths
 
-  const childrenMap = new Map<string, string[]>();
-  const parentMap = new Map<string, string>();
-
-  for (const edge of edges) {
-    if (excludeSet.has(edge.source) || excludeSet.has(edge.target)) continue;
-    if (!childrenMap.has(edge.source)) childrenMap.set(edge.source, []);
-    childrenMap.get(edge.source)!.push(edge.target);
-    parentMap.set(edge.target, edge.source);
-  }
-
+  const { childrenMap, parentMap } = buildHierarchy(edges, excludeSet);
   const roots = nodes.filter(
     (n) => !excludeSet.has(n.id) && !parentMap.has(n.id)
   );
-
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-  const sortKey = options?.sortKey ?? DEFAULT_SORT_KEY;
-  const sortDir = options?.sortDir ?? DEFAULT_SORT_DIR;
-  const tagLabelById = options?.tagLabelById;
+  sortChildLists(childrenMap, nodeMap, options);
 
-  for (const childIds of childrenMap.values()) {
-    childIds.sort((a, b) => {
-      const nodeA = nodeMap.get(a);
-      const nodeB = nodeMap.get(b);
-      if (!nodeA || !nodeB) {
-        // Fallback to the original label sort when a node hasn't been built yet.
-        const labelA = nodeA?.data?.label || a;
-        const labelB = nodeB?.data?.label || b;
-        return labelA.localeCompare(labelB);
-      }
-      return compareSiblings(nodeA, nodeB, sortKey, sortDir, tagLabelById);
-    });
-  }
+  // 1. Depth level for every node
+  const nodeDepths = computeDepths(roots, childrenMap);
 
-  // 1. Calculate depth level for every node
-  const nodeDepths = new Map<string, number>();
-  function calculateDepths(nodeId: string, currentDepth: number) {
-    nodeDepths.set(nodeId, currentDepth);
-    const children = childrenMap.get(nodeId) ?? [];
-    for (const childId of children) {
-      calculateDepths(childId, currentDepth + 1);
-    }
-  }
-  for (const root of roots) {
-    calculateDepths(root.id, 0);
-  }
+  // 2. Dynamic depth layer positions (Y in TB/BT, X in LR/RL)
+  const depthPositions = computeDepthPositions(nodeDepths, nodeMap, isHorizontal, layerGap);
 
-  // 2. Compute dynamic depth layer positions (Y in TB/BT, X in LR/RL)
-  const depthMaxBreadth: number[] = [];
-  nodeDepths.forEach((depth, nodeId) => {
-    const node = nodeMap.get(nodeId);
-    if (!node) return;
-    const { w, h } = getNodeDimensions(node);
-    const b = isHorizontal ? w : h;
-    depthMaxBreadth[depth] = Math.max(depthMaxBreadth[depth] ?? 0, b);
-  });
+  // 2b. Crown-shyness gap scaling reads the subtree sizes; the contour pass
+  // writes each node's offset from its parent center into pass.relativeXMap.
+  const pass: LayoutPass = {
+    nodeMap,
+    childrenMap,
+    subtreeSizes: computeSubtreeSizes(roots, childrenMap),
+    relativeXMap: new Map(),
+    isHorizontal,
+    nodeGap,
+    shyness,
+    shynessScale,
+  };
 
-  const effectiveLayerGap = isHorizontal ? layerGap + 60 : layerGap + 30; // Extra clearance between layers for folders
-
-  const depthPositions: number[] = [0];
-  for (let d = 0; d < depthMaxBreadth.length; d++) {
-    depthPositions[d + 1] = depthPositions[d] + depthMaxBreadth[d] + effectiveLayerGap;
-  }
-
-  // Store relative offsets from parent center
-  const relativeXMap = new Map<string, number>();
-
-  // 2b. Subtree sizes for crown-shyness gap scaling (post-order, memoized)
-  const subtreeSizes = new Map<string, number>();
-  function computeSubtreeSize(nodeId: string): number {
-    const cached = subtreeSizes.get(nodeId);
-    if (cached !== undefined) return cached;
-    let count = 1;
-    for (const childId of childrenMap.get(nodeId) ?? []) {
-      count += computeSubtreeSize(childId);
-    }
-    subtreeSizes.set(nodeId, count);
-    return count;
-  }
-  for (const root of roots) computeSubtreeSize(root.id);
-
-  // 3. Bottom-up subtree layout with exact contour matching
-  function layoutSubtree(nodeId: string): TreeContour {
-    const node = nodeMap.get(nodeId)!;
-    const { w, h } = getNodeDimensions(node);
-    const nodeSize = isHorizontal ? h : w;
-    const children = childrenMap.get(nodeId) ?? [];
-
-    if (children.length === 0) {
-      relativeXMap.set(nodeId, 0);
-      return {
-        left: [-nodeSize / 2],
-        right: [nodeSize / 2],
-      };
-    }
-
-    const childContours: TreeContour[] = [];
-    const childOffsets: number[] = [];
-
-    for (let i = 0; i < children.length; i++) {
-      const childId = children[i];
-      const contour = layoutSubtree(childId);
-      childContours.push(contour);
-
-      if (i === 0) {
-        childOffsets.push(0);
-      } else {
-        let maxOverlapShift = 0;
-        const baseGap = isHorizontal ? 50 : nodeGap;
-
-        // Compare against ALL previously placed siblings to prevent cross-subtree overlap
-        for (let j = 0; j < i; j++) {
-          const prevContour = childContours[j];
-          const compareDepth = Math.min(prevContour.right.length, contour.left.length);
-
-          for (let d = 0; d < compareDepth; d++) {
-            const prevRight = childOffsets[j] + prevContour.right[d];
-            const currLeft = contour.left[d];
-            // Crown shyness: gap grows with crown depth + crown size
-            const gap = shyness
-              ? shynessGap(
-                  baseGap,
-                  d,
-                  computeSubtreeSize(children[j]),
-                  computeSubtreeSize(childId),
-                  shynessScale,
-                )
-              : baseGap;
-            const requiredShift = prevRight - currLeft + gap;
-            if (requiredShift > maxOverlapShift) {
-              maxOverlapShift = requiredShift;
-            }
-          }
-        }
-        childOffsets.push(maxOverlapShift);
-      }
-    }
-
-    // Center parent over children group
-    const firstChildOffset = childOffsets[0];
-    const lastChildOffset = childOffsets[childOffsets.length - 1];
-    const childrenCenter = (firstChildOffset + lastChildOffset) / 2;
-
-    const mergedLeft: number[] = [-nodeSize / 2];
-    const mergedRight: number[] = [nodeSize / 2];
-
-    for (let i = 0; i < children.length; i++) {
-      const childId = children[i];
-      // Final relative position from parent
-      const relX = childOffsets[i] - childrenCenter;
-      relativeXMap.set(childId, relX);
-
-      const c = childContours[i];
-      for (let d = 0; d < c.left.length; d++) {
-        const targetDepth = d + 1;
-        const cLeft = c.left[d] + relX;
-        const cRight = c.right[d] + relX;
-
-        if (mergedLeft[targetDepth] === undefined) {
-          mergedLeft[targetDepth] = cLeft;
-          mergedRight[targetDepth] = cRight;
-        } else {
-          mergedLeft[targetDepth] = Math.min(mergedLeft[targetDepth], cLeft);
-          mergedRight[targetDepth] = Math.max(mergedRight[targetDepth], cRight);
-        }
-      }
-    }
-
-    relativeXMap.set(nodeId, 0);
-    return { left: mergedLeft, right: mergedRight };
-  }
-
-  // 4. Top-down position assignment
-  const finalXMap = new Map<string, number>();
-
-  function assignPositions(nodeId: string, currentAbsoluteX: number) {
-    finalXMap.set(nodeId, currentAbsoluteX);
-
-    const children = childrenMap.get(nodeId) ?? [];
-    for (const childId of children) {
-      const relX = relativeXMap.get(childId) ?? 0;
-      assignPositions(childId, currentAbsoluteX + relX);
-    }
-  }
-
+  // 3. Bottom-up subtree layout with exact contour matching, then top-down
+  // assignment of absolute sibling-axis positions per root.
+  const rootXMap = new Map<string, number>();
   let rootXOffset = 0;
   for (const root of roots) {
-    const contour = layoutSubtree(root.id);
+    const contour = layoutSubtree(pass, root.id);
     const minL = Math.min(...contour.left);
     const maxR = Math.max(...contour.right);
 
-    assignPositions(root.id, rootXOffset - minL);
+    assignPositions(pass, root.id, rootXOffset - minL, rootXMap);
     rootXOffset += (maxR - minL) + 120;
   }
 
-  // 5. Build output node positions with direction inversions (TB, LR, BT, RL)
+  // 4. Build output node positions with direction inversions (TB, LR, BT, RL)
   const maxDepthPos = depthPositions[depthPositions.length - 1] ?? 0;
 
   return nodes.map((node) => {
+    const data = { ...node.data, layoutDirection: direction, isHorizontal };
     if (excludeSet.has(node.id)) {
-      return { ...node, data: { ...node.data, layoutDirection: direction, isHorizontal } } as FewerNode;
+      return { ...node, data } as FewerNode;
     }
 
-    const { w, h } = getNodeDimensions(node);
     const depth = nodeDepths.get(node.id) ?? 0;
-    const depthPos = depthPositions[depth];
-    const xPos = finalXMap.get(node.id) ?? 0;
-
-    let finalX = 0;
-    let finalY = 0;
-
-    switch (direction) {
-      case "LR":
-        finalX = depthPos;
-        finalY = xPos - h / 2;
-        break;
-      case "RL":
-        finalX = maxDepthPos - depthPos - w;
-        finalY = xPos - h / 2;
-        break;
-      case "BT":
-        finalX = xPos - w / 2;
-        finalY = maxDepthPos - depthPos - h;
-        break;
-      case "TB":
-      default:
-        finalX = xPos - w / 2;
-        finalY = depthPos;
-        break;
-    }
-
     return {
       ...node,
-      position: { x: finalX, y: finalY },
-      data: { ...node.data, layoutDirection: direction, isHorizontal },
+      position: directionPosition(
+        node,
+        direction,
+        depthPositions[depth],
+        rootXMap.get(node.id) ?? 0,
+        maxDepthPos
+      ),
+      data,
     } as FewerNode;
   });
 }
