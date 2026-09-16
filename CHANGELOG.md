@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag filter no longer drops a node's manual hide (Hidden panel) when the active tag filter changes
 - Category filter no longer drops a node's manual hide (Hidden panel) when the selected categories change
 - Undoing a tag-filter change now takes the filter itself back too - the tag chips used to stay lit while the nodes they hid came back
+- Tag actions are undoable: assigning/unassigning a tag (single or batch) records one history step, and deleting a tag records one composite step that also restores its assignments and active filter; deleting a tag that was filtering now releases the cards it was hiding
 
 ### Added
 

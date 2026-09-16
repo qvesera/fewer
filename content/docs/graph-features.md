@@ -130,6 +130,8 @@ Tags are named, colored labels you can attach to any folder or file card.
 
 **Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
 
+**Undo**: assigning or unassigning a tag is undoable (**Ctrl+Z**) — a batch assignment reverts as one step. Deleting a tag is undoable too: undo restores the tag itself, re-assigns the cards it was stripped from, and returns it to the active filter. Deleting a tag that was filtering also releases the cards it was hiding (hides owned by other layers stay). Creating, renaming, or recoloring a tag only edits the palette and is not a history step.
+
 **Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — only cards that carry at least one selected tag (OR semantics) stay visible; every other card is removed from the canvas. Folders are hidden too, but only when neither they nor anything inside them matches, so a folder that contains a matching card stays visible as an anchor. Clear with the ✕.
 
 **Sort by tag**: **Settings → Appearance → Sibling Sort → Order by: Tag** orders siblings by the alphabetical label of their first tag; untagged cards always trail.

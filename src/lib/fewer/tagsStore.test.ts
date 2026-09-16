@@ -231,3 +231,101 @@ test("setTagFilter preserves manual hides while swapping the tag-hidden ids", ()
   s.clearTagFilter(); // Clearing the filter must not reveal a manual hide.
   expect(useGraphStore.getState().hiddenIds).toEqual(["n1"]);
 });
+
+test("deleteTag records one undo entry, and undo restores registry, node tags and filter", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Gone");
+  s.assignTag("n1", tag.id);
+  s.assignTag("n2", tag.id);
+  s.toggleTagFilter(tag.id);
+  const pastBefore = useGraphStore.getState().past.length;
+
+  s.deleteTag(tag.id);
+  expect(useGraphStore.getState().past.length).toBe(pastBefore + 1);
+  expect(useGraphStore.getState().tags).toHaveLength(0);
+
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().tags.map((t) => t.id)).toEqual([tag.id]);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([tag.id]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+  expect(useGraphStore.getState().tagFilter).toEqual([tag.id]);
+
+  useGraphStore.getState().redo();
+  expect(useGraphStore.getState().tags).toHaveLength(0);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([]);
+  expect(useGraphStore.getState().tagFilter).toEqual([]);
+});
+
+test("deleting the tag that owns the active filter releases the ids it hid", () => {
+  const s = useGraphStore.getState();
+  const b = s.createTag("B"); // no node carries B
+  seedParentChild();
+  s.setTagFilter([b.id]);
+  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1", "n2"]));
+
+  s.deleteTag(b.id);
+  // Nothing may stay hidden on behalf of a tag that no longer exists.
+  expect(useGraphStore.getState().tagFilter).toEqual([]);
+  expect(useGraphStore.getState().tagFilterHiddenIds).toEqual([]);
+  expect(useGraphStore.getState().hiddenIds).toEqual([]);
+});
+
+test("deleting a filtered tag keeps the ids other hide layers still own", () => {
+  const s = useGraphStore.getState();
+  const b = s.createTag("B");
+  seedParentChild();
+  s.toggleHidden("n1"); // Manual hide — its own layer.
+  s.setTagFilter([b.id]);
+  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1", "n2"]));
+
+  s.deleteTag(b.id);
+  expect(useGraphStore.getState().hiddenIds).toEqual(["n1"]);
+});
+
+test("assignTagToNodes / unassignTagFromNodes are each one undoable entry", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Batch");
+  const before = useGraphStore.getState().past.length;
+
+  s.assignTagToNodes(["n1", "n2"], tag.id);
+  expect(useGraphStore.getState().past.length).toBe(before + 1);
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([]);
+
+  s.assignTagToNodes(["n1", "n2"], tag.id);
+  s.unassignTagFromNodes(["n1"], tag.id);
+  expect(useGraphStore.getState().past.length).toBe(before + 2);
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([tag.id]);
+  expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+});
+
+test("assignTag / toggleNodeTag undo restores the previous tag list", () => {
+  const s = useGraphStore.getState();
+  const a = s.createTag("A");
+  const b = s.createTag("B");
+  s.assignTag("n1", a.id);
+  s.assignTag("n1", b.id);
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([a.id, b.id]);
+
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([a.id]);
+  useGraphStore.getState().redo();
+  expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([a.id, b.id]);
+});
+
+test("no-op tag writes record nothing", () => {
+  const s = useGraphStore.getState();
+  const tag = s.createTag("Kept");
+  s.assignTagToNodes(["n1"], tag.id);
+  const past = useGraphStore.getState().past.length;
+
+  s.assignTagToNodes(["n1", "ghost"], tag.id); // already carries it / unknown id
+  s.assignTag("n1", tag.id);
+  s.unassignTagFromNodes(["n2"], tag.id); // n2 carries nothing
+  s.deleteTag("tag-ghost"); // unknown tag
+  expect(useGraphStore.getState().past.length).toBe(past);
+  expect(useGraphStore.getState().tags.map((t) => t.id)).toEqual([tag.id]);
+});

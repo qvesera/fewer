@@ -53,6 +53,7 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
   if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
   if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  if (view.tags !== undefined) patch.tags = view.tags;
   return patch;
 }
 

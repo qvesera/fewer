@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
+import type { FewerEdge, FewerNode, HistoryOp, SetNodeTagsOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import type { Tag } from "@/lib/fewer/tags";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
@@ -104,6 +104,29 @@ function tagFilterHiddenNodeIds(
     .map((n) => n.id);
 }
 
+/**
+ * Rewrite `tagIds` on the nodes a predicate selects. Returns the new node array
+ * plus the history diff for it, built in one pass so the recorded op and the
+ * state it describes can never disagree. Nodes whose list is unchanged are left
+ * alone, which is what makes a repeat assign a no-op that records nothing.
+ */
+function withTagIds(
+  nodes: FewerNode[],
+  pick: (n: FewerNode) => boolean,
+  next: (ids: string[]) => string[],
+): { nodes: FewerNode[]; changes: SetNodeTagsOp["changes"] } {
+  const changes: SetNodeTagsOp["changes"] = [];
+  const out = nodes.map((n) => {
+    if (!pick(n)) return n;
+    const from = n.data.tagIds ?? [];
+    const to = next(from);
+    if (to.length === from.length && to.every((t, i) => t === from[i])) return n;
+    changes.push({ nodeId: n.id, from, to });
+    return { ...n, data: { ...n.data, tagIds: to } };
+  });
+  return { nodes: out, changes };
+}
+
 export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   tags: [],
   tagFilter: [],
@@ -111,6 +134,10 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
 
   setTags: (tags) => set({ tags }),
 
+  // Registry-only edits (create / rename / recolor / setTags) are deliberately
+  // NOT recorded: the tag color picker fires `updateTag` on every drag tick, so
+  // a single drag would bury the undo stack under dozens of entries. Deleting a
+  // tag is different — it strips node data and filter state — so it records.
   createTag: (label, color) => {
     const trimmed = label.trim() || "Untitled";
     const tag: Tag = {
@@ -129,46 +156,84 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   },
 
   deleteTag: (id) => {
-    const { tags, tagFilter } = get();
+    const state = get();
+    const {
+      tags,
+      tagFilter,
+      tagFilterHiddenIds,
+      hiddenIds,
+      independentlyHiddenIds,
+      autoHiddenIds,
+      categoryHiddenIds,
+    } = state;
     // Strip the tag from every node that carries it.
-    const nodes = get().nodes.map((n: FewerNode) =>
-      n.data.tagIds?.includes(id)
-        ? {
-            ...n,
-            data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== id) },
-          }
-        : n,
+    const { nodes, changes } = withTagIds(
+      state.nodes,
+      (n) => n.data.tagIds?.includes(id) ?? false,
+      (ids) => ids.filter((t) => t !== id),
     );
-    // Also remove from the active filter if present.
+    // Also remove it from the active filter, and release the ids that filter had
+    // hidden. Same layer merge as setTagFilter: an id only leaves hiddenIds when
+    // no other layer still owns it, so manual / auto / category hides survive.
     const nextFilter = tagFilter.filter((t) => t !== id);
-    const nextHidden = tagFilterHiddenNodeIds(nodes, get().edges, nextFilter);
+    const nextHidden = tagFilterHiddenNodeIds(nodes, state.edges, nextFilter);
+    const prevTagSet = new Set(tagFilterHiddenIds);
+    const otherLayers = new Set([
+      ...independentlyHiddenIds,
+      ...autoHiddenIds,
+      ...categoryHiddenIds,
+    ]);
+    const baseHidden = hiddenIds.filter((h) => !prevTagSet.has(h) || otherLayers.has(h));
+    const finalHidden = [...new Set([...baseHidden, ...nextHidden])];
+    const nextTags = tags.filter((t) => t.id !== id);
+    const removed = nextTags.length !== tags.length;
+    const viewChanged =
+      removed ||
+      nextFilter.join(",") !== tagFilter.join(",") ||
+      JSON.stringify(finalHidden) !== JSON.stringify(hiddenIds);
+    if (viewChanged || changes.length > 0) {
+      // One composite entry: node data strip → registry entry + the filter and
+      // hidden ids that entry owned. The view-state op carries the registry, so
+      // undo puts the tag back instead of leaving its assignments orphaned.
+      const viewBefore = { ...captureViewState(state), tags };
+      const viewAfter = {
+        ...viewBefore,
+        tags: nextTags,
+        hiddenIds: finalHidden,
+        tagFilter: nextFilter,
+        tagFilterHiddenIds: nextHidden,
+      };
+      const ops: HistoryOp[] = changes.length > 0 ? [{ type: "set-node-tags", changes }] : [];
+      ops.push(viewStateOp(viewBefore, viewAfter));
+      get().pushOp(ops);
+    }
     set({
-      tags: tags.filter((t) => t.id !== id),
+      tags: nextTags,
       tagFilter: nextFilter,
       tagFilterHiddenIds: nextHidden,
+      hiddenIds: finalHidden,
       nodes,
       graphVersion: get().graphVersion + 1,
     });
   },
 
   assignTag: (nodeId, tagId) => {
-    const nodes = get().nodes.map((n) => {
-      if (n.id !== nodeId) return n;
-      const ids = n.data.tagIds ?? [];
-      if (ids.includes(tagId)) return n;
-      return { ...n, data: { ...n.data, tagIds: [...ids, tagId] } };
-    });
+    const { nodes, changes } = withTagIds(
+      get().nodes,
+      (n) => n.id === nodeId,
+      (ids) => (ids.includes(tagId) ? ids : [...ids, tagId]),
+    );
+    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
 
   unassignTag: (nodeId, tagId) => {
-    const nodes = get().nodes.map((n) => {
-      if (n.id !== nodeId || !n.data.tagIds) return n;
-      return {
-        ...n,
-        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
-      };
-    });
+    const { nodes, changes } = withTagIds(
+      get().nodes,
+      (n) => n.id === nodeId,
+      (ids) => ids.filter((t) => t !== tagId),
+    );
+    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
 
@@ -181,25 +246,23 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   /** Assign one tag to many nodes in a single history entry. Idempotent. */
   assignTagToNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const nodes = get().nodes.map((n) => {
-      if (!idSet.has(n.id)) return n;
-      const ids = n.data.tagIds ?? [];
-      if (ids.includes(tagId)) return n;
-      return { ...n, data: { ...n.data, tagIds: [...ids, tagId] } };
-    });
+    const { nodes, changes } = withTagIds(
+      get().nodes,
+      (n) => idSet.has(n.id),
+      (ids) => (ids.includes(tagId) ? ids : [...ids, tagId]),
+    );
+    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
   /** Remove one tag from many nodes in a single history entry. */
   unassignTagFromNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const nodes = get().nodes.map((n) => {
-      if (!idSet.has(n.id) || !n.data.tagIds) return n;
-      if (!n.data.tagIds.includes(tagId)) return n;
-      return {
-        ...n,
-        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
-      };
-    });
+    const { nodes, changes } = withTagIds(
+      get().nodes,
+      (n) => idSet.has(n.id),
+      (ids) => ids.filter((t) => t !== tagId),
+    );
+    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
     set({ nodes, graphVersion: get().graphVersion + 1 });
   },
 
