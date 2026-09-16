@@ -273,6 +273,15 @@ function collectViewSettings(raw: unknown): ViewSettings {
   if (typeof obj.direction === "string") out.direction = obj.direction;
   if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
+  migrateLegacyHideLayers(out, obj);
+  return out as ViewSettings;
+}
+
+/** Preserve legacy precedence: explicit layers, then showFiles, then hiddenIds. */
+function migrateLegacyHideLayers(
+  out: Record<string, unknown>,
+  obj: Record<string, unknown>,
+): void {
   // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
   if (!out.hideLayers && typeof obj.showFiles === "boolean") {
     out.hideLayers = { ...emptyHideLayers(), filesBulkActive: !obj.showFiles };
@@ -281,7 +290,6 @@ function collectViewSettings(raw: unknown): ViewSettings {
   if (!out.hideLayers && Array.isArray(obj.hiddenIds)) {
     out.hideLayers = { ...emptyHideLayers(), individual: obj.hiddenIds as string[] };
   }
-  return out as ViewSettings;
 }
 
 function sanitizeViewSettings(raw: unknown): ViewSettings {

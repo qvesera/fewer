@@ -74,6 +74,8 @@ function seedDepthCycle() {
     edges: [makeEdge("a", "b"), makeEdge("b", "c"), makeEdge("c", "b")],
     ...baseState(),
     hiddenIds: ["c"],
+    // This fixture isolates depth hiding, not another test's large-folder limit.
+    autoHideThreshold: 10,
     maxDisplayDepth: 1,
   });
 }

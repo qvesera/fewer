@@ -10,6 +10,7 @@ import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/t
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
 
+import { sortEdges, mergeImportedGraph } from "@/lib/fewer/importMerge";
 import { fullName } from "@/lib/fewer/nodeName";
 
 import { captureViewState, viewStateOp } from "./historySlice";
@@ -185,24 +186,6 @@ export function reconcileAutoHide(
   return { hiddenIds: [...nextHidden], autoHiddenIds: [...nextAuto] };
 }
 
-function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  return [...edges].sort((a, b) => {
-    const aNode = nodeMap.get(a.target);
-    const bNode = nodeMap.get(b.target);
-    const aType = aNode?.data.type ?? "file";
-    const bType = bNode?.data.type ?? "file";
-    const typeDiff = (aType === "folder" ? 1 : 0) - (bType === "folder" ? 1 : 0);
-    if (typeDiff !== 0) return typeDiff;
-    const aLabel = aNode?.data.label ?? "";
-    const bLabel = bNode?.data.label ?? "";
-    const labelDiff = bLabel.localeCompare(aLabel);
-    if (labelDiff !== 0) return labelDiff;
-    // Keep highlighted/raised edges last so store re-sorts (relayout, connect,
-    // import) can't bury them under default edges while a selection is active.
-    return (a.zIndex ?? 0) - (b.zIndex ?? 0);
-  });
-}
 
 /**
  * After removing edges, reset the path of any node that lost its last parent edge
@@ -678,9 +661,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!newRoot) return;
     // Store only the new nodes (not the full array) for undo
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
-    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
-    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    const merged = mergeImportedGraph(nodes, edges, newNodes, newEdges);
+    set({ nodes: applySearchHighlight(merged.nodes, searchQuery, get().categoryFilter), edges: merged.edges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   pasteNode: (id, parentFolderId?) => {
@@ -691,9 +673,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!newRoot) return;
     // Store only the new nodes for undo
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
-    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
-    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
+    const merged = mergeImportedGraph(nodes, edges, newNodes, newEdges);
+    set({ nodes: applySearchHighlight(merged.nodes, searchQuery, get().categoryFilter), edges: merged.edges, selectedNodeIds: [newRoot.id], graphVersion: get().graphVersion + 1 });
   },
 
   _findFreePosition: (baseX, baseY, nodeWidth, nodeHeight) => {
@@ -821,9 +802,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const selectId = firstRoot?.id ?? newNodes[0]?.id;
     // Store only the new nodes (not the full array) for undo
     get().pushOp({ type: "bulk-import", nodes: newNodes, edges: newEdges });
-    const updatedNodes = nodes.map((n) => ({ ...n, selected: false }));
-    const mergedEdges = sortEdges([...edges, ...newEdges], [...updatedNodes, ...newNodes]);
-    set({ nodes: applySearchHighlight([...updatedNodes, ...newNodes], searchQuery, get().categoryFilter), edges: mergedEdges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
+    const merged = mergeImportedGraph(nodes, edges, newNodes, newEdges);
+    set({ nodes: applySearchHighlight(merged.nodes, searchQuery, get().categoryFilter), edges: merged.edges, selectedNodeIds: selectId ? [selectId] : [], graphVersion: get().graphVersion + 1 });
   },
 
   duplicateNode: (id) => { get().duplicateNodeUnderParent(id); },
