@@ -112,6 +112,29 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
 }
 
 /**
+ * Compute `--primary-foreground` so primary text contrasts with the primary
+ * accent (black on bright accents, white otherwise).
+ */
+function computePrimaryFgFinal(accent: string, fg: string, isLight: boolean): string {
+  // Ensure foreground text always has good contrast
+  const fgHex = fg.replace("#", "");
+  const fgR = parseInt(fgHex.substring(0, 2), 16) || 0;
+  const fgG = parseInt(fgHex.substring(2, 4), 16) || 0;
+  const fgB = parseInt(fgHex.substring(4, 6), 16) || 0;
+  const fgLum = fgR * 0.299 + fgG * 0.587 + fgB * 0.114;
+  const fgIsLight = fgLum > 128;
+  const primaryFg = isLight === fgIsLight ? (isLight ? "#ffffff" : "#ffffff") : (isLight ? "#ffffff" : "#ffffff");
+  // Primary foreground should contrast with primary accent
+  const accHex = accent.replace("#", "");
+  const accR = parseInt(accHex.substring(0, 2), 16) || 0;
+  const accG = parseInt(accHex.substring(2, 4), 16) || 0;
+  const accB = parseInt(accHex.substring(4, 6), 16) || 0;
+  const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
+  const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
+  return primaryFgFinal;
+}
+
+/**
  * Derive the shadcn/ui CSS variables from a custom theme (pure — no DOM).
  * Card/muted backgrounds, border tones, and foreground contrast are computed
  * from the theme's background / text / accent slots.
@@ -149,21 +172,7 @@ function deriveShadcnVars(theme: CustomTheme): [string, string][] {
   const borderColor = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.2)` : `rgba(255, 255, 255, 0.08)`;
   const borderLight = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.12)` : `rgba(255, 255, 255, 0.05)`;
 
-  // Ensure foreground text always has good contrast
-  const fgHex = fg.replace("#", "");
-  const fgR = parseInt(fgHex.substring(0, 2), 16) || 0;
-  const fgG = parseInt(fgHex.substring(2, 4), 16) || 0;
-  const fgB = parseInt(fgHex.substring(4, 6), 16) || 0;
-  const fgLum = fgR * 0.299 + fgG * 0.587 + fgB * 0.114;
-  const fgIsLight = fgLum > 128;
-  const primaryFg = isLight === fgIsLight ? (isLight ? "#ffffff" : "#ffffff") : (isLight ? "#ffffff" : "#ffffff");
-  // Primary foreground should contrast with primary accent
-  const accHex = accent.replace("#", "");
-  const accR = parseInt(accHex.substring(0, 2), 16) || 0;
-  const accG = parseInt(accHex.substring(2, 4), 16) || 0;
-  const accB = parseInt(accHex.substring(4, 6), 16) || 0;
-  const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
-  const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
+  const primaryFgFinal = computePrimaryFgFinal(accent, fg, isLight);
 
   return [
     ["--background", toCssColor(bg, theme.background.opacity)],
