@@ -12,7 +12,7 @@ import {
   Position,
 } from "@xyflow/react";
 import { FEWER_HOME_URL } from "./branding";
-import { colorForTag, TAG_RING_CAP, type Tag } from "./tags";
+import { colorForTag, tagRingColors, TAG_RING_CAP, TAG_RING_WIDTH, type Tag } from "./tags";
 import { ancestorPathHighlight, buildTreeLookups } from "./edgeHighlight";
 
 /* -------------------------------------------------------------------------- */
@@ -93,8 +93,6 @@ const FOOTER_HEIGHT = 28; // item-count footer
 const PADDING = 40;
 /** Collapsed folder pill: 36px icon box + 1px border either side (CustomNode). */
 const PILL_HEIGHT = COLLAPSED_PILL_HEIGHT;
-/** `.gm-tag-ring` band: 3px wide, hugging the outside of the card border. */
-const TAG_RING_WIDTH = 3;
 /** `.gm-selected-ring`: `outline: 2px solid` with `outline-offset: 2px`, i.e. a
     2px accent band whose INNER edge sits 2px outside the card border. */
 const SELECT_RING_WIDTH = 2;
@@ -392,12 +390,10 @@ function cardRadius(n: FewerNode): number {
   return n.data.type === "folder" ? FOLDER_RADIUS : FILE_RADIUS;
 }
 
-/** Tag colors assigned to a node, in display order (capped like the canvas). */
+/** Tag colors assigned to a node, in display order — the shared ring contract
+ *  from tags.ts, so the export paints the same tags the canvas does. */
 function tagColors(n: FewerNode, o: GraphRenderOptions): string[] {
-  const ids = n.data.tagIds;
-  if (!ids?.length || !o.tags?.length) return [];
-  const tags = o.tags;
-  return ids.slice(0, TAG_RING_CAP).map((id) => colorForTag(tags, id));
+  return tagRingColors(o.tags, n.data.tagIds);
 }
 
 /** Width the tag dots row needs (14px pitch + a 14px slack for the "+N"). */
@@ -414,9 +410,10 @@ function tagDotsWidth(n: FewerNode): number {
  * arc-length bands with stroke-dasharray. Band order and the bottom-left seam
  * match `buildTagRingGradient` (first tag starts at the seam, clockwise).
  *
- * ponytail: the DOM splits a SHARP rect by perimeter while this walks the
- * rounded outline, so a boundary landing on a corner drifts by up to the corner
- * sagitta (~1px). Upgrade path: emit explicit per-band path segments.
+ * ponytail: the DOM splits the card's sharp rect by perimeter while this walks
+ * the rounded outline of the band's outer rect, so the two perimeters differ by
+ * the corner rounding and bands drift a few px apart away from the seam.
+ * Upgrade path: emit explicit per-band path segments.
  */
 function renderTagRing(
   n: FewerNode,
@@ -449,11 +446,16 @@ function renderTagRing(
 
   if (colors.length === 1) return path(colors[0]);
 
-  const straight = (w - 2 * r) * 2 + (h - 2 * r) * 2;
-  const perimeter = straight + 2 * Math.PI * r;
-  // Arc length from the path start (top-left corner arc end) to the middle of
-  // the bottom-left corner — the seam both the canvas and exports start from.
-  const seam = (w - 2 * r) * 2 + (h - 2 * r) + Math.PI * r + (Math.PI * r) / 2;
+  const a = w - 2 * r; // straight top/bottom edges
+  const b = h - 2 * r; // straight left/right edges
+  const perimeter = 2 * a + 2 * b + 2 * Math.PI * r;
+  // Arc length from the path start (top edge, top-left) to the seam the canvas
+  // starts from too: the BOTTOM-LEFT corner. Reading `d` above that is the top
+  // edge, the top-right + bottom-right quarter arcs (πr), the right edge, the
+  // bottom edge, then HALF the bottom-left arc (πr/4) — the corner is that
+  // fillet's midpoint, so running to the end of the arc instead would rotate
+  // every band by the other πr/4.
+  const seam = 2 * a + b + Math.PI * r + (Math.PI * r) / 4;
   const band = perimeter / colors.length;
   return colors
     .map((c, i) =>
@@ -720,6 +722,46 @@ function renderBrandingMark(sceneW: number, sceneH: number): string {
   </g></a>`;
 }
 
+/** Edge markup for the export scene, including the ancestor-path highlight.
+    The highlight is identical to the canvas's edge highlighting
+    (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
+    selected card up to its root parent lights up, stroked with the target
+    node's themed folder/file color at width max(edgeWidth, 3). Without this the
+    image showed selected cards with all edges still in the default theme color. */
+function renderEdgesHtml(
+  connectEdges: FewerEdge[],
+  edges: FewerEdge[],
+  nodes: FewerNode[],
+  sizeByNode: Map<string, { w: number; h: number }>,
+  o: GraphRenderOptions,
+): string {
+  const selectedIds = [...(o.selectedIds ?? [])];
+  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
+  if (selectedIds.length > 0) {
+    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
+    edgeHighlight = ancestorPathHighlight(
+      selectedIds,
+      parentEdgeOf,
+      typeByNodeId,
+      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
+      Math.max(o.defaultEdgeWidth ?? 2, 3),
+    );
+  }
+
+  return connectEdges
+    // Highlighted edges paint last so they sit above the rest, like the canvas
+    // (which sorts highlighted edges to the end of the array).
+    .slice()
+    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
+    .map((e) => {
+      const s = nodes.find((nn) => nn.id === e.source);
+      const d = nodes.find((nn) => nn.id === e.target);
+      if (!s || !d) return "";
+      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
+    })
+    .join("\n  ");
+}
+
 /** Build an SVG scene exactly reflecting current graph + theme state. */
 export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRenderOptions): GraphScene {
   const hidden = o.hiddenIds ?? new Set<string>();
@@ -746,36 +788,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const sizeByNode = new Map<string, { w: number; h: number }>();
   for (const n of nodes) sizeByNode.set(n.id, nodeSize(n, o));
 
-  // Ancestor-path highlight, identical to the canvas's edge highlighting
-  // (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
-  // selected card up to its root parent lights up, stroked with the target
-  // node's themed folder/file color at width max(edgeWidth, 3). Without this the
-  // image showed selected cards with all edges still in the default theme color.
-  const selectedIds = [...(o.selectedIds ?? [])];
-  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
-  if (selectedIds.length > 0) {
-    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
-    edgeHighlight = ancestorPathHighlight(
-      selectedIds,
-      parentEdgeOf,
-      typeByNodeId,
-      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
-      Math.max(o.defaultEdgeWidth ?? 2, 3),
-    );
-  }
-
-  const edgesHtml = connectEdges
-    // Highlighted edges paint last so they sit above the rest, like the canvas
-    // (which sorts highlighted edges to the end of the array).
-    .slice()
-    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
-    .map((e) => {
-      const s = nodes.find((nn) => nn.id === e.source);
-      const d = nodes.find((nn) => nn.id === e.target);
-      if (!s || !d) return "";
-      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
-    })
-    .join("\n  ");
+  const edgesHtml = renderEdgesHtml(connectEdges, edges, nodes, sizeByNode, o);
 
   const nodesHtml = drawableNodes
     .map((n) =>

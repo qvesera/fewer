@@ -12,8 +12,8 @@ import type { OriginSource } from "./importFlow";
  * collaborator is injected via ctx. A `mock.module("@/store/graphStore")`
  * here would leak into every later test file in bun's shared process and
  * replace their store binding with a stub that lacks setState/createTag
- * (observed breaking tagsStore and other store suites depending on file
- * evaluation order).
+ * (observed breaking the tags slice suite and other store suites depending on
+ * file evaluation order).
  */
 function seedStore({ nodeCount = 3, autoHideCount = 0 }: { nodeCount?: number; autoHideCount?: number } = {}) {
   useGraphStore.setState({

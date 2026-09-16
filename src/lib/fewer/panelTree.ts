@@ -6,8 +6,44 @@
  * PanelArea nodes. The main graph canvas is a leaf — it can be split into
  * multiple side-by-side viewports of the same data.
  */
-import type { PanelArea, AreaEditor } from "./panelLayout";
-import { createArea, generateAreaId } from "./panelLayout";
+// ─ Area primitives ─
+// Declared here, in the base module of the split-tree data structure, so that
+// panelLayout depends on panelTree and not the reverse. (They used to live in
+// panelLayout, which made the two modules import each other.)
+
+export type AreaEditor =
+  | "graph"
+  | "file"
+  | "directories"
+  | "layout"
+  | "edges"
+  | "hidden"
+  | "tags"
+  | "analytics";
+
+export interface PanelArea {
+  id: string;
+  width: number;
+  editor: AreaEditor;
+}
+
+export const DEFAULT_SECTION_WIDTH = 280;
+export const DEFAULT_GRAPH_WIDTH = 480;
+
+let _counter = 0;
+/** Globally unique id for areas (works across SSR: increments only in browser). */
+export function generateAreaId(): string {
+  return `area-${Date.now()}-${++_counter}`;
+}
+
+/** Create a new PanelArea with sane defaults for the editor type. */
+export function createArea(editor: AreaEditor, width?: number): PanelArea {
+  return {
+    id: generateAreaId(),
+    width: width ?? (editor === "graph" ? DEFAULT_GRAPH_WIDTH : DEFAULT_SECTION_WIDTH),
+    editor,
+  };
+}
 
 // ── Node types ──
 

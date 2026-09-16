@@ -3,7 +3,7 @@ import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
-import { toCssColor, toGradientCss, migrateCustomTheme } from "@/lib/fewer/themeColors";
+import { toCssColor, toGradientCss, migrateCustomTheme, deriveShadcnVars } from "@/lib/fewer/themeColors";
 
 const STORAGE_THEME = "fewer-theme";
 const STORAGE_CUSTOM = "fewer-custom-theme";
@@ -109,84 +109,6 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   for (const [cssVar, value] of deriveShadcnVars(theme)) {
     root.style.setProperty(cssVar, value);
   }
-}
-
-/**
- * Derive the shadcn/ui CSS variables from a custom theme (pure — no DOM).
- * Card/muted backgrounds, border tones, and foreground contrast are computed
- * from the theme's background / text / accent slots.
- */
-function deriveShadcnVars(theme: CustomTheme): [string, string][] {
-  const bg = theme.background.color;
-  const fg = theme.defaultText.color;
-  const subtle = theme.subtleText.color;
-  const accent = theme.folderIcon.color;
-  const handle = theme.handle.color;
-
-  // Determine if background is light or dark for contrast
-  const bgRgb = (() => { const m = /^#?([0-9a-fA-F]{6})$/.exec(bg); if (!m) return null; const n = parseInt(m[1], 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; })();
-  const isLight = bgRgb ? (bgRgb.r * 0.299 + bgRgb.g * 0.587 + bgRgb.b * 0.114) > 128 : true;
-
-  // Derive card/muted backgrounds from the actual theme background
-  const bgHex = bg.replace("#", "");
-  const r = parseInt(bgHex.substring(0, 2), 16) || 0;
-  const g = parseInt(bgHex.substring(2, 4), 16) || 0;
-  const b = parseInt(bgHex.substring(4, 6), 16) || 0;
-
-  // Card: slightly lighter than background for light themes, slightly darker for dark
-  const cardR = isLight ? Math.min(255, r + 8) : Math.max(0, r - 8);
-  const cardG = isLight ? Math.min(255, g + 8) : Math.max(0, g - 8);
-  const cardB = isLight ? Math.min(255, b + 8) : Math.max(0, b - 8);
-  const cardBg = `#${cardR.toString(16).padStart(2, "0")}${cardG.toString(16).padStart(2, "0")}${cardB.toString(16).padStart(2, "0")}`;
-
-  // Muted: even more offset
-  const mutedR = isLight ? Math.min(255, r + 15) : Math.max(0, r - 15);
-  const mutedG = isLight ? Math.min(255, g + 15) : Math.max(0, g - 15);
-  const mutedB = isLight ? Math.min(255, b + 15) : Math.max(0, b - 15);
-  const mutedBg = `#${mutedR.toString(16).padStart(2, "0")}${mutedG.toString(16).padStart(2, "0")}${mutedB.toString(16).padStart(2, "0")}`;
-
-  // Borders: subtle lines that work on any background
-  const borderColor = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.2)` : `rgba(255, 255, 255, 0.08)`;
-  const borderLight = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.12)` : `rgba(255, 255, 255, 0.05)`;
-
-  // Ensure foreground text always has good contrast
-  const fgHex = fg.replace("#", "");
-  const fgR = parseInt(fgHex.substring(0, 2), 16) || 0;
-  const fgG = parseInt(fgHex.substring(2, 4), 16) || 0;
-  const fgB = parseInt(fgHex.substring(4, 6), 16) || 0;
-  const fgLum = fgR * 0.299 + fgG * 0.587 + fgB * 0.114;
-  const fgIsLight = fgLum > 128;
-  const primaryFg = isLight === fgIsLight ? (isLight ? "#ffffff" : "#ffffff") : (isLight ? "#ffffff" : "#ffffff");
-  // Primary foreground should contrast with primary accent
-  const accHex = accent.replace("#", "");
-  const accR = parseInt(accHex.substring(0, 2), 16) || 0;
-  const accG = parseInt(accHex.substring(2, 4), 16) || 0;
-  const accB = parseInt(accHex.substring(4, 6), 16) || 0;
-  const accLum = accR * 0.299 + accG * 0.587 + accB * 0.114;
-  const primaryFgFinal = accLum > 140 ? "#000000" : "#ffffff";
-
-  return [
-    ["--background", toCssColor(bg, theme.background.opacity)],
-    ["--foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--card", cardBg],
-    ["--card-foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--popover", cardBg],
-    ["--popover-foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--primary", toCssColor(accent, 1)],
-    ["--primary-foreground", primaryFgFinal],
-    ["--secondary", mutedBg],
-    ["--secondary-foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--muted", mutedBg],
-    ["--muted-foreground", toCssColor(subtle, theme.subtleText.opacity)],
-    ["--accent", toCssColor(accent, 0.15)],
-    ["--accent-foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--border", borderColor],
-    ["--input", borderLight],
-    ["--ring", toCssColor(handle, theme.handle.opacity)],
-    ["--sidebar", cardBg],
-    ["--sidebar-foreground", toCssColor(fg, theme.defaultText.opacity)],
-    ["--sidebar-border", borderLight],
-  ];
 }
 
 export function clearCustomThemeFromDOM() {

@@ -3,7 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
-import { countOwned, limitsFor, getUserPlan, overLimit } from "@/lib/fewer/plans";
+import { countOwned, limitsFor, getUserPlan, overLimit, type PlanLimits } from "@/lib/fewer/plans";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Maximum size (in JSON-stringified characters) for a saved graph payload. */
 const MAX_SAVED_GRAPH_CHARS = 500_000;
@@ -34,6 +35,22 @@ async function getAuthedClient() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
   return { supabase, user: data.user };
+}
+
+/**
+ * Best-effort history snapshot for a saved graph; never blocks the save on
+ * failure. A plan with no retention window records nothing, and the window
+ * itself lives in plans.ts (free 30 days, pro/team 1 year).
+ */
+async function snapshotHistory(
+  supabase: SupabaseClient,
+  userId: string,
+  graphId: string,
+  data: unknown,
+  limits: PlanLimits,
+): Promise<void> {
+  if (limits.historyDays <= 0) return;
+  await recordVersion(supabase, userId, graphId, data, limits.historyDays);
 }
 
 export async function GET() {
@@ -105,11 +122,13 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
-    // Retention window is per-plan (free 30 days, pro/team 1 year -- see plans.ts).
-    const updateLimits = limitsFor(await getUserPlan(supabase, user.id));
-    if (updateLimits.historyDays > 0) {
-      await recordVersion(supabase, user.id, data.id, body.data, updateLimits.historyDays);
-    }
+    await snapshotHistory(
+      supabase,
+      user.id,
+      data.id,
+      body.data,
+      limitsFor(await getUserPlan(supabase, user.id)),
+    );
     return NextResponse.json({ graph: data });
   }
 
@@ -136,9 +155,6 @@ export async function POST(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   // Best-effort history snapshot; never blocks the save on failure.
-  // Retention window is per-plan (free 30 days, pro/team 1 year).
-  if (limits.historyDays > 0) {
-    await recordVersion(supabase, user.id, data.id, body.data, limits.historyDays);
-  }
+  await snapshotHistory(supabase, user.id, data.id, body.data, limits);
   return NextResponse.json({ graph: data });
 }

@@ -491,14 +491,15 @@ aside::-webkit-scrollbar-thumb:hover {
 }
 
 /* Tag highlight ring — a conic-gradient (set inline via --tag colors) painted as a
-   thin band around the card. The mask keeps ONLY the 3px padding band visible, so
+   thin band around the card. The mask keeps ONLY the padding band visible, so
    the gradient never bleeds through a translucent card body. The element is an
-   absolutely-positioned overlay inside the card (inset -3px) so it adds no layout
-   size and never interferes with React Flow's node ref/handles. */
+   absolutely-positioned overlay inside the card so it adds no layout size and
+   never interferes with React Flow's node ref/handles. `inset` + `padding` (the
+   band width) come from TAG_RING_WIDTH inline — see TagRing.tsx. */
 .gm-tag-ring {
   position: absolute;
-  inset: -3px;
-  padding: 3px;
+  /* `inset` + `padding` (the band width) are set inline from TAG_RING_WIDTH so
+     the canvas band and the exported ring stroke share one number. */
   border-radius: inherit;
   pointer-events: none;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);

@@ -1,12 +1,8 @@
-import type { FewerNode } from "./types";
+import type { FewerNode, Tag } from "./types";
 
-/** A reusable label+color marker that can be assigned to any number of nodes. */
-export interface Tag {
-  id: string;
-  label: string;
-  /** Hex color (e.g. "#f87171"). Used for the assignment dot + the card ring. */
-  color: string;
-}
+// `Tag` is declared in types.ts (the single home for graph data types) and
+// re-exported here so existing `from "./tags"` import sites keep working.
+export type { Tag };
 
 /** Vibrant, theme-agnostic palette assigned to new tags in order. */
 export const TAG_PALETTE: string[] = [
@@ -26,6 +22,12 @@ export const TAG_FALLBACK_COLOR = "#94a3b8";
 
 /** Tag colors shown on a ring — anything beyond this is counted as "+N" overflow. */
 export const TAG_RING_CAP = 5;
+
+/** Width of the ring band in px — the single number behind the band in BOTH
+ *  renderers: `TagRing` insets/pads `.gm-tag-ring` by it inline, and the
+ *  exporter strokes its ring path at the band's centreline
+ *  (`cardRadius + TAG_RING_WIDTH / 2`). */
+export const TAG_RING_WIDTH = 3;
 
 /** Card dimensions used to split the ring equally by outline length. */
 export interface TagRingDims {
@@ -51,6 +53,40 @@ function perimeterPointAngle(s: number, w: number, h: number): number {
   else { x = -hw + (t - 3 * hw - 2 * h); y = -hh; }         // top edge, left corner → center
   // CSS conic-gradient: 0° at 12 o'clock, angles increase clockwise.
   return ((Math.atan2(x, -y) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Ring geometry for `n` equal shares of the outline: the angle the gradient
+ * starts from (the seam, bottom-left corner) and the percent offset — clockwise
+ * from that seam — of the k-th color boundary.
+ *
+ * With usable `dims` the boundaries sit at equal OUTLINE LENGTH; otherwise they
+ * fall back to equal angle, which is what a square card wants anyway.
+ */
+function ringGeometry(
+  n: number,
+  dims?: TagRingDims,
+): { seamAngle: number; offsetPercent: (k: number) => number } {
+  const usePerimeter = !!dims && dims.width > 0 && dims.height > 0;
+  const w = usePerimeter ? dims!.width : 0;
+  const h = usePerimeter ? dims!.height : 0;
+
+  // Seam = bottom-left corner (perimeter coordinate measured clockwise from
+  // top-center; 225° on the square/equal-angle fallback).
+  const seamPerim = usePerimeter ? 3 * (w / 2) + h : 0;
+  const seamAngle = usePerimeter ? perimeterPointAngle(seamPerim, w, h) : 225;
+
+  const offsetPercent = (k: number): number => {
+    if (usePerimeter) {
+      const perim = 2 * (w + h);
+      const ang = perimeterPointAngle(seamPerim + (k * perim) / n, w, h);
+      const offsetDeg = (ang - seamAngle + 360) % 360;
+      return +(offsetDeg / 3.6).toFixed(2);
+    }
+    return +((k * 100) / n).toFixed(2);
+  };
+
+  return { seamAngle, offsetPercent };
 }
 
 /**
@@ -85,25 +121,7 @@ export function buildTagRingGradient(colors: string[], dims?: TagRingDims): stri
   if (capped.length === 1) return capped[0];
 
   const n = capped.length;
-  const usePerimeter = !!dims && dims.width > 0 && dims.height > 0;
-  const w = usePerimeter ? dims!.width : 0;
-  const h = usePerimeter ? dims!.height : 0;
-
-  // Seam = bottom-left corner (perimeter coordinate measured clockwise from
-  // top-center; 225° on the square/equal-angle fallback).
-  const seamPerim = usePerimeter ? 3 * (w / 2) + h : 0;
-  const seamAngle = usePerimeter ? perimeterPointAngle(seamPerim, w, h) : 225;
-
-  /** Percent offset (clockwise from the seam) to the k-th color boundary. */
-  const offsetPercent = (k: number): number => {
-    if (usePerimeter) {
-      const perim = 2 * (w + h);
-      const ang = perimeterPointAngle(seamPerim + (k * perim) / n, w, h);
-      const offsetDeg = (ang - seamAngle + 360) % 360;
-      return +(offsetDeg / 3.6).toFixed(2);
-    }
-    return +((k * 100) / n).toFixed(2);
-  };
+  const { seamAngle, offsetPercent } = ringGeometry(n, dims);
 
   const stops = capped.flatMap((c, i) => {
     const start = i === 0 ? 0 : offsetPercent(i);
@@ -133,6 +151,34 @@ export function makeTagLabelLookup(tags: Tag[]): (id: string) => string {
 export function colorForTag(tags: Tag[], id: string): string {
   const found = tags.find((t) => t.id === id);
   return found ? found.color : TAG_FALLBACK_COLOR;
+}
+
+/**
+ * The colors a tag ring paints for a node, in display order — the single
+ * contract shared by the canvas ring and the SVG/PNG exporter, so both always
+ * paint the SAME tags in the SAME order around the outline.
+ *
+ * Resolve each assigned id through the registry, drop ids that resolve to a
+ * blank color (a band with nothing to paint would punch a hole 1/N of the way
+ * around the ring), then cap at TAG_RING_CAP. The filter runs BEFORE the cap,
+ * so an unpaintable tag never costs a visible band. An empty registry yields no
+ * colors: there is nothing to resolve from, and `snapshot.ts` prunes node
+ * tagIds to the registry on load, so a ring drawn only from fallbacks would be
+ * transient noise.
+ */
+export function tagRingColors(
+  tags: Tag[] | undefined,
+  tagIds: readonly string[] | undefined,
+): string[] {
+  if (!tags?.length || !tagIds?.length) return [];
+  const colors: string[] = [];
+  for (const id of tagIds) {
+    const color = colorForTag(tags, id);
+    if (!color) continue;
+    colors.push(color);
+    if (colors.length === TAG_RING_CAP) break;
+  }
+  return colors;
 }
 
 /**

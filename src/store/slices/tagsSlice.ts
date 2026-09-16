@@ -1,10 +1,11 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
+import type { FewerEdge, FewerNode, HistoryOp, SetNodeTagsOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import type { Tag } from "@/lib/fewer/tags";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
+import { childrenMapOf } from "@/lib/fewer/validation";
 import { captureViewState, viewStateOp } from "./historySlice";
 
 export type TagsSliceCreator = StateCreator<
@@ -66,11 +67,7 @@ function tagFilterHiddenNodeIds(
   if (tagFilter.length === 0) return [];
   const tagSet = new Set(tagFilter);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  const childrenMap = childrenMapOf(edges);
   const tagged = (n: FewerNode): boolean => {
     const nodeTags = n.data.tagIds ?? [];
     return nodeTags.some((t) => tagSet.has(t));
@@ -107,6 +104,68 @@ function tagFilterHiddenNodeIds(
     .map((n) => n.id);
 }
 
+/**
+ * Rewrite `tagIds` on the nodes a predicate selects. Returns the new node array
+ * plus the history diff for it, built in one pass so the recorded op and the
+ * state it describes can never disagree. Nodes whose list is unchanged are left
+ * alone, which is what makes a repeat assign a no-op that records nothing.
+ */
+function withTagIds(
+  nodes: FewerNode[],
+  pick: (n: FewerNode) => boolean,
+  next: (ids: string[]) => string[],
+): { nodes: FewerNode[]; changes: SetNodeTagsOp["changes"] } {
+  const changes: SetNodeTagsOp["changes"] = [];
+  const out = nodes.map((n) => {
+    if (!pick(n)) return n;
+    const from = n.data.tagIds ?? [];
+    const to = next(from);
+    if (to.length === from.length && to.every((t, i) => t === from[i])) return n;
+    changes.push({ nodeId: n.id, from, to });
+    return { ...n, data: { ...n.data, tagIds: to } };
+  });
+  return { nodes: out, changes };
+}
+
+/**
+ * Apply a tag-id rewrite to the nodes `pick` selects and record it as one
+ * history entry. `withTagIds` reports no changes when the lists are equal, so a
+ * repeat assign stays a no-op that also skips the node-array rebuild.
+ */
+function writeTagIds(
+  set: (partial: Pick<GraphState, "nodes" | "graphVersion">) => void,
+  get: () => GraphState,
+  pick: (n: FewerNode) => boolean,
+  next: (ids: string[]) => string[],
+): void {
+  const { nodes, changes } = withTagIds(get().nodes, pick, next);
+  if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
+  set({ nodes, graphVersion: get().graphVersion + 1 });
+}
+
+/** Idempotent list editors: a tag already present (or absent) keeps the array. */
+const addTagId = (tagId: string) => (ids: string[]) =>
+  ids.includes(tagId) ? ids : [...ids, tagId];
+const removeTagId = (tagId: string) => (ids: string[]) => ids.filter((t) => t !== tagId);
+
+/**
+ * Merge the ids a tag layer hides back into `hiddenIds`. Ids the previous tag
+ * filter hid are dropped unless another layer still owns them, so manual hides
+ * (Hidden panel), auto-hide and the category filter all survive a tag-filter
+ * change — and nothing stays hidden on behalf of a filter that is gone.
+ */
+export function mergeTagHiddenLayers(
+  hiddenIds: string[],
+  prevTagHiddenIds: string[],
+  otherLayers: string[],
+  nextTagHidden: string[],
+): string[] {
+  const prevTagSet = new Set(prevTagHiddenIds);
+  const others = new Set(otherLayers);
+  const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id) || others.has(id));
+  return [...new Set([...baseHidden, ...nextTagHidden])];
+}
+
 export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   tags: [],
   tagFilter: [],
@@ -114,6 +173,10 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
 
   setTags: (tags) => set({ tags }),
 
+  // Registry-only edits (create / rename / recolor / setTags) are deliberately
+  // NOT recorded: the tag color picker fires `updateTag` on every drag tick, so
+  // a single drag would bury the undo stack under dozens of entries. Deleting a
+  // tag is different — it strips node data and filter state — so it records.
   createTag: (label, color) => {
     const trimmed = label.trim() || "Untitled";
     const tag: Tag = {
@@ -132,48 +195,69 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   },
 
   deleteTag: (id) => {
-    const { tags, tagFilter } = get();
+    const state = get();
+    const {
+      tags,
+      tagFilter,
+      tagFilterHiddenIds,
+      hiddenIds,
+      independentlyHiddenIds,
+      autoHiddenIds,
+      categoryHiddenIds,
+    } = state;
     // Strip the tag from every node that carries it.
-    const nodes = get().nodes.map((n: FewerNode) =>
-      n.data.tagIds?.includes(id)
-        ? {
-            ...n,
-            data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== id) },
-          }
-        : n,
+    const { nodes, changes } = withTagIds(
+      state.nodes,
+      (n) => n.data.tagIds?.includes(id) ?? false,
+      (ids) => ids.filter((t) => t !== id),
     );
-    // Also remove from the active filter if present.
+    // Also remove it from the active filter, and release the ids that filter had
+    // hidden (other hide layers keep theirs — see mergeTagHiddenLayers).
     const nextFilter = tagFilter.filter((t) => t !== id);
-    const nextHidden = tagFilterHiddenNodeIds(nodes, get().edges, nextFilter);
+    const nextHidden = tagFilterHiddenNodeIds(nodes, state.edges, nextFilter);
+    const finalHidden = mergeTagHiddenLayers(
+      hiddenIds,
+      tagFilterHiddenIds,
+      [...independentlyHiddenIds, ...autoHiddenIds, ...categoryHiddenIds],
+      nextHidden,
+    );
+    const nextTags = tags.filter((t) => t.id !== id);
+    const removed = nextTags.length !== tags.length;
+    const viewChanged =
+      removed ||
+      nextFilter.join(",") !== tagFilter.join(",") ||
+      JSON.stringify(finalHidden) !== JSON.stringify(hiddenIds);
+    if (viewChanged || changes.length > 0) {
+      // One composite entry: node data strip → registry entry + the filter and
+      // hidden ids that entry owned. The view-state op carries the registry, so
+      // undo puts the tag back instead of leaving its assignments orphaned.
+      const viewBefore = { ...captureViewState(state), tags };
+      const viewAfter = {
+        ...viewBefore,
+        tags: nextTags,
+        hiddenIds: finalHidden,
+        tagFilter: nextFilter,
+        tagFilterHiddenIds: nextHidden,
+      };
+      const ops: HistoryOp[] = changes.length > 0 ? [{ type: "set-node-tags", changes }] : [];
+      ops.push(viewStateOp(viewBefore, viewAfter));
+      get().pushOp(ops);
+    }
     set({
-      tags: tags.filter((t) => t.id !== id),
+      tags: nextTags,
       tagFilter: nextFilter,
       tagFilterHiddenIds: nextHidden,
+      hiddenIds: finalHidden,
       nodes,
       graphVersion: get().graphVersion + 1,
     });
   },
 
-  assignTag: (nodeId, tagId) => {
-    const nodes = get().nodes.map((n) => {
-      if (n.id !== nodeId) return n;
-      const ids = n.data.tagIds ?? [];
-      if (ids.includes(tagId)) return n;
-      return { ...n, data: { ...n.data, tagIds: [...ids, tagId] } };
-    });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
-  },
+  assignTag: (nodeId, tagId) =>
+    writeTagIds(set, get, (n) => n.id === nodeId, addTagId(tagId)),
 
-  unassignTag: (nodeId, tagId) => {
-    const nodes = get().nodes.map((n) => {
-      if (n.id !== nodeId || !n.data.tagIds) return n;
-      return {
-        ...n,
-        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
-      };
-    });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
-  },
+  unassignTag: (nodeId, tagId) =>
+    writeTagIds(set, get, (n) => n.id === nodeId, removeTagId(tagId)),
 
   toggleNodeTag: (nodeId, tagId) => {
     const node = get().nodes.find((n) => n.id === nodeId);
@@ -184,40 +268,42 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   /** Assign one tag to many nodes in a single history entry. Idempotent. */
   assignTagToNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const nodes = get().nodes.map((n) => {
-      if (!idSet.has(n.id)) return n;
-      const ids = n.data.tagIds ?? [];
-      if (ids.includes(tagId)) return n;
-      return { ...n, data: { ...n.data, tagIds: [...ids, tagId] } };
-    });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
+    writeTagIds(set, get, (n) => idSet.has(n.id), addTagId(tagId));
   },
   /** Remove one tag from many nodes in a single history entry. */
   unassignTagFromNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const nodes = get().nodes.map((n) => {
-      if (!idSet.has(n.id) || !n.data.tagIds) return n;
-      if (!n.data.tagIds.includes(tagId)) return n;
-      return {
-        ...n,
-        data: { ...n.data, tagIds: n.data.tagIds.filter((t) => t !== tagId) },
-      };
-    });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
+    writeTagIds(set, get, (n) => idSet.has(n.id), removeTagId(tagId));
   },
 
   setTagFilter: (ids) => {
-    const { nodes, hiddenIds, tagFilterHiddenIds } = get();
+    const {
+      nodes,
+      hiddenIds,
+      tagFilterHiddenIds,
+      independentlyHiddenIds,
+      autoHiddenIds,
+      categoryHiddenIds,
+    } = get();
     const nextTagHidden = tagFilterHiddenNodeIds(nodes, get().edges, ids);
-    const prevTagSet = new Set(tagFilterHiddenIds);
-    // Drop the ids the previous tag filter hid, then add the ids this one hides.
-    // Manual hides (from the Hidden panel) are preserved — only tracked
-    // tag-filter-hidden ids are touched.
-    const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id));
-    const finalHidden = [...new Set([...baseHidden, ...nextTagHidden])];
+    const finalHidden = mergeTagHiddenLayers(
+      hiddenIds,
+      tagFilterHiddenIds,
+      [...independentlyHiddenIds, ...autoHiddenIds, ...categoryHiddenIds],
+      nextTagHidden,
+    );
     const before = captureViewState(get());
-    const after = { ...before, hiddenIds: finalHidden };
-    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds)) {
+    const after = {
+      ...before,
+      hiddenIds: finalHidden,
+      tagFilter: ids,
+      tagFilterHiddenIds: nextTagHidden,
+    };
+    // The chip is part of the recorded view state, so a swap that hides the same
+    // nodes (two tags over one node) still has to record — otherwise the filter
+    // itself would be the one thing undo cannot take back.
+    const filterChanged = (before.tagFilter ?? []).join(",") !== ids.join(",");
+    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds) || filterChanged) {
       get().pushOp(viewStateOp(before, after));
     }
     set({

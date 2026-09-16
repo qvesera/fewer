@@ -157,52 +157,66 @@ export const githubAdapter: CloudProviderAdapter = {
     }
     const resolved = await resolveBranchPath(accessToken, owner, name, branch, path);
     if (!resolved) throw new Error("Could not resolve GitHub branch/path");
-    const { commitSha } = resolved;
 
-    const treeRes = await fetch(`${API}/repos/${owner}/${name}/git/trees/${commitSha}?recursive=1`, { headers: ghHeaders(accessToken) });
+    const treeRes = await fetch(`${API}/repos/${owner}/${name}/git/trees/${resolved.commitSha}?recursive=1`, { headers: ghHeaders(accessToken) });
     if (!treeRes.ok) throw new Error("GitHub API error (tree)");
     const treeData = await treeRes.json();
     const items: GhTreeItem[] = treeData.tree || [];
 
-    const rootPath = resolved.path;
-    const rootName = rootPath.split("/").pop() || name;
-    const root: TreeEntry = { name: rootName, type: "folder", children: [] };
-    const map = new Map<string, TreeEntry>();
-    map.set("", root);
-
-    const prefix = rootPath ? `${rootPath}/` : "";
-    const filtered = rootPath ? items.filter((i) => i.path === rootPath || i.path.startsWith(prefix)) : items;
-    const stripped = rootPath
-      ? filtered.map((i) => ({
-          ...i,
-          path: i.path === rootPath ? "." : i.path.slice(prefix.length),
-        }))
-      : filtered;
-
-    // ponytail: depth cap applied here to bound huge repos (upgrade: stream/paginate)
-    const sorted = [...stripped].sort((a, b) => a.path.length - b.path.length);
-    for (const item of sorted) {
-      if (item.path === ".") continue;
-      const parts = item.path.split("/");
-      if (depth > 0 && parts.length > depth) continue;
-      const nm = parts.pop()!;
-      const parentPath = parts.join("/");
-      const parent = map.get(parentPath);
-      if (!parent) continue;
-      const webUrl = `https://github.com/${owner}/${name}/tree/${resolved.branch}/${rootPath ? rootPath + "/" + item.path : item.path}`;
-      if (item.type === "tree") {
-        const dir: TreeEntry = { name: nm, type: "folder", children: [], webUrl };
-        parent.children = parent.children || [];
-        parent.children.push(dir);
-        map.set(item.path, dir);
-      } else {
-        parent.children = parent.children || [];
-        parent.children.push({ name: nm, type: "file", size: item.size ?? 0, webUrl });
-      }
-    }
-    return root;
+    return buildTreeEntries(items, { owner, name, branch: resolved.branch, rootPath: resolved.path, depth });
   },
 };
+
+/**
+ * Materialize a flat GitHub tree listing into a nested `TreeEntry` root.
+ *
+ * `items` paths are absolute within the repo; `rootPath` (may be "") scopes the
+ * result to a subdirectory, so paths are first rebased onto it. Parents are
+ * filled depth-first by sorting on path length, and `depth` (> 0) caps nesting
+ * to bound huge repos.
+ */
+function buildTreeEntries(
+  items: GhTreeItem[],
+  ctx: { owner: string; name: string; branch: string; rootPath: string; depth: number },
+): TreeEntry {
+  const { owner, name, branch, rootPath, depth } = ctx;
+  const rootName = rootPath.split("/").pop() || name;
+  const root: TreeEntry = { name: rootName, type: "folder", children: [] };
+  const map = new Map<string, TreeEntry>();
+  map.set("", root);
+
+  const prefix = rootPath ? `${rootPath}/` : "";
+  const filtered = rootPath ? items.filter((i) => i.path === rootPath || i.path.startsWith(prefix)) : items;
+  const stripped = rootPath
+    ? filtered.map((i) => ({
+        ...i,
+        path: i.path === rootPath ? "." : i.path.slice(prefix.length),
+      }))
+    : filtered;
+
+  // ponytail: depth cap applied here to bound huge repos (upgrade: stream/paginate)
+  const sorted = [...stripped].sort((a, b) => a.path.length - b.path.length);
+  for (const item of sorted) {
+    if (item.path === ".") continue;
+    const parts = item.path.split("/");
+    if (depth > 0 && parts.length > depth) continue;
+    const nm = parts.pop()!;
+    const parentPath = parts.join("/");
+    const parent = map.get(parentPath);
+    if (!parent) continue;
+    const webUrl = `https://github.com/${owner}/${name}/tree/${branch}/${rootPath ? rootPath + "/" + item.path : item.path}`;
+    if (item.type === "tree") {
+      const dir: TreeEntry = { name: nm, type: "folder", children: [], webUrl };
+      parent.children = parent.children || [];
+      parent.children.push(dir);
+      map.set(item.path, dir);
+    } else {
+      parent.children = parent.children || [];
+      parent.children.push({ name: nm, type: "file", size: item.size ?? 0, webUrl });
+    }
+  }
+  return root;
+}
 
 /** Resolve a branch + path (branch may contain "/") to a commit SHA. */
 async function resolveBranchPath(

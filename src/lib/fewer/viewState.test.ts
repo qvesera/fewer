@@ -134,6 +134,23 @@ describe("parseViewSettings — sanitize + v1→v2 migration", () => {
     });
   });
 
+  test("v1 compat: legacy showFiles wins over legacy hiddenIds", () => {
+    const out = parseViewSettings({ leaf: { showFiles: false, hiddenIds: ["x", "y"] } });
+    expect(out.leaf!.hideLayers).toEqual({
+      individual: [],
+      subtrees: {},
+      filesBulkActive: true,
+      filesBulkExempt: [],
+    });
+  });
+
+  test("an explicit v2 layer beats both legacy fields", () => {
+    const out = parseViewSettings({
+      leaf: { hideLayers: emptyHideLayers(), showFiles: false, hiddenIds: ["x"] },
+    });
+    expect(out.leaf!.hideLayers).toEqual(emptyHideLayers());
+  });
+
   test("empty leaves are dropped from the map", () => {
     expect(parseViewSettings({ empty: {}, real: { minimapHidden: true } })).toEqual({
       real: { minimapHidden: true },
@@ -163,6 +180,8 @@ describe("mergeViewSettings — v1/v2 → v3 migration", () => {
     expect(out.l1!.minimapHidden).toBe(true);
     expect(out.l3!.minimapHidden).toBe(true);
   });
+});
+
 describe("resolveViewNodes", () => {
   const global = {
     direction: "TB" as const,
@@ -312,5 +331,4 @@ describe("withCollapsedPillGeometry", () => {
     const nodes = [node("c", "file", 58)];
     expect(withCollapsedPillGeometry(nodes, ["c"])[0]).toBe(nodes[0]);
   });
-});
 });

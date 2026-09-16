@@ -35,11 +35,3 @@ export function shouldKeepEmpty(
   if (options.includeFiles) return false; // no children + files tracked = truly empty
   return hasDiskEntries; // keep folders that only contain un-imported files
 }
-
-// ponytail: default sort works for both handle and entry walker children
-export function sortFolderFirst(children: { type: string; name: string }[]) {
-  children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-}

@@ -95,6 +95,24 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     loadGraphs();
   }, [loadGraphs]);
 
+  /** Close the save dialog and reset it back to "save as new". */
+  const closeSaveDialog = () => {
+    setSavingOpen(false);
+    setSaveName("");
+    setSaveTarget("new");
+  };
+
+  /** Success path shared by a new save and an in-place update: reset the dialog,
+      refresh the list, then confirm what happened. */
+  const finishSave = async (name: string, updating: boolean) => {
+    closeSaveDialog();
+    await loadGraphs();
+    toast({
+      title: updating ? "Graph updated" : "Saved",
+      description: updating ? `"${name}" updated with a new version.` : `"${name}" saved to your account.`,
+    });
+  };
+
   const handleSave = async () => {
     if (!user) return onRequireAuth();
     const updating = saveTarget !== "new";
@@ -115,9 +133,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       // an identical snapshot means nothing changed, so skip the write (and skip
       // creating a redundant version) and just tell the user.
       if (updating && graphDataEqual(data, saveTarget.data)) {
-        setSavingOpen(false);
-        setSaveName("");
-        setSaveTarget("new");
+        closeSaveDialog();
         toast({
           title: "No changes",
           description: `"${saveTarget.name}" is already up to date — no new version was added.`,
@@ -133,14 +149,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
-      setSavingOpen(false);
-      setSaveName("");
-      setSaveTarget("new");
-      await loadGraphs();
-      toast({
-        title: updating ? "Graph updated" : "Saved",
-        description: updating ? `"${name}" updated with a new version.` : `"${name}" saved to your account.`,
-      });
+      await finishSave(name, updating);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
@@ -553,6 +562,20 @@ function ShareGraphDialog({
     return out;
   };
 
+  /** Record the created share and confirm it in the mode that was chosen. */
+  const applyShareResult = (id: string, invitedEmails: string[]) => {
+    setExistingId(id);
+    setShareUrl(buildDbShareUrl(id));
+    if (gallery && access === "public") {
+      toast({
+        title: "Published to the gallery",
+        description: `"${galleryTitle.trim() || graph.name}" is now live in the community gallery.`,
+      });
+    } else if (access === "invite") {
+      toast({ title: "Invites sent", description: `Emailed ${invitedEmails.length} invitee${invitedEmails.length === 1 ? "" : "s"} a private link.` });
+    }
+  };
+
   const buildShare = async () => {
     if (!user) return onRequireAuth();
     const invited_emails = access === "invite" ? parseEmails() : [];
@@ -590,16 +613,7 @@ function ShareGraphDialog({
       });
       const json = await res.json();
       if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
-      setExistingId(json.id);
-      setShareUrl(buildDbShareUrl(json.id));
-      if (gallery && access === "public") {
-        toast({
-          title: "Published to the gallery",
-          description: `"${galleryTitle.trim() || graph.name}" is now live in the community gallery.`,
-        });
-      } else if (access === "invite") {
-        toast({ title: "Invites sent", description: `Emailed ${invited_emails.length} invitee${invited_emails.length === 1 ? "" : "s"} a private link.` });
-      }
+      applyShareResult(json.id, invited_emails);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Share failed";
       toast({ title: "Could not share", description: msg, variant: "destructive" });

@@ -5,7 +5,7 @@ import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection, getDescendants } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants, childrenMapOf, parentMapOf, ancestorChainOf } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
@@ -34,11 +34,7 @@ function computeLargeFolderHiddenIds(
   threshold: number,
   revealedSet?: Set<string>,
 ): string[] {
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  const childrenMap = childrenMapOf(edges);
   const toHide = new Set<string>();
   const revealed = revealedSet ?? new Set<string>();
   for (const node of nodes) {
@@ -60,26 +56,27 @@ function computeLargeFolderHiddenIds(
 }
 
 /**
- * Collect the reveal set for a bulk "show subtree" (used by Show Children):
- * each requested id that is currently hidden, plus every hidden descendant of
- * it, stopping at nodes the user hid directly (independentlyHiddenIds) —
- * the same semantics as `showSubtree`, batched into one set.
+ * The single reveal walk behind both show-subtree actions: seed `roots` into
+ * the reveal set, then breadth-first over `edges` revealing hidden descendants —
+ * never walking past a visible card, and stopping at cards the user hid
+ * directly (independentlyHiddenIds) together with their whole subtree.
+ *
+ * The caller decides what a root is: `collectShowSubtrees` seeds only ids that
+ * are currently hidden, `showSubtree` always seeds the card the user clicked
+ * (so its hidden descendants still surface under an already-visible folder).
  */
-export function collectShowSubtrees(
+function walkSubtreeReveal(
   edges: FewerEdge[],
-  hiddenIds: string[],
-  independentlyHiddenIds: string[],
-  ids: string[],
+  hiddenSet: Set<string>,
+  indieSet: Set<string>,
+  roots: Iterable<string>,
 ): Set<string> {
-  const hiddenSet = new Set(hiddenIds);
-  const indieSet = new Set(independentlyHiddenIds);
   const toShow = new Set<string>();
   const queue: string[] = [];
-  for (const id of ids) {
-    if (hiddenSet.has(id) && !toShow.has(id)) {
-      toShow.add(id);
-      queue.push(id);
-    }
+  for (const id of roots) {
+    if (toShow.has(id)) continue;
+    toShow.add(id);
+    queue.push(id);
   }
   while (queue.length) {
     const nid = queue.shift()!;
@@ -94,6 +91,27 @@ export function collectShowSubtrees(
     }
   }
   return toShow;
+}
+
+/**
+ * Collect the reveal set for a bulk "show subtree" (used by Show Children):
+ * each requested id that is currently hidden, plus every hidden descendant of
+ * it, stopping at nodes the user hid directly (independentlyHiddenIds) —
+ * the same walk as `showSubtree`, batched into one set.
+ */
+export function collectShowSubtrees(
+  edges: FewerEdge[],
+  hiddenIds: string[],
+  independentlyHiddenIds: string[],
+  ids: string[],
+): Set<string> {
+  const hiddenSet = new Set(hiddenIds);
+  return walkSubtreeReveal(
+    edges,
+    hiddenSet,
+    new Set(independentlyHiddenIds),
+    ids.filter((id) => hiddenSet.has(id)),
+  );
 }
 
 /**
@@ -225,23 +243,16 @@ function unparentSubtree(
       pathChanges.push({ nodeId: rid, prevPath: prevRootPath, nextPath: newRootPath });
       next[idx] = { ...next[idx], data: { ...next[idx].data, path: newRootPath, isRoot: true } };
     }
-    // Reset descendants whose path was under the old root prefix.
-    const queue = [rid];
-    const seen = new Set<string>([rid]);
-    while (queue.length) {
-      const nid = queue.shift()!;
-      for (const e of edges) {
-        if (e.source !== nid) continue;
-        if (seen.has(e.target)) continue;
-        seen.add(e.target);
-        const child = byId.get(e.target);
-        const childIdx = next.findIndex((n) => n.id === e.target);
-        if (child && child.data.path.startsWith(prevRootPath) && childIdx !== -1) {
-          const newPath = child.data.path.replace(prevRootPath, newRootPath);
-          pathChanges.push({ nodeId: e.target, prevPath: child.data.path, nextPath: newPath });
-          next[childIdx] = { ...next[childIdx], data: { ...next[childIdx].data, path: newPath } };
-        }
-        queue.push(e.target);
+    // Reset descendants whose path was under the old root prefix. The shared
+    // walk yields the same order this loop did (BFS-first, root excluded, one
+    // entry per node), so the pathChanges order is unchanged.
+    for (const descendantId of getDescendants(rid, edges)) {
+      const child = byId.get(descendantId);
+      const childIdx = next.findIndex((n) => n.id === descendantId);
+      if (child && child.data.path.startsWith(prevRootPath) && childIdx !== -1) {
+        const newPath = child.data.path.replace(prevRootPath, newRootPath);
+        pathChanges.push({ nodeId: descendantId, prevPath: child.data.path, nextPath: newPath });
+        next[childIdx] = { ...next[childIdx], data: { ...next[childIdx].data, path: newPath } };
       }
     }
   }
@@ -517,15 +528,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   setClipboard: (mode, nodeIds) => {
     const { nodes, edges } = get();
-    const allIds = new Set<string>();
-    for (const id of nodeIds) {
-      allIds.add(id);
-      const queue = [id];
-      while (queue.length) {
-        const qid = queue.shift()!;
-        for (const e of edges) { if (e.source === qid && !allIds.has(e.target)) { allIds.add(e.target); queue.push(e.target); } }
-      }
-    }
+    // Shared walk (see deleteNodes): the selection plus every descendant, one
+    // entry per node across the whole selection.
+    const allIds = new Set([...nodeIds, ...nodeIds.flatMap((id) => getDescendants(id, edges))]);
     const subtreeNodes = nodes.filter((n) => allIds.has(n.id));
     const subtreeEdges = edges.filter((e) => allIds.has(e.source) && allIds.has(e.target));
     set({ clipboard: { mode, nodeIds: [...nodeIds], subtreeNodes, subtreeEdges } });
@@ -535,10 +540,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   deleteNodes: (ids) => {
     const { nodes, edges, searchQuery } = get();
-    // Collect all nodes to remove (including descendants)
-    const toRemove = new Set<string>();
-    const queue = [...ids];
-    while (queue.length) { const id = queue.shift()!; toRemove.add(id); for (const e of edges) { if (e.source === id && !toRemove.has(e.target)) queue.push(e.target); } }
+    // Collect all nodes to remove (including descendants) via the shared
+    // validation helper — no hand-rolled BFS (see deleteUndo.test.ts).
+    const toRemove = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
     const removedNodes = nodes.filter((n) => toRemove.has(n.id));
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const newNodes = nodes.filter((n) => !toRemove.has(n.id));
@@ -608,14 +612,9 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const oldPathPrefix = parent ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
     const newPathPrefix = parent ? `${parentPath}/${newFullLabel}` : newFullLabel;
     const isFolder = node.data.type === "folder";
-    const descendantIds = new Set<string>();
-    if (isFolder) {
-      const queue = [id];
-      while (queue.length) {
-        const nid = queue.shift()!;
-        for (const e of edges) { if (e.source === nid && e.target !== id) { descendantIds.add(e.target); queue.push(e.target); } }
-      }
-    }
+    // Shared walk (see deleteNodes) — the root is excluded for us, and mirrors
+    // the inline copy that used to push a node once per path.
+    const descendantIds = new Set(isFolder ? getDescendants(id, edges) : []);
     const newNodes = nodes.map((n) => {
       if (n.id === id) {
         return { ...n, data: { ...n.data, label: newLabelOnly, path: newPathPrefix, extension: newExt, category: newExt ? categorizeByExtension(newExt) : undefined } };
@@ -648,8 +647,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const { nodes, edges } = get();
     const sourceNode = nodes.find((n) => n.id === id);
     if (!sourceNode) return { newRoot: null as FewerNode | null, newNodes: [] as FewerNode[], newEdges: [] as FewerEdge[] };
-    const allIds = new Set<string>([id]); const queue = [id];
-    while (queue.length) { const qid = queue.shift()!; for (const e of edges) { if (e.source === qid && !allIds.has(e.target)) { allIds.add(e.target); queue.push(e.target); } } }
+    const allIds = new Set([id, ...getDescendants(id, edges)]);
     const idMap = new Map<string, string>();
     for (const oid of allIds) idMap.set(oid, `n-dup-${uuid().slice(0, 8)}`);
     const siblingIds = parentId ? edges.filter((e) => e.source === parentId).map((e) => e.target) : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
@@ -832,8 +830,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   moveNode: (id) => {
     const { nodes, edges, searchQuery } = get();
-    const toRemove = new Set([id]); const queue = [id];
-    while (queue.length) { const qid = queue.shift()!; for (const e of edges) { if (e.source === qid && !toRemove.has(e.target)) { toRemove.add(e.target); queue.push(e.target); } } }
+    const toRemove = new Set([id, ...getDescendants(id, edges)]);
     const removedNodes = nodes.filter((n) => toRemove.has(n.id));
     const removedEdges = edges.filter((e) => toRemove.has(e.source) && toRemove.has(e.target));
     const filteredNodes = nodes.filter((n) => !toRemove.has(n.id));
@@ -961,7 +958,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const oldChildPath = node.data.path;
     const newChildPath = `${newPath}/${nodeFullLabel}`;
     const isFolder = node.data.type === "folder";
-    const descendantIds = isFolder ? getDescendants(nodeId, edges).filter((d) => d !== nodeId) : [];
+    const descendantIds = isFolder ? getDescendants(nodeId, edges) : [];
     const changedNodeIds = [nodeId, ...descendantIds];
     const prevPaths = changedNodeIds
       .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
@@ -1007,19 +1004,16 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parent = nodes.find((n) => n.id === connection.source);
     const child = nodes.find((n) => n.id === connection.target);
     let updatedNodes = nodes;
-    const descendantIds = new Set<string>();
+    // Shared walk (see deleteNodes) — the root is excluded for us and each node
+    // is listed once. Only a folder's subtree has its path rewritten below.
+    const descendantIds = new Set(
+      parent && child && child.data.type === "folder" ? getDescendants(connection.target, edges) : [],
+    );
     if (parent && child) {
       const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
       const newChildPath = `${parent.data.path}/${childFullLabel}`;
       const oldChildPath = child.data.path;
       const isFolder = child.data.type === "folder";
-      if (isFolder) {
-        const queue = [connection.target];
-        while (queue.length) {
-          const nid = queue.shift()!;
-          for (const e of edges) { if (e.source === nid && e.target !== connection.target) { descendantIds.add(e.target); queue.push(e.target); } }
-        }
-      }
       updatedNodes = nodes.map((n) => {
         if (n.id === connection.target) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
         if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
@@ -1084,14 +1078,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       const oldPathPrefix = parentEdge ? `${parentPath}/${oldFullLabel}` : oldFullLabel;
       const newPathPrefix = parentEdge ? `${parentPath}/${newFullLabel}` : newFullLabel;
       const isFolder = node.data.type === "folder";
-      const descendantIds = new Set<string>();
-      if (isFolder) {
-        const queue = [id];
-        while (queue.length) {
-          const nid = queue.shift()!;
-          for (const e of edges) { if (e.source === nid && e.target !== id && !descendantIds.has(e.target)) { descendantIds.add(e.target); queue.push(e.target); } }
-        }
-      }
+      // Shared walk (see deleteNodes) — the root is excluded for us.
+      const descendantIds = new Set(isFolder ? getDescendants(id, edges) : []);
       nextNodes = nextNodes.map((n) => {
         if (n.id === id) return { ...n, data: { ...n.data, label: newLabelOnly, path: newPathPrefix, extension: newExt, category: newExt ? categorizeByExtension(newExt) : undefined } };
         if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldPathPrefix)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldPathPrefix, newPathPrefix) } };
@@ -1111,15 +1099,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   unparentNodes: (ids) => {
     const { nodes, edges, searchQuery } = get();
     const idSet = new Set(ids);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     // Only top-most selection roots detach: a node whose ancestor is also
     // selected keeps its in-selection parent edge.
-    const roots = ids.filter((id) => {
-      let p = parentMap.get(id);
-      while (p) { if (idSet.has(p)) return false; p = parentMap.get(p); }
-      return true;
-    });
+    const roots = ids.filter((id) => !ancestorChainOf(id, parentMap).some((a) => idSet.has(a)));
     const removedEdges = edges.filter((e) => roots.includes(e.target));
     // Nothing to detach (every selected root is already root-level) — no-op, and
     // no history entry, so callers must not claim success either.
@@ -1137,20 +1120,14 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parent = nodes.find((n) => n.id === parentId);
     if (!parent || parent.data.type !== "folder") return { moved: 0, reason: "Target must be a folder." };
     const idSet = new Set(ids);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     // Top-most selected roots only; skip the target itself and items already
     // sitting directly under the target (moving to an ancestor further up is
     // legal — cycles are caught per-item by validateConnection below).
     const roots = ids.filter((id) => {
       if (id === parentId) return false;
       if (parentMap.get(id) === parentId) return false;
-      let p = parentMap.get(id);
-      while (p) {
-        if (idSet.has(p)) return false;
-        p = parentMap.get(p);
-      }
-      return true;
+      return !ancestorChainOf(id, parentMap).some((a) => idSet.has(a));
     });
     if (roots.length === 0) {
       const alreadyThere = ids.length > 0 && ids.every((id) => id === parentId || parentMap.get(id) === parentId);
@@ -1183,14 +1160,8 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       const newChildPath = `${parent.data.path}/${childFullLabel}`;
       const oldChildPath = child.data.path;
       const isFolder = child.data.type === "folder";
-      const descendantIds = new Set<string>();
-      if (isFolder) {
-        const queue = [id];
-        while (queue.length) {
-          const nid = queue.shift()!;
-          for (const e of combinedEdges) { if (e.source === nid && e.target !== id && !descendantIds.has(e.target)) { descendantIds.add(e.target); queue.push(e.target); } }
-        }
-      }
+      // Shared walk (see deleteNodes) — the root is excluded for us.
+      const descendantIds = new Set(isFolder ? getDescendants(id, combinedEdges) : []);
       workNodes = workNodes.map((n) => {
         if (n.id === id) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
         if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
@@ -1234,8 +1205,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   hideNode: (id) => {
     const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
     if (hiddenIds.includes(id)) return;
-    const toHide = new Set([id]); const queue = [id];
-    while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } }
+    const toHide = new Set([id, ...getDescendants(id, edges)]);
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] };
     get().pushOp(viewStateOp(before, after));
@@ -1250,8 +1220,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   hideNodes: (ids) => {
     const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
-    const toHide = new Set(ids);
-    for (const id of ids) { const queue = [id]; while (queue.length) { const nid = queue.shift()!; for (const e of edges) { if (e.source === nid && !toHide.has(e.target)) { toHide.add(e.target); queue.push(e.target); } } } }
+    const toHide = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] };
     get().pushOp(viewStateOp(before, after));
@@ -1278,10 +1247,12 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
-    const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
-    while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
+    const parentMap = parentMapOf(edges);
+    const toShow = new Set<string>([id]);
+    for (const ancestorId of ancestorChainOf(id, parentMap)) {
+      if (!hiddenSet.has(ancestorId)) break;
+      toShow.add(ancestorId);
+    }
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
@@ -1291,19 +1262,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   showSubtree: (id) => {
     const { hiddenIds, edges, independentlyHiddenIds } = get();
-    const indieSet = new Set(independentlyHiddenIds);
-    const toShow = new Set([id]);
-    const queue = [id];
-    while (queue.length) {
-      const nid = queue.shift()!;
-      for (const e of edges) {
-        if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
-        // Cards the user hid directly and all descendants stay hidden.
-        if (indieSet.has(e.target)) continue;
-        toShow.add(e.target);
-        queue.push(e.target);
-      }
-    }
+    // The clicked card is always revealed (it may already be visible when its
+    // hidden descendants are what needs showing), so unlike the batch action it
+    // is seeded without a hidden check.
+    const toShow = walkSubtreeReveal(edges, new Set(hiddenIds), new Set(independentlyHiddenIds), [id]);
     commitShow(set, get, toShow, false);
   },
 
@@ -1347,8 +1309,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep only existing hidden ids that are within the new depth AND were not hidden by old depth (manual/auto hides)
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     const kept = hiddenIds.filter((id) => {
       if (depthHidden.has(id)) return false;
       const depth = nodes.find((n) => n.id === id)?.data.depth ?? 0;
@@ -1356,14 +1317,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       // If this node was hidden by old depth limit and is now within new limit, reveal it
       if (oldDepthHidden.has(id)) {
         // Check if any ancestor was hidden by non-depth reasons (manual/auto-hide)
-        let ancestorId = parentMap.get(id);
-        while (ancestorId) {
-          if (revealedSet.has(ancestorId) || (hiddenSet.has(ancestorId) && !oldDepthHidden.has(ancestorId))) {
-            // Ancestor was hidden by manual/auto-hide, not depth → keep this node hidden
-            return true;
-          }
-          ancestorId = parentMap.get(ancestorId);
-        }
+        // An ancestor hidden by manual/auto-hide (not depth) keeps this node hidden
+        const blocked = ancestorChainOf(id, parentMap).some(
+          (ancestorId) => revealedSet.has(ancestorId) || (hiddenSet.has(ancestorId) && !oldDepthHidden.has(ancestorId)),
+        );
+        if (blocked) return true;
         // All hidden ancestors were depth-hidden → reveal
         return false;
       }

@@ -1,5 +1,13 @@
 import type { Node, Edge } from "@xyflow/react";
 
+/** A reusable label+color marker that can be assigned to any number of nodes. */
+export interface Tag {
+  id: string;
+  label: string;
+  /** Hex color (e.g. "#f87171"). Used for the assignment dot + the card ring. */
+  color: string;
+}
+
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
 
@@ -299,6 +307,17 @@ export interface ViewState {
   /** Ids the user hid directly (toggleHidden / hideSelected roots) —
    *  showSubtree must not reveal them or their descendants. */
   independentlyHiddenIds: string[];
+  /** Active tag filter (tag ids) and the ids it added to hiddenIds, so undo
+   *  also turns the filter chip off instead of leaving it stale. Optional:
+   *  ops cached before the tag layer was recorded carry no tag state to
+   *  restore, and a missing key is skipped rather than treated as empty. */
+  tagFilter?: string[];
+  tagFilterHiddenIds?: string[];
+  /** Tag registry (id → Tag) as it stood for this snapshot. Optional and set
+   *  only by ops that change the registry (deleteTag): the rest of the ops skip
+   *  the key, so undoing an unrelated view-state op can never resurrect or drop
+   *  a tag. A missing key is skipped rather than treated as "no tags". */
+  tags?: Tag[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
@@ -356,6 +375,13 @@ export interface CollapseBatchOp {
   changes: { nodeId: string; wasCollapsed: boolean; willCollapse: boolean }[];
 }
 
+/** Per-node `tagIds` rewrite (assign / unassign / strip-on-delete).
+ *  Undo restores `from` on each listed node, redo re-applies `to`. */
+export interface SetNodeTagsOp {
+  type: "set-node-tags";
+  changes: { nodeId: string; from: string[]; to: string[] }[];
+}
+
 /** Pure view-state change (hide/show, show-files, max-depth, auto-hide-threshold). */
 export interface ViewStateOp {
   type: "view-state";
@@ -392,6 +418,7 @@ export type HistoryOp =
   | MovePositionsOp
   | ResizeOp
   | CollapseBatchOp
+  | SetNodeTagsOp
   | RefreshSubtreeOp
   | ViewStateOp;
 

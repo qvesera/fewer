@@ -287,3 +287,40 @@ test("layout: no node overlaps anywhere with shyness on", () => {
     }
   }
 });
+test("layout: all four directions order parents before children and keep cards apart", () => {
+  // BT/RL only differ from TB/LR in the final coordinate mapping, which is the
+  // easiest part of the layout to break while refactoring, so both mirror axes
+  // get the same invariants as the two covered directions above.
+  const { nodes, edges } = bushyTree();
+  const parentComesFirst: Record<string, (parent: FewerNode, child: FewerNode) => boolean> = {
+    TB: (parent, child) => parent.position.y < child.position.y,
+    BT: (parent, child) => parent.position.y > child.position.y,
+    LR: (parent, child) => parent.position.x < child.position.x,
+    RL: (parent, child) => parent.position.x > child.position.x,
+  };
+
+  for (const direction of ["TB", "BT", "LR", "RL"] as const) {
+    const laid = layoutGraphSync(nodes, edges, direction, { shynessScale: 3 });
+    const byId = new Map(laid.map((n) => [n.id, n]));
+
+    for (const edge of edges) {
+      const parent = byId.get(edge.source)!;
+      const child = byId.get(edge.target)!;
+      expect(parentComesFirst[direction](parent, child)).toBe(true);
+    }
+
+    const boxes = laid.map((n) => ({
+      x1: n.position.x,
+      y1: n.position.y,
+      x2: n.position.x + ((n.style?.width as number) ?? 0),
+      y2: n.position.y + ((n.style?.height as number) ?? 0),
+    }));
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        const overlaps = a.x1 < b.x2 - 0.5 && b.x1 < a.x2 - 0.5 && a.y1 < b.y2 - 0.5 && b.y1 < a.y2 - 0.5;
+        expect(overlaps).toBe(false);
+      }
+    }
+  }
+});

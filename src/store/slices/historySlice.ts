@@ -27,6 +27,8 @@ export function captureViewState(state: GraphState): ViewState {
     categoryFilter: (state.categoryFilter ?? []) as FileCategory[],
     categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
     independentlyHiddenIds: (state.independentlyHiddenIds ?? []) as string[],
+    tagFilter: (state.tagFilter ?? []) as string[],
+    tagFilterHiddenIds: (state.tagFilterHiddenIds ?? []) as string[],
   };
 }
 
@@ -49,6 +51,9 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
   if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
   if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
+  if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
+  if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  if (view.tags !== undefined) patch.tags = view.tags;
   return patch;
 }
 

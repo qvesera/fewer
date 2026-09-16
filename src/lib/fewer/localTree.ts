@@ -3,6 +3,7 @@ import path from "path";
 import type { TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
+import { sortFoldersFirst } from "./treeSort";
 
 /**
  * Server-side directory walker for drag-and-drop fallbacks.
@@ -86,10 +87,7 @@ export async function buildTreeFromPath(
   }
 
   // Folders first, then alphabetical — same as buildTreeFromHandle.
-  children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+  sortFoldersFirst(children);
 
   return { name: path.basename(dirPath) || dirPath, type: "folder", children };
 }

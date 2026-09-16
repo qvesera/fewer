@@ -1,4 +1,5 @@
 import type { TreeEntry } from "./types";
+import { sortFoldersFirst } from "./treeSort";
 
 /**
  * Parse an Apache-style auto-index HTML page into a flat list of entries.
@@ -137,11 +138,9 @@ export async function buildTreeFromAutoIndex(
     }
   }
 
-  // Sort: folders first, then alphabetical.
-  tree.children!.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
+  // Sort: folders first, then alphabetical. Each level sorts itself, so the
+  // recursion above already covers the whole tree.
+  sortFoldersFirst(tree.children!);
 
   return { tree, truncated };
 }
