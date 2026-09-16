@@ -114,6 +114,8 @@ export interface ShortcutCtx {
   pasteFromClipboard(parentId?: string | null): void; moveNode(id: string): void;
   connectNodes(connection: { source: string; target: string }): { ok: boolean; reason?: string };
   removeEdgesFromHandle(nodeId: string, handleType: "source" | "target"): void;
+  /** Detach the top-most selected roots from their parents; returns the detached count (0 = no-op). */
+  unparentNodes(ids: string[]): number;
   deleteEdges(ids: string[]): void; duplicateNodeUnderParent(id: string): void;
   setAuthOpen(v: boolean): void;
   /** Organize the view the user is looking at (Alt+R). `leafId` is that view, if any. */
@@ -197,10 +199,10 @@ export function buildKeyboardRules(): ShortcutRule[] {
         if(ids.length>=2){const last=ctx.getState().nodes.find((n)=>n.id===ids[ids.length-1]);if(last?.data.type==="folder"){
           let ok=0,fail=0;for(const c of ids.slice(0,-1)){if(ctx.connectNodes({source:ids[ids.length-1],target:c}).ok)ok++;else fail++;}
                     if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} card${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
-    // Alt+Shift+P — unparent
+    // Alt+Shift+P — unparent (top-most selection roots only, one history entry)
     { test(_e,_ctx,kc) { return kc.alt&&kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;
-        if(ids.length>0){for(const id of ids)ctx.removeEdgesFromHandle(id,"target");ctx.toast({title:"Unparented",description:`${ids.length} card${ids.length!==1?"s":""} unparented`});}}},
+        if(ids.length>0){const detached=ctx.unparentNodes(ids);if(detached>0)ctx.toast({title:"Unparented",description:`${detached} card${detached!==1?"s":""} unparented`});}}},
     // Ctrl/Cmd+E — open export
     { test(_e,_ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="e"; },
       handle(e,ctx,_kc) { e.preventDefault(); ctx.setExportOpen(true); } },

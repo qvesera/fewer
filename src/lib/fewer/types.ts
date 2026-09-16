@@ -332,6 +332,17 @@ export interface RemoveEdgesOp {
 export interface MovePositionsOp {
   type: "move-positions";
   moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[];
+  /**
+   * Canvas that recorded the drag. A leaf canvas keeps per-view positions
+   * (`viewSettings[leafId].positions`) and never writes shared `nodes[].position`,
+   * so undo/redo of a tagged op must leave the shared positions alone — they are
+   * the layout seed every view without a map of its own renders from, and
+   * relocating them smuggles this view's private coordinates into those views.
+   *
+   * Untagged ops (legacy history, drags on a canvas without a leaf) keep
+   * relocating shared nodes — those drags really did move them.
+   */
+  leafId?: string;
 }
 
 /** Node resize. Undo restores original dimensions. */

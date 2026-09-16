@@ -57,12 +57,14 @@ export const useGraphStore = create<GraphState>()((set, get, api) => ({
    * Called by GraphCanvas on drag stop (single node or multi-selection).
    * `leafId` tags the op with the canvas that recorded it — a drag in a
    * non-active split viewport belongs to that leaf's history, and its per-view
-   * position map (not the shared one) is what undo has to restore.
+   * position map (not the shared one) is what undo has to restore. The tag also
+   * rides on the op itself so the history layer knows not to relocate the
+   * shared positions (which this drag never touched).
    */
   recordDragMoves: (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[], leafId?: string) => {
     const real = moves.filter((m) => m.from.x !== m.to.x || m.from.y !== m.to.y);
     if (real.length === 0) return;
-    get().pushOp({ type: "move-positions", moves: real }, leafId);
+    get().pushOp({ type: "move-positions", moves: real, leafId }, leafId);
   },
   /**
    * Record a completed resize operation so undo restores original dimensions.
