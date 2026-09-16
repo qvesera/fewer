@@ -254,8 +254,9 @@ function sanitizeHideLayers(raw: unknown): HideLayers | undefined {
   };
 }
 
-function sanitizeViewSettings(raw: unknown): ViewSettings {
-  if (!raw || typeof raw !== "object") return {};
+/** Copy the recognised ViewSettings fields off a raw object, applying the
+ *  v1→v2 migrations (legacy `showFiles` / `hiddenIds` → hide layers). */
+function collectViewSettings(raw: unknown): ViewSettings {
   const out: Record<string, unknown> = {};
   const obj = raw as Record<string, unknown>;
   if (obj.hideLayers) out.hideLayers = sanitizeHideLayers(obj.hideLayers);
@@ -280,6 +281,11 @@ function sanitizeViewSettings(raw: unknown): ViewSettings {
     out.hideLayers = { individual: obj.hiddenIds as string[], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
   }
   return out as ViewSettings;
+}
+
+function sanitizeViewSettings(raw: unknown): ViewSettings {
+  if (!raw || typeof raw !== "object") return {};
+  return collectViewSettings(raw);
 }
 
 /** Create an empty HideLayers with all arrays empty and bulk inactive. */
