@@ -226,8 +226,17 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id) || otherLayers.has(id));
     const finalHidden = [...new Set([...baseHidden, ...nextTagHidden])];
     const before = captureViewState(get());
-    const after = { ...before, hiddenIds: finalHidden };
-    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds)) {
+    const after = {
+      ...before,
+      hiddenIds: finalHidden,
+      tagFilter: ids,
+      tagFilterHiddenIds: nextTagHidden,
+    };
+    // The chip is part of the recorded view state, so a swap that hides the same
+    // nodes (two tags over one node) still has to record — otherwise the filter
+    // itself would be the one thing undo cannot take back.
+    const filterChanged = (before.tagFilter ?? []).join(",") !== ids.join(",");
+    if (JSON.stringify(after.hiddenIds) !== JSON.stringify(before.hiddenIds) || filterChanged) {
       get().pushOp(viewStateOp(before, after));
     }
     set({

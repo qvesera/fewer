@@ -277,6 +277,54 @@ describe("nodeName shared helper", () => {
   });
 });
 
+describe("searchSlice (category filter hide layer)", () => {
+  // Categories come off node.data.category (see categorize.ts), which seedTree
+  // leaves unset, so this block re-seeds the same shape with categories.
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: [
+        makeNode("root", "folder", { isRoot: true }),
+        makeNode("outer", "folder"),
+        makeNode("inner1", "file", { category: "code" }),
+        makeNode("inner2", "file", { category: "image" }),
+        makeNode("sibling", "file", { category: "code" }),
+      ],
+      categoryFilter: [],
+      categoryHiddenIds: [],
+      hiddenIds: [],
+      independentlyHiddenIds: [],
+    });
+  });
+
+  it("hides exactly the files outside the selected categories", () => {
+    s().setCategoryFilter(["code"]);
+    expect(s().hiddenIds).toEqual(["inner2"]);
+    expect(s().categoryHiddenIds).toEqual(["inner2"]);
+  });
+
+  it("preserves a manual hide overlapping the category-hidden set", () => {
+    s().toggleHidden("inner2"); // manual hide on an image file
+    s().setCategoryFilter(["code"]); // category layer hides that very node
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner2"]));
+
+    s().setCategoryFilter(["image"]); // swap: the code files go, inner2 returns
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner1", "inner2", "sibling"]));
+
+    s().clearCategoryFilter(); // clearing must not reveal a manual hide
+    expect(s().hiddenIds).toEqual(["inner2"]);
+  });
+
+  it("records the category filter so undo restores the chip and the hidden set", () => {
+    const pastBefore = s().past.length;
+    s().setCategoryFilter(["code"]);
+    expect(s().past.length).toBe(pastBefore + 1);
+
+    s().undo();
+    expect(s().categoryFilter).toEqual([]);
+    expect(s().categoryHiddenIds).toEqual([]);
+    expect(s().hiddenIds).toEqual([]);
+  });
+});
 describe("dialogsSlice", () => {
   beforeEach(() => {
     useGraphStore.setState({

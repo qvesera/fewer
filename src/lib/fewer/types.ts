@@ -299,6 +299,12 @@ export interface ViewState {
   /** Ids the user hid directly (toggleHidden / hideSelected roots) —
    *  showSubtree must not reveal them or their descendants. */
   independentlyHiddenIds: string[];
+  /** Active tag filter (tag ids) and the ids it added to hiddenIds, so undo
+   *  also turns the filter chip off instead of leaving it stale. Optional:
+   *  ops cached before the tag layer was recorded carry no tag state to
+   *  restore, and a missing key is skipped rather than treated as empty. */
+  tagFilter?: string[];
+  tagFilterHiddenIds?: string[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */

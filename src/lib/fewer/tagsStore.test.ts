@@ -175,6 +175,45 @@ test("setTagFilter records one undo op and undo restores hiddenIds", () => {
 
   useGraphStore.getState().undo();
   expect(useGraphStore.getState().hiddenIds).toEqual([]);
+  // Undo also takes back the chip: the filter and the ids it hid are recorded
+  // in the same view-state op.
+  expect(useGraphStore.getState().tagFilter).toEqual([]);
+  expect(useGraphStore.getState().tagFilterHiddenIds).toEqual([]);
+});
+
+test("setTagFilter records the chip itself, so a swap that hides the same nodes is undoable", () => {
+  const s = useGraphStore.getState();
+  const a1 = s.createTag("A1");
+  const a2 = s.createTag("A2");
+  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  s.assignTag("n2", a1.id);
+  s.assignTag("n2", a2.id);
+
+  s.setTagFilter([a1.id]);
+  expect(useGraphStore.getState().hiddenIds).toEqual([]); // n2 carries A1 -> nothing hides
+  const pastBefore = useGraphStore.getState().past.length;
+
+  s.setTagFilter([a2.id]); // same hidden set, different chip
+  expect(useGraphStore.getState().past.length).toBe(pastBefore + 1);
+
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().tagFilter).toEqual([a1.id]);
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().tagFilter).toEqual([]);
+  useGraphStore.getState().redo();
+  expect(useGraphStore.getState().tagFilter).toEqual([a1.id]);
+});
+
+test("undoing an unrelated view-state op leaves the active tag filter alone", () => {
+  const s = useGraphStore.getState();
+  const a = seedParentChild();
+  s.setTagFilter([a.id]); // chip on, nothing hidden
+  expect(useGraphStore.getState().tagFilter).toEqual([a.id]);
+
+  s.toggleHidden("n1"); // its before-snapshot carries the chip it must not take back
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().independentlyHiddenIds).toEqual([]);
+  expect(useGraphStore.getState().tagFilter).toEqual([a.id]);
 });
 
 test("setTagFilter preserves manual hides while swapping the tag-hidden ids", () => {

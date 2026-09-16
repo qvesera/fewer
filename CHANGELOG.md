@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renaming a card no longer corrupts undo/redo: React Flow re-measures a card whenever the label wraps onto another line, and that measurement was recorded as a phantom resize whose redo replayed height 0 - the card stayed in the graph but painted nothing on the canvas. Resize history is now recorded only during a real folder resize-handle drag
 - Undo/redo of a card drag no longer teleports that card in other split views: the op now remembers which view recorded the drag, so undo rewrites only that view's position map instead of the shared layout positions every other view renders from.
 - Tag filter no longer drops a node's manual hide (Hidden panel) when the active tag filter changes
+- Category filter no longer drops a node's manual hide (Hidden panel) when the selected categories change
+- Undoing a tag-filter change now takes the filter itself back too - the tag chips used to stay lit while the nodes they hid came back
 
 ### Added
 
