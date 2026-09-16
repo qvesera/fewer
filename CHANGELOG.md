@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Three more duplicated blocks are now named single-purpose helpers: the exported SVG edge markup plus its ancestor-path highlight is renderEdgesHtml in graphRenderer.ts, the save dialog reset/refresh/confirm path is finishSave sharing a closeSaveDialog with the no-changes branch in SavedGraphsPanel, and the share success path is applyShareResult in ShareGraphDialog. The saved-graphs API records its history snapshot through one snapshotHistory helper for both the update and the insert branch instead of repeating the retention-window guard. Behavior unchanged.
 - Every per-view Hide Layers object is now built by the exported emptyHideLayers constructor instead of seven hand-written literals: the two v1-to-v2 migration branches in collectViewSettings, the v2-to-v3 upgrade in mergeViewSettings, and folderSlice's seed-on-write, Hide Children, Hide Files and Reveal All paths. An unused VALID_KEYS set was dropped, and two tests now pin the legacy-field precedence those migrations depend on. Behavior unchanged.
 - The tag-ring outline geometry is now one ringGeometry helper in tags.ts instead of being inlined inside buildTagRingGradient. The gradient string it produces is byte-for-byte identical (all eight gradient output tests pin it unchanged). Behavior unchanged.
+- The canvas tag ring and the exported tag ring now paint from one shared contract in tags.ts: TAG_RING_WIDTH drives both the canvas band width (applied inline, no longer hardcoded in globals.css) and the exported ring stroke, and tagRingColors decides which tags are painted and in what order for both renderers, so the two can no longer disagree. A node whose tag registry is empty no longer paints a fallback-grey ring, matching the exporter, which already painted nothing.
 
 ### Fixed
 
@@ -61,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Category filter no longer drops a node's manual hide (Hidden panel) when the selected categories change
 - Undoing a tag-filter change now takes the filter itself back too - the tag chips used to stay lit while the nodes they hid came back
 - Tag actions are undoable: assigning/unassigning a tag (single or batch) records one history step, and deleting a tag records one composite step that also restores its assignments and active filter; deleting a tag that was filtering now releases the cards it was hiding
+- Exported tag rings now start from the same point on the outline as the canvas. The SVG/PNG seam sat at the END of the bottom-left corner fillet instead of its midpoint, so every band was rotated off the canvas by a quarter of that corner (about 10px of arc), and the export only lined up with the canvas when a single tag made the seam invisible.
 
 ### Added
 

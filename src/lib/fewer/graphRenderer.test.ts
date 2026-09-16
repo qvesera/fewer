@@ -244,6 +244,38 @@ test("tag ring and dots use the registry colors; selection hides the ring", () =
   expect(single.svg.match(/#f87171/g)?.length).toBe(2); // ring + dot
 });
 
+test("ring bands start at the bottom-left fillet's midpoint — the canvas seam", () => {
+  // The canvas splits the card's SHARP rect; the exporter walks the rounded
+  // outline of the band's OUTER rect (+3px either side from TAG_RING_WIDTH),
+  // stroked at the band centreline r = FILE_RADIUS(12) + 1.5 = 13.5.
+  const tags: Tag[] = [
+    { id: "t1", label: "One", color: "#f87171" },
+    { id: "t2", label: "Two", color: "#38bdf8" },
+  ];
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  file.data.tagIds = ["t1", "t2"];
+
+  const svg = buildGraphSVG([file], [], opts({ tags })).svg;
+  const bands = [...svg.matchAll(/stroke-dasharray="([^"]+)" stroke-dashoffset="([^"]+)"/g)].map(
+    (m) => [m[1], m[2]],
+  );
+  expect(bands.length).toBe(2);
+
+  // Outer rect 243×39, r=13.5 → straight edges a=216 (top/bottom), b=12
+  // (left/right); perimeter = 2a + 2b + 2πr = 540.82, so each band is 270.41.
+  // Arc length from the path start (top edge, top-left) to the seam: the top
+  // edge `a`, the top-right fillet πr/2, the right edge `b`, the bottom-right
+  // fillet πr/2, the bottom edge `a`, then HALF the bottom-left fillet πr/4 —
+  // the sharp corner is that fillet's midpoint:
+  //   seam = 2a + b + πr + πr/4 = 432 + 12 + 42.41 + 10.60 = 497.01
+  // Running to the fillet's END instead (πr/2 → 507.62) rotates every band by
+  // the other πr/4, which is the bug this pins.
+  expect(bands[0]![0]).toBe("270.41 540.82");
+  expect(bands[0]![1]).toBe("-497.01");
+  expect(bands[1]![1]).toBe("-767.43"); // seam + one band
+});
+
 test("label truncation is width-aware so long names never spill past the card", () => {
   // Short runs are returned untouched.
   expect(truncateToWidth("index.ts", 181, 14, 600)).toBe("index.ts");

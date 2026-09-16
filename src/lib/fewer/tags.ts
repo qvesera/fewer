@@ -23,6 +23,12 @@ export const TAG_FALLBACK_COLOR = "#94a3b8";
 /** Tag colors shown on a ring — anything beyond this is counted as "+N" overflow. */
 export const TAG_RING_CAP = 5;
 
+/** Width of the ring band in px — the single number behind the band in BOTH
+ *  renderers: `TagRing` insets/pads `.gm-tag-ring` by it inline, and the
+ *  exporter strokes its ring path at the band's centreline
+ *  (`cardRadius + TAG_RING_WIDTH / 2`). */
+export const TAG_RING_WIDTH = 3;
+
 /** Card dimensions used to split the ring equally by outline length. */
 export interface TagRingDims {
   /** Rendered card width in px. */
@@ -145,6 +151,34 @@ export function makeTagLabelLookup(tags: Tag[]): (id: string) => string {
 export function colorForTag(tags: Tag[], id: string): string {
   const found = tags.find((t) => t.id === id);
   return found ? found.color : TAG_FALLBACK_COLOR;
+}
+
+/**
+ * The colors a tag ring paints for a node, in display order — the single
+ * contract shared by the canvas ring and the SVG/PNG exporter, so both always
+ * paint the SAME tags in the SAME order around the outline.
+ *
+ * Resolve each assigned id through the registry, drop ids that resolve to a
+ * blank color (a band with nothing to paint would punch a hole 1/N of the way
+ * around the ring), then cap at TAG_RING_CAP. The filter runs BEFORE the cap,
+ * so an unpaintable tag never costs a visible band. An empty registry yields no
+ * colors: there is nothing to resolve from, and `snapshot.ts` prunes node
+ * tagIds to the registry on load, so a ring drawn only from fallbacks would be
+ * transient noise.
+ */
+export function tagRingColors(
+  tags: Tag[] | undefined,
+  tagIds: readonly string[] | undefined,
+): string[] {
+  if (!tags?.length || !tagIds?.length) return [];
+  const colors: string[] = [];
+  for (const id of tagIds) {
+    const color = colorForTag(tags, id);
+    if (!color) continue;
+    colors.push(color);
+    if (colors.length === TAG_RING_CAP) break;
+  }
+  return colors;
 }
 
 /**
