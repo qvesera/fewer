@@ -98,6 +98,19 @@ export function isAncestor(
 }
 
 /**
+ * Index the edge list as parent id → direct child ids. Single home for the
+ * edge→children grouping that the store slices, layout and Hidden panel all do.
+ */
+export function childrenMapOf(edges: FewerEdge[]): Map<string, string[]> {
+  const childrenMap = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
+    childrenMap.get(e.source)!.push(e.target);
+  }
+  return childrenMap;
+}
+
+/**
  * Collect all descendant node ids of the given root (not including root).
  * Uses BFS over the edge list.
  */

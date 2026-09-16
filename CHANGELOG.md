@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adding a parent card is no longer rejected when you name it after the card it wraps (self-nesting docs/docs) — only names already taken by other cards in that scope are blocked
 - Renaming a card no longer corrupts undo/redo: React Flow re-measures a card whenever the label wraps onto another line, and that measurement was recorded as a phantom resize whose redo replayed height 0 - the card stayed in the graph but painted nothing on the canvas. Resize history is now recorded only during a real folder resize-handle drag
 - Undo/redo of a card drag no longer teleports that card in other split views: the op now remembers which view recorded the drag, so undo rewrites only that view's position map instead of the shared layout positions every other view renders from.
+- Tag filter no longer drops a node's manual hide (Hidden panel) when the active tag filter changes
 
 ### Added
 

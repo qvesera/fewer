@@ -5,7 +5,7 @@ import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection, getDescendants } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants, childrenMapOf } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
@@ -34,11 +34,7 @@ function computeLargeFolderHiddenIds(
   threshold: number,
   revealedSet?: Set<string>,
 ): string[] {
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  const childrenMap = childrenMapOf(edges);
   const toHide = new Set<string>();
   const revealed = revealedSet ?? new Set<string>();
   for (const node of nodes) {

@@ -5,6 +5,7 @@ import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import type { Tag } from "@/lib/fewer/tags";
 import { TAG_PALETTE } from "@/lib/fewer/tags";
+import { childrenMapOf } from "@/lib/fewer/validation";
 import { captureViewState, viewStateOp } from "./historySlice";
 
 export type TagsSliceCreator = StateCreator<
@@ -66,11 +67,7 @@ function tagFilterHiddenNodeIds(
   if (tagFilter.length === 0) return [];
   const tagSet = new Set(tagFilter);
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  const childrenMap = childrenMapOf(edges);
   const tagged = (n: FewerNode): boolean => {
     const nodeTags = n.data.tagIds ?? [];
     return nodeTags.some((t) => tagSet.has(t));
@@ -207,13 +204,26 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   },
 
   setTagFilter: (ids) => {
-    const { nodes, hiddenIds, tagFilterHiddenIds } = get();
+    const {
+      nodes,
+      hiddenIds,
+      tagFilterHiddenIds,
+      independentlyHiddenIds,
+      autoHiddenIds,
+      categoryHiddenIds,
+    } = get();
     const nextTagHidden = tagFilterHiddenNodeIds(nodes, get().edges, ids);
     const prevTagSet = new Set(tagFilterHiddenIds);
     // Drop the ids the previous tag filter hid, then add the ids this one hides.
-    // Manual hides (from the Hidden panel) are preserved — only tracked
-    // tag-filter-hidden ids are touched.
-    const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id));
+    // A node can be hidden by more than one layer, so an id the tag filter added
+    // is only dropped when no other layer still owns it — manual hides (Hidden
+    // panel), auto-hide and the category filter all survive a tag-filter change.
+    const otherLayers = new Set([
+      ...independentlyHiddenIds,
+      ...autoHiddenIds,
+      ...categoryHiddenIds,
+    ]);
+    const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id) || otherLayers.has(id));
     const finalHidden = [...new Set([...baseHidden, ...nextTagHidden])];
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: finalHidden };

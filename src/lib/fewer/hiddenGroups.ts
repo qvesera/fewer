@@ -1,4 +1,5 @@
 import type { FewerNode, FewerEdge } from "./types";
+import { childrenMapOf } from "./validation";
 
 export interface HiddenTreeNode {
   node: FewerNode;
@@ -118,12 +119,8 @@ export function getHiddenLayerGroups(
 ): HiddenGroup[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const parentMap = new Map<string, string>();
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  for (const e of edges) parentMap.set(e.target, e.source);
+  const childrenMap = childrenMapOf(edges);
 
   // Only consider hidden ids that still map to a live node. A stale id (e.g. a
   // node deleted while hidden) must never be dereferenced below — nodeMap.get

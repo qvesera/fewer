@@ -1,5 +1,6 @@
 import { test, expect, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
+import type { Tag } from "@/lib/fewer/tags";
 
 function resetStore() {
   useGraphStore.setState({
@@ -20,6 +21,9 @@ function resetStore() {
     edges: [],
     tags: [],
     tagFilter: [],
+    tagFilterHiddenIds: [],
+    hiddenIds: [],
+    independentlyHiddenIds: [],
     past: [],
     future: [],
   });
@@ -148,4 +152,43 @@ test("unassignTagFromNodes removes a tag from many nodes", () => {
   s.unassignTagFromNodes(["n1"], tag.id);
   expect(useGraphStore.getState().nodes[0].data.tagIds).toEqual([]);
   expect(useGraphStore.getState().nodes[1].data.tagIds).toEqual([tag.id]);
+});
+
+/** n1 folder -> n2 file, with n2 carrying tag A. */
+function seedParentChild(): Tag {
+  const s = useGraphStore.getState();
+  const a = s.createTag("A");
+  useGraphStore.setState({ edges: [{ id: "e1", source: "n1", target: "n2" }] } as never);
+  s.assignTag("n2", a.id);
+  return a;
+}
+
+test("setTagFilter records one undo op and undo restores hiddenIds", () => {
+  const s = useGraphStore.getState();
+  const b = s.createTag("B"); // no node carries B
+  seedParentChild();
+  const pastBefore = useGraphStore.getState().past.length;
+
+  s.setTagFilter([b.id]);
+  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1", "n2"]));
+  expect(useGraphStore.getState().past.length).toBe(pastBefore + 1);
+
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().hiddenIds).toEqual([]);
+});
+
+test("setTagFilter preserves manual hides while swapping the tag-hidden ids", () => {
+  const s = useGraphStore.getState();
+  const b = s.createTag("B");
+  const a = seedParentChild();
+  s.toggleHidden("n1"); // Manual hide from the Hidden panel — its own layer.
+
+  s.setTagFilter([b.id]); // n2 carries no B -> hidden; the manual hide survives.
+  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1", "n2"]));
+
+  s.setTagFilter([a.id]); // n2 matches A again -> only the manual hide is left.
+  expect(useGraphStore.getState().hiddenIds).toEqual(["n1"]);
+
+  s.clearTagFilter(); // Clearing the filter must not reveal a manual hide.
+  expect(useGraphStore.getState().hiddenIds).toEqual(["n1"]);
 });
