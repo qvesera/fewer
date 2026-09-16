@@ -111,26 +111,35 @@ export function childrenMapOf(edges: FewerEdge[]): Map<string, string[]> {
 }
 
 /**
- * Collect all descendant node ids of the given root (not including root).
- * Uses BFS over the edge list.
+ * Collect the descendant node ids of the given root, in BFS order: every
+ * descendant listed exactly once, never including the root itself.
+ *
+ * Deduplication is part of the contract, not an optimisation. The edge list is
+ * a DAG, so a node with several parents is reachable by more than one path and
+ * a per-path push would list it once per path. Callers depend on one entry per
+ * node — e.g. CustomNode's "Hide Children" toast reports `descendants.length`
+ * straight to the user, and its sibling `countDescendants` dedupes for exactly
+ * the same reason.
  */
 export function getDescendants(
   rootId: string,
   edges: FewerEdge[]
 ): string[] {
   const result: string[] = [];
-  const visited = new Set<string>();
+  // Seeding with the root both excludes it from the result and stops a cycle
+  // back to it from re-emitting the origin.
+  const visited = new Set<string>([rootId]);
   const queue = [rootId];
   while (queue.length) {
     const current = queue.shift()!;
-    if (visited.has(current)) continue;
-    visited.add(current);
     const children = edges.filter((e) => e.source === current).map((e) => e.target);
     for (const c of children) {
-      if (c !== rootId) {
-        result.push(c);
-        queue.push(c);
-      }
+      // Filtering before enqueueing keeps the queue itself duplicate-free, so
+      // the pop-time re-check is unnecessary.
+      if (visited.has(c)) continue;
+      visited.add(c);
+      result.push(c);
+      queue.push(c);
     }
   }
   return result;

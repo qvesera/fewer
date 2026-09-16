@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undoing a tag-filter change now takes the filter itself back too - the tag chips used to stay lit while the nodes they hid came back
 - Tag actions are undoable: assigning/unassigning a tag (single or batch) records one history step, and deleting a tag records one composite step that also restores its assignments and active filter; deleting a tag that was filtering now releases the cards it was hiding
 - Exported tag rings now start from the same point on the outline as the canvas. The SVG/PNG seam sat at the END of the bottom-left corner fillet instead of its midpoint, so every band was rotated off the canvas by a quarter of that corner (about 10px of arc), and the export only lined up with the canvas when a single tag made the seam invisible.
+- The "Hide Children" context-menu toast no longer over-counts on graphs where a descendant is reachable by more than one path: getDescendants listed such a node once per path, so the toast reported more cards than were actually hidden (the hide itself was always de-duplicated via a Set). getDescendants now guarantees one entry per node, matching its sibling countDescendants.
 
 ### Added
 
