@@ -127,6 +127,45 @@ function withTagIds(
   return { nodes: out, changes };
 }
 
+/**
+ * Apply a tag-id rewrite to the nodes `pick` selects and record it as one
+ * history entry. `withTagIds` reports no changes when the lists are equal, so a
+ * repeat assign stays a no-op that also skips the node-array rebuild.
+ */
+function writeTagIds(
+  set: (partial: Pick<GraphState, "nodes" | "graphVersion">) => void,
+  get: () => GraphState,
+  pick: (n: FewerNode) => boolean,
+  next: (ids: string[]) => string[],
+): void {
+  const { nodes, changes } = withTagIds(get().nodes, pick, next);
+  if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
+  set({ nodes, graphVersion: get().graphVersion + 1 });
+}
+
+/** Idempotent list editors: a tag already present (or absent) keeps the array. */
+const addTagId = (tagId: string) => (ids: string[]) =>
+  ids.includes(tagId) ? ids : [...ids, tagId];
+const removeTagId = (tagId: string) => (ids: string[]) => ids.filter((t) => t !== tagId);
+
+/**
+ * Merge the ids a tag layer hides back into `hiddenIds`. Ids the previous tag
+ * filter hid are dropped unless another layer still owns them, so manual hides
+ * (Hidden panel), auto-hide and the category filter all survive a tag-filter
+ * change — and nothing stays hidden on behalf of a filter that is gone.
+ */
+export function mergeTagHiddenLayers(
+  hiddenIds: string[],
+  prevTagHiddenIds: string[],
+  otherLayers: string[],
+  nextTagHidden: string[],
+): string[] {
+  const prevTagSet = new Set(prevTagHiddenIds);
+  const others = new Set(otherLayers);
+  const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id) || others.has(id));
+  return [...new Set([...baseHidden, ...nextTagHidden])];
+}
+
 export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   tags: [],
   tagFilter: [],
@@ -173,18 +212,15 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
       (ids) => ids.filter((t) => t !== id),
     );
     // Also remove it from the active filter, and release the ids that filter had
-    // hidden. Same layer merge as setTagFilter: an id only leaves hiddenIds when
-    // no other layer still owns it, so manual / auto / category hides survive.
+    // hidden (other hide layers keep theirs — see mergeTagHiddenLayers).
     const nextFilter = tagFilter.filter((t) => t !== id);
     const nextHidden = tagFilterHiddenNodeIds(nodes, state.edges, nextFilter);
-    const prevTagSet = new Set(tagFilterHiddenIds);
-    const otherLayers = new Set([
-      ...independentlyHiddenIds,
-      ...autoHiddenIds,
-      ...categoryHiddenIds,
-    ]);
-    const baseHidden = hiddenIds.filter((h) => !prevTagSet.has(h) || otherLayers.has(h));
-    const finalHidden = [...new Set([...baseHidden, ...nextHidden])];
+    const finalHidden = mergeTagHiddenLayers(
+      hiddenIds,
+      tagFilterHiddenIds,
+      [...independentlyHiddenIds, ...autoHiddenIds, ...categoryHiddenIds],
+      nextHidden,
+    );
     const nextTags = tags.filter((t) => t.id !== id);
     const removed = nextTags.length !== tags.length;
     const viewChanged =
@@ -217,25 +253,11 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
     });
   },
 
-  assignTag: (nodeId, tagId) => {
-    const { nodes, changes } = withTagIds(
-      get().nodes,
-      (n) => n.id === nodeId,
-      (ids) => (ids.includes(tagId) ? ids : [...ids, tagId]),
-    );
-    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
-  },
+  assignTag: (nodeId, tagId) =>
+    writeTagIds(set, get, (n) => n.id === nodeId, addTagId(tagId)),
 
-  unassignTag: (nodeId, tagId) => {
-    const { nodes, changes } = withTagIds(
-      get().nodes,
-      (n) => n.id === nodeId,
-      (ids) => ids.filter((t) => t !== tagId),
-    );
-    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
-  },
+  unassignTag: (nodeId, tagId) =>
+    writeTagIds(set, get, (n) => n.id === nodeId, removeTagId(tagId)),
 
   toggleNodeTag: (nodeId, tagId) => {
     const node = get().nodes.find((n) => n.id === nodeId);
@@ -246,24 +268,12 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
   /** Assign one tag to many nodes in a single history entry. Idempotent. */
   assignTagToNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const { nodes, changes } = withTagIds(
-      get().nodes,
-      (n) => idSet.has(n.id),
-      (ids) => (ids.includes(tagId) ? ids : [...ids, tagId]),
-    );
-    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
+    writeTagIds(set, get, (n) => idSet.has(n.id), addTagId(tagId));
   },
   /** Remove one tag from many nodes in a single history entry. */
   unassignTagFromNodes: (nodeIds, tagId) => {
     const idSet = new Set(nodeIds);
-    const { nodes, changes } = withTagIds(
-      get().nodes,
-      (n) => idSet.has(n.id),
-      (ids) => ids.filter((t) => t !== tagId),
-    );
-    if (changes.length > 0) get().pushOp({ type: "set-node-tags", changes });
-    set({ nodes, graphVersion: get().graphVersion + 1 });
+    writeTagIds(set, get, (n) => idSet.has(n.id), removeTagId(tagId));
   },
 
   setTagFilter: (ids) => {
@@ -276,18 +286,12 @@ export const createTagsSlice: TagsSliceCreator = (set, get) => ({
       categoryHiddenIds,
     } = get();
     const nextTagHidden = tagFilterHiddenNodeIds(nodes, get().edges, ids);
-    const prevTagSet = new Set(tagFilterHiddenIds);
-    // Drop the ids the previous tag filter hid, then add the ids this one hides.
-    // A node can be hidden by more than one layer, so an id the tag filter added
-    // is only dropped when no other layer still owns it — manual hides (Hidden
-    // panel), auto-hide and the category filter all survive a tag-filter change.
-    const otherLayers = new Set([
-      ...independentlyHiddenIds,
-      ...autoHiddenIds,
-      ...categoryHiddenIds,
-    ]);
-    const baseHidden = hiddenIds.filter((id) => !prevTagSet.has(id) || otherLayers.has(id));
-    const finalHidden = [...new Set([...baseHidden, ...nextTagHidden])];
+    const finalHidden = mergeTagHiddenLayers(
+      hiddenIds,
+      tagFilterHiddenIds,
+      [...independentlyHiddenIds, ...autoHiddenIds, ...categoryHiddenIds],
+      nextTagHidden,
+    );
     const before = captureViewState(get());
     const after = {
       ...before,

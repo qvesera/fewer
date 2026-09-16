@@ -1,6 +1,7 @@
 import { test, expect, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
 import type { Tag } from "@/lib/fewer/tags";
+import { mergeTagHiddenLayers } from "./tagsSlice";
 
 function resetStore() {
   useGraphStore.setState({
@@ -328,4 +329,20 @@ test("no-op tag writes record nothing", () => {
   s.deleteTag("tag-ghost"); // unknown tag
   expect(useGraphStore.getState().past.length).toBe(past);
   expect(useGraphStore.getState().tags.map((t) => t.id)).toEqual([tag.id]);
+});
+
+test("mergeTagHiddenLayers releases ids only the old tag filter owned", () => {
+  // Hidden by the old tag filter only -> released.
+  expect(mergeTagHiddenLayers(["a", "b"], ["a", "b"], [], [])).toEqual([]);
+  // Followed by the new filter -> stays.
+  expect(mergeTagHiddenLayers(["a"], ["a"], [], ["a"])).toEqual(["a"]);
+});
+
+test("mergeTagHiddenLayers keeps ids another hide layer still owns", () => {
+  // "b" is also manually hidden, so the tag filter dropping it must not reveal it.
+  expect(mergeTagHiddenLayers(["a", "b"], ["a", "b"], ["b"], [])).toEqual(["b"]);
+});
+
+test("mergeTagHiddenLayers dedupes ids hidden by both the tag filter and another layer", () => {
+  expect(mergeTagHiddenLayers(["a"], [], ["a"], ["a"])).toEqual(["a"]);
 });
