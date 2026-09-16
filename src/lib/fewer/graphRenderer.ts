@@ -720,6 +720,46 @@ function renderBrandingMark(sceneW: number, sceneH: number): string {
   </g></a>`;
 }
 
+/** Edge markup for the export scene, including the ancestor-path highlight.
+    The highlight is identical to the canvas's edge highlighting
+    (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
+    selected card up to its root parent lights up, stroked with the target
+    node's themed folder/file color at width max(edgeWidth, 3). Without this the
+    image showed selected cards with all edges still in the default theme color. */
+function renderEdgesHtml(
+  connectEdges: FewerEdge[],
+  edges: FewerEdge[],
+  nodes: FewerNode[],
+  sizeByNode: Map<string, { w: number; h: number }>,
+  o: GraphRenderOptions,
+): string {
+  const selectedIds = [...(o.selectedIds ?? [])];
+  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
+  if (selectedIds.length > 0) {
+    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
+    edgeHighlight = ancestorPathHighlight(
+      selectedIds,
+      parentEdgeOf,
+      typeByNodeId,
+      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
+      Math.max(o.defaultEdgeWidth ?? 2, 3),
+    );
+  }
+
+  return connectEdges
+    // Highlighted edges paint last so they sit above the rest, like the canvas
+    // (which sorts highlighted edges to the end of the array).
+    .slice()
+    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
+    .map((e) => {
+      const s = nodes.find((nn) => nn.id === e.source);
+      const d = nodes.find((nn) => nn.id === e.target);
+      if (!s || !d) return "";
+      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
+    })
+    .join("\n  ");
+}
+
 /** Build an SVG scene exactly reflecting current graph + theme state. */
 export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRenderOptions): GraphScene {
   const hidden = o.hiddenIds ?? new Set<string>();
@@ -746,36 +786,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const sizeByNode = new Map<string, { w: number; h: number }>();
   for (const n of nodes) sizeByNode.set(n.id, nodeSize(n, o));
 
-  // Ancestor-path highlight, identical to the canvas's edge highlighting
-  // (`buildSelectedEdgeHighlight`): when cards are selected, every edge from a
-  // selected card up to its root parent lights up, stroked with the target
-  // node's themed folder/file color at width max(edgeWidth, 3). Without this the
-  // image showed selected cards with all edges still in the default theme color.
-  const selectedIds = [...(o.selectedIds ?? [])];
-  let edgeHighlight: Map<string, { stroke: string; width: number }> | undefined;
-  if (selectedIds.length > 0) {
-    const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
-    edgeHighlight = ancestorPathHighlight(
-      selectedIds,
-      parentEdgeOf,
-      typeByNodeId,
-      (t) => (t === "folder" ? o.palette.folderIcon : o.palette.fileIcon),
-      Math.max(o.defaultEdgeWidth ?? 2, 3),
-    );
-  }
-
-  const edgesHtml = connectEdges
-    // Highlighted edges paint last so they sit above the rest, like the canvas
-    // (which sorts highlighted edges to the end of the array).
-    .slice()
-    .sort((a, b) => (edgeHighlight?.has(a.id) ? 1 : 0) - (edgeHighlight?.has(b.id) ? 1 : 0))
-    .map((e) => {
-      const s = nodes.find((nn) => nn.id === e.source);
-      const d = nodes.find((nn) => nn.id === e.target);
-      if (!s || !d) return "";
-      return renderEdge(e, s, d, sizeByNode.get(s.id)!, sizeByNode.get(d.id)!, o, edgeHighlight?.get(e.id));
-    })
-    .join("\n  ");
+  const edgesHtml = renderEdgesHtml(connectEdges, edges, nodes, sizeByNode, o);
 
   const nodesHtml = drawableNodes
     .map((n) =>
