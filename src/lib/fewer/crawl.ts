@@ -1,5 +1,6 @@
 import { parseAutoIndex } from "@/lib/fewer/autoIndex";
 import type { TreeEntry } from "@/lib/fewer/types";
+import { sortTreeFoldersFirst } from "@/lib/fewer/treeSort";
 
 export const MAX_PAGES = 200;
 export const MAX_DEPTH = 6;
@@ -28,16 +29,6 @@ export async function fetchEntries(url: string): Promise<ReturnType<typeof parse
   } finally {
     clearTimeout(timer);
   }
-}
-
-/** Sort a tree in place: folders first, then alphabetical. */
-function sortTree(entry: TreeEntry): void {
-  if (!entry.children) return;
-  entry.children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  for (const c of entry.children) sortTree(c);
 }
 
 interface CrawlState {
@@ -128,7 +119,7 @@ export async function crawlTree(
   }
 
   const truncated = state.pages >= maxPages && state.queue.length > 0;
-  sortTree(root);
+  sortTreeFoldersFirst(root);
 
   return { tree: root, truncated };
 }

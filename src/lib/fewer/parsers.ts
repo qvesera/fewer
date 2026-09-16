@@ -1,5 +1,6 @@
 import type { TreeEntry } from "./types";
 import { FEWER_CREDIT_RE, TREE_HEADER, TREE_SUMMARY_RE } from "./branding";
+import { sortFoldersFirst, sortTreeFoldersFirst } from "./treeSort";
 
 /**
  * Parse a JSON graph export back into a TreeEntry.
@@ -55,21 +56,6 @@ export function parseJSONGraph(json: string): TreeEntry {
   }
 
   return buildTree(root.id);
-}
-
-/** Sort a children array: folders first, then alphabetical. */
-function sortFoldersFirst(children: TreeEntry[]): void {
-  children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-}
-
-/** Sort a whole tree: folders first, then alphabetical (recursive). */
-function sortTreeFoldersFirst(entry: TreeEntry): void {
-  if (!entry.children) return;
-  sortFoldersFirst(entry.children);
-  for (const c of entry.children) sortTreeFoldersFirst(c);
 }
 
 /**

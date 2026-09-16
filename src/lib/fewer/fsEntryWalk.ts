@@ -2,7 +2,8 @@
 
 import type { TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
-import { shouldKeepEmpty, isExtAllowed, isSkipped, sortFolderFirst } from "./fsFilters";
+import { shouldKeepEmpty, isExtAllowed, isSkipped } from "./fsFilters";
+import { sortFoldersFirst } from "./treeSort";
 
 /**
  * Drain a directory reader in batches (the legacy API returns a few per call).
@@ -101,6 +102,6 @@ export async function buildTreeFromEntry(
     }
   }
 
-  sortFolderFirst(children);
+  sortFoldersFirst(children);
   return { name: entry.name, type: "folder", children };
 }

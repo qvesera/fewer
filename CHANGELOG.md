@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Alt+Shift+P (unparent) now detaches only the top-most selected cards and records a single undo step, matching the batch Unparent menu action
 - Auth and Settings dialogs now share one validation module (src/lib/fewer/authValidation.ts): the auth form rules (email vs username, password policy, confirm) are pure and unit-tested, and the dialog submit path is split per mode (magic link, reset, sign up, sign in) behind one shared loading/error handler
 - Delete and move now collect descendants through the shared getDescendants helper instead of three hand-rolled breadth-first copies (store slice and its test), and the singular showSubtree path gains real store-level test coverage
-- Crawl and OS path resolution split into small documented helpers — crawlTree is a flat ~25-line orchestrator (sortTree / fetchBatch / attachEntries) and resolveLocalPath delegates to a fast root match plus a budgeted BFS — behavior unchanged, with new crawl budget and ordering tests
+- Crawl and OS path resolution split into small documented helpers — crawlTree is a flat orchestrator (fetchBatch / attachEntries) and resolveLocalPath delegates to a fast root match plus a budgeted BFS; tree ordering is now a single shared helper (src/lib/fewer/treeSort.ts) instead of seven hand-rolled folder-first comparators — behavior unchanged, with new crawl budget and tree-order tests
 
 ### Fixed
 

@@ -1,4 +1,5 @@
 import type { TreeEntry } from "./types";
+import { sortTreeFoldersFirst } from "./treeSort";
 
 /**
  * Internet Archive (archive.org) item import.
@@ -147,14 +148,7 @@ export function buildTreeFromArchiveMetadata(
   }
 
   // Sort: folders first, then alphabetical.
-  const sortTree = (entry: TreeEntry) => {
-    if (!entry.children) return;
-    entry.children.sort((a, b) =>
-      a.type !== b.type ? (a.type === "folder" ? -1 : 1) : a.name.localeCompare(b.name)
-    );
-    for (const c of entry.children) sortTree(c);
-  };
-  sortTree(root);
+  sortTreeFoldersFirst(root);
 
   // The metadata API returns the complete file list — never truncated.
   return { tree: root, truncated: false };

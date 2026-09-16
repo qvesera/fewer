@@ -2,7 +2,8 @@
 
 import type { TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
-import { shouldKeepEmpty, isExtAllowed, isSkipped, sortFolderFirst } from "./fsFilters";
+import { shouldKeepEmpty, isExtAllowed, isSkipped } from "./fsFilters";
+import { sortFoldersFirst } from "./treeSort";
 
 // Cast shim — .values() exists at runtime but isn't in older TS lib defs
 type HandleIterable = {
@@ -91,7 +92,7 @@ export async function buildTreeFromHandle(
     }
   }
 
-  sortFolderFirst(children);
+  sortFoldersFirst(children);
   return { name: handle.name, type: "folder", children, fsHandle: handle };
 }
 
