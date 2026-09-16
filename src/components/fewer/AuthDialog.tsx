@@ -19,12 +19,14 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { PASSWORD_HINTS, unmetPasswordHints } from "@/lib/fewer/passwordPolicy";
-
-/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type AuthMode = "signin" | "signup" | "reset" | "magic";
+import { PASSWORD_HINTS } from "@/lib/fewer/passwordPolicy";
+import {
+  errMessage,
+  isValidEmail,
+  validateAuthForm,
+  type AuthFormError,
+  type AuthMode,
+} from "@/lib/fewer/authValidation";
 
 interface AuthDialogProps {
   open: boolean;
@@ -75,145 +77,112 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     }
   };
 
+  /** Runs one submit path with the shared loading + error-toast handling. */
+  const run = async (fn: () => Promise<void>, fallback: string) => {
+    setLoading(true);
+    try {
+      await fn();
+    } catch (err) {
+      toast({ title: "Error", description: errMessage(err, fallback), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Shows a validation error inline (when it carries a field message) plus its toast. */
+  const showValidationError = (error: AuthFormError) => {
+    if (error.field === "email") setEmailError(error.message);
+    else setConfirmError(error.message);
+    toast({ title: error.toast.title, description: error.toast.description, variant: "destructive" });
+  };
+
+  /** Magic link: one email field, no password. */
+  const submitMagic = () =>
+    run(async () => {
+      const { error } = await getBrowserSupabase().auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) throw error;
+      toast({
+        title: "Sign-in link sent",
+        description: `Check ${email} for a link that signs you in. It expires in an hour.`,
+      });
+      close();
+    }, "Could not send sign-in link");
+
+  const submitReset = () =>
+    run(async () => {
+      // next=/auth/reset-password: the callback route redirects there after
+      // exchanging the code, so the user can actually set the new password.
+      const { error } = await getBrowserSupabase().auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: "Reset link sent", description: `Check ${email} for a password reset link.` });
+      close();
+    }, "Could not send reset link");
+
+  const submitSignup = () =>
+    run(async () => {
+      const { data, error } = await getBrowserSupabase().auth.signUp({ email, password });
+      if (error) throw error;
+      // Anti-enumeration: when the email is already registered Supabase
+      // returns user: null (and no error) instead of rejecting. Surface it.
+      if (!data.user) {
+        toast({
+          title: "Email already registered",
+          description: "An account with this email already exists — sign in instead.",
+          variant: "destructive",
+        });
+        switchMode("signin");
+        return;
+      }
+      toast({ title: "Check your email", description: "Confirm your email to finish signing up." });
+      close();
+    }, "Authentication failed");
+
+  const submitSignin = (identifier: string) =>
+    run(async () => {
+      // Sign in goes through the server so usernames can be resolved to an
+      // email (Supabase password login only accepts an email/phone).
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+      const json = (await res.json().catch(() => null)) as { error?: string; session?: Session } | null;
+      if (!res.ok) {
+        throw new Error(json?.error ?? "Invalid username or password");
+      }
+      // The server already set the session cookie (for middleware/SSR). Pushing
+      // the returned session into the browser auth client lets onAuthStateChange
+      // fire immediately, so the app shows signed-in without a page reload.
+      if (json?.session) {
+        await getBrowserSupabase().auth.setSession(json.session);
+      }
+      toast({ title: "Signed in", description: "Welcome back!" });
+      close();
+    }, "Authentication failed");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Auto-detect email vs username: an "@" means an email, anything else is a
     // username (usernames can't contain "@", so this is unambiguous).
     const identifier = email.trim();
-    const isEmail = identifier.includes("@");
-
-    if (mode === "signin") {
-      if (!identifier) {
-        setEmailError("Enter an email or username.");
-        toast({ title: "Missing account", description: "Enter your email or username.", variant: "destructive" });
-        return;
-      }
-      if (isEmail && !EMAIL_RE.test(identifier)) {
-        setEmailError("Enter a valid email address.");
-        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
-        return;
-      }
-    } else {
-      // Sign-up and password-reset always use a real email.
-      if (!EMAIL_RE.test(identifier)) {
-        setEmailError("Enter a valid email address.");
-        toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
-        return;
-      }
-    }
-    if (emailError) setEmailError(null);
-
-    // Magic link: one email field, no password.
-    if (mode === "magic") {
-      setLoading(true);
-      try {
-        const supabase = getBrowserSupabase();
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-        });
-        if (error) throw error;
-        toast({
-          title: "Sign-in link sent",
-          description: `Check ${email} for a link that signs you in. It expires in an hour.`,
-        });
-        close();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Could not send sign-in link";
-        toast({ title: "Error", description: msg, variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
+    const error = validateAuthForm({ mode, identifier, password, confirmPassword });
+    if (error) {
+      showValidationError(error);
       return;
     }
+    setEmailError(null);
+    setConfirmError(null);
 
-    if (mode === "reset") {
-      setLoading(true);
-      try {
-        const supabase = getBrowserSupabase();
-        // next=/auth/reset-password: the callback route redirects there after
-        // exchanging the code, so the user can actually set the new password.
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
-        });
-        if (error) throw error;
-        toast({ title: "Reset link sent", description: `Check ${email} for a password reset link.` });
-        close();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Could not send reset link";
-        toast({ title: "Error", description: msg, variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Field-level validation before submitting (matches Supabase's policy).
-    if (mode === "signup") {
-      const unmet = unmetPasswordHints(password);
-      if (unmet.length) {
-        toast({
-          title: "Password requirements not met",
-          description: unmet.map((h) => h.label).join(", "),
-          variant: "destructive",
-        });
-        return;
-      }
-      if (password !== confirmPassword) {
-        setConfirmError("Passwords do not match.");
-        toast({ title: "Passwords do not match", description: "Re-enter the password in both fields.", variant: "destructive" });
-        return;
-      }
-      if (confirmError) setConfirmError(null);
-    }
-
-    setLoading(true);
-    try {
-      if (mode === "signup") {
-        const supabase = getBrowserSupabase();
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        // Anti-enumeration: when the email is already registered Supabase
-        // returns user: null (and no error) instead of rejecting. Surface it.
-        if (!data.user) {
-          toast({
-            title: "Email already registered",
-            description: "An account with this email already exists — sign in instead.",
-            variant: "destructive",
-          });
-          switchMode("signin");
-          return;
-        }
-        toast({ title: "Check your email", description: "Confirm your email to finish signing up." });
-        close();
-      } else {
-        // Sign in goes through the server so usernames can be resolved to an
-        // email (Supabase password login only accepts an email/phone).
-        const res = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier, password }),
-        });
-        const json = (await res.json().catch(() => null)) as { error?: string; session?: Session } | null;
-        if (!res.ok) {
-          throw new Error(json?.error ?? "Invalid username or password");
-        }
-        // The server already set the session cookie (for middleware/SSR). Pushing
-        // the returned session into the browser auth client lets onAuthStateChange
-        // fire immediately, so the app shows signed-in without a page reload.
-        if (json?.session) {
-          await getBrowserSupabase().auth.setSession(json.session);
-        }
-        toast({ title: "Signed in", description: "Welcome back!" });
-        close();
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Authentication failed";
-      toast({ title: "Error", description: msg, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    if (mode === "magic") return submitMagic();
+    if (mode === "reset") return submitReset();
+    if (mode === "signup") return submitSignup();
+    return submitSignin(identifier);
   };
 
   return (
@@ -273,7 +242,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   // looks like one (contains "@"); otherwise it's a username.
                   const looksEmail = v.trim().includes("@");
                   if (mode !== "signin" || looksEmail) {
-                    setEmailError(EMAIL_RE.test(v.trim()) ? null : "Enter a valid email address.");
+                    setEmailError(isValidEmail(v) ? null : "Enter a valid email address.");
                   } else {
                     setEmailError(null);
                   }
