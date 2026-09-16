@@ -230,12 +230,6 @@ interface LayoutViewSettingsSnapshot {
   viewSettings: Record<string, ViewSettings>;
 }
 
-/** Valid ViewSettings keys for loose validation on load. */
-const VALID_KEYS = new Set<string>([
-  "showFiles", "minimapHidden", "edgeStyle", "edgeAnimated",
-  "edgeAnimatedSelectedOnly", "edgeStrokeStyle", "edgeWidth", "themeMode",
-]);
-
 /** Keep only the string entries of a possibly-untrusted array (else empty). */
 function stringIds(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((x: unknown) => typeof x === "string") : [];
@@ -281,11 +275,11 @@ function collectViewSettings(raw: unknown): ViewSettings {
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
   if (!out.hideLayers && typeof obj.showFiles === "boolean") {
-    out.hideLayers = { individual: [], subtrees: {}, filesBulkActive: !obj.showFiles, filesBulkExempt: [] };
+    out.hideLayers = { ...emptyHideLayers(), filesBulkActive: !obj.showFiles };
   }
   // v1→v2 migration: convert legacy hiddenIds to individual layer
   if (!out.hideLayers && Array.isArray(obj.hiddenIds)) {
-    out.hideLayers = { individual: obj.hiddenIds as string[], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    out.hideLayers = { ...emptyHideLayers(), individual: obj.hiddenIds as string[] };
   }
   return out as ViewSettings;
 }
@@ -326,7 +320,7 @@ export function mergeViewSettings(
   if (showFilesByLeaf) {
     for (const [k, v] of Object.entries(showFilesByLeaf)) {
       if (!out[k]) out[k] = {};
-      if (!out[k].hideLayers) out[k].hideLayers = { individual: [], subtrees: {}, filesBulkActive: !v, filesBulkExempt: [] };
+      if (!out[k].hideLayers) out[k].hideLayers = { ...emptyHideLayers(), filesBulkActive: !v };
       else out[k].hideLayers!.filesBulkActive = !v;
     }
   }
