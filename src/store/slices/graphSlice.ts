@@ -5,12 +5,12 @@ import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection, getDescendants, childrenMapOf, parentMapOf, ancestorChainOf } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants, parentMapOf, ancestorChainOf } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
 
-import { sortEdges, mergeImportedGraph } from "@/lib/fewer/importMerge";
+import { sortEdges, mergeImportedGraph, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets } from "@/lib/fewer/importMerge";
 import { rewriteConnectionPaths } from "@/lib/fewer/pathRewrite";
 import { fullName } from "@/lib/fewer/nodeName";
 
@@ -19,43 +19,7 @@ import { applySearchHighlight } from "./searchHighlight";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
-/**
- * Pure helper: ids of nodes deeper than `maxDepth`.
- * `maxDepth <= 0` means unlimited — no depth-based hiding.
- */
-function computeDisplayDepthHiddenIds(nodes: FewerNode[], maxDepth: number): string[] {
-  if (maxDepth <= 0) return [];
-  return nodes
-    .filter((n) => (n.data.depth ?? 0) > maxDepth)
-    .map((n) => n.id);
-}
 
-function computeLargeFolderHiddenIds(
-  nodes: FewerNode[],
-  edges: FewerEdge[],
-  threshold: number,
-  revealedSet?: Set<string>,
-): string[] {
-  const childrenMap = childrenMapOf(edges);
-  const toHide = new Set<string>();
-  const revealed = revealedSet ?? new Set<string>();
-  for (const node of nodes) {
-    if (node.data.type !== "folder") continue;
-    const directChildren = childrenMap.get(node.id) ?? [];
-    // Skip already-hidden or explicitly-revealed children
-    const visibleChildren = directChildren.filter((cid) => !toHide.has(cid) && !revealed.has(cid));
-    if (visibleChildren.length > threshold) {
-      const queue = [...visibleChildren];
-      while (queue.length) {
-        const cid = queue.shift()!;
-        if (toHide.has(cid) || revealed.has(cid)) continue;
-        toHide.add(cid);
-        for (const gc of childrenMap.get(cid) ?? []) queue.push(gc);
-      }
-    }
-  }
-  return [...toHide];
-}
 
 /**
  * The single reveal walk behind both show-subtree actions: seed `roots` into
@@ -354,15 +318,11 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (pushHistory && state.nodes.length > 0) {
       get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
     }
-    const styledNodes = nodes.map((n) => ({
+        const styledNodes = nodes.map((n) => ({
       ...n,
       style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
     }));
-    let idsToHide = hiddenFileIds ?? [];
-    if (!state.showFiles) {
-      const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
-      idsToHide = [...new Set([...idsToHide, ...fileIds])];
-    }
+
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
     // Animated edges use the dedicated animated pattern; everything else uses
     // the base pattern (solid stays solid when edge motion is on).
@@ -377,24 +337,27 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
       animated,
       style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
     }));
-    // Fresh import resets reveal memory
-    // Auto-hide children of folders with many children so big graphs stay fast
-    const autoHideIds = computeLargeFolderHiddenIds(nodes, edges, state.autoHideThreshold, new Set());
-    // Hide nodes beyond the max display depth
-    const displayDepthIds = computeDisplayDepthHiddenIds(nodes, state.maxDisplayDepth);
-    idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...displayDepthIds])];
-    // A persistent category filter survives imports: hide files that don't match.
-    const catHiddenIds = categoryHiddenNodeIds(nodes, state.categoryFilter);
-    idsToHide = [...new Set([...idsToHide, ...catHiddenIds])];
+
+    // Fresh import resets reveal memory. Hide-set computation is extracted into
+    // the pure `computeImportedHideSets` helper (covered by graphImport.test.ts):
+    // auto-hide of large folders, depth-based hiding, and the persistent category
+    // filter layered over any saved-graph `hiddenFileIds`.
+    const { idsToHide, autoHideIds, catHiddenIds, autoHideCount } = computeImportedHideSets(
+      nodes,
+      edges,
+      hiddenFileIds,
+      state.showFiles,
+      state.autoHideThreshold,
+      state.maxDisplayDepth,
+      state.categoryFilter,
+    );
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
     // Keep saved positions (saved/graph loads) or lay out fresh (imports).
     const laidFinal = options?.preservePositions
       ? applySearchHighlight(styledNodes, state.searchQuery, state.categoryFilter)
     : applySearchHighlight(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale, sortKey: state.sortKey, sortDir: state.sortDir, tagLabelById: makeTagLabelLookup(state.tags) }), state.searchQuery, state.categoryFilter);
     const sortedEdges = sortEdges(styledEdges, laidFinal);
-    // Count auto-hidden large-folder children (not from file hiding or depth)
     const baseHidden = new Set(hiddenFileIds ?? []);
-    const autoHideCount = autoHideIds.filter((id) => !baseHidden.has(id)).length;
     const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
     set({ nodes: laidFinal, edges: sortedEdges, hiddenIds: idsToHide, categoryHiddenIds: catHiddenIds, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
   },
