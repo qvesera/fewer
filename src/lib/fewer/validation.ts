@@ -111,6 +111,21 @@ export function childrenMapOf(edges: FewerEdge[]): Map<string, string[]> {
 }
 
 /**
+ * Index the edge list as child id → parent id, the inverse of `childrenMapOf`.
+ * Single home for the ancestor walks the store slices, layout and Hidden panel
+ * all hand-rolled.
+ *
+ * Last edge wins when a node has several incoming edges. The connect UI cannot
+ * produce that (it enforces a single parent), but `setGraph` stores edges
+ * verbatim, so imports can.
+ */
+export function parentMapOf(edges: FewerEdge[]): Map<string, string> {
+  const parentMap = new Map<string, string>();
+  for (const e of edges) parentMap.set(e.target, e.source);
+  return parentMap;
+}
+
+/**
  * Collect the descendant node ids of the given root, in BFS order: every
  * descendant listed exactly once, never including the root itself.
  *

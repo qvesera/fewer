@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { getDescendants } from "./validation";
+import { childrenMapOf, getDescendants, parentMapOf } from "./validation";
 import { countDescendants } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
 
@@ -81,4 +81,52 @@ test("getDescendants length agrees with countDescendants on a diamond", () => {
     { id: "e4", source: "c", target: "d" },
   ] as FewerEdge[];
   expect(getDescendants("a", edges).length).toBe(countDescendants(["a"], edges));
+});
+
+// ─── parentMapOf ──────────────────────────────────────────────────
+//
+// The ancestor counterpart of childrenMapOf: every upward walk in the store
+// slices, layout and Hidden panel used to build this map inline.
+
+test("parentMapOf maps each child to its parent", () => {
+  const edges: FewerEdge[] = [
+    { id: "e1", source: "a", target: "b" },
+    { id: "e2", source: "b", target: "c" },
+  ] as FewerEdge[];
+  expect(parentMapOf(edges).get("b")).toBe("a");
+  expect(parentMapOf(edges).get("c")).toBe("b");
+});
+
+test("parentMapOf is empty for no edges", () => {
+  expect(parentMapOf([]).size).toBe(0);
+});
+
+test("parentMapOf records no entry for a root", () => {
+  const edges: FewerEdge[] = [
+    { id: "e1", source: "a", target: "b" },
+  ] as FewerEdge[];
+  expect(parentMapOf(edges).has("a")).toBe(false);
+});
+
+test("parentMapOf is the inverse of childrenMapOf", () => {
+  const edges: FewerEdge[] = [
+    { id: "e1", source: "a", target: "b" },
+    { id: "e2", source: "a", target: "c" },
+    { id: "e3", source: "b", target: "d" },
+  ] as FewerEdge[];
+  const children = childrenMapOf(edges);
+  const parents = parentMapOf(edges);
+  for (const [parent, kids] of children) {
+    for (const kid of kids) expect(parents.get(kid)).toBe(parent);
+  }
+});
+
+test("parentMapOf last edge wins on a fan-in, matching the documented contract", () => {
+  // Unreachable through the connect UI (it enforces a single parent), but
+  // `setGraph` stores imported edges verbatim, so the tie-break must be pinned.
+  const edges: FewerEdge[] = [
+    { id: "e1", source: "p1", target: "child" },
+    { id: "e2", source: "p2", target: "child" },
+  ] as FewerEdge[];
+  expect(parentMapOf(edges).get("child")).toBe("p2");
 });

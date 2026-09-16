@@ -5,7 +5,7 @@ import type { FewerNode, FewerEdge, HistoryOp } from "@/lib/fewer/types";
 import { v4 as uuid } from "uuid";
 import { categorizeByExtension, getFileExtension, categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { layoutGraph, layoutGraphSync } from "@/lib/fewer/layout";
-import { validateConnection, getDescendants, childrenMapOf } from "@/lib/fewer/validation";
+import { validateConnection, getDescendants, childrenMapOf, parentMapOf } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
@@ -1099,8 +1099,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
   unparentNodes: (ids) => {
     const { nodes, edges, searchQuery } = get();
     const idSet = new Set(ids);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     // Only top-most selection roots detach: a node whose ancestor is also
     // selected keeps its in-selection parent edge.
     const roots = ids.filter((id) => {
@@ -1125,8 +1124,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const parent = nodes.find((n) => n.id === parentId);
     if (!parent || parent.data.type !== "folder") return { moved: 0, reason: "Target must be a folder." };
     const idSet = new Set(ids);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     // Top-most selected roots only; skip the target itself and items already
     // sitting directly under the target (moving to an ancestor further up is
     // legal — cycles are caught per-item by validateConnection below).
@@ -1258,8 +1256,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     if (!hiddenIds.includes(id)) return;
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     const toShow = new Set<string>([id]); let currentId: string | undefined = parentMap.get(id);
     while (currentId && hiddenSet.has(currentId)) { toShow.add(currentId); currentId = parentMap.get(currentId); }
     const before = captureViewState(get());
@@ -1318,8 +1315,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     // Keep only existing hidden ids that are within the new depth AND were not hidden by old depth (manual/auto hides)
     const hiddenSet = new Set(hiddenIds);
     const revealedSet = new Set(revealedFromHidden);
-    const parentMap = new Map<string, string>();
-    for (const e of edges) parentMap.set(e.target, e.source);
+    const parentMap = parentMapOf(edges);
     const kept = hiddenIds.filter((id) => {
       if (depthHidden.has(id)) return false;
       const depth = nodes.find((n) => n.id === id)?.data.depth ?? 0;

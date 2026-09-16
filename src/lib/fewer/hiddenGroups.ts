@@ -1,5 +1,5 @@
 import type { FewerNode, FewerEdge } from "./types";
-import { childrenMapOf } from "./validation";
+import { childrenMapOf, parentMapOf } from "./validation";
 
 export interface HiddenTreeNode {
   node: FewerNode;
@@ -118,8 +118,7 @@ export function getHiddenLayerGroups(
   hiddenIds: string[],
 ): HiddenGroup[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const parentMap = new Map<string, string>();
-  for (const e of edges) parentMap.set(e.target, e.source);
+  const parentMap = parentMapOf(edges);
   const childrenMap = childrenMapOf(edges);
 
   // Only consider hidden ids that still map to a live node. A stale id (e.g. a
@@ -165,8 +164,7 @@ export function filterHiddenGroups(groups: HiddenGroup[], query: string): Hidden
 
 /** Every ancestor id of a node (parent, grandparent, … up to the root). */
 export function ancestorChain(id: string, edges: FewerEdge[]): string[] {
-  const parentMap = new Map<string, string>();
-  for (const e of edges) parentMap.set(e.target, e.source);
+  const parentMap = parentMapOf(edges);
   const out: string[] = [];
   let cur: string | undefined = parentMap.get(id);
   while (cur) {
