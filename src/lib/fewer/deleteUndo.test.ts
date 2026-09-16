@@ -231,3 +231,46 @@ test("showSubtree skips independentlyHiddenIds and their descendants", () => {
 
   expect(new Set(useGraphStore.getState().hiddenIds)).toEqual(new Set(["a", "a1", "a2"]));
 });
+
+test("showSubtree from an already-visible root still reveals its hidden descendants", () => {
+  // root is visible (revealSubtree shows the ancestors first, then calls
+  // showSubtree on the now-visible folder) — its hidden children must surface.
+  const root = makeNode("root", "root", null, { isRoot: true });
+  const a = makeNode("a", "a", "root");
+  const a1 = makeNode("a1", "a1", "a");
+  const edges = [makeEdge("e1", "root", "a"), makeEdge("e2", "a", "a1")];
+
+  useGraphStore.setState({
+    nodes: [root, a, a1],
+    edges,
+    hiddenIds: ["a", "a1"],
+    independentlyHiddenIds: [],
+    autoHiddenIds: [],
+    revealedFromHidden: [],
+    selectedNodeIds: [],
+  });
+  useGraphStore.getState().showSubtree("root");
+
+  expect(useGraphStore.getState().hiddenIds).toEqual([]);
+});
+
+test("showSubtree does not walk past a visible descendant", () => {
+  // 'a' is visible, so its hidden child a1 must not be revealed by showing root.
+  const root = makeNode("root", "root", null, { isRoot: true });
+  const a = makeNode("a", "a", "root");
+  const a1 = makeNode("a1", "a1", "a");
+  const edges = [makeEdge("e1", "root", "a"), makeEdge("e2", "a", "a1")];
+
+  useGraphStore.setState({
+    nodes: [root, a, a1],
+    edges,
+    hiddenIds: ["a1"],
+    independentlyHiddenIds: [],
+    autoHiddenIds: [],
+    revealedFromHidden: [],
+    selectedNodeIds: [],
+  });
+  useGraphStore.getState().showSubtree("root");
+
+  expect(useGraphStore.getState().hiddenIds).toEqual(["a1"]);
+});

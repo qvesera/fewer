@@ -56,26 +56,27 @@ function computeLargeFolderHiddenIds(
 }
 
 /**
- * Collect the reveal set for a bulk "show subtree" (used by Show Children):
- * each requested id that is currently hidden, plus every hidden descendant of
- * it, stopping at nodes the user hid directly (independentlyHiddenIds) —
- * the same semantics as `showSubtree`, batched into one set.
+ * The single reveal walk behind both show-subtree actions: seed `roots` into
+ * the reveal set, then breadth-first over `edges` revealing hidden descendants —
+ * never walking past a visible card, and stopping at cards the user hid
+ * directly (independentlyHiddenIds) together with their whole subtree.
+ *
+ * The caller decides what a root is: `collectShowSubtrees` seeds only ids that
+ * are currently hidden, `showSubtree` always seeds the card the user clicked
+ * (so its hidden descendants still surface under an already-visible folder).
  */
-export function collectShowSubtrees(
+function walkSubtreeReveal(
   edges: FewerEdge[],
-  hiddenIds: string[],
-  independentlyHiddenIds: string[],
-  ids: string[],
+  hiddenSet: Set<string>,
+  indieSet: Set<string>,
+  roots: Iterable<string>,
 ): Set<string> {
-  const hiddenSet = new Set(hiddenIds);
-  const indieSet = new Set(independentlyHiddenIds);
   const toShow = new Set<string>();
   const queue: string[] = [];
-  for (const id of ids) {
-    if (hiddenSet.has(id) && !toShow.has(id)) {
-      toShow.add(id);
-      queue.push(id);
-    }
+  for (const id of roots) {
+    if (toShow.has(id)) continue;
+    toShow.add(id);
+    queue.push(id);
   }
   while (queue.length) {
     const nid = queue.shift()!;
@@ -90,6 +91,27 @@ export function collectShowSubtrees(
     }
   }
   return toShow;
+}
+
+/**
+ * Collect the reveal set for a bulk "show subtree" (used by Show Children):
+ * each requested id that is currently hidden, plus every hidden descendant of
+ * it, stopping at nodes the user hid directly (independentlyHiddenIds) —
+ * the same walk as `showSubtree`, batched into one set.
+ */
+export function collectShowSubtrees(
+  edges: FewerEdge[],
+  hiddenIds: string[],
+  independentlyHiddenIds: string[],
+  ids: string[],
+): Set<string> {
+  const hiddenSet = new Set(hiddenIds);
+  return walkSubtreeReveal(
+    edges,
+    hiddenSet,
+    new Set(independentlyHiddenIds),
+    ids.filter((id) => hiddenSet.has(id)),
+  );
 }
 
 /**
@@ -1285,19 +1307,10 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
 
   showSubtree: (id) => {
     const { hiddenIds, edges, independentlyHiddenIds } = get();
-    const indieSet = new Set(independentlyHiddenIds);
-    const toShow = new Set([id]);
-    const queue = [id];
-    while (queue.length) {
-      const nid = queue.shift()!;
-      for (const e of edges) {
-        if (e.source !== nid || !hiddenIds.includes(e.target)) continue;
-        // Cards the user hid directly and all descendants stay hidden.
-        if (indieSet.has(e.target)) continue;
-        toShow.add(e.target);
-        queue.push(e.target);
-      }
-    }
+    // The clicked card is always revealed (it may already be visible when its
+    // hidden descendants are what needs showing), so unlike the batch action it
+    // is seeded without a hidden check.
+    const toShow = walkSubtreeReveal(edges, new Set(hiddenIds), new Set(independentlyHiddenIds), [id]);
     commitShow(set, get, toShow, false);
   },
 
