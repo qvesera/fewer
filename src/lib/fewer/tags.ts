@@ -50,6 +50,40 @@ function perimeterPointAngle(s: number, w: number, h: number): number {
 }
 
 /**
+ * Ring geometry for `n` equal shares of the outline: the angle the gradient
+ * starts from (the seam, bottom-left corner) and the percent offset — clockwise
+ * from that seam — of the k-th color boundary.
+ *
+ * With usable `dims` the boundaries sit at equal OUTLINE LENGTH; otherwise they
+ * fall back to equal angle, which is what a square card wants anyway.
+ */
+function ringGeometry(
+  n: number,
+  dims?: TagRingDims,
+): { seamAngle: number; offsetPercent: (k: number) => number } {
+  const usePerimeter = !!dims && dims.width > 0 && dims.height > 0;
+  const w = usePerimeter ? dims!.width : 0;
+  const h = usePerimeter ? dims!.height : 0;
+
+  // Seam = bottom-left corner (perimeter coordinate measured clockwise from
+  // top-center; 225° on the square/equal-angle fallback).
+  const seamPerim = usePerimeter ? 3 * (w / 2) + h : 0;
+  const seamAngle = usePerimeter ? perimeterPointAngle(seamPerim, w, h) : 225;
+
+  const offsetPercent = (k: number): number => {
+    if (usePerimeter) {
+      const perim = 2 * (w + h);
+      const ang = perimeterPointAngle(seamPerim + (k * perim) / n, w, h);
+      const offsetDeg = (ang - seamAngle + 360) % 360;
+      return +(offsetDeg / 3.6).toFixed(2);
+    }
+    return +((k * 100) / n).toFixed(2);
+  };
+
+  return { seamAngle, offsetPercent };
+}
+
+/**
  * Build a stepped conic-gradient string from tag colors. Hard stops (no blend)
  * split the ring evenly: 2 colors → 50/50, 3 → 33/33/33, etc. A single color
  * yields a solid ring. Capped at TAG_RING_CAP slices for legibility.
@@ -81,25 +115,7 @@ export function buildTagRingGradient(colors: string[], dims?: TagRingDims): stri
   if (capped.length === 1) return capped[0];
 
   const n = capped.length;
-  const usePerimeter = !!dims && dims.width > 0 && dims.height > 0;
-  const w = usePerimeter ? dims!.width : 0;
-  const h = usePerimeter ? dims!.height : 0;
-
-  // Seam = bottom-left corner (perimeter coordinate measured clockwise from
-  // top-center; 225° on the square/equal-angle fallback).
-  const seamPerim = usePerimeter ? 3 * (w / 2) + h : 0;
-  const seamAngle = usePerimeter ? perimeterPointAngle(seamPerim, w, h) : 225;
-
-  /** Percent offset (clockwise from the seam) to the k-th color boundary. */
-  const offsetPercent = (k: number): number => {
-    if (usePerimeter) {
-      const perim = 2 * (w + h);
-      const ang = perimeterPointAngle(seamPerim + (k * perim) / n, w, h);
-      const offsetDeg = (ang - seamAngle + 360) % 360;
-      return +(offsetDeg / 3.6).toFixed(2);
-    }
-    return +((k * 100) / n).toFixed(2);
-  };
+  const { seamAngle, offsetPercent } = ringGeometry(n, dims);
 
   const stops = capped.flatMap((c, i) => {
     const start = i === 0 ? 0 : offsetPercent(i);
