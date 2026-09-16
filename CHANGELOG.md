@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crown Shyness is a much stronger effect across its range: sibling-subtree gaps scale harder with depth and size, so 0 to 3 is roughly +28% spread top-to-bottom and +71% left-to-right against about +10% before — the ends of the slider are visibly different now. The top of the range is capped: 3 lands where 2 used to, because full strength spread a wide graph further apart than is useful to read
 - The Crown Shyness slider responds on a curve instead of linearly: 1 (the default) keeps the spacing a default canvas has always had, while 2 is clearly looser and 3 opens the tree right up — as far as the range goes, since 3 is the cap. A linear response gave the same top end but inflated every default layout, and the initial fit clamps its zoom, so the far side of the tree was pushed outside the viewport (where React Flow culls it) — the canvas looked like it had lost cards
 - Alt+Shift+P (unparent) now detaches only the top-most selected cards and records a single undo step, matching the batch Unparent menu action
+- Auth and Settings dialogs now share one validation module (src/lib/fewer/authValidation.ts): the auth form rules (email vs username, password policy, confirm) are pure and unit-tested, and the dialog submit path is split per mode (magic link, reset, sign up, sign in) behind one shared loading/error handler
 
 ### Fixed
 

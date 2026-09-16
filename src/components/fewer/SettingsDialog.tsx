@@ -74,15 +74,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 
 /* -------------------------------------------------------------------------- */
 /*  About tab                                                                 */
 /* -------------------------------------------------------------------------- */
-
-/** Basic email format check (RFC-ish: no spaces, one @, a dot after it). */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function AccountTab() {
   const { user, loading } = useAuth();
@@ -202,7 +200,7 @@ function AccountTab() {
       });
       toast({ title: "Profile updated" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not save profile";
+      const msg = errMessage(err, "Could not save profile");
       toast({ title: "Could not save profile", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
@@ -213,7 +211,7 @@ function AccountTab() {
     try {
       await action(); // navigates away to Stripe on success
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Billing is unavailable";
+      const msg = errMessage(err, "Billing is unavailable");
       toast({ title: "Could not open billing", description: msg, variant: "destructive" });
     }
   };
@@ -229,7 +227,7 @@ function AccountTab() {
 
   const handleChangeEmail = async () => {
     const value = newEmail.trim();
-    if (!EMAIL_RE.test(value)) {
+    if (!isValidEmail(value)) {
       toast({ title: "Invalid email", description: "Enter a valid email address.", variant: "destructive" });
       return;
     }
@@ -249,7 +247,7 @@ function AccountTab() {
       });
       setNewEmail("");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not change email";
+      const msg = errMessage(err, "Could not change email");
       toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setChangingEmail(false);
@@ -283,7 +281,7 @@ function AccountTab() {
         description: "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not delete account";
+      const msg = errMessage(err, "Could not delete account");
       toast({ title: "Could not delete account", description: msg, variant: "destructive" });
     } finally {
       setDeleting(false);
