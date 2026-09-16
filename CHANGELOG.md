@@ -83,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - Connecting two cards no longer rescans the whole edge list at every node it walks: isAncestor re-filtered all edges per visited node (O(nodes x edges) per connect attempt) and now indexes the parents once. It also still considers every parent of a node, so the cycle check stays as strict as before on an imported multi-parent graph.
+- Crawling a public file index no longer stalls behind its slowest page: the crawler fetched listings in fixed batches of four and waited for the whole batch before claiming the next, so one slow index page (up to the 8s timeout) idled the other three slots every round. The crawler is now a rolling pool — a worker takes the next queued page the moment it finishes its current one — keeping four requests in flight continuously. Same page budget, depth cap and result; speeds up /api/crawl and the nightly watch-digest crawl alike.
 
 ## [0.7.1] - 2026-09-12
 
