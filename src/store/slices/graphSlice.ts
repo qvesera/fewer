@@ -11,6 +11,7 @@ import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
 
 import { sortEdges, mergeImportedGraph } from "@/lib/fewer/importMerge";
+import { rewriteConnectionPaths } from "@/lib/fewer/pathRewrite";
 import { fullName } from "@/lib/fewer/nodeName";
 
 import { captureViewState, viewStateOp } from "./historySlice";
@@ -981,35 +982,7 @@ export const createGraphSlice: GraphSliceCreator = (set, get) => ({
     const result = validateConnection(connection.source, connection.target, nodes, edges);
     if (!result.ok) return result;
     const newEdge: FewerEdge = { id: `e-${connection.source}-${connection.target}-${uuid().slice(0, 6)}`, source: connection.source, target: connection.target, type: edgeTypeFromStyle(get().edgeStyle) };
-    const parent = nodes.find((n) => n.id === connection.source);
-    const child = nodes.find((n) => n.id === connection.target);
-    let updatedNodes = nodes;
-    // Shared walk (see deleteNodes) — the root is excluded for us and each node
-    // is listed once. Only a folder's subtree has its path rewritten below.
-    const descendantIds = new Set(
-      parent && child && child.data.type === "folder" ? getDescendants(connection.target, edges) : [],
-    );
-    if (parent && child) {
-      const childFullLabel = child.data.extension ? `${child.data.label}.${child.data.extension}` : child.data.label;
-      const newChildPath = `${parent.data.path}/${childFullLabel}`;
-      const oldChildPath = child.data.path;
-      const isFolder = child.data.type === "folder";
-      updatedNodes = nodes.map((n) => {
-        if (n.id === connection.target) return { ...n, data: { ...n.data, path: newChildPath, isRoot: false } };
-        if (isFolder && descendantIds.has(n.id) && n.data.path.startsWith(oldChildPath)) return { ...n, data: { ...n.data, path: n.data.path.replace(oldChildPath, newChildPath) } };
-        return n;
-      });
-    }
-    const changedNodeIds = child && child.data.type === "folder" 
-      ? [connection.target, ...Array.from(descendantIds)] 
-      : [connection.target];
-    // Capture the original paths so undo can restore them (without deleting the node).
-    const prevPaths = changedNodeIds
-      .map((nid) => ({ nodeId: nid, path: nodes.find((n) => n.id === nid)?.data.path ?? "" }))
-      .filter((p) => p.path !== "");
-    const nextPaths = changedNodeIds
-      .map((nid) => ({ nodeId: nid, path: updatedNodes.find((n) => n.id === nid)?.data.path ?? "" }))
-      .filter((p) => p.path !== "");
+    const { nodes: updatedNodes, prevPaths, nextPaths } = rewriteConnectionPaths(nodes, edges, connection.source, connection.target);
     get().pushOp({ type: "connect", edge: newEdge, prevPaths, nextPaths });
     const nextEdges = sortEdges([...edges, newEdge], updatedNodes);
     set({ nodes: applySearchHighlight(updatedNodes, searchQuery, get().categoryFilter), edges: nextEdges, graphVersion: get().graphVersion + 1 });

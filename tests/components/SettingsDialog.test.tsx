@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Mock boundaries, not the dialog controls, inputs or Zustand actions.
@@ -10,28 +10,37 @@ const toast = mock(() => {});
 mock.module("@/hooks/use-auth", () => ({ useAuth: () => ({ user: signedIn ? user : null, loading: false }) }));
 mock.module("@/hooks/use-mobile", () => ({ useIsMobile: () => mobile }));
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
-mock.module("@/lib/supabase", () => ({ getBrowserSupabase: () => { throw new Error("Unexpected Supabase call"); } }));
+const originalFetch = globalThis.fetch;
+const requests: { url: string; init?: RequestInit }[] = [];
+let saveFails = false;
+let deleteFails = false;
+// Delete-account signs out via Supabase after scheduling; updateUser is the
+// change-email path (not under test, but the dialog imports the client).
+const signOut = mock(async () => ({ error: null }));
+mock.module("@/lib/supabase", () => ({
+  getBrowserSupabase: () => ({ auth: { signOut, updateUser: async () => ({ error: null }) } }),
+}));
 // Unrelated cloud/editor subsystems are not under test.
 mock.module("@/components/fewer/index", () => ({ ThemeEditorDialog: () => null, Logo: () => null, CloudPanel: () => null }));
 mock.module("@/components/fewer/WatchedIndexesPanel", () => ({ WatchedIndexesPanel: () => <div>Watched indexes</div> }));
 const { SettingsDialog } = await import("@/components/fewer/SettingsDialog");
 const { useGraphStore } = await import("@/store/graphStore");
 const initial = useGraphStore.getInitialState();
-const originalFetch = globalThis.fetch;
-const requests: { url: string; init?: RequestInit }[] = [];
-let saveFails = false;
 
 beforeEach(() => {
   signedIn = false;
   mobile = false;
   saveFails = false;
+  deleteFails = false;
   toast.mockClear();
+  signOut.mockClear();
   requests.length = 0;
   localStorage.clear();
   useGraphStore.setState({ ...initial, settingsOpen: true, advancedModeEnabled: false, themeMode: "dark", nodes: [], edges: [] }, true);
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     requests.push({ url, init });
+    if (url === "/api/account") return Response.json(deleteFails ? { error: "Too many requests" } : {}, { status: deleteFails ? 429 : 200 });
     if (url !== "/api/profile") throw new Error(`Unexpected fetch: ${url}`);
     if (init?.method === "PUT") return Response.json(saveFails ? { error: "Username taken" } : {}, { status: saveFails ? 409 : 200 });
     return Response.json({ profile: { first_name: "Ada", last_name: "Lovelace", username: "ada", plan: "free" }, counts: { savedGraphs: 1, watchedIndexes: 0 } });
@@ -123,5 +132,100 @@ describe("Account profile interactions", () => {
     useGraphStore.setState({ settingsOpen: false });
     window.dispatchEvent(new Event("fewer-open-settings-account"));
     expect(useGraphStore.getState().settingsOpen).toBe(false);
+  });
+});
+
+describe("Account danger zone", () => {
+  test("confirmed deletion calls the API, signs out, and closes the dialog", async () => {
+    await openAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete my account" }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Deletion scheduled" })));
+    const del = requests.find((request) => request.init?.method === "DELETE");
+    expect(del?.url).toBe("/api/account");
+    expect(signOut).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(useGraphStore.getState().settingsOpen).toBe(false));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  test("cancelling the confirmation sends no request", async () => {
+    await openAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancel" }));
+    expect(requests.filter((request) => request.url === "/api/account")).toEqual([]);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(useGraphStore.getState().settingsOpen).toBe(true);
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Deletion scheduled" }));
+  });
+
+  test("failed deletion surfaces the server error and keeps the dialog open", async () => {
+    deleteFails = true;
+    await openAccount();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(screen.getByRole("alertdialog")).toBeTruthy());
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete my account" }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Could not delete account", description: "Too many requests", variant: "destructive" })));
+    expect(signOut).not.toHaveBeenCalled();
+    expect(useGraphStore.getState().settingsOpen).toBe(true);
+    const retry = within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete my account" }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(false);
+  });
+});
+
+describe("Advanced tab controls", () => {
+  async function openAdvanced(enabled = true) {
+    signedIn = true;
+    useGraphStore.setState({ advancedModeEnabled: enabled, maxDisplayDepth: 6, autoHideThreshold: 10, scrollAction: "pan" });
+    const mounted = render(<SettingsDialog />);
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Advanced" }));
+    expect(screen.getByRole("tab", { name: "Advanced" }).getAttribute("aria-selected")).toBe("true");
+    return mounted;
+  }
+
+  // Existing labels are visual, not associated with the Radix thumbs. Scope
+  // each query to its control row; don't mistake another unnamed slider for it.
+  function slider(label: string) {
+    const row = screen.getByText(label, { selector: "label" }).closest(".space-y-2");
+    if (!row) throw new Error(`Missing slider row: ${label}`);
+    return within(row as HTMLElement).getByRole("slider");
+  }
+
+  test("advanced sliders commit through real store actions", async () => {
+    await openAdvanced();
+    fireEvent.keyDown(slider("Max Depth"), { key: "ArrowRight" });
+    expect(useGraphStore.getState().maxDisplayDepth).toBe(7);
+    fireEvent.keyDown(slider("Auto-hide Limit"), { key: "ArrowLeft" });
+    expect(useGraphStore.getState().autoHideThreshold).toBe(9);
+    fireEvent.keyDown(slider("Width"), { key: "ArrowRight" });
+    expect(useGraphStore.getState().nodeWidth).toBe(initial.nodeWidth + 10);
+  });
+
+  test("scroll-to-zoom switch toggles the store action", async () => {
+    await openAdvanced();
+    const control = screen.getByRole("switch");
+    fireEvent.click(control);
+    expect(useGraphStore.getState().scrollAction).toBe("zoom");
+    expect(control.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(control);
+    expect(useGraphStore.getState().scrollAction).toBe("pan");
+  });
+
+  test("mobile retains advanced layout controls but hides canvas navigation", async () => {
+    mobile = true;
+    await openAdvanced();
+    expect(screen.getByText("Layout Policy")).toBeTruthy();
+    expect(screen.queryByText("Canvas Navigation")).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  test("basic mode hides layout policy and card metrics, not desktop navigation", async () => {
+    await openAdvanced(false);
+    expect(screen.queryByText("Layout Policy")).toBeNull();
+    expect(screen.queryByText("Card Metrics")).toBeNull();
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.getByText("Canvas Navigation")).toBeTruthy();
   });
 });
