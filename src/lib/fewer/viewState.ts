@@ -236,21 +236,30 @@ const VALID_KEYS = new Set<string>([
   "edgeAnimatedSelectedOnly", "edgeStrokeStyle", "edgeWidth", "themeMode",
 ]);
 
+/** Keep only the string entries of a possibly-untrusted array (else empty). */
+function stringIds(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((x: unknown) => typeof x === "string") : [];
+}
+
+/** Validate a folderId → hidden-descendant-ids map, dropping malformed entries. */
+function sanitizeSubtrees(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (Array.isArray(v)) out[k] = stringIds(v);
+    }
+  }
+  return out;
+}
+
 function sanitizeHideLayers(raw: unknown): HideLayers | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const obj = raw as Record<string, unknown>;
-  const individual = Array.isArray(obj.individual) ? obj.individual.filter((x: unknown) => typeof x === "string") : [];
-  const subtrees: Record<string, string[]> = {};
-  if (obj.subtrees && typeof obj.subtrees === "object") {
-    for (const [k, v] of Object.entries(obj.subtrees as Record<string, unknown>)) {
-      if (Array.isArray(v)) subtrees[k] = v.filter((x: unknown) => typeof x === "string");
-    }
-  }
   return {
-    individual,
-    subtrees,
+    individual: stringIds(obj.individual),
+    subtrees: sanitizeSubtrees(obj.subtrees),
     filesBulkActive: obj.filesBulkActive === true,
-    filesBulkExempt: Array.isArray(obj.filesBulkExempt) ? obj.filesBulkExempt.filter((x: unknown) => typeof x === "string") : [],
+    filesBulkExempt: stringIds(obj.filesBulkExempt),
   };
 }
 
@@ -268,9 +277,7 @@ function collectViewSettings(raw: unknown): ViewSettings {
   if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
   if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
   if (typeof obj.direction === "string") out.direction = obj.direction;
-  if (Array.isArray(obj.collapsedFolderIds)) {
-    out.collapsedFolderIds = obj.collapsedFolderIds.filter((x: unknown) => typeof x === "string");
-  }
+  if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
   if (!out.hideLayers && typeof obj.showFiles === "boolean") {

@@ -1,5 +1,12 @@
 import type { Node, Edge } from "@xyflow/react";
-import type { Tag } from "./tags";
+
+/** A reusable label+color marker that can be assigned to any number of nodes. */
+export interface Tag {
+  id: string;
+  label: string;
+  /** Hex color (e.g. "#f87171"). Used for the assignment dot + the card ring. */
+  color: string;
+}
 
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";

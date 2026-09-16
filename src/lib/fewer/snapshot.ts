@@ -151,20 +151,25 @@ export function saveGraphLocal(snap: {
   }
 }
 
+/**
+ * One-time migration: lift a legacy localStorage graph into sessionStorage so
+ * existing users keep their canvas across the switch to per-tab storage, then
+ * drop the old key so other tabs stop sharing the same graph. No-op once the
+ * session already holds a graph.
+ */
+function liftLegacyGraphIntoSessionStorage(): void {
+  if (sessionStorage.getItem(LOCAL_KEY)) return;
+  const legacy = localStorage.getItem(LEGACY_KEY);
+  if (!legacy) return;
+  sessionStorage.setItem(LOCAL_KEY, legacy);
+  localStorage.removeItem(LEGACY_KEY);
+}
+
 /** Load the cached graph, if any. Returns null when absent/corrupt/empty. */
 export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | null } | null {
   if (typeof window === "undefined") return null;
   try {
-    // One-time migration: lift legacy localStorage graph into sessionStorage
-    // so existing users keep their canvas after this change, then remove the
-    // old key so other tabs stop sharing the same graph.
-    if (!sessionStorage.getItem(LOCAL_KEY)) {
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) {
-        sessionStorage.setItem(LOCAL_KEY, legacy);
-        localStorage.removeItem(LEGACY_KEY);
-      }
-    }
+    liftLegacyGraphIntoSessionStorage();
 
     const raw = sessionStorage.getItem(LOCAL_KEY);
     if (!raw) return null;

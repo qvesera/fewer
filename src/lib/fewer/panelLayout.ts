@@ -4,21 +4,21 @@
  * Components in the UI layer call these for layout logic.
  */
 
-export type AreaEditor =
-  | "graph"
-  | "file"
-  | "directories"
-  | "layout"
-  | "edges"
-  | "hidden"
-  | "tags"
-  | "analytics";
+// Area primitives (the editor union, PanelArea, its constructors and width
+// defaults) are declared in panelTree.ts — the base module of the split-tree
+// data structure. They used to be declared here, which made panelTree import
+// panelLayout and vice versa: a real two-module cycle. Re-exported below so
+// existing `from "./panelLayout"` import sites keep working unchanged.
+import {
+  createArea,
+  generateAreaId,
+  DEFAULT_SECTION_WIDTH,
+  DEFAULT_GRAPH_WIDTH,
+} from "./panelTree";
+import type { AreaEditor, PanelArea } from "./panelTree";
 
-export interface PanelArea {
-  id: string;
-  width: number;
-  editor: AreaEditor;
-}
+export type { AreaEditor, PanelArea };
+export { createArea, generateAreaId, DEFAULT_SECTION_WIDTH, DEFAULT_GRAPH_WIDTH };
 
 export type PanelSide = "left" | "right";
 
@@ -34,29 +34,12 @@ export const AREA_EDITOR_LABELS: Record<AreaEditor, string> = {
   analytics: "Graph Analytics",
 };
 
-export const DEFAULT_SECTION_WIDTH = 280;
-export const DEFAULT_GRAPH_WIDTH = 480;
 export const MIN_AREA_WIDTH = 200;
 export const MAX_AREA_WIDTH = 560;
-
-let _counter = 0;
-/** Globally unique id for areas (works across SSR: increments only in browser). */
-export function generateAreaId(): string {
-  return `area-${Date.now()}-${++_counter}`;
-}
 
 /** Clamp a width to the allowed range. */
 export function clampWidth(w: number): number {
   return Math.max(MIN_AREA_WIDTH, Math.min(MAX_AREA_WIDTH, w));
-}
-
-/** Create a new PanelArea with sane defaults for the editor type. */
-export function createArea(editor: AreaEditor, width?: number): PanelArea {
-  return {
-    id: generateAreaId(),
-    width: width ?? (editor === "graph" ? DEFAULT_GRAPH_WIDTH : DEFAULT_SECTION_WIDTH),
-    editor,
-  };
 }
 
 /** Given a pointer x and viewport width, return which side to dock. */

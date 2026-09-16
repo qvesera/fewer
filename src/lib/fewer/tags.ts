@@ -1,12 +1,8 @@
-import type { FewerNode } from "./types";
+import type { FewerNode, Tag } from "./types";
 
-/** A reusable label+color marker that can be assigned to any number of nodes. */
-export interface Tag {
-  id: string;
-  label: string;
-  /** Hex color (e.g. "#f87171"). Used for the assignment dot + the card ring. */
-  color: string;
-}
+// `Tag` is declared in types.ts (the single home for graph data types) and
+// re-exported here so existing `from "./tags"` import sites keep working.
+export type { Tag };
 
 /** Vibrant, theme-agnostic palette assigned to new tags in order. */
 export const TAG_PALETTE: string[] = [
