@@ -75,8 +75,31 @@ import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
+import {
+  buildProfileSaveBody,
+  minimapBounds,
+  normalizeProfileResponse,
+  profileIsDirty,
+  strokeStyleOptions,
+  themeModeOptions,
+  usageMeter,
+  visibleTabs,
+  type SettingsTabId,
+} from "@/lib/fewer/settingsModel";
+import type { LucideIcon } from "lucide-react";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
+
+/** Tab-strip metadata; the id list itself comes from visibleTabs() in settingsModel. */
+const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
+  account: { label: "Account", Icon: User2 },
+  about: { label: "About", Icon: Info },
+  appearance: { label: "Appearance", Icon: Palette },
+  watched: { label: "Watched", Icon: BellRing },
+  cloud: { label: "Cloud", Icon: Cloud },
+  advanced: { label: "Advanced", Icon: Settings },
+  help: { label: "Help", Icon: BookOpen },
+};
 
 /* -------------------------------------------------------------------------- */
 /*  About tab                                                                 */
@@ -108,6 +131,8 @@ function AccountTab() {
   const planLabel =
     plan === "pro" ? "Pro plan" : plan === "team" ? "Team plan" : "Free plan";
   const limits = limitsFor(plan);
+  const savedMeter = usage === null ? null : usageMeter(usage.savedGraphs, limits.savedGraphs);
+  const watchedMeter = usage === null ? null : usageMeter(usage.watchedIndexes, limits.watchedIndexes);
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
@@ -121,28 +146,17 @@ function AccountTab() {
       try {
         const res = await fetch("/api/profile");
         const json = await res.json();
-        if (mounted && json.profile) {
-          const p = json.profile as {
-            first_name?: unknown;
-            last_name?: unknown;
-            username?: unknown;
-            plan?: unknown;
-          };
-          const first_name = typeof p.first_name === "string" ? p.first_name : "";
-          const last_name = typeof p.last_name === "string" ? p.last_name : "";
-          const username = typeof p.username === "string" ? p.username : "";
-          setFirstName(first_name);
-          setLastName(last_name);
-          setUsername(username);
-          setPlan(p.plan === "pro" || p.plan === "team" ? (p.plan as "pro" | "team") : "free");
-          setSavedProfile({ first_name, last_name, username });
-          const { savedGraphs, watchedIndexes } = (json.counts ?? {
-            savedGraphs: -1,
-            watchedIndexes: -1,
-          }) as { savedGraphs?: number; watchedIndexes?: number };
-          setUsage({
-            savedGraphs: typeof savedGraphs === "number" ? savedGraphs : -1,
-            watchedIndexes: typeof watchedIndexes === "number" ? watchedIndexes : -1,
+        const normalized = normalizeProfileResponse(json);
+        if (mounted && normalized) {
+          setFirstName(normalized.first_name);
+          setLastName(normalized.last_name);
+          setUsername(normalized.username);
+          setPlan(normalized.plan);
+          setUsage(normalized.usage);
+          setSavedProfile({
+            first_name: normalized.first_name,
+            last_name: normalized.last_name,
+            username: normalized.username,
           });
         }
       } catch {
@@ -154,10 +168,7 @@ function AccountTab() {
     };
   }, [user?.id]);
 
-  const profileUnchanged =
-    firstName.trim() === savedProfile.first_name &&
-    lastName.trim() === savedProfile.last_name &&
-    username.trim() === savedProfile.username;
+  const profileUnchanged = !profileIsDirty({ firstName, lastName, username }, savedProfile);
 
   const handleSaveProfile = async () => {
     // Client-side guard: refuse dangerous/oversized values before POSTing.
@@ -172,15 +183,11 @@ function AccountTab() {
     setSaving(true);
     try {
       // Normalized the same way the server stores it (case-insensitive uniqueness).
-      const uname = username.trim().toLowerCase();
+      const body = buildProfileSaveBody({ firstName, lastName, username });
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          username: uname,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         let msg = "Could not save profile";
@@ -192,12 +199,8 @@ function AccountTab() {
         }
         throw new Error(msg);
       }
-      setUsername(uname);
-      setSavedProfile({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        username: uname,
-      });
+      setUsername(body.username);
+      setSavedProfile(body);
       toast({ title: "Profile updated" });
     } catch (err) {
       const msg = errMessage(err, "Could not save profile");
@@ -412,16 +415,14 @@ function AccountTab() {
                   {usage === null ? "…" : formatUsage(usage.savedGraphs, limits.savedGraphs)}
                 </span>
               </div>
-              {usage !== null && limits.savedGraphs !== Infinity && (
+              {savedMeter?.visible && (
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",
-                      usage.savedGraphs >= limits.savedGraphs
-                        ? "bg-destructive"
-                        : "bg-primary/70",
+                      savedMeter.over ? "bg-destructive" : "bg-primary/70",
                     )}
-                    style={{ width: `${Math.min(100, (usage.savedGraphs / limits.savedGraphs) * 100)}%` }}
+                    style={{ width: `${savedMeter.pct}%` }}
                   />
                 </div>
               )}
@@ -434,16 +435,14 @@ function AccountTab() {
                   {usage === null ? "…" : formatUsage(usage.watchedIndexes, limits.watchedIndexes)}
                 </span>
               </div>
-              {usage !== null && limits.watchedIndexes !== Infinity && (
+              {watchedMeter?.visible && (
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",
-                      usage.watchedIndexes >= limits.watchedIndexes
-                        ? "bg-destructive"
-                        : "bg-primary/70",
+                      watchedMeter.over ? "bg-destructive" : "bg-primary/70",
                     )}
-                    style={{ width: `${Math.min(100, (usage.watchedIndexes / limits.watchedIndexes) * 100)}%` }}
+                    style={{ width: `${watchedMeter.pct}%` }}
                   />
                 </div>
               )}
@@ -725,17 +724,7 @@ function AppearanceTab() {
     { value: "angled" as EdgeStyle, label: "Angled" },
   ], []);
 
-  const strokeStyleOptions = useMemo(() => {
-    const list: { value: EdgeStrokeStyle; label: string }[] = [];
-    // "Solid" only makes sense when at least some edges keep a solid base —
-    // i.e. not when ALL edges are animated.
-    if (!edgeAnimated) {
-      list.push({ value: "solid", label: "Solid" });
-    }
-    list.push({ value: "dashed", label: "Dashed" });
-    list.push({ value: "dotted", label: "Dotted" });
-    return list;
-  }, [edgeAnimated]);
+  const strokeOptions = useMemo(() => strokeStyleOptions(edgeAnimated), [edgeAnimated]);
 
   return (
     <div className="flex flex-col gap-5 py-1">
@@ -744,7 +733,7 @@ function AppearanceTab() {
           Theme Preferences
         </Label>
         <div className="grid grid-cols-3 gap-2.5">
-          {(advancedModeEnabled ? (["light", "dark", "custom"] as ThemeMode[]) : (["light", "dark"] as ThemeMode[])).map((mode) => {
+          {themeModeOptions(advancedModeEnabled).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
             const active = themeModeGlobal === mode;
             return (
@@ -829,7 +818,7 @@ function AppearanceTab() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">Pattern</Label>
                 <SlidingToggle
-                  options={strokeStyleOptions}
+                  options={strokeOptions}
                   value={edgeStrokeStyle}
                   onValueChange={(v) => setEdgeStrokeStyle(v as EdgeStrokeStyle)}
                 />
@@ -977,8 +966,7 @@ function MinimapControls() {
   // Slider bounds track the live canvas size (never an arbitrary cap): the max
   // keeps the minimap fully on-canvas (canvas size minus the minimap itself),
   // with a floor so the slider stays usable before/if the canvas isn't measured.
-  const maxX = Math.max(canvasSize.width - miniMapSize, miniMapSize);
-  const maxY = Math.max(canvasSize.height - miniMapSize, miniMapSize);
+  const { maxX, maxY } = minimapBounds(canvasSize, miniMapSize);
 
   const positions = [
     { value: "top-left", label: "Top Left" },
@@ -1353,7 +1341,8 @@ export function SettingsDialog() {
   const isMobile = useIsMobile();
   // The Advanced tab is empty for signed-out mobile users: Layout Policy +
   // Node Metrics are sign-in gated and the Scroll to Zoom card is desktop-only.
-  const showAdvancedTab = advancedModeEnabled || !isMobile;
+  const tabs = visibleTabs({ signedIn: !!user, isMobile, advancedMode: advancedModeEnabled });
+  const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks
   // the user to fill in their name + username before publishing to the gallery.
@@ -1395,92 +1384,34 @@ export function SettingsDialog() {
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
             <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <TabsTrigger
-                value="account"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <User2 className="h-3.5 w-3.5" />
-                Account
-              </TabsTrigger>
-              <TabsTrigger
-                value="about"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <Info className="h-3.5 w-3.5" />
-                About
-              </TabsTrigger>
-              <TabsTrigger
-                value="appearance"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <Palette className="h-3.5 w-3.5" />
-                Appearance
-              </TabsTrigger>
-              {user && (
-                <TabsTrigger
-                  value="watched"
-                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-                >
-                  <BellRing className="h-3.5 w-3.5" />
-                  Watched
-                </TabsTrigger>
-              )}
-              {user && (
-                <TabsTrigger
-                  value="cloud"
-                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-                >
-                  <Cloud className="h-3.5 w-3.5" />
-                  Cloud
-                </TabsTrigger>
-              )}
-              {showAdvancedTab && (
-                <TabsTrigger
-                  value="advanced"
-                  className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                  Advanced
-                </TabsTrigger>
-              )}
-              <TabsTrigger
-                value="help"
-                className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                Help
-              </TabsTrigger>
+              {tabs.map((id) => {
+                const { label, Icon } = TAB_META[id];
+                return (
+                  <TabsTrigger
+                    key={id}
+                    value={id}
+                    className="gap-1.5 rounded-lg px-3 text-xs shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            <TabsContent value="account" className="m-0">
-              <AccountTab />
-            </TabsContent>
-            <TabsContent value="about" className="m-0">
-              <AboutTab />
-            </TabsContent>
-            <TabsContent value="appearance" className="m-0">
-              <AppearanceTab />
-            </TabsContent>
-            {user && (
-              <TabsContent value="watched" className="m-0">
-                <WatchedIndexesPanel />
+            {tabs.map((id) => (
+              <TabsContent key={id} value={id} className="m-0">
+                {id === "account" && <AccountTab />}
+                {id === "about" && <AboutTab />}
+                {id === "appearance" && <AppearanceTab />}
+                {id === "watched" && <WatchedIndexesPanel />}
+                {id === "cloud" && <CloudTab />}
+                {id === "advanced" && <AdvancedTab />}
+                {id === "help" && <HelpTab />}
               </TabsContent>
-            )}
-            {user && (
-              <TabsContent value="cloud" className="m-0">
-                <CloudTab />
-              </TabsContent>
-            )}
-            {showAdvancedTab && (
-              <TabsContent value="advanced" className="m-0">
-                <AdvancedTab />
-              </TabsContent>
-            )}
-            <TabsContent value="help" className="m-0">
-              <HelpTab />
-            </TabsContent>
+            ))}
           </div>
         </Tabs>
       </DialogContent>
