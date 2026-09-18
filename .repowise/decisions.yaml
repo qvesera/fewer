@@ -43,3 +43,23 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
+- id: 9a1397f53d596a5399b551de75209f7f
+  title: crawl.ts fetches one listing page per request; the rolling worker pool is the concurrency bound
+  decision: Keep one HTTP GET per directory listing in src/lib/fewer/crawl.ts. Apache/nginx auto-index
+    pages are the only data source and expose no batch or multi-directory endpoint, so the call-site count
+    is set by the remote protocol, not by our loop. Concurrency stays bounded by CONCURRENCY = 4 in the
+    rolling worker pool, with MAX_PAGES = 200 and MAX_DEPTH = 6 capping total I/O. io_in_loop findings
+    on crawlTree and fetchEntries are to be treated as protocol-inherent, not as defects to batch away.
+  reason: There is no request shape that returns more than one listing, so the only available lever is
+    raising concurrency against third-party servers -- a politeness and rate-limit tradeoff rather than
+    a correctness or throughput fix. A bounded rolling pool already keeps all four slots busy while one
+    slow page (up to TIMEOUT_MS) idles nobody, which is what the pre-pool batch barrier got wrong.
+  scope:
+  - src/lib/fewer/crawl.ts
+  - src/lib/fewer/watchDigest.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-09-18T18:26:04.755086'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
