@@ -96,6 +96,37 @@ describe("parseViewSettings — sanitize + v1→v2 migration", () => {
     expect(out.leaf).toEqual({ edgeStyle: "angled", minimapHidden: true });
   });
 
+  test("every typed field survives when well-typed and is dropped when not", () => {
+    // The recognised fields live in one table (SIMPLE_FIELD_TYPES); this pins
+    // each row's type guard so adding an option cannot silently skip it.
+    const good = {
+      showFiles: true,
+      minimapHidden: true,
+      edgeStyle: "angled",
+      edgeAnimated: true,
+      edgeAnimatedSelectedOnly: true,
+      edgeStrokeStyle: "dashed",
+      edgeWidth: 2,
+      direction: "LR",
+    } as const;
+    const bad = {
+      showFiles: "yes",
+      minimapHidden: 1,
+      edgeStyle: 7,
+      edgeAnimated: "true",
+      edgeAnimatedSelectedOnly: null,
+      edgeStrokeStyle: false,
+      edgeWidth: "2",
+      direction: [],
+    };
+    // showFiles is the v1 spelling: kept as-is, and also migrated into a layer.
+    expect(parseViewSettings({ leaf: good }).leaf).toEqual({
+      ...good,
+      hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] },
+    });
+    expect(parseViewSettings({ leaf: bad })).toEqual({});
+  });
+
   test("sanitizeHideLayers drops non-string members and bogus subtrees", () => {
     const out = parseViewSettings({
       leaf: {
