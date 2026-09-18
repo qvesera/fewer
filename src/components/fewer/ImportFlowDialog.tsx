@@ -64,6 +64,15 @@ const STEP_LABELS: Record<Step, string> = {
   3: "Import",
 };
 
+const BASIC_MODE_OPTION_DEFAULTS: Partial<ImportOptions> = {
+  includeHidden: DEFAULT_IMPORT_OPTIONS.includeHidden,
+  includeVendored: DEFAULT_IMPORT_OPTIONS.includeVendored,
+  skipEmptyFolders: DEFAULT_IMPORT_OPTIONS.skipEmptyFolders,
+  includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
+  extensions: DEFAULT_IMPORT_OPTIONS.extensions,
+  caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
+};
+
 const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
@@ -112,13 +121,24 @@ export function ImportFlowDialog({
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Reset the flow on each genuine open transition (open false->true).
+  // Re-seed options from the store (the source of truth): this dialog stays
+  // mounted while closed, so a long-lived instance would otherwise keep stale
+  // options after a cloud sync rewrote them. In basic mode the advanced fields
+  // are clamped to defaults, so a saved/synced advanced value can't leak into an
+  // import the user can no longer see or change.
   useEffect(() => {
     if (open) {
       handleFirstOpen();
       setStep(1);
       setOrigin(initialOrigin);
       setSource(defaultSourceFor(initialOrigin));
-      setOptions({ ...useGraphStore.getState().importOptions });
+      const { importOptions, advancedModeEnabled: advanced } =
+        useGraphStore.getState();
+      setOptions(
+        advanced
+          ? { ...importOptions }
+          : { ...importOptions, ...BASIC_MODE_OPTION_DEFAULTS },
+      );
       setActionError(null);
       setImporting(false);
     }
@@ -127,15 +147,7 @@ export function ImportFlowDialog({
   // Advanced mode off → advanced options fall back to defaults (same as old dialog).
   useEffect(() => {
     if (!advancedModeEnabled) {
-      setOptions((prev) => ({
-        ...prev,
-        includeHidden: DEFAULT_IMPORT_OPTIONS.includeHidden,
-        includeVendored: DEFAULT_IMPORT_OPTIONS.includeVendored,
-        skipEmptyFolders: DEFAULT_IMPORT_OPTIONS.skipEmptyFolders,
-        includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
-        extensions: DEFAULT_IMPORT_OPTIONS.extensions,
-        caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
-      }));
+      setOptions((prev) => ({ ...prev, ...BASIC_MODE_OPTION_DEFAULTS }));
     }
   }, [advancedModeEnabled]);
 
