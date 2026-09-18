@@ -63,3 +63,25 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
+- id: a1214228826ec0d70c22785984002469
+  title: graph state is composed of focused sub-slices; graphSlice.ts is the thin composer
+  decision: 'graphSlice.ts is a 27-line composer: createCoreSlice, createNodesSlice, createStructureSlice,
+    createHideShowSlice under src/store/slices/graph/ (plus pure helpers reveal.ts and detach.ts). New
+    graph actions land in the matching sub-slice, never in the composer. Cross-slice calls go through
+    get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees, reconcileAutoHide, unparentSubtree)
+    keep the old import path so deleteUndo.test.ts, showSubtrees.test.ts and revealHelpers.ts work unchanged.'
+  reason: 'Mirrors the established ui/ precedent (sub-slices + 32-line uiSlice.ts composer): each file
+    owns one concern, each creator type pins its own keys, and the composer web has the same shape so
+    createStore.ts needed no edits. Small units are reviewable; the monolith was not.'
+  scope:
+  - src/store/slices/graph/core.ts
+  - src/store/slices/graph/hideShow.ts
+  - src/store/slices/graph/nodes.ts
+  - src/store/slices/graph/structure.ts
+  - src/store/slices/graphSlice.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-09-18T19:16:53.344981'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
