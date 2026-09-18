@@ -19,17 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Cloud,
-  Download,
-  FolderOpen,
-  Globe,
-  Loader2,
-  Upload,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
@@ -37,7 +27,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
-import { ImportOriginStep } from "./ImportOriginStep";
+import { ImportOriginStep, ORIGIN_ICONS } from "./ImportOriginStep";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import {
@@ -71,13 +61,6 @@ const BASIC_MODE_OPTION_DEFAULTS: Partial<ImportOptions> = {
   includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
   extensions: DEFAULT_IMPORT_OPTIONS.extensions,
   caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
-};
-
-const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
-  folder: FolderOpen,
-  file: Upload,
-  url: Globe,
-  cloud: Cloud,
 };
 
 interface ImportFlowDialogProps {
