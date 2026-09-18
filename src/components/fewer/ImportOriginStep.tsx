@@ -75,7 +75,11 @@ const VISIBLE_ORIGINS_FOR: Record<"any" | "signedOut", ImportOrigin[]> = {
   signedOut: ORIGINS.filter((o) => o === "folder" || o === "file"),
 };
 
-const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
+/**
+ * Origin → card icon, shared with the step-3 summary header in
+ * ImportFlowDialog so the two can never disagree.
+ */
+export const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
   url: Globe,

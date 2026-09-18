@@ -169,7 +169,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion, activeLeafId, viewSettings } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion, activeLeafId, viewSettings, selectedNodeIds } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -178,12 +178,14 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     const lastOp = entry.ops[entry.ops.length - 1];
     const vs = getUndoViewState(lastOp);
     if (vs) viewPatch = applyViewState(get(), vs);
+    const prevSelection = selectedNodeIds.filter((id) => prevNodes.some((n) => n.id === id));
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
       nodes: applySearchHighlight(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
+      selectedNodeIds: prevSelection,
       ...viewPatch,
       ...leafPositionPatch(leafMoveOrigin(entry.ops) ?? (activeLeafId as string | null), viewSettings, entry.ops, "from"),
     });

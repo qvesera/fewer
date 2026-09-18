@@ -257,22 +257,45 @@ function sanitizeHideLayers(raw: unknown): HideLayers | undefined {
   };
 }
 
+/**
+ * Recognised simple fields and the `typeof` that admits them. Fields needing
+ * their own sanitising step (hideLayers, collapsedFolderIds, positions) are
+ * handled explicitly below. `showFiles` is the v1 spelling that
+ * migrateLegacyHideLayers still reads straight off the raw object.
+ *
+ * Key order is the order the fields land in the collected object.
+ */
+const SIMPLE_FIELD_TYPES: Record<string, "boolean" | "string" | "number"> = {
+  showFiles: "boolean", // v1 compat: migrated into hideLayers below
+  minimapHidden: "boolean",
+  edgeStyle: "string",
+  edgeAnimated: "boolean",
+  edgeAnimatedSelectedOnly: "boolean",
+  edgeStrokeStyle: "string",
+  edgeWidth: "number",
+  direction: "string",
+};
+
 /** Copy the recognised ViewSettings fields off a raw object, applying the
  *  v1→v2 migrations (legacy `showFiles` / `hiddenIds` → hide layers). */
 function collectViewSettings(raw: unknown): ViewSettings {
   const out: Record<string, unknown> = {};
   const obj = raw as Record<string, unknown>;
   if (obj.hideLayers) out.hideLayers = sanitizeHideLayers(obj.hideLayers);
-  if (typeof obj.showFiles === "boolean") out.showFiles = obj.showFiles; // v1 compat: migrate below
-  if (typeof obj.minimapHidden === "boolean") out.minimapHidden = obj.minimapHidden;
-  if (typeof obj.edgeStyle === "string") out.edgeStyle = obj.edgeStyle;
-  if (typeof obj.edgeAnimated === "boolean") out.edgeAnimated = obj.edgeAnimated;
-  if (typeof obj.edgeAnimatedSelectedOnly === "boolean") out.edgeAnimatedSelectedOnly = obj.edgeAnimatedSelectedOnly;
-  if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
-  if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
-  if (typeof obj.direction === "string") out.direction = obj.direction;
+  for (const [field, type] of Object.entries(SIMPLE_FIELD_TYPES)) {
+    if (typeof obj[field] === type) out[field] = obj[field];
+  }
   if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
+  migrateLegacyHideLayers(out, obj);
+  return out as ViewSettings;
+}
+
+/** Preserve legacy precedence: explicit layers, then showFiles, then hiddenIds. */
+function migrateLegacyHideLayers(
+  out: Record<string, unknown>,
+  obj: Record<string, unknown>,
+): void {
   // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
   if (!out.hideLayers && typeof obj.showFiles === "boolean") {
     out.hideLayers = { ...emptyHideLayers(), filesBulkActive: !obj.showFiles };
@@ -281,7 +304,6 @@ function collectViewSettings(raw: unknown): ViewSettings {
   if (!out.hideLayers && Array.isArray(obj.hiddenIds)) {
     out.hideLayers = { ...emptyHideLayers(), individual: obj.hiddenIds as string[] };
   }
-  return out as ViewSettings;
 }
 
 function sanitizeViewSettings(raw: unknown): ViewSettings {
