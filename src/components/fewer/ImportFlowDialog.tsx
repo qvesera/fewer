@@ -36,15 +36,8 @@ import {
   isSourceReady,
   sourceLabel,
 } from "@/lib/fewer/importFlow";
-import type {
-  ImportActionResult,
-  ImportOrigin,
-  OriginSource,
-} from "@/lib/fewer/importFlow";
-import { runFolderImport } from "@/lib/fewer/importActionFolder";
-import { runFileImport } from "@/lib/fewer/importActionFile";
-import { runUrlImport } from "@/lib/fewer/importActionUrl";
-import { runCloudImport } from "@/lib/fewer/importActionCloud";
+import type { ImportOrigin, OriginSource } from "@/lib/fewer/importFlow";
+import { runImport } from "@/lib/fewer/importAction";
 
 type Step = 1 | 2 | 3;
 
@@ -145,29 +138,11 @@ export function ImportFlowDialog({
     setImporting(true);
     setActionError(null);
 
-    let result: ImportActionResult;
-    switch (source.origin) {
-      case "folder":
-        result = await runFolderImport(options);
-        break;
-      case "file":
-        result = await runFileImport(source, options);
-        break;
-      case "url":
-        result = await runUrlImport(source, options, {
-          importUrl,
-          getTruncated: () => getUrlResult().truncated,
-          watchUrl: source.watch ? watchAdd : undefined,
-        });
-        if (!result.ok) {
-          const hookError = getUrlResult().error;
-          if (hookError) result = { ...result, error: hookError };
-        }
-        break;
-      case "cloud":
-        result = await runCloudImport(source, options);
-        break;
-    }
+    const result = await runImport(source, options, {
+      importUrl,
+      getUrlResult,
+      watchUrl: watchAdd,
+    });
 
     setImporting(false);
 
