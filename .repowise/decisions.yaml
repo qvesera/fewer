@@ -5,6 +5,27 @@
 # Candidates and evidence stay out of it on purpose.
 version: 1
 decisions:
+- id: 3d6a225b71ffe94046ff4724880ca7cb
+  title: 'Import is one 3-step flow dialog: origin, shared options, per-origin action'
+  decision: 'All four origins share one ImportFlowDialog with three steps: step 1 picks the origin and
+    its source (ImportOriginStep, the only origin-specific UI), step 2 configures the single shared ImportOptionsPanel,
+    step 3 runs the origin''s action. Only the step-3 action varies, one plain async function per origin
+    in src/lib/fewer/importAction*.ts, and the origin-to-action mapping lives in src/lib/fewer/importAction.ts
+    (runImport) so it is unit-testable without a renderer.'
+  reason: One options panel and one result contract (ImportActionResult) means a change to import semantics
+    lands once instead of four times, and the per-origin actions stay free of React so they can be tested
+    with bun alone.
+  scope:
+  - src/components/fewer/ImportFlowDialog.tsx
+  - src/components/fewer/ImportOriginStep.tsx
+  - src/lib/fewer/importAction.ts
+  - src/lib/fewer/importFlow.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-09-18T15:01:13.440051'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
 - id: 7c1cd6c3f686ba264622902b0dd7c98d
   title: GraphCanvas stays thin wiring over use-canvas-* hooks
   decision: Keep GraphCanvas/CanvasInner as thin wiring and push canvas behaviour into one-purpose hooks
@@ -18,7 +39,7 @@ decisions:
   - src/hooks
   currency: active
   source: cli
-  accepted_at: '2026-09-12T16:55:18.860546'
+  accepted_at: '2026-09-12T16:57:51.183394'
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
