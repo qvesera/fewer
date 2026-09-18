@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Graph import/merge plumbing (edge sort, deselect-and-merge) extracted from graphSlice into importMerge with regression tests
 - Legacy view-settings migration logic extracted into migrateLegacyHideLayers; viewState precedence now regression-pinned
 - Added a DOM-based component test suite (SettingsDialog interactions) running on happy-dom via bun --preload
+- Connection-path rewriting is now one tested module (pathRewrite.ts::rewriteConnectionPaths) that owns both the path rewrite and its undo/redo payload, so the graph slice only validates, creates the edge and updates the store; the rewrite rules and raw-import edge cases have their own bun test. Behavior unchanged.
+- Large-folder auto-hide, display-depth and category hide sets now come from pure helpers in importMerge (computeImportedHideSets, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds) instead of being inlined in setGraph, with unit coverage over the layering rules. Behavior unchanged.
+- The step-3 import dispatch is one tested runImport helper in importAction.ts instead of a switch inside the dialog: it picks the origin's action, wires the URL context (watch only when requested, truncation read from the hook snapshot) and prefers the fetch hook's own error over the runner's generic one. 12 bun tests cover the contract.
+- The origin-to-card icon map is shared between the step-1 grid and the step-3 summary header instead of being written out twice, so the two steps cannot drift apart. Behavior unchanged.
+- View-settings sanitising now reads its recognised fields from one type table instead of eleven typeof branches, and a test pins each row in both directions, so a new per-view option is one table row rather than another branch. Behavior unchanged: the pre-change and post-change implementations were diffed over ~3,400 generated inputs with no divergent result.
 
 ### Fixed
 
@@ -77,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the app freezing on graphs whose cycle sits above the node you act on (reachable from a raw import: setGraph stores edges verbatim, and validateConnection only guards the connect UI). Unparent, Move to folder, Show ancestors, the display-depth limit and the Hidden panel all followed parent links with no visited set, so the walk re-entered the cycle forever: Hide/reactivate on an imported cyclic graph could hang the UI with no way back. All of them now go through one cycle-safe ancestorChainOf helper (src/lib/fewer/validation.ts), which emits each id at most once.
 - Fixed a RangeError crash when laying out an imported graph containing a cycle: calculateDepths, computeSubtreeSize, layoutSubtree and assignPositions in layout.ts all recursed into children without a repeat guard, so any relayout overflowed the stack. Each now cuts a back-edge into the chain it is walking, which cannot fire on an acyclic graph (a node is never its own ancestor), so positions for normal trees are untouched.
 - The import dialog no longer reuses advanced import options saved by a previous session or synced from the cloud when advanced mode is off — opening it in basic mode clamps include-hidden, vendored folders, empty folders, files, extensions and case-sensitive extensions back to their defaults
+- Undo now drops selection that the restored graph no longer contains, so undoing a paste no longer leaves cards selected that are not on the canvas.
 
 ### Added
 
