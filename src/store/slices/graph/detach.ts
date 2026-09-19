@@ -8,11 +8,13 @@ import { getDescendants } from "@/lib/fewer/validation";
  * (and of its descendants) so breadcrumbs reflect the new root-level location.
  * Returns the updated nodes plus the path changes for the history op.
  */
-export function unparentSubtree(
-  nodes: FewerNode[],
-  edges: FewerEdge[],
-  removedEdges: FewerEdge[],
-): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
+/**
+ * Targets that lose their last remaining parent edge when `removedEdges` are
+ * deleted from `edges` — each becomes a new root. `edges` still contains the
+ * removed edges at call time, so an edge in `removedEdges` does not count as
+ * a surviving parent.
+ */
+function computeRootless(edges: FewerEdge[], removedEdges: FewerEdge[]): Set<string> {
   const incoming = new Map<string, string[]>();
   for (const e of edges) {
     if (!incoming.has(e.target)) incoming.set(e.target, []);
@@ -23,6 +25,15 @@ export function unparentSubtree(
     const ps = (incoming.get(e.target) ?? []).filter((p) => !removedEdges.some((re) => re.source === p && re.target === e.target));
     if (ps.length === 0) rootless.add(e.target);
   }
+  return rootless;
+}
+
+export function unparentSubtree(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  removedEdges: FewerEdge[],
+): { nodes: FewerNode[]; pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] } {
+  const rootless = computeRootless(edges, removedEdges);
   const pathChanges: { nodeId: string; prevPath: string; nextPath: string }[] = [];
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const next = nodes.map((n) => ({ ...n }));
