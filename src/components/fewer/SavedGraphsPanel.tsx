@@ -17,11 +17,22 @@ import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { useProfile } from "@/hooks/use-profile";
 import { useGraphStore } from "@/store/graphStore";
 import { buildSnapshot, applySnapshot } from "@/lib/fewer/snapshot";
-import { graphDataEqual } from "@/lib/fewer/versions";
 import { FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
+import {
+  buildGraphSaveBody,
+  buildShareRequestBody,
+  graphSaveError,
+  graphSaveUnchanged,
+  noChangesToast,
+  parseEmailList,
+  saveGraphName,
+  saveSuccessToast,
+  shareCreateError,
+  shareCreatedToast,
+} from "@/lib/fewer/savedGraphsModel";
 import { useAuth } from "@/hooks/use-auth";
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
 import {
@@ -107,10 +118,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const finishSave = async (name: string, updating: boolean) => {
     closeSaveDialog();
     await loadGraphs();
-    toast({
-      title: updating ? "Graph updated" : "Saved",
-      description: updating ? `"${name}" updated with a new version.` : `"${name}" saved to your account.`,
-    });
+    toast(saveSuccessToast(name, updating));
   };
 
   const handleSave = async () => {
@@ -122,7 +130,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       toast({ title: "Could not save", description: nameError, variant: "destructive" });
       return;
     }
-    const name = safeText(saveName) || (updating ? saveTarget.name : "Untitled");
+    // The graph being updated, or null for a brand-new save.
+    const target = updating ? saveTarget : null;
+    const name = saveGraphName(saveName, target?.name ?? null);
     setSaving(true);
     try {
       // Refresh the graph's root local path (if resolvable) so it's persisted
@@ -132,12 +142,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       // When updating an existing graph, validate against its saved data first:
       // an identical snapshot means nothing changed, so skip the write (and skip
       // creating a redundant version) and just tell the user.
-      if (updating && graphDataEqual(data, saveTarget.data)) {
+      if (graphSaveUnchanged(updating, data, target?.data ?? null)) {
         closeSaveDialog();
-        toast({
-          title: "No changes",
-          description: `"${saveTarget.name}" is already up to date — no new version was added.`,
-        });
+        toast(noChangesToast(target?.name ?? ""));
         return;
       }
       const res = await fetch("/api/graphs", {
@@ -145,10 +152,14 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         headers: { "Content-Type": "application/json" },
         // Sending the existing graph's id makes the API update it in place
         // (keeping its share link) and records a new version history snapshot.
-        body: JSON.stringify(updating ? { id: saveTarget.id, name, data } : { name, data }),
+        body: JSON.stringify(buildGraphSaveBody(name, data, target?.id ?? null)),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
+      const saveError = graphSaveError(res, json);
+      if (saveError) {
+        toast({ title: "Could not save", description: saveError, variant: "destructive" });
+        return;
+      }
       await finishSave(name, updating);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
@@ -548,37 +559,36 @@ function ShareGraphDialog({
     return () => { cancelled = true; };
   }, [user, graph.id]);
 
-  const parseEmails = (): string[] => {
-    const list = emails.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const e of list) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-        toast({ title: "Invalid email", description: `"${e}" is not a valid email.`, variant: "destructive" });
-        return [];
-      }
-      if (!seen.has(e)) { seen.add(e); out.push(e); }
-    }
-    return out;
+  /** Invite list for the request. A malformed entry rejects the whole list
+      (pre-existing behaviour) and warns with the first offender. */
+  const inviteEmails = (): string[] => {
+    const parsed = parseEmailList(emails);
+    if (parsed.invalid.length === 0) return parsed.emails;
+    toast({
+      title: "Invalid email",
+      description: `"${parsed.invalid[0]}" is not a valid email.`,
+      variant: "destructive",
+    });
+    return [];
   };
 
   /** Record the created share and confirm it in the mode that was chosen. */
   const applyShareResult = (id: string, invitedEmails: string[]) => {
     setExistingId(id);
     setShareUrl(buildDbShareUrl(id));
-    if (gallery && access === "public") {
-      toast({
-        title: "Published to the gallery",
-        description: `"${galleryTitle.trim() || graph.name}" is now live in the community gallery.`,
-      });
-    } else if (access === "invite") {
-      toast({ title: "Invites sent", description: `Emailed ${invitedEmails.length} invitee${invitedEmails.length === 1 ? "" : "s"} a private link.` });
-    }
+    const confirmation = shareCreatedToast({
+      access,
+      gallery,
+      galleryTitle,
+      graphName: graph.name,
+      inviteeCount: invitedEmails.length,
+    });
+    if (confirmation) toast(confirmation);
   };
 
   const buildShare = async () => {
     if (!user) return onRequireAuth();
-    const invited_emails = access === "invite" ? parseEmails() : [];
+    const invited_emails = access === "invite" ? inviteEmails() : [];
     if (access === "invite" && invited_emails.length === 0) {
       toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
       return;
@@ -600,19 +610,25 @@ function ShareGraphDialog({
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: graph.data,
-          access,
-          invited_emails,
-          saved_graph_id: graph.id,
-          name: graph.name,
-          in_gallery: gallery && access === "public",
-          gallery_title: safeText(galleryTitle),
-          gallery_description: safeText(galleryDescription),
-        }),
+        body: JSON.stringify(
+          buildShareRequestBody({
+            data: graph.data,
+            access,
+            invitedEmails: invited_emails,
+            savedGraphId: graph.id,
+            name: graph.name,
+            gallery,
+            galleryTitle,
+            galleryDescription,
+          }),
+        ),
       });
       const json = await res.json();
-      if (!res.ok || !json.id) throw new Error(json.error || "Share failed");
+      const shareError = shareCreateError(res, json);
+      if (shareError) {
+        toast({ title: "Could not share", description: shareError, variant: "destructive" });
+        return;
+      }
       applyShareResult(json.id, invited_emails);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Share failed";
