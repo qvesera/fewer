@@ -1,12 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildProfileSaveBody,
+  classifyAccountDelete,
+  classifyProfileSave,
   minimapBounds,
   normalizeProfileResponse,
   profileIsDirty,
+  profileNeedsSave,
   strokeStyleOptions,
   themeModeOptions,
   usageMeter,
+  validateProfileFields,
   visibleTabs,
 } from "./settingsModel";
 
@@ -79,6 +83,129 @@ describe("profileIsDirty", () => {
   it("is false for the untouched defaults", () => {
     const empty = { first_name: "", last_name: "", username: "" };
     expect(profileIsDirty({ firstName: "", lastName: "", username: "" }, empty)).toBe(false);
+  });
+});
+
+// ─── profile save validation ───────────────────────────────────
+
+describe("validateProfileFields", () => {
+  it("accepts a complete valid profile", () => {
+    expect(validateProfileFields({ firstName: "Ada", lastName: "Lovelace", username: "ada" })).toEqual({ ok: true });
+  });
+
+  it("rejects a username containing '@'", () => {
+    expect(
+      validateProfileFields({ firstName: "Ada", lastName: "Lovelace", username: "bad@name" }),
+    ).toEqual({ ok: false, message: "Username can't contain \"@\"." });
+  });
+
+  it("stops at the first failure — a dangerous first name short-circuits the rest", () => {
+    expect(
+      validateProfileFields({ firstName: "null", lastName: "Lovelace", username: "bad@name" }),
+    ).toEqual({ ok: false, message: "First name has an invalid value and can't be saved." });
+  });
+
+  it("does not enforce required names — empty is allowed, mirroring the dialog", () => {
+    expect(validateProfileFields({ firstName: "", lastName: "", username: "" })).toEqual({ ok: true });
+  });
+
+  it("rejects names over 100 characters", () => {
+    expect(
+      validateProfileFields({ firstName: "a".repeat(101), lastName: "", username: "" }),
+    ).toEqual({ ok: false, message: "First name must be 100 characters or fewer." });
+  });
+
+  it("accepts a username with surrounding spaces — trim happens only in buildProfileSaveBody", () => {
+    expect(validateProfileFields({ firstName: "Ada", lastName: "Lovelace", username: "  ada  " })).toEqual({ ok: true });
+  });
+});
+
+// ─── pre-save dirty decision ──────────────────────────────────
+
+describe("profileNeedsSave", () => {
+  const saved = { first_name: "Ada", last_name: "Lovelace", username: "ada" };
+  const edited = { firstName: "Ada", lastName: "Lovelace", username: "ada_new" };
+
+  it("is false when nothing was edited", () => {
+    expect(profileNeedsSave(saved, saved, { firstName: "Ada", lastName: "Lovelace", username: "ada" })).toBe(false);
+  });
+
+  it("is true when the edit differs from both the loaded and the live profile", () => {
+    expect(profileNeedsSave(saved, saved, edited)).toBe(true);
+  });
+
+  it("is false when the live server profile already matches the edit (re-fetch correction)", () => {
+    const fresh = { first_name: "Ada", last_name: "Lovelace", username: "ada_new" };
+    expect(profileNeedsSave(saved, fresh, edited)).toBe(false);
+  });
+
+  it("ignores surrounding whitespace the same way the save path normalises it", () => {
+    expect(profileNeedsSave(saved, saved, { firstName: " Ada ", lastName: "Lovelace", username: "ada" })).toBe(false);
+  });
+});
+
+// ─── save-outcome classification ─────────────────────────────────
+
+describe("classifyProfileSave", () => {
+  const saved = { first_name: "Ada", last_name: "Lovelace", username: "ada" };
+  const edited = { firstName: "Ada", lastName: "Lovelace", username: "ada_new" };
+
+  it("classifies a 200 as saved with the exact toast the dialog shows", () => {
+    const outcome = classifyProfileSave(new Response(null, { status: 200 }), {}, saved, edited);
+    expect(outcome).toEqual({ kind: "saved", toast: { title: "Profile updated" } });
+  });
+
+  it("classifies a non-2xx response as an error carrying the server message, with revert", () => {
+    const res = new Response(JSON.stringify({ error: "Username taken" }), { status: 409 });
+    const outcome = classifyProfileSave(res, { error: "Username taken" }, saved, edited);
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not save profile", description: "Username taken", variant: "destructive" },
+      revert: true,
+    });
+  });
+
+  it("falls back to a generic description when the error body carries no message", () => {
+    const res = new Response(null, { status: 500 });
+    const outcome = classifyProfileSave(res, null, saved, edited);
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not save profile", description: "Could not save profile", variant: "destructive" },
+      revert: true,
+    });
+  });
+});
+
+// ─── delete-outcome classification ────────────────────────────────
+
+describe("classifyAccountDelete", () => {
+  it("classifies a 200 as scheduled with the exact toast the dialog shows", () => {
+    const outcome = classifyAccountDelete(new Response(null, { status: 200 }), {});
+    expect(outcome).toEqual({
+      kind: "scheduled",
+      toast: {
+        title: "Deletion scheduled",
+        description:
+          "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+      },
+    });
+  });
+
+  it("classifies a non-2xx response as an error carrying the server message", () => {
+    const res = new Response(JSON.stringify({ error: "Too many requests" }), { status: 429 });
+    const outcome = classifyAccountDelete(res, { error: "Too many requests" });
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not delete account", description: "Too many requests", variant: "destructive" },
+    });
+  });
+
+  it("falls back to a generic description when the error body carries no message", () => {
+    const outcome = classifyAccountDelete(new Response(null, { status: 500 }), null);
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not delete account", description: "Could not delete account", variant: "destructive" },
+    });
   });
 });
 

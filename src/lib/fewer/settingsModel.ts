@@ -1,4 +1,5 @@
 import type { ThemeMode } from "./types";
+import { validateTextField, validateUsername } from "./textValidation";
 
 /**
  * Pure model for the Settings dialog (src/components/fewer/SettingsDialog.tsx).
@@ -90,6 +91,114 @@ export function profileIsDirty(
     edited.username.trim() === saved.username
   );
 }
+
+/**
+ * Validate the three editable profile fields together. Returns the first
+ * failure so the dialog can show one message instead of running all three
+ * validators when the first already failed. The checks mirror the dialog's
+ * current inline validation (no `required` guard on names — empty names are
+ * allowed; usernames may not contain "@").
+ */
+export function validateProfileFields(
+  fields: { firstName: string; lastName: string; username: string },
+): { ok: boolean; message?: string } {
+  const invalid =
+    validateTextField(fields.firstName, { label: "First name", max: 100 }) ??
+    validateTextField(fields.lastName, { label: "Last name", max: 100 }) ??
+    validateUsername(fields.username, { label: "Username", max: 100 });
+  if (invalid) return { ok: false, message: invalid };
+  return { ok: true };
+}
+
+/**
+ * Decide whether a save is needed: the edited fields differ from the profile
+ * the dialog loaded (`saved`), *and* they still differ from the server's
+ * current profile (`fresh`) — the dialog re-fetches the live profile just
+ * before saving so a concurrent change that already matches the edit can be
+ * skipped.
+ */
+export function profileNeedsSave(
+  saved: ProfileFields,
+  fresh: ProfileFields,
+  fields: { firstName: string; lastName: string; username: string },
+): boolean {
+  if (!profileIsDirty(fields, saved)) return false;
+  return profileIsDirty(fields, fresh);
+}
+
+/**
+ * Result of classifying a profile PUT response so the dialog can show one
+ * toast and optionally re-sync from the server.
+ */
+export type SaveOutcome =
+  | { kind: "no_changes"; toast: { title: string; description?: string; variant?: "default" | "destructive" } }
+  | { kind: "saved"; toast: { title: string; description?: string; variant?: "default" | "destructive" } }
+  | { kind: "error"; toast: { title: string; description: string; variant: "destructive" }; revert: boolean };
+
+/**
+ * Classify the result of a profile PUT so the dialog can show one toast and
+ * optionally re-sync from the server. The dialog still owns the async fetch;
+ * this is pure decision logic only. Takes the already-parsed response body
+ * (`data`) so the helper stays free of JSON.parse.
+ */
+export function classifyProfileSave(
+  res: Response,
+  data: unknown,
+  _savedProfile: ProfileFields,
+  _edited: { firstName: string; lastName: string; username: string },
+): SaveOutcome {
+  if (!res.ok) {
+    const errorData = data as { error?: string } | null | undefined;
+    return {
+      kind: "error",
+      toast: {
+        title: "Could not save profile",
+        description: errorData?.error || "Could not save profile",
+        variant: "destructive",
+      },
+      revert: true,
+    };
+  }
+  return { kind: "saved", toast: { title: "Profile updated" } };
+}
+
+
+/**
+ * Classified result of the DELETE /api/account call so the dialog can show
+ * one toast and decide whether to sign out and close. Pure decision logic —
+ * the dialog owns the async fetch and the sign-out/close side effects. Takes
+ * the already-parsed response body; falls back to a generic message when the
+ * error body carries none.
+ */
+export type DeleteOutcome =
+  | { kind: "scheduled"; toast: { title: string; description: string } }
+  | { kind: "error"; toast: { title: string; description: string; variant: "destructive" } };
+
+export function classifyAccountDelete(
+  res: Response,
+  data: unknown,
+): DeleteOutcome {
+  if (!res.ok) {
+    const errorData = data as { error?: string } | null | undefined;
+    return {
+      kind: "error",
+      toast: {
+        title: "Could not delete account",
+        description: errorData?.error || "Could not delete account",
+        variant: "destructive",
+      },
+    };
+  }
+  return {
+    kind: "scheduled",
+    toast: {
+      title: "Deletion scheduled",
+      description:
+        "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+    },
+  };
+}
+
 
 export interface UsageMeter {
   /** False for an unlimited quota (Infinity) — the bar is not rendered. */

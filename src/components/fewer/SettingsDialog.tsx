@@ -68,7 +68,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { validateTextField, validateUsername } from "@/lib/fewer/textValidation";
 import { limitsFor, formatUsage } from "@/lib/fewer/plans";
 import { useAuth } from "@/hooks/use-auth";
 import { useBilling } from "@/hooks/use-billing";
@@ -77,13 +76,18 @@ import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 import {
   buildProfileSaveBody,
+  classifyAccountDelete,
+  classifyProfileSave,
   minimapBounds,
   normalizeProfileResponse,
   profileIsDirty,
+  profileNeedsSave,
   strokeStyleOptions,
   themeModeOptions,
   usageMeter,
+  validateProfileFields,
   visibleTabs,
+  type ProfileFields,
   type SettingsTabId,
 } from "@/lib/fewer/settingsModel";
 import type { LucideIcon } from "lucide-react";
@@ -170,18 +174,41 @@ function AccountTab() {
 
   const profileUnchanged = !profileIsDirty({ firstName, lastName, username }, savedProfile);
 
+  // Fetch the live profile from the server; used to re-sync state after a
+  // failed save. Returns null on network failure — the caller keeps its
+  // current state then.
+  const fetchProfile = async (): Promise<ProfileFields | null> => {
+    try {
+      const res = await fetch("/api/profile");
+      return normalizeProfileResponse(await res.json());
+    } catch {
+      return null;
+    }
+  };
+
   const handleSaveProfile = async () => {
-    // Client-side guard: refuse dangerous/oversized values before POSTing.
-    const invalid =
-      validateTextField(firstName, { label: "First name", max: 100 }) ??
-      validateTextField(lastName, { label: "Last name", max: 100 }) ??
-      validateUsername(username, { label: "Username", max: 100 });
-    if (invalid) {
-      toast({ title: "Could not save profile", description: invalid, variant: "destructive" });
+    if (saving) return;
+
+    // Client-side guard: refuse dangerous/oversized values before PUTting.
+    const validation = validateProfileFields({ firstName, lastName, username });
+    if (!validation.ok) {
+      toast({ title: "Could not save profile", description: validation.message!, variant: "destructive" });
       return;
     }
+
     setSaving(true);
     try {
+      // Re-fetch the live profile just before saving so a concurrent change
+      // that already matches the edit can be skipped (profileNeedsSave).
+      const fresh = await fetchProfile();
+      if (fresh) {
+        setSavedProfile(fresh);
+        if (!profileNeedsSave(savedProfile, fresh, { firstName, lastName, username })) {
+          toast({ title: "No changes", description: "Nothing was changed." });
+          return;
+        }
+      }
+
       // Normalized the same way the server stores it (case-insensitive uniqueness).
       const body = buildProfileSaveBody({ firstName, lastName, username });
       const res = await fetch("/api/profile", {
@@ -189,19 +216,23 @@ function AccountTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        let msg = "Could not save profile";
-        try {
-          const body = await res.json();
-          if (body?.error) msg = body.error;
-        } catch {
-          /* ignore */
-        }
-        throw new Error(msg);
+      let data: unknown = null;
+      try {
+        data = await res.json();
+      } catch {
+        /* non-JSON body — treated as an empty payload */
       }
-      setUsername(body.username);
-      setSavedProfile(body);
-      toast({ title: "Profile updated" });
+      const outcome = classifyProfileSave(res, data, savedProfile, { firstName, lastName, username });
+      toast(outcome.toast);
+      if (outcome.kind === "saved") {
+        setUsername(body.username);
+        setSavedProfile(body);
+      } else if (outcome.kind === "error" && outcome.revert) {
+        // Re-sync from server truth after a failed save; the edited inputs
+        // keep the user's values so they can retry.
+        const revert = await fetchProfile();
+        if (revert) setSavedProfile(revert);
+      }
     } catch (err) {
       const msg = errMessage(err, "Could not save profile");
       toast({ title: "Could not save profile", description: msg, variant: "destructive" });
@@ -261,16 +292,16 @@ function AccountTab() {
     setDeleting(true);
     try {
       const res = await fetch("/api/account", { method: "DELETE" });
-      if (!res.ok) {
-        let msg = "Could not delete account";
-        try {
-          const body = await res.json();
-          if (body?.error) msg = body.error;
-        } catch {
-          /* ignore */
-        }
-        throw new Error(msg);
+      let data: unknown = null;
+      try {
+        data = await res.json();
+      } catch {
+        /* non-JSON body — treated as an empty payload */
       }
+      const outcome = classifyAccountDelete(res, data);
+      toast(outcome.toast);
+      if (outcome.kind === "error") return;
+
       // Sign out locally so the UI reflects the deleted session immediately.
       try {
         await getBrowserSupabase().auth.signOut();
@@ -279,10 +310,6 @@ function AccountTab() {
       }
       useGraphStore.getState().setSettingsOpen(false);
       setConfirmOpen(false);
-      toast({
-        title: "Deletion scheduled",
-        description: "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
-      });
     } catch (err) {
       const msg = errMessage(err, "Could not delete account");
       toast({ title: "Could not delete account", description: msg, variant: "destructive" });
