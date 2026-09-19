@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildProfileSaveBody,
+  classifyAccountDelete,
   classifyProfileSave,
   minimapBounds,
   normalizeProfileResponse,
@@ -171,6 +172,39 @@ describe("classifyProfileSave", () => {
       kind: "error",
       toast: { title: "Could not save profile", description: "Could not save profile", variant: "destructive" },
       revert: true,
+    });
+  });
+});
+
+// ─── delete-outcome classification ────────────────────────────────
+
+describe("classifyAccountDelete", () => {
+  it("classifies a 200 as scheduled with the exact toast the dialog shows", () => {
+    const outcome = classifyAccountDelete(new Response(null, { status: 200 }), {});
+    expect(outcome).toEqual({
+      kind: "scheduled",
+      toast: {
+        title: "Deletion scheduled",
+        description:
+          "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+      },
+    });
+  });
+
+  it("classifies a non-2xx response as an error carrying the server message", () => {
+    const res = new Response(JSON.stringify({ error: "Too many requests" }), { status: 429 });
+    const outcome = classifyAccountDelete(res, { error: "Too many requests" });
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not delete account", description: "Too many requests", variant: "destructive" },
+    });
+  });
+
+  it("falls back to a generic description when the error body carries no message", () => {
+    const outcome = classifyAccountDelete(new Response(null, { status: 500 }), null);
+    expect(outcome).toEqual({
+      kind: "error",
+      toast: { title: "Could not delete account", description: "Could not delete account", variant: "destructive" },
     });
   });
 });

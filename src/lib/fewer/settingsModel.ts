@@ -163,6 +163,43 @@ export function classifyProfileSave(
 }
 
 
+/**
+ * Classified result of the DELETE /api/account call so the dialog can show
+ * one toast and decide whether to sign out and close. Pure decision logic —
+ * the dialog owns the async fetch and the sign-out/close side effects. Takes
+ * the already-parsed response body; falls back to a generic message when the
+ * error body carries none.
+ */
+export type DeleteOutcome =
+  | { kind: "scheduled"; toast: { title: string; description: string } }
+  | { kind: "error"; toast: { title: string; description: string; variant: "destructive" } };
+
+export function classifyAccountDelete(
+  res: Response,
+  data: unknown,
+): DeleteOutcome {
+  if (!res.ok) {
+    const errorData = data as { error?: string } | null | undefined;
+    return {
+      kind: "error",
+      toast: {
+        title: "Could not delete account",
+        description: errorData?.error || "Could not delete account",
+        variant: "destructive",
+      },
+    };
+  }
+  return {
+    kind: "scheduled",
+    toast: {
+      title: "Deletion scheduled",
+      description:
+        "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
+    },
+  };
+}
+
+
 export interface UsageMeter {
   /** False for an unlimited quota (Infinity) — the bar is not rendered. */
   visible: boolean;

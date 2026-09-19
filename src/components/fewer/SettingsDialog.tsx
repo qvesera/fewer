@@ -76,6 +76,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 import {
   buildProfileSaveBody,
+  classifyAccountDelete,
   classifyProfileSave,
   minimapBounds,
   normalizeProfileResponse,
@@ -291,16 +292,16 @@ function AccountTab() {
     setDeleting(true);
     try {
       const res = await fetch("/api/account", { method: "DELETE" });
-      if (!res.ok) {
-        let msg = "Could not delete account";
-        try {
-          const body = await res.json();
-          if (body?.error) msg = body.error;
-        } catch {
-          /* ignore */
-        }
-        throw new Error(msg);
+      let data: unknown = null;
+      try {
+        data = await res.json();
+      } catch {
+        /* non-JSON body — treated as an empty payload */
       }
+      const outcome = classifyAccountDelete(res, data);
+      toast(outcome.toast);
+      if (outcome.kind === "error") return;
+
       // Sign out locally so the UI reflects the deleted session immediately.
       try {
         await getBrowserSupabase().auth.signOut();
@@ -309,10 +310,6 @@ function AccountTab() {
       }
       useGraphStore.getState().setSettingsOpen(false);
       setConfirmOpen(false);
-      toast({
-        title: "Deletion scheduled",
-        description: "Your account will be permanently deleted in 7 days. Sign in again before then to cancel.",
-      });
     } catch (err) {
       const msg = errMessage(err, "Could not delete account");
       toast({ title: "Could not delete account", description: msg, variant: "destructive" });
