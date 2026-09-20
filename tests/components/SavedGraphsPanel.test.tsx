@@ -16,8 +16,17 @@ mock.module("@/hooks/use-profile", () => ({
 // OS path resolution and the snapshot builder are store-side concerns with their
 // own tests; the panel only needs a stable snapshot to send.
 const SNAPSHOT = { nodes: [{ id: "n1", data: { label: "root" } }], edges: [] };
-mock.module("@/lib/fewer/fileOps", () => ({ resolveRootLocalPath: async () => {} }));
+// bun's mock.module registry is process-wide: a partial factory also replaces the
+// module for every later test file. Spread the real module and override only the
+// functions this suite stubs (CustomNode imports two others from fileOps).
+const actualFileOps = await import("@/lib/fewer/fileOps");
+mock.module("@/lib/fewer/fileOps", () => ({
+  ...actualFileOps,
+  resolveRootLocalPath: async () => {},
+}));
+const actualSnapshot = await import("@/lib/fewer/snapshot");
 mock.module("@/lib/fewer/snapshot", () => ({
+  ...actualSnapshot,
   buildSnapshot: () => SNAPSHOT,
   applySnapshot: () => {},
 }));
