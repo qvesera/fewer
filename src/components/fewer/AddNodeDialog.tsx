@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
+import { addNodeToast } from "@/lib/fewer/addNodeModel";
 import { AlertTriangle } from "lucide-react";
 
 interface AddNodeDialogProps {
@@ -58,18 +59,6 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
   }, [open]);
 
   // Real-time duplicate check
-  const displayName = useMemo(() => {
-    const trimmed = name.trim();
-    if (!trimmed) return "";
-    const ext = type === "file" ? (trimmed.includes(".") ? "" : "") : "";
-    if (type === "file") {
-      const dot = trimmed.lastIndexOf(".");
-      if (dot > 0) return trimmed.slice(0, dot);
-      return trimmed;
-    }
-    return trimmed;
-  }, [name, type]);
-
   const isDuplicate = useMemo(() => {
     const trimmed = name.trim();
     if (!trimmed) return false;
@@ -132,10 +121,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     if (mode === "child") {
       addNode(selectedNodeIds[0] ?? null, trimmed, type, pending ?? undefined);
       onOpenChange(false);
-      toast({
-        title: type === "folder" ? "Folder added" : "File added",
-        description: `"${trimmed}" added to folder`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     } else if (mode === "parent") {
       const targetId = selectedNodeIds[0] ?? null;
       const result = targetId ? addParentNode(targetId, trimmed, pending ?? undefined) : null;
@@ -144,17 +130,11 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
         return;
       }
       onOpenChange(false);
-      toast({
-        title: "Parent folder added",
-        description: `"${trimmed}" is now the parent card`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     } else {
       addStandaloneNode(trimmed, type, pending ?? { x: 1000, y: 600 });
       onOpenChange(false);
-      toast({
-        title: type === "folder" ? "Folder added" : "File added",
-        description: `"${trimmed}" added to canvas`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     }
   };
 

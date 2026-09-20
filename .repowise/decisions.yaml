@@ -168,3 +168,30 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
+- id: 4d3c2b1a0f9e8d7c6b5a43210fedcba9
+  title: Slice-factory CCN is an aggregate artifact — builder count, not branch depth
+  decision: >-
+    Cyclomatic complexity measured on slice-factory / builder functions that
+    return an object literal with multiple methods counts the enclosing arrow
+    function, not individual methods. A factory returning N inlined methods
+    reports CCN equal to the sum of all method bodies. Example:
+    nodes.ts composer (spreads 4 builders, no inline methods) = CCN 1;
+    clipboard.ts builder (8 methods inline) = CCN 73. Same behaviour,
+    same store, 73x difference. Do not split or flatten builder functions
+    to reduce this metric; the composer pattern (ADR a1214228) takes
+    precedence.
+  reason: >-
+    After splitting the 467-line nodes.ts monolith (CCN 210) into 4 focused
+    sub-modules per a1214228, the top 3 complex_method findings became the
+    new builders (76 / 73 / 49), not real complexity. The real deficit fell
+    585 to 152, but reported findings rose. Without this ADR, the metric
+    surface will drive future agents to undo the split.
+  scope:
+  - src/store/slices
+  currency: active
+  source: cli
+  accepted_at: '2026-09-21T03:00:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - 'nodes.ts CCN=1 (spreads, no inlined methods) vs clipboard.ts CCN=73 (8 inlined methods)'
+  - Score regression from split: deficit 585 to 152 but complex_method findings rose by 2
