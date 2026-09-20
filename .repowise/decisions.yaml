@@ -63,3 +63,27 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
+- id: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
+  title: CustomNode menus are pure action descriptors; DOM suites are now permitted
+  decision: 'CustomNode''s context-menu actions must be pure action-descriptor builders
+    in src/lib/fewer/*.ts (the batchActions.ts pattern), tested with bun,
+    so menu logic stays testable without mounting a full component.
+    The GraphCanvas ADR''s "no React renderer" rationale is superseded:
+    @testing-library/react and happy-dom are now devDependencies and
+    tests/components/*.test.tsx suites exist — render a component when a
+    DOM characterization suite is the most effective coverage path.'
+  reason: 'The 7c1cd6c3 ADR''s premise ("the repo has no dependency for a React
+    renderer and will not add") is no longer true: @testing-library/react
+    ^16.3.3, happy-dom, and @testing-library/user-event are in
+    package.json and six DOM suites exist in tests/components.
+    The "don''t re-inline logic" rule remains in force.'
+  scope:
+  - src/components/fewer/CustomNode.tsx
+  - src/components/fewer/GraphCanvas.tsx
+  currency: active
+  source: cli
+  accepted_at: '2026-09-20T12:00:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
+

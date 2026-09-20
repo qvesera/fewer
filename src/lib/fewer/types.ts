@@ -75,6 +75,9 @@ export type EdgeStrokeStyle = "solid" | "dashed" | "dotted";
 /** Height a collapsed folder card renders at — one-line pill (canvas + export). */
 export const COLLAPSED_PILL_HEIGHT = 38;
 
+/** Row height for virtual-scrolling child lists inside folder cards. */
+export const NODE_ITEM_HEIGHT = 28;
+
 /**
  * SVG `stroke-dasharray` for a stroke style. Used for BOTH the plain edges and
  * the animated edges (which need an explicit pattern so the shared dash clock's

@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +24,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
+import { plural } from "@/lib/fewer/plural";
 import { useToast } from "@/hooks/use-toast";
 import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
@@ -271,7 +273,7 @@ function FolderContextMenu({
               useGraphStore.getState().pasteFromClipboard(parentId);
               toast({
                 title: "Pasted",
-                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+                description: `${plural(clipboard.nodeIds.length, "item")} pasted${parentId ? " into folder" : ""}`,
               });
             }}
             className="cursor-pointer"
@@ -287,7 +289,7 @@ function FolderContextMenu({
                 onSelect={() => {
                   const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
                   useGraphStore.getState().setSelectedNodeIds(childIds);
-                  toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                  toast({ title: "Children selected", description: `${plural(childIds.length, "child", "children")} selected` });
                 }}
                 className="cursor-pointer"
               >
@@ -367,7 +369,7 @@ function FolderContextMenu({
                     onSelect={() => {
                       const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
                       useGraphStore.getState().setSelectedNodeIds(childIds);
-                      toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                      toast({ title: "Children selected", description: `${plural(childIds.length, "child", "children")} selected` });
                     }}
                     className="cursor-pointer"
                   >
@@ -391,7 +393,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().showSubtreeForLeaf(scope.leafId, nodeId);
-                          toast({ title: "Children shown", description: `${childHidden.length} child${childHidden.length === 1 ? "" : "ren"} restored` });
+                          toast({ title: "Children shown", description: `${plural(childHidden.length, "child", "children")} restored` });
                         }}
                         className="cursor-pointer"
                       >
@@ -410,7 +412,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
-                          toast({ title: "Children hidden", description: `${visibleDescendants.length} card${visibleDescendants.length === 1 ? "" : "s"} hidden` });
+                          toast({ title: "Children hidden", description: `${plural(visibleDescendants.length, "card")} hidden` });
                         }}
                         className="cursor-pointer"
                       >
@@ -721,7 +723,7 @@ function FileEntryContextMenu({
               useGraphStore.getState().pasteFromClipboard(parentId);
               toast({
                 title: "Pasted",
-                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+                description: `${plural(clipboard.nodeIds.length, "item")} pasted${parentId ? " into folder" : ""}`,
               });
             }}
             className="cursor-pointer"
@@ -788,7 +790,7 @@ function FileEntryContextMenu({
               onSelect={() => {
                 const ids = selectSameExtension(nodes, [nodeId]);
                 useGraphStore.getState().setSelectedNodeIds(ids);
-                toast({ title: "Selected by type", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same extension` });
+                toast({ title: "Selected by type", description: `${plural(ids.length, "file")} with same extension` });
               }}
               className="cursor-pointer"
             >
@@ -798,7 +800,7 @@ function FileEntryContextMenu({
               onSelect={() => {
                 const ids = selectSameCategory(nodes, [nodeId]);
                 useGraphStore.getState().setSelectedNodeIds(ids);
-                toast({ title: "Selected by category", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same category` });
+                toast({ title: "Selected by category", description: `${plural(ids.length, "file")} with same category` });
               }}
               className="cursor-pointer"
             >
@@ -862,7 +864,6 @@ function FileEntryContextMenu({
   );
 }
 
-const ITEM_HEIGHT = 28;
 const OVERSCAN = 5;
 
 function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number, fallbackHeight = 0) {
@@ -888,11 +889,11 @@ function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number
     };
   }, [containerEl]); // re-attaches on every child-list remount (collapse → expand)
 
-  const totalHeight = totalItems * ITEM_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN);
+  const totalHeight = totalItems * NODE_ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / NODE_ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / NODE_ITEM_HEIGHT) + OVERSCAN);
   const visibleCount = endIndex - startIndex;
-  const offsetY = startIndex * ITEM_HEIGHT;
+  const offsetY = startIndex * NODE_ITEM_HEIGHT;
 
   return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
 }
@@ -971,7 +972,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
-          ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
+          ? plural(folderChildCount, "item")
           : formatSize(child.data.size ?? 0)}
       </span>
       <ChevronRight className="h-3 w-3 shrink-0 text-fewer-text-subtle/60" />
@@ -1101,7 +1102,7 @@ if (isCollapsed) {
                 {data.label}
               </span>
               <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
-                {childCount} {childCount === 1 ? "item" : "items"}
+                {plural(childCount, "item")}
               </span>
             </div>
             {nodeTagIds.length > 0 && (
@@ -1275,7 +1276,7 @@ if (isCollapsed) {
               className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text bg-fewer-folder-bg"
             >
               <span>
-                {childCount} {childCount === 1 ? "item" : "items"}
+                {plural(childCount, "item")}
               </span>
               {hiddenChildCount > 0 && (
                 <span className="rounded bg-fewer-folder-subtle-text/15 px-1 py-px text-[9px] text-fewer-folder-subtle-text">
