@@ -38,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
+import { useGraphData, useLayoutConfig, useUiState } from "@/store/hooks";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
@@ -58,6 +59,7 @@ import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
+import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -101,23 +103,14 @@ export function ExportPanel() {
   const setOpen = useGraphStore((s) => s.setExportOpen);
   const settings = useGraphStore((s) => s.exportSettings);
   const setSettings = useGraphStore((s) => s.setExportSettings);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const nodeWidth = useGraphStore((s) => s.nodeWidth);
-  const nodeHeight = useGraphStore((s) => s.nodeHeight);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
-  const edgeStrokeStyle = useGraphStore((s) => s.edgeStrokeStyle);
-  const direction = useGraphStore((s) => s.direction);
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
   const sortDir = useGraphStore((s) => s.sortDir);
   const tags = useGraphStore((s) => s.tags);
   const viewSettings = useGraphStore((s) => s.viewSettings);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const { nodes, edges, hiddenIds } = useGraphData();
+  const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
+  const { selectedNodeIds, advancedModeEnabled } = useUiState();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   // Guests always export with the fewer watermark; the toggle stays functional
@@ -131,12 +124,8 @@ export function ExportPanel() {
   // selection" would export exactly one node — block it and hide the option
   // (folders and multi-node selections still qualify). Image formats (PNG/SVG)
   // still allow exporting a single file as an image.
-  const isImageFormat =
-    settings.format === "png" || settings.format === "svg";
-  const singleFileSelected =
-    selectedNodeIds.length === 1 &&
-    !isImageFormat &&
-    nodes.find((n) => n.id === selectedNodeIds[0])?.data?.type === "file";
+  const isImageFormat = settings.format === "png" || settings.format === "svg";
+  const singleFileSelected = isSingleFileSelected(selectedNodeIds, settings.format, nodes);
 
   // If the toggle was on and the selection collapses to a single file node,
   // switch it off so the export falls back to the full canvas.
