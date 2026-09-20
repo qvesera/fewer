@@ -25,6 +25,7 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      - run: python3 scripts/decisions.py validate
 
   typecheck:
     runs-on: ubuntu-latest

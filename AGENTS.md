@@ -93,6 +93,7 @@ bun run lint           # Must pass before commit
 bun run build          # Must succeed
 python3 scripts/changelog.py validate   # Must exit 0 before committing changelog changes
 python3 scripts/migrations.py verify --base origin/dev   # migration rules (CI runs this too)
+python3 scripts/decisions.py validate  # decisions.yaml structural integrity (CI runs this too)
 ```
 
 **Component test isolation**: bun's `mock.module` registry is process-wide and persists across test files in one run. Component suites must not register a partial `mock.module` on a shared module (e.g. `@/lib/fewer/fileOps`) — that replaces the module for every later suite in the same process and breaks their imports. If an override is unavoidable, spread the real module first: `const actual = await import(…); mock.module(…, () => ({ …actual, override }))`. Always verify with `bun run test` (all files together), not a single file.
