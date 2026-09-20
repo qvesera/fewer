@@ -6,6 +6,9 @@ import {
   type FileCategory,
   type LayoutDirection,
 } from "./types";
+import { sortedChildRows } from "./nodeDisplay";
+import { plural } from "./plural";
+import { maxVisibleRows } from "./visibleRange";
 import {
   getBezierPath,
   getSmoothStepPath,
@@ -322,25 +325,11 @@ function renderEdge(
 
 /* ------------------------------- nodes ------------------------------------ */
 
-function childRows(node: FewerNode, edges: FewerEdge[], nodes: FewerNode[]): FewerNode[] {
-  const childIds = edges.filter((e) => e.source === node.id).map((e) => e.target);
-  const list = nodes.filter((n) => childIds.includes(n.id));
-  list.sort((a, b) => {
-    if (a.data.type !== b.data.type) return a.data.type === "folder" ? -1 : 1;
-    return a.data.label.localeCompare(b.data.label);
-  });
-  return list;
-}
-
-function itemCountLabel(count: number): string {
-  return `${count} ${count === 1 ? "item" : "items"}`;
-}
-
 /** Metric shown on a folder child row: item count for folders, size for files. */
 function childMetric(child: FewerNode, edges: FewerEdge[]): string {
   if (child.data.type !== "folder") return formatSize(child.data.size ?? 0);
   const c = edges.filter((e) => e.source === child.id).length;
-  return itemCountLabel(c);
+  return plural(c, "item");
 }
 
 function childRowIcon(child: FewerNode, p: RenderPalette): { icon: IconName; color: string } {
@@ -562,7 +551,7 @@ function renderCollapsedFolderCard(
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
     <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
     <text x="${x + 60}" y="${y + 16}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 96, 14, 600))}</text>
-    <text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(itemCountLabel(childCount))}</text>
+    <text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(plural(childCount, "item"))}</text>
     ${renderTagDots(n, o, x + w - 34 - Math.min(n.data.tagIds?.length ?? 0, TAG_RING_CAP) * 14, y + h / 2)}
     <g transform="translate(${x + w - 30}, ${y + 11})">${iconSvg("chevron-right", 16, subtleColor)}</g>
   </g>`;
@@ -582,12 +571,11 @@ function renderFolderCard(
   const h = size.h;
   const selected = o.selectedIds?.has(n.id) ?? false;
 
-  const rows = childRows(n, edges, nodes);
+  const rows = sortedChildRows(n.id, nodes, edges);
   if (isCollapsedNode(n, o)) {
     return renderCollapsedFolderCard(n, rows.length, size, o);
   }
-  const childListMaxHeight = Math.max(60, h - 72);
-  const visibleRows = Math.min(rows.length, Math.max(0, Math.floor((childListMaxHeight - 12) / NODE_ITEM_HEIGHT)));
+  const visibleRows = Math.min(rows.length, maxVisibleRows(h));
 
   const listTop = HEADER_HEIGHT;
   const footerTop = h - FOOTER_HEIGHT;
@@ -607,7 +595,7 @@ function renderFolderCard(
       : listRowsHtml;
 
   const { stroke, width: strokeWidth } = cardStroke(n, p.folderBorder);
-  const rowsCount = itemCountLabel(rows.length);
+  const rowsCount = plural(rows.length, "item");
   const selRing = selected ? renderSelectionRing(n, size, p.selectRing) : "";
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
   // Header tag dots sit right-aligned (canvas: TagDots + chevron in the header

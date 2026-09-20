@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
 import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
+import { visibleRange, OVERSCAN } from "@/lib/fewer/visibleRange";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import {
@@ -864,8 +865,6 @@ function FileEntryContextMenu({
   );
 }
 
-const OVERSCAN = 5;
-
 function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number, fallbackHeight = 0) {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(fallbackHeight);
@@ -889,13 +888,7 @@ function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number
     };
   }, [containerEl]); // re-attaches on every child-list remount (collapse → expand)
 
-  const totalHeight = totalItems * NODE_ITEM_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / NODE_ITEM_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / NODE_ITEM_HEIGHT) + OVERSCAN);
-  const visibleCount = endIndex - startIndex;
-  const offsetY = startIndex * NODE_ITEM_HEIGHT;
-
-  return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
+  return visibleRange(scrollTop, containerHeight, totalItems);
 }
 
 function ChildEntry({ child }: { child: FewerNode }) {
