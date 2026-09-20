@@ -13,6 +13,7 @@ import type { FewerNode, FileCategory } from "@/lib/fewer/types";
 import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
 import { visibleRange, OVERSCAN } from "@/lib/fewer/visibleRange";
 import { useGraphStore } from "@/store/graphStore";
+import { useGraphData, useUiState, useStoreActions } from "@/store/hooks";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -194,18 +195,14 @@ function FolderContextMenu({
   children: React.ReactNode;
 }) {
   const scope = useGraphViewScope();
+  const { nodes, edges } = useGraphData();
+  const { selectedNodeIds } = useUiState();
+  const { deleteNodes: deleteNode, setRenamingId, setClipboard, setSelectedNodeIds, duplicateNodeUnderParent } = useStoreActions();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
-  const deleteNode = useGraphStore((s) => s.deleteNodes);
-  const setRenamingId = useGraphStore((s) => s.setRenamingId);
-  const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
-  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
@@ -643,21 +640,18 @@ function FileEntryContextMenu({
   nodePath?: string;
   children: React.ReactNode;
 }) {
+  const { nodes, edges } = useGraphData();
+  const { selectedNodeIds } = useUiState();
+  const { setRenamingId, setClipboard, duplicateNodeUnderParent, setSelectedNodeIds } = useStoreActions();
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const providerLabel = providerLabelFromSource(dataSource);
   // A file imported from a public file index (via crawl) — not a GitHub repo.
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
   const isCrawledFile =
     !!dataSource && dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
-  const setRenamingId = useGraphStore((s) => s.setRenamingId);
-  const setClipboard = useGraphStore((s) => s.setClipboard);
-  const clipboard = useGraphStore((s) => s.clipboard);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
-  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   // Same rule as the folder menu: multi-selection right-click → batch only.
