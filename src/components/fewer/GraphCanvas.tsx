@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
+import { useGraphData, useLayoutConfig, useThemeConfig, useUiState, useViewState, useStoreActions } from "@/store/hooks";
 
 // Hooks (Phase C extraction — each is a cohesive, single-concern unit).
 import { useCanvasResize } from "@/hooks/use-canvas-resize";
@@ -93,40 +94,21 @@ function useEdgeAnimationOpts(
 }
 
 function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: CanvasEmptyActionsProps) {
-  const allNodes = useGraphStore((s) => s.nodes);
-  const allEdges = useGraphStore((s) => s.edges);
-  const showFilesGlobal = useGraphStore((s) => s.showFiles);
-  const viewSettingsMap = useGraphStore((s) => s.viewSettings);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
-  const edgeAnimatedGlobal = useGraphStore((s) => s.edgeAnimated);
-  const edgeAnimatedSelectedOnlyGlobal = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
-  const edgeStrokeStyleGlobal = useGraphStore((s) => s.edgeStrokeStyle);
-  const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
-  const edgeWidthGlobal = useGraphStore((s) => s.edgeWidth);
-  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
-  const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const recordDragMoves = useGraphStore((s) => s.recordDragMoves);
-  const recordResize = useGraphStore((s) => s.recordResize);
-  const connectNodes = useGraphStore((s) => s.connectNodes);
-  const loading = useGraphStore((s) => s.loading);
-  const addStandaloneNode = useGraphStore((s) => s.addStandaloneNode);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const setRenamingId = useGraphStore((s) => s.setRenamingId);
-  const { toast } = useToast();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const setCanvasSize = useGraphStore((s) => s.setCanvasSize);
-  const themeModeGlobal = useGraphStore((s) => s.themeMode);
-  const customTheme = useGraphStore((s) => s.customTheme);
-  const direction = useGraphStore((s) => s.direction);
+  const { nodes: allNodes, edges: allEdges, hiddenIds } = useGraphData();
+  const { direction, edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal, edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyle: edgeStrokeStyleGlobal, edgeAnimatedStrokeStyle, edgeWidth: edgeWidthGlobal } = useLayoutConfig();
+  const { themeMode: themeModeGlobal, customTheme } = useThemeConfig();
+  const { selectedNodeIds, advancedModeEnabled, loading, showFiles: showFilesGlobal } = useUiState();
+  const { activeLeafId, viewSettings: viewSettingsMap, zoomToNode, zoomToNodeIds } = useViewState();
+  const { setSelectedNodeIds, deleteNodes, recordDragMoves, recordResize, connectNodes, addStandaloneNode, setRenamingId, setCanvasSize, setNodePositionForLeaf, setZoomToNodeIds } = useStoreActions();
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
   const sortDir = useGraphStore((s) => s.sortDir);
   const tags = useGraphStore((s) => s.tags);
-  const activeLeafId = useGraphStore((s) => s.activeLeafId);
-  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const setZoomToNodeIds = useGraphStore((s) => s.setZoomToNodeIds);
   const graphVersion = useGraphStore((s) => s.graphVersion);
+  const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
+
+  const { toast } = useToast();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Per-view scope
   const isActive = leafId ? leafId === activeLeafId : true;
@@ -210,14 +192,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   }, [collapsedKey, updateNodeInternals]);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(positionedNodes, containerRef, setViewport);
-  const zoomToNode = useGraphStore((s) => s.zoomToNode);
   useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
-  // All drags write to per-view positions when a leafId exists,
-  // so views remain independent. Shared store positions are never
-  // updated by individual view drags — they stay as the layout seed.
-  const setNodePositionForLeaf = useGraphStore((s) => s.setNodePositionForLeaf);
-  const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
 
   // On first drag in a view, seed the FULL positions map from the current
   // positionedNodes so non-dragged nodes stay at their derived positions

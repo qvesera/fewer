@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { useGraphData, useLayoutConfig, useUiState, useViewState, useDialogState, useStoreActions } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -59,26 +60,16 @@ interface SidebarProps {
 
 export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const { user } = useAuth();
-  const direction = useGraphStore((s) => s.direction);
-  const setDirection = useGraphStore((s) => s.setDirection);
-  const edgeStyle = useGraphStore((s) => s.edgeStyle);
-  const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
-  const reset = useGraphStore((s) => s.reset);
   const { toast } = useToast();
-  const nodes = useGraphStore((s) => s.nodes);
-  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const tags = useGraphStore((s) => s.tags);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
-  const edges = useGraphStore((s) => s.edges);
   const activeLeaf = useActiveLeaf();
-
+  const { nodes, edges, hiddenIds } = useGraphData();
+  const { direction, edgeStyle } = useLayoutConfig();
+  const { selectedNodeIds, advancedModeEnabled } = useUiState();
+  const { panelTree } = useViewState();
+  const { sidebarSide, setSidebarSide } = useDialogState();
+  const { setDirection, setEdgeStyle, reset } = useStoreActions();
+  const tags = useGraphStore((s) => s.tags);
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
-
-  // Panel layout
-  const sidebarSide = useGraphStore((s) => s.sidebarSide);
-  const panelTree = useGraphStore((s) => s.panelTree);
-  const setSidebarSide = useGraphStore((s) => s.setSidebarSide);
 
   // Section ids currently docked in an area — these get hidden from sidebar
   const dockedIds = useMemo(() => sectionsDockedInTree(panelTree), [panelTree]);
