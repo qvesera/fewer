@@ -10,6 +10,10 @@ import {
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
+  isGradientOn,
+  normalizeGradientEnd,
+  galleryPublishError,
+  classifyThemeApiError,
   snapDockPosition,
   sectionDiffers,
   snapshotSection,
@@ -327,5 +331,126 @@ describe("per-section undo", () => {
       popSectionUndo(stacks["Canvas & Text"]!);
       expect(JSON.stringify(stacks)).toBe(before);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  isGradientOn
+// ---------------------------------------------------------------------------
+
+describe("isGradientOn", () => {
+  const slot = (gradientTo: string | null | undefined) =>
+    ({ color: "#000", opacity: 1, gradientTo }) as import("./types").CustomThemeColor;
+
+  it("returns true for a valid 6-digit hex color", () => {
+    expect(isGradientOn(slot("#ff00aa"))).toBe(true);
+  });
+
+  it("returns true for a 6-digit hex without #", () => {
+    expect(isGradientOn(slot("ff00aa"))).toBe(true);
+  });
+
+  it("returns false when gradientTo is null", () => {
+    expect(isGradientOn(slot(null))).toBe(false);
+  });
+
+  it("returns false when gradientTo is empty string", () => {
+    expect(isGradientOn(slot(""))).toBe(false);
+  });
+
+  it("returns false for a short hex value", () => {
+    expect(isGradientOn(slot("#fff"))).toBe(false);
+  });
+
+  it("returns false for non-hex characters", () => {
+    expect(isGradientOn(slot("#gggggg"))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  normalizeGradientEnd
+// ---------------------------------------------------------------------------
+
+describe("normalizeGradientEnd", () => {
+  it("adds a # prefix if missing", () => {
+    expect(normalizeGradientEnd("ff0000")).toBe("#ff0000");
+  });
+
+  it("preserves an existing # prefix", () => {
+    expect(normalizeGradientEnd("#ff0000")).toBe("#ff0000");
+  });
+
+  it("truncates to 7 characters", () => {
+    expect(normalizeGradientEnd("#ff0000aa")).toBe("#ff0000");
+  });
+
+  it("handles a single character input", () => {
+    expect(normalizeGradientEnd("a")).toBe("#a");
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  galleryPublishError
+// ---------------------------------------------------------------------------
+
+describe("galleryPublishError", () => {
+  it("returns null when both fields are non-blank", () => {
+    expect(galleryPublishError("Ada", "ada")).toBeNull();
+  });
+
+  it("returns null when fields have surrounding whitespace", () => {
+    expect(galleryPublishError(" Ada ", " ada ")).toBeNull();
+  });
+
+  it("returns an error when firstName is blank", () => {
+    expect(typeof galleryPublishError("", "ada")).toBe("string");
+  });
+
+  it("returns an error when username is blank", () => {
+    expect(typeof galleryPublishError("Ada", "")).toBe("string");
+  });
+
+  it("returns an error when both are blank", () => {
+    expect(typeof galleryPublishError("", "")).toBe("string");
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  classifyThemeApiError
+// ---------------------------------------------------------------------------
+
+describe("classifyThemeApiError", () => {
+  const res = (status: number) =>
+    new Response(null, { status }) as Response;
+
+  const json = (error?: string) =>
+    error ? ({ error } as Record<string, unknown>) : (null as unknown as Record<string, unknown>);
+
+  it("returns ok: true for a 200", () => {
+    expect(classifyThemeApiError(res(200), json())).toEqual({ ok: true });
+  });
+
+  it("returns ok: false with server error message for a 400", () => {
+    const result = classifyThemeApiError(res(400), json("Name required"));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.description).toBe("Name required");
+    }
+  });
+
+  it("falls back to status-based message when json has no error field", () => {
+    const result = classifyThemeApiError(res(500), json());
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.description).toContain("500");
+    }
+  });
+
+  it("handles null json body", () => {
+    const result = classifyThemeApiError(res(403), null as unknown as Record<string, unknown>);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.description).toContain("403");
+    }
   });
 });

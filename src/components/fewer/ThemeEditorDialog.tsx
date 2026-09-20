@@ -25,6 +25,9 @@ import {
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
+  isGradientOn,
+  normalizeGradientEnd,
+  galleryPublishError,
   recordSectionChange,
   popSectionUndo,
   sectionUndoDepth,
@@ -62,10 +65,11 @@ export function ThemeEditorDialog() {
   // Publishing to the gallery requires a completed profile (first name +
   // username) for attribution — same gate as the graph gallery.
   const requireGalleryProfile = (): boolean => {
-    if (profile.first_name.trim() && profile.username.trim()) return true;
+    const err = galleryPublishError(profile.first_name, profile.username);
+    if (!err) return true;
     toast({
       title: "Profile required",
-      description: "Add your first name and a username to publish a theme to the gallery.",
+      description: err,
       variant: "destructive",
     });
     window.dispatchEvent(new Event("fewer-open-settings-account"));
@@ -265,7 +269,7 @@ export function ThemeEditorDialog() {
 
   const updateGradientEnd = useCallback(
     (key: keyof CustomTheme, c: string) => {
-      patchSlot(key, { gradientTo: c.replace(/^#?/, "#").slice(0, 7) });
+      patchSlot(key, { gradientTo: normalizeGradientEnd(c) });
     },
     [patchSlot],
   );
@@ -279,10 +283,8 @@ export function ThemeEditorDialog() {
     return colorOpacityToHexAlpha(theme.color, theme.opacity);
   };
 
-  const isGradientOn = (key: string) => {
-    const c = customTheme[key as keyof CustomTheme];
-    return Boolean(c.gradientTo && c.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(c.gradientTo));
-  };
+  const isGradientOnKey = (key: string) =>
+    isGradientOn(customTheme[key as keyof CustomTheme]);
 
   // --- per-section undo -------------------------------------------------
   // Diff-based: an effect watches the store's customTheme and records a
@@ -389,7 +391,7 @@ export function ThemeEditorDialog() {
       <MinimizedDialogPill
         icon={<Palette className="h-3.5 w-3.5" />}
         label="Theme"
-        onRestore={() => setMinimized(false)}
+        onRestore={() => { setMinimized(false); setThemeEditorOpen(true); }}
       />
     )
   }
@@ -402,17 +404,6 @@ export function ThemeEditorDialog() {
     acc[preset.category].push(preset);
     return acc;
   }, {} as Record<string, typeof THEME_PRESETS>);
-
-  // Minimized: small docked pill (draggable, snaps to edges)
-  if (minimized) {
-    return (
-      <MinimizedDialogPill
-        icon={<Palette className="h-3.5 w-3.5" />}
-        label="Theme"
-        onRestore={() => setMinimized(false)}
-      />
-    );
-  }
 
   // Full dialog
   return (
@@ -712,7 +703,7 @@ export function ThemeEditorDialog() {
                       >
                         {meta.label}
                       </Label>
-                      {meta.gradientCssVar && isGradientOn(meta.key) && (
+                      {meta.gradientCssVar && isGradientOnKey(meta.key) && (
                         <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                           Gradient
                         </span>
@@ -748,15 +739,15 @@ export function ThemeEditorDialog() {
                               type="button"
                               onClick={() => toggleGradient(meta.key)}
                               className={`rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                isGradientOn(meta.key)
+                                isGradientOnKey(meta.key)
                                   ? "border-border/60 bg-foreground/5 text-foreground"
                                   : "border-border/40 text-muted-foreground hover:text-foreground"
                               }`}
                             >
-                              {isGradientOn(meta.key) ? "On" : "Add"}
+                              {isGradientOnKey(meta.key) ? "On" : "Add"}
                             </button>
                           </div>
-                          {isGradientOn(meta.key) && (
+                          {isGradientOnKey(meta.key) && (
                             <div className="space-y-3">
                               <div
                                 className="h-4 w-full rounded-md border border-border"
