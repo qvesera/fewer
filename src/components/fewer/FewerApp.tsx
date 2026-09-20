@@ -10,6 +10,7 @@ import {
   BreadcrumbBar,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
+import { useDialogState, useViewState } from "@/store/hooks";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/fewer/sampleData";
 import type { ImportOrigin } from "@/lib/fewer/importFlow";
@@ -71,20 +72,8 @@ export function FewerApp() {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const resizingRef = useRef(false);
 
-  const importFlowOpen = useGraphStore((s) => s.importFlowOpen);
-  const setImportFlowOpen = useGraphStore((s) => s.setImportFlowOpen);
-  const addChildOpen = useGraphStore((s) => s.addChildOpen);
-  const setAddChildOpen = useGraphStore((s) => s.setAddChildOpen);
-  const addStandaloneOpen = useGraphStore((s) => s.addStandaloneOpen);
-  const setAddStandaloneOpen = useGraphStore((s) => s.setAddStandaloneOpen);
-  const addParentOpen = useGraphStore((s) => s.addParentOpen);
-  const setAddParentOpen = useGraphStore((s) => s.setAddParentOpen);
-  const notificationOpen = useGraphStore((s) => s.notificationOpen);
-  const setNotificationOpen = useGraphStore((s) => s.setNotificationOpen);
-  const authOpen = useGraphStore((s) => s.authOpen);
-  const setAuthOpen = useGraphStore((s) => s.setAuthOpen);  // Panel layout
-  const sidebarSide = useGraphStore((s) => s.sidebarSide);
-  const panelTree = useGraphStore((s) => s.panelTree);
+  const { importFlowOpen, setImportFlowOpen, addChildOpen, setAddChildOpen, addStandaloneOpen, setAddStandaloneOpen, addParentOpen, setAddParentOpen, notificationOpen, setNotificationOpen, authOpen, setAuthOpen, sidebarSide } = useDialogState();
+  const { panelTree } = useViewState();
 
   // On mobile, start with sidebar closed
   useEffect(() => {
