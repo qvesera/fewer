@@ -12,7 +12,11 @@ mock.module("@/hooks/use-auth", () => ({
     loading: false,
   }),
 }));
-mock.module("@/hooks/use-profile", () => ({ useProfile: () => profileData }));
+const actualUseProfile = await import("@/hooks/use-profile");
+mock.module("@/hooks/use-profile", () => ({
+  ...actualUseProfile,
+  useProfile: () => profileData,
+}));
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 
 const originalFetch = globalThis.fetch;

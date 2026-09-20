@@ -25,12 +25,6 @@ mock.module("@/lib/supabase", () => ({
   ...actualSupabase,
   getBrowserSupabase: () => ({ auth: { signOut, updateUser: async () => ({ error: null }) } }),
 }));
-// The barrel mock below is intentionally partial (3/38 exports): spreading the
-// real barrel would eagerly load ThemeEditorDialog/CloudPanel with SettingsDialog's
-// useAuth mock baked in, then cache them — breaking ThemeEditorDialog.test.tsx
-// which re-mocks the same hooks.  This is a latent cross-file leakage (see
-// pr-dev-checks "Test isolation" rule) but currently fires for no other suite.
-mock.module("@/components/fewer/index", () => ({ ThemeEditorDialog: () => null, Logo: () => null, CloudPanel: () => null }));
 mock.module("@/components/fewer/WatchedIndexesPanel", () => ({ WatchedIndexesPanel: () => <div>Watched indexes</div> }));
 const { SettingsDialog } = await import("@/components/fewer/SettingsDialog");
 const { useGraphStore } = await import("@/store/graphStore");
