@@ -10,7 +10,9 @@ mock.module("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: signedIn ? user : null, loading: false }),
 }));
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
+const actualUseProfile = await import("@/hooks/use-profile");
 mock.module("@/hooks/use-profile", () => ({
+  ...actualUseProfile,
   useProfile: () => ({ first_name: "Ada", last_name: "Lovelace", username: "ada" }),
 }));
 // OS path resolution and the snapshot builder are store-side concerns with their
