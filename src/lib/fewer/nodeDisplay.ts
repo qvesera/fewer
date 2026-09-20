@@ -77,6 +77,21 @@ export function renameSelection(label: string): readonly [number, number] {
 }
 
 /** Rows are unique existing nodes; counters intentionally count edges, even dangling ones. */
+export function sortedChildRows(
+  parentId: string,
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+): FewerNode[] {
+  const childIds = edges.filter((e) => e.source === parentId).map((e) => e.target);
+  const ids = new Set(childIds);
+  const children = nodes.filter((n) => ids.has(n.id));
+  children.sort((a, b) => {
+    if (a.data.type !== b.data.type) return a.data.type === "folder" ? -1 : 1;
+    return a.data.label.localeCompare(b.data.label);
+  });
+  return children;
+}
+
 export function nodeChildren(
   id: string,
   isFolder: boolean,
@@ -85,13 +100,8 @@ export function nodeChildren(
   visibleIds: ReadonlySet<string>,
 ): { children: FewerNode[]; childCount: number; hiddenChildCount: number } {
   if (!isFolder) return { children: [], childCount: 0, hiddenChildCount: 0 };
+  const children = sortedChildRows(id, nodes, edges);
   const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-  const ids = new Set(childIds);
-  const children = nodes.filter((n) => ids.has(n.id));
-  children.sort((a, b) => {
-    if (a.data.type !== b.data.type) return a.data.type === "folder" ? -1 : 1;
-    return a.data.label.localeCompare(b.data.label);
-  });
   return {
     children,
     childCount: childIds.length,
