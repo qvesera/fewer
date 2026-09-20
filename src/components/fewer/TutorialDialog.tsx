@@ -16,6 +16,7 @@ import { useDarkBackground } from "@/hooks/use-dark-background";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
 import { useDevice } from "@/hooks/use-device";
+import { isStepComplete, shouldAutoDismiss } from "@/lib/fewer/tutorialModel";
 import { Logo } from "./Logo";
 
 /* -------------------------------------------------------------------------- */
@@ -146,16 +147,10 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   useEffect(() => {
     const unsubscribe = useGraphStore.subscribe((state) => {
       for (const item of beginnerItems) {
-        if (state.tutorialBeginnerDone.includes(item.id)) continue;
-        if (!item.watchState) continue;
-        const { key, value } = item.watchState;
-        const stateValue = (state as unknown as Record<string, unknown>)[key];
-        if (value === null) {
-          if (key === "selectedNodeIds" && Array.isArray(stateValue) && stateValue.length > 0) {
+        if (isStepComplete(state as Record<string, unknown>, item, state.tutorialBeginnerDone)) {
+          if (!state.tutorialBeginnerDone.includes(item.id)) {
             useGraphStore.getState().markTutorialBeginnerStep(item.id);
           }
-        } else if (stateValue === value) {
-          useGraphStore.getState().markTutorialBeginnerStep(item.id);
         }
       }
     });
@@ -197,7 +192,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   if (!open && !minimized) {
     return null;
   }
-  if (useGraphStore.getState().tutorialDismissed && restartKey === 0) {
+  if (shouldAutoDismiss(useGraphStore.getState().tutorialDismissed, restartKey)) {
     return null;
   }
 
