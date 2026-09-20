@@ -85,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a RangeError crash when laying out an imported graph containing a cycle: calculateDepths, computeSubtreeSize, layoutSubtree and assignPositions in layout.ts all recursed into children without a repeat guard, so any relayout overflowed the stack. Each now cuts a back-edge into the chain it is walking, which cannot fire on an acyclic graph (a node is never its own ancestor), so positions for normal trees are untouched.
 - The import dialog no longer reuses advanced import options saved by a previous session or synced from the cloud when advanced mode is off — opening it in basic mode clamps include-hidden, vendored folders, empty folders, files, extensions and case-sensitive extensions back to their defaults
 - Undo now drops selection that the restored graph no longer contains, so undoing a paste no longer leaves cards selected that are not on the canvas.
+- The bug report dialog copy button now shows a destructive error toast when the clipboard write fails, instead of silently doing nothing
 
 ### Added
 

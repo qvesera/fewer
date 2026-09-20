@@ -32,63 +32,21 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { computeStats } from "@/lib/fewer/stats";
 import { useToast } from "@/hooks/use-toast";
 import {
   buildGitHubIssueUrl,
+  collectDiagnostics,
+  buildBugReport,
+  bugReportFilename,
+  web3FormsKeyIsUsable,
+  buildWeb3FormsPayload,
+  web3FormsErrorMessage,
+  SEVERITIES,
+  CATEGORIES,
   type BugReport,
+  type BugSeverity,
+  type BugCategory,
 } from "@/lib/fewer/bugReport";
-
-type Severity = "low" | "medium" | "high" | "critical";
-type Category =
-  | "layout"
-  | "import"
-  | "export"
-  | "resize"
-  | "theme"
-  | "context-menu"
-  | "keyboard"
-  | "search"
-  | "drag-drop"
-  | "file-ops"
-  | "ui"
-  | "performance"
-  | "other";
-
-const SEVERITIES: { value: Severity; label: string; color: string }[] = [
-  { value: "low", label: "Low: minor inconvenience", color: "text-blue-500" },
-  {
-    value: "medium",
-    label: "Medium: workaround exists",
-    color: "text-yellow-600 dark:text-yellow-500",
-  },
-  {
-    value: "high",
-    label: "High: feature broken",
-    color: "text-orange-600 dark:text-orange-500",
-  },
-  {
-    value: "critical",
-    label: "Critical: app unusable",
-    color: "text-red-600 dark:text-red-500",
-  },
-];
-
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "layout", label: "Layout / Beautify" },
-  { value: "import", label: "Import / File System" },
-  { value: "export", label: "Export" },
-  { value: "resize", label: "Card Resizing" },
-  { value: "theme", label: "Theme / Colors" },
-  { value: "context-menu", label: "Context Menu" },
-  { value: "keyboard", label: "Keyboard Shortcuts" },
-  { value: "search", label: "Search" },
-  { value: "drag-drop", label: "Drag & Drop" },
-  { value: "file-ops", label: "File Operations" },
-  { value: "ui", label: "UI / Visual" },
-  { value: "performance", label: "Performance" },
-  { value: "other", label: "Other" },
-];
 
 export function BugReportDialog() {
   const open = useGraphStore((s) => s.bugReportOpen);
@@ -105,8 +63,8 @@ export function BugReportDialog() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState("");
-  const [severity, setSeverity] = useState<Severity>("medium");
-  const [category, setCategory] = useState<Category>("other");
+  const [severity, setSeverity] = useState<BugSeverity>("medium");
+  const [category, setCategory] = useState<BugCategory>("other");
   const [copied, setCopied] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -116,48 +74,27 @@ export function BugReportDialog() {
 
   // Collect diagnostics from the current app state
   const diagnostics = useMemo(() => {
-    const stats = computeStats(nodes, edges);
-    const userAgent =
-      typeof navigator !== "undefined" ? navigator.userAgent : "unknown";
-    const isBrave = typeof navigator !== "undefined" && "brave" in navigator;
-    const fsSupported =
-      typeof window !== "undefined" && "showDirectoryPicker" in window;
-    const isIframe =
-      typeof window !== "undefined" && window.self !== window.top;
-    const viewport =
-      typeof window !== "undefined"
-        ? `${window.innerWidth}x${window.innerHeight}`
-        : "unknown";
-
-    return {
-      app: {
-        name: "fewer",
-        version: "1.0.0",
-        timestamp: new Date().toISOString(),
-      },
-      environment: {
-        userAgent,
-        browser: isBrave ? "Brave" : "Unknown",
-        fileSystemAccess: fsSupported ? "Supported" : "Not supported",
-        iframeContext: isIframe,
-        viewport,
+    return collectDiagnostics({
+      env: {
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
+        isBrave: typeof navigator !== "undefined" && "brave" in navigator,
+        hasFileSystemAccess: typeof window !== "undefined" && "showDirectoryPicker" in window,
+        isIframe: typeof window !== "undefined" && window.self !== window.top,
+        viewportWidth: typeof window !== "undefined" ? window.innerWidth : 0,
+        viewportHeight: typeof window !== "undefined" ? window.innerHeight : 0,
         online: typeof navigator !== "undefined" ? navigator.onLine : true,
       },
-      graphState: {
-        totalNodes: nodes.length,
-        totalEdges: edges.length,
-        totalFiles: stats.totalFiles,
-        totalFolders: stats.totalFolders,
-        totalSize: stats.totalSize,
-        byCategory: stats.byCategory,
-        hiddenNodes: hiddenIds.length,
-        layoutDirection: direction,
+      graph: {
+        nodes,
+        edges,
+        hiddenIds,
+        direction,
         edgeStyle,
         nodeWidth,
         nodeHeight,
         themeMode,
       },
-    };
+    });
   }, [
     nodes,
     edges,
@@ -171,16 +108,7 @@ export function BugReportDialog() {
 
   // Build the full bug report object
   const bugReport = useMemo<BugReport>(
-    () => ({
-      ...diagnostics,
-      bug: {
-        title: title.trim() || "(no title provided)",
-        description: description.trim() || "(no description provided)",
-        stepsToReproduce: steps.trim() || "(no steps provided)",
-        severity,
-        category,
-      },
-    }),
+    () => buildBugReport(diagnostics, { title, description, steps, severity, category }),
     [diagnostics, title, description, steps, severity, category],
   );
 
@@ -190,7 +118,11 @@ export function BugReportDialog() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback: select text in textarea
+      toast({
+        title: "Could not copy",
+        description: "Try the Download button instead.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -203,7 +135,7 @@ export function BugReportDialog() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `fewer-bug-report-${Date.now()}.json`;
+      a.download = bugReportFilename(Date.now());
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -215,7 +147,7 @@ export function BugReportDialog() {
 
   const submitToWeb3Forms = async (report: typeof bugReport) => {
     const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY;
-    if (!accessKey || accessKey === "YOUR_WEB3FORMS_KEY_HERE") {
+    if (!web3FormsKeyIsUsable(accessKey)) {
       throw new Error(
         "Web3Forms access key is not configured. Please set NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY in your environment.",
       );
@@ -227,17 +159,13 @@ export function BugReportDialog() {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({
-        access_key: accessKey,
-        subject: `[Bug Report] ${report.bug.title}`,
-        from_name: "fewer Bug Reporter",
-        message: JSON.stringify(report, null, 2),
-      }),
+      body: JSON.stringify(buildWeb3FormsPayload(report, accessKey!)),
     });
 
     const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || "Failed to submit bug report via Web3Forms.");
+    const errorMessage = web3FormsErrorMessage(response.ok, data);
+    if (errorMessage) {
+      throw new Error(errorMessage);
     }
   };
 
@@ -343,7 +271,7 @@ export function BugReportDialog() {
               <Label className="text-xs">Category</Label>
               <Select
                 value={category}
-                onValueChange={(v) => setCategory(v as Category)}
+                onValueChange={(v) => setCategory(v as BugCategory)}
                 disabled={isDisabled}
               >
                 <SelectTrigger className="text-sm">
@@ -367,7 +295,7 @@ export function BugReportDialog() {
               <Label className="text-xs">Severity</Label>
               <Select
                 value={severity}
-                onValueChange={(v) => setSeverity(v as Severity)}
+                onValueChange={(v) => setSeverity(v as BugSeverity)}
                 disabled={isDisabled}
               >
                 <SelectTrigger className="text-sm">

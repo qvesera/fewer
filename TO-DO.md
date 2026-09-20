@@ -2,7 +2,7 @@
 
 Blog-post backlog. Major features merged to `dev` get a one-line entry here (see `.clinerules/pr-dev-checks.md`). Remove entry when the post ships to `content/blog/`.
 
-<!-- Format: - [ ] YYYY-MM-DD · feature name · PR #n -->
+- [ ] 2026-09-20 · Bug report dialog version hardcoded "1.0.0" — should read from build-time constant (package.json is 0.7.1) · refactor
 
 ## To write
 
