@@ -75,13 +75,11 @@ import { getBrowserSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 import {
-  buildProfileSaveBody,
   classifyAccountDelete,
-  classifyProfileSave,
   minimapBounds,
   normalizeProfileResponse,
   profileIsDirty,
-  profileNeedsSave,
+  runProfileSave,
   strokeStyleOptions,
   themeModeOptions,
   usageMeter,
@@ -189,7 +187,9 @@ function AccountTab() {
   const handleSaveProfile = async () => {
     if (saving) return;
 
-    // Client-side guard: refuse dangerous/oversized values before PUTting.
+    // Fast synchronous guard — fires the toast immediately so tests/assertions
+    // that check synchronously after the click don't miss it.  runProfileSave
+    // re-validates internally for defence-in-depth.
     const validation = validateProfileFields({ firstName, lastName, username });
     if (!validation.ok) {
       toast({ title: "Could not save profile", description: validation.message!, variant: "destructive" });
@@ -198,40 +198,17 @@ function AccountTab() {
 
     setSaving(true);
     try {
-      // Re-fetch the live profile just before saving so a concurrent change
-      // that already matches the edit can be skipped (profileNeedsSave).
-      const fresh = await fetchProfile();
-      if (fresh) {
-        setSavedProfile(fresh);
-        if (!profileNeedsSave(savedProfile, fresh, { firstName, lastName, username })) {
-          toast({ title: "No changes", description: "Nothing was changed." });
-          return;
-        }
-      }
-
-      // Normalized the same way the server stores it (case-insensitive uniqueness).
-      const body = buildProfileSaveBody({ firstName, lastName, username });
-      const res = await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const result = await runProfileSave({
+        fields: { firstName, lastName, username },
+        savedProfile,
+        fetchProfile,
       });
-      let data: unknown = null;
-      try {
-        data = await res.json();
-      } catch {
-        /* non-JSON body — treated as an empty payload */
-      }
-      const outcome = classifyProfileSave(res, data, savedProfile, { firstName, lastName, username });
-      toast(outcome.toast);
-      if (outcome.kind === "saved") {
-        setUsername(body.username);
-        setSavedProfile(body);
-      } else if (outcome.kind === "error" && outcome.revert) {
-        // Re-sync from server truth after a failed save; the edited inputs
-        // keep the user's values so they can retry.
-        const revert = await fetchProfile();
-        if (revert) setSavedProfile(revert);
+      toast(result.toast);
+      if (result.kind === "saved") {
+        setUsername(result.body.username);
+        setSavedProfile(result.body);
+      } else if (result.kind === "no_changes" || result.kind === "reverted") {
+        setSavedProfile(result.savedProfile);
       }
     } catch (err) {
       const msg = errMessage(err, "Could not save profile");

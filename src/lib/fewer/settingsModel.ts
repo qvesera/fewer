@@ -254,6 +254,77 @@ export function themeModeOptions(advancedMode: boolean): ThemeMode[] {
   return advancedMode ? ["light", "dark", "custom"] : ["light", "dark"];
 }
 
+export type ProfileSaveResult =
+  | { kind: "saved"; toast: { title: string }; body: ProfileFields }
+  | { kind: "no_changes"; toast: { title: string; description: string }; savedProfile: ProfileFields }
+  | { kind: "reverted"; toast: { title: string; description?: string; variant?: "default" | "destructive" }; savedProfile: ProfileFields }
+  | { kind: "validation_error"; toast: { title: string; description: string; variant: "destructive" } }
+  | { kind: "error"; toast: { title: string; description?: string; variant?: "default" | "destructive" } };
+
+/**
+ * Orchestrate the profile save: validate → re-fetch/skip → PUT → classify.
+ * Extracted from the 44-line handleSaveProfile (CCN 11) so the branching is
+ * unit-testable without a DOM.  Returns a discriminated result that the
+ * component directly passes to `toast()` and applies to its state.
+ */
+export async function runProfileSave(opts: {
+  fields: { firstName: string; lastName: string; username: string };
+  savedProfile: ProfileFields | null;
+  fetchProfile: () => Promise<ProfileFields | null>;
+  fetchFn?: typeof globalThis.fetch;
+}): Promise<ProfileSaveResult> {
+  const { fields, savedProfile, fetchProfile, fetchFn = fetch } = opts;
+
+  const validation = validateProfileFields(fields);
+  if (!validation.ok) {
+    return {
+      kind: "validation_error",
+      toast: { title: "Could not save profile", description: validation.message!, variant: "destructive" },
+    };
+  }
+
+  const fresh = await fetchProfile();
+  if (fresh && savedProfile) {
+    if (!profileNeedsSave(savedProfile, fresh, fields)) {
+      return {
+        kind: "no_changes",
+        toast: { title: "No changes", description: "Nothing was changed." },
+        savedProfile: { first_name: fresh.first_name, last_name: fresh.last_name, username: fresh.username },
+      };
+    }
+  }
+
+  const body = buildProfileSaveBody(fields);
+  const res = await fetchFn("/api/profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON body — treated as an empty payload */
+  }
+  const outcome = classifyProfileSave(res, data, savedProfile ?? body, fields);
+
+  if (outcome.kind === "saved") {
+    return { kind: "saved", toast: outcome.toast, body };
+  }
+  if (outcome.kind === "error" && outcome.revert) {
+    const revert = await fetchProfile();
+    return {
+      kind: "reverted",
+      toast: outcome.toast,
+      savedProfile: revert
+        ? { first_name: revert.first_name, last_name: revert.last_name, username: revert.username }
+        : savedProfile ?? body,
+    };
+  }
+  return { kind: "error", toast: outcome.toast };
+}
+
+
 /**
  * Minimap drag/slider bounds: the maximum offset keeps the minimap fully on
  * the canvas, with a floor of its own size so the slider stays usable before
