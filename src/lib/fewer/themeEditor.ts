@@ -208,6 +208,62 @@ export function popSectionUndo(
   return { snapshot, stack: stack.slice(0, -1) };
 }
 
+// ---------------------------------------------------------------------------
+//  Slot inspection helpers (pure — no React/store)
+// ---------------------------------------------------------------------------
+
+/** Whether a slot has a valid gradient end color. */
+export function isGradientOn(slot: CustomThemeColor): boolean {
+  return Boolean(
+    slot.gradientTo && slot.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(slot.gradientTo),
+  );
+}
+
+/**
+ * Normalize a user-typed color into a 7-char hex string (`#RRGGBB`). Strips
+ * a leading `#` if present, adds it back, and truncates to 7 characters so
+ * the caller never passes partial/malformed hex to the gradient preview.
+ */
+export function normalizeGradientEnd(color: string): string {
+  return color.replace(/^#?/, "#").slice(0, 7);
+}
+
+// ---------------------------------------------------------------------------
+//  Gallery / profile gate (pure)
+// ---------------------------------------------------------------------------
+
+/** A theme can be published to the gallery only when the user has a first
+ *  name and a username set. Returns the reason string, or `null` when OK. */
+export function galleryPublishError(
+  firstName: string,
+  username: string,
+): string | null {
+  if (firstName.trim() && username.trim()) return null;
+  return "Add your first name and a username to publish a theme to the gallery.";
+}
+
+// ---------------------------------------------------------------------------
+//  API response classifiers (pure — mirrors the pattern in shareModel / settingsModel)
+// ---------------------------------------------------------------------------
+
+export type ThemeApiOutcome =
+  | { ok: true }
+  | { ok: false; title: string; description: string };
+
+/** Classify a theme API response for the catch-free handler pattern. */
+export function classifyThemeApiError(
+  res: Response,
+  json: Record<string, unknown> | null,
+): ThemeApiOutcome {
+  if (res.ok) return { ok: true };
+  const error = json && typeof json.error === "string" ? json.error : undefined;
+  return {
+    ok: false,
+    title: "Could not save theme",
+    description: error || `Request failed (${res.status})`,
+  };
+}
+
 /** Editable color slots grouped into the editor's display sections. */
 export const THEME_EDITOR_SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
   { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge", "selectRing"].includes(m.key)) },
