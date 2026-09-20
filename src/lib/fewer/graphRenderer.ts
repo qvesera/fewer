@@ -1,5 +1,6 @@
 import {
   COLLAPSED_PILL_HEIGHT,
+  NODE_ITEM_HEIGHT,
   type FewerNode,
   type FewerEdge,
   type FileCategory,
@@ -87,7 +88,6 @@ const FILE_HEIGHT = 58;
 
 const FOLDER_RADIUS = 16; // rounded-2xl
 const FILE_RADIUS = 12; // rounded-xl
-const ITEM_HEIGHT = 28; // matches CustomNode ITEM_HEIGHT
 const HEADER_HEIGHT = 52; // py-2 + h-9 icon box + border-b
 const FOOTER_HEIGHT = 28; // item-count footer
 const PADDING = 40;
@@ -365,7 +365,7 @@ interface FolderRowCtx {
 
 function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string {
   const { w, rowBase, selected, subtleColor, p, edges } = ctx;
-  const ry = rowBase + i * ITEM_HEIGHT;
+  const ry = rowBase + i * NODE_ITEM_HEIGHT;
   const isFolder = child.data.type === "folder";
   const { icon, color: iconColor } = childRowIcon(child, p);
   const labelColor = isFolder && !selected ? p.folderText : p.text;
@@ -587,7 +587,7 @@ function renderFolderCard(
     return renderCollapsedFolderCard(n, rows.length, size, o);
   }
   const childListMaxHeight = Math.max(60, h - 72);
-  const visibleRows = Math.min(rows.length, Math.max(0, Math.floor((childListMaxHeight - 12) / ITEM_HEIGHT)));
+  const visibleRows = Math.min(rows.length, Math.max(0, Math.floor((childListMaxHeight - 12) / NODE_ITEM_HEIGHT)));
 
   const listTop = HEADER_HEIGHT;
   const footerTop = h - FOOTER_HEIGHT;

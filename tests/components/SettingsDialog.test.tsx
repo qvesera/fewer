@@ -17,10 +17,19 @@ let deleteFails = false;
 // Delete-account signs out via Supabase after scheduling; updateUser is the
 // change-email path (not under test, but the dialog imports the client).
 const signOut = mock(async () => ({ error: null }));
+// bun's mock.module registry is process-wide: spread the real modules so later
+// test files retain the full export shape (CustomNode imports fileOps; see
+// layoutSlice.test.ts note for the rationale).
+const actualSupabase = await import("@/lib/supabase");
 mock.module("@/lib/supabase", () => ({
+  ...actualSupabase,
   getBrowserSupabase: () => ({ auth: { signOut, updateUser: async () => ({ error: null }) } }),
 }));
-// Unrelated cloud/editor subsystems are not under test.
+// The barrel mock below is intentionally partial (3/38 exports): spreading the
+// real barrel would eagerly load ThemeEditorDialog/CloudPanel with SettingsDialog's
+// useAuth mock baked in, then cache them — breaking ThemeEditorDialog.test.tsx
+// which re-mocks the same hooks.  This is a latent cross-file leakage (see
+// pr-dev-checks "Test isolation" rule) but currently fires for no other suite.
 mock.module("@/components/fewer/index", () => ({ ThemeEditorDialog: () => null, Logo: () => null, CloudPanel: () => null }));
 mock.module("@/components/fewer/WatchedIndexesPanel", () => ({ WatchedIndexesPanel: () => <div>Watched indexes</div> }));
 const { SettingsDialog } = await import("@/components/fewer/SettingsDialog");
