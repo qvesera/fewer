@@ -76,6 +76,31 @@ decisions:
     renderer and will not add") is no longer true: @testing-library/react
     ^16.3.3, happy-dom, and @testing-library/user-event are in
     package.json and six DOM suites exist in tests/components.
+- id: b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8
+  title: Sidebar renders real panels directly; no barrel mock in component suites
+  decision: >-
+    Sidebar's child panels (StatsPanel, SavedGraphsPanel, TagsPanel) render as
+    real components from the barrel import; the barrel must not be mocked in
+    component suites. The previous partial barrel mock (3/38 exports) was
+    deleted because it broke every barrel-importing test via the process-wide
+    mock.module registry. Component suites that need these panels must mock
+    their dependencies (supabase, useProfile) individually instead.
+  reason: >-
+    The barrel mock prevented all future component suites from importing
+    barrel-exporting components. The three real modules load cleanly under
+    existing spread-override mocks (supabase, useProfile) and no suite
+    requires them to be stubbed.
+  scope:
+  - src/components/fewer/Sidebar.tsx
+  - src/components/fewer/GraphCanvas.tsx
+  - src/components/fewer/FewerApp.tsx
+  currency: active
+  source: cli
+  accepted_at: '2026-09-20T14:00:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
+
     The "don''t re-inline logic" rule remains in force.'
   scope:
   - src/components/fewer/CustomNode.tsx
