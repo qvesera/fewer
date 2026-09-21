@@ -1,35 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { countOwned, getUserPlan, limitsFor, overLimit, PRO_LIMITS } from "@/lib/fewer/plans";
-
-/**
- * Build an authed Supabase client from the session cookie and return it with
- * the current user. Using the authed client (not the anon key) attaches the
- * user's JWT so RLS sees auth.uid() — required for owner-scoped policies.
- */
-async function getAuthed() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
-  const { data } = await supabase.auth.getUser();
-  return { supabase, user: data.user ?? null };
-}
 
 function isValidHttpUrl(raw: string): boolean {
   try {
@@ -46,7 +17,7 @@ function isValidHttpUrl(raw: string): boolean {
  */
 export async function GET() {
   try {
-    const authed = await getAuthed();
+    const authed = await getAuthedSupabase();
     if (!authed?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     const { supabase, user } = authed;
 
@@ -70,7 +41,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const authed = await getAuthed();
+    const authed = await getAuthedSupabase();
     if (!authed?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     const { supabase, user } = authed;
 
@@ -127,7 +98,7 @@ export async function POST(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    const authed = await getAuthed();
+    const authed = await getAuthedSupabase();
     if (!authed?.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
     const { supabase, user } = authed;
 
