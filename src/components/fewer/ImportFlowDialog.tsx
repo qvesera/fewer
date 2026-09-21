@@ -172,18 +172,13 @@ export function ImportFlowDialog({
   // focus is NOT on a button (buttons trigger their own Enter) or an editable
   // field (inputs/textareas keep their own Enter). Step 1 is handled inside
   // ImportOriginStep.
+/** Returns true if the keyboard event target is an editable element that should consume Enter instead of advancing the dialog step. */
+function isEditableTarget(el: HTMLElement): boolean {
+  return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON" || el.tagName === "A" || el.isContentEditable;
+}
   const handleStepKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (importing) return;
-    const t = e.target as HTMLElement;
-    if (
-      t.tagName === "INPUT" ||
-      t.tagName === "TEXTAREA" ||
-      t.tagName === "BUTTON" ||
-      t.tagName === "A" ||
-      t.isContentEditable
-    ) {
-      return;
-    }
+    if (isEditableTarget(e.target as HTMLElement)) return;
     if (e.key !== "Enter") return;
     e.preventDefault();
     if (step === 2) setStep(3);
