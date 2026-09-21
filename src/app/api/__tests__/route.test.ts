@@ -36,6 +36,10 @@ const mockClient = { auth: { getUser: mockGetUser }, from: mockFrom };
 
 mock.module("@/lib/fewer/supabaseServer", () => ({
   getSupabaseCookieClient: async () => mockClient,
+  getAuthedSupabase: async () => {
+    const { data } = await mockClient.auth.getUser();
+    return data.user ? { supabase: mockClient, user: data.user } : null;
+  },
 }));
 mock.module("@/lib/fewer/plans", () => ({
   getUserPlan: async () => "free",

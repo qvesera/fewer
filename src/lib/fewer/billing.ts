@@ -8,9 +8,8 @@
 // subscription status; never trust a success_url redirect.
 import "server-only";
 import Stripe from "stripe";
-import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -43,28 +42,13 @@ export function getServiceSupabase(): SupabaseClient | null {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-/** Resolve the signed-in user from the session cookie (null = signed out / unconfigured). */
+/**
+ * Resolve the signed-in user from the session cookie (null = signed out / unconfigured).
+ * Delegates to the shared supabaseServer helper.
+ */
 export async function getAuthedUser() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
-  const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  const authed = await getAuthedSupabase();
+  return authed?.user ?? null;
 }
 
 /** 503 body returned while the BILLING_ENABLED feature flag is switched off. */
