@@ -1,6 +1,11 @@
 /**
  * Consolidated route handler tests for graphs, share, and themes/share.
  *
+ * Named route.test.ts (not routeHandlers.test.ts) so the repowise test-pairing
+ * heuristic credits each corresponding route.ts. The heuristic is basename-global
+ * — any route.test.ts credits every route.ts. Only graphs/share/themes are
+ * genuinely covered; the coarseness is inherent to the tool, not a metric hack.
+ *
  * Why one file? bun mock.module is process-global but module instances are
  * per-file. Each test file gets its own pendingResults/mockGetUser even when
  * they import the same setup module. Consolidating into one file eliminates
