@@ -27,9 +27,12 @@ const mockClient = { auth: { getUser: mockGetUser }, from: mockFrom };
 
 export { mockClient };
 
+// Ensure the env check inside getSupabaseCookieClient doesn't bail in CI.
+// The real function returns null when the env is missing; the mock always
+// returns the mock client so route tests run regardless of CI env.
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= "http://localhost:54321";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
+
 mock.module("@/lib/fewer/supabaseServer", () => ({
-  getSupabaseCookieClient: async () => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
-    return mockClient;
-  },
+  getSupabaseCookieClient: async () => mockClient,
 }));
