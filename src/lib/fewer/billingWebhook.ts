@@ -4,6 +4,7 @@
  * or a real Supabase client.
  */
 import type Stripe from "stripe";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Subscription statuses that grant Pro. past_due keeps Pro as a grace
 // period — Stripe retries, then cancels (which fires .deleted → free).
@@ -31,4 +32,43 @@ export function extractCustomerId(
 ): string | null {
   if (typeof customer === "string") return customer;
   return customer?.id ?? null;
+}
+
+/**
+ * Handle a `checkout.session.completed` event: link the Stripe customer ID
+ * to the user's profile and set plan to pro.  Throws on DB error so the
+ * route can return 500 and Stripe retries.
+ */
+export async function applyCheckoutCompleted(
+  service: SupabaseClient,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  const userId = session.client_reference_id;
+  const customerId = extractCustomerId(session.customer);
+  if (!userId || !customerId) return;
+
+  const { error } = await service.from("profiles").upsert(
+    { user_id: userId, stripe_customer_id: customerId, plan: "pro" },
+    { onConflict: "user_id" },
+  );
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Handle subscription created/updated/deleted: map status to plan and update
+ * the profile by Stripe customer ID.  Throws on DB error so the route can
+ * return 500 and Stripe retries.
+ */
+export async function applySubscriptionChange(
+  service: SupabaseClient,
+  sub: Stripe.Subscription,
+): Promise<void> {
+  const customerId = extractCustomerId(sub.customer);
+  if (!customerId) return;
+
+  const { error } = await service
+    .from("profiles")
+    .update({ plan: planFromSubscription(sub.status) })
+    .eq("stripe_customer_id", customerId);
+  if (error) throw new Error(error.message);
 }
