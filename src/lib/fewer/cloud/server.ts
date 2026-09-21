@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabaseCookieClient } from "../supabaseServer";
+import { getAuthedSupabase } from "../supabaseServer";
 import { decryptToken, encryptToken } from "./crypto";
 import { getAdapter } from "./registry";
 import type { CloudConnection, CloudProvider } from "./types";
@@ -7,11 +7,7 @@ import { isTokenExpiringSoon } from "./tokenExpiry";
 
 /** Authed Supabase client from the session cookie. Null when not signed in. */
 export async function getAuthedClient() {
-  const supabase = await getSupabaseCookieClient();
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return { supabase, user: data.user };
+  return await getAuthedSupabase();
 }
 
 /** Fetch a connection row for the current user, decrypting its access token. */
