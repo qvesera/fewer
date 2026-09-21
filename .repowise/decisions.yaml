@@ -5,6 +5,25 @@
 # Candidates and evidence stay out of it on purpose.
 version: 1
 decisions:
+- id: 2a14dea8bb1d46c73b512ad7ded25800
+  title: Route handlers resolve auth through one shared helper — no local createServerClient in src/app/api
+  decision: All src/app/api/* route files resolve authenticated Supabase clients through getAuthedSupabase()
+    from @/lib/fewer/supabaseServer. No route may define its own createServerClient + cookies boilerplate.
+    Guest-tolerant routes (share/route.ts) are the single sanctioned exception, keeping a thin local wrapper
+    over getSupabaseCookieClient().
+  reason: Nine copies of the 23-line createServerClient + cookies block existed across the API layer before
+    this ADR. The dedup removed ~160 lines and consolidated to one tested helper. Each route retains its
+    own HTTP status code (401 vs 403) for the null case.
+  scope:
+  - src/app/api/
+  - src/lib/fewer/billing.ts
+  - src/lib/fewer/supabaseServer.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-09-21T21:36:21.713635'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
 - id: 3d6a225b71ffe94046ff4724880ca7cb
   title: 'Import is one 3-step flow dialog: origin, shared options, per-origin action'
   decision: 'All four origins share one ImportFlowDialog with three steps: step 1 picks the origin and
@@ -153,6 +172,25 @@ decisions:
   accepted_at: '2026-09-20T17:08:09.214242'
   accepted_by: Yash Srivastava
   accepted_artifact: .repowise/decisions.yaml
+  evidence:
+  - accepted by Yash Srivastava
+- id: e3289a029286ac6f4720a867ee6f56a0
+  title: Organizational category caps 59 files at 6.50 — history findings are not actionable
+  decision: Do not open refactor PRs to lift org-saturated files above 6.50. repowise scoring kernel caps
+    organizational category at 3.5 deduction (CATEGORY_CAPS), fed exclusively by history biomarkers (co_change_scatter,
+    prior_defect, change_entropy, churn_risk, function_hotspot, hidden_coupling, knowledge_loss). 59 files
+    / 24.3% of code have that cap saturated, so their max possible score is 10 - 3.5 = 6.50 regardless
+    of code quality. average_health is LOC-weighted (sum(score*nloc)/sum(nloc)); corpus ceiling is 8.739,
+    current 8.177 = 93.6%. Remaining non-org movable headroom is +0.56 across 311 files.
+  reason: Q3-2026 health sprint reached 8.177 of 8.739 ceiling. Prior attempts to lift capped files produced
+    no score movement and risked undoing legitimate splits (cf. 6000f750 slice-factory ADR). The 6.50
+    ceiling prevents future agents from wasting effort.
+  scope:
+  - src/
+  currency: active
+  source: cli
+  accepted_at: '2026-09-21T21:36:20.698370'
+  accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
 - id: e7c2095b9b371fb1253d9d4873a0e37a
