@@ -11,7 +11,6 @@ import {
   useNodesState,
   useEdgesState,
   useUpdateNodeInternals,
-  Panel,
   ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -32,10 +31,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { edgeTypeFor } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
-import { ZoomIn, ZoomOut, Maximize2, Crosshair, FolderOpen, Sparkles, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStrokeStyle, FewerEdge, FewerNode } from "@/lib/fewer/types";
+import type { EdgeStrokeStyle } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphData, useLayoutConfig, useThemeConfig, useUiState, useViewState, useStoreActions } from "@/store/hooks";
 
@@ -61,10 +59,16 @@ import { useCanvasConnect } from "@/hooks/use-canvas-connect";
 import { useCanvasSelection } from "@/hooks/use-canvas-selection";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
-import { canvasChipStyle, type CanvasChipStyle } from "@/lib/fewer/themeColors";
+
 import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 import { CanvasOverlays } from "./CanvasOverlays";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { CanvasZoomControls } from "./CanvasZoomControls";
+import { useCanvasDelete } from "@/hooks/use-canvas-delete";
+import { useCanvasInteractionHandlers } from "@/hooks/use-canvas-interaction-handlers";
+import { useCanvasDragRecording } from "@/hooks/use-canvas-drag-recording";
+import { useCanvasCollapsedInternals } from "@/hooks/use-canvas-collapsed-internals";
+import { useCanvasHiddenChip } from "@/hooks/use-canvas-hidden-chip";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -178,55 +182,16 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
-  // Force React Flow to re-measure handles when any folder's collapse state
-  // changes, since the card height changes (expanded → compact pill or vice
-  // versa) and handle bounds become stale.
   const updateNodeInternals = useUpdateNodeInternals();
-  const collapsedKey = JSON.stringify(vs.collapsedFolderIds);
-  const prevCollapsedKeyRef = useRef(collapsedKey);
-  useEffect(() => {
-    if (prevCollapsedKeyRef.current === collapsedKey) return;
-    prevCollapsedKeyRef.current = collapsedKey;
-    if (useGraphStore.getState().nodes.length === 0) return;
-    updateNodeInternals(useGraphStore.getState().nodes.map((n) => n.id));
-  }, [collapsedKey, updateNodeInternals]);
+  useCanvasCollapsedInternals(vs.collapsedFolderIds, updateNodeInternals);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   useCanvasInitialFit(positionedNodes, containerRef, setViewport);
   useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
 
-  // On first drag in a view, seed the FULL positions map from the current
-  // positionedNodes so non-dragged nodes stay at their derived positions
-  // instead of falling back to shared (different) positions.
-  const seedOnFirstDrag = useCallback(() => {
-    if (leafId && !useGraphStore.getState().viewSettings[leafId]?.positions) {
-      const fullSeed: Record<string, { x: number; y: number }> = {};
-      for (const n of positionedNodes) fullSeed[n.id] = n.position;
-      seedNodePositions(leafId, fullSeed);
-    }
-  }, [leafId, positionedNodes, seedNodePositions]);
-
-  const effectiveRecordDragMoves = useCallback(
-    (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
-      if (leafId) {
-        seedOnFirstDrag();
-        for (const m of moves) setNodePositionForLeaf(leafId, m.nodeId, m.to);
-        // Record the move so it's undoable (no-op drags are filtered inside
-        // recordDragMoves). The op is tagged with this canvas's leaf so a drag
-        // in an inactive split viewport lands in that leaf's stack, and
-        // undo/redo restores `viewSettings[leafId].positions` — leaf canvases
-        // don't render from shared node positions.
-        recordDragMoves(moves, leafId);
-        // Persist leaf positions locally (layout key) once per gesture — not
-        // per frame. Positions never enter the settings payload (stripped in
-        // pick()), so dragging can't trigger a cloud settings sync.
-        useGraphStore.getState()._persistLayout();
-      } else {
-        recordDragMoves(moves);
-      }
-    },
-    [leafId, seedOnFirstDrag, recordDragMoves, setNodePositionForLeaf],
-  );
+  const { seedOnFirstDrag, effectiveRecordDragMoves } = useCanvasDragRecording({
+    leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
+  });
   const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
@@ -242,9 +207,6 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive,
   });
 
-  const [canvasMenu, setCanvasMenu] = useState<(CanvasMenuPosition & { kind: "pane" | "edge" | "selection" }) | null>(null);
-  const [lastClickedEdgeId, setLastClickedEdgeId] = useState<string | null>(null);
-
   const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
     setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
   });
@@ -253,10 +215,19 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     connectNodes, setRfEdges, edgeStyle: vs.edgeStyle, screenToFlowPosition, toast,
   });
 
-  const hiddenChipStyle = useMemo(() => {
-    const rawBackground = typeof document === "undefined" ? undefined : getComputedStyle(document.documentElement).getPropertyValue("--fewer-background").trim();
-    return canvasChipStyle(rawBackground || undefined);
-  }, []);
+  const onDelete = useCanvasDelete({
+    deleteNodes,
+    deleteEdges: (ids: string[]) => useGraphStore.getState().deleteEdges(ids),
+    toast,
+  });
+
+  const {
+    canvasMenu, lastClickedEdgeId, closeMenu,
+    onPaneClick, onEdgeContextMenu, onPaneContextMenu,
+    onSelectionContextMenu, onNodeContextMenu, onMouseMove,
+  } = useCanvasInteractionHandlers({ setRenamingId, leafId, screenToFlowPosition });
+
+  const hiddenChipStyle = useCanvasHiddenChip();
 
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
   return (
@@ -272,26 +243,17 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         onEdgesChange={handleEdgesChange as import("@xyflow/react").OnEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd as import("@xyflow/react").OnConnectEnd}
-        onPaneClick={() => { setRenamingId(null); if (leafId) useGraphStore.getState().setActiveLeaf(leafId); }}
+        onPaneClick={onPaneClick}
         onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
         onNodeDoubleClick={onNodeDoubleClick}
-        onDelete={({ nodes: deletedNodes, edges: deletedEdges }) => {
-          if (deletedNodes.length > 0) {
-            deleteNodes(deletedNodes.map((n: FewerNode) => n.id));
-            toast({ title: "Deleted", description: `${deletedNodes.length} item${deletedNodes.length === 1 ? "" : "s"} removed` });
-          }
-          if (deletedEdges.length > 0) {
-            useGraphStore.getState().deleteEdges(deletedEdges.map((e: FewerEdge) => e.id));
-            toast({ title: "Deleted", description: `${deletedEdges.length} edge${deletedEdges.length === 1 ? "" : "s"} removed` });
-          }
-        }}
-        onNodeContextMenu={(event) => event.preventDefault()}
-        onEdgeContextMenu={(event, edge) => { event.preventDefault(); setLastClickedEdgeId(edge.id); setCanvasMenu({ x: event.clientX, y: event.clientY, kind: "edge" }); }}
-        onPaneContextMenu={(e) => { e.preventDefault(); const mouseEvent = e as unknown as MouseEvent; setCanvasMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, kind: "pane" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); if (leafId) useGraphStore.getState().setActiveLeaf(leafId); }}
-        onSelectionContextMenu={(e) => { e.preventDefault(); setCanvasMenu({ x: e.clientX, y: e.clientY, kind: "selection" }); setLastClickedEdgeId(null); useGraphStore.getState().setRightClickDetected(); }}
-        onMouseMove={(e) => { const point = screenToFlowPosition({ x: e.clientX, y: e.clientY }); useGraphStore.getState().setMousePosition({ x: point.x, y: point.y }); }}
+        onDelete={onDelete}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeContextMenu={onEdgeContextMenu}
+        onPaneContextMenu={onPaneContextMenu}
+        onSelectionContextMenu={onSelectionContextMenu}
+        onMouseMove={onMouseMove}
         deleteKeyCode={null}
         nodesDraggable nodesConnectable elementsSelectable
         onlyRenderVisibleElements
@@ -315,14 +277,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         {mini.showMiniMap && (
           <MiniMap position={mini.rfMiniMapPosition} style={mini.minimapStyle} pannable zoomable nodeColor={mini.nodeColor} nodeStrokeColor={mini.nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
         )}
-        <Panel position="bottom-center">
-          <div className="gm-float flex items-center gap-1 rounded-2xl p-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => zoomIn({ duration: 250 })} title="Zoom in (+)"><ZoomIn className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => zoomOut({ duration: 250 })} title="Zoom out (-)"><ZoomOut className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={() => fitView({ duration: 600, padding: 0.2 })} title="Fit view (Space)"><Maximize2 className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 min-hit" onClick={fitToSelection} title="Zoom to selection"><Crosshair className="h-4 w-4" /></Button>
-          </div>
-        </Panel>
+        <CanvasZoomControls zoomIn={zoomIn} zoomOut={zoomOut} fitView={fitView} fitToSelection={fitToSelection} />
         <CanvasOverlays
           loading={loading}
           rfNodesCount={rfNodes.length}
@@ -346,7 +301,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           allNodes={allNodes}
           selectAll={selectAll}
-          close={() => setCanvasMenu(null)}
+          close={closeMenu}
         />
       )}
       {primary && <KeyboardShortcuts />}

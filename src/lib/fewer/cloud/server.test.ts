@@ -3,7 +3,11 @@ mock.module("server-only", () => ({}));
 
 const mockUser = { id: "u1", email: "a@b.com" };
 const mockGetAuthed = mock((): any => ({ supabase: {}, user: mockUser }));
-mock.module("../supabaseServer", () => ({ getAuthedSupabase: mockGetAuthed }));
+
+// Spread the real module so getSupabaseCookieClient stays available for
+// other test files in the same bun process (route.test.ts needs it).
+const _actual = await import("../supabaseServer");
+mock.module("../supabaseServer", () => ({ ..._actual, getAuthedSupabase: mockGetAuthed }));
 mock.module("./crypto", () => ({
   decryptToken: (s: string) => `decrypted:${s}`,
   encryptToken: (s: string) => `encrypted:${s}`,
