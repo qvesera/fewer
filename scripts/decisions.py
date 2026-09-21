@@ -9,7 +9,7 @@ Checks (all mandatory, zero dependency on PyYAML):
      exact class of YAML edit that broke this file in PR #150.
   3. Every entry has the keys required by repowise decision import: id, title,
      decision, reason, scope (non-empty list).
-  4. id is unique and 32-hex; currency ∈ {active, superseded, deprecated}.
+  4. id is unique and 32-hex; currency ∈ {active, superseded, deprecated, dismissed}.
 
 Exits 0 on clean pass, 1 on any hard FAIL.
 """
@@ -23,7 +23,7 @@ DECISIONS_YAML = os.path.join(
 )
 
 REQUIRED_KEYS = {"id", "title", "decision", "reason", "scope"}
-VALID_CURRENCIES = {"active", "superseded", "deprecated"}
+VALID_CURRENCIES = {"active", "superseded", "deprecated", "dismissed"}
 HEX32 = re.compile(r"^[0-9a-f]{32}$")
 
 

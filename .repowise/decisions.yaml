@@ -26,6 +26,29 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
+- id: 6000f750bdfda2a0e4c7681227e767ba
+  title: Slice-factory CCN is an aggregate artifact — builder count, not branch depth
+  decision: 'Cyclomatic complexity measured on slice-factory / builder functions that return an object
+    literal with multiple methods counts the enclosing arrow function, not individual methods. A factory
+    returning N inlined methods reports CCN equal to the sum of all method bodies. Example: nodes.ts composer
+    (spreads 4 builders, no inline methods) = CCN 1; clipboard.ts builder (8 methods inline) = CCN 73.
+    Same behaviour, same store, 73x difference. Do not split or flatten builder functions to reduce this
+    metric; the composer pattern (ADR a1214228) takes precedence.'
+  reason: After splitting the 467-line nodes.ts monolith (CCN 210) into 4 focused sub-modules per a1214228,
+    the top 3 complex_method findings became the new builders (76 / 73 / 49), not real complexity. The
+    real deficit fell 585 to 152, but reported findings rose. Without this ADR, the metric surface will
+    drive future agents to undo the split.
+  scope:
+  - src/store/slices
+  currency: dismissed
+  source: cli
+  accepted_at: '2026-09-21T13:03:44.846735'
+  accepted_by: unrecorded
+  evidence:
+  - nodes.ts CCN=1 (spreads, no inlined methods) vs clipboard.ts CCN=73 (8 inlined methods)
+  - '{''Score regression from split'': ''deficit 585 to 152 but complex_method findings rose by 2''}'
+  aliases:
+  - 4d3c2b1a0f9e8d7c6b5a43210fedcba9
 - id: 7c1cd6c3f686ba264622902b0dd7c98d
   title: GraphCanvas stays thin wiring over use-canvas-* hooks
   decision: Keep GraphCanvas/CanvasInner as thin wiring and push canvas behaviour into one-purpose hooks
@@ -37,41 +60,35 @@ decisions:
   scope:
   - src/components/fewer/GraphCanvas.tsx
   - src/hooks
-  currency: deprecated
+  currency: superseded
   source: cli
-  accepted_at: '2026-09-12T16:57:51.183394'
+  accepted_at: '2026-09-21T13:03:45.906661'
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
-  - Deprecated: superseded by 8f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c
-- id: 8f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c
-  title: GraphCanvas wiring is thin; CanvasInner is the last extraction target; DOM suites permitted
-  decision: >-
-    GraphCanvas/CanvasInner stays thin wiring; push canvas behaviour into one-purpose
-    hooks under src/hooks/use-canvas-*.ts, with pure helpers exported from those
-    modules and covered by bun tests under src/hooks/ and by DOM suites in
-    tests/components/GraphCanvas.test.tsx. Do not merge the hooks back or re-inline
-    logic. CanvasInner (138 lines, CCN 16) is the last remaining inline wiring
-    blob and must be extracted into a hook before adding further canvas features.
-  reason: >-
-    Supersedes 7c1cd6c3 whose premise ("the repo has no dependency for a React
-    renderer") is no longer true: @testing-library/react ^16.3.3, happy-dom,
-    and @testing-library/user-event are devDependencies and six DOM suites
-    already exist in tests/components/. CanvasInner carries large_method,
-    complex_method, and brain_method findings (combined impact ~2.0) and is
-    the highest-leverage single extraction in the repo's current queue.
+  superseded_by: e7c2095b9b371fb1253d9d4873a0e37a
+- id: 846c08b07e55319e7dd55d4e12dee2f8
+  title: Sidebar renders real panels directly; no barrel mock in component suites
+  decision: Sidebar's child panels (StatsPanel, SavedGraphsPanel, TagsPanel) render as real components
+    from the barrel import; the barrel must not be mocked in component suites. The previous partial barrel
+    mock (3/38 exports) was deleted because it broke every barrel-importing test via the process-wide
+    mock.module registry. Component suites that need these panels must mock their dependencies (supabase,
+    useProfile) individually instead.
+  reason: The barrel mock prevented all future component suites from importing barrel-exporting components.
+    The three real modules load cleanly under existing spread-override mocks (supabase, useProfile) and
+    no suite requires them to be stubbed.
   scope:
+  - src/components/fewer/FewerApp.tsx
   - src/components/fewer/GraphCanvas.tsx
-  - src/hooks
-  - src/components/fewer/CanvasOverlays.tsx
-  - src/components/fewer/CanvasContextMenu.tsx
-  - tests/components/GraphCanvas.test.tsx
-  currency: active
+  - src/components/fewer/Sidebar.tsx
+  currency: dismissed
   source: cli
-  accepted_at: '2026-09-20T16:00:00.000000'
-  accepted_by: Yash Srivastava
+  accepted_at: '2026-09-21T13:03:46.979187'
+  accepted_by: unrecorded
   evidence:
-  - Accepted by Yash Srivastava; replaces stale 7c1cd6c3.
+  - accepted by Yash Srivastava
+  aliases:
+  - b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8
 - id: 9a1397f53d596a5399b551de75209f7f
   title: crawl.ts fetches one listing page per request; the rolling worker pool is the concurrency bound
   decision: Keep one HTTP GET per directory listing in src/lib/fewer/crawl.ts. Apache/nginx auto-index
@@ -92,106 +109,77 @@ decisions:
   accepted_by: Yash Srivastava
   evidence:
   - accepted by Yash Srivastava
-- id: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
+- id: 9cf2ee703915597bc7c1513ebc9ae669
   title: CustomNode menus are pure action descriptors; DOM suites are now permitted
-  decision: 'CustomNode''s context-menu actions must be pure action-descriptor builders
-    in src/lib/fewer/*.ts (the batchActions.ts pattern), tested with bun,
-    so menu logic stays testable without mounting a full component.
-    The GraphCanvas ADR''s "no React renderer" rationale is superseded:
-    @testing-library/react and happy-dom are now devDependencies and
-    tests/components/*.test.tsx suites exist — render a component when a
-    DOM characterization suite is the most effective coverage path.'
-  reason: 'The 7c1cd6c3 ADR''s premise ("the repo has no dependency for a React
-    renderer and will not add") is no longer true: @testing-library/react
-    ^16.3.3, happy-dom, and @testing-library/user-event are in
-    package.json and six DOM suites exist in tests/components.
-    The "don''t re-inline logic" rule remains in force.'
+  decision: 'CustomNode''s context-menu actions must be pure action-descriptor builders in src/lib/fewer/*.ts
+    (the batchActions.ts pattern), tested with bun, so menu logic stays testable without mounting a full
+    component. The GraphCanvas ADR''s "no React renderer" rationale is superseded: @testing-library/react
+    and happy-dom are now devDependencies and tests/components/*.test.tsx suites exist — render a component
+    when a DOM characterization suite is the most effective coverage path.'
+  reason: 'The 7c1cd6c3 ADR''s premise ("the repo has no dependency for a React renderer and will not
+    add") is no longer true: @testing-library/react ^16.3.3, happy-dom, and @testing-library/user-event
+    are in package.json and six DOM suites exist in tests/components. The "don''t re-inline logic" rule
+    remains in force.'
   scope:
   - src/components/fewer/CustomNode.tsx
   - src/components/fewer/GraphCanvas.tsx
-  currency: active
+  currency: dismissed
   source: cli
-  accepted_at: '2026-09-20T12:00:00.000000'
-  accepted_by: Yash Srivastava
+  accepted_at: '2026-09-21T13:03:48.006026'
+  accepted_by: unrecorded
   evidence:
   - accepted by Yash Srivastava
-- id: b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8
-  title: Sidebar renders real panels directly; no barrel mock in component suites
-  decision: >-
-    Sidebar's child panels (StatsPanel, SavedGraphsPanel, TagsPanel) render as
-    real components from the barrel import; the barrel must not be mocked in
-    component suites. The previous partial barrel mock (3/38 exports) was
-    deleted because it broke every barrel-importing test via the process-wide
-    mock.module registry. Component suites that need these panels must mock
-    their dependencies (supabase, useProfile) individually instead.
-  reason: >-
-    The barrel mock prevented all future component suites from importing
-    barrel-exporting components. The three real modules load cleanly under
-    existing spread-override mocks (supabase, useProfile) and no suite
-    requires them to be stubbed.
-  scope:
-  - src/components/fewer/Sidebar.tsx
-  - src/components/fewer/GraphCanvas.tsx
-  - src/components/fewer/FewerApp.tsx
-  currency: active
-  source: cli
-  accepted_at: '2026-09-20T14:00:00.000000'
-  accepted_by: Yash Srivastava
-  evidence:
-  - accepted by Yash Srivastava
+  aliases:
+  - a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
 - id: a1214228826ec0d70c22785984002469
   title: graph state is composed of focused sub-slices; graphSlice.ts is the thin composer
-  decision: >-
-    graphSlice.ts is a 27-line composer: createCoreSlice, createNodesSlice,
-    createStructureSlice, createHideShowSlice under src/store/slices/graph/
-    (plus pure helpers reveal.ts and detach.ts). New graph actions land in the
-    matching sub-slice, never in the composer. Cross-slice calls go through get().
-    The four helper re-exports (walkSubtreeReveal, collectShowSubtrees,
-    reconcileAutoHide, unparentSubtree) keep the old import path so
-    deleteUndo.test.ts, showSubtrees.test.ts and revealHelpers.ts work unchanged.
-  reason: >-
-    graphSlice.ts was a 1371-line monolith: createGraphSlice held ~50 actions
-    (CCN 291, nesting 6) across ~1077 lines, with 30 bug fixes and 49 committing
-    files concentrated in it. Mirrors the established ui/ precedent (sub-slices +
-    32-line uiSlice.ts composer): each file owns one concern, each creator type
-    pins its own keys, and the composer web has the same shape so createStore.ts
-    needed no edits.
+  decision: 'graphSlice.ts is a 27-line composer: createCoreSlice, createNodesSlice, createStructureSlice,
+    createHideShowSlice under src/store/slices/graph/ (plus pure helpers reveal.ts and detach.ts). New
+    graph actions land in the matching sub-slice, never in the composer. Cross-slice calls go through
+    get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees, reconcileAutoHide, unparentSubtree)
+    keep the old import path so deleteUndo.test.ts, showSubtrees.test.ts and revealHelpers.ts work unchanged.'
+  reason: 'graphSlice.ts was a 1371-line monolith: createGraphSlice held ~50 actions (CCN 291, nesting
+    6) across ~1077 lines, with 30 bug fixes and 49 committing files concentrated in it. Mirrors the established
+    ui/ precedent (sub-slices + 32-line uiSlice.ts composer): each file owns one concern, each creator
+    type pins its own keys, and the composer web has the same shape so createStore.ts needed no edits.'
   scope:
-  - src/store/slices/graphSlice.ts
   - src/store/slices/graph/core.ts
+  - src/store/slices/graph/hideShow.ts
   - src/store/slices/graph/nodes.ts
   - src/store/slices/graph/structure.ts
-  - src/store/slices/graph/hideShow.ts
+  - src/store/slices/graphSlice.ts
   currency: active
   source: cli
-  accepted_at: '2026-09-18T19:15:54.191123'
+  accepted_at: '2026-09-20T17:08:09.214242'
   accepted_by: Yash Srivastava
+  accepted_artifact: .repowise/decisions.yaml
   evidence:
   - accepted by Yash Srivastava
-- id: 4d3c2b1a0f9e8d7c6b5a43210fedcba9
-  title: Slice-factory CCN is an aggregate artifact — builder count, not branch depth
-  decision: >-
-    Cyclomatic complexity measured on slice-factory / builder functions that
-    return an object literal with multiple methods counts the enclosing arrow
-    function, not individual methods. A factory returning N inlined methods
-    reports CCN equal to the sum of all method bodies. Example:
-    nodes.ts composer (spreads 4 builders, no inline methods) = CCN 1;
-    clipboard.ts builder (8 methods inline) = CCN 73. Same behaviour,
-    same store, 73x difference. Do not split or flatten builder functions
-    to reduce this metric; the composer pattern (ADR a1214228) takes
-    precedence.
-  reason: >-
-    After splitting the 467-line nodes.ts monolith (CCN 210) into 4 focused
-    sub-modules per a1214228, the top 3 complex_method findings became the
-    new builders (76 / 73 / 49), not real complexity. The real deficit fell
-    585 to 152, but reported findings rose. Without this ADR, the metric
-    surface will drive future agents to undo the split.
+- id: e7c2095b9b371fb1253d9d4873a0e37a
+  title: GraphCanvas wiring is thin; CanvasInner is the last extraction target; DOM suites permitted
+  decision: GraphCanvas/CanvasInner stays thin wiring; push canvas behaviour into one-purpose hooks under
+    src/hooks/use-canvas-*.ts, with pure helpers exported from those modules and covered by bun tests
+    under src/hooks/ and by DOM suites in tests/components/GraphCanvas.test.tsx. Do not merge the hooks
+    back or re-inline logic. CanvasInner (138 lines, CCN 16) is the last remaining inline wiring blob
+    and must be extracted into a hook before adding further canvas features.
+  reason: 'Supersedes 7c1cd6c3 whose premise ("the repo has no dependency for a React renderer") is no
+    longer true: @testing-library/react ^16.3.3, happy-dom, and @testing-library/user-event are devDependencies
+    and six DOM suites already exist in tests/components/. CanvasInner carries large_method, complex_method,
+    and brain_method findings (combined impact ~2.0) and is the highest-leverage single extraction in
+    the repo''s current queue.'
   scope:
-  - src/store/slices
+  - src/components/fewer/CanvasContextMenu.tsx
+  - src/components/fewer/CanvasOverlays.tsx
+  - src/components/fewer/GraphCanvas.tsx
+  - src/hooks
+  - tests/components/GraphCanvas.test.tsx
   currency: active
   source: cli
-  accepted_at: '2026-09-21T03:00:00.000000'
+  accepted_at: '2026-09-20T17:08:09.195109'
   accepted_by: Yash Srivastava
+  accepted_artifact: .repowise/decisions.yaml
   evidence:
-  - 'nodes.ts CCN=1 (spreads, no inlined methods) vs clipboard.ts CCN=73 (8 inlined methods)'
-  - Score regression from split: deficit 585 to 152 but complex_method findings rose by 2
+  - Accepted by Yash Srivastava; replaces stale 7c1cd6c3.
+  aliases:
+  - 7c1cd6c3f686ba264622902b0dd7c98d
+  - 8f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c
