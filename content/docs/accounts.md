@@ -19,7 +19,7 @@ If you try to sign up with an email that already has an account, you're told and
 
 Signing up with Google or GitHub fills your profile's first and last name from the provider's display name. You can change them anytime in **Settings → Account**.
 
-After signing in, the navbar shows your account menu with a **Sign out** option.
+After signing in, the navbar shows your avatar and name. Click to open the account menu with **Account settings** (opens the Profile card), **Your saved graphs** (opens the sidebar), and **Sign out**.
 
 ## Change Your Email
 
