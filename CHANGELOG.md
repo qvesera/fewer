@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - View-settings sanitising now reads its recognised fields from one type table instead of eleven typeof branches, and a test pins each row in both directions, so a new per-view option is one table row rather than another branch. Behavior unchanged: the pre-change and post-change implementations were diffed over ~3,400 generated inputs with no divergent result.
 - Split graphSlice.ts monolith into src/store/slices/graph/ sub-slices (core, nodes, structure, hideShow) with graphSlice.ts as thin wrapper; no behavior change
 - Settings → Account profile save now re-checks the live profile just before writing, skips the request when the server already matches the edit, and re-syncs its baseline after a failed save so retries start from server truth
+- UI copy now says connections instead of edges everywhere user-facing (section title, export summary, share dialog, right-click menu, toasts, Power User canvas settings); internals, saved-graph format and CSS/theme keys keep edge names
+- Account dropdown now shows avatar with initials, display name, and actionable menu items (Account settings, Your saved graphs, Upgrade to Pro / Manage subscription when billing is enabled, Sign out) instead of a non-interactive name and Sign out only
+- Docs clarify how the account avatar is chosen: the Google/GitHub profile photo, otherwise initials — there is no avatar upload by design
 
 ### Fixed
 
@@ -96,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generate XML sitemaps (fewer.directory/sitemap.xml + app.fewer.directory/app/sitemap.xml) so search engines can index the site; robots.txt now points at both.
 - Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
 - The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
+- Signing up with GitHub or Google now fills your profile's first and last name from the provider's display name (editable in Settings → Account)
 
 ### Performance
 

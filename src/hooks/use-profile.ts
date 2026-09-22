@@ -68,3 +68,12 @@ export function userDisplayName(
   if (profile.username) return profile.username;
   return user?.email ?? "";
 }
+
+/** Initials from a display name or email. "Ada Lovelace" → "AL", "ada@example.com" → "A", empty → "?" */
+export function initialsOf(displayName: string): string {
+  const s = displayName.trim();
+  if (!s) return "?";
+  if (s.includes("@")) return s[0].toUpperCase();
+  const parts = s.split(/\s+/);
+  return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}

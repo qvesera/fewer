@@ -235,7 +235,7 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
   { key: "subtleText", label: "Secondary Text", cssVar: "--fewer-text-subtle", description: "Paths, sizes, and meta text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
   { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
   { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
-  { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
+  { key: "edge", label: "Connection Line", cssVar: "--fewer-edge", description: "Default card connections", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
   { key: "selectRing", label: "Selection Ring", cssVar: "--fewer-select-ring", description: "Outline around the selected card", defaultColor: "#22d3ee", defaultOpacity: 1, openColor: { family: "cyan", index: 6 } },
   { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", gradientCssVar: "--fewer-folder-bg-gradient", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
   { key: "folderText", label: "Folder Text", cssVar: "--fewer-folder-text", description: "Folder title text", defaultColor: "#1e293b", defaultOpacity: 1, openColor: { family: "gray", index: 8 } },

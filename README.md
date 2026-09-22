@@ -112,7 +112,7 @@ docker run -p 3000:3000 fewer
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
-- **3 edge styles**: Curved, Angled (adjustable radius), Straight
+- **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
 - **Tags**: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
@@ -244,14 +244,14 @@ docker run -p 3000:3000 fewer
 | **SVG**    | Vector with theme background               | Documentation, presentations  |
 | **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
 | **JSON**   | Full graph state                           | Re-import, programmatic use   |
-| **CSV**    | Tabular nodes + edges                      | Spreadsheets, data analysis   |
+| **CSV**    | Tabular nodes + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
 
-Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and edge style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
+Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 
 ---
 
@@ -276,7 +276,7 @@ Writes go through the service role (RLS is public-read-only for published rows).
 User action → KeyboardShortcuts / ContextMenu → graphStore (Zustand) → React Flow re-render
 ```
 
-The **Zustand store** is the single source of truth. React Flow nodes/edges are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
+The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -310,7 +310,7 @@ src/
 ├── lib/fewer/
 │   ├── types.ts              # TypeScript types + theme metadata
 │   ├── layout.ts             # Custom tree layout with type-aware dimensions
-│   ├── treeToGraph.ts        # Tree → flat nodes/edges
+│   ├── treeToGraph.ts        # Tree → flat nodes/connections
 │   ├── fileSystem.ts         # File System Access API
 │   ├── fileOps.ts            # Copy/move/delete/create/open on disk
 │   ├── importOptions.ts      # Import configuration
@@ -323,7 +323,7 @@ src/
 │   ├── share.ts              # URL sharing
 │   ├── errors.ts             # Type-safe error system
 │   └── stats.ts              # Stats computation + fuzzy match
-├── store/graphStore.ts       # Zustand store (nodes, edges, history, theme, clipboard)
+├── store/graphStore.ts       # Zustand store (nodes, connections, history, theme, clipboard)
 └── hooks/
     ├── use-device.ts         # Mobile/tablet/touch/reduced-motion detection
     ├── use-mobile.ts         # Mobile breakpoint hook
@@ -390,6 +390,10 @@ A: Delete the repo folder. That's it. No background processes, no config files, 
 **Q: Do I need an account?**
 
 A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
+
+**Q: Can I set my own avatar?**
+
+A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload — that keeps the app free of image storage without giving up identity in the toolbar.
 
 ---
 

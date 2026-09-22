@@ -331,7 +331,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
         if (st.selectedNodeIds.length > 0) ctx.deleteNodes(st.selectedNodeIds);
         const parts: string[] = [];
         if (st.selectedNodeIds.length > 0) parts.push(pluralizeCount(st.selectedNodeIds.length, "item"));
-        if (rfEdges.length > 0) parts.push(pluralizeCount(rfEdges.length, "edge"));
+        if (rfEdges.length > 0) parts.push(pluralizeCount(rfEdges.length, "connection"));
         ctx.toast({ title: "Deleted", description: `${parts.join(" and ")} removed` });
       },
     },

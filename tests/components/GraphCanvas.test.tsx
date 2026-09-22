@@ -111,7 +111,7 @@ describe("CanvasContextMenu", () => {
         hiddenCount={0} allNodes={[]} selectAll={() => {}} close={() => {}}
       />,
     );
-    expect(screen.getByText("Delete Edge")).toBeDefined();
+    expect(screen.getByText("Delete Connection")).toBeDefined();
   });
 
   test("Clear Canvas resets store nodes", () => {

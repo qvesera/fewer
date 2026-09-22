@@ -46,7 +46,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
   },
   {
     id: "edges",
-    title: "Edges & Style",
+    title: "Connections & Style",
     icon: Spline,
     available: () => true,
   },

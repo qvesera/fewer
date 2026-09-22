@@ -90,7 +90,7 @@ describe("ShareDialog rendering", () => {
     });
     render(<ShareDialog />);
     expect(bodyText()).toContain("3 cards");
-    expect(bodyText()).toContain("1 edge");
+    expect(bodyText()).toContain("1 connection");
   });
 });
 

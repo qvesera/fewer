@@ -249,7 +249,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
         {/* ── 3. EDGES & STYLE ── */}
         {!dockedIds.has("edges") && (
-        <CollapsibleSection title="Edges & Style" icon={Spline} defaultOpen={false} {...dragProps("edges")}>
+        <CollapsibleSection title="Connections & Style" icon={Spline} defaultOpen={false} {...dragProps("edges")}>
           <div className="flex flex-col gap-3 w-full min-w-0">
             <div className="space-y-1.5 w-full min-w-0">
               <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
@@ -316,7 +316,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             <AlertDialogTitle className="text-sm font-medium">Clear canvas?</AlertDialogTitle>
             <AlertDialogDescription className="text-xs font-normal">
               This will remove all {plural(nodes.length, "card")} and{" "}
-              {plural(edges.length, "edge")} from your graph.
+              {plural(edges.length, "connection")} from your graph.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

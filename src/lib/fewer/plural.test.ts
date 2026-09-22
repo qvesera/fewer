@@ -10,7 +10,7 @@ describe("plural", () => {
   test("regular plural otherwise", () => {
     expect(plural(0, "node")).toBe("0 nodes");
     expect(plural(2, "node")).toBe("2 nodes");
-    expect(plural(42, "edge")).toBe("42 edges");
+    expect(plural(42, "connection")).toBe("42 connections");
   });
 
   test("negative counts pluralize", () => {
