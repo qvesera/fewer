@@ -14,7 +14,7 @@ Fewer lets you share graphs with anyone via a link. Two ways to share:
 2. Click **Generate Share Link**
 3. Click **Copy** to copy the link to your clipboard
 
-The link contains all nodes and edges with their positions. Your own app settings (layout direction, edge style, theme, corner radius, node dimensions) are never taken from the graph — the graph always renders with the settings of whoever opens the link.
+The link contains all nodes and connections with their positions. Your own app settings (layout direction, connection style, theme, corner radius, node dimensions) are never taken from the graph — the graph always renders with the settings of whoever opens the link.
 
 ### How it works
 

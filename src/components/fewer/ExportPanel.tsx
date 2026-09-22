@@ -280,7 +280,7 @@ export function ExportPanel() {
     setOpen(false);
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}`,
     });
   };
 
@@ -492,11 +492,11 @@ export function ExportPanel() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-                  <span>Edges</span>
+                  <span>Connections</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
-                      ? `${exportEdges.length} edges`
-                      : `${edges.length} edges`}
+                      ? `${exportEdges.length} connections`
+                      : `${edges.length} connections`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">

@@ -99,7 +99,7 @@ describe("BugReportDialog", () => {
     expect(screen.getByText("Report a Bug")).toBeDefined();
     expect(screen.getByText("Auto-collected diagnostics")).toBeDefined();
     // Cards / Edges: nodes.length / edges.length (split across elements)
-    expect(screen.getByText("Cards / Edges")).toBeDefined();
+    expect(screen.getByText("Cards / Connections")).toBeDefined();
   });
 
   test("Submit to GitHub disabled until title typed", async () => {

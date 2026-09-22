@@ -93,4 +93,4 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 - Shortcuts work when the canvas is focused
 - Use **Tab** to move focus between panels if needed
 - **Ctrl+A** selects all visible nodes
-- **Ctrl+click** a node handle removes its connected edges
+- **Ctrl+click** a node handle removes its connected connections

@@ -1,6 +1,6 @@
 ---
 title: Graph Features
-description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, edge styles, and navigation features.
+description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, connection styles, and navigation features.
 ---
 
 Fewer is a very feature-rich directory viewer. Here is a deep dive into all of its features:
@@ -25,7 +25,7 @@ Right-click empty canvas space to open quick actions:
 - **Select All**: select every visible node
 - **Organize**: re-run the tree layout to reflow the graph
 - **Zoom In / Zoom Out**
-- **Delete Edge**: removes the last-clicked edge
+- **Delete Connection**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
 - **Show All Cards**: reveal hidden nodes (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
@@ -57,7 +57,7 @@ Select a node to see resize handles:
 
 ### Handle Shortcuts
 
-**Ctrl+click** a node's input or output handle removes all edges connected to that handle.
+**Ctrl+click** a node's input or output handle removes all connections from that handle.
 
 ### Build the Tree by Dragging Handles
 
@@ -142,7 +142,7 @@ Tags are part of the graph data: they ride along with saved graphs, share links,
 
 Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
 
-## Edge Styles
+## Connection Styles
 
 ### Curved
 
@@ -156,35 +156,35 @@ Sharp corners with configurable radius (0-20px). Adjust via sidebar.
 
 Direct lines. Minimalist look.
 
-## Edge Motion
+## Connection Motion
 
 Optional motion effects:
 
-- **None**: static edges
+- **None**: static connections
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
-Edge motion is a signed-in (Power User) feature: it's only available to
+Connection motion is a signed-in (Power User) feature: it's only available to
 authenticated users. A Settings → Appearance toggle, **Animate Selected
 Edges Only**, limits the
-animation to the edges along the selected nodes' path to the root (the same
-edges that get the selection highlight) instead of every edge on the canvas.
+animation to the connections along the selected nodes' path to the root (the same
+connections that get the selection highlight) instead of every connection on the canvas.
 It works standalone — no need to turn on the edge motion toggle first — and
-its animated edges use the **Selected Edge Pattern** (dashed or dotted) chosen
+its animated edges use the **Selected Connection Pattern** (dashed or dotted) chosen
 in the same dialog. Edges outside the selection follow the Motion
 and Pattern controls in the same tab.
 
-## Edge Pattern & Weight
+## Connection Pattern & Weight
 
-In Power User mode, Settings → Appearance → **Edge Styling** controls:
+In Power User mode, Settings → Appearance → **Connection Styling** controls:
 
 - **Motion**: static or animated — applies to all edges globally, or to the
-  non-selected edges only when **Animate Selected Edges Only** is on
+  non-selected connections only when **Animate Selected Connections Only** is on
 - **Pattern**: solid, dashed, or dotted — same scope as Motion
 - **Line Thickness**: 0.5px to 6px slider
 
 The sidebar keeps a quick **Style** picker (curved / straight / angled); corner
-radius for angled edges also lives in Edge Styling.
+radius for angled connections also lives in Connection Styling.
 
 ## Breadcrumb Bar
 
@@ -209,7 +209,7 @@ Access via sidebar. Shows all hidden nodes grouped by their visible parent folde
 - **Nested expandable tree** (any depth) for fully-hidden subtrees
 - **Eye button** reveals an individual item (or a whole hidden subtree)
 - **"Show All" button** reveals everything
-- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path edges (root→folder), like global search and selection
+- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
 
 ## Search
@@ -223,7 +223,7 @@ Fuzzy search across filenames, paths, and extensions.
 
 ## Multiple Graph Views
 
-Split the workspace into two or more areas and every graph view keeps its own settings: hidden cards, collapsed folders, card positions, layout direction, edge style and edge width. Clicking a card, its pane, or its header makes that view the active one — the view that owns clicks, selection and keyboard actions.
+Split the workspace into two or more areas and every graph view keeps its own settings: hidden cards, collapsed folders, card positions, layout direction, connection style and connection width. Clicking a card, its pane, or its header makes that view the active one — the view that owns clicks, selection and keyboard actions.
 
 The active view is marked with an accent inset border plus a dot in its header, so it is obvious which pane will respond. The marker only appears when the workspace holds more than one view, keeping a single-view layout unmarked. It is a UI affordance: it is never drawn into SVG/PNG exports.
 
@@ -231,12 +231,12 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
-Non-graph panes (Layout, Edges, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped.
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped.
 
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
-- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Cards, Graph Analytics
+- **Collapsible sections**: File & Actions, Layout, Connections & Style, Hidden Cards, Graph Analytics
 
 ## Stats Panel
 

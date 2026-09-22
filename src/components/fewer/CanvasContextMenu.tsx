@@ -71,12 +71,12 @@ export function CanvasContextMenu({
           <button
             onClick={() => {
               useGraphStore.getState().deleteEdges([eid]);
-              toast({ title: "Edge deleted", description: "1 edge removed" });
+              toast({ title: "Connection deleted", description: "1 connection removed" });
               close();
             }}
             className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
           >
-            Delete Edge
+            Delete Connection
           </button>
         </div>
       </>

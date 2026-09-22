@@ -28,7 +28,7 @@ export const AREA_EDITOR_LABELS: Record<AreaEditor, string> = {
   file: "File & Actions",
   directories: "Your Directories",
   layout: "Layout",
-  edges: "Edges & Style",
+  edges: "Connections & Style",
   hidden: "Hidden Cards",
   tags: "Tags",
   analytics: "Graph Analytics",

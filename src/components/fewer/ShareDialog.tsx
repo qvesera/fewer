@@ -166,7 +166,7 @@ export function ShareDialog() {
             <p className="text-xs text-muted-foreground">
               {building
                 ? "Storing large graph for a short share link…"
-                : `This link contains ${plural(nodes.length, "card")} and ${plural(edges.length, "edge")} with their positions.`}
+                : `This link contains ${plural(nodes.length, "card")} and ${plural(edges.length, "connection")} with their positions.`}
             </p>
           </div>
         )}

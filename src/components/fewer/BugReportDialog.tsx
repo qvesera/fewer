@@ -355,14 +355,14 @@ export function BugReportDialog() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground">
               <div className="flex justify-between">
-                <span>Cards / Edges</span>
+                <span>Cards / Connections</span>
                 <span className="tabular-nums font-medium text-foreground/80">
                   {diagnostics.graphState.totalNodes} /{" "}
                   {diagnostics.graphState.totalEdges}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Layout / Edge style</span>
+                <span>Layout / Connection style</span>
                 <span className="font-medium text-foreground/80">
                   {diagnostics.graphState.layoutDirection} /{" "}
                   {diagnostics.graphState.edgeStyle}

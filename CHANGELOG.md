@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - View-settings sanitising now reads its recognised fields from one type table instead of eleven typeof branches, and a test pins each row in both directions, so a new per-view option is one table row rather than another branch. Behavior unchanged: the pre-change and post-change implementations were diffed over ~3,400 generated inputs with no divergent result.
 - Split graphSlice.ts monolith into src/store/slices/graph/ sub-slices (core, nodes, structure, hideShow) with graphSlice.ts as thin wrapper; no behavior change
 - Settings → Account profile save now re-checks the live profile just before writing, skips the request when the server already matches the edit, and re-syncs its baseline after a failed save so retries start from server truth
+- UI copy now says connections instead of edges everywhere user-facing (section title, export summary, share dialog, right-click menu, toasts, Power User canvas settings); internals, saved-graph format and CSS/theme keys keep edge names
 
 ### Fixed
 

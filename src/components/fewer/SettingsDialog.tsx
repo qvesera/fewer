@@ -776,7 +776,7 @@ function AppearanceTab() {
         <div className="flex items-center gap-2">
           <Spline className="h-3.5 w-3.5 text-muted-foreground/70" />
           <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Edge Styling
+            Connection Styling
           </Label>
         </div>
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
@@ -894,7 +894,7 @@ function AppearanceTab() {
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              Edge Motion
+              Connection Motion
             </Label>
           </div>
           <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
@@ -903,7 +903,7 @@ function AppearanceTab() {
               className="text-xs font-medium text-foreground"
               htmlFor="edge-motion-selected-toggle"
             >
-              Animate Selected Edges Only
+              Animate Selected Connections Only
             </Label>
             <Switch
               id="edge-motion-selected-toggle"
@@ -914,7 +914,7 @@ function AppearanceTab() {
           {edgeAnimatedSelectedOnly && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-muted-foreground">
-                Selected Edge Pattern
+                Selected Connection Pattern
               </Label>
               <SlidingToggle
                 options={[
@@ -928,8 +928,8 @@ function AppearanceTab() {
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             {edgeAnimatedSelectedOnly
-              ? "Only the edges along the selected cards' path to the root animate — in the chosen dashed/dotted pattern. All other edges follow the Edge Styling controls above."
-              : "Turn this on to animate just the selection path; every other edge follows the Edge Styling controls above."}
+              ? "Only the connections along the selected cards' path to the root animate — in the chosen dashed/dotted pattern. All other connections follow the Connection Styling controls above."
+              : "Turn this on to animate just the selection path; every other connection follows the Connection Styling controls above."}
           </p>
         </div>
       </div>

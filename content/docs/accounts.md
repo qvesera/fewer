@@ -41,9 +41,9 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 A saved graph captures the graph itself:
 
-- Cards, edges, and their positions
+- Cards, connections, and their positions
 
-Your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) are not part of the graph — they follow **you** as account settings, so loading a graph never overwrites your current settings.
+Your app settings (layout direction, connection style, theme, node dimensions, minimap, display filters) are not part of the graph — they follow **you** as account settings, so loading a graph never overwrites your current settings.
 
 ## Load, Rename, Delete
 

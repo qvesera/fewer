@@ -55,9 +55,9 @@ describe("Sidebar rendering", () => {
     expect(screen.getByText("Import")).toBeDefined();
   });
 
-  test("Edges & Style section renders", () => {
+  test("Connections & Style section renders", () => {
     renderSidebar();
-    expect(screen.getByText("Edges \u0026 Style")).toBeDefined();
+    expect(screen.getByText("Connections \u0026 Style")).toBeDefined();
   });
 
   test("Tags section hidden when no nodes", () => {
