@@ -231,6 +231,8 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
+Non-graph panes (Layout, Edges, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped.
+
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)

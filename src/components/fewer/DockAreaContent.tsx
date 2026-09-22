@@ -65,7 +65,7 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   }
 
   return (
-    <div className="flex-1 min-h-0 p-3 flex flex-col min-w-0 overflow-hidden">
+    <div data-leaf-scroll className="flex-1 min-h-0 p-3 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain gm-scroll">
       <SectionContent editor={area.editor} />
     </div>
   );

@@ -87,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo now drops selection that the restored graph no longer contains, so undoing a paste no longer leaves cards selected that are not on the canvas.
 - The bug report dialog copy button now shows a destructive error toast when the clipboard write fails, instead of silently doing nothing
 - JSON exports and bug reports now stamp the real app version (injected from package.json at build time via NEXT_PUBLIC_APP_VERSION) instead of a hardcoded 1.0.0 — the version shown in Settings, written into exported "fewer" JSON meta, and put on GitHub issue bodies can no longer disagree
+- Docked section panels scroll again: a non-graph leaf clipped anything taller than the area (Layout, Tags, Graph Analytics, Your Directories), so long panels are now reachable by scrolling the leaf itself
 
 ### Added
 
