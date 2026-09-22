@@ -391,6 +391,10 @@ A: Delete the repo folder. That's it. No background processes, no config files, 
 
 A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
 
+**Q: Can I set my own avatar?**
+
+A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload — that keeps the app free of image storage without giving up identity in the toolbar.
+
 ---
 
 ## Roadmap

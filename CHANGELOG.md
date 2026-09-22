@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Account profile save now re-checks the live profile just before writing, skips the request when the server already matches the edit, and re-syncs its baseline after a failed save so retries start from server truth
 - UI copy now says connections instead of edges everywhere user-facing (section title, export summary, share dialog, right-click menu, toasts, Power User canvas settings); internals, saved-graph format and CSS/theme keys keep edge names
 - Account dropdown now shows avatar with initials, display name, and actionable menu items (Account settings, Your saved graphs, Upgrade to Pro / Manage subscription when billing is enabled, Sign out) instead of a non-interactive name and Sign out only
+- Docs clarify how the account avatar is chosen: the Google/GitHub profile photo, otherwise initials — there is no avatar upload by design
 
 ### Fixed
 

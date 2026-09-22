@@ -21,6 +21,8 @@ Signing up with Google or GitHub fills your profile's first and last name from t
 
 After signing in, the navbar shows your avatar and name. Click to open the account menu with **Account settings** (opens the Profile card), **Your saved graphs** (opens the sidebar), and **Sign out**.
 
+Your avatar is the profile picture from Google or GitHub when you signed up with one; accounts created with an email address show your initials instead. Fewer doesn't host user images, so there's no avatar upload — the name fields in **Settings → Account** are the parts of your profile you can edit here.
+
 ## Change Your Email
 
 In **Settings → Account**, use the **Email** card to enter a new address and click **Change**. A confirmation link is emailed to the new address; your email (and login) only changes after you confirm it. The old address keeps working until then.
