@@ -96,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generate XML sitemaps (fewer.directory/sitemap.xml + app.fewer.directory/app/sitemap.xml) so search engines can index the site; robots.txt now points at both.
 - Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
 - The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
+- Signing up with GitHub or Google now fills your profile's first and last name from the provider's display name (editable in Settings → Account)
 
 ### Performance
 

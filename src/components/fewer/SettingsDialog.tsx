@@ -533,9 +533,9 @@ function AccountTab() {
               <Mail className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground">Email</span>
+              <span className="text-xs font-medium text-foreground">Change Email</span>
               <span className="text-[11px] text-muted-foreground/70">
-                Current: {user.email ?? "—"} — a confirmation link is sent to the new address
+                Current: {user.email ?? "—"}
               </span>
             </div>
           </div>

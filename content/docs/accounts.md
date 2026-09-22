@@ -17,6 +17,8 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 
 If you try to sign up with an email that already has an account, you're told and pointed to the sign-in form.
 
+Signing up with Google or GitHub fills your profile's first and last name from the provider's display name. You can change them anytime in **Settings → Account**.
+
 After signing in, the navbar shows your account menu with a **Sign out** option.
 
 ## Change Your Email
