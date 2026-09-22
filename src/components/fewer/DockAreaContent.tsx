@@ -27,14 +27,14 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   // Live store selectors for availability checks
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const nodes = useGraphStore((s) => s.nodes);
-  const user = useGraphStore((s) => s.user);
+  const tier = useGraphStore((s) => s.tier);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const activeLeaf = useActiveLeaf();
 
   const storeSnapshot = {
     hiddenIds,
     nodes,
-    user,
+    tier,
     advancedModeEnabled,
     activeLeafHiddenIds: activeLeaf?.resolved.hiddenIds.length ?? 0,
   };

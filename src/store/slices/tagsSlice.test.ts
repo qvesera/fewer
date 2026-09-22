@@ -27,6 +27,7 @@ function resetStore() {
     independentlyHiddenIds: [],
     past: [],
     future: [],
+    tier: "pro" as const,
   });
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Folder, FileIcon, EyeOff, Search, History, X, Tag as TagIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
+import { can } from "@/lib/fewer/tiers";
 import {
   searchKeyAction,
   searchNodes,
@@ -29,7 +30,7 @@ export function SearchPanel() {
   const tagFilter = useGraphStore((s) => s.tagFilter);
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const clearTagFilter = useGraphStore((s) => s.clearTagFilter);
-  
+  const tier = useGraphStore((s) => s.tier);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -170,8 +171,8 @@ export function SearchPanel() {
           </div>
         )}
 
-        {/* Tag filter chips — toggle tags to filter the canvas (OR semantics). */}
-        {tags.length > 0 && (
+        {/* Tag filter chips — toggle tags to filter the canvas (OR semantics). Pro workspace feature. */}
+        {can("tags", tier) && tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <TagIcon className="h-3 w-3 text-muted-foreground/60" />
             {tags.map((tag) => {

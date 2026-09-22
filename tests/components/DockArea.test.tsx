@@ -30,6 +30,7 @@ function renderLeaf(editor: string, extra: Record<string, any> = {}) {
       direction: "TB",
       edgeStyle: "curved",
       advancedModeEnabled: false,
+      tier: "pro",
       ...extra,
     }),
   );

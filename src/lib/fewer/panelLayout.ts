@@ -50,7 +50,7 @@ export function dropSideForPointerX(x: number, viewportWidth: number): PanelSide
 // ── localStorage persistence ──
 
 import type { PanelNode } from "./panelTree";
-import { parseTree, migrateV1ToTree, serializeTree } from "./panelTree";
+import { parseTree, migrateV1ToTree, serializeTree, isLeaf, leafCount } from "./panelTree";
 import type { ViewSettings } from "./viewState";
 import { parseViewSettings } from "./viewState";
 
@@ -127,10 +127,23 @@ export function loadLayoutFromStorage(): LayoutSnapshot | null {
 }
 
 /** Save layout to localStorage (SSR-safe). */
-export function saveLayoutToStorage(snap: LayoutSnapshot): void {
+export function saveLayoutToStorage(snap: LayoutSnapshot, opts?: { keepStoredTree?: boolean }): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(snap));
+    if (opts?.keepStoredTree) {
+      // When gated off, preserve the stored tree (it belongs to a signed-in
+      // workspace) and only write the parts a guest owns.
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const existing = raw ? parseLayoutStorage(raw) : null;
+      const toStore: LayoutSnapshot = {
+        sidebarSide: snap.sidebarSide,
+        panelTree: existing?.panelTree ?? snap.panelTree,
+        viewSettings: snap.viewSettings,
+      };
+      localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(toStore));
+    } else {
+      localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(snap));
+    }
   } catch { /* ignore */ }
 }
 
@@ -145,4 +158,19 @@ export function clearLayoutStorage(): void {
 /** Default layout: sidebar left, single graph canvas. */
 export function defaultLayout(): LayoutSnapshot {
   return { sidebarSide: "left", panelTree: { kind: "leaf", area: createArea("graph"), primary: true } };
+}
+
+/**
+ * Guests / non-Pro accounts get the default single-canvas layout.
+ * Pro accounts get whatever tree the caller provides.
+ * ponytail: avoids id churn — returns the existing tree unchanged when allowed,
+ * only creates the default when gating is needed.
+ */
+export function accessibleLayout(tree: PanelNode, proWorkspace: boolean): PanelNode {
+  return proWorkspace ? tree : defaultLayout().panelTree;
+}
+
+/** True when a tree is the standard single-graph-leaf default. */
+export function isDefaultLayout(tree: PanelNode): boolean {
+  return isLeaf(tree) && tree.primary === true && tree.area.editor === "graph";
 }

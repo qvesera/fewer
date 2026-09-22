@@ -32,6 +32,7 @@ function renderSidebar(extra: Record<string, any> = {}) {
       edgeStyle: "curved",
       advancedModeEnabled: false,
       sidebarSide: "left",
+      tier: "pro",
       ...extra,
     }),
   );

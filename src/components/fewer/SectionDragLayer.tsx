@@ -5,6 +5,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { sectionMetaById, NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { cn } from "@/lib/utils";
 import type { AreaEditor } from "@/lib/fewer/panelLayout";
+import { can } from "@/lib/fewer/tiers";
 
 interface DragState {
   editor: AreaEditor;
@@ -16,6 +17,7 @@ let _setDragState: ((s: DragState | null) => void) | null = null;
 
 /** Called by sidebar section headers to initiate a drag. */
 export function startSectionDrag(editor: AreaEditor, e: React.PointerEvent) {
+  if (!can("panelWorkspace", useGraphStore.getState().tier)) return;
   if (NON_DOCKABLE_SECTIONS.has(editor)) return;
   (e.target as HTMLElement).setPointerCapture(e.pointerId);
   _setDragState?.({ editor, x: e.clientX, y: e.clientY });

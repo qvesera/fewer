@@ -17,9 +17,11 @@ import type { ImportOrigin } from "@/lib/fewer/importFlow";
 import { useToast } from "@/hooks/use-toast";
 import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer/userSettings";
-import { loadLayoutFromStorage } from "@/lib/fewer/panelLayout";
+import { loadLayoutFromStorage, defaultLayout, isDefaultLayout } from "@/lib/fewer/panelLayout";
+import { tierOf, can } from "@/lib/fewer/tiers";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
@@ -64,6 +66,7 @@ export function FewerApp() {
   const { toast } = useToast();
   const device = useDevice();
   const { user } = useAuth();
+  const profile = useProfile();
 
   const [importFlowOrigin, setImportFlowOrigin] = useState<ImportOrigin>("folder");
   const [importFlowMounted, setImportFlowMounted] = useState(false);
@@ -82,11 +85,9 @@ export function FewerApp() {
     }
   }, [device.isMobile, setSidebarOpen]);
 
-  // Hydrate browser-only state once on mount (panel layout, search history,
-  // tutorial flags). The store always starts with SSR-safe defaults to avoid
-  // hydration mismatches; this effect applies stored values on the client.
+  // Hydrate browser-only state once on mount (search history, tutorial flags).
+  // Panel layout hydrates separately below, gated on the user's tier.
   useEffect(() => {
-    const layout = loadLayoutFromStorage();
     const searchHistory = (() => {
       try { const v = sessionStorage.getItem(SEARCH_HISTORY_KEY); return v ? JSON.parse(v) as string[] : []; } catch { return []; }
     })();
@@ -97,17 +98,48 @@ export function FewerApp() {
       try { return localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"; } catch { return false; }
     })();
 
-    const next: Record<string, unknown> = { searchHistory, tutorialBeginnerDone, tutorialDismissed };
-    if (layout) {
-      next.sidebarSide = layout.sidebarSide;
-      next.panelTree = layout.panelTree;
-      if (layout.viewSettings) next.viewSettings = layout.viewSettings;
-    }
-    useGraphStore.setState(next);
+    useGraphStore.setState({ searchHistory, tutorialBeginnerDone, tutorialDismissed });
   }, []);
 
-  // On mobile, the minimap defaults to OFF — but only when the user hasn't saved
-  // a preference yet (mirroring the Sidebar's responsive-direction default), so
+  // Tier: who is the visitor? Derived from auth + profile, never persisted.
+  // Panel layout hydration is keyed on tier — Pro gets their stored workspace,
+  // guests/free get the default single canvas.
+  useEffect(() => {
+    const tier = tierOf(user, profile.plan);
+    const prev = useGraphStore.getState().tier;
+    useGraphStore.setState({
+      tier,
+      // Drive advancedModeEnabled from tier (not from user) so a stored settings
+      // blob can no longer flip power-user UI on for a guest. See userSettings.ts:206.
+      advancedModeEnabled: tier !== "guest",
+    });
+
+    // Layout hydration: only act when the tier actually changes, or on first
+    // render when prev is still the default "guest".
+    if (tier === prev && prev !== "guest") return;
+
+    // Drop the tag filter when downgrading — a non-Pro user must not have
+    // hidden cards with no chip to clear them.
+    if (prev === "pro" && tier !== "pro") {
+      useGraphStore.getState().dropTagFilter();
+    }
+
+    const layout = loadLayoutFromStorage();
+    const def = defaultLayout();
+    if (can("panelWorkspace", tier) && layout) {
+      // Pro: apply the stored workspace.
+      const next: Record<string, unknown> = {
+        sidebarSide: layout.sidebarSide,
+        panelTree: layout.panelTree,
+      };
+      if (layout.viewSettings) next.viewSettings = layout.viewSettings;
+      useGraphStore.setState(next);
+    } else {
+      // Guest/free: enforce the default single canvas, but keep sidebarSide
+      // and viewSettings so per-leaf prefs survive the downgrade.
+      useGraphStore.setState({ panelTree: def.panelTree });
+    }
+  }, [user, profile.plan]);
   // a deliberate toggle (local or cloud) is never clobbered. The store keeps the
   // isomorphic `true` default to avoid an SSR/client hydration mismatch; this
   // effect applies the responsive default once on the client.
@@ -167,14 +199,6 @@ export function FewerApp() {
     ];
     return () => { unsubs.forEach((u) => u()); };
   }, []);
-
-  // Advanced power-user options are available only to signed-in users.
-  // The old PowerUserToggle is gone; the flag now tracks auth. Drive the
-  // store flag directly (not via a reset-triggering setter) so a logged-in
-  // user's theme/settings are never wiped on sign-in/out.
-  useEffect(() => {
-    useGraphStore.setState({ advancedModeEnabled: !!user });
-  }, [user]);
 
   // Sidebar drag-resize handler — adapts to left/right side
   useEffect(() => {

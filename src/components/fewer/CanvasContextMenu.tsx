@@ -5,6 +5,7 @@ import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import type { FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { can } from "@/lib/fewer/tiers";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -144,7 +145,7 @@ export function CanvasContextMenu({
                     {a.label}
                   </DropdownMenuItem>
                 ))}
-                {(() => {
+                {can("tags", useGraphStore.getState().tier) && (() => {
                   const store = useGraphStore.getState();
                   const allTags = store.tags;
                   return (

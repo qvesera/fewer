@@ -51,6 +51,7 @@ import type { AreaEditor } from "@/lib/fewer/panelLayout";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { startSectionDrag } from "./SectionDragLayer";
+import { can } from "@/lib/fewer/tiers";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
@@ -70,6 +71,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const { setDirection, setEdgeStyle, reset } = useStoreActions();
   const tags = useGraphStore((s) => s.tags);
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
+  const tier = useGraphStore((s) => s.tier);
 
   // Section ids currently docked in an area — these get hidden from sidebar
   const dockedIds = useMemo(() => sectionsDockedInTree(panelTree), [panelTree]);
@@ -94,9 +96,9 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     }
   }, []);
 
-  // Drag handle factory — only for dockable sections not already docked
+  // Drag handle factory — only for dockable sections not already docked, Pro only
   const dragProps = (id: AreaEditor): { dragHandleProps: React.HTMLAttributes<HTMLDivElement> } | undefined =>
-    NON_DOCKABLE_SECTIONS.has(id) || dockedIds.has(id)
+    !can("panelWorkspace", tier) || NON_DOCKABLE_SECTIONS.has(id) || dockedIds.has(id)
       ? undefined
       : { dragHandleProps: { onPointerDown: (e: React.PointerEvent) => startSectionDrag(id, e) } };
 
@@ -263,8 +265,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 4. TAGS ── */}
-        {!dockedIds.has("tags") && nodes.length > 0 && (
+        {/* ── 4. TAGS (Pro workspace feature) ── */}
+        {can("tags", tier) && !dockedIds.has("tags") && nodes.length > 0 && (
           <CollapsibleSection
             title="Tags"
             icon={TagIcon}

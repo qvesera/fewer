@@ -199,6 +199,7 @@ describe("closed leaves drop their stacks", () => {
     useGraphStore.setState({
       panelTree: tree,
       leafHistories: { [doomed.area.id]: { past: [entry()], future: [] }, keep: { past: [entry()], future: [] } },
+      tier: "pro" as const,
     });
 
     s().joinArea(doomed.area.id);

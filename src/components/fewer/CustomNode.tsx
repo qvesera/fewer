@@ -40,6 +40,7 @@ import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
 import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
 import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
+import { can } from "@/lib/fewer/tiers";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
 
@@ -203,6 +204,7 @@ function FolderContextMenu({
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
   const clipboard = useGraphStore((s) => s.clipboard);
+  const tier = useGraphStore((s) => s.tier);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
@@ -326,8 +328,12 @@ function FolderContextMenu({
               </ContextMenuItem>
             )}
             <ContextMenuSeparator />
-            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
-            <SelectByTagSubmenu label="Select by Tag" />
+            {can("tags", tier) && (
+              <>
+                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <SelectByTagSubmenu label="Select by Tag" />
+              </>
+            )}
           </>
         )}
         {advancedModeEnabled && (
@@ -496,8 +502,12 @@ function FolderContextMenu({
               </ContextMenuSubContent>
             </ContextMenuSub>
 
-            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
-            <SelectByTagSubmenu label="Select by Tag" />
+            {can("tags", tier) && (
+              <>
+                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <SelectByTagSubmenu label="Select by Tag" />
+              </>
+            )}
 
             <ContextMenuItem
               onSelect={() => {
@@ -552,6 +562,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
   const { toast } = useToast();
+  const tier = useGraphStore((s) => s.tier);
   if (!isBatch) return null;
 
   const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: selectedNodeIds });
@@ -603,7 +614,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
               {action.label}
             </ContextMenuItem>
           ))}
-          <SelectByTagSubmenu label="By Tag" />
+          {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
         </ContextMenuSubContent>
       </ContextMenuSub>
       {del && (
@@ -647,6 +658,7 @@ function FileEntryContextMenu({
   const dataSource = useGraphStore((s) => s.dataSource);
   const clipboard = useGraphStore((s) => s.clipboard);
   const providerLabel = providerLabelFromSource(dataSource);
+  const tier = useGraphStore((s) => s.tier);
   // A file imported from a public file index (via crawl) — not a GitHub repo.
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
@@ -775,7 +787,7 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
-        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+        {can("tags", tier) && <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />}
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
             Select
@@ -801,7 +813,7 @@ function FileEntryContextMenu({
             >
               By Category
             </ContextMenuItem>
-            <SelectByTagSubmenu label="By Tag" />
+            {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
           </ContextMenuSubContent>
         </ContextMenuSub>
         {advancedModeEnabled && (

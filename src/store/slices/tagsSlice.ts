@@ -26,6 +26,8 @@ export type TagsSliceCreator = StateCreator<
     setTagFilter: (ids: string[]) => void;
     toggleTagFilter: (id: string) => void;
     clearTagFilter: () => void;
+    /** Drop the tag filter without recording an undo op (tier downgrade). */
+    dropTagFilter: () => void;
   }
 >;
 
