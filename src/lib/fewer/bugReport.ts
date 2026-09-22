@@ -1,4 +1,5 @@
 import { computeStats } from "./stats";
+import { APP_VERSION } from "./branding";
 
 // ── Vocabulary ──────────────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ export function collectDiagnostics(input: DiagnosticsInput): BugReportDiagnostic
   return {
     app: {
       name: "fewer",
-      version: "1.0.0",
+      version: APP_VERSION,
       timestamp: (now ?? new Date()).toISOString(),
     },
     environment: {
@@ -239,7 +240,7 @@ export function buildGitHubIssueBody(report: BugReport): string {
 
   const diagnosticsRows: [string, string][] = [
     ["App Name", app?.name || "fewer"],
-    ["App Version", app?.version || "1.0.0"],
+    ["App Version", app?.version || APP_VERSION],
     ["Timestamp", app?.timestamp || new Date().toISOString()],
     ["Browser", environment?.browser || "unknown"],
     ["FS Access", environment?.fileSystemAccess || "unknown"],
@@ -279,7 +280,7 @@ export function buildGitHubIssueBody(report: BugReport): string {
     "",
     `- **Severity**: \`${report.bug.severity}\``,
     `- **Category**: \`${report.bug.category}\``,
-    `- **App Version**: ${app?.version || "1.0.0"}`,
+    `- **App Version**: ${app?.version || APP_VERSION}`,
     "",
     detailsBlock("System Diagnostics", mdTable(diagnosticsRows)),
     "",

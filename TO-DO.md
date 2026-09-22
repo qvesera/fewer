@@ -2,8 +2,6 @@
 
 Blog-post backlog. Major features merged to `dev` get a one-line entry here (see `.clinerules/pr-dev-checks.md`). Remove entry when the post ships to `content/blog/`.
 
-- [ ] 2026-09-20 · Bug report dialog version hardcoded "1.0.0" — should read from build-time constant (package.json is 0.7.1) · refactor
-
 ## To write
 
 - [ ] 2026-09-14 · Theme gallery: publish saved themes to the community gallery (search, author attribution, instant Apply on the page, `#t:<id>` deep links) · feature — write alongside a future gallery/routing post.

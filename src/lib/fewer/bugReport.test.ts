@@ -17,6 +17,7 @@ import {
   type BugSeverity,
   type BugCategory,
 } from "./bugReport";
+import { APP_VERSION } from "./branding";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -150,6 +151,19 @@ describe("collectDiagnostics", () => {
     expect(r.environment!.viewport).toBe("0x0");
     expect(r.environment!.online).toBe(false);
     expect(r.app!.name).toBe("fewer");
+  });
+
+  test("stamps APP_VERSION rather than a hardcoded literal", () => {
+    const r = collectDiagnostics({ env: baseEnv(), graph: baseGraph() });
+    expect(r.app!.version).toBe(APP_VERSION);
+    expect(r.app!.version).not.toBe("1.0.0");
+  });
+
+  test("markdown body falls back to APP_VERSION when app missing", () => {
+    const { app: _noApp, ...noAppReport } = baseReport();
+    const body = buildGitHubIssueBody(noAppReport);
+    expect(body).toContain(`**App Version**: ${APP_VERSION}`);
+    expect(body).not.toContain("**App Version**: 1.0.0");
   });
 });
 
