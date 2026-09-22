@@ -174,6 +174,26 @@ decisions:
   accepted_artifact: .repowise/decisions.yaml
   evidence:
   - accepted by Yash Srivastava
+- id: d667f2d407f608f221738dc0f0b0eb95
+  title: Webhook POST and CanvasInner residuals are accepted, not actionable
+  decision: 'Two health findings are accepted as by-design rather than fixed. (1) complex_method POST
+    on src/app/api/billing/webhook/route.ts (+0.85, CCN 10) — a config-guard chain plus a 2-case dispatch
+    switch, both idiomatic Next.js; the business logic already lives in billingWebhook.ts behind 22 tests.
+    (2) large_method CanvasInner on src/components/fewer/GraphCanvas.tsx (+0.88) — declarative JSX wiring
+    plus hook calls; the logic already lives in five use-canvas-* hooks per e7c2095b. Do not open refactor
+    PRs to clear either finding: a dispatch table and a JSX split would trade clarity for a metric.'
+  reason: 'Post-#167 rescore (commit 6c1c307): webhook 6.94 to 7.89, GraphCanvas 4.65 to 5.12, corpus
+    average 8.20 of a 8.739 structural ceiling. Both residuals are small, bounded, and measured on code
+    that is already extracted and tested. Recording them stops future agents re-opening the same refactors.'
+  scope:
+  - src/app/api/billing/webhook/route.ts
+  - src/components/fewer/GraphCanvas.tsx
+  currency: active
+  source: cli
+  accepted_at: '2026-09-22T16:46:24.447477'
+  accepted_by: Yash Srivastava
+  evidence:
+  - accepted by Yash Srivastava
 - id: e3289a029286ac6f4720a867ee6f56a0
   title: Organizational category caps 59 files at 6.50 — history findings are not actionable
   decision: Do not open refactor PRs to lift org-saturated files above 6.50. repowise scoring kernel caps
