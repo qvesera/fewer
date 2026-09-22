@@ -13,7 +13,7 @@ import {
   type GraphRenderOptions,
 } from "./graphRenderer";
 import type { Tag } from "./tags";
-import { FEWER_CREDIT } from "./branding";
+import { APP_VERSION, FEWER_CREDIT } from "./branding";
   
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -142,19 +142,23 @@ export function exportPNG(
 /*                                  JSON                                      */
 /* -------------------------------------------------------------------------- */
 
-export function exportJSON(
+/**
+ * Build the JSON export payload. Pure — `exportJSON` downloads it, tests and
+ * any future importer can read it without touching the DOM.
+ */
+export function buildJsonExport(
   nodes: FewerNode[],
   edges: FewerEdge[],
   stats?: DirectoryStats,
   includeBranding = true,
-) {
+): Record<string, unknown> {
   const meta: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
     application: "fewer",
-    version: "1.0.0",
+    version: APP_VERSION,
   };
   if (includeBranding) meta.generatedBy = FEWER_CREDIT;
-  const payload = {
+  return {
     meta,
     stats: stats ?? null,
     nodes: nodes.map((n) => ({
@@ -173,8 +177,16 @@ export function exportJSON(
       target: e.target,
     })),
   };
+}
+
+export function exportJSON(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  stats?: DirectoryStats,
+  includeBranding = true,
+) {
   downloadBlob(
-    JSON.stringify(payload, null, 2),
+    JSON.stringify(buildJsonExport(nodes, edges, stats, includeBranding), null, 2),
     `fewer-${timestamp()}.json`,
     "application/json",
   );

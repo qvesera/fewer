@@ -86,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The import dialog no longer reuses advanced import options saved by a previous session or synced from the cloud when advanced mode is off — opening it in basic mode clamps include-hidden, vendored folders, empty folders, files, extensions and case-sensitive extensions back to their defaults
 - Undo now drops selection that the restored graph no longer contains, so undoing a paste no longer leaves cards selected that are not on the canvas.
 - The bug report dialog copy button now shows a destructive error toast when the clipboard write fails, instead of silently doing nothing
+- JSON exports and bug reports now stamp the real app version (injected from package.json at build time via NEXT_PUBLIC_APP_VERSION) instead of a hardcoded 1.0.0 — the version shown in Settings, written into exported "fewer" JSON meta, and put on GitHub issue bodies can no longer disagree
 
 ### Added
 
