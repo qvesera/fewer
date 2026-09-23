@@ -109,6 +109,7 @@ const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
 
 function AccountTab() {
   const { user, loading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const { toast } = useToast();
   const { loading: billingBusy, startCheckout, openPortal } = useBilling();
   const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
@@ -138,7 +139,7 @@ function AccountTab() {
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    if (!user) {
+    if (tier === "guest") {
       setPlan("free");
       setUsage(null);
       return;
@@ -298,7 +299,7 @@ function AccountTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       {/* Profile Card — only shown to signed-in users */}
-      {!loading && user && (
+      {!loading && tier !== "guest" && (
         <div className="rounded-2xl border border-border/50 bg-card/40 p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
@@ -1229,7 +1230,7 @@ function AdvancedTab() {
 /* -------------------------------------------------------------------------- */
 
 function CloudTab() {
-  const { user, loading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
 
   const handleBrowse = () => {
     useGraphStore.getState().setSettingsOpen(false);
@@ -1241,11 +1242,7 @@ function CloudTab() {
     setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
   };
 
-  if (loading) {
-    return <div className="py-6 text-center text-xs text-muted-foreground">Checking session…</div>;
-  }
-
-  if (!user) {
+  if (tier === "guest") {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/30 p-6 text-center">
         <Cloud className="h-6 w-6 text-primary/70" />
@@ -1338,14 +1335,14 @@ function HelpTab() {
 export function SettingsDialog() {
   const settingsOpen = useGraphStore((s) => s.settingsOpen);
   const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
-  const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const isMobile = useIsMobile();
-  // The Advanced tab is empty for signed-out mobile users: Layout Policy +
-  // Node Metrics are sign-in gated and the Scroll to Zoom card is desktop-only.
-  const tabs = visibleTabs({ signedIn: !!user, isMobile, advancedMode: advancedModeEnabled });
+  // The Advanced tab is empty for non-Pro mobile users: Layout Policy +
+  // Node Metrics are Pro-tier and the Scroll to Zoom card is desktop-only.
+  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled });
   const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks

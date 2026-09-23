@@ -65,7 +65,7 @@ describe("ExportPanel format logic", () => {
   });
 
   test("advanced formats shown when advancedModeEnabled", () => {
-    seedStore({ advancedModeEnabled: true });
+    seedStore({ advancedModeEnabled: true, tier: "free" });
     renderPanel();
     expect(screen.getByText("JSON")).toBeDefined();
     expect(screen.getByText("CSV")).toBeDefined();

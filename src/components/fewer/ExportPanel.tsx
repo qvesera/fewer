@@ -60,6 +60,7 @@ import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
 import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
+import { can } from "@/lib/fewer/tiers";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -112,11 +113,11 @@ export function ExportPanel() {
   const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
   const { selectedNodeIds, advancedModeEnabled } = useUiState();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   // Guests always export with the fewer watermark; the toggle stays functional
   // only for signed-in users.
-  const isGuest = authLoading ? false : !user;
-  const includeBranding = isGuest || settings.includeBranding;
+  const canRemoveBranding = can("unbrandedExport", tier);
+  const includeBranding = !canRemoveBranding || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -135,12 +136,12 @@ export function ExportPanel() {
     }
   }, [exportSelected, singleFileSelected]);
 
-  const formats = advancedModeEnabled
+  const formats = can("advancedImportFormats", tier)
     ? [...BASIC_FORMATS, ...ADVANCED_FORMATS]
     : BASIC_FORMATS;
 
   useEffect(() => {
-    if (!advancedModeEnabled) {
+    if (!can("advancedImportFormats", tier)) {
       const isAdvancedFormat = ADVANCED_FORMATS.some(
         (f) => f.value === settings.format
       );
@@ -414,7 +415,7 @@ export function ExportPanel() {
             <div className="space-y-0.5">
               <Label className="text-xs font-semibold">Include fewer branding</Label>
               <p className="text-xs text-muted-foreground">
-                {isGuest
+                {!canRemoveBranding
                   ? "Signed out — exports carry the fewer watermark until you sign in."
                   : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
               </p>
@@ -422,7 +423,7 @@ export function ExportPanel() {
             <Switch
               checked={includeBranding}
               onCheckedChange={(v) => setSettings({ includeBranding: v })}
-              disabled={isGuest}
+              disabled={!canRemoveBranding}
             />
           </div>
 

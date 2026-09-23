@@ -10,6 +10,7 @@ import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeCol
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
+import { can } from "@/lib/fewer/tiers";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +42,7 @@ export function ThemeEditorDialog() {
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
   const [expandedPicker, setExpandedPicker] = useState<string | null>(null);
   const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const profile = useProfile();
   const { toast } = useToast();
 
@@ -546,7 +548,7 @@ export function ThemeEditorDialog() {
                   <span>Custom</span>
                   {themesLoading && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
                 </div>
-                {user && savedThemes.length > 0 ? (
+                {can("savedThemes", tier) && savedThemes.length > 0 ? (
                   savedThemes.map((t) => (
                     <div
                       key={t.id}

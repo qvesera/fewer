@@ -212,8 +212,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
-        {user && !dockedIds.has("directories") && (
+        {/* ── 1.5 YOUR DIRECTORIES (signed-in only, free tier gets 3 saved graphs) ── */}
+        {can("savedGraphs", tier) && !dockedIds.has("directories") && (
           <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen {...dragProps("directories")}>
             <SavedGraphsPanel onRequireAuth={onRequireAuth} />
           </CollapsibleSection>
