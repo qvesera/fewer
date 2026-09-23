@@ -199,12 +199,12 @@ function FolderContextMenu({
   const { nodes, edges } = useGraphData();
   const { selectedNodeIds } = useUiState();
   const { deleteNodes: deleteNode, setRenamingId, setClipboard, setSelectedNodeIds, duplicateNodeUnderParent } = useStoreActions();
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
   const clipboard = useGraphStore((s) => s.clipboard);
   const tier = useGraphStore((s) => s.tier);
+  const canvasAddChild = can("canvasAddChild", tier);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
@@ -282,7 +282,7 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
-        {!advancedModeEnabled && (
+        {!canvasAddChild && (
           <>
             {hasChildren && (
               <ContextMenuItem
@@ -336,7 +336,7 @@ function FolderContextMenu({
             )}
           </>
         )}
-        {advancedModeEnabled && (
+        {canvasAddChild && (
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger className="cursor-pointer">
@@ -654,11 +654,11 @@ function FileEntryContextMenu({
   const { nodes, edges } = useGraphData();
   const { selectedNodeIds } = useUiState();
   const { setRenamingId, setClipboard, duplicateNodeUnderParent, setSelectedNodeIds } = useStoreActions();
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const dataSource = useGraphStore((s) => s.dataSource);
   const clipboard = useGraphStore((s) => s.clipboard);
   const providerLabel = providerLabelFromSource(dataSource);
   const tier = useGraphStore((s) => s.tier);
+  const canvasAddChild = can("canvasAddChild", tier);
   // A file imported from a public file index (via crawl) — not a GitHub repo.
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
@@ -816,7 +816,7 @@ function FileEntryContextMenu({
             {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
           </ContextMenuSubContent>
         </ContextMenuSub>
-        {advancedModeEnabled && (
+        {canvasAddChild && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="cursor-pointer">
               Info

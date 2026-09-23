@@ -66,7 +66,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
     id: "analytics",
     title: "Graph Analytics",
     icon: Layers,
-    available: (s) => s.tier === "pro" && s.advancedModeEnabled && s.nodes.length > 0,
+    available: (s) => s.tier === "pro" && s.nodes.length > 0,
   },
 ];
 

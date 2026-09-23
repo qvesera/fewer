@@ -58,7 +58,7 @@ export interface ImportOriginStepProps {
   onOriginChange: (origin: ImportOrigin) => void;
   source: OriginSource;
   onSourceChange: (source: OriginSource) => void;
-  advancedModeEnabled: boolean;
+  advancedFormats: boolean;
   signedIn: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
@@ -91,7 +91,7 @@ export function ImportOriginStep({
   onOriginChange,
   source,
   onSourceChange,
-  advancedModeEnabled,
+  advancedFormats,
   signedIn,
   onRequireAuth,
   onOpenCloudSettings,
@@ -238,7 +238,7 @@ export function ImportOriginStep({
             <FileSource
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
-              advancedModeEnabled={advancedModeEnabled}
+              advancedFormats={advancedFormats}
             />
           )}
           {origin === "url" && (
@@ -322,15 +322,15 @@ const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
 function FileSource({
   source,
   onSourceChange,
-  advancedModeEnabled,
+  advancedFormats,
 }: {
   source: Extract<OriginSource, { origin: "file" }>;
   onSourceChange: (source: OriginSource) => void;
-  advancedModeEnabled: boolean;
+  advancedFormats: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatsRef = useRef<HTMLDivElement>(null);
-  const formats = advancedModeEnabled
+  const formats = advancedFormats
     ? FILE_FORMATS
     : FILE_FORMATS.filter((f) => f.value === "tree");
 
@@ -356,10 +356,10 @@ function FileSource({
 
   // Advanced mode off → only ASCII tree is allowed.
   useEffect(() => {
-    if (!advancedModeEnabled && source.format !== "tree") {
+    if (!advancedFormats && source.format !== "tree") {
       onSourceChange({ ...source, format: "tree" });
     }
-  }, [advancedModeEnabled, source, onSourceChange]);
+  }, [advancedFormats, source, onSourceChange]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -369,8 +369,8 @@ function FileSource({
       const text = (ev.target?.result as string) ?? "";
       const ext = file.name.split(".").pop()?.toLowerCase();
       let format: FileImportFormat = "tree";
-      if (advancedModeEnabled && ext === "json") format = "json";
-      else if (advancedModeEnabled && (ext === "sh" || ext === "bat"))
+      if (advancedFormats && ext === "json") format = "json";
+      else if (advancedFormats && (ext === "sh" || ext === "bat"))
         format = "script";
       onSourceChange({ origin: "file", content: text, format });
     };

@@ -111,7 +111,7 @@ export function ExportPanel() {
   const viewSettings = useGraphStore((s) => s.viewSettings);
   const { nodes, edges, hiddenIds } = useGraphData();
   const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
-  const { selectedNodeIds, advancedModeEnabled } = useUiState();
+  const { selectedNodeIds } = useUiState();
   const { toast } = useToast();
   const tier = useGraphStore((s) => s.tier);
   // Guests always export with the fewer watermark; the toggle stays functional
@@ -149,7 +149,7 @@ export function ExportPanel() {
         setSettings({ format: "png" });
       }
     }
-  }, [advancedModeEnabled, settings.format, setSettings]);
+  }, [tier, settings.format, setSettings]);
 
   const { exportNodes, exportEdges } = useMemo(() => {
     if (!exportSelected || selectedNodeIds.length === 0 || singleFileSelected) {

@@ -19,13 +19,13 @@ import type { ImportOptions } from "@/lib/fewer/importOptions";
 interface ImportOptionsPanelProps {
   options: ImportOptions;
   onChange: (partial: Partial<ImportOptions>) => void;
-  advancedModeEnabled: boolean;
+  advancedFormats: boolean;
 }
 
 export function ImportOptionsPanel({
   options,
   onChange,
-  advancedModeEnabled,
+  advancedFormats,
 }: ImportOptionsPanelProps) {
   const update = (partial: Partial<ImportOptions>) => onChange(partial);
 
@@ -102,7 +102,7 @@ export function ImportOptionsPanel({
       </div>
 
       {/* Advanced Options */}
-      {advancedModeEnabled && (
+      {advancedFormats && (
         <>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/85 block">
             Advanced Options
