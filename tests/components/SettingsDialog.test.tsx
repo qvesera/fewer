@@ -183,7 +183,7 @@ describe("Account danger zone", () => {
 describe("Advanced tab controls", () => {
   async function openAdvanced(enabled = true) {
     signedIn = true;
-    useGraphStore.setState({ advancedModeEnabled: enabled, maxDisplayDepth: 6, autoHideThreshold: 10, scrollAction: "pan" });
+    useGraphStore.setState({ advancedModeEnabled: enabled, tier: enabled ? "free" : "guest", maxDisplayDepth: 6, autoHideThreshold: 10, scrollAction: "pan" });
     const mounted = render(<SettingsDialog />);
     await userEvent.setup().click(screen.getByRole("tab", { name: "Advanced" }));
     expect(screen.getByRole("tab", { name: "Advanced" }).getAttribute("aria-selected")).toBe("true");

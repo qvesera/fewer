@@ -30,7 +30,7 @@ interface CanvasContextMenuProps {
   lastClickedEdgeId: string | null;
   vs: ResolvedViewSettings;
   leafId: string | undefined;
-  advancedModeEnabled: boolean;
+  canvasAddChildEnabled: boolean;
   hiddenCount: number;
   allNodes: FewerNode[];
   selectAll: () => void;
@@ -47,7 +47,7 @@ export function CanvasContextMenu({
   lastClickedEdgeId,
   vs,
   leafId,
-  advancedModeEnabled,
+  canvasAddChildEnabled,
   hiddenCount,
   allNodes,
   selectAll,
@@ -250,7 +250,7 @@ export function CanvasContextMenu({
         >
           Organize
         </button>
-        {advancedModeEnabled && (
+        {canvasAddChildEnabled && (
           <>
             <button
               onClick={() => {

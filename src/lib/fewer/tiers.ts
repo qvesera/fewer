@@ -57,6 +57,7 @@ export type Feature =
   | "batchActions"         // batch rename, batch tag, batch move
   | "layoutOrientation"    // left-to-right / bottom-to-top layouts
   | "historyTools"         // undo/redo toolbar block
+  | "graphAnalytics"       // graph statistics panel
   // ── Cloud-saved custom themes ──
   | "savedThemes";
 
@@ -82,6 +83,7 @@ export const MIN_TIER: Record<Feature, Tier> = {
   batchActions: "free",
   layoutOrientation: "free",
   historyTools: "free",
+  graphAnalytics: "free",
 };
 
 /** True when the given tier meets or exceeds the feature's minimum. */

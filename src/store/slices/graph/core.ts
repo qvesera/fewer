@@ -8,6 +8,7 @@ import { getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation } from "@/lib/fewer/viewState";
+import { can } from "@/lib/fewer/tiers";
 import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets } from "@/lib/fewer/importMerge";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { captureViewState } from "../historySlice";
@@ -48,7 +49,7 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
       style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
     }));
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
-    const animated = state.advancedModeEnabled && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
     const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
     const styledEdges = edges.map((e) => ({
       ...e,

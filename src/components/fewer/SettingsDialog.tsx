@@ -72,6 +72,7 @@ import { limitsFor, formatUsage } from "@/lib/fewer/plans";
 import { useAuth } from "@/hooks/use-auth";
 import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { can } from "@/lib/fewer/tiers";
 import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 import {
@@ -701,7 +702,7 @@ function AppearanceTab() {
   const activeLeaf = useActiveLeaf();
   const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
@@ -738,7 +739,7 @@ function AppearanceTab() {
           Theme Preferences
         </Label>
         <div className="grid grid-cols-3 gap-2.5">
-          {themeModeOptions(advancedModeEnabled).map((mode) => {
+          {themeModeOptions(can("customTheme", tier)).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
             const active = themeModeGlobal === mode;
             return (
@@ -790,7 +791,7 @@ function AppearanceTab() {
             />
           </div>
 
-          {advancedModeEnabled && (
+          {can("edgeMotion", tier) && (
             <div className="flex flex-col gap-4 border-t border-border/30 pt-4">
               {(activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal) === "angled" && (
                 <div className="space-y-2">
@@ -890,7 +891,7 @@ function AppearanceTab() {
         </div>
       </div>
 
-      {advancedModeEnabled && (
+      {can("edgeMotion", tier) && (
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
@@ -1073,7 +1074,7 @@ function AdvancedTab() {
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const scrollAction = useGraphStore((s) => s.scrollAction);
   const setScrollAction = useGraphStore((s) => s.setScrollAction);
   const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
@@ -1093,7 +1094,7 @@ function AdvancedTab() {
 
   return (
     <div className="flex flex-col gap-5 py-1">
-      {advancedModeEnabled && (
+      {can("nodeMetrics", tier) && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
@@ -1184,7 +1185,7 @@ function AdvancedTab() {
         </div>
       )}
 
-      {advancedModeEnabled && (
+      {can("nodeMetrics", tier) && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />

@@ -80,7 +80,7 @@ describe("CanvasContextMenu", () => {
     render(
       <CanvasContextMenu
         menu={{ x: 100, y: 100, kind: "pane" }} lastClickedEdgeId={null}
-        vs={VS} leafId={undefined} advancedModeEnabled={false}
+        vs={VS} leafId={undefined} canvasAddChildEnabled={false}
         hiddenCount={0} allNodes={[]} selectAll={() => {}} close={() => {}}
       />,
     );
@@ -95,7 +95,7 @@ describe("CanvasContextMenu", () => {
       <CanvasContextMenu
         menu={{ x: 100, y: 100, kind: "pane" }} lastClickedEdgeId={null}
         vs={{ ...VS, showFiles: false }} leafId="primary"
-        advancedModeEnabled={false} hiddenCount={0} allNodes={[]}
+        canvasAddChildEnabled={false} hiddenCount={0} allNodes={[]}
         selectAll={() => {}} close={() => {}}
       />,
     );
@@ -107,7 +107,7 @@ describe("CanvasContextMenu", () => {
     render(
       <CanvasContextMenu
         menu={{ x: 100, y: 100, kind: "edge" }} lastClickedEdgeId="e1"
-        vs={VS} leafId={undefined} advancedModeEnabled={false}
+        vs={VS} leafId={undefined} canvasAddChildEnabled={false}
         hiddenCount={0} allNodes={[]} selectAll={() => {}} close={() => {}}
       />,
     );
@@ -119,7 +119,7 @@ describe("CanvasContextMenu", () => {
     render(
       <CanvasContextMenu
         menu={{ x: 100, y: 100, kind: "pane" }} lastClickedEdgeId={null}
-        vs={VS} leafId={undefined} advancedModeEnabled={false}
+        vs={VS} leafId={undefined} canvasAddChildEnabled={false}
         hiddenCount={0} allNodes={[{ id: "n1" } as any]}
         selectAll={() => {}} close={() => {}}
       />,

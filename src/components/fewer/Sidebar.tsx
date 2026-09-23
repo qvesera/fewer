@@ -65,7 +65,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const activeLeaf = useActiveLeaf();
   const { nodes, edges, hiddenIds } = useGraphData();
   const { direction, edgeStyle } = useLayoutConfig();
-  const { selectedNodeIds, advancedModeEnabled } = useUiState();
+  const { selectedNodeIds } = useUiState();
   const { panelTree } = useViewState();
   const { sidebarSide, setSidebarSide } = useDialogState();
   const { setDirection, setEdgeStyle, reset } = useStoreActions();
@@ -79,10 +79,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (!advancedModeEnabled && (direction === "BT" || direction === "RL")) {
+    if (!can("layoutOrientation", tier) && (direction === "BT" || direction === "RL")) {
       setDirection("TB");
     }
-  }, [advancedModeEnabled, direction, setDirection]);
+  }, [tier, direction, setDirection]);
 
   // On first client mount, apply the responsive default layout direction
   // (LR on screens <1.5k, TB otherwise). The store starts as "TB" for an
@@ -227,7 +227,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             <LayoutPicker
               direction={activeLeaf?.resolved.direction ?? direction}
               onPick={(d) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { direction: d }); else setDirection(d); }}
-              advancedModeEnabled={advancedModeEnabled}
+              advancedModeEnabled={can("layoutOrientation", tier)}
             />
 
             {/* Organize action — store.organize() drops this view's per-view
@@ -280,7 +280,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
         {/* ── 5. GRAPH ANALYTICS ── */}
         {!dockedIds.has("analytics") && (
-        <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
+        <AnimatedConditional show={can("graphAnalytics", tier) && nodes.length > 0} delay={100}>
           <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
             <StatsPanel />
           </CollapsibleSection>
