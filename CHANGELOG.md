@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tier model (tiers.ts): client-side guest/free/pro vocabulary with a declarative feature→min-tier table, replacing scattered boolean gates
 - Dockable workspace (panel splits, corner grips, section drag-to-dock) and all interactive tag UI (tag panel, tag menus, tag filter) are now Pro-tier features; guests and free accounts get the default single-canvas layout
 - Phase 2 tier migration: settingsModel.visibleTabs, SettingsDialog, ExportPanel, ShortcutsDialog, ShareDialog, WatchedIndexesPanel, ThemeEditorDialog, use-settings now use tier from the store instead of scattered auth reads
+- Phase 2 continued: SavedGraphsPanel (14 user reads), KeyboardShortcuts (ctx.user removed, tier via getState), ThemeGallerySection (galleryPublish gate), use-watch now use tier
+- Toolbar undo/redo block now uses can(historyTools, tier) instead of advancedModeEnabled
 
 ### Fixed
 
