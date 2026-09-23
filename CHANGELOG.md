@@ -104,6 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tier gate tests: accessibleLayout, keepStoredTree, store panel mutation no-ops, \_persistLayout no-clobber, dropTagFilter no-pushOp, applyViewState undo guard for tag filters
 - Account menu → Your saved graphs now reveals and expands the Your Directories section in the sidebar instead of no-oping when the sidebar is already open
 - Panel docking: sidebar sections now drag-and-drop instead of requiring a second click; drop target preview matches where the column lands
+- Baseline drift gate no longer flags pending-above-head migrations as drift — fixes permanent blockage after a failed db push
+- Fix reserved keyword collision in migration 0038: quote 'full' alias so db push and Supabase API can parse the function body
 
 ### Added
 

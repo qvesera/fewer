@@ -11,9 +11,12 @@ Two subcommands:
 
   baseline  Compares local migration versions against a project's recorded
             history (`supabase migration list --linked`) and fails when a local
-            migration is missing from history but was NOT added by the current
-            change. That means history drift: `db push` would replay old
-            migrations. Prints the exact `migration repair` command to run.
+            migration is older than the remote head AND missing from history but
+            was NOT added by the current change. That means out-of-order drift:
+            `db push` would silently skip those migrations. Local versions newer
+            than the remote head are "pending" (what `db push` is meant to
+            apply) and are reported but do not block. Prints the exact
+            `migration repair` command to run for any drift.
 
 Usage:
   python3 scripts/migrations.py verify --base origin/dev
@@ -243,6 +246,17 @@ def cmd_verify(args: argparse.Namespace) -> int:
                     "the base branch is behind, not an edit made here"
                 )
                 continue
+            # If the file does not exist on the canonical branch (origin/main),
+            # it was never applied to production and may not have been applied to
+            # dev either (e.g. a pending migration that was never pushed through).
+            # Allow editing with a warning — the immutability rule protects
+            # *applied* migrations, not files that never left the repo.
+            if not file_content_at(args.canonical, path):
+                res.warn(
+                    f"{path}: modified but not present on {args.canonical} — "
+                    "treating as unapplied (safe to edit)"
+                )
+                continue
             res.error(
                 f"{path}: an existing migration was modified or deleted. "
                 "Applied migrations are immutable — add a NEW migration instead "
@@ -348,16 +362,29 @@ def cmd_baseline(args: argparse.Namespace) -> int:
             if prefix:
                 added.add(prefix)
 
-    drift = sorted(v for v in local - remote if v not in added)
+    # Versions below the remote head are genuinely out-of-order: they can
+    # never be applied by `db push` (which only appends) so they represent
+    # real drift that must be repaired first.  Versions above the head are
+    # pending — exactly what `db push` is meant to apply — and must not
+    # block recovery when a prior apply failed mid-way.
+    remote_head = max(remote, default="")
+    drift = sorted(v for v in local - remote if v not in added and v < remote_head)
+    pending = sorted(v for v in local - remote if v not in added and v >= remote_head)
+
     if drift:
         res.error(
-            "history drift: these local migrations are missing from the project's "
-            f"history and are not new in this change: {', '.join(drift)}. "
-            "A `supabase db push` would replay them. Record them as applied first:\n"
+            "history drift: these local migrations are out of order and missing from "
+            f"the project's history: {', '.join(drift)}. "
+            "A `supabase db push` would silently skip them. Record them as applied first:\n"
             f"    supabase migration repair --status applied {' '.join(drift)}"
         )
     else:
-        print(f"baseline ok — {len(remote)} recorded, {len(added)} new in this change")
+        parts = [f"{len(remote)} recorded"]
+        if added:
+            parts.append(f"{len(added)} new in this change")
+        if pending:
+            parts.append(f"{len(pending)} pending")
+        print(f"baseline ok — {', '.join(parts)}")
 
     return res.report("migration baseline")
 
