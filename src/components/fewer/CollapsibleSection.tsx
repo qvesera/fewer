@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,8 +22,8 @@ export function CollapsibleSection({
   defaultOpen?: boolean;
   badge?: string;
   forceOpen?: number;
-  /** When provided, renders a grip handle before the chevron for drag-to-dock. */
-  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
+  /** When provided, renders a grip handle before the chevron for drag-to-dock/reorder. */
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement | HTMLDivElement>;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -41,20 +40,24 @@ export function CollapsibleSection({
       ref={sectionRef} 
       className="w-full min-w-0 max-w-full shrink-0 overflow-hidden rounded-xl border border-border/30 bg-card/10 transition-colors duration-200 hover:border-border/60 focus-within:border-border/80"
     >
-      <Button
-        variant="ghost"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
         aria-expanded={open}
         className="flex w-full items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
       >
         {dragHandleProps && (
-          <div
+          <button
             {...dragHandleProps}
+            data-drag-handle
+            aria-label={`Reorder or dock ${title}`}
+            onClick={(e) => e.stopPropagation()}
             className="cursor-grab active:cursor-grabbing shrink-0 -ml-1 p-0.5 rounded hover:bg-muted/50 touch-none"
-            title="Drag to dock"
           >
             <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
-          </div>
+          </button>
         )}
         <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200 text-muted-foreground/70 shrink-0", open && "rotate-90")} />
         <Icon className="h-4 w-4 shrink-0 text-primary/80" />
@@ -64,7 +67,7 @@ export function CollapsibleSection({
             {badge}
           </span>
         )}
-      </Button>
+      </div>
       <div
         className={cn(
           "grid w-full min-w-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",

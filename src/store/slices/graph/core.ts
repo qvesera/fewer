@@ -21,6 +21,7 @@ export type CoreSliceCreator = StateCreator<GraphState, [], [], {
   setDataSource: GraphState["setDataSource"];
   setLocalRootPath: GraphState["setLocalRootPath"];
   triggerHiddenPanelExpand: GraphState["triggerHiddenPanelExpand"];
+  triggerSavedGraphsExpand: GraphState["triggerSavedGraphsExpand"];
   relayout: GraphState["relayout"];
   organize: GraphState["organize"];
   applySearch: GraphState["applySearch"];
@@ -34,10 +35,14 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   localRootPath: null,
   graphVersion: 0,
   hiddenPanelExpandTrigger: 0,
+  savedGraphsExpandTrigger: 0,
   setDataSource: (v) => set({ dataSource: v }),
   setLocalRootPath: (v) => set({ localRootPath: v }),
   triggerHiddenPanelExpand: () => {
     set((s) => ({ hiddenPanelExpandTrigger: s.hiddenPanelExpandTrigger + 1 }));
+  },
+  triggerSavedGraphsExpand: () => {
+    set((s) => ({ savedGraphsExpandTrigger: s.savedGraphsExpandTrigger + 1 }));
   },
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => {
     const state = get();

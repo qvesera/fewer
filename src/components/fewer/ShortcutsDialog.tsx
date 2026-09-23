@@ -91,6 +91,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["Alt", "F"], action: "Zoom to selection" },
       { keys: ["Alt", "I"], action: "Import" },
       { keys: ["Alt", "O"], action: "Open in file explorer", featureKey: "openInOs" },
+      { keys: ["Alt", "↑"], action: "Move focused sidebar section up" },
+      { keys: ["Alt", "↓"], action: "Move focused sidebar section down" },
     ],
   },
 ];

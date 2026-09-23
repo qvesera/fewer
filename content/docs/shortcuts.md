@@ -58,6 +58,8 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **Ctrl+L** | Cycle layout direction (Top→Bottom, Left→Right, Bottom→Top, Right→Left) |
 | **Alt+F**  | Zoom to selection                                                       |
 | **Alt+R**  | Organize graph                                                           |
+| **Alt+↑**  | Move focused sidebar section up (drag grip or Alt+↑/↓)                   |
+| **Alt+↓**  | Move focused sidebar section down (drag grip or Alt+↑/↓)                 |
 
 ## Export
 

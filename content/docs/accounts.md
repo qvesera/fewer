@@ -19,7 +19,7 @@ If you try to sign up with an email that already has an account, you're told and
 
 Signing up with Google or GitHub fills your profile's first and last name from the provider's display name. You can change them anytime in **Settings → Account**.
 
-After signing in, the navbar shows your avatar and name. Click to open the account menu with **Account settings** (opens the Profile card), **Your saved graphs** (opens the sidebar), and **Sign out**.
+After signing in, the navbar shows your avatar and name. Click to open the account menu with **Account settings** (opens the Profile card), **Your saved graphs** (reveals and expands the **Your Directories** section in the sidebar), and **Sign out**.
 
 Your avatar is the profile picture from Google or GitHub when you signed up with one; accounts created with an email address show your initials instead. Fewer doesn't host user images, so there's no avatar upload — the name fields in **Settings → Account** are the parts of your profile you can edit here.
 

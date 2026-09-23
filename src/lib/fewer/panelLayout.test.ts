@@ -4,6 +4,7 @@ import {
   defaultTree, makeLeaf, leafList, leafCount,
   getPrimary, splitLeaf, joinLeaf, findLeaf,
   serializeTree, parseTree, migrateV1ToTree, isLeaf, isSplit, dedupeLeafIds, setLeafEditor,
+  dropSideForX,
   type PanelLeaf,
   type PanelSplit,
 } from "./panelTree";
@@ -221,5 +222,17 @@ describe("saveLayoutToStorage keepStoredTree", () => {
     saveLayoutToStorage({ sidebarSide: "right", panelTree: defaultTree() });
     expect(leafCount(loadLayoutFromStorage()!.panelTree)).toBe(1);
     clearLayoutStorage();
+  });
+});
+
+describe("dropSideForX", () => {
+  it("returns left when pointer is in the left half", () => {
+    expect(dropSideForX(300, { left: 200, right: 1000 })).toBe("left");
+  });
+  it("returns right when pointer is in the right half", () => {
+    expect(dropSideForX(700, { left: 200, right: 1000 })).toBe("right");
+  });
+  it("returns right when pointer is exactly at the midpoint", () => {
+    expect(dropSideForX(600, { left: 200, right: 1000 })).toBe("right");
   });
 });

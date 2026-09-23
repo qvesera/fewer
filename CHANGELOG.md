@@ -100,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docked section panels scroll again: a non-graph leaf clipped anything taller than the area (Layout, Tags, Graph Analytics, Your Directories), so long panels are now reachable by scrolling the leaf itself
 - Docked "Your Directories" column always showed "unavailable" — sectionRegistry read a store key (user) that never existed; now reads tier
 - Tier gate tests: accessibleLayout, keepStoredTree, store panel mutation no-ops, \_persistLayout no-clobber, dropTagFilter no-pushOp, applyViewState undo guard for tag filters
+- Account menu → Your saved graphs now reveals and expands the Your Directories section in the sidebar instead of no-oping when the sidebar is already open
+- Panel docking: sidebar sections now drag-and-drop instead of requiring a second click; drop target preview matches where the column lands
 
 ### Added
 
@@ -109,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Theme sharing in the community gallery: publish a saved theme from the Theme editor (or on save), browse the gallery's new Themes section with author attribution and search across theme names, titles and authors, apply any theme instantly to the page itself, and open its deep link (#t:<id>) in the app, which sets it as your last-used theme.
 - The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
 - Signing up with GitHub or Google now fills your profile's first and last name from the provider's display name (editable in Settings → Account)
+- Sidebar sections can be reordered by dragging the section grip; Alt+ArrowUp/Down moves the focused section
 
 ### Performance
 

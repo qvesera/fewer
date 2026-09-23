@@ -231,7 +231,7 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
-Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Panel docking is a Pro feature; Tags requires Pro.
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Sidebar sections can be reordered by dragging the grip handle (⋮⋮) next to each section title — sections shift as you cross their midpoints, and Escape cancels. Dragging a section outside the sidebar docks it as a ~25% column (Pro only); the same dock preview band shows where the column will land. Keyboard: focus a section grip and press **Alt+↑/↓** to move it. Panel docking is a Pro feature; Tags requires Pro.
 
 ## Sidebar
 

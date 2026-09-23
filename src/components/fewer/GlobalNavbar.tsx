@@ -34,6 +34,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
   const setSearchOpen = useGraphStore((s) => s.setSearchOpen);
   const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
+  const triggerSavedGraphsExpand = useGraphStore((s) => s.triggerSavedGraphsExpand);
   const query = useGraphStore((s) => s.searchQuery);
   const setQuery = useGraphStore((s) => s.setSearchQuery);
   const searchOpen = useGraphStore((s) => s.searchOpen);
@@ -255,7 +256,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
               )}
 
               <DropdownMenuItem
-                onClick={() => setSidebarOpen(true)}
+                onClick={() => { setSidebarOpen(true); triggerSavedGraphsExpand(); }}
                 className="cursor-pointer gap-2 text-xs"
               >
                 <FolderOpen className="mr-2 h-3.5 w-3.5" />

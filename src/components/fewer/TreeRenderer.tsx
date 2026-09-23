@@ -39,7 +39,7 @@ interface TreeRendererProps {
 export function TreeRenderer({ tree, onOpenImport, onLoadSample }: TreeRendererProps) {
   return (
     <div className="relative hidden sm:block flex-1 min-h-0 min-w-0">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" data-panel-workspace>
         <TreeNode node={tree} onOpenImport={onOpenImport} onLoadSample={onLoadSample} />
       </div>
     </div>
