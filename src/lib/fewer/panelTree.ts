@@ -220,6 +220,15 @@ export function insertLeafAtEdge(root: PanelNode, side: "left" | "right", editor
     : makeSplit("h", root, newNode, 0.75);
 }
 
+/**
+ * Determine dock side from a pointer X and a workspace bounding rect.
+ * Returns "left" if the pointer is in the left half of the workspace, "right" otherwise.
+ */
+export function dropSideForX(clientX: number, rect: DOMRect | { left: number; right: number }): "left" | "right" {
+  const mid = (rect.left + rect.right) / 2;
+  return clientX < mid ? "left" : "right";
+}
+
 // ── Adjust split ratio (divider drag) ──
 
 export function setDividerRatio(

@@ -79,4 +79,15 @@ describe("GlobalNavbar account dropdown", () => {
     expect(screen.queryByText("Upgrade to Pro")).toBeNull();
     expect(screen.queryByText("Manage subscription")).toBeNull();
   });
+
+  test("saved graphs row opens sidebar and triggers section expand", async () => {
+    act(() => useGraphStore.setState({ ...initial, sidebarOpen: false }));
+    renderNavbar();
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Account menu"));
+    await user.click(screen.getByText("Your saved graphs"));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(useGraphStore.getState().sidebarOpen).toBe(true);
+    expect(useGraphStore.getState().savedGraphsExpandTrigger).toBeGreaterThan(0);
+  });
 });
