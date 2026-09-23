@@ -50,7 +50,7 @@ export function dropSideForPointerX(x: number, viewportWidth: number): PanelSide
 // ── localStorage persistence ──
 
 import type { PanelNode } from "./panelTree";
-import { parseTree, migrateV1ToTree, serializeTree, isLeaf, leafCount } from "./panelTree";
+import { parseTree, migrateV1ToTree, serializeTree } from "./panelTree";
 import type { ViewSettings } from "./viewState";
 import { parseViewSettings } from "./viewState";
 
@@ -168,9 +168,4 @@ export function defaultLayout(): LayoutSnapshot {
  */
 export function accessibleLayout(tree: PanelNode, proWorkspace: boolean): PanelNode {
   return proWorkspace ? tree : defaultLayout().panelTree;
-}
-
-/** True when a tree is the standard single-graph-leaf default. */
-export function isDefaultLayout(tree: PanelNode): boolean {
-  return isLeaf(tree) && tree.primary === true && tree.area.editor === "graph";
 }

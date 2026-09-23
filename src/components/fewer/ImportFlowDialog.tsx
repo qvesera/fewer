@@ -23,7 +23,6 @@ import { ArrowLeft, ArrowRight, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
@@ -80,8 +79,8 @@ export function ImportFlowDialog({
     }
   };
   const { toast } = useToast();
-  const { user } = useAuth();
-  const advancedFormats = can("advancedImportFormats", useGraphStore((s) => s.tier));
+  const tier = useGraphStore((s) => s.tier);
+  const advancedFormats = can("advancedImportFormats", tier);
   const { importUrl, getResult: getUrlResult } = useImport();
   const { add: watchAdd } = useWatch();
 
@@ -109,7 +108,7 @@ export function ImportFlowDialog({
       setStep(1);
       setOrigin(initialOrigin);
       setSource(defaultSourceFor(initialOrigin));
-      const { importOptions, advancedFormats: advanced } =
+      const { importOptions, advancedModeEnabled: advanced } =
         useGraphStore.getState();
       setOptions(
         advanced
@@ -256,7 +255,7 @@ function isEditableTarget(el: HTMLElement): boolean {
               source={source}
               onSourceChange={setSource}
               advancedFormats={advancedFormats}
-              signedIn={!!user}
+              cloudImport={can("cloudImport", tier)}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)
               }

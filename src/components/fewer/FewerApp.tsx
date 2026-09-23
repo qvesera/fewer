@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer/userSettings";
-import { loadLayoutFromStorage, defaultLayout, isDefaultLayout } from "@/lib/fewer/panelLayout";
+import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";

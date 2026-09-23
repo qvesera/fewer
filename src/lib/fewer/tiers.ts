@@ -65,13 +65,13 @@ export type Feature =
 export const MIN_TIER: Record<Feature, Tier> = {
   panelWorkspace: "pro",
   tags: "pro",
-  largeShareLinks: "pro",
+  largeShareLinks: "pro",  // server: SHARE_FREE_MAX_CHARS threshold + planLimits.largeShareLinks
   savedThemes: "pro",
 
   // Everything else: any signed-in account.
   savedGraphs: "free",
   galleryPublish: "free",
-  versionHistory: "free",
+  versionHistory: "free",  // server: 30-day retention for Free, 365-day for Pro; GUEST = 0
   watchIndexes: "free",
   cloudImport: "free",
   edgeMotion: "free",

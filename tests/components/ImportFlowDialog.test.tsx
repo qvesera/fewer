@@ -47,7 +47,7 @@ beforeEach(() => {
   runFolderImport.mockClear();
   runFileImport.mockClear();
   runCloudImport.mockClear();
-  useGraphStore.setState({ ...initial, nodes: [], edges: [] }, true);
+  useGraphStore.setState({ ...initial, nodes: [], edges: [], advancedModeEnabled: false }, true);
 });
 
 afterEach(() => {
@@ -66,7 +66,7 @@ describe("ImportFlowDialog 3-step flow", () => {
   });
 
   test("signed-in grid shows all four origins", () => {
-    signedIn = true;
+    useGraphStore.setState({ tier: "free" });
     renderDialog();
     expect(screen.getByRole("radio", { name: /^folder/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^file/i })).toBeTruthy();
@@ -102,7 +102,6 @@ describe("ImportFlowDialog 3-step flow", () => {
 
 describe("ImportFlowDialog state and step-3 import", () => {
   test("basic mode resets advanced options to defaults on open", () => {
-    signedIn = true;
     useGraphStore.setState({ advancedModeEnabled: false });
     const { rerender, unmount } = render(
       <ImportFlowDialog open={false} onOpenChange={() => {}} initialOrigin="folder" />,
@@ -173,14 +172,15 @@ describe("ImportFlowDialog state and step-3 import", () => {
 
   test("successful url import requests a watch before closing", async () => {
     const interaction = userEvent.setup();
-    signedIn = true;
+    useGraphStore.setState({ tier: "free" });
     renderDialog({ initialOrigin: "url" });
     // URL source renders a single URL input (placeholder), not a tabbed row.
     const urlInput = screen.getByPlaceholderText(/https:\/\//i);
     await interaction.type(urlInput, "https://example.com/list/");
     // Watch toggle appears once the URL is non-empty and not a GitHub repo.
-    await fireEvent.click(screen.getByRole("switch"));
-    expect((screen.getByRole("switch") as HTMLButtonElement).getAttribute("aria-checked")).toBe("true");
+    // Scope to the first switch (URL source) — the hidden options panel has others.
+    await fireEvent.click(screen.getAllByRole("switch")[0]);
+    expect((screen.getAllByRole("switch")[0] as HTMLButtonElement).getAttribute("aria-checked")).toBe("true");
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
