@@ -99,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON exports and bug reports now stamp the real app version (injected from package.json at build time via NEXT_PUBLIC_APP_VERSION) instead of a hardcoded 1.0.0 — the version shown in Settings, written into exported "fewer" JSON meta, and put on GitHub issue bodies can no longer disagree
 - Docked section panels scroll again: a non-graph leaf clipped anything taller than the area (Layout, Tags, Graph Analytics, Your Directories), so long panels are now reachable by scrolling the leaf itself
 - Docked "Your Directories" column always showed "unavailable" — sectionRegistry read a store key (user) that never existed; now reads tier
+- Tier gate tests: accessibleLayout, keepStoredTree, store panel mutation no-ops, _persistLayout no-clobber, dropTagFilter no-pushOp, applyViewState undo guard for tag filters
 
 ### Added
 

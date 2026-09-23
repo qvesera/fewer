@@ -868,7 +868,6 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
 | Copy Paths      | Copies each selected node''s full path to the clipboard, one per line                                                                                                                 |
-| Tags…           | Opens a shared tag picker: assign or remove any tag across the whole selection at once (creates new tags too)                                                                |
 | Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
@@ -1178,9 +1177,9 @@ Children within each folder are drawn in a chosen order. The sort applies recurs
 
 Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
 
-## Tags
+## Tags (Pro)
 
-Tags are named, colored labels you can attach to any folder or file card.
+Tags are named, colored labels you can attach to any folder or file card. Tagging requires a signed-in Pro account.
 
 **Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
@@ -1289,7 +1288,7 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view''s history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
-Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped.
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Panel docking is a Pro feature; Tags requires Pro.
 
 ## Sidebar
 
@@ -1473,16 +1472,32 @@ on conflict (type, slug) do update
 
 insert into public.content_pages
   (type, slug, title, description, content, author, date, tags, published)
-values ('docs', 'plans', 'Plans', 'Guest, Free, Pro, and Team tiers — what each includes, prices, and how plans are managed.', 'Fewer''s core runs entirely in the browser — every visualization, edit, layout, theme, and local export is free. Account tiers meter the features that run on fewer''s servers: saved-graph storage, version snapshots, watch crawls, cloud OAuth connectors, invite emails, and large share payloads.
+values ('docs', 'plans', 'Plans', 'Guest, Free, Pro, and Team tiers — what each includes, prices, and how plans are managed.', 'Fewer''s core runs entirely in the browser. Account tiers unlock two things: client features gated to signed-in or Pro accounts (see the Client Features table below), and server features (saved-graph storage, version snapshots, watch crawls, cloud OAuth connectors, invite emails, and large share payloads).
 
 ## Tiers
 
 | Tier         | Price            | Included                                                           |
 | ------------ | ---------------- | ------------------------------------------------------------------ |
-| Guest        | Free             | Local import, all exports (watermarked), hash sharing < 2,000 chars |
-| Free account | $0               | ~3 saved graphs, 30-day history, public sharing                     |
-| Pro          | $10–15/mo         | Unlimited saves, 1-yr version history, saved themes, 5–10 watched indexes, crawl quota, watermark removal, large-payload short links |
+| Guest        | Free             | Single-canvas layout, all exports (watermarked), hash sharing < 2,000 chars |
+| Free account | $0               | ~3 saved graphs, 30-day history, public sharing, watermark-free exports |
+| Pro          | $10–15/mo         | Panel workspace (multi-view dock), tags, unlimited saves, 1-yr history, saved themes, 5–10 watched indexes, large-payload short links |
 | Team         | ~$12–15/user/mo  | Org workspaces, private sharing/gallery, shared theme libraries, admin controls |
+
+## Client features by tier
+
+Some client-side features require sign-in or a Pro plan. These are cosmetic gates — the server enforces all metered limits regardless.
+
+| Feature | Guest | Free | Pro |
+| --- | --- | --- | --- |
+| Panel workspace (multi-view dock, split views, corner grips) | ✗ | ✗ | ✓ |
+| Tags (tag panel, tag menus, tag filter) | ✗ | ✗ | ✓ |
+| Saved graphs sidebar | ✗ | ✓ | ✓ |
+| Graph Analytics | ✗ | ✓ | ✓ |
+| Edge motion (animated edges) | ✗ | ✓ | ✓ |
+| Custom theme editor | ✗ | ✓ | ✓ |
+| Advanced import formats (JSON, script) | ✗ | ✓ | ✓ |
+| Export without watermark | ✗ | ✓ | ✓ |
+| Gallery publishing | ✗ | ✓ | ✓ |
 
 ### Guest
 
@@ -1494,7 +1509,7 @@ A signed-in account with no recurring price. Around 3 saved graphs (updating an 
 
 ### Pro
 
-For power users: unlimited saved graphs, a full year of version history, cloud-saved custom themes, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, watermark-free exports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **$10–15/mo.**
+For power users: the panel workspace (multi-view dock with split views), tags, unlimited saved graphs, a full year of version history, cloud-saved custom themes, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **$10–15/mo.**
 
 ### Team
 

@@ -120,9 +120,9 @@ Children within each folder are drawn in a chosen order. The sort applies recurs
 
 Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
 
-## Tags
+## Tags (Pro)
 
-Tags are named, colored labels you can attach to any folder or file card.
+Tags are named, colored labels you can attach to any folder or file card. Tagging requires a signed-in Pro account.
 
 **Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
@@ -231,7 +231,7 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
-Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped.
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Panel docking is a Pro feature; Tags requires Pro.
 
 ## Sidebar
 
