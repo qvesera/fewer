@@ -5,6 +5,7 @@ import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import type { FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { can } from "@/lib/fewer/tiers";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,7 +30,7 @@ interface CanvasContextMenuProps {
   lastClickedEdgeId: string | null;
   vs: ResolvedViewSettings;
   leafId: string | undefined;
-  advancedModeEnabled: boolean;
+  canvasAddChildEnabled: boolean;
   hiddenCount: number;
   allNodes: FewerNode[];
   selectAll: () => void;
@@ -46,7 +47,7 @@ export function CanvasContextMenu({
   lastClickedEdgeId,
   vs,
   leafId,
-  advancedModeEnabled,
+  canvasAddChildEnabled,
   hiddenCount,
   allNodes,
   selectAll,
@@ -144,7 +145,7 @@ export function CanvasContextMenu({
                     {a.label}
                   </DropdownMenuItem>
                 ))}
-                {(() => {
+                {can("tags", useGraphStore.getState().tier) && (() => {
                   const store = useGraphStore.getState();
                   const allTags = store.tags;
                   return (
@@ -249,7 +250,7 @@ export function CanvasContextMenu({
         >
           Organize
         </button>
-        {advancedModeEnabled && (
+        {canvasAddChildEnabled && (
           <>
             <button
               onClick={() => {

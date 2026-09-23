@@ -23,7 +23,6 @@ import { ArrowLeft, ArrowRight, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
@@ -38,6 +37,7 @@ import {
 } from "@/lib/fewer/importFlow";
 import type { ImportOrigin, OriginSource } from "@/lib/fewer/importFlow";
 import { runImport } from "@/lib/fewer/importAction";
+import { can } from "@/lib/fewer/tiers";
 
 type Step = 1 | 2 | 3;
 
@@ -79,8 +79,8 @@ export function ImportFlowDialog({
     }
   };
   const { toast } = useToast();
-  const { user } = useAuth();
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
+  const advancedFormats = can("advancedImportFormats", tier);
   const { importUrl, getResult: getUrlResult } = useImport();
   const { add: watchAdd } = useWatch();
 
@@ -122,10 +122,10 @@ export function ImportFlowDialog({
 
   // Advanced mode off → advanced options fall back to defaults (same as old dialog).
   useEffect(() => {
-    if (!advancedModeEnabled) {
+    if (!advancedFormats) {
       setOptions((prev) => ({ ...prev, ...BASIC_MODE_OPTION_DEFAULTS }));
     }
-  }, [advancedModeEnabled]);
+  }, [advancedFormats]);
 
   // Persist the user's import preferences so the next session/dialog remembers
   // them (and so they're synced to the account in the cloud).
@@ -254,8 +254,8 @@ function isEditableTarget(el: HTMLElement): boolean {
               }}
               source={source}
               onSourceChange={setSource}
-              advancedModeEnabled={advancedModeEnabled}
-              signedIn={!!user}
+              advancedFormats={advancedFormats}
+              cloudImport={can("cloudImport", tier)}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)
               }
@@ -272,7 +272,7 @@ function isEditableTarget(el: HTMLElement): boolean {
               onChange={(partial) =>
                 setOptions((prev) => ({ ...prev, ...partial }))
               }
-              advancedModeEnabled={advancedModeEnabled}
+              advancedFormats={advancedFormats}
             />
           </div>
 

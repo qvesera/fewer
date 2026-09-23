@@ -39,7 +39,7 @@ beforeEach(() => {
   signOut.mockClear();
   requests.length = 0;
   localStorage.clear();
-  useGraphStore.setState({ ...initial, settingsOpen: true, advancedModeEnabled: false, themeMode: "dark", nodes: [], edges: [] }, true);
+  useGraphStore.setState({ ...initial, settingsOpen: true, advancedModeEnabled: false, themeMode: "dark", nodes: [], edges: [], tier: "guest" }, true);
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     requests.push({ url, init });
@@ -58,6 +58,7 @@ afterEach(() => {
 
 async function openAccount() {
   signedIn = true;
+  useGraphStore.setState({ tier: "free" });
   render(<SettingsDialog />);
   act(() => window.dispatchEvent(new Event("fewer-open-settings-account")));
   await waitFor(() => expect((screen.getByLabelText("First name") as HTMLInputElement).value).toBe("Ada"));
@@ -81,6 +82,7 @@ describe("Settings dialog interactions", () => {
     expect(screen.queryByRole("tab", { name: "Advanced" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Cloud" })).toBeNull();
     signedIn = true;
+    useGraphStore.setState({ tier: "free" });
     mounted.rerender(<SettingsDialog />);
     expect(screen.getByRole("tab", { name: "Cloud" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Watched" })).toBeTruthy();
@@ -181,7 +183,7 @@ describe("Account danger zone", () => {
 describe("Advanced tab controls", () => {
   async function openAdvanced(enabled = true) {
     signedIn = true;
-    useGraphStore.setState({ advancedModeEnabled: enabled, maxDisplayDepth: 6, autoHideThreshold: 10, scrollAction: "pan" });
+    useGraphStore.setState({ advancedModeEnabled: enabled, tier: enabled ? "free" : "guest", maxDisplayDepth: 6, autoHideThreshold: 10, scrollAction: "pan" });
     const mounted = render(<SettingsDialog />);
     await userEvent.setup().click(screen.getByRole("tab", { name: "Advanced" }));
     expect(screen.getByRole("tab", { name: "Advanced" }).getAttribute("aria-selected")).toBe("true");

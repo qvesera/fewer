@@ -176,6 +176,7 @@ describe("ShareDialog signed-in DB path", () => {
     try {
       signedIn = true;
       seedStore({ nodes: bigNodes, edges: [] });
+      useGraphStore.setState({ tier: "free" });
       render(<ShareDialog />);
       clickButton("Generate link");
       await waitFor(() => {
@@ -198,6 +199,7 @@ describe("ShareDialog signed-in DB path", () => {
     try {
       signedIn = true;
       seedStore({ nodes: bigNodes, edges: [] });
+      useGraphStore.setState({ tier: "free" });
       render(<ShareDialog />);
       clickButton("Generate link");
       await waitFor(() => {

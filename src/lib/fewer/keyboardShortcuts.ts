@@ -67,6 +67,7 @@ export interface StoreReader {
   localRootPath: string | null;
   activeLeafId: string | null;
   showFilesByLeaf: Record<string, { showFiles?: boolean; hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }>;
+  tier: string;
 }
 
 /** Count nodes hidden by a leaf's hideLayers (individual + subtrees + bulk files). */
@@ -96,6 +97,7 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     localRootPath: s.localRootPath ?? null,
     activeLeafId: s.activeLeafId ?? null,
     showFilesByLeaf: s.viewSettings ?? {},
+    tier: s.tier ?? "guest",
   };
 }
 
@@ -130,7 +132,6 @@ export interface ShortcutCtx {
     getEdges(): { id: string; selected?: boolean }[];
   };
   toast(opts: { title: string; description?: string; variant?: "destructive" }): void;
-  user: { id?: string } | null;
   localFs: typeof LOCAL_FS_FEATURES;
   openNodeFile(node: FewerNode, dataSource: string): Promise<boolean>;
   openFolderInExplorer(path: string): Promise<boolean>;
@@ -192,7 +193,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
             ctx.openFolderInExplorer(node.data.path).then((ok)=>{ctx.toast({title:ok?"Opening folder":"Folder not found",description:node.data.label,...(ok?{}:{variant:"destructive"})});}); } } },
     // Alt+S — save graph
     { test(_e,_ctx,kc) { return kc.alt&&!kc.shift&&kc.altKey==="s"&&!kc.inEditable; },
-      handle(e,ctx,_kc) { e.preventDefault(); if(!ctx.user){ctx.setAuthOpen(true);return;} window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH)); } },
+      handle(e,ctx,_kc) { e.preventDefault(); if(ctx.getState().tier==="guest"){ctx.setAuthOpen(true);return;} window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH)); } },
     // Alt+P — parent nodes
     { test(_e,_ctx,kc) { return kc.alt&&!kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault(); const ids=ctx.getState().selectedNodeIds;

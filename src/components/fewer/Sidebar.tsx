@@ -51,6 +51,7 @@ import type { AreaEditor } from "@/lib/fewer/panelLayout";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { startSectionDrag } from "./SectionDragLayer";
+import { can } from "@/lib/fewer/tiers";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
@@ -64,12 +65,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const activeLeaf = useActiveLeaf();
   const { nodes, edges, hiddenIds } = useGraphData();
   const { direction, edgeStyle } = useLayoutConfig();
-  const { selectedNodeIds, advancedModeEnabled } = useUiState();
+  const { selectedNodeIds } = useUiState();
   const { panelTree } = useViewState();
   const { sidebarSide, setSidebarSide } = useDialogState();
   const { setDirection, setEdgeStyle, reset } = useStoreActions();
   const tags = useGraphStore((s) => s.tags);
   const hiddenPanelExpandTrigger = useGraphStore((s) => s.hiddenPanelExpandTrigger);
+  const tier = useGraphStore((s) => s.tier);
 
   // Section ids currently docked in an area — these get hidden from sidebar
   const dockedIds = useMemo(() => sectionsDockedInTree(panelTree), [panelTree]);
@@ -77,10 +79,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (!advancedModeEnabled && (direction === "BT" || direction === "RL")) {
+    if (!can("layoutOrientation", tier) && (direction === "BT" || direction === "RL")) {
       setDirection("TB");
     }
-  }, [advancedModeEnabled, direction, setDirection]);
+  }, [tier, direction, setDirection]);
 
   // On first client mount, apply the responsive default layout direction
   // (LR on screens <1.5k, TB otherwise). The store starts as "TB" for an
@@ -94,9 +96,9 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     }
   }, []);
 
-  // Drag handle factory — only for dockable sections not already docked
+  // Drag handle factory — only for dockable sections not already docked, Pro only
   const dragProps = (id: AreaEditor): { dragHandleProps: React.HTMLAttributes<HTMLDivElement> } | undefined =>
-    NON_DOCKABLE_SECTIONS.has(id) || dockedIds.has(id)
+    !can("panelWorkspace", tier) || NON_DOCKABLE_SECTIONS.has(id) || dockedIds.has(id)
       ? undefined
       : { dragHandleProps: { onPointerDown: (e: React.PointerEvent) => startSectionDrag(id, e) } };
 
@@ -210,8 +212,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 1.5 YOUR DIRECTORIES (logged-in only) ── */}
-        {user && !dockedIds.has("directories") && (
+        {/* ── 1.5 YOUR DIRECTORIES (signed-in only, free tier gets 3 saved graphs) ── */}
+        {can("savedGraphs", tier) && !dockedIds.has("directories") && (
           <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen {...dragProps("directories")}>
             <SavedGraphsPanel onRequireAuth={onRequireAuth} />
           </CollapsibleSection>
@@ -225,7 +227,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             <LayoutPicker
               direction={activeLeaf?.resolved.direction ?? direction}
               onPick={(d) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { direction: d }); else setDirection(d); }}
-              advancedModeEnabled={advancedModeEnabled}
+              advancedModeEnabled={can("layoutOrientation", tier)}
             />
 
             {/* Organize action — store.organize() drops this view's per-view
@@ -263,8 +265,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </CollapsibleSection>
         )}
 
-        {/* ── 4. TAGS ── */}
-        {!dockedIds.has("tags") && nodes.length > 0 && (
+        {/* ── 4. TAGS (Pro workspace feature) ── */}
+        {can("tags", tier) && !dockedIds.has("tags") && nodes.length > 0 && (
           <CollapsibleSection
             title="Tags"
             icon={TagIcon}
@@ -278,7 +280,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
         {/* ── 5. GRAPH ANALYTICS ── */}
         {!dockedIds.has("analytics") && (
-        <AnimatedConditional show={advancedModeEnabled && nodes.length > 0} delay={100}>
+        <AnimatedConditional show={can("graphAnalytics", tier) && nodes.length > 0} delay={100}>
           <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
             <StatsPanel />
           </CollapsibleSection>

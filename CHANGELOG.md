@@ -48,6 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UI copy now says connections instead of edges everywhere user-facing (section title, export summary, share dialog, right-click menu, toasts, Power User canvas settings); internals, saved-graph format and CSS/theme keys keep edge names
 - Account dropdown now shows avatar with initials, display name, and actionable menu items (Account settings, Your saved graphs, Upgrade to Pro / Manage subscription when billing is enabled, Sign out) instead of a non-interactive name and Sign out only
 - Docs clarify how the account avatar is chosen: the Google/GitHub profile photo, otherwise initials — there is no avatar upload by design
+- Tier model (tiers.ts): client-side guest/free/pro vocabulary with a declarative feature→min-tier table, replacing scattered boolean gates
+- Dockable workspace (panel splits, corner grips, section drag-to-dock) and all interactive tag UI (tag panel, tag menus, tag filter) are now Pro-tier features; guests and free accounts get the default single-canvas layout
+- Phase 2 tier migration: settingsModel.visibleTabs, SettingsDialog, ExportPanel, ShortcutsDialog, ShareDialog, WatchedIndexesPanel, ThemeEditorDialog, use-settings now use tier from the store instead of scattered auth reads
+- Phase 2 continued: SavedGraphsPanel (14 user reads), KeyboardShortcuts (ctx.user removed, tier via getState), ThemeGallerySection (galleryPublish gate), use-watch now use tier
+- Toolbar undo/redo block now uses can(historyTools, tier) instead of advancedModeEnabled
+- Phase 2 advancedModeEnabled sweep: GraphCanvas, graph/core.ts, use-canvas-dash-clock, SettingsDialog (AppearanceTab + AdvancedTab), Sidebar, CanvasContextMenu now use can(feature, tier) from tiers.ts. Added graphAnalytics to Feature union.
+- Phase 2 complete: remaining advancedModeEnabled sites migrated — CanvasToolbar, CustomNode, ImportOriginStep, ImportOptionsPanel, ImportFlowDialog, DockAreaContent, ExportPanel cleanup, sectionRegistry simplified. Only intentional vestiges remain: LayoutPicker prop interface, FewerApp derivation, userSettings persisted field, sidebarModel (test-only).
 
 ### Fixed
 
@@ -91,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The bug report dialog copy button now shows a destructive error toast when the clipboard write fails, instead of silently doing nothing
 - JSON exports and bug reports now stamp the real app version (injected from package.json at build time via NEXT_PUBLIC_APP_VERSION) instead of a hardcoded 1.0.0 — the version shown in Settings, written into exported "fewer" JSON meta, and put on GitHub issue bodies can no longer disagree
 - Docked section panels scroll again: a non-graph leaf clipped anything taller than the area (Layout, Tags, Graph Analytics, Your Directories), so long panels are now reachable by scrolling the leaf itself
+- Docked "Your Directories" column always showed "unavailable" — sectionRegistry read a store key (user) that never existed; now reads tier
+- Tier gate tests: accessibleLayout, keepStoredTree, store panel mutation no-ops, _persistLayout no-clobber, dropTagFilter no-pushOp, applyViewState undo guard for tag filters
 
 ### Added
 

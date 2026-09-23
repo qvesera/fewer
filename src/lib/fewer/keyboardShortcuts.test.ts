@@ -150,7 +150,6 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
       getEdges: () => [],
     },
     toast: (o) => { a.toast = o; },
-    user: null,
     localFs: { openInOs: false, openFileInOs: false, dragDropImport: false, dropToExpand: false, fsaDirectoryPicker: false },
     openNodeFile: async () => true, openFolderInExplorer: async () => true,
     ...overrides,
@@ -216,7 +215,7 @@ test("Ctrl+X cuts selected", () => {
   expect(a.moveNode).toBe("n1");
 });
 test("Alt+S with no user opens auth", () => {
-  const { ctx, a } = makeCtx({ user: null });
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ tier: "guest" }) });
   expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "s" })).toBe(true);
   expect(a.setAuthOpen).toBe(true);
 });

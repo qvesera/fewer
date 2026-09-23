@@ -221,17 +221,16 @@ export function usageMeter(used: number, limit: number): UsageMeter {
 
 /**
  * Which settings tabs exist for the current viewer, in tab-strip order. The
- * Advanced tab is desktop-only unless advanced mode is on — for a signed-out
- * mobile user it would be empty (its cards are sign-in or desktop gated).
- * Watched and Cloud exist only for signed-in users.
+ * Advanced tab is desktop-only unless advanced mode is on. Watched and Cloud
+ * exist only for signed-in users (tier !== "guest").
  */
 export function visibleTabs(opts: {
-  signedIn: boolean;
+  tier: string;
   isMobile: boolean;
   advancedMode: boolean;
 }): SettingsTabId[] {
   const tabs: SettingsTabId[] = ["account", "about", "appearance"];
-  if (opts.signedIn) tabs.push("watched", "cloud");
+  if (opts.tier !== "guest") tabs.push("watched", "cloud");
   if (opts.advancedMode || !opts.isMobile) tabs.push("advanced");
   tabs.push("help");
   return tabs;

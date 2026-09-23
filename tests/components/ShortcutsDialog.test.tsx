@@ -86,16 +86,18 @@ describe("ShortcutsDialog rendering", () => {
 });
 
 describe("ShortcutsDialog signed-in gating", () => {
-  test("signedInOnly shortcut visible when signed in", async () => {
+  test("minTier shortcut visible when signed in", async () => {
     signedIn = true;
+    useGraphStore.setState({ tier: "free" });
     render(<ShortcutsDialog />);
     await waitFor(() => {
       expect(bodyText()).toContain("Save current graph");
     });
   });
 
-  test("signedInOnly shortcut hidden when signed out", () => {
+  test("minTier shortcut hidden when signed out", () => {
     signedIn = false;
+    useGraphStore.setState({ tier: "guest" });
     render(<ShortcutsDialog />);
     expect(bodyText()).not.toContain("Save current graph");
   });

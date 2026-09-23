@@ -13,40 +13,61 @@ export interface Profile {
 
 const EMPTY_PROFILE: Profile = { first_name: "", last_name: "", username: "", plan: "free" };
 
+// ── Session cache: one /api/profile fetch per user, shared across call sites ──
+// ponytail: avoids 3 parallel /api/profile requests from FewerApp + GlobalNavbar + ThemeEditorDialog.
+let _cachedProfile: Profile | null = null;
+let _cachedUserId: string | null = null;
+let _fetching: Promise<Profile | null> | null = null;
+
+function fetchProfileOnce(uid: string): Promise<Profile | null> {
+  if (_cachedUserId === uid && _cachedProfile) return Promise.resolve(_cachedProfile);
+  if (_fetching) return _fetching;
+  _fetching = (async () => {
+    try {
+      const res = await fetch("/api/profile");
+      const json = await res.json();
+      if (json.profile) {
+        const p = json.profile as Record<string, unknown>;
+        const parsed: Profile = {
+          first_name: typeof p.first_name === "string" ? p.first_name : "",
+          last_name: typeof p.last_name === "string" ? p.last_name : "",
+          username: typeof p.username === "string" ? p.username : "",
+          plan: p.plan === "pro" || p.plan === "team" ? "pro" : "free",
+        };
+        _cachedProfile = parsed;
+        _cachedUserId = uid;
+        return parsed;
+      }
+    } catch {
+      /* ignore — fall back to empty profile */
+    }
+    return null;
+  })();
+  // Clear the in-flight promise so the next call re-fetches if this one fails.
+  return _fetching.then((p) => { _fetching = null; return p; });
+}
+
 /**
  * Loads the signed-in user's profile (first/last name, username) from
  * `/api/profile`. Returns an empty profile while signed out or loading.
+ * Module-level cache ensures a single fetch per user across call sites.
  */
 export function useProfile(): Profile {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
+  const [profile, setProfile] = useState<Profile>(_cachedProfile ?? EMPTY_PROFILE);
 
   useEffect(() => {
     if (!user) {
       setProfile(EMPTY_PROFILE);
+      _cachedProfile = null;
+      _cachedUserId = null;
       return;
     }
     let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/profile");
-        const json = await res.json();
-        if (mounted && json.profile) {
-          const p = json.profile as { first_name?: unknown; last_name?: unknown; username?: unknown; plan?: unknown };
-          setProfile({
-            first_name: typeof p.first_name === "string" ? p.first_name : "",
-            last_name: typeof p.last_name === "string" ? p.last_name : "",
-            username: typeof p.username === "string" ? p.username : "",
-            plan: p.plan === "pro" || p.plan === "team" ? "pro" : "free",
-          });
-        }
-      } catch {
-        /* ignore — fall back to email */
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    fetchProfileOnce(user.id).then((p) => {
+      if (mounted && p) setProfile(p);
+    });
+    return () => { mounted = false; };
   }, [user?.id]);
 
   return profile;

@@ -20,6 +20,7 @@ import {
  */
 export function useSettingsSync() {
   const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const readyRef = useRef(false);
   const uidRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,7 +67,7 @@ export function useSettingsSync() {
 
   // When the signed-in user resolves or changes, load their cloud settings.
   useEffect(() => {
-    if (!user) {
+    if (tier === "guest") {
       readyRef.current = true;
       return;
     }

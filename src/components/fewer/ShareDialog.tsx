@@ -30,7 +30,8 @@ export function ShareDialog() {
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const { toast } = useToast();
   const { user } = useAuth();
-  const isGuest = !user;
+  const tier = useGraphStore((s) => s.tier);
+  const isGuest = tier === "guest";
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");

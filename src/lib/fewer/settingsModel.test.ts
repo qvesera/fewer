@@ -227,7 +227,7 @@ describe("usageMeter", () => {
 
 describe("visibleTabs", () => {
   it("shows the advanced tab on desktop even without advanced mode", () => {
-    expect(visibleTabs({ signedIn: false, isMobile: false, advancedMode: false })).toEqual([
+    expect(visibleTabs({ tier: "guest", isMobile: false, advancedMode: false })).toEqual([
       "account",
       "about",
       "appearance",
@@ -236,8 +236,8 @@ describe("visibleTabs", () => {
     ]);
   });
 
-  it("hides advanced for a signed-out mobile user — the tab would be empty", () => {
-    expect(visibleTabs({ signedIn: false, isMobile: true, advancedMode: false })).toEqual([
+  it("hides advanced for a guest mobile user — the tab would be empty", () => {
+    expect(visibleTabs({ tier: "guest", isMobile: true, advancedMode: false })).toEqual([
       "account",
       "about",
       "appearance",
@@ -246,7 +246,7 @@ describe("visibleTabs", () => {
   });
 
   it("advanced mode brings the tab back on mobile; signed-in tabs append", () => {
-    expect(visibleTabs({ signedIn: true, isMobile: true, advancedMode: true })).toEqual([
+    expect(visibleTabs({ tier: "pro", isMobile: true, advancedMode: true })).toEqual([
       "account",
       "about",
       "appearance",
@@ -258,7 +258,7 @@ describe("visibleTabs", () => {
   });
 
   it("watches and cloud are sign-in only", () => {
-    const tabs = visibleTabs({ signedIn: false, isMobile: false, advancedMode: true });
+    const tabs = visibleTabs({ tier: "guest", isMobile: false, advancedMode: true });
     expect(tabs).toContain("advanced");
     expect(tabs).not.toContain("watched");
     expect(tabs).not.toContain("cloud");

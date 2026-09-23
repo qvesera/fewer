@@ -33,7 +33,7 @@ import {
   shareCreateError,
   shareCreatedToast,
 } from "@/lib/fewer/savedGraphsModel";
-import { useAuth } from "@/hooks/use-auth";
+
 import { VersionHistoryDialog } from "./VersionHistoryDialog";
 import {
   FolderOpen,
@@ -65,8 +65,8 @@ interface SavedGraphsPanelProps {
 }
 
 export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const tier = useGraphStore((s) => s.tier);
   const nodes = useGraphStore((s) => s.nodes);
   const [graphs, setGraphs] = useState<SavedGraph[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,7 +80,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [historyFor, setHistoryFor] = useState<SavedGraph | null>(null);
 
   const loadGraphs = useCallback(async () => {
-    if (!user) {
+    if (tier === "guest") {
       setGraphs([]);
       return;
     }
@@ -100,7 +100,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [tier, toast]);
 
   useEffect(() => {
     loadGraphs();
@@ -122,7 +122,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleSave = async () => {
-    if (!user) return onRequireAuth();
+    if (tier === "guest") return onRequireAuth();
     const updating = saveTarget !== "new";
     // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
     const nameError = validateTextField(saveName, { label: "Name", max: 200 });
@@ -170,7 +170,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const openSaveDialog = () => {
-    if (!user) return onRequireAuth();
+    if (tier === "guest") return onRequireAuth();
     if (nodes.length === 0) {
       toast({ title: "Nothing to save", description: "Add cards to your canvas first." });
       return;
@@ -184,7 +184,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     const trigger = () => openSaveDialog();
     window.addEventListener(FEWER_SAVE_GRAPH, trigger);
     return () => window.removeEventListener(FEWER_SAVE_GRAPH, trigger);
-  }, [user, nodes.length, onRequireAuth, toast]);
+  }, [tier, nodes.length, onRequireAuth, toast]);
 
   const handleLoad = (graph: SavedGraph) => {
     try {
@@ -196,7 +196,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!user) return;
+    if (tier === "guest") return;
     try {
       const res = await fetch(`/api/graphs/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -237,7 +237,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const nodeCount = (g: SavedGraph) => g.data?.nodes?.length ?? 0;
 
   const handleFavorite = async (graph: SavedGraph) => {
-    if (!user) return;
+    if (tier === "guest") return;
     const next = !graph.is_favorite;
     // Optimistic update; reverted on failure.
     setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: next } : g)));
@@ -284,7 +284,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         </div>
       ) : graphs.length === 0 ? (
         <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-          {user ? "No saved graphs yet. Save one to access it from any device." : "Sign in to save and access your directories."}
+          {tier !== "guest" ? "No saved graphs yet. Save one to access it from any device." : "Sign in to save and access your directories."}
         </p>
       ) : (
         <div className="space-y-1.5 w-full min-w-0">
@@ -509,8 +509,8 @@ function ShareGraphDialog({
   onClose: () => void;
   onRequireAuth: () => void;
 }) {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const tier = useGraphStore((s) => s.tier);
   const [access, setAccess] = useState<"none" | "public" | "invite">("none");
   const [emails, setEmails] = useState("");
   const [building, setBuilding] = useState(false);
@@ -539,7 +539,7 @@ function ShareGraphDialog({
 
   // Load any existing share link for this saved graph on open.
   useEffect(() => {
-    if (!user) return;
+    if (tier === "guest") return;
     let cancelled = false;
     fetch(`/api/share?saved_graph_id=${graph.id}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -557,7 +557,7 @@ function ShareGraphDialog({
       })
       .catch(() => { /* no existing share */ });
     return () => { cancelled = true; };
-  }, [user, graph.id]);
+  }, [tier, graph.id]);
 
   /** Invite list for the request. A malformed entry rejects the whole list
       (pre-existing behaviour) and warns with the first offender. */
@@ -587,7 +587,7 @@ function ShareGraphDialog({
   };
 
   const buildShare = async () => {
-    if (!user) return onRequireAuth();
+    if (tier === "guest") return onRequireAuth();
     const invited_emails = access === "invite" ? inviteEmails() : [];
     if (access === "invite" && invited_emails.length === 0) {
       toast({ title: "Add at least one email", description: "Enter the emails to invite.", variant: "destructive" });
@@ -639,7 +639,7 @@ function ShareGraphDialog({
   };
 
   const handleUnshare = async () => {
-    if (!user || !existingId) return;
+    if (tier === "guest" || !existingId) return;
     setUnsharing(true);
     try {
       const res = await fetch(`/api/share?saved_graph_id=${graph.id}`, { method: "DELETE" });
@@ -739,7 +739,7 @@ function ShareGraphDialog({
           )}
 
           {/* Gallery opt-in */}
-          {user && access === "public" && (
+          {tier !== "guest" && access === "public" && (
             <div className="space-y-1.5 rounded-xl border border-border/50 bg-muted/10 p-3">
               <div className="flex items-center gap-2">
                 <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />

@@ -20,7 +20,7 @@ const NODES = [
 ] as never;
 
 function open(over: Record<string, unknown> = {}) {
-  useGraphStore.setState({ ...initial, searchOpen: true, nodes: NODES, ...over }, true);
+  useGraphStore.setState({ ...initial, searchOpen: true, nodes: NODES, tier: "pro", ...over }, true);
   render(<SearchPanel />);
 }
 

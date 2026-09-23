@@ -4,6 +4,7 @@ import type { GraphState, HistoryEntry, LeafStacks } from "./types";
 import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
 import { applyOps, undoOps, getUndoViewState, getRedoViewState, leafPositionsFor, leafMoveOrigin } from "@/lib/fewer/history";
 import { applySearchHighlight } from "./searchHighlight";
+import { can } from "@/lib/fewer/tiers";
 
 const MAX_HISTORY = 50;
 const EMPTY_STACK: LeafStacks = { past: [], future: [] };
@@ -51,8 +52,12 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
   if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
   if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
-  if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
-  if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  // Tags are a Pro workspace feature — skip filter restoration for non-Pro tiers
+  // so undo/redo cannot resurrect a filter with no UI to clear it.
+  if (can("tags", (state as GraphState).tier ?? "guest")) {
+    if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
+    if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  }
   if (view.tags !== undefined) patch.tags = view.tags;
   return patch;
 }

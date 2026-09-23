@@ -72,6 +72,7 @@ import { limitsFor, formatUsage } from "@/lib/fewer/plans";
 import { useAuth } from "@/hooks/use-auth";
 import { useBilling } from "@/hooks/use-billing";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { can } from "@/lib/fewer/tiers";
 import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
 import {
@@ -109,6 +110,7 @@ const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
 
 function AccountTab() {
   const { user, loading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const { toast } = useToast();
   const { loading: billingBusy, startCheckout, openPortal } = useBilling();
   const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
@@ -138,7 +140,7 @@ function AccountTab() {
 
   // Load the stored profile for the signed-in user, if any.
   useEffect(() => {
-    if (!user) {
+    if (tier === "guest") {
       setPlan("free");
       setUsage(null);
       return;
@@ -298,7 +300,7 @@ function AccountTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       {/* Profile Card — only shown to signed-in users */}
-      {!loading && user && (
+      {!loading && tier !== "guest" && (
         <div className="rounded-2xl border border-border/50 bg-card/40 p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
@@ -700,7 +702,7 @@ function AppearanceTab() {
   const activeLeaf = useActiveLeaf();
   const themeModeGlobal = useGraphStore((s) => s.themeMode);
   const setThemeMode = useGraphStore((s) => s.setThemeMode);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const edgeStyleGlobal = useGraphStore((s) => s.edgeStyle);
   const setEdgeStyle = useGraphStore((s) => s.setEdgeStyle);
   const cornerRadius = useGraphStore((s) => s.cornerRadius);
@@ -737,7 +739,7 @@ function AppearanceTab() {
           Theme Preferences
         </Label>
         <div className="grid grid-cols-3 gap-2.5">
-          {themeModeOptions(advancedModeEnabled).map((mode) => {
+          {themeModeOptions(can("customTheme", tier)).map((mode) => {
             const Icon = mode === "light" ? Sun : mode === "dark" ? Moon : Palette;
             const active = themeModeGlobal === mode;
             return (
@@ -789,7 +791,7 @@ function AppearanceTab() {
             />
           </div>
 
-          {advancedModeEnabled && (
+          {can("edgeMotion", tier) && (
             <div className="flex flex-col gap-4 border-t border-border/30 pt-4">
               {(activeLeaf?.resolved.edgeStyle ?? edgeStyleGlobal) === "angled" && (
                 <div className="space-y-2">
@@ -889,7 +891,7 @@ function AppearanceTab() {
         </div>
       </div>
 
-      {advancedModeEnabled && (
+      {can("edgeMotion", tier) && (
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
@@ -1072,7 +1074,7 @@ function AdvancedTab() {
   const nodeWidth = useGraphStore((s) => s.nodeWidth);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   const setNodeDimensions = useGraphStore((s) => s.setNodeDimensions);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const scrollAction = useGraphStore((s) => s.scrollAction);
   const setScrollAction = useGraphStore((s) => s.setScrollAction);
   const maxDisplayDepth = useGraphStore((s) => s.maxDisplayDepth);
@@ -1092,7 +1094,7 @@ function AdvancedTab() {
 
   return (
     <div className="flex flex-col gap-5 py-1">
-      {advancedModeEnabled && (
+      {can("nodeMetrics", tier) && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
@@ -1183,7 +1185,7 @@ function AdvancedTab() {
         </div>
       )}
 
-      {advancedModeEnabled && (
+      {can("nodeMetrics", tier) && (
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />
@@ -1229,7 +1231,7 @@ function AdvancedTab() {
 /* -------------------------------------------------------------------------- */
 
 function CloudTab() {
-  const { user, loading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
 
   const handleBrowse = () => {
     useGraphStore.getState().setSettingsOpen(false);
@@ -1241,11 +1243,7 @@ function CloudTab() {
     setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
   };
 
-  if (loading) {
-    return <div className="py-6 text-center text-xs text-muted-foreground">Checking session…</div>;
-  }
-
-  if (!user) {
+  if (tier === "guest") {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/50 bg-card/30 p-6 text-center">
         <Cloud className="h-6 w-6 text-primary/70" />
@@ -1338,14 +1336,14 @@ function HelpTab() {
 export function SettingsDialog() {
   const settingsOpen = useGraphStore((s) => s.settingsOpen);
   const setSettingsOpen = useGraphStore((s) => s.setSettingsOpen);
-  const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const [tab, setTab] = useState("appearance");
   const listRef = useRef<HTMLDivElement>(null);
   const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
   const isMobile = useIsMobile();
-  // The Advanced tab is empty for signed-out mobile users: Layout Policy +
-  // Node Metrics are sign-in gated and the Scroll to Zoom card is desktop-only.
-  const tabs = visibleTabs({ signedIn: !!user, isMobile, advancedMode: advancedModeEnabled });
+  // The Advanced tab is empty for non-Pro mobile users: Layout Policy +
+  // Node Metrics are Pro-tier and the Scroll to Zoom card is desktop-only.
+  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled });
   const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks

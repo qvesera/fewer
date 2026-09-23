@@ -115,7 +115,8 @@ docker run -p 3000:3000 fewer
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
-- **Tags**: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Tags** *(Pro)*: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
 - **Breadcrumb bar**: selected node's full path
 
 </details>

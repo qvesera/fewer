@@ -54,5 +54,35 @@ export function buildFilterMethods(
     clearTagFilter: () => {
       get().setTagFilter([]);
     },
+
+    /**
+     * Drop the tag filter without recording an undo op — used when the tier
+     * downgrades (Pro → free/guest) so a non-Pro user can't Ctrl+Z back to
+     * a hidden state with no chip to clear it.
+     */
+    dropTagFilter: () => {
+      const {
+        nodes,
+        hiddenIds,
+        tagFilterHiddenIds,
+        independentlyHiddenIds,
+        autoHiddenIds,
+        categoryHiddenIds,
+      } = get();
+      const nextTagHidden = tagFilterHiddenNodeIds(nodes, get().edges, []);
+      const finalHidden = mergeTagHiddenLayers(
+        hiddenIds,
+        tagFilterHiddenIds,
+        [...independentlyHiddenIds, ...autoHiddenIds, ...categoryHiddenIds],
+        nextTagHidden,
+      );
+      set({
+        tagFilter: [],
+        tagFilterHiddenIds: nextTagHidden,
+        hiddenIds: finalHidden,
+        graphVersion: get().graphVersion + 1,
+      });
+      // ponytail: no pushOp — this is a gate-driven reset, not user intent.
+    },
   };
 }

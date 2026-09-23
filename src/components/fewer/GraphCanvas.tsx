@@ -53,6 +53,7 @@ import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
 import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handler";
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
 import { useCanvasDrop } from "@/hooks/use-canvas-drop";
+import { can } from "@/lib/fewer/tiers";
 import { useCanvasCtrlWheelPan } from "@/hooks/use-canvas-ctrl-wheel-pan";
 import { useCanvasEdges } from "@/hooks/use-canvas-edges";
 import { useCanvasConnect } from "@/hooks/use-canvas-connect";
@@ -80,7 +81,7 @@ type CanvasToast = ReturnType<typeof useToast>["toast"];
 
 /** Shared edge-animation configuration assembled from store state. */
 function useEdgeAnimationOpts(
-  advancedModeEnabled: boolean,
+  edgeMotionEnabled: boolean,
   edgeAnimated: boolean,
   edgeAnimatedSelectedOnly: boolean,
   edgeAnimatedStrokeStyle: EdgeStrokeStyle,
@@ -88,12 +89,12 @@ function useEdgeAnimationOpts(
 ) {
   return useMemo(
     () => ({
-      animated: advancedModeEnabled && edgeAnimated,
-      selectedOnly: advancedModeEnabled && edgeAnimatedSelectedOnly,
+      animated: edgeMotionEnabled && edgeAnimated,
+      selectedOnly: edgeMotionEnabled && edgeAnimatedSelectedOnly,
       animatedStrokeStyle: edgeAnimatedStrokeStyle,
       baseStrokeStyle: edgeStrokeStyle,
     }),
-    [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle],
+    [edgeMotionEnabled, edgeAnimated, edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, edgeStrokeStyle],
   );
 }
 
@@ -101,13 +102,14 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { nodes: allNodes, edges: allEdges, hiddenIds } = useGraphData();
   const { direction, edgeStyle: edgeStyleGlobal, edgeAnimated: edgeAnimatedGlobal, edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyle: edgeStrokeStyleGlobal, edgeAnimatedStrokeStyle, edgeWidth: edgeWidthGlobal } = useLayoutConfig();
   const { themeMode: themeModeGlobal, customTheme } = useThemeConfig();
-  const { selectedNodeIds, advancedModeEnabled, loading, showFiles: showFilesGlobal } = useUiState();
+  const { selectedNodeIds, loading, showFiles: showFilesGlobal } = useUiState();
   const { activeLeafId, viewSettings: viewSettingsMap, zoomToNode, zoomToNodeIds } = useViewState();
   const { setSelectedNodeIds, deleteNodes, recordDragMoves, recordResize, connectNodes, addStandaloneNode, setRenamingId, setCanvasSize, setNodePositionForLeaf, setZoomToNodeIds } = useStoreActions();
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
   const sortDir = useGraphStore((s) => s.sortDir);
   const tags = useGraphStore((s) => s.tags);
+  const tier = useGraphStore((s) => s.tier);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
 
@@ -179,7 +181,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
 
   useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
-  useCanvasDashClock(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
+  useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
   const updateNodeInternals = useUpdateNodeInternals();
@@ -198,7 +200,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
-  const animation = useEdgeAnimationOpts(advancedModeEnabled, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
+  const animation = useEdgeAnimationOpts(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
 
   // Edge handling (selection tracking + highlight rebuild + static dash) lives
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
@@ -265,7 +267,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
         minZoom={0.15} maxZoom={3}
         defaultEdgeOptions={{
-          type: edgeTypeFor(vs.edgeStyle), animated: advancedModeEnabled && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
+          type: edgeTypeFor(vs.edgeStyle), animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
           style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
           zIndex: 0,
         }}
@@ -297,7 +299,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           lastClickedEdgeId={lastClickedEdgeId}
           vs={vs}
           leafId={leafId}
-          advancedModeEnabled={advancedModeEnabled}
+          canvasAddChildEnabled={can("canvasAddChild", tier)}
           hiddenCount={hiddenCount}
           allNodes={allNodes}
           selectAll={selectAll}

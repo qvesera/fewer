@@ -111,7 +111,7 @@ describe("Saved graphs panel — save path", () => {
   });
 
   test("an empty canvas warns instead of opening the dialog", async () => {
-    signedIn = true;
+    signedIn = true; useGraphStore.setState({ tier: "free" });
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     fireEvent.click(saveButton());
     expect(toast).toHaveBeenCalledWith({ title: "Nothing to save", description: "Add cards to your canvas first." });
@@ -119,8 +119,8 @@ describe("Saved graphs panel — save path", () => {
   });
 
   test("save posts the trimmed name and the snapshot, then confirms", async () => {
-    signedIn = true;
-    useGraphStore.setState({ ...initial, nodes: oneNode, edges: [] }, true);
+    signedIn = true; useGraphStore.setState({ tier: "free" });
+    useGraphStore.setState({ ...initial, nodes: oneNode, edges: [], tier: "free" }, true);
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     await openSaveDialog();
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  My Graph  " } });
@@ -133,10 +133,10 @@ describe("Saved graphs panel — save path", () => {
   });
 
   test("a failed save surfaces the API message and keeps the dialog open", async () => {
-    signedIn = true;
+    signedIn = true; useGraphStore.setState({ tier: "free" });
     saveStatus = 500;
     saveBody = { error: "Too many graphs" };
-    useGraphStore.setState({ ...initial, nodes: oneNode, edges: [] }, true);
+    useGraphStore.setState({ ...initial, nodes: oneNode, edges: [], tier: "free" }, true);
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     await openSaveDialog();
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "My Graph" } });
@@ -154,7 +154,7 @@ describe("Saved graphs panel — save path", () => {
 
 describe("Saved graphs panel — list actions", () => {
   test("delete removes the row once the API confirms", async () => {
-    signedIn = true;
+    signedIn = true; useGraphStore.setState({ tier: "free" });
     graphs = [savedRow()];
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     await waitFor(() => expect(screen.getByTitle("Delete")).toBeTruthy());
@@ -167,7 +167,7 @@ describe("Saved graphs panel — list actions", () => {
 
 describe("Saved graphs panel — share path", () => {
   test("an invite share normalises the list and posts it", async () => {
-    signedIn = true;
+    signedIn = true; useGraphStore.setState({ tier: "free" });
     graphs = [savedRow()];
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     await openShareDialog();
@@ -184,7 +184,7 @@ describe("Saved graphs panel — share path", () => {
   });
 
   test("a malformed invite address blocks the request", async () => {
-    signedIn = true;
+    signedIn = true; useGraphStore.setState({ tier: "free" });
     graphs = [savedRow()];
     render(<SavedGraphsPanel onRequireAuth={onRequireAuth} />);
     await openShareDialog();

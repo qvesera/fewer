@@ -13,6 +13,7 @@ import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
 import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
 import type { EdgeStyle } from "@/lib/fewer/types";
+import { can } from "@/lib/fewer/tiers";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 
 const GraphCanvasForArea = dynamic(
@@ -27,15 +28,13 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   // Live store selectors for availability checks
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const nodes = useGraphStore((s) => s.nodes);
-  const user = useGraphStore((s) => s.user);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const activeLeaf = useActiveLeaf();
 
   const storeSnapshot = {
     hiddenIds,
     nodes,
-    user,
-    advancedModeEnabled,
+    tier,
     activeLeafHiddenIds: activeLeaf?.resolved.hiddenIds.length ?? 0,
   };
   const meta = sectionMetaById(area.editor);
@@ -98,7 +97,7 @@ function LayoutSection() {
   const updateViewSettings = useGraphStore((s) => s.updateViewSettings);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const directionGlobal = useGraphStore((s) => s.direction);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
 
   const showFiles = activeLeaf?.resolved.showFiles ?? true;
   const direction = activeLeaf?.resolved.direction ?? directionGlobal;
@@ -108,7 +107,7 @@ function LayoutSection() {
       <LayoutPicker
         direction={direction}
         onPick={(d) => { if (activeLeaf) updateViewSettings(activeLeaf.leafId, { direction: d }); else useGraphStore.getState().setDirection(d); }}
-        advancedModeEnabled={advancedModeEnabled}
+        advancedModeEnabled={can("layoutOrientation", tier)}
       />
       <Button
         size="sm"

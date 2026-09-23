@@ -56,7 +56,6 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
 | Copy Paths      | Copies each selected node's full path to the clipboard, one per line                                                                                                                 |
-| Tags…           | Opens a shared tag picker: assign or remove any tag across the whole selection at once (creates new tags too)                                                                |
 | Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
