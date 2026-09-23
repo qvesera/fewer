@@ -6,15 +6,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 
-let signedIn = false;
 let isMacVal = false;
-
-mock.module("@/hooks/use-auth", () => ({
-  useAuth: () => ({
-    user: signedIn ? { id: "u1", email: "a@b.com" } : null,
-    loading: false,
-  }),
-}));
 mock.module("@/lib/fewer/platform", () => ({ isMac: () => isMacVal }));
 
 const { ShortcutsDialog } = await import("@/components/fewer/ShortcutsDialog");
@@ -40,7 +32,6 @@ function bodyText() {
 }
 
 beforeEach(() => {
-  signedIn = false;
   isMacVal = false;
   document.body.innerHTML = "";
   seedStore();
@@ -87,7 +78,7 @@ describe("ShortcutsDialog rendering", () => {
 
 describe("ShortcutsDialog signed-in gating", () => {
   test("minTier shortcut visible when signed in", async () => {
-    signedIn = true;
+    useGraphStore.setState({ tier: "free" });
     useGraphStore.setState({ tier: "free" });
     render(<ShortcutsDialog />);
     await waitFor(() => {
@@ -96,7 +87,6 @@ describe("ShortcutsDialog signed-in gating", () => {
   });
 
   test("minTier shortcut hidden when signed out", () => {
-    signedIn = false;
     useGraphStore.setState({ tier: "guest" });
     render(<ShortcutsDialog />);
     expect(bodyText()).not.toContain("Save current graph");

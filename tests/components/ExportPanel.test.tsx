@@ -8,9 +8,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 const toast = mock(() => {});
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
-mock.module("@/hooks/use-auth", () => ({
-  useAuth: () => ({ user: { id: "u1", email: "a@b.com" }, loading: false }),
-}));
 
 const { ExportPanel } = await import("@/components/fewer/ExportPanel");
 const { useGraphStore } = await import("@/store/graphStore");

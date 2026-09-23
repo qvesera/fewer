@@ -10,9 +10,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 mock.module("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mock(() => {}) }),
 }));
-mock.module("@/hooks/use-auth", () => ({
-  useAuth: () => ({ user: null, loading: false }),
-}));
 
 const { DockArea } = await import("@/components/fewer/DockArea");
 const { useGraphStore } = await import("@/store/graphStore");

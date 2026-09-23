@@ -11,9 +11,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // SavedGraphsPanel (rendered inside Sidebar) imports both.
 const toast = mock(() => {});
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
-mock.module("@/hooks/use-auth", () => ({
-  useAuth: () => ({ user: null, loading: false }),
-}));
 
 // Import after mocks
 const { Sidebar } = await import("@/components/fewer/Sidebar");
