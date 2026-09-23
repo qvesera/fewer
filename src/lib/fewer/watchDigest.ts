@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { crawlTree, MAX_DEPTH, MAX_PAGES } from "./crawl";
 import { diffTrees } from "./treeDiff";
 import type { TreeEntry } from "./types";
+import { emailShell, escapeHtml } from "./emailTemplate";
 
 /**
  * Watch-digest job — crawls every active watched index, diffs against the
@@ -128,7 +129,7 @@ function digestCounts(changes: IndexChange[]): { totalAdded: number; totalRemove
 }
 
 /** HTML body of the consolidated digest email (pure). */
-function digestHtml(changes: IndexChange[]): string {
+export function digestHtml(changes: IndexChange[]): string {
   const { totalAdded, totalRemoved } = digestCounts(changes);
 
   const sections = changes
@@ -153,32 +154,19 @@ function digestHtml(changes: IndexChange[]): string {
     })
     .join("");
 
-  return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b13;padding:32px 16px;">
-      <div style="max-width:560px;margin:0 auto;background:#16161f;border:1px solid #2a2a3a;border-radius:16px;overflow:hidden;">
-        <div style="padding:28px 32px;border-bottom:1px solid #2a2a3a;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:20px;">🗂️</span>
-            <span style="font-size:18px;font-weight:700;color:#f8f9fa;">fewer</span>
-          </div>
-        </div>
-        <div style="padding:32px;">
-          <h1 style="margin:0 0 8px;font-size:20px;color:#f8f9fa;">Daily directory changes</h1>
-          <p style="margin:0 0 24px;font-size:14px;color:#adb5bd;line-height:1.5;">
-            <strong style="color:#f8f9fa;">${totalAdded}</strong> added · <strong style="color:#f8f9fa;">${totalRemoved}</strong> removed across ${changes.length} watched index${changes.length === 1 ? "" : "es"}.
-          </p>
-          ${sections}
-        </div>
-        <div style="padding:16px 32px;border-top:1px solid #2a2a3a;text-align:center;">
-          <span style="font-size:12px;color:#868e96;">fewer · Interactive File & System Graph Visualizer</span>
-        </div>
-      </div>
-    </div>
-  `;
+  const intro = `<strong style="color:#f8f9fa;">${totalAdded}</strong> added · <strong style="color:#f8f9fa;">${totalRemoved}</strong> removed across ${changes.length} watched index${changes.length === 1 ? "" : "es"}.`;
+
+  return emailShell({
+    preheader: intro,
+    heading: "Daily directory changes",
+    intro,
+    body: sections,
+    footnote: "You watch these indexes — manage them in Settings → Watched.",
+  });
 }
 
 /** Plain-text body of the consolidated digest email (pure). */
-function digestText(changes: IndexChange[]): string {
+export function digestText(changes: IndexChange[]): string {
   const { totalAdded, totalRemoved } = digestCounts(changes);
   return `Daily directory changes\n\n${totalAdded} added · ${totalRemoved} removed across ${changes.length} watched index${changes.length === 1 ? "" : "es"}.\n\n${changes
     .map((c) => `${c.url}\n${[...c.added.map((p) => `+ ${p}`), ...c.removed.map((p) => `- ${p}`)].join("\n")}`)
@@ -208,16 +196,4 @@ async function sendDigest(email: string, changes: IndexChange[]): Promise<boolea
     console.warn(`Failed to email digest to ${email}:`, err instanceof Error ? err.message : err);
     return false;
   }
-}
-
-function escapeHtml(s: string): string {
-  const amp = String.fromCharCode(38) + "amp;";
-  const lt = String.fromCharCode(38) + "lt;";
-  const gt = String.fromCharCode(38) + "gt;";
-  const quot = String.fromCharCode(38) + "quot;";
-  return s
-    .replace(/&/g, amp)
-    .replace(/</g, lt)
-    .replace(/>/g, gt)
-    .replace(/"/g, quot);
 }
