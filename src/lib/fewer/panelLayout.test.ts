@@ -4,6 +4,7 @@ import {
   defaultTree, makeLeaf, leafList, leafCount,
   getPrimary, splitLeaf, joinLeaf, findLeaf,
   serializeTree, parseTree, migrateV1ToTree, isLeaf, isSplit, dedupeLeafIds, setLeafEditor,
+  insertLeafAtEdge,
   dropSideForX,
   type PanelLeaf,
   type PanelSplit,
@@ -222,6 +223,24 @@ describe("saveLayoutToStorage keepStoredTree", () => {
     saveLayoutToStorage({ sidebarSide: "right", panelTree: defaultTree() });
     expect(leafCount(loadLayoutFromStorage()!.panelTree)).toBe(1);
     clearLayoutStorage();
+  });
+});
+
+describe("insertLeafAtEdge", () => {
+  it("left → new editor is first in leafList", () => {
+    const root = defaultTree();
+    const tree = insertLeafAtEdge(root, "left", "tags");
+    const list = leafList(tree);
+    expect(list.length).toBe(2);
+    expect(list[0].area.editor).toBe("tags");
+    expect(list[0].area.id).not.toBe(root.area.id);
+  });
+  it("right → new editor is last in leafList", () => {
+    const root = defaultTree();
+    const tree = insertLeafAtEdge(root, "right", "analytics");
+    const list = leafList(tree);
+    expect(list.length).toBe(2);
+    expect(list[1].area.editor).toBe("analytics");
   });
 });
 

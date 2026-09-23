@@ -59,6 +59,13 @@ describe("sidebarOrder", () => {
       expect(result[0]).toBe("file");
     });
 
+    it("downward move using filtered index", () => {
+      // [file,layout,edges,hidden] → drag layout → rawIndex 2 among others [file,edges,hidden] → [file,edges,layout,hidden]
+      const order = ["file", "layout", "edges", "hidden"] as AreaEditor[];
+      const result = moveSection(order, "layout", 2);
+      expect(result).toEqual(["file", "edges", "layout", "hidden"]);
+    });
+
     it("returns original if id not found", () => {
       const result = moveSection(order, "nope" as AreaEditor, 0);
       expect(result).toEqual([...order]);

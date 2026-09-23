@@ -15,13 +15,11 @@ interface DragState {
   x: number;
   y: number;
   armed: boolean;
-  /** "reorder" when pointer is over a section, "dock" when outside (Pro-only). */
   mode: "reorder" | "dock" | null;
   originalOrder: import("@/lib/fewer/sidebarOrder").AreaEditor[];
-  dropIndex: number;
 }
 
-const ARM_THRESHOLD = 5;
+const ARM_THRESHOLD = 8;
 
 let _setDragState: ((s: DragState | null) => void) | null = null;
 
@@ -37,11 +35,10 @@ export function startSectionDrag(editor: AreaEditor, e: React.PointerEvent) {
     armed: false,
     mode: null,
     originalOrder: useGraphStore.getState().sidebarOrder,
-    dropIndex: -1,
   });
 }
 
-/** Collect rects of all [data-section-id] elements in the sidebar. */
+/** Collect rects of all [data-section-id] elements (for insertion index). */
 function collectSectionRects(): SectionRect[] {
   const els = document.querySelectorAll("[data-section-id]");
   const rects: SectionRect[] = [];
@@ -52,35 +49,36 @@ function collectSectionRects(): SectionRect[] {
   return rects;
 }
 
-/** Check if a point is over any [data-section-id] element. */
-function isOverSection(x: number, y: number): boolean {
-  const els = document.elementsFromPoint(x, y);
-  return els.some((el) => (el as HTMLElement).closest?.("[data-section-id]"));
+/** Hit-test against the sidebar sections container — not individual sections.
+ *  This avoids flicker when the pointer crosses the gap between sections. */
+function isOverSidebarSections(x: number, y: number): boolean {
+  const el = document.elementsFromPoint(x, y);
+  return el.some((e) => (e as HTMLElement).closest?.("[data-sidebar-sections]"));
 }
 
 /**
- * Unified drag layer — one gesture, two scopes:
- * - pointer inside sidebar sections → reorder (live reorder, commit on drop)
- * - pointer outside sidebar → dock (Pro-gated band preview, insertAreaAtEdge on drop)
- *
- * Window listeners (no pointer capture mismatch). Overlay is pointer-events-none.
+ * Get the workspace rect; returns null if degenerate (zero-width).
  */
+function getWorkspaceRect(): DOMRect | null {
+  const el = document.querySelector("[data-panel-workspace]");
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 ? r : null;
+}
+
 export function SectionDragLayer() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const setSidebarOrder = useGraphStore((s) => s.setSidebarOrder);
   const insertAreaAtEdge = useGraphStore((s) => s.insertAreaAtEdge);
 
-  // Register the global setter so sidebar grips can start drags
   useEffect(() => {
     _setDragState = (s) => { dragRef.current = s; setDrag(s); };
     return () => { _setDragState = null; };
   }, []);
 
-  // Window listeners while dragging
   useEffect(() => {
     if (!drag) return;
-
     const cleanup = () => { document.body.style.cursor = ""; };
 
     const onMove = (e: PointerEvent) => {
@@ -93,48 +91,36 @@ export function SectionDragLayer() {
 
       if (!prev.armed) {
         if (dist < ARM_THRESHOLD) return;
-        // Arm — determine initial mode from pointer position
-        const overSection = isOverSection(e.clientX, e.clientY);
+        const overSections = isOverSidebarSections(e.clientX, e.clientY);
         const next: DragState = {
-          ...prev,
-          armed: true,
-          x: e.clientX,
-          y: e.clientY,
-          mode: overSection ? "reorder" : "dock",
-          dropIndex: prev.originalOrder.indexOf(prev.editor),
+          ...prev, armed: true,
+          x: e.clientX, y: e.clientY,
+          mode: overSections ? "reorder" : "dock",
         };
         dragRef.current = next;
         setDrag(next);
-        // ponytail: set cursor on body since overlay is pointer-events-none
         document.body.style.cursor = "grabbing";
         return;
       }
 
-      // Armed — update position and mode
-      const overSection = isOverSection(e.clientX, e.clientY);
-      const newMode: DragState["mode"] = overSection ? "reorder" : "dock";
-
+      // Armed — scope: sidebar container → reorder, otherwise dock
+      const overSections = isOverSidebarSections(e.clientX, e.clientY);
+      const newMode: DragState["mode"] = overSections ? "reorder" : "dock";
       const next: DragState = { ...prev, x: e.clientX, y: e.clientY, mode: newMode };
 
       if (newMode === "reorder") {
         const rects = collectSectionRects();
-        // Filter out the dragged section for insertion index
         const filtered = rects.filter((r) => r.id !== prev.editor);
-        const rawIndex = (() => {
+        const insertIdx = (() => {
           for (let i = 0; i < filtered.length; i++) {
-            const mid = (filtered[i].top + filtered[i].bottom) / 2;
-            if (e.clientY < mid) return i;
+            if (e.clientY < (filtered[i].top + filtered[i].bottom) / 2) return i;
           }
           return filtered.length;
         })();
-        // Map to the target id in the current order
-        const targetId = filtered[rawIndex]?.id;
+        // moveSection removes first, then inserts at toIndex — so toIndex
+        // must be an index among the *remaining* items (i.e. insertIdx directly).
         const currentOrder = useGraphStore.getState().sidebarOrder;
-        const dropIdx = targetId != null ? currentOrder.indexOf(targetId as AreaEditor) : currentOrder.length;
-        next.dropIndex = dropIdx;
-
-        // Live reorder — commit to store so sidebar re-renders
-        const newOrder = moveSection(currentOrder, prev.editor, dropIdx);
+        const newOrder = moveSection(currentOrder, prev.editor, insertIdx);
         if (newOrder !== currentOrder) setSidebarOrder(newOrder);
       }
 
@@ -147,20 +133,18 @@ export function SectionDragLayer() {
       if (cur?.armed && cur.mode === "dock") {
         const tier = useGraphStore.getState().tier;
         if (can("panelWorkspace", tier)) {
-          const workspaceEl = document.querySelector("[data-panel-workspace]");
-          const rect = workspaceEl?.getBoundingClientRect() ?? { left: 0, right: window.innerWidth };
-          const side = dropSideForX(cur.x, rect);
-          insertAreaAtEdge(side, cur.editor);
+          const rect = getWorkspaceRect();
+          if (rect) {
+            insertAreaAtEdge(dropSideForX(cur.x, rect), cur.editor);
+          }
         }
       }
-      // Reorder is already committed live; nothing more to do
       dragRef.current = null;
       setDrag(null);
       cleanup();
     };
 
     const onCancel = () => {
-      // Escape or pointercancel — restore original order
       const cur = dragRef.current;
       if (cur) setSidebarOrder(cur.originalOrder);
       dragRef.current = null;
@@ -168,9 +152,7 @@ export function SectionDragLayer() {
       cleanup();
     };
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -191,20 +173,18 @@ export function SectionDragLayer() {
   const Icon = meta?.icon;
   const isDock = drag.mode === "dock" && drag.armed;
 
-  // Compute dock preview band position
-  let dockBand: { left: number; width: number } | null = null;
-  if (isDock) {
-    const workspaceEl = document.querySelector("[data-panel-workspace]");
-    const rect = workspaceEl?.getBoundingClientRect() ?? { left: 0, right: window.innerWidth, width: window.innerWidth, top: 0, bottom: window.innerHeight, height: window.innerHeight } as DOMRect;
-    const side = dropSideForX(drag.x, rect);
-    dockBand = side === "left"
-      ? { left: rect.left, width: rect.width * 0.25 }
-      : { left: rect.left + rect.width * 0.75, width: rect.width * 0.25 };
-  }
+  // One source of truth: workspace rect → side, band position, label
+  const ws = getWorkspaceRect();
+  const side = ws && isDock ? dropSideForX(drag.x, ws) : null;
+  const dockBand = side && ws ? (
+    side === "left"
+      ? { left: ws.left, width: ws.width * 0.25 }
+      : { left: ws.left + ws.width * 0.75, width: ws.width * 0.25 }
+  ) : null;
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none" style={{ cursor: drag.armed ? "grabbing" : "default" }}>
-      {/* Ghost card following cursor */}
+      {/* Ghost card */}
       <div
         className="absolute pointer-events-none rounded-xl border border-primary/40 bg-background/90 backdrop-blur-md shadow-xl px-3 py-2 flex items-center gap-2"
         style={{ left: drag.x + 12, top: drag.y - 16, transform: "translateZ(0)" }}
@@ -215,14 +195,14 @@ export function SectionDragLayer() {
         </span>
       </div>
 
-      {/* Dock preview band — replaces the old window-edge strips */}
+      {/* Dock preview band */}
       {dockBand && (
         <div
           className="absolute top-0 bottom-0 bg-primary/15 border-x-2 border-primary/40 transition-all duration-150 flex items-center justify-center"
           style={{ left: dockBand.left, width: dockBand.width }}
         >
           <span className="text-[10px] font-semibold uppercase tracking-wider text-primary select-none">
-            Dock {dropSideForX(drag.x, { left: dockBand.left, right: dockBand.left + dockBand.width }) === "left" ? "Left" : "Right"}
+            Dock {side === "left" ? "Left" : "Right"}
           </span>
         </div>
       )}

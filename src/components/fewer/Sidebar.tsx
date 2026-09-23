@@ -277,7 +277,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         </Tooltip>
       </div>
 
-      <div className="flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-0.5 gm-scroll w-full min-w-0">
+      <div data-sidebar-sections className="flex-1 flex flex-col gap-3 overflow-y-auto overflow-x-hidden pr-0.5 gm-scroll w-full min-w-0">
         {sidebarOrder.filter((id) => sections[id]).map((id) => (
           <div key={id} data-section-id={id}>{sections[id]}</div>
         ))}
