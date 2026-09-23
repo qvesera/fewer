@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toolbar undo/redo block now uses can(historyTools, tier) instead of advancedModeEnabled
 - Phase 2 advancedModeEnabled sweep: GraphCanvas, graph/core.ts, use-canvas-dash-clock, SettingsDialog (AppearanceTab + AdvancedTab), Sidebar, CanvasContextMenu now use can(feature, tier) from tiers.ts. Added graphAnalytics to Feature union.
 - Phase 2 complete: remaining advancedModeEnabled sites migrated — CanvasToolbar, CustomNode, ImportOriginStep, ImportOptionsPanel, ImportFlowDialog, DockAreaContent, ExportPanel cleanup, sectionRegistry simplified. Only intentional vestiges remain: LayoutPicker prop interface, FewerApp derivation, userSettings persisted field, sidebarModel (test-only).
+- Sidebar section reorder now animates with a smooth ease-out curve (180ms, matches section expand/collapse motion)
 
 ### Fixed
 

@@ -7,6 +7,7 @@ import type { AreaEditor } from "@/lib/fewer/panelLayout";
 import { dropSideForX } from "@/lib/fewer/panelTree";
 import { can } from "@/lib/fewer/tiers";
 import { moveSection, type SectionRect } from "@/lib/fewer/sidebarOrder";
+import { useReorderAnimation } from "@/hooks/use-reorder-animation";
 
 interface DragState {
   editor: AreaEditor;
@@ -56,9 +57,7 @@ function isOverSidebarSections(x: number, y: number): boolean {
   return el.some((e) => (e as HTMLElement).closest?.("[data-sidebar-sections]"));
 }
 
-/**
- * Get the workspace rect; returns null if degenerate (zero-width).
- */
+/** Get the workspace rect; returns null if degenerate (zero-width). */
 function getWorkspaceRect(): DOMRect | null {
   const el = document.querySelector("[data-panel-workspace]");
   if (!el) return null;
@@ -66,11 +65,25 @@ function getWorkspaceRect(): DOMRect | null {
   return r.width > 0 ? r : null;
 }
 
+/** Set data-reordering on the dragged section wrapper; clears on null. */
+function setReorderingAttr(id: string | null) {
+  document.querySelectorAll("[data-section-id][data-reordering]").forEach((el) => {
+    delete (el as HTMLElement).dataset.reordering;
+  });
+  if (id) {
+    const el = document.querySelector(`[data-section-id="${id}"]`) as HTMLElement | null;
+    if (el) el.dataset.reordering = "true";
+  }
+}
+
 export function SectionDragLayer() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const setSidebarOrder = useGraphStore((s) => s.setSidebarOrder);
   const insertAreaAtEdge = useGraphStore((s) => s.insertAreaAtEdge);
+  const tier = useGraphStore((s) => s.tier);
+  const dockEnabled = can("panelWorkspace", tier);
+  const animateReorder = useReorderAnimation();
 
   useEffect(() => {
     _setDragState = (s) => { dragRef.current = s; setDrag(s); };
@@ -79,7 +92,7 @@ export function SectionDragLayer() {
 
   useEffect(() => {
     if (!drag) return;
-    const cleanup = () => { document.body.style.cursor = ""; };
+    const cleanup = () => { document.body.style.cursor = ""; setReorderingAttr(null); };
 
     const onMove = (e: PointerEvent) => {
       const prev = dragRef.current;
@@ -100,6 +113,7 @@ export function SectionDragLayer() {
         dragRef.current = next;
         setDrag(next);
         document.body.style.cursor = "grabbing";
+        if (overSections) setReorderingAttr(next.editor);
         return;
       }
 
@@ -117,11 +131,14 @@ export function SectionDragLayer() {
           }
           return filtered.length;
         })();
-        // moveSection removes first, then inserts at toIndex — so toIndex
-        // must be an index among the *remaining* items (i.e. insertIdx directly).
         const currentOrder = useGraphStore.getState().sidebarOrder;
         const newOrder = moveSection(currentOrder, prev.editor, insertIdx);
-        if (newOrder !== currentOrder) setSidebarOrder(newOrder);
+        if (newOrder !== currentOrder) {
+          animateReorder(() => setSidebarOrder(newOrder));
+        }
+        setReorderingAttr(next.editor);
+      } else if (newMode === "dock") {
+        setReorderingAttr(null);
       }
 
       dragRef.current = next;
@@ -130,13 +147,10 @@ export function SectionDragLayer() {
 
     const onUp = () => {
       const cur = dragRef.current;
-      if (cur?.armed && cur.mode === "dock") {
-        const tier = useGraphStore.getState().tier;
-        if (can("panelWorkspace", tier)) {
-          const rect = getWorkspaceRect();
-          if (rect) {
-            insertAreaAtEdge(dropSideForX(cur.x, rect), cur.editor);
-          }
+      if (cur?.armed && cur.mode === "dock" && dockEnabled) {
+        const rect = getWorkspaceRect();
+        if (rect) {
+          animateReorder(() => insertAreaAtEdge(dropSideForX(cur.x, rect), cur.editor));
         }
       }
       dragRef.current = null;
@@ -146,7 +160,10 @@ export function SectionDragLayer() {
 
     const onCancel = () => {
       const cur = dragRef.current;
-      if (cur) setSidebarOrder(cur.originalOrder);
+      if (cur) {
+        setReorderingAttr(null);
+        animateReorder(() => setSidebarOrder(cur.originalOrder));
+      }
       dragRef.current = null;
       setDrag(null);
       cleanup();
@@ -165,17 +182,17 @@ export function SectionDragLayer() {
       window.removeEventListener("keydown", onKey);
       cleanup();
     };
-  }, [drag, setSidebarOrder, insertAreaAtEdge]);
+  }, [drag, setSidebarOrder, insertAreaAtEdge, dockEnabled, animateReorder]);
 
   if (!drag) return null;
 
   const meta = sectionMetaById(drag.editor);
   const Icon = meta?.icon;
-  const isDock = drag.mode === "dock" && drag.armed;
+  // Dock band: only when Pro and mode is dock
+  const isDock = drag.mode === "dock" && drag.armed && dockEnabled;
 
-  // One source of truth: workspace rect → side, band position, label
-  const ws = getWorkspaceRect();
-  const side = ws && isDock ? dropSideForX(drag.x, ws) : null;
+  const ws = isDock ? getWorkspaceRect() : null;
+  const side = ws ? dropSideForX(drag.x, ws) : null;
   const dockBand = side && ws ? (
     side === "left"
       ? { left: ws.left, width: ws.width * 0.25 }
@@ -195,7 +212,7 @@ export function SectionDragLayer() {
         </span>
       </div>
 
-      {/* Dock preview band */}
+      {/* Dock preview band — Pro only */}
       {dockBand && (
         <div
           className="absolute top-0 bottom-0 bg-primary/15 border-x-2 border-primary/40 transition-all duration-150 flex items-center justify-center"

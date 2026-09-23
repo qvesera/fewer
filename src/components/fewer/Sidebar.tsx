@@ -52,6 +52,7 @@ import { NON_DOCKABLE_SECTIONS } from "./sectionRegistry";
 import { startSectionDrag } from "./SectionDragLayer";
 import { can } from "@/lib/fewer/tiers";
 import { moveSection } from "@/lib/fewer/sidebarOrder";
+import { useReorderAnimation } from "@/hooks/use-reorder-animation";
 
 interface SidebarProps {
   onOpenDirectory: () => void;
@@ -87,6 +88,8 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     }
   }, [savedGraphsExpandTrigger]);
 
+  const animateReorder = useReorderAnimation();
+
   useEffect(() => {
     if (!can("layoutOrientation", tier) && (direction === "BT" || direction === "RL")) {
       setDirection("TB");
@@ -113,6 +116,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       : {
           dragHandleProps: {
             onPointerDown: (e: React.PointerEvent) => startSectionDrag(id, e),
+            "aria-label": can("panelWorkspace", tier) ? `Reorder or dock ${id}` : `Reorder ${id}`,
             onKeyDown: (e: React.KeyboardEvent) => {
               if (!e.altKey) return;
               const dir = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
@@ -121,7 +125,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               const current = useGraphStore.getState().sidebarOrder;
               const idx = current.indexOf(id);
               if (idx === -1) return;
-              useGraphStore.getState().setSidebarOrder(moveSection(current, id, idx + dir));
+              animateReorder(() => useGraphStore.getState().setSidebarOrder(moveSection(current, id, idx + dir)));
             },
           },
         };

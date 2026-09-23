@@ -50,9 +50,9 @@ export function CollapsibleSection({
       >
         {dragHandleProps && (
           <button
-            {...dragHandleProps}
             data-drag-handle
-            aria-label={`Reorder or dock ${title}`}
+            aria-label={`Reorder ${title}`}
+            {...dragHandleProps}
             onClick={(e) => e.stopPropagation()}
             className="cursor-grab active:cursor-grabbing shrink-0 -ml-1 p-0.5 rounded hover:bg-muted/50 touch-none"
           >
