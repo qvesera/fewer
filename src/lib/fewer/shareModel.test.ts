@@ -131,4 +131,13 @@ describe("invite email bodies", () => {
     expect(html).toContain("me@x.org");
     expect(html).toContain("https://app/#i:t");
   });
+
+  it("the html body uses the email shell with correct branding", () => {
+    const html = inviteEmailHtml("me@x.org", "G", "https://app/#i:t");
+    expect(html).toContain("fewer");
+    expect(html).toContain(".directory");
+    expect(html).toContain("Interactive File &amp; System Graph Visualizer");
+    expect(html).toContain("Open the graph");
+    expect(html).toContain("font-weight:600");
+  });
 });

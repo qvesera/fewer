@@ -24,7 +24,8 @@
     "env": "bun run scripts/env-sync.ts",
     "env:check": "bun run scripts/env-sync.ts check",
     "migrations:verify": "python3 scripts/migrations.py verify",
-    "migrations:baseline": "python3 scripts/migrations.py baseline"
+    "migrations:baseline": "python3 scripts/migrations.py baseline",
+    "email:templates": "bun run scripts/gen-email-templates.ts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

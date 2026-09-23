@@ -1,4 +1,5 @@
 import { isDangerousText } from "./textValidation";
+import { emailShell } from "./emailTemplate";
 
 /**
  * Pure model for the /api/share route (src/app/api/share/route.ts).
@@ -100,33 +101,14 @@ export function shareResponseBody(
 
 /** HTML body of the invite email. */
 export function inviteEmailHtml(inviterEmail: string, graphName: string, link: string): string {
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b13;padding:32px 16px;">
-        <div style="max-width:480px;margin:0 auto;background:#16161f;border:1px solid #2a2a3a;border-radius:16px;overflow:hidden;">
-          <div style="padding:28px 32px;border-bottom:1px solid #2a2a3a;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:20px;">🗂️</span>
-              <span style="font-size:18px;font-weight:700;color:#f8f9fa;">fewer</span>
-            </div>
-          </div>
-          <div style="padding:32px;">
-            <h1 style="margin:0 0 8px;font-size:20px;color:#f8f9fa;">You're invited to view a graph</h1>
-            <p style="margin:0 0 20px;font-size:14px;color:#adb5bd;line-height:1.5;">
-              <strong style="color:#f8f9fa;">${inviterEmail}</strong> shared <strong style="color:#f8f9fa;">"${graphName}"</strong> with you on fewer.
-            </p>
-            <a href="${link}" style="display:inline-block;background:#fd7e14;color:#1e293b;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
-              Open the graph
-            </a>
-            <p style="margin:24px 0 0;font-size:12px;color:#868e96;line-height:1.5;">
-              This link is private — don't forward it. It works without an account.
-            </p>
-          </div>
-          <div style="padding:16px 32px;border-top:1px solid #2a2a3a;text-align:center;">
-            <span style="font-size:12px;color:#868e96;">fewer · Interactive File & System Graph Visualizer</span>
-          </div>
-        </div>
-      </div>
-    `;
+  return emailShell({
+    preheader: `You're invited to view "${graphName}" on fewer`,
+    heading: "You're invited to view a graph",
+    intro: `${inviterEmail} shared "${graphName}" with you on fewer.`,
+    body: "",
+    cta: { text: "Open the graph", href: link },
+    footnote: "This link is private — don't forward it. It works without an account.",
+  });
 }
 
 /** Plain-text body of the invite email. */
