@@ -26,7 +26,6 @@ import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
 import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
 import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
-import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -60,7 +59,6 @@ interface SidebarProps {
 
 
 export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const activeLeaf = useActiveLeaf();
   const { nodes, edges, hiddenIds } = useGraphData();

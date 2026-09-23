@@ -39,7 +39,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphData, useLayoutConfig, useUiState } from "@/store/hooks";
-import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import {

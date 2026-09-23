@@ -4,12 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ImportActionResult } from "@/lib/fewer/importFlow";
 
 // Mock boundaries, not the dialog steps or the Zustand store.
-let signedIn = false;
 const toast = mock(() => {});
-const user = { id: "test-user", email: "ada@example.org" };
-mock.module("@/hooks/use-auth", () => ({
-  useAuth: () => ({ user: signedIn ? user : null, loading: false }),
-}));
 mock.module("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 const importUrl = mock(async () => true);
 const getResult = mock(() => ({ error: null, truncated: false }));
@@ -38,7 +33,6 @@ function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file
 }
 
 beforeEach(() => {
-  signedIn = false;
   toast.mockClear();
   importUrl.mockClear();
   getResult.mockClear();
@@ -54,8 +48,6 @@ afterEach(() => {
   cleanup();
   useGraphStore.setState(initial, true);
 });
-
-
 describe("ImportFlowDialog 3-step flow", () => {
   test("signed-out grid shows Folder and File only", () => {
     renderDialog();

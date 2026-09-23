@@ -11,7 +11,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
-import { useAuth } from "@/hooks/use-auth";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 // Render the four navigation arrows with lucide icons so they all draw with
