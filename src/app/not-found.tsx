@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 py-12 text-center">
+    <MarketingLayout>
+      <div className="relative z-10 mx-auto flex min-h-[60vh] max-w-4xl flex-col items-center justify-center px-6 py-16 text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-primary">
           404
         </p>
@@ -31,6 +31,6 @@ export default function NotFound() {
           </Link>
         </div>
       </div>
-    </div>
+    </MarketingLayout>
   );
 }

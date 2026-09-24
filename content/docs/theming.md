@@ -150,9 +150,11 @@ removes its gallery listing.
 - **Apply** restyles the page you're on immediately — the gallery is themed
   with the same CSS variables and shadcn tokens the app uses, so you try the
   theme on a real page before leaving.
-- **Open in app** loads `#t:<id>` in the app, which applies the theme and sets
-  it as your last-used theme (it persists through the normal settings sync).
-  Anyone with a gallery theme link can apply the theme without an account.
+- **Open in app** loads `#t:<id>` in the app. If you're signed out, the app
+  opens the **sign-in dialog first** and holds the link — the theme is applied
+  only after sign-in succeeds, at which point it becomes your last-used theme
+  (persisted through the normal settings sync). Signed-in viewers get the theme
+  applied immediately.
 - Signed-in viewers can **Save** a gallery theme straight to their own account.
 
 ## Aurora Haze Tokens

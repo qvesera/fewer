@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 2 complete: remaining advancedModeEnabled sites migrated — CanvasToolbar, CustomNode, ImportOriginStep, ImportOptionsPanel, ImportFlowDialog, DockAreaContent, ExportPanel cleanup, sectionRegistry simplified. Only intentional vestiges remain: LayoutPicker prop interface, FewerApp derivation, userSettings persisted field, sidebarModel (test-only).
 - Sidebar section reorder now animates with a smooth ease-out curve (180ms, matches section expand/collapse motion)
 - Unified email shell for all outbound emails (auth, digest, invite) — shared dark design, fewer.directory wordmark, orange CTA, table-based Outlook-compatible layout. Supabase auth templates generated from the same source to prevent drift. New emailTemplate.ts + gen-email-templates.ts + tests.
+- Gallery publishing no longer requires a profile name/username to toggle on — entries without a profile show as Anonymous with a non-blocking hint in the share dialog
+- Docs, blog, 404 and password-reset pages now share the site header and footer from the main page (Features / Gallery / Privacy / Docs / Blog + Launch the app) — DocsLayout dropped its own minimal navbar so every non-app page has the same navigation; the app at /app keeps its own GlobalNavbar
 
 ### Fixed
 
@@ -106,6 +108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Panel docking: sidebar sections now drag-and-drop instead of requiring a second click; drop target preview matches where the column lands
 - Baseline drift gate no longer flags pending-above-head migrations as drift — fixes permanent blockage after a failed db push
 - Fix reserved keyword collision in migration 0038: quote 'full' alias so db push and Supabase API can parse the function body
+- Gallery 'Open in app' links no longer strip the URL fragment — links use real anchors instead of next/link soft navigation, so the hash survives into the app for both graphs and themes
+- Shared/template graphs no longer load with all cards hidden — the loaded graph calls showAll on mount to clear auto-hide so the deep-linked graph is immediately visible
+- Deep-link hash handling is now robust: handles hashchange events for same-document navigation, supports multiple sequential deep links in one session, and reports 'Unsupported link' for unknown hash prefixes instead of the misleading 'Could not decode the graph'
+- Gallery 'Open in app' links are held until sign-in succeeds — the app opens the sign-in dialog without applying the theme or loading the graph; the link is stored (sessionStorage, so it survives GitHub/Google sign-in) and replayed only after login, instead of applying the gallery theme to a signed-out visitor
 
 ### Added
 
@@ -118,6 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar sections can be reordered by dragging the section grip; Alt+ArrowUp/Down moves the focused section
 - 8 curated gallery starter themes (Terminal Amber, Blueprint, Ink & Clay, Neon Grid, Mono Print, Canopy, Aurora Depth, Slate Highlighter) added to the built-in preset dropdown
 - 8 curated starter graph templates seeded into the community gallery via the new gallery:seed script
+- Gallery graph cards now show category chips (derived from file types), a monospace preview block (root + first children), and author attribution (name and username)
+- Gallery graph tab has category filter chips (All, Code, Config, Docs, Data, Media, Images) that filter the listing server-side
 
 ### Performance
 

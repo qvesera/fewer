@@ -64,6 +64,15 @@ describe("TEMPLATE_GRAPHS", () => {
         expect(duplicateSiblings(t.tree)).toEqual([]);
       });
 
+      it("no folder exceeds 10 direct children (autoHideThreshold default)", () => {
+        const over: string[] = [];
+        (function walk(e: TreeEntry) {
+          if ((e.children?.length ?? 0) > 10) over.push(`${e.name} (${e.children!.length})`);
+          for (const c of e.children ?? []) walk(c);
+        })(t.tree);
+        expect(over).toEqual([]);
+      });
+
       it("templateGraphId returns deterministic tpl- prefixed id", () => {
         const id = templateGraphId(t.slug);
         expect(id).toBe(`tpl-${t.slug}`);

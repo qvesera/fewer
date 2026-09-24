@@ -53,11 +53,16 @@ graphs other people have published.
 3. Add a **title** (max 200 characters) and an optional **description** (max 1000)
 4. Click **Generate link** — the toast confirms it is live
 
-Publishing requires your profile to have a **first name and a username** (that is
-how gallery entries are attributed — Fewer sends you to Settings → Account if
-either is missing). The gallery lists **metadata only**: title, description, card
-count, and date — never the graph payload, which is only fetched when someone
-opens the share link. Untick the box and generate the link again to unlist it.
+Publishing to the gallery is open to all signed-in users. If your profile is
+missing a **first name** or **username**, your gallery entry shows as
+"Anonymous" — add them in Settings → Account to show proper attribution.
+The gallery lists **metadata only**: title, description, card count, date,
+category, and author name — never the graph payload, which is only fetched
+when someone opens the share link. Each card also shows a monospace preview
+of the graph's root directory and its category tag. **Open in app** asks you
+to sign in first: signed-out visitors get the sign-in dialog, and the graph
+loads once sign-in succeeds. Untick the box and
+generate the link again to unlist it.
 
 ## Limitations
 
