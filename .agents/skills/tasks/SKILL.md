@@ -94,7 +94,8 @@ when given, and always prints the `DECISION` line with the winning candidate.
 | `not canonical` | hand edit or derived drift | `python3 scripts/tasks.py fmt` |
 | `WIP limit 1` | another row is `in-progress` | `stop` it or `set-status … parked` |
 | commit refused by hook | no open session | `task:start <id>` (escape: `--no-verify`) |
-| `validate-commits` FAIL | missing `Task:` trailer / task not `review` | `task:stop <id> --to review`, amend trailers |
+| `validate-commits` FAIL | missing `Task:` trailer, or the task is not `review`/`done` **at HEAD** because the close-out was never committed | `task:stop <id>`, then commit `TASKS.yaml` (ledger-only, needs no session) |
+| `TASKS.yaml has uncommitted changes` (WARN) | `stop`'s close-out not committed yet | `git add TASKS.yaml && git commit -m "chore(tasks): close <id>"` |
 | `doctor: … no ledger row` | issue filed on GitHub outside `track` | `task:intake` |
 | `doctor: status labels … !=` | status changed without mirroring | `task:gh-sync` |
 | ambiguous `track` (exit 3) | candidate in the 0.45–0.75 band | show candidates, ask, or rerun `--new` |

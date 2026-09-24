@@ -303,7 +303,9 @@ the timed session (see the workflow's Steps 2/4/6).
 0. **Close the task first**: `bun run task:stop <T-###> --note "…"` records the
    session's time + effort (harvested from git) and `bun run task:validate`
    must pass — CI fails a PR whose commits lack a `Task: T-###` trailer or
-   whose task is not in `review`/`done` with recorded time.
+   whose task is not in `review`/`done` with recorded time **at HEAD**. Commit
+   the ledger close-out too (`git add TASKS.yaml && git commit …`): a commit
+   staging only `TASKS.yaml` needs no open session and gets no trailer.
 1. **Run quality gates**: `bun run lint && bun run build`
 2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes) to the Unreleased section via `python3 scripts/changelog.py add <group> "..."`. The changelog must be updated before committing.
 3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog (verify with `python3 scripts/changelog.py validate`).

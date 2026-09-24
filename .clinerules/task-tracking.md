@@ -56,6 +56,12 @@ the `DECISION` line and why (candidate, score, state) before continuing.
 - `bun run task:stop <T-###> --note "…"` closes the session and harvests proof
   + effort (commits, files, insertions/deletions) from git. It moves
   `in-progress → review` when a PR is detected, else back to `triaged`.
+- **Then commit the close-out**: `git add TASKS.yaml && git commit -m
+  "chore(tasks): close T-###"`. A commit that stages *only* `TASKS.yaml` needs
+  no open session and gets no trailer — that is how `stop`, `intake`,
+  `gh-sync` and `import-todo` writes reach the repo. Skip this and `validate`
+  warns that the ledger is dirty while `validate-commits` fails, because the
+  gate judges status **at HEAD**, i.e. from what is committed.
 - Status machine: `triaged → in-progress → review → done`, plus `blocked`,
   `parked`, `wontfix`; `set-status` refuses illegal jumps and refuses `done`
   without proof.
@@ -65,8 +71,9 @@ the `DECISION` line and why (candidate, score, state) before continuing.
 ## Before a PR
 
 ```bash
+git add TASKS.yaml && git commit -m "chore(tasks): close <T-###>"  # ledger-only, no session needed
 bun run task:validate                       # structural gate (CI runs this too)
-python3 scripts/tasks.py validate-commits --base origin/dev   # every commit names a task in review/done
+python3 scripts/tasks.py validate-commits --base origin/dev   # trailers + status at HEAD
 python3 scripts/tasks.py report             # time rollup — paste totals into the PR
 ```
 

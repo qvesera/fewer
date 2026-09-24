@@ -1612,6 +1612,16 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         except Exception as exc:  # a hand-edited TO-DO.md must not break CI
             warn(f"could not parse TO-DO.md: {exc}")
 
+    # Uncommitted ledger close-out: CI's gate can only judge what is committed,
+    # so `stop`'s write must land before the push (ledger-only commit, no
+    # session required — see the hook).
+    if os.path.isdir(os.path.join(ROOT, ".git")):
+        dirty = git("status", "--porcelain", "--", os.path.relpath(LEDGER, ROOT),
+                    check=False).strip()
+        if dirty:
+            warn(f"TASKS.yaml has uncommitted changes — commit the ledger close-out "
+                 f"before pushing ({dirty.split()[0]} {os.path.relpath(LEDGER, ROOT)})")
+
     if hard == 0:
         ok(f"{len(rows)} tasks, {sum(int(r['spent_min'] or 0) for r in rows)}m recorded")
     return hard, soft
@@ -1638,6 +1648,40 @@ def cmd_fmt(args: argparse.Namespace) -> int:
 
 
 # ── validate-commits: every commit names a tracked task ────────────────
+def commit_trailers(body: str, subject: str = "") -> list[str]:
+    """Ids named by `Task: T-###` trailers (body lines, or the subject)."""
+    ids: list[str] = []
+    for line in body.splitlines():
+        if re.match(r"^\s*Task:\s*", line, flags=re.I):
+            ids += TASK_RE.findall(line)
+    if re.search(r"\bTask:\s*T-", subject, flags=re.I):
+        ids += TASK_RE.findall(subject)
+    return ids
+
+
+def is_bookkeeping(paths: list[str]) -> bool:
+    """Ledger-only commits (`stop`, `intake`, `gh-sync`, `import-todo` writes)
+    carry no trailer and may be made with no session open — the hook exempts
+    exactly this shape, and CI must read it the same way."""
+    return bool(paths) and all(p == "TASKS.yaml" for p in paths)
+
+
+def status_gate(rows: dict[str, dict[str, Any]], touched: set[str]) -> list[str]:
+    """Status is judged at the tip, not per-commit: a commit made while the
+    session was correctly open only reaches the gate once the close-out is
+    committed after it."""
+    problems: list[str] = []
+    for tid in sorted(touched):
+        row = rows.get(tid)
+        if row is None:
+            problems.append(f"references unknown task {tid}")
+        elif row["status"] not in ("review", "done"):
+            problems.append(
+                f"{tid} is {row['status']} at HEAD, expected review/done "
+                f"(python3 scripts/tasks.py stop {tid}, then commit TASKS.yaml)")
+    return problems
+
+
 def cmd_validate_commits(args: argparse.Namespace) -> int:
     ledger = load()
     rows = {r["id"]: r for r in ledger["tasks"]}
@@ -1658,15 +1702,19 @@ def cmd_validate_commits(args: argparse.Namespace) -> int:
         short, subject, body = parts[0].strip(), parts[1].strip(), parts[2] if len(parts) > 2 else ""
         if re.match(r"^(Merge |Revert |fixup! |squash! )", subject):
             continue
-        ids = []
-        for line in body.splitlines():
-            if re.match(r"^\s*Task:\s*", line, flags=re.I):
-                ids += TASK_RE.findall(line)
-        ids += TASK_RE.findall(subject) if re.search(r"\bTask:\s*T-", subject, flags=re.I) else []
+        paths = [p for p in git("show", "--name-only", "--format=", short,
+                                check=False).splitlines() if p.strip()]
+        ids = commit_trailers(body, subject)
+        if is_bookkeeping(paths):
+            # Ledger-only: exempt from the trailer, but any ids it names still
+            # count toward the tip status gate.
+            touched.update(tid for tid in ids if tid in rows)
+            continue
         if not ids:
             hard += 1
             print(f"FAIL  {short} {subject[:70]!r}: no `Task: T-###` trailer "
-                  f"(python3 scripts/tasks.py start <id>)")
+                  f"(python3 scripts/tasks.py start <id>; only TASKS.yaml-only "
+                  f"commits are exempt)")
             continue
         for tid in ids:
             if tid not in rows:
@@ -1674,12 +1722,12 @@ def cmd_validate_commits(args: argparse.Namespace) -> int:
                 print(f"FAIL  {short}: references unknown task {tid}")
                 continue
             touched.add(tid)
-            if rows[tid]["status"] not in ("review", "done"):
-                hard += 1
-                print(f"FAIL  {short}: {tid} is {rows[tid]['status']}, expected review/done "
-                      f"(python3 scripts/tasks.py stop {tid} → set-status {tid} review)")
+    for problem in status_gate(rows, touched):
+        hard += 1
+        print(f"FAIL  {problem}")
     if hard == 0:
-        print(f"PASS  {len(commits)} commits, tasks: {', '.join(sorted(touched))}")
+        print(f"PASS  {len(commits)} commits, tasks: {', '.join(sorted(touched)) or '-'} "
+              f"(status checked at HEAD)")
     return 1 if hard else 0
 
 
@@ -1698,6 +1746,8 @@ def cmd_hook_precommit(_args: argparse.Namespace) -> int:
 HOOK = r'''#!/bin/sh
 # fewer task-tracking gate — generated by `python3 scripts/tasks.py install-hooks`.
 # Refuses a commit while no task session is open, and stamps `Task: T-###` from it.
+# Exception: a commit staging ONLY TASKS.yaml (the close-out after `stop`, or
+# intake/gh-sync bookkeeping) needs no session and gets no trailer.
 # Escape hatches: git commit --no-verify   |   SKIP_TASK_HOOK=1
 [ -n "$SKIP_TASK_HOOK" ] && exit 0
 case "${2:-}" in merge|squash) exit 0;; esac
@@ -1705,10 +1755,15 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ -f "$ROOT/scripts/tasks.py" ] || exit 0
 MSG="$1"
 head -n1 "$MSG" 2>/dev/null | grep -qE '^(Merge |Revert |fixup! |squash! )' && exit 0
+STAGED=$(git diff --cached --name-only 2>/dev/null)
+if [ -n "$STAGED" ] && [ -z "$(printf '%s\n' "$STAGED" | grep -v '^TASKS\.yaml$')" ]; then
+  exit 0
+fi
 ID=$(python3 "$ROOT/scripts/tasks.py" hook-precommit 2>&1) || {
   printf '%s\n' "task-tracking: commit refused — no open task session." >&2
   printf '%s\n' "$ID" >&2
   printf '%s\n' "start one: bun run task:start T-###   (see AGENTS.md → Task Tracking)" >&2
+  printf '%s\n' "ledger-only commits (staged: TASKS.yaml) need no session" >&2
   printf '%s\n' "escape hatch: git commit --no-verify" >&2
   exit 1
 }
@@ -1777,6 +1832,24 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("bug payload parsed", parse_bug_payload(body) == {"severity": "medium", "category": "file-ops"})
     check("prose-only body yields nothing (propose, do not apply)",
           parse_bug_payload("Something looks wrong when I click.") == {})
+
+    # commit gates: trailer parsing, the ledger-only exemption, the tip status rule
+    check("trailer parsed from a body", commit_trailers("docs…\n\nTask: T-001\n") == ["T-001"])
+    check("trailer parsed from the subject", commit_trailers("", "chore: x (Task: T-002)") == ["T-002"])
+    check("no trailer → empty", commit_trailers("fix: something\n") == [])
+    check("bookkeeping: TASKS.yaml-only is exempt", is_bookkeeping(["TASKS.yaml"]))
+    check("bookkeeping: mixed commit is not exempt",
+          not is_bookkeeping(["TASKS.yaml", "src/lib/fewer/x.ts"]))
+    check("bookkeeping: nothing staged is not exempt", not is_bookkeeping([]))
+    check("tip gate: in-progress at HEAD fails",
+          status_gate({"T-001": {"status": "in-progress"}}, {"T-001"})
+          == ["T-001 is in-progress at HEAD, expected review/done "
+              "(python3 scripts/tasks.py stop T-001, then commit TASKS.yaml)"])
+    check("tip gate: review/done at HEAD passes",
+          status_gate({"T-001": {"status": "review"}, "T-002": {"status": "done"}},
+                      {"T-001", "T-002"}) == [])
+    check("tip gate: unknown task fails",
+          status_gate({}, {"T-099"}) == ["references unknown task T-099"])
 
     good_path = os.path.join(tempfile.gettempdir(), "fewer-tasks-selftest-good.yaml")
     with open(good_path, "w", encoding="utf-8") as fh:
