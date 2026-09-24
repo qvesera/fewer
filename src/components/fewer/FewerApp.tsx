@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettingsSync } from "@/hooks/use-settings";
 import { loadSettingsLocal, applyUserSettings, withSyncGuard, pinThemeLink } from "@/lib/fewer/userSettings";
+import { shouldDeferHashForAuth, PENDING_AUTH_HASH_KEY } from "@/lib/fewer/authGate";
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
@@ -241,6 +242,24 @@ export function FewerApp() {
     (rawHash?: string) => {
       const hash = rawHash ?? window.location.hash.replace(/^#/, "");
       if (!hash || hash === handledHashRef.current) return;
+
+      // Auth gate: gallery deep links that carry ?auth=open are held until
+      // sign-in succeeds. Must run BEFORE handledHashRef is claimed, or the
+      // post-login replay would be skipped as a duplicate.
+      if (shouldDeferHashForAuth(window.location.search, hash, !!user)) {
+        pendingAuthHashRef.current = hash;
+        try {
+          sessionStorage.setItem(PENDING_AUTH_HASH_KEY, hash);
+        } catch {
+          /* quota — the ref still holds it for this page's lifetime */
+        }
+        setAuthOpen(true);
+        // Strip only the query param — keep the hash so the sessionStorage
+        // restore effect still sees it (and defers), and so the post-login
+        // replay reads the same value.
+        window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+        return;
+      }
       handledHashRef.current = hash;
 
       // Prevent the sessionStorage-restore effect from overwriting the graph
@@ -319,7 +338,7 @@ export function FewerApp() {
         toast({ title: "Unsupported link", description: UNSUPPORTED_LINK_MESSAGE, variant: "destructive" });
       });
     },
-    [hashLoaded, toast, setHashLoaded, setAuthOpen],
+    [hashLoaded, toast, setHashLoaded, setAuthOpen, user],
   );
 
   // Load shared graph from URL hash on mount.
@@ -398,8 +417,8 @@ export function FewerApp() {
   }, []);
 
 
-  // Handle OAuth callback query params (?cloud=connected|error) and
-  // gallery "Open in app" unauthenticated gate (?auth=open).
+  // Handle OAuth callback query params (?cloud=connected|error). The
+  // ?auth=open gate lives inside handleHashLink — single source of truth.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cloud = params.get("cloud");
@@ -411,23 +430,29 @@ export function FewerApp() {
       toast({ title: "Cloud connection failed", description: params.get("msg") || "Unknown error", variant: "destructive" });
       window.history.replaceState(null, "", window.location.pathname);
     }
-    if (params.get("auth") === "open") {
-      // Save the hash so it can be processed after login, not now.
-      const h = window.location.hash.replace(/^#/, "");
-      if (h) pendingAuthHashRef.current = h;
-      setHashLoaded(true); // prevent sessionStorage restore while auth dialog is open
-      setAuthOpen(true);
-      window.history.replaceState(null, "", window.location.pathname);
-    }
   }, [toast]);
 
-  // After login, process any hash that was deferred by ?auth=open.
+  // After sign-in succeeds, replay any hash held by the ?auth=open gate.
+  // Reads the ref first, then sessionStorage — GitHub/Google sign-in is a
+  // full-page OAuth redirect, so only the stored copy survives that trip.
   useEffect(() => {
-    if (user && pendingAuthHashRef.current) {
-      const h = pendingAuthHashRef.current;
-      pendingAuthHashRef.current = "";
-      handleHashLink(h);
+    if (!user) return;
+    let pending = pendingAuthHashRef.current;
+    pendingAuthHashRef.current = "";
+    if (!pending) {
+      try {
+        pending = sessionStorage.getItem(PENDING_AUTH_HASH_KEY) ?? "";
+      } catch {
+        pending = "";
+      }
     }
+    if (!pending) return;
+    try {
+      sessionStorage.removeItem(PENDING_AUTH_HASH_KEY);
+    } catch {
+      /* nothing to do */
+    }
+    handleHashLink(pending);
   }, [user, handleHashLink]);
 
   // Every import entry point opens the SAME 3-step flow; only the

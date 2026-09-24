@@ -110,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gallery 'Open in app' links no longer strip the URL fragment — links use real anchors instead of next/link soft navigation, so the hash survives into the app for both graphs and themes
 - Shared/template graphs no longer load with all cards hidden — the loaded graph calls showAll on mount to clear auto-hide so the deep-linked graph is immediately visible
 - Deep-link hash handling is now robust: handles hashchange events for same-document navigation, supports multiple sequential deep links in one session, and reports 'Unsupported link' for unknown hash prefixes instead of the misleading 'Could not decode the graph'
+- Gallery 'Open in app' links are held until sign-in succeeds — the app opens the sign-in dialog without applying the theme or loading the graph; the link is stored (sessionStorage, so it survives GitHub/Google sign-in) and replayed only after login, instead of applying the gallery theme to a signed-out visitor
 
 ### Added
 

@@ -59,7 +59,9 @@ missing a **first name** or **username**, your gallery entry shows as
 The gallery lists **metadata only**: title, description, card count, date,
 category, and author name — never the graph payload, which is only fetched
 when someone opens the share link. Each card also shows a monospace preview
-of the graph's root directory and its category tag. Untick the box and
+of the graph's root directory and its category tag. **Open in app** asks you
+to sign in first: signed-out visitors get the sign-in dialog, and the graph
+loads once sign-in succeeds. Untick the box and
 generate the link again to unlist it.
 
 ## Limitations
