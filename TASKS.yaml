@@ -593,7 +593,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 198
   internal: true
   milestone: null
   blocked_by: []
@@ -611,5 +611,11 @@ tasks:
     note: "pr-metadata verb + size:* family + assignee/pr fields + CI workflow + pr skill; applied to #196/#197; 51 selftest checks"
     proof: ["bee11f3"]
     effort: {commits: 1, files: 9, insertions: 615, deletions: 16}
-  spent_min: 15
-  session_count: 1
+  - start: "2026-09-24T22:04:40Z"
+    end: "2026-09-24T22:05:48Z"
+    measured: true
+    note: "CI workflow verified live on #198 (bot labelled it from scratch); trigger scope corrected in workflow comment, pr skill and PR body"
+    proof: ["65b0e18", "#198"]
+    effort: {commits: 1, files: 2, insertions: 12, deletions: 7}
+  spent_min: 16
+  session_count: 2
