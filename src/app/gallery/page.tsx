@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { MarketingLayout, APP_URL } from "@/components/marketing/MarketingLayout";
 import { ThemeGallerySection } from "@/components/marketing/ThemeGallerySection";
 import { Button } from "@/components/ui/button";
@@ -106,7 +105,7 @@ export default function GalleryPage() {
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map((g) => (
-                    <Link
+                    <a
                       key={g.id}
                       href={`${APP_URL}/#s:${g.id}`}
                       className="group flex flex-col rounded-xl border border-border/40 bg-background/60 p-5 transition-colors hover:border-primary/40"
@@ -123,7 +122,7 @@ export default function GalleryPage() {
                       <div className="mt-auto pt-4 text-[11px] text-muted-foreground/70">
                         {g.node_count} cards · {prettyDate(g.created_at)}
                       </div>
-                    </Link>
+                    </a>
                   ))}
                 </div>
 

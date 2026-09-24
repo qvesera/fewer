@@ -106,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Panel docking: sidebar sections now drag-and-drop instead of requiring a second click; drop target preview matches where the column lands
 - Baseline drift gate no longer flags pending-above-head migrations as drift — fixes permanent blockage after a failed db push
 - Fix reserved keyword collision in migration 0038: quote 'full' alias so db push and Supabase API can parse the function body
+- Gallery 'Open in app' links no longer strip the URL fragment — links use real anchors instead of next/link soft navigation, so the hash survives into the app for both graphs and themes
+- Shared/template graphs no longer load with all cards hidden — the loaded graph calls showAll on mount to clear auto-hide so the deep-linked graph is immediately visible
+- Deep-link hash handling is now robust: handles hashchange events for same-document navigation, supports multiple sequential deep links in one session, and reports 'Unsupported link' for unknown hash prefixes instead of the misleading 'Could not decode the graph'
 
 ### Added
 

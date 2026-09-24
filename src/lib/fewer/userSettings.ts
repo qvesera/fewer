@@ -23,6 +23,17 @@ import { normalizeSidebarOrder } from "./sidebarOrder";
 const STORAGE_KEY = "fewer-user-settings";
 const VERSION = 1;
 
+// ── Theme-link pin (session-scoped) ────────────────────────────────────────
+// When a `#t:` deep link applies a theme, pin it so the first cloud-settings
+// apply (which lands asynchronously) can't overwrite it. The pin is consumed
+// once — subsequent applies (cross-tab sync, manual theme change) work normally.
+let _themeLinkPinned = false;
+export function pinThemeLink(): void { _themeLinkPinned = true; }
+function consumeThemeLinkPin(): boolean {
+  if (_themeLinkPinned) { _themeLinkPinned = false; return true; }
+  return false;
+}
+
 /**
  * Serializable per-account app settings — everything the user customizes that
  * is NOT part of a specific graph (nodes/edges). Persisted locally (so it works
@@ -184,12 +195,16 @@ function applyPanelLayout(data: Partial<UserSettings>): void {
 export function applyUserSettings(data: Partial<UserSettings>): void {
   const s = useGraphStore.getState();
 
-  if (data.themeMode) s.setThemeMode(data.themeMode);
-  // Custom-theme CSS vars must only be injected when the active mode is
-  // actually "custom"; otherwise they'd override the Light/Dark palettes
-  // (e.g. the folder-icon orange differs between the custom theme and the app's
-  // built-in dark theme).
-  if (data.themeMode === "custom" && data.customTheme) s.setCustomTheme(data.customTheme);
+  // Theme slots: skip when a `#t:` deep link is pinned (one-shot) so the
+  // cloud settings apply can't overwrite the linked theme.
+  if (!consumeThemeLinkPin()) {
+    if (data.themeMode) s.setThemeMode(data.themeMode);
+    // Custom-theme CSS vars must only be injected when the active mode is
+    // actually "custom"; otherwise they'd override the Light/Dark palettes
+    // (e.g. the folder-icon orange differs between the custom theme and the app's
+    // built-in dark theme).
+    if (data.themeMode === "custom" && data.customTheme) s.setCustomTheme(data.customTheme);
+  }
 
   useGraphStore.setState({
     direction: data.direction ?? s.direction,

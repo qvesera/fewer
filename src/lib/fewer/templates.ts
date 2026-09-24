@@ -44,7 +44,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     slug: "nextjs-saas",
     title: "Next.js 16 SaaS starter",
     description:
-      "App Router project with API routes, components, billing, and docs. ~33 cards. Best viewed LR · angled edges · Blueprint theme.",
+      "App Router project with API routes, components, billing, and docs. ~34 cards. Best viewed LR · angled edges · Blueprint theme.",
     category: "Frontend",
     direction: "LR",
     edgeStyle: "angled",
@@ -71,9 +71,11 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
       f("content", undefined, [
         f("docs", undefined, [f("getting-started.md"), f("auth.md")]),
       ]),
-      f("package.json", 1200),
-      f("next.config.ts", 400),
-      f("tsconfig.json", 600),
+      f("config", undefined, [
+        f("package.json", 1200),
+        f("next.config.ts", 400),
+        f("tsconfig.json", 600),
+      ]),
       f("README.md", 2000),
       f("Dockerfile", 800),
       f(".env.example", 200),

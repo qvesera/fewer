@@ -19,7 +19,7 @@ import { useDevice } from "@/hooks/use-device";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useSettingsSync } from "@/hooks/use-settings";
-import { loadSettingsLocal, applyUserSettings, withSyncGuard } from "@/lib/fewer/userSettings";
+import { loadSettingsLocal, applyUserSettings, withSyncGuard, pinThemeLink } from "@/lib/fewer/userSettings";
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
@@ -228,120 +228,109 @@ export function FewerApp() {
     document.body.style.userSelect = "none";
   }, []);
 
-  // Load shared graph from URL hash (embedded) or DB-backed short link (#s:<id>)
-  useEffect(() => {
-    if (hashLoaded) return;
-    const hash = window.location.hash.replace(/^#/, "");
-    if (!hash) return;
+  const handledHashRef = useRef("");
 
-    const applyData = (data: { nodes: unknown[]; edges: unknown[]; localRootPath?: string | null }) => {
-      // Graph data only — the viewer's app settings (direction, edge style,
-      // theme, corner radius, …) are theirs and are NOT overwritten by a shared
-      // graph. Node positions are preserved via preservePositions (no re-layout).
-      useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
-      useGraphStore.setState({
-        dataSource: "shared",
-        localRootPath: data.localRootPath ?? null,
-      });
-      setHashLoaded(true);
-      // Clear hash from address bar
-      window.history.replaceState(null, "", window.location.pathname);
-      toast({
-        title: "Shared graph loaded",
-        description: `${(data.nodes as unknown[]).length} card${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link`,
-      });
-    };
+  /**
+   * Core hash-link handler — called on mount and on `hashchange`.
+   * Reads the hash from `rawHash` or `window.location.hash`.
+   */
+  const handleHashLink = useCallback(
+    (rawHash?: string) => {
+      const hash = rawHash ?? window.location.hash.replace(/^#/, "");
+      if (!hash || hash === handledHashRef.current) return;
+      handledHashRef.current = hash;
 
-    import("@/lib/fewer/share").then(async ({ decodeShareData, isDbShareHash, parseDbShareId }) => {
-      // Invite token link: #i:<token> — token is the credential, no login.
-      if (hash.startsWith("i:")) {
-        const token = hash.slice(2);
-        if (!token) {
-          toast({ title: "Invalid invite link", description: "Could not load the graph.", variant: "destructive" });
+      // Prevent the sessionStorage-restore effect from overwriting the graph
+      // we are about to load. Set synchronously before any async work.
+      if (!hashLoaded) setHashLoaded(true);
+
+      /** Load a graph payload into the canvas. */
+      const applyData = (data: { nodes: unknown[]; edges: unknown[]; localRootPath?: string | null }) => {
+        useGraphStore.getState().setGraph(data.nodes as never, data.edges as never, false, undefined, { preservePositions: true });
+        useGraphStore.setState({ dataSource: "shared", localRootPath: data.localRootPath ?? null });
+        // Reveal any cards that the viewer's auto-hide threshold hid on load,
+        // so a shared graph is immediately visible.
+        useGraphStore.getState().showAll();
+        window.history.replaceState(null, "", window.location.pathname);
+        toast({ title: "Shared graph loaded", description: `${(data.nodes as unknown[]).length} card${(data.nodes as unknown[]).length === 1 ? "" : "s"} from share link` });
+      };
+
+      import("@/lib/fewer/share").then(async ({ classifyShareHash, decodeShareData, UNSUPPORTED_LINK_MESSAGE }) => {
+        const kind = classifyShareHash(hash);
+
+        if (kind === "invite") {
+          const token = hash.slice(2);
+          if (!token) { toast({ title: "Invalid invite link", description: "Could not load the graph.", variant: "destructive" }); return; }
+          try {
+            const res = await fetch(`/api/share/invite/${token}`);
+            const json = await res.json();
+            if (!res.ok || !json.data) { toast({ title: "Invite link invalid", description: json.error || "Could not load the graph.", variant: "destructive" }); return; }
+            applyData(json.data);
+          } catch { toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" }); }
           return;
         }
-        try {
-          const res = await fetch(`/api/share/invite/${token}`);
-          const json = await res.json();
-          if (!res.ok || !json.data) {
-            toast({ title: "Invite link invalid", description: json.error || "Could not load the graph.", variant: "destructive" });
-            return;
-          }
-          applyData(json.data);
-        } catch {
-          toast({ title: "Invite link error", description: "Could not load the graph from the server.", variant: "destructive" });
-        }
-        return;
-      }
 
-      // Theme gallery deep link: #t:<id> — apply a published theme on load.
-      // Goes through the normal store actions, so the existing settings sync
-      // persists it as the user's last-used theme (localStorage + cloud).
-      if (hash.startsWith("t:")) {
-        const themeId = hash.slice(2);
-        if (!themeId) {
-          toast({ title: "Invalid theme link", description: "Could not load the theme from the URL.", variant: "destructive" });
+        if (kind === "theme") {
+          const themeId = hash.slice(2);
+          if (!themeId) { toast({ title: "Invalid theme link", description: "Could not load the theme from the URL.", variant: "destructive" }); return; }
+          try {
+            const res = await fetch(`/api/themes/shared/${themeId}`);
+            const json = await res.json();
+            if (!res.ok || !json.theme?.theme) { toast({ title: "Theme link invalid", description: json.error || "Could not load the theme.", variant: "destructive" }); return; }
+            // Pin the linked theme so the async cloud-settings apply can't
+            // overwrite it (one-shot: consumed by the first applyUserSettings).
+            pinThemeLink();
+            const s = useGraphStore.getState();
+            s.setCustomTheme(json.theme.theme);
+            s.setThemeMode("custom");
+            window.history.replaceState(null, "", window.location.pathname);
+            toast({ title: "Theme applied", description: `"${json.theme.name}" is now your theme — saved as last used.` });
+          } catch { toast({ title: "Theme link error", description: "Could not load the theme from the server.", variant: "destructive" }); }
           return;
         }
-        try {
-          const res = await fetch(`/api/themes/shared/${themeId}`);
-          const json = await res.json();
-          if (!res.ok || !json.theme?.theme) {
-            toast({ title: "Theme link invalid", description: json.error || "Could not load the theme.", variant: "destructive" });
-            return;
-          }
-          const s = useGraphStore.getState();
-          s.setCustomTheme(json.theme.theme);
-          s.setThemeMode("custom");
-          setHashLoaded(true);
-          window.history.replaceState(null, "", window.location.pathname);
-          toast({
-            title: "Theme applied",
-            description: `"${json.theme.name}" is now your theme — saved as last used.`,
-          });
-        } catch {
-          toast({ title: "Theme link error", description: "Could not load the theme from the server.", variant: "destructive" });
-        }
-        return;
-      }
 
-      if (isDbShareHash(hash)) {
-        const id = parseDbShareId(hash);
-        if (!id) {
-          toast({ title: "Invalid share link", description: "Could not load the graph from the URL.", variant: "destructive" });
-          return;
-        }
-        try {
-          const res = await fetch(`/api/share/${id}`);
-          const json = await res.json();
-          if (!res.ok || !json.data) {
-            if (res.status === 403) {
-              toast({ title: "Invite-only graph", description: json.error || "Sign in with an invited email to view it.", variant: "destructive" });
-              setAuthOpen(true);
-            } else {
-              toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" });
+        if (kind === "db") {
+          const id = hash.slice(2);
+          if (!id) { toast({ title: "Invalid share link", description: "Could not load the graph from the URL.", variant: "destructive" }); return; }
+          try {
+            const res = await fetch(`/api/share/${id}`);
+            const json = await res.json();
+            if (!res.ok || !json.data) {
+              if (res.status === 403) { toast({ title: "Invite-only graph", description: json.error || "Sign in with an invited email to view it.", variant: "destructive" }); setAuthOpen(true); }
+              else { toast({ title: "Share link expired", description: json.error || "Could not load the graph.", variant: "destructive" }); }
+              return;
             }
-            return;
-          }
-          applyData(json.data);
-        } catch {
-          toast({ title: "Share link error", description: "Could not load the graph from the server.", variant: "destructive" });
+            applyData(json.data);
+          } catch { toast({ title: "Share link error", description: "Could not load the graph from the server.", variant: "destructive" }); }
+          return;
         }
-        return;
-      }
 
-      const data = decodeShareData(hash);
-      if (!data) {
-        toast({
-          title: "Invalid share link",
-          description: "Could not decode the graph from the URL.",
-          variant: "destructive",
-        });
-        return;
-      }
-      applyData(data);
-    });
-  }, [hashLoaded, toast]);
+        if (kind === "embedded") {
+          const data = decodeShareData(hash);
+          if (!data) { toast({ title: "Invalid share link", description: "Could not decode the graph from the URL.", variant: "destructive" }); return; }
+          applyData(data);
+          return;
+        }
+
+        // Unknown prefix — build can't handle this link.
+        toast({ title: "Unsupported link", description: UNSUPPORTED_LINK_MESSAGE, variant: "destructive" });
+      });
+    },
+    [hashLoaded, toast, setHashLoaded, setAuthOpen],
+  );
+
+  // Load shared graph from URL hash on mount.
+  useEffect(() => { handleHashLink(); }, [handleHashLink]);
+
+  // Re-run on hashchange (e.g. same-document navigation to a new deep link).
+  useEffect(() => {
+    const onHashChange = () => {
+      const newHash = window.location.hash.replace(/^#/, "");
+      if (newHash && newHash !== handledHashRef.current) handleHashLink(newHash);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [handleHashLink]);
 
   // Restore the last graph from sessionStorage on mount — unless a share/saved
   // link hash is present, which loads its own graph and wins over the generic
