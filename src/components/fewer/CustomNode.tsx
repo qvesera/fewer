@@ -1,25 +1,19 @@
 "use client";
 
 import { memo, useMemo, useRef, useState, useEffect, useCallback } from "react";
-import { Handle, Position, type NodeProps, NodeResizer } from "@xyflow/react";
+import { Handle, type NodeProps, NodeResizer } from "@xyflow/react";
 import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view-context";
 import {
   Folder,
   FolderOpen,
-  FileCode,
-  FileJson,
-  FileImage,
-  FileText,
-  FileArchive,
-  FileSpreadsheet,
-  FileVideo,
-  FileAudio,
   File as FileIcon,
-  FileType,
   ChevronRight,
 } from "lucide-react";
 import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
+import { visibleRange, OVERSCAN } from "@/lib/fewer/visibleRange";
 import { useGraphStore } from "@/store/graphStore";
+import { useGraphData, useUiState, useStoreActions } from "@/store/hooks";
 import { cn } from "@/lib/utils";
 import {
   ContextMenu,
@@ -32,6 +26,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuSubContent,
 } from "@/components/ui/context-menu";
+import { plural } from "@/lib/fewer/plural";
 import { useToast } from "@/hooks/use-toast";
 import { openFolderInExplorer, refreshFolderFromDisk } from "@/lib/fewer/fileOps";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
@@ -43,48 +38,11 @@ import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShort
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { getDescendants } from "@/lib/fewer/validation";
+import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
+import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
+import { can } from "@/lib/fewer/tiers";
 
 export let draggedFolderHandle: FileSystemHandle | null = null;
-
-const CATEGORY_ICON: Record<
-  FileCategory,
-  React.ComponentType<{ className?: string }>
-> = {
-  code: FileCode,
-  config: FileJson,
-  image: FileImage,
-  document: FileText,
-  archive: FileArchive,
-  data: FileSpreadsheet,
-  media: FileVideo,
-  binary: FileIcon,
-  text: FileType,
-};
-
-function getHandlePositions(layoutDirection?: string): {
-  source: Position;
-  target: Position;
-} {
-  switch (layoutDirection) {
-    case "TB":
-      return { source: Position.Bottom, target: Position.Top };
-    case "BT":
-      return { source: Position.Top, target: Position.Bottom };
-    case "LR":
-      return { source: Position.Right, target: Position.Left };
-    case "RL":
-      return { source: Position.Left, target: Position.Right };
-    default:
-      return { source: Position.Bottom, target: Position.Top };
-  }
-}
-
-function formatSize(bytes: number): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 function NodeIcon({
   type,
@@ -127,10 +85,7 @@ function RenameInput({
   // Initial selection covers only the label part of the name (VS Code / Explorer
   // style): "package.json" selects "package"; dotfiles (".gitignore") and names
   // without an extension select everything.
-  const [selStart, selEnd] = useMemo(() => {
-    const dot = initialValue.lastIndexOf(".");
-    return [0, dot > 0 ? dot : initialValue.length] as const;
-  }, [initialValue]);
+  const [selStart, selEnd] = renameSelection(initialValue);
 
   const applyInitialSelection = useCallback(() => {
     if (!untouchedRef.current) return;
@@ -227,30 +182,6 @@ function RenameInput({
   );
 }
 
-/** Map a dataSource prefix to a display label for "Open in provider". */
-function providerLabelFromSource(dataSource: string | null): string {
-  if (!dataSource) return "Provider";
-  if (dataSource.startsWith("cloud:github")) return "GitHub";
-  if (dataSource.startsWith("cloud:google-drive")) return "Google Drive";
-  if (dataSource.startsWith("cloud:onedrive")) return "OneDrive";
-  if (dataSource.startsWith("cloud:sharepoint")) return "SharePoint";
-  if (dataSource.startsWith("cloud:azure-devops")) return "Azure DevOps";
-  if (dataSource.startsWith("cloud:azure-blob")) return "Azure Blob";
-  // URL imports (GitHub repo or a public file index) carry real source URLs.
-  if (dataSource.startsWith("url:")) {
-    try {
-      const u = new URL(dataSource.slice(4));
-      if (u.hostname === "github.com") return "GitHub";
-      return u.hostname.replace(/^www\./, "");
-    } catch {
-      return "Site";
-    }
-  }
-  return "Provider";
-}
-
-
-
 function FolderContextMenu({
   nodeId,
   nodeLabel,
@@ -265,18 +196,15 @@ function FolderContextMenu({
   children: React.ReactNode;
 }) {
   const scope = useGraphViewScope();
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const { nodes, edges } = useGraphData();
+  const { selectedNodeIds } = useUiState();
+  const { deleteNodes: deleteNode, setRenamingId, setClipboard, setSelectedNodeIds, duplicateNodeUnderParent } = useStoreActions();
   const dataSource = useGraphStore((s) => s.dataSource);
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const providerLabel = providerLabelFromSource(dataSource);
-  const deleteNode = useGraphStore((s) => s.deleteNodes);
-  const setRenamingId = useGraphStore((s) => s.setRenamingId);
-  const setClipboard = useGraphStore((s) => s.setClipboard);
   const clipboard = useGraphStore((s) => s.clipboard);
-  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
+  const tier = useGraphStore((s) => s.tier);
+  const canvasAddChild = can("canvasAddChild", tier);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
@@ -345,7 +273,7 @@ function FolderContextMenu({
               useGraphStore.getState().pasteFromClipboard(parentId);
               toast({
                 title: "Pasted",
-                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+                description: `${plural(clipboard.nodeIds.length, "item")} pasted${parentId ? " into folder" : ""}`,
               });
             }}
             className="cursor-pointer"
@@ -354,14 +282,14 @@ function FolderContextMenu({
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
-        {!advancedModeEnabled && (
+        {!canvasAddChild && (
           <>
             {hasChildren && (
               <ContextMenuItem
                 onSelect={() => {
                   const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
                   useGraphStore.getState().setSelectedNodeIds(childIds);
-                  toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                  toast({ title: "Children selected", description: `${plural(childIds.length, "child", "children")} selected` });
                 }}
                 className="cursor-pointer"
               >
@@ -400,11 +328,15 @@ function FolderContextMenu({
               </ContextMenuItem>
             )}
             <ContextMenuSeparator />
-            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
-            <SelectByTagSubmenu label="Select by Tag" />
+            {can("tags", tier) && (
+              <>
+                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <SelectByTagSubmenu label="Select by Tag" />
+              </>
+            )}
           </>
         )}
-        {advancedModeEnabled && (
+        {canvasAddChild && (
           <>
             <ContextMenuSub>
               <ContextMenuSubTrigger className="cursor-pointer">
@@ -441,7 +373,7 @@ function FolderContextMenu({
                     onSelect={() => {
                       const childIds = edges.filter((e) => e.source === nodeId).map((e) => e.target);
                       useGraphStore.getState().setSelectedNodeIds(childIds);
-                      toast({ title: "Children selected", description: `${childIds.length} child${childIds.length === 1 ? "" : "ren"} selected` });
+                      toast({ title: "Children selected", description: `${plural(childIds.length, "child", "children")} selected` });
                     }}
                     className="cursor-pointer"
                   >
@@ -465,7 +397,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().showSubtreeForLeaf(scope.leafId, nodeId);
-                          toast({ title: "Children shown", description: `${childHidden.length} child${childHidden.length === 1 ? "" : "ren"} restored` });
+                          toast({ title: "Children shown", description: `${plural(childHidden.length, "child", "children")} restored` });
                         }}
                         className="cursor-pointer"
                       >
@@ -484,7 +416,7 @@ function FolderContextMenu({
                       <ContextMenuItem
                         onSelect={() => {
                           useGraphStore.getState().hideSubtreeForLeaf(scope.leafId, nodeId, visibleDescendants);
-                          toast({ title: "Children hidden", description: `${visibleDescendants.length} card${visibleDescendants.length === 1 ? "" : "s"} hidden` });
+                          toast({ title: "Children hidden", description: `${plural(visibleDescendants.length, "card")} hidden` });
                         }}
                         className="cursor-pointer"
                       >
@@ -570,8 +502,12 @@ function FolderContextMenu({
               </ContextMenuSubContent>
             </ContextMenuSub>
 
-            <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
-            <SelectByTagSubmenu label="Select by Tag" />
+            {can("tags", tier) && (
+              <>
+                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <SelectByTagSubmenu label="Select by Tag" />
+              </>
+            )}
 
             <ContextMenuItem
               onSelect={() => {
@@ -626,6 +562,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
   const { toast } = useToast();
+  const tier = useGraphStore((s) => s.tier);
   if (!isBatch) return null;
 
   const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: selectedNodeIds });
@@ -677,7 +614,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
               {action.label}
             </ContextMenuItem>
           ))}
-          <SelectByTagSubmenu label="By Tag" />
+          {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
         </ContextMenuSubContent>
       </ContextMenuSub>
       {del && (
@@ -714,21 +651,19 @@ function FileEntryContextMenu({
   nodePath?: string;
   children: React.ReactNode;
 }) {
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const { nodes, edges } = useGraphData();
+  const { selectedNodeIds } = useUiState();
+  const { setRenamingId, setClipboard, duplicateNodeUnderParent, setSelectedNodeIds } = useStoreActions();
   const dataSource = useGraphStore((s) => s.dataSource);
+  const clipboard = useGraphStore((s) => s.clipboard);
   const providerLabel = providerLabelFromSource(dataSource);
+  const tier = useGraphStore((s) => s.tier);
+  const canvasAddChild = can("canvasAddChild", tier);
   // A file imported from a public file index (via crawl) — not a GitHub repo.
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
   const isCrawledFile =
     !!dataSource && dataSource.startsWith("url:") && !isGitHubUrl(dataSource.slice(4));
-  const setRenamingId = useGraphStore((s) => s.setRenamingId);
-  const setClipboard = useGraphStore((s) => s.setClipboard);
-  const clipboard = useGraphStore((s) => s.clipboard);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const duplicateNodeUnderParent = useGraphStore((s) => s.duplicateNodeUnderParent);
-  const setSelectedNodeIds = useGraphStore((s) => s.setSelectedNodeIds);
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   // Same rule as the folder menu: multi-selection right-click → batch only.
@@ -795,7 +730,7 @@ function FileEntryContextMenu({
               useGraphStore.getState().pasteFromClipboard(parentId);
               toast({
                 title: "Pasted",
-                description: `${clipboard.nodeIds.length} item${clipboard.nodeIds.length === 1 ? "" : "s"} pasted${parentId ? " into folder" : ""}`,
+                description: `${plural(clipboard.nodeIds.length, "item")} pasted${parentId ? " into folder" : ""}`,
               });
             }}
             className="cursor-pointer"
@@ -852,7 +787,7 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
-        <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+        {can("tags", tier) && <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />}
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
             Select
@@ -862,7 +797,7 @@ function FileEntryContextMenu({
               onSelect={() => {
                 const ids = selectSameExtension(nodes, [nodeId]);
                 useGraphStore.getState().setSelectedNodeIds(ids);
-                toast({ title: "Selected by type", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same extension` });
+                toast({ title: "Selected by type", description: `${plural(ids.length, "file")} with same extension` });
               }}
               className="cursor-pointer"
             >
@@ -872,16 +807,16 @@ function FileEntryContextMenu({
               onSelect={() => {
                 const ids = selectSameCategory(nodes, [nodeId]);
                 useGraphStore.getState().setSelectedNodeIds(ids);
-                toast({ title: "Selected by category", description: `${ids.length} file${ids.length === 1 ? "" : "s"} with same category` });
+                toast({ title: "Selected by category", description: `${plural(ids.length, "file")} with same category` });
               }}
               className="cursor-pointer"
             >
               By Category
             </ContextMenuItem>
-            <SelectByTagSubmenu label="By Tag" />
+            {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
           </ContextMenuSubContent>
         </ContextMenuSub>
-        {advancedModeEnabled && (
+        {canvasAddChild && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="cursor-pointer">
               Info
@@ -936,9 +871,6 @@ function FileEntryContextMenu({
   );
 }
 
-const ITEM_HEIGHT = 28;
-const OVERSCAN = 5;
-
 function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number, fallbackHeight = 0) {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(fallbackHeight);
@@ -962,13 +894,7 @@ function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number
     };
   }, [containerEl]); // re-attaches on every child-list remount (collapse → expand)
 
-  const totalHeight = totalItems * ITEM_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(totalItems, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN);
-  const visibleCount = endIndex - startIndex;
-  const offsetY = startIndex * ITEM_HEIGHT;
-
-  return { totalHeight, startIndex, endIndex, visibleCount, offsetY };
+  return visibleRange(scrollTop, containerHeight, totalItems);
 }
 
 function ChildEntry({ child }: { child: FewerNode }) {
@@ -994,10 +920,10 @@ function ChildEntry({ child }: { child: FewerNode }) {
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
   };
 
-  const folderChildCount = useMemo(() => {
-    if (child.data.type !== "folder") return 0;
-    return edges.filter((e) => e.source === child.id).length;
-  }, [child.data.type, child.id, edges]);
+  const folderChildCount = useMemo(
+    () => countFolderChildren(child.id, child.data.type === "folder", edges),
+    [child.data.type, child.id, edges],
+  );
 
   const childContent = (
     <div
@@ -1045,7 +971,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
-          ? `${folderChildCount} ${folderChildCount === 1 ? "item" : "items"}`
+          ? plural(folderChildCount, "item")
           : formatSize(child.data.size ?? 0)}
       </span>
       <ChevronRight className="h-3 w-3 shrink-0 text-fewer-text-subtle/60" />
@@ -1117,30 +1043,10 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
   };
 
-  const children = useMemo(() => {
-    if (!isFolder) return [];
-    const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    const list = allNodes.filter((n) => childIds.includes(n.id));
-    list.sort((a, b) => {
-      if (a.data.type !== b.data.type) {
-        return a.data.type === "folder" ? -1 : 1;
-      }
-      return a.data.label.localeCompare(b.data.label);
-    });
-    return list;
-  }, [edges, allNodes, id, isFolder]);
-
-  const childCount = useMemo(() => {
-    if (!isFolder) return 0;
-    const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    return childIds.length;
-  }, [edges, id, isFolder]);
-
-  const hiddenChildCount = useMemo(() => {
-    if (!isFolder) return 0;
-    const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
-    return childIds.filter((cid) => !scope.visibleIds.has(cid)).length;
-  }, [edges, id, isFolder, scope.visibleIds]);
+  const { children, childCount, hiddenChildCount } = useMemo(
+    () => nodeChildren(id, isFolder, allNodes, edges, scope.visibleIds),
+    [id, isFolder, allNodes, edges, scope.visibleIds],
+  );
 
   const isRenaming = !!scope?.isActive && renamingId === id;
   const [childListEl, setChildListEl] = useState<HTMLDivElement | null>(null);
@@ -1195,7 +1101,7 @@ if (isCollapsed) {
                 {data.label}
               </span>
               <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
-                {childCount} {childCount === 1 ? "item" : "items"}
+                {plural(childCount, "item")}
               </span>
             </div>
             {nodeTagIds.length > 0 && (
@@ -1250,6 +1156,11 @@ if (isCollapsed) {
             minHeight={120}
             isVisible={!!selected}
             shouldResize={() => true}
+            /* Arm/disarm the resize recorder: React Flow re-measures a card on
+               any content change (a rename wraps the label), and only a real
+               handle drag may be recorded as an undoable resize. */
+            onResizeStart={() => beginResizeGesture(id)}
+            onResizeEnd={() => endResizeGesture()}
             /* Line stays draggable but invisible — the themed select ring is
                the single visible ring on a selected folder card. */
             lineClassName="!border-transparent"
@@ -1364,7 +1275,7 @@ if (isCollapsed) {
               className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text bg-fewer-folder-bg"
             >
               <span>
-                {childCount} {childCount === 1 ? "item" : "items"}
+                {plural(childCount, "item")}
               </span>
               {hiddenChildCount > 0 && (
                 <span className="rounded bg-fewer-folder-subtle-text/15 px-1 py-px text-[9px] text-fewer-folder-subtle-text">

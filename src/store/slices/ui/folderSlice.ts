@@ -2,16 +2,11 @@
 import { StateCreator } from "zustand";
 import type { GraphState } from "../types";
 import { getDescendants } from "@/lib/fewer/validation";
-import type { HideLayers } from "@/lib/fewer/viewState";
+import { emptyHideLayers, type HideLayers } from "@/lib/fewer/viewState";
 
 /** Seed-on-write helper: first call captures the effective global hidden into the leaf's individual layer. */
 const seedLayers = (leaf: GraphState["viewSettings"][string] | undefined, globalHidden: string[]): HideLayers =>
-  leaf?.hideLayers ?? {
-    individual: [...globalHidden],
-    subtrees: {},
-    filesBulkActive: false,
-    filesBulkExempt: [],
-  };
+  leaf?.hideLayers ?? { ...emptyHideLayers(), individual: [...globalHidden] };
 
 /** Write one leaf's settings back, bump graphVersion (per-leaf canvas sync). */
 const withLeaf = (set: Parameters<FolderSliceCreator>[0], get: () => GraphState, leafId: string, nextLeaf: unknown) => {
@@ -88,7 +83,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
   hideSubtreeForLeaf: (leafId, folderId, descendantIds) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const layers = leaf.hideLayers ?? emptyHideLayers();
     // Merge (don't overwrite): re-hiding a folder must not re-hide children the
     // user individually revealed since the last hide. Individually-hidden descendants
     // are already filtered out by the caller (only visible descendants are passed).
@@ -126,7 +121,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
   setFilesBulkForLeaf: (leafId, active) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    const layers = leaf.hideLayers ?? { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
+    const layers = leaf.hideLayers ?? emptyHideLayers();
     withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } });
     // Relayout when showing files (unhide), not when hiding them
     if (!active) get().relayout();
@@ -135,7 +130,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
   revealAllForLeaf: (leafId) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
-    withLeaf(set, get, leafId, { ...leaf, hideLayers: { individual: [], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } });
+    withLeaf(set, get, leafId, { ...leaf, hideLayers: emptyHideLayers() });
     get().relayout();
   },
 

@@ -6,8 +6,10 @@ import {
   saveLayoutToStorage,
   clearLayoutStorage,
   defaultLayout,
+  accessibleLayout,
 } from "@/lib/fewer/panelLayout";
 import * as treeModule from "@/lib/fewer/panelTree";
+import { can, type Tier } from "@/lib/fewer/tiers";
 import { dropLeafHistory } from "../historySlice";
 
 export type PanelUiSliceCreator = StateCreator<
@@ -30,6 +32,8 @@ export type PanelUiSliceCreator = StateCreator<
     // ── Panel layout (Blender-style docked areas) ──
     sidebarSide: "left" | "right";
     panelTree: import("@/lib/fewer/panelTree").PanelNode;
+    /** Derived from auth + profile.plan — never persisted. */
+    tier: Tier;
 
     setShowMiniMap: (show: boolean) => void;
     toggleMinimapForLeaf: (leafId: string) => void;
@@ -78,6 +82,7 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const layout = defaultLayout();
     return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
   })(),
+  tier: "guest" as Tier,
 
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   toggleMinimapForLeaf: (leafId) => {
@@ -135,8 +140,20 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const s = get();
     const leaf = s.viewSettings[leafId];
     if (!leaf?.positions) return;
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: undefined } };
-    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    // Drop the entry entirely when positions were its only field. An empty
+    // `{ positions: undefined }` entry still reads as "this view has per-view
+    // settings" to needsLayoutDerivation and to the parse/sanitize round-trip.
+    const remaining = { ...leaf };
+    delete remaining.positions;
+    const viewNext = { ...s.viewSettings };
+    if (Object.keys(remaining).length > 0) viewNext[leafId] = remaining;
+    else delete viewNext[leafId];
+    set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+    // Persist like every other viewSettings mutator. Without this the cleared
+    // positions are still in localStorage, so the next load restores them and
+    // the per-view positions outrank the layout engine again — which made
+    // Organize and the Crown Shyness slider look inert after a drag.
+    get()._persistLayout();
   },
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
@@ -149,7 +166,10 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
 
   _persistLayout: () => {
     const s = get();
-    saveLayoutToStorage({ sidebarSide: s.sidebarSide, panelTree: s.panelTree, viewSettings: s.viewSettings });
+    saveLayoutToStorage(
+      { sidebarSide: s.sidebarSide, panelTree: s.panelTree, viewSettings: s.viewSettings },
+      { keepStoredTree: !can("panelWorkspace", s.tier) },
+    );
   },
 
   setSidebarSide: (side) => {
@@ -158,43 +178,43 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   },
 
   setPanelTree: (tree) => {
-    set({ panelTree: tree });
+    const next = accessibleLayout(tree, can("panelWorkspace", get().tier));
+    set({ panelTree: next });
     get()._persistLayout();
   },
 
   splitArea: (id, dir, ratio) => {
+    if (!can("panelWorkspace", get().tier)) return;
     const tree = get().panelTree;
     const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
-    if (newTree !== tree) {
-      set({ panelTree: newTree });
-      get()._persistLayout();
-    }
+    if (newTree !== tree) get().setPanelTree(newTree);
   },
 
   joinArea: (id) => {
+    if (!can("panelWorkspace", get().tier)) return;
     const tree = get().panelTree;
     const newTree = treeModule.joinLeaf(tree, id);
     if (newTree !== tree) {
       // The joined leaf is gone — its undo/redo stack goes with it.
+      // Don't funnel through setPanelTree — dropLeafHistory patches state in
+      // the same call, avoiding a double-set on panelTree.
       set({ panelTree: newTree, ...dropLeafHistory(get(), id) });
       get()._persistLayout();
     }
   },
 
   setAreaEditor: (id, editor) => {
+    if (!can("panelWorkspace", get().tier)) return;
     const tree = get().panelTree;
     const newTree = treeModule.setLeafEditor(tree, id, editor);
-    if (newTree !== tree) {
-      set({ panelTree: newTree });
-      get()._persistLayout();
-    }
+    if (newTree !== tree) get().setPanelTree(newTree);
   },
 
   insertAreaAtEdge: (side, editor) => {
+    if (!can("panelWorkspace", get().tier)) return;
     const tree = get().panelTree;
     const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
-    set({ panelTree: newTree });
-    get()._persistLayout();
+    get().setPanelTree(newTree);
   },
 
   setDividerRatio: (firstId, secondId, ratio) => {

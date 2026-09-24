@@ -190,8 +190,9 @@ export function buildBatchActions(opts: {
       run: () => {
         const s = g();
         const list = s.selectedNodeIds;
-        s.unparentNodes(list);
-        toast({ title: "Unparented", description: `${items(list.length)} made root-level` });
+        const n = s.unparentNodes(list);
+        if (n === 0) return;
+        toast({ title: "Unparented", description: `${items(n)} made root-level` });
       },
     },
     {

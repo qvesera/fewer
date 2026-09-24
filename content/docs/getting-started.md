@@ -50,7 +50,7 @@ After import, you'll see:
 
 - **Orange cards** for folders (children inline, scrollable)
 - **Purple cards** for files (name, extension, size)
-- **Edges** connecting parent → child with 3 style options
+- **Connections** connecting parent → child with 3 style options
 - **Minimap** in bottom-right for navigation
 - **Breadcrumb bar** showing selected node's full path
 

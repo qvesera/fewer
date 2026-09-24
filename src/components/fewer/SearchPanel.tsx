@@ -4,7 +4,13 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Folder, FileIcon, EyeOff, Search, History, X, Tag as TagIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
-import { fuzzyMatch } from "@/lib/fewer/stats";
+import { can } from "@/lib/fewer/tiers";
+import {
+  searchKeyAction,
+  searchNodes,
+  searchPanelView,
+  visibleMatches,
+} from "@/lib/fewer/searchModel";
 
 export function SearchPanel() {
   const open = useGraphStore((s) => s.searchOpen);
@@ -24,7 +30,7 @@ export function SearchPanel() {
   const tagFilter = useGraphStore((s) => s.tagFilter);
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const clearTagFilter = useGraphStore((s) => s.clearTagFilter);
-  
+  const tier = useGraphStore((s) => s.tier);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -59,56 +65,32 @@ export function SearchPanel() {
     document.querySelector<HTMLInputElement>("input[data-search-input]")?.focus();
   };
 
-  const matches = useMemo(() => {
-    const hasQuery = !!query;
-    const q = query.toLowerCase();
-    const filtered = nodes.filter((n) => {
-      const categoryMatches =
-        !categoryFilter.length || n.data.type === "folder" || categoryFilter.includes(n.data.category!);
-      const queryMatches =
-        !hasQuery ||
-        fuzzyMatch(query, n.data.label) ||
-        fuzzyMatch(query, n.data.path) ||
-        (n.data.extension ?? "").toLowerCase().includes(q);
-      return categoryMatches && queryMatches;
-    });
-    return filtered.sort((a, b) => {
-      const aLabel = a.data.label.toLowerCase();
-      const bLabel = b.data.label.toLowerCase();
-
-      // Priority by label match quality
-      const aMatch = aLabel === q ? 0 : aLabel.startsWith(q) ? 1 : fuzzyMatch(query, a.data.label) ? 2 : 3;
-      const bMatch = bLabel === q ? 0 : bLabel.startsWith(q) ? 1 : fuzzyMatch(query, b.data.label) ? 2 : 3;
-      if (aMatch !== bMatch) return aMatch - bMatch;
-
-      // Files before folders
-      if (a.data.type !== b.data.type) return a.data.type === "file" ? -1 : 1;
-
-      // Alphabetical
-      return aLabel.localeCompare(bLabel);
-    });
-  }, [query, categoryFilter, nodes]);
+  // Filtering and ordering live in searchModel (unit-tested without a DOM).
+  const matches = useMemo(
+    () => searchNodes(nodes, query, categoryFilter),
+    [query, categoryFilter, nodes],
+  );
 
   // Keyboard navigation window listener while panel is open
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-      if (e.key === "ArrowDown") {
+      const action = searchKeyAction(e.key, {
+        activeIndex,
+        resultCount: visibleMatches(matches).length,
+        canCommit: !!query.trim(),
+      });
+      if (action.type === "close") {
+        setOpen(false);
+      } else if (action.type === "move") {
         e.preventDefault();
-        const maxIndex = matches.slice(0, 50).length - 1;
-        setActiveIndex((prev) => Math.min(prev + 1, maxIndex >= 0 ? maxIndex : 0));
-      }
-      if (e.key === "ArrowUp") {
+        setActiveIndex(action.next);
+      } else if (action.type === "open") {
         e.preventDefault();
-        setActiveIndex((prev) => Math.max(prev - 1, 0));
-      }
-      if (e.key === "Enter" && activeIndex >= 0) {
-        e.preventDefault();
-        const item = matches.slice(0, 50)[activeIndex];
+        const item = visibleMatches(matches)[action.index];
         if (item) handleResultClick(item.id);
-      } else if (e.key === "Enter" && query.trim()) {
+      } else if (action.type === "commit") {
         commitSearch(query);
         setOpen(false);
       }
@@ -126,6 +108,13 @@ export function SearchPanel() {
   useEffect(() => {
     if (!open) setQuery("");
   }, [open, setQuery]);
+
+  const view = searchPanelView({
+    hasQuery: !!query,
+    categoryFilterCount: categoryFilter.length,
+    historyCount: searchHistory.length,
+    matchCount: matches.length,
+  });
 
   if (!open) return null;
 
@@ -182,8 +171,8 @@ export function SearchPanel() {
           </div>
         )}
 
-        {/* Tag filter chips — toggle tags to filter the canvas (OR semantics). */}
-        {tags.length > 0 && (
+        {/* Tag filter chips — toggle tags to filter the canvas (OR semantics). Pro workspace feature. */}
+        {can("tags", tier) && tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <TagIcon className="h-3 w-3 text-muted-foreground/60" />
             {tags.map((tag) => {
@@ -228,44 +217,42 @@ export function SearchPanel() {
           ref={resultsContainerRef}
           className="rounded-lg bg-muted/10 flex flex-col min-h-[40px] overflow-y-auto flex-1 relative"
         >
-          {!query && categoryFilter.length === 0 ? (
-            searchHistory.length > 0 ? (
-              <div className="p-1.5 space-y-0.5 min-w-0">
-                <div className="flex items-center justify-between px-1 pb-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Recent searches</span>
-                  <button
-                    type="button"
-                    onClick={() => clearSearchHistory()}
-                    className="text-[10px] text-muted-foreground/60 hover:text-foreground rounded px-1"
-                    aria-label="Clear search history"
-                  >
-                    Clear
-                  </button>
-                </div>
-                {searchHistory.map((term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    onClick={() => setQuery(term)}
-                    className="flex items-center gap-2.5 w-full px-2.5 py-1.5 text-xs cursor-pointer rounded-md hover:bg-muted/60 text-foreground/90 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <History className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-                    <span className="truncate text-left flex-1">{term}</span>
-                  </button>
-                ))}
+          {view === "history" ? (
+            <div className="p-1.5 space-y-0.5 min-w-0">
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Recent searches</span>
+                <button
+                  type="button"
+                  onClick={() => clearSearchHistory()}
+                  className="text-[10px] text-muted-foreground/60 hover:text-foreground rounded px-1"
+                  aria-label="Clear search history"
+                >
+                  Clear
+                </button>
               </div>
-            ) : (
-              <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
-                Start typing to search files & directory structures...
-              </div>
-            )
-          ) : matches.length === 0 ? (
+              {searchHistory.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => setQuery(term)}
+                  className="flex items-center gap-2.5 w-full px-2.5 py-1.5 text-xs cursor-pointer rounded-md hover:bg-muted/60 text-foreground/90 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <History className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                  <span className="truncate text-left flex-1">{term}</span>
+                </button>
+              ))}
+            </div>
+          ) : view === "prompt" ? (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground font-medium" role="status">
+              Start typing to search files & directory structures...
+            </div>
+          ) : view === "empty" ? (
             <div className="px-3 py-6 text-center text-xs text-muted-foreground font-medium" role="status">
               No canvas matches found
             </div>
           ) : (
             <ul className="p-1.5 space-y-0.5 min-w-0" role="listbox" aria-label="Search results">
-              {matches.slice(0, 50).map((n, idx) => {
+              {visibleMatches(matches).map((n, idx) => {
                 const isActive = idx === activeIndex;
                 const isHidden = hiddenIds.includes(n.id);
                 const Icon = n.data.type === "folder" ? Folder : FileIcon;

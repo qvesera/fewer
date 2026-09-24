@@ -77,6 +77,62 @@ function expandUserPath(rawPath: string): string {
   return rel.startsWith("~/") ? path.join(os.homedir(), rel.slice(2)) : rel;
 }
 
+/** Exact match, then case-insensitive match, directly under each root. */
+function matchUnderRoots(roots: string[], expanded: string, segments: string[]): string | null {
+  for (const root of roots) {
+    const exact = path.resolve(root, expanded);
+    if (fs.existsSync(exact)) return exact;
+    const ci = resolveCaseless(root, segments);
+    if (ci) return ci;
+  }
+  return null;
+}
+
+/**
+ * Bounded BFS below the roots. At every visited dir, the imported path must
+ * start with one of its entries, so check the first segment (case-insensitively)
+ * against the listing we already have and descend the rest with resolveCaseless
+ * when it matches.
+ */
+async function searchBelowRoots(
+  roots: string[],
+  expanded: string,
+  segments: string[],
+  budget: number,
+): Promise<string | null> {
+  const want = segments[0].normalize("NFC").toLowerCase();
+  let visited = 0;
+  const queue: Array<{ dir: string; depth: number }> = roots.map((dir) => ({ dir, depth: 0 }));
+  const seen = new Set(roots);
+  while (queue.length && visited < budget) {
+    const { dir, depth } = queue.shift()!;
+    visited++;
+    const exact = path.resolve(dir, expanded);
+    if (fs.existsSync(exact)) return exact;
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.name.normalize("NFC").toLowerCase() !== want) continue;
+      if (segments.length === 1) return path.join(dir, e.name);
+      const ci = resolveCaseless(path.join(dir, e.name), segments.slice(1));
+      if (ci) return ci;
+    }
+    if (depth >= MAX_SEARCH_DEPTH) continue;
+    for (const e of entries) {
+      if (!e.isDirectory() || SKIP_DIRS.has(e.name)) continue;
+      const child = path.join(dir, e.name);
+      if (seen.has(child)) continue;
+      seen.add(child);
+      queue.push({ dir: child, depth: depth + 1 });
+    }
+  }
+  return null;
+}
+
 /**
  * Resolve a node's `data.path` to a real absolute path on this machine.
  *
@@ -111,54 +167,11 @@ export async function resolveLocalPath(
     fs.existsSync(r),
   );
 
-  // Fast path: exact and case-insensitive match directly under each root.
-  for (const root of roots) {
-    const exact = path.resolve(root, expanded);
-    if (fs.existsSync(exact)) return exact;
-    const ci = resolveCaseless(root, segments);
-    if (ci) return ci;
-  }
+  const fast = matchUnderRoots(roots, expanded, segments);
+  if (fast) return fast;
 
-  // Fallback: bounded BFS below the roots. At every visited dir, the imported
-  // path must start with one of its entries, so check the first segment
-  // (case-insensitively) against the listing we already have and descend the
-  // rest with resolveCaseless when it matches.
-  const budget = opts.searchBudget ?? DEFAULT_SEARCH_BUDGET;
-  let visited = 0;
-  const queue: Array<{ dir: string; depth: number }> = roots.map((r) => ({
-    dir: r,
-    depth: 0,
-  }));
-  const seen = new Set(roots);
-  while (queue.length && visited < budget) {
-    const { dir, depth } = queue.shift()!;
-    visited++;
-    const exact = path.resolve(dir, expanded);
-    if (fs.existsSync(exact)) return exact;
-    let entries: fs.Dirent[];
-    try {
-      entries = await fs.promises.readdir(dir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    const want = segments[0].normalize("NFC").toLowerCase();
-    for (const e of entries) {
-      if (e.name.normalize("NFC").toLowerCase() === want) {
-        if (segments.length === 1) return path.join(dir, e.name);
-        const ci = resolveCaseless(path.join(dir, e.name), segments.slice(1));
-        if (ci) return ci;
-      }
-    }
-    if (depth >= MAX_SEARCH_DEPTH) continue;
-    for (const e of entries) {
-      if (!e.isDirectory() || SKIP_DIRS.has(e.name)) continue;
-      const child = path.join(dir, e.name);
-      if (seen.has(child)) continue;
-      seen.add(child);
-      queue.push({ dir: child, depth: depth + 1 });
-    }
-  }
-  return null;
+  // Fallback: bounded BFS below the roots, skipping vendored / OS-internal dirs.
+  return searchBelowRoots(roots, expanded, segments, opts.searchBudget ?? DEFAULT_SEARCH_BUDGET);
 }
 
 export function requireLocalhost(request: Request): Response | null {

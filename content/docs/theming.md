@@ -47,7 +47,7 @@ Access via Settings → Appearance → Custom Theme (Power User mode only).
 
 Colors are grouped into three sections:
 
-- **Canvas & Text**: background, primary/secondary text, hover, handles, edges
+- **Canvas & Text**: background, primary/secondary text, hover, handles, connections
 - **Folders**: body, text, secondary text, border, icon
 - **Files**: body, text, secondary text, border, icon
 
@@ -70,7 +70,7 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-text-subtle`        | Secondary/subtle text      |
 | `--fewer-item-hover`         | Hover state background     |
 | `--fewer-handle`             | Connection handle color    |
-| `--fewer-edge`               | Graph edge color           |
+| `--fewer-edge`               | Graph connection color           |
 | `--fewer-select-ring`        | Selected node outline      |
 | `--fewer-folder-bg`          | Folder card background     |
 | `--fewer-folder-border`      | Folder card border         |
@@ -166,27 +166,27 @@ Motion tokens for consistent transitions:
 
 These power sidebar hover states, expand animations, and UI transitions.
 
-## Edge Styles
+## Connection Styles
 
-Three edge styles available:
+Three connection styles available:
 
 1. **Curved**: smooth bezier curves
 2. **Angled**: sharp corners with configurable radius
 3. **Straight**: direct lines
 
-Adjust via sidebar Edges section or cycle with layout controls.
+Adjust via sidebar Connections section or cycle with layout controls.
 
-## Edge Motion
+## Connection Motion
 
 Optional motion effects:
 
-- **None**: static edges
+- **None**: static connections
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
-## Edge Pattern & Weight
+## Connection Pattern & Weight
 
-In Power User mode, the sidebar Edges section also controls:
+In Power User mode, the sidebar Connections section also controls:
 
 - **Pattern**: solid, dashed, or dotted
 - **Line Thickness**: 0.5px to 6px slider
@@ -195,4 +195,4 @@ In Power User mode, the sidebar Edges section also controls:
 ## Next Steps
 
 - [Settings](/docs/settings): Power User mode and node dimensions
-- [Graph Features](/docs/graph-features): canvas, layout, and edge behavior
+- [Graph Features](/docs/graph-features): canvas, layout, and connection behavior

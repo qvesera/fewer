@@ -7,13 +7,13 @@ import { startDashClock, stopDashClock } from "@/lib/fewer/dashClock";
  * inherit the current phase instead of restarting a CSS animation.
  */
 export function useCanvasDashClock(
-  advancedModeEnabled: boolean,
+  edgeMotionEnabled: boolean,
   edgeAnimated: boolean,
   edgeAnimatedSelectedOnly: boolean,
 ) {
   useEffect(() => {
-    if (!advancedModeEnabled || !(edgeAnimated || edgeAnimatedSelectedOnly)) return;
+    if (!edgeMotionEnabled || !(edgeAnimated || edgeAnimatedSelectedOnly)) return;
     startDashClock();
     return stopDashClock;
-  }, [advancedModeEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
+  }, [edgeMotionEnabled, edgeAnimated, edgeAnimatedSelectedOnly]);
 }

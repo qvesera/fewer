@@ -1,9 +1,11 @@
 import { describe, it, expect } from "bun:test";
-import { createArea } from "./panelLayout";
+import { createArea, accessibleLayout, saveLayoutToStorage, loadLayoutFromStorage, clearLayoutStorage } from "./panelLayout";
 import {
   defaultTree, makeLeaf, leafList, leafCount,
   getPrimary, splitLeaf, joinLeaf, findLeaf,
   serializeTree, parseTree, migrateV1ToTree, isLeaf, isSplit, dedupeLeafIds, setLeafEditor,
+  insertLeafAtEdge,
+  dropSideForX,
   type PanelLeaf,
   type PanelSplit,
 } from "./panelTree";
@@ -163,5 +165,93 @@ describe("resolveViewSettings with hideLayers", () => {
     const r = resolveViewSettings({ "x": vs }, "x", DEFAULT_RESOLVED, [], FILE_IDS);
     expect(r.hiddenIds).not.toContain("f1");
     expect(r.hiddenIds).toContain("f2");
+  });
+});
+
+// ── accessibleLayout + keepStoredTree ───────────────────────
+
+describe("accessibleLayout", () => {
+  it("pro workspace returns the tree unchanged", () => {
+    const root = defaultTree();
+    const tree = splitLeaf(root, root.area.id, "h");
+    expect(leafCount(tree)).toBe(2);
+    expect(accessibleLayout(tree, true)).toBe(tree); // same reference
+  });
+
+  it("non-pro workspace returns the default single-graph leaf", () => {
+    const root = defaultTree();
+    const tree = splitLeaf(root, root.area.id, "h");
+    const result = accessibleLayout(tree, false);
+    expect(leafCount(result)).toBe(1);
+    expect(isLeaf(result)).toBe(true);
+    expect(result.kind === "leaf" && result.area.editor).toBe("graph");
+    expect(result.kind === "leaf" && result.primary).toBe(true);
+  });
+});
+
+describe("saveLayoutToStorage keepStoredTree", () => {
+  it("keepStoredTree preserves previously stored panelTree", () => {
+    if (typeof window === "undefined") return; // SSR guard — no localStorage
+    clearLayoutStorage();
+    // Seed a stored tree (split with layout leaf).
+    const stored = defaultTree();
+    const splitStored = splitLeaf(stored, stored.area.id, "h");
+    saveLayoutToStorage({ sidebarSide: "left", panelTree: splitStored });
+    expect(leafCount(loadLayoutFromStorage()!.panelTree)).toBe(2);
+
+    // Overwrite with a different tree but keepStoredTree=true.
+    const newDefault = defaultTree();
+    saveLayoutToStorage(
+      { sidebarSide: "right", panelTree: newDefault },
+      { keepStoredTree: true },
+    );
+    const after = loadLayoutFromStorage()!;
+    expect(after.sidebarSide).toBe("right");
+    // Tree should be the originally stored split, not the new default.
+    expect(leafCount(after.panelTree)).toBe(2);
+    clearLayoutStorage();
+  });
+
+  it("keepStoredTree=false overwrites the tree", () => {
+    if (typeof window === "undefined") return;
+    clearLayoutStorage();
+    const root = defaultTree();
+    const split = splitLeaf(root, root.area.id, "h");
+    saveLayoutToStorage({ sidebarSide: "left", panelTree: split });
+    expect(leafCount(loadLayoutFromStorage()!.panelTree)).toBe(2);
+
+    saveLayoutToStorage({ sidebarSide: "right", panelTree: defaultTree() });
+    expect(leafCount(loadLayoutFromStorage()!.panelTree)).toBe(1);
+    clearLayoutStorage();
+  });
+});
+
+describe("insertLeafAtEdge", () => {
+  it("left → new editor is first in leafList", () => {
+    const root = defaultTree();
+    const tree = insertLeafAtEdge(root, "left", "tags");
+    const list = leafList(tree);
+    expect(list.length).toBe(2);
+    expect(list[0].area.editor).toBe("tags");
+    expect(list[0].area.id).not.toBe(root.area.id);
+  });
+  it("right → new editor is last in leafList", () => {
+    const root = defaultTree();
+    const tree = insertLeafAtEdge(root, "right", "analytics");
+    const list = leafList(tree);
+    expect(list.length).toBe(2);
+    expect(list[1].area.editor).toBe("analytics");
+  });
+});
+
+describe("dropSideForX", () => {
+  it("returns left when pointer is in the left half", () => {
+    expect(dropSideForX(300, { left: 200, right: 1000 })).toBe("left");
+  });
+  it("returns right when pointer is in the right half", () => {
+    expect(dropSideForX(700, { left: 200, right: 1000 })).toBe("right");
+  });
+  it("returns right when pointer is exactly at the midpoint", () => {
+    expect(dropSideForX(600, { left: 200, right: 1000 })).toBe("right");
   });
 });

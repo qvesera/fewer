@@ -189,6 +189,20 @@ Watching file indexes and emailing daily change digests uses **Resend** for emai
 
 The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts` — crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables — same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
 
+### Email Templates
+
+All outbound emails (auth flows + digest + invite) share one shell defined in `src/lib/fewer/emailTemplate.ts`. The shell uses the app's brand: dark background, `fewer.directory` wordmark, orange CTA, table-based layout for Outlook compatibility.
+
+**Local dev:** `supabase/templates/*.html` are generated from the shared shell by `bun run email:templates`. The `config.toml` points at these files, so local `supabase start` uses them automatically.
+
+**Hosted project:**
+1. Run `bun run email:templates` to regenerate `supabase/templates/*.html`.
+2. Open Dashboard → Auth → Email Templates.
+3. Paste each file's content into the corresponding template (Confirmation, Magic Link, Reset Password, Change Email, Invite, Reauthentication).
+4. Set subjects to match the generated filenames.
+
+**Optional — custom SMTP (recommended):** Enable custom SMTP in Dashboard → Authentication → Email → SMTP Settings, pointing at your Resend SMTP credentials. This makes auth emails come from your domain instead of `noreply@mail.app.supabase.io`, matching the digest/invite sender.
+
 ## Billing (Stripe) — off by default
 
 Self-serve Pro checkout, the billing portal, and the Stripe webhook all sit behind

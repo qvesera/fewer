@@ -1,5 +1,6 @@
 "use client";
 import type { FewerNode, FewerEdge, FileCategory } from "@/lib/fewer/types";
+import { parentMapOf } from "@/lib/fewer/validation";
 import { reconcileAutoHide } from "../graphSlice";
 
 /**
@@ -15,8 +16,7 @@ export function collectRevealableFileIds(
   categoryFilter: FileCategory[],
 ): string[] {
   const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
-  const parentMap = new Map<string, string>();
-  for (const e of edges) parentMap.set(e.target, e.source);
+  const parentMap = parentMapOf(edges);
   const hiddenSet = new Set(hiddenIds);
   const revealable = fileIds.filter((fid) => {
     const parentId = parentMap.get(fid);

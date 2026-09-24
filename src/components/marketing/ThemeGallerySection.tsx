@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useGraphStore } from "@/store/graphStore";
+import { can } from "@/lib/fewer/tiers";
 import { applyCustomThemeToDOM, clearCustomThemeFromDOM } from "@/store/slices/themeSlice";
 import { swatchColors, galleryDisplayTitle, galleryAuthorLine } from "@/lib/fewer/galleryThemes";
 import type { CustomTheme } from "@/lib/fewer/types";
@@ -48,6 +50,7 @@ export function ThemeGallerySection() {
   const [appliedName, setAppliedName] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const { toast } = useToast();
 
   const load = useCallback(async (offset: number, query: string) => {
@@ -93,7 +96,7 @@ export function ThemeGallerySection() {
   };
 
   const saveTheme = async (item: ThemeGalleryItem) => {
-    if (!user) {
+    if (tier === "guest") {
       toast({ title: "Sign in to save themes", description: "Create an account to keep this theme.", variant: "destructive" });
       return;
     }
@@ -203,7 +206,7 @@ export function ThemeGallerySection() {
                     >
                       Open in app
                     </Link>
-                    {user && (
+                    {can("galleryPublish", tier) && (
                       <Button
                         size="sm"
                         variant="outline"

@@ -18,7 +18,7 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level nodes on the canvas (folders only)
-- **Edge Motion**: **Animate Selected Edges Only** toggle — when on, the edges along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) edges. When off, sidebar controls apply globally. The all-edges motion toggle lives in the sidebar (Power User mode), not in this dialog. Edge motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static edges.
+- **Connection Motion**: **Animate Selected Connections Only** toggle — when on, the connections along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) edges. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static connections.
 
 ## Advanced
 
@@ -39,7 +39,7 @@ Settings in Advanced:
 | **Minimap Size**     | Slider, 80–300px                               |
 | **Node Width**       | Card width slider, 120–400px                   |
 | **Node Height**      | Card height slider, 40–300px                   |
-| **Crown Shyness**    | Branch-spacing intensity, 0–3× — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom multiplier; it applies on the next **Organize** |
+| **Crown Shyness**    | Branch-spacing intensity, 0–3 — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value — changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as it gets |
 
 ## Help
 
@@ -67,7 +67,7 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 2. Click **Save Current Graph** in the **Your Directories** sidebar section
 3. Name the graph and click **Save**
 
-Saved graphs capture the graph itself — nodes, edges, and their positions. Your app settings (layout direction, edge style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
+Saved graphs capture the graph itself — nodes, connections, and their positions. Your app settings (layout direction, connection style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
 
 ### Manage saved graphs
 

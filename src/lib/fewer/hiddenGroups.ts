@@ -1,4 +1,5 @@
 import type { FewerNode, FewerEdge } from "./types";
+import { ancestorChainOf, childrenMapOf, parentMapOf } from "./validation";
 
 export interface HiddenTreeNode {
   node: FewerNode;
@@ -69,9 +70,10 @@ function buildHiddenTrees(
 /** Nearest node id that is NOT in the hidden set, walking up from `id`. Null if it
  *  is its own top-of-tree. Used to find the visible folder a hidden node sits in. */
 function nearestVisibleId(id: string, parentMap: Map<string, string>, hiddenSet: Set<string>): string | null {
-  let cur = parentMap.get(id) ?? null;
-  while (cur && hiddenSet.has(cur)) cur = parentMap.get(cur) ?? null;
-  return cur;
+  for (const ancestorId of ancestorChainOf(id, parentMap)) {
+    if (!hiddenSet.has(ancestorId)) return ancestorId;
+  }
+  return null;
 }
 
 /** Group the top-level hidden roots by their nearest *visible* ancestor folder. */
@@ -117,13 +119,8 @@ export function getHiddenLayerGroups(
   hiddenIds: string[],
 ): HiddenGroup[] {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const parentMap = new Map<string, string>();
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    parentMap.set(e.target, e.source);
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
+  const parentMap = parentMapOf(edges);
+  const childrenMap = childrenMapOf(edges);
 
   // Only consider hidden ids that still map to a live node. A stale id (e.g. a
   // node deleted while hidden) must never be dereferenced below — nodeMap.get
@@ -168,15 +165,7 @@ export function filterHiddenGroups(groups: HiddenGroup[], query: string): Hidden
 
 /** Every ancestor id of a node (parent, grandparent, … up to the root). */
 export function ancestorChain(id: string, edges: FewerEdge[]): string[] {
-  const parentMap = new Map<string, string>();
-  for (const e of edges) parentMap.set(e.target, e.source);
-  const out: string[] = [];
-  let cur: string | undefined = parentMap.get(id);
-  while (cur) {
-    out.push(cur);
-    cur = parentMap.get(cur);
-  }
-  return out;
+  return ancestorChainOf(id, parentMapOf(edges));
 }
 
 /**

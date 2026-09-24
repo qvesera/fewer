@@ -21,7 +21,6 @@ import { openNodeFile, openFolderInExplorer } from "@/lib/fewer/fileOps";
 export function KeyboardShortcuts() {
   const reactFlow = useReactFlow();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     const getStore = () => useGraphStore.getState();
@@ -51,13 +50,13 @@ export function KeyboardShortcuts() {
       moveNode: getStore().moveNode,
       connectNodes: getStore().connectNodes,
       removeEdgesFromHandle: getStore().removeEdgesFromHandle,
+      unparentNodes: getStore().unparentNodes,
       deleteEdges: getStore().deleteEdges,
       duplicateNodeUnderParent: getStore().duplicateNodeUnderParent,
       setAuthOpen: getStore().setAuthOpen,
-      relayout: getStore().relayout,
+      organize: getStore().organize,
       reactFlow,
       toast,
-      user,
       localFs: LOCAL_FS_FEATURES,
       openNodeFile,
       openFolderInExplorer,
@@ -70,7 +69,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [reactFlow, toast, user]);
+  }, [reactFlow, toast]);
 
   return null;
 }

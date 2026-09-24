@@ -5,6 +5,7 @@ import { Undo2, Redo2, Trash2, Sparkles, Download, PanelLeftClose, PanelLeft } f
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { can } from "@/lib/fewer/tiers";
 
 interface CanvasToolbarProps {
   onLoadSample: () => void;
@@ -20,7 +21,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
   const setSidebarOpen = useGraphStore((s) => s.setSidebarOpen);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const hasNodes = useGraphStore((s) => s.nodes.length > 0);
   const { toast } = useToast();
 
@@ -44,7 +45,7 @@ export function CanvasToolbar({ onLoadSample }: CanvasToolbarProps) {
       <div
         className={cn(
           "flex items-center transition-[max-width,opacity,transform,margin] duration-300 ease-in-out overflow-hidden",
-          advancedModeEnabled
+          can("batchActions", tier)
             ? "max-w-[200px] opacity-100 scale-x-100 mr-2"
             : "max-w-0 opacity-0 scale-x-95 mr-0 pointer-events-none"
         )}

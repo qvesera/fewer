@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 import {
   buildTagRingGradient,
   colorForTag,
+  tagRingColors,
   TAG_RING_CAP,
+  TAG_RING_WIDTH,
   type Tag,
 } from "@/lib/fewer/tags";
 
@@ -14,8 +16,9 @@ import {
  * `position: relative`) as an absolutely-positioned overlay — never as a
  * wrapper. A wrapper breaks React Flow's node ref (context menus die) and a
  * padded background bleeds through translucent card bodies. The `.gm-tag-ring`
- * mask keeps only the 3px band around the border painted, so a multi-tag card
- * shows hard-edged color steps around its outline and nothing else.
+ * mask keeps only the TAG_RING_WIDTH band around the border painted, so a
+ * multi-tag card shows hard-edged color steps around its outline and nothing
+ * else. The band width is applied inline (below) from that shared constant.
  *
  * Hidden while the card is selected: the themed selection ring wins.
  */
@@ -36,10 +39,10 @@ export function TagRing({
   width?: number;
   height?: number;
 }) {
-  const colors = useMemo(
-    () => tagIds.map((id) => colorForTag(tags, id)).filter(Boolean),
-    [tagIds, tags],
-  );
+  // The shared ring contract (tags.ts) — the same helper the SVG/PNG exporter
+  // paints from, so the two can never disagree about which tags show, or in
+  // what order. Both drop unpaintable colors before applying the cap.
+  const colors = useMemo(() => tagRingColors(tags, tagIds), [tagIds, tags]);
 
   if (selected || colors.length === 0) return null;
 
@@ -47,6 +50,10 @@ export function TagRing({
     <div
       className="gm-tag-ring"
       style={{
+        // Band width comes from the shared constant, so the visible band and the
+        // exported ring stroke can't drift apart. `.gm-tag-ring` owns the rest.
+        inset: -TAG_RING_WIDTH,
+        padding: TAG_RING_WIDTH,
         background:
           width && height
             ? buildTagRingGradient(colors, { width, height })

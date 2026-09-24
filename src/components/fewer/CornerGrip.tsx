@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import { splitLeaf, joinLeaf } from "@/lib/fewer/panelTree";
+import { can } from "@/lib/fewer/tiers";
 
 /** Find which leaf element is at viewport coords (other than source). */
 function findNeighborLeafId(x: number, y: number, excludeId: string): string | null {
@@ -105,6 +106,10 @@ export function CornerGrip({ leafId, containerRef }: { leafId: string; container
     }
     gestureRef.current = null; setGesture(null);
   }, [leafId]);
+
+  // Docking/split is a Pro workspace feature.
+  const tier = useGraphStore((s) => s.tier);
+  if (!can("panelWorkspace", tier)) return null;
 
   return (
     <>

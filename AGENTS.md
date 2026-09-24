@@ -93,7 +93,10 @@ bun run lint           # Must pass before commit
 bun run build          # Must succeed
 python3 scripts/changelog.py validate   # Must exit 0 before committing changelog changes
 python3 scripts/migrations.py verify --base origin/dev   # migration rules (CI runs this too)
+python3 scripts/decisions.py validate  # decisions.yaml structural integrity (CI runs this too)
 ```
+
+**Component test isolation**: bun's `mock.module` registry is process-wide and persists across test files in one run. Component suites must not register a partial `mock.module` on a shared module (e.g. `@/lib/fewer/fileOps`) — that replaces the module for every later suite in the same process and breaks their imports. If an override is unavoidable, spread the real module first: `const actual = await import(…); mock.module(…, () => ({ …actual, override }))`. Always verify with `bun run test` (all files together), not a single file.
 
 ## Changelog
 
@@ -230,6 +233,35 @@ Or run the `Migrations` workflow manually with the `project` and
 > `0024_billing` was exactly this on production: the history drift made it look
 > pending, but `profiles.stripe_customer_id` genuinely did not exist, so the
 > column had to be added before its version was recorded.
+
+### `db push` reconciliation: two failure modes, only one bypassable
+
+`db push` walks the local files (sorted by version) against the remote
+`schema_migrations` rows, comparing versions as **strings**, and can refuse in two
+different ways:
+
+| message | cause | `--include-all` |
+| --- | --- | --- |
+| `Found local migration files to be inserted before the last migration on remote database.` | a local file sorts *before* the remote head (the usual out-of-order case) | **bypasses it** — applies the out-of-order files |
+| `Remote migration versions not found in local migrations directory.` | a remote row has no local file — e.g. legacy timestamp rows from out-of-band applies | **no** — thrown unconditionally |
+
+Both implementations in CLI `2.117.0` agree: Go
+(`apps/cli-go/pkg/migration/apply.go`) and its documented 1:1 port
+(`apps/cli/src/command-internal/legacy-migration-pending.ts` +
+`legacy-db-push-core.ts`). Only the `missing-remote` branch consults
+`includeAll`; `missing-local` throws before it is read — so a timestamp-suffixed
+remote head cannot be pushed through with a flag. The CLI's own suggestion is
+the remedy: `supabase migration repair --status reverted <versions>`
+(equivalently `delete from supabase_migrations.schema_migrations where
+version = any(...)`).
+
+Reverting is history-only — no DDL runs — and is safe when every reverted version
+already has a numeric counterpart recorded, because no local file can ever match
+that version, so nothing can be replayed. Production carried 14 such rows
+(`20260817173320 = saved_themes` duplicating `0016`; `20260911223849 =
+0024_billing` duplicating `0024`; …). Reverting them left 28 numeric rows 1:1 with
+the files ≤ `0028`, which is what let `db push` append `0029`–`0033` instead of
+failing on the timestamp head.
 
 ### Local commands
 

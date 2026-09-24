@@ -1,43 +1,42 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
-import { countOwned, limitsFor, getUserPlan, overLimit } from "@/lib/fewer/plans";
+import { countOwned, limitsFor, getUserPlan, overLimit, type PlanLimits } from "@/lib/fewer/plans";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseCookieClient } from "@/lib/fewer/supabaseServer";
 
 /** Maximum size (in JSON-stringified characters) for a saved graph payload. */
 const MAX_SAVED_GRAPH_CHARS = 500_000;
 
 /**
- * Authed CRUD for saved graphs. Uses the user's session cookie so RLS
- * (owner-only) is enforced server-side. Returns 401 when not signed in.
+ * Authed Supabase client from session cookie.
+ * Returns null when not signed in or Supabase is unconfigured.
  */
-async function getAuthedClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
+async function getAuthed() {
+  const supabase = await getSupabaseCookieClient();
+  if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return { supabase, user: data.user };
+  return data.user ? { supabase, user: data.user } : null;
+}
+
+/**
+ * Best-effort history snapshot for a saved graph; never blocks the save on
+ * failure. A plan with no retention window records nothing, and the window
+ * itself lives in plans.ts (free 30 days, pro/team 1 year).
+ */
+async function snapshotHistory(
+  supabase: SupabaseClient,
+  userId: string,
+  graphId: string,
+  data: unknown,
+  limits: PlanLimits,
+): Promise<void> {
+  if (limits.historyDays <= 0) return;
+  await recordVersion(supabase, userId, graphId, data, limits.historyDays);
 }
 
 export async function GET() {
-  const authed = await getAuthedClient();
+  const authed = await getAuthed();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { supabase, user } = authed;
 
@@ -65,7 +64,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authed = await getAuthedClient();
+  const authed = await getAuthed();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { supabase, user } = authed;
 
@@ -105,11 +104,13 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
-    // Retention window is per-plan (free 30 days, pro/team 1 year -- see plans.ts).
-    const updateLimits = limitsFor(await getUserPlan(supabase, user.id));
-    if (updateLimits.historyDays > 0) {
-      await recordVersion(supabase, user.id, data.id, body.data, updateLimits.historyDays);
-    }
+    await snapshotHistory(
+      supabase,
+      user.id,
+      data.id,
+      body.data,
+      limitsFor(await getUserPlan(supabase, user.id)),
+    );
     return NextResponse.json({ graph: data });
   }
 
@@ -136,9 +137,6 @@ export async function POST(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   // Best-effort history snapshot; never blocks the save on failure.
-  // Retention window is per-plan (free 30 days, pro/team 1 year).
-  if (limits.historyDays > 0) {
-    await recordVersion(supabase, user.id, data.id, body.data, limits.historyDays);
-  }
+  await snapshotHistory(supabase, user.id, data.id, body.data, limits);
   return NextResponse.json({ graph: data });
 }

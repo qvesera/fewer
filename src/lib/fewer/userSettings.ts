@@ -18,6 +18,7 @@ import type { PanelNode } from "./panelTree";
 import { serializeTree, parseTree } from "./panelTree";
 import type { ViewSettings } from "./viewState";
 import { parseViewSettings } from "./viewState";
+import { normalizeSidebarOrder } from "./sidebarOrder";
 
 const STORAGE_KEY = "fewer-user-settings";
 const VERSION = 1;
@@ -65,6 +66,7 @@ export interface UserSettings {
   exportSettings: ExportSettings;
   // Sidebar
   sidebarOpen: boolean;
+  sidebarOrder?: import("@/lib/fewer/sidebarOrder").AreaEditor[];
   advancedOpen: boolean;
   // Panel layout (Blender-style docked areas) — synced across devices
   panelLayout?: {
@@ -106,6 +108,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     importOptions: store.importOptions as ImportOptions,
     exportSettings: store.exportSettings as ExportSettings,
     sidebarOpen: store.sidebarOpen as boolean,
+    sidebarOrder: store.sidebarOrder as import("@/lib/fewer/sidebarOrder").AreaEditor[] | undefined,
     advancedOpen: store.advancedOpen as boolean,
     // Panel layout snapshot — serialized tree + per-view settings.
     // Per-leaf node `positions` are view state, not settings: they persist
@@ -206,6 +209,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     advancedModeEnabled: data.advancedModeEnabled ?? s.advancedModeEnabled,
     includeFiles: data.includeFiles ?? s.includeFiles,
     sidebarOpen: data.sidebarOpen ?? s.sidebarOpen,
+    sidebarOrder: data.sidebarOrder ? normalizeSidebarOrder(data.sidebarOrder) : s.sidebarOrder,
     advancedOpen: data.advancedOpen ?? s.advancedOpen,
     importOptions: { ...DEFAULT_IMPORT_OPTIONS, ...data.importOptions },
   });

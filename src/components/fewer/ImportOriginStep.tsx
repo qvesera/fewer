@@ -58,8 +58,8 @@ export interface ImportOriginStepProps {
   onOriginChange: (origin: ImportOrigin) => void;
   source: OriginSource;
   onSourceChange: (source: OriginSource) => void;
-  advancedModeEnabled: boolean;
-  signedIn: boolean;
+  advancedFormats: boolean;
+  cloudImport: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
   /** Advance to the next step (folder origin has no picky source → Enter advances). */
@@ -70,12 +70,16 @@ const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
 
 // URL and cloud origins require a linked account — only available to
 // signed-in users. Signed-out users see folder + file only.
-const VISIBLE_ORIGINS_FOR: Record<"any" | "signedOut", ImportOrigin[]> = {
-  any: ORIGINS,
-  signedOut: ORIGINS.filter((o) => o === "folder" || o === "file"),
+const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
+  linkable: ORIGINS,
+  basic: ORIGINS.filter((o) => o === "folder" || o === "file"),
 };
 
-const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
+/**
+ * Origin → card icon, shared with the step-3 summary header in
+ * ImportFlowDialog so the two can never disagree.
+ */
+export const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
   url: Globe,
@@ -87,13 +91,13 @@ export function ImportOriginStep({
   onOriginChange,
   source,
   onSourceChange,
-  advancedModeEnabled,
-  signedIn,
+  advancedFormats,
+  cloudImport,
   onRequireAuth,
   onOpenCloudSettings,
   onAdvance,
 }: ImportOriginStepProps) {
-  const visibleOrigins = signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut;
+  const visibleOrigins = cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic;
   const gridRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
 
@@ -176,7 +180,7 @@ export function ImportOriginStep({
       {/* ── Origin selection ── */}
       <div role="radiogroup" aria-label="Import source"
         className="grid grid-cols-2 gap-2" ref={gridRef} onKeyDown={handleGridKeyDown}>
-        {(signedIn ? VISIBLE_ORIGINS_FOR.any : VISIBLE_ORIGINS_FOR.signedOut).map((o, idx) => {
+        {(cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic).map((o, idx) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
@@ -227,21 +231,21 @@ export function ImportOriginStep({
       </p>
 
       {/* ── Origin-specific source picking ── */}
-      {signedIn || origin === "folder" || origin === "file" ? (
+      {cloudImport || origin === "folder" || origin === "file" ? (
         <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
             <FileSource
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
-              advancedModeEnabled={advancedModeEnabled}
+              advancedFormats={advancedFormats}
             />
           )}
           {origin === "url" && (
             <UrlSource
               source={source as Extract<OriginSource, { origin: "url" }>}
               onSourceChange={onSourceChange}
-              signedIn={signedIn}
+              cloudImport={cloudImport}
               onRequireAuth={onRequireAuth}
             />
           )}
@@ -249,7 +253,7 @@ export function ImportOriginStep({
             <CloudSource
               source={source as Extract<OriginSource, { origin: "cloud" }>}
               onSourceChange={onSourceChange}
-              signedIn={signedIn}
+              cloudImport={cloudImport}
               onRequireAuth={onRequireAuth}
               onOpenCloudSettings={onOpenCloudSettings}
             />
@@ -318,15 +322,15 @@ const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
 function FileSource({
   source,
   onSourceChange,
-  advancedModeEnabled,
+  advancedFormats,
 }: {
   source: Extract<OriginSource, { origin: "file" }>;
   onSourceChange: (source: OriginSource) => void;
-  advancedModeEnabled: boolean;
+  advancedFormats: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatsRef = useRef<HTMLDivElement>(null);
-  const formats = advancedModeEnabled
+  const formats = advancedFormats
     ? FILE_FORMATS
     : FILE_FORMATS.filter((f) => f.value === "tree");
 
@@ -352,10 +356,10 @@ function FileSource({
 
   // Advanced mode off → only ASCII tree is allowed.
   useEffect(() => {
-    if (!advancedModeEnabled && source.format !== "tree") {
+    if (!advancedFormats && source.format !== "tree") {
       onSourceChange({ ...source, format: "tree" });
     }
-  }, [advancedModeEnabled, source, onSourceChange]);
+  }, [advancedFormats, source, onSourceChange]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -365,8 +369,8 @@ function FileSource({
       const text = (ev.target?.result as string) ?? "";
       const ext = file.name.split(".").pop()?.toLowerCase();
       let format: FileImportFormat = "tree";
-      if (advancedModeEnabled && ext === "json") format = "json";
-      else if (advancedModeEnabled && (ext === "sh" || ext === "bat"))
+      if (advancedFormats && ext === "json") format = "json";
+      else if (advancedFormats && (ext === "sh" || ext === "bat"))
         format = "script";
       onSourceChange({ origin: "file", content: text, format });
     };
@@ -451,12 +455,12 @@ function FileSource({
 function UrlSource({
   source,
   onSourceChange,
-  signedIn,
+  cloudImport,
   onRequireAuth,
 }: {
   source: Extract<OriginSource, { origin: "url" }>;
   onSourceChange: (source: OriginSource) => void;
-  signedIn: boolean;
+  cloudImport: boolean;
   onRequireAuth: () => void;
 }) {
   const trimmed = source.url.trim();
@@ -506,13 +510,13 @@ function UrlSource({
                 Watch for changes
               </p>
               <p className="text-[10px] text-muted-foreground/70">
-                {signedIn
+                {cloudImport
                   ? "Daily digest (23:59) when this index changes."
                   : "Sign in to get daily change digests."}
               </p>
             </div>
           </div>
-          {signedIn ? (
+          {cloudImport ? (
             <Switch
               checked={source.watch}
               onCheckedChange={(v) => onSourceChange({ ...source, watch: v })}
@@ -539,13 +543,13 @@ function UrlSource({
 function CloudSource({
   source,
   onSourceChange,
-  signedIn,
+  cloudImport,
   onRequireAuth,
   onOpenCloudSettings,
 }: {
   source: Extract<OriginSource, { origin: "cloud" }>;
   onSourceChange: (source: OriginSource) => void;
-  signedIn: boolean;
+  cloudImport: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
 }) {
@@ -591,11 +595,11 @@ function CloudSource({
 
   // The auth dialog stacks on top without closing the import flow — when the
   // user signs in, refetch connections (the mount-time fetch ran signed-out).
-  const prevSignedIn = useRef(signedIn);
+  const prevSignedIn = useRef(cloudImport);
   useEffect(() => {
-    if (signedIn && !prevSignedIn.current) refresh();
-    prevSignedIn.current = signedIn;
-  }, [signedIn, refresh]);
+    if (cloudImport && !prevSignedIn.current) refresh();
+    prevSignedIn.current = cloudImport;
+  }, [cloudImport, refresh]);
 
   const currentRef = crumbs[crumbs.length - 1]?.ref;
   const currentName = crumbs[crumbs.length - 1]?.name;
@@ -687,7 +691,7 @@ function CloudSource({
     selectFolder(currentRef, currentName ?? "");
   }, [connection, currentRef, currentName, selectFolder]);
 
-  if (!signedIn) {
+  if (!cloudImport) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border/40 bg-muted/10 p-6 text-center">
         <Cloud className="h-6 w-6 text-primary/70" />

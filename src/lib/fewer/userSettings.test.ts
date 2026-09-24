@@ -39,6 +39,7 @@ function makeStore(overrides: Record<string, unknown> = {}): Record<string, unkn
     sidebarSide: "left",
     panelTree: { kind: "leaf", area: { id: "test-graph", width: 480, editor: "graph" }, primary: true },
     viewSettings: {},
+    tier: "pro",
     ...overrides,
   };
 }
@@ -80,6 +81,8 @@ function minimalSettings(overrides: Record<string, unknown> = {}) {
 
 describe("userSettings panelLayout", () => {
   it("applyUserSettings sets panelTree from cloud payload", () => {
+    // Seed tier so the panel gate allows the tree install.
+    useGraphStore.setState({ tier: "pro" });
     applyUserSettings(minimalSettings({
       panelLayout: {
         sidebarSide: "right",

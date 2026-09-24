@@ -6,6 +6,8 @@ import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 
+import { normalizeSidebarOrder, type AreaEditor } from "@/lib/fewer/sidebarOrder";
+
 export type DialogsSliceCreator = StateCreator<
   GraphState,
   [],
@@ -14,6 +16,7 @@ export type DialogsSliceCreator = StateCreator<
     searchOpen: boolean;
     exportOpen: boolean;
     sidebarOpen: boolean;
+    sidebarOrder: AreaEditor[];
     advancedOpen: boolean;
     themeEditorOpen: boolean;
     bugReportOpen: boolean;
@@ -45,6 +48,7 @@ export type DialogsSliceCreator = StateCreator<
     setSearchOpen: (open: boolean) => void;
     setExportOpen: (open: boolean) => void;
     setSidebarOpen: (open: boolean) => void;
+    setSidebarOrder: (order: AreaEditor[]) => void;
     setAdvancedOpen: (open: boolean) => void;
     setThemeEditorOpen: (open: boolean) => void;
     setBugReportOpen: (open: boolean) => void;
@@ -79,6 +83,7 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   searchOpen: false,
   exportOpen: false,
   sidebarOpen: true,
+  sidebarOrder: normalizeSidebarOrder(undefined),
   advancedOpen: false,
   themeEditorOpen: false,
   bugReportOpen: false,
@@ -109,6 +114,7 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
   setExportOpen: (open) => set({ exportOpen: open }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  setSidebarOrder: (order) => set({ sidebarOrder: order }),
   setAdvancedOpen: (open) => set({ advancedOpen: open }),
   setThemeEditorOpen: (open) => set({ themeEditorOpen: open }),
   setBugReportOpen: (open) => set({ bugReportOpen: open }),

@@ -196,12 +196,16 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     }));
   },
 
-    setShynessScale: (scale) => {
+  setShynessScale: (scale) => {
     const clamped = Math.max(0, Math.min(3, scale));
     if (clamped === get().shynessScale) return;
-    // No automatic relayout — the new intensity is picked up on the next
-    // explicit Organize (relayout reads shynessScale from the store).
+    // Crown Shyness is layout policy, like sortKey/sortDir below: apply it now
+    // rather than waiting for the next Organize, or the slider reads as inert.
+    // Relayout alone is not enough for a dock pane, whose per-view positions
+    // would keep winning over the engine's output, so go through organize — it
+    // drops those stale positions (spaced for the old intensity) and re-derives.
     set({ shynessScale: clamped });
+    get().organize(get().activeLeafId);
   },
 
   setSortKey: (key) => {

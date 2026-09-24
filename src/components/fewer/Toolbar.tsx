@@ -15,6 +15,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { can } from "@/lib/fewer/tiers";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "./Logo";
 
@@ -39,7 +40,7 @@ export function Toolbar({
   const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const hasNodes = useGraphStore((s) => s.nodes.length > 0);
   const { toast } = useToast();
   
@@ -92,7 +93,7 @@ export function Toolbar({
           <Search className="h-4 w-4" />
         </Button>
 
-        {advancedModeEnabled && (
+        {can("historyTools", tier) && (
           <div className="flex items-center gap-0.5 border-r border-border/40 pr-2 sm:pr-3">
             <Button
               variant="ghost"

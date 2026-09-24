@@ -4,8 +4,10 @@ import {
   firstTagId,
   makeTagLabelLookup,
   colorForTag,
+  tagRingColors,
   compareSiblingsByTag,
   TAG_FALLBACK_COLOR,
+  TAG_RING_CAP,
 } from "./tags";
 import type { Tag } from "./tags";
 import type { FewerNode } from "./types";
@@ -91,6 +93,52 @@ test("makeTagLabelById resolves labels, unknown → empty", () => {
 test("colorForTag resolves registry color, unknown → fallback", () => {
   expect(colorForTag(tags, "t1")).toBe("#f87171");
   expect(colorForTag(tags, "nope")).toBe(TAG_FALLBACK_COLOR);
+});
+
+test("tagRingColors: registry colors in display order, unknown id → fallback", () => {
+  // Order is the node's assignment order — this is the ring's display order.
+  expect(tagRingColors(tags, ["t2", "t1"])).toEqual(["#60a5fa", "#f87171"]);
+  expect(tagRingColors(tags, ["nope"])).toEqual([TAG_FALLBACK_COLOR]);
+});
+
+test("tagRingColors: no registry or no ids → nothing to paint", () => {
+  expect(tagRingColors(undefined, ["t1"])).toEqual([]);
+  expect(tagRingColors([], ["t1"])).toEqual([]);
+  expect(tagRingColors(tags, [])).toEqual([]);
+  expect(tagRingColors(tags, undefined)).toEqual([]);
+});
+
+test("tagRingColors: caps at TAG_RING_CAP even when more ids are assigned", () => {
+  const many: Tag[] = Array.from({ length: TAG_RING_CAP + 2 }, (_, i) => ({
+    id: `m${i}`,
+    label: `M${i}`,
+    color: `#00000${i}`,
+  }));
+  expect(tagRingColors(many, many.map((t) => t.id))).toEqual(
+    many.slice(0, TAG_RING_CAP).map((t) => t.color),
+  );
+});
+
+test("tagRingColors: an unpaintable color is dropped BEFORE the cap", () => {
+  // A blank color would otherwise punch a hole 1/N of the way around the ring,
+  // and — dropped AFTER the cap — would silently cost a visible band: the cap
+  // would already have been spent on the blank id.
+  const many: Tag[] = Array.from({ length: TAG_RING_CAP + 2 }, (_, i) => ({
+    id: `m${i}`,
+    label: `M${i}`,
+    color: `#00000${i}`,
+  }));
+  const ids = many.map((t) => t.id);
+  const blanked: Tag[] = many.map((t, i) => (i === 1 ? { ...t, color: "" } : t));
+
+  // Seven ids assigned, one unpaintable → five PAINTED bands, so the sixth id
+  // is reached. Capping first would stop at m4 and paint only four.
+  const out = tagRingColors(blanked, ids);
+  expect(out).toEqual(["#000000", "#000002", "#000003", "#000004", "#000005"]);
+  expect(out.length).toBe(TAG_RING_CAP);
+  expect(out).not.toContain("");
+  // A registry of nothing but blanks has nothing to paint.
+  expect(tagRingColors([{ id: "b", label: "B", color: "" }], ["b"])).toEqual([]);
 });
 
 test("compareSiblingsByTag: asc — tagged first, alphabetical by label", () => {

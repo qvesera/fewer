@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
 import { dropLeafHistory } from "@/store/slices/historySlice";
 import { defaultTree, leafList, splitLeaf } from "./panelTree";
-import { leafPositionsFor } from "./history";
+import { leafPositionsFor, leafMoveOrigin } from "./history";
 import type { FewerNode } from "./types";
 import type { HistoryEntry } from "@/store/slices/types";
 
@@ -115,9 +115,9 @@ describe("per-leaf undo stacks", () => {
 });
 
 describe("undo restores per-leaf positions (panel-mode drag fix)", () => {
-  it("rewrites viewSettings[leafId].positions on undo and redo", () => {
+  it("rewrites viewSettings[leafId].positions on undo and redo, never the shared seed", () => {
     useGraphStore.setState({
-      nodes: [makeNode("a", 300, 300)],
+      nodes: [makeNode("a", 50, 60)],
       viewSettings: { "leaf-graph": { positions: { a: { x: 300, y: 300 } } } },
     });
     s().setActiveLeaf("leaf-graph");
@@ -127,20 +127,53 @@ describe("undo restores per-leaf positions (panel-mode drag fix)", () => {
 
     s().undo();
     expect(s().viewSettings["leaf-graph"].positions.a).toEqual({ x: 10, y: 10 });
-    expect(s().nodes[0].position).toEqual({ x: 10, y: 10 });
+    // Shared position is the layout seed this view never wrote, so undo has to
+    // leave it alone — relocating it moved the card in every other view.
+    expect(s().nodes[0].position).toEqual({ x: 50, y: 60 });
 
     s().redo();
     expect(s().viewSettings["leaf-graph"].positions.a).toEqual({ x: 300, y: 300 });
-    expect(s().nodes[0].position).toEqual({ x: 300, y: 300 });
+    expect(s().nodes[0].position).toEqual({ x: 50, y: 60 });
   });
 
-  it("leaves a leaf without a per-view position map untouched", () => {
+  it("keeps a second view (which renders shared positions) put through undo + redo", () => {
+    // The reported bug: drag in the primary view, hit undo, and the same card in
+    // a split sibling view jumps to a position it has never been in — because
+    // undo relocated shared nodes to the primary view's private coordinate.
+    useGraphStore.setState({
+      nodes: [makeNode("a", 50, 60)],
+      viewSettings: { "leaf-primary": { positions: { a: { x: 900, y: 900 } } } },
+    });
+    s().setActiveLeaf("leaf-primary");
+    s().recordDragMoves([{ nodeId: "a", from: { x: 900, y: 900 }, to: { x: 1200, y: 400 } }], "leaf-primary");
+
+    s().undo();
+    expect(s().nodes[0].position).toEqual({ x: 50, y: 60 }); // sibling view's card
+    expect(s().viewSettings["leaf-primary"].positions.a).toEqual({ x: 900, y: 900 });
+    expect(s().viewSettings["leaf-secondary"]).toBeUndefined();
+
+    s().redo();
+    expect(s().nodes[0].position).toEqual({ x: 50, y: 60 });
+    expect(s().viewSettings["leaf-primary"].positions.a).toEqual({ x: 1200, y: 400 });
+  });
+
+  it("restores a tagged drag even when the recording leaf's map is gone", () => {
     useGraphStore.setState({ nodes: [makeNode("a", 300, 300)], viewSettings: {} });
     s().setActiveLeaf("leaf-shared");
     s().recordDragMoves([{ nodeId: "a", from: { x: 10, y: 10 }, to: { x: 300, y: 300 } }], "leaf-shared");
 
     s().undo();
-    expect(s().viewSettings["leaf-shared"]).toBeUndefined();
+    // Only the moved card gets an entry — everything else still paints shared.
+    expect(s().viewSettings["leaf-shared"].positions).toEqual({ a: { x: 10, y: 10 } });
+    expect(s().nodes[0].position).toEqual({ x: 300, y: 300 });
+  });
+
+  it("still relocates shared positions for an untagged (shared-space) drag", () => {
+    useGraphStore.setState({ nodes: [makeNode("a", 300, 300)], viewSettings: {} });
+    s().setActiveLeaf("leaf-graph");
+    s().recordDragMoves([{ nodeId: "a", from: { x: 10, y: 10 }, to: { x: 300, y: 300 } }]);
+
+    s().undo();
     expect(s().nodes[0].position).toEqual({ x: 10, y: 10 });
   });
 
@@ -166,6 +199,7 @@ describe("closed leaves drop their stacks", () => {
     useGraphStore.setState({
       panelTree: tree,
       leafHistories: { [doomed.area.id]: { past: [entry()], future: [] }, keep: { past: [entry()], future: [] } },
+      tier: "pro" as const,
     });
 
     s().joinArea(doomed.area.id);
@@ -197,5 +231,23 @@ describe("leafPositionsFor", () => {
     ];
     expect(leafPositionsFor({ a: { x: 3, y: 3 } }, ops, "from")).toEqual({ a: { x: 1, y: 1 } });
     expect(leafPositionsFor({ a: { x: 0, y: 0 } }, ops, "to")).toEqual({ a: { x: 3, y: 3 } });
+  });
+});
+
+describe("leafMoveOrigin", () => {
+  it("finds the leaf that recorded the drag", () => {
+    const tagged = {
+      type: "move-positions" as const,
+      moves: [{ nodeId: "a", from: { x: 1, y: 1 }, to: { x: 2, y: 2 } }],
+      leafId: "leaf-graph",
+    };
+    expect(leafMoveOrigin([renameOp(), tagged])).toBe("leaf-graph");
+  });
+
+  it("is null for shared-space drags and non-drag batches", () => {
+    const untagged = { type: "move-positions" as const, moves: [{ nodeId: "a", from: { x: 1, y: 1 }, to: { x: 2, y: 2 } }] };
+    expect(leafMoveOrigin([untagged])).toBeNull();
+    expect(leafMoveOrigin([renameOp()])).toBeNull();
+    expect(leafMoveOrigin([])).toBeNull();
   });
 });

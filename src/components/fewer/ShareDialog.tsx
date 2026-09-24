@@ -30,7 +30,8 @@ export function ShareDialog() {
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const { toast } = useToast();
   const { user } = useAuth();
-  const isGuest = !user;
+  const tier = useGraphStore((s) => s.tier);
+  const isGuest = tier === "guest";
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -166,7 +167,7 @@ export function ShareDialog() {
             <p className="text-xs text-muted-foreground">
               {building
                 ? "Storing large graph for a short share link…"
-                : `This link contains ${plural(nodes.length, "card")} and ${plural(edges.length, "edge")} with their positions.`}
+                : `This link contains ${plural(nodes.length, "card")} and ${plural(edges.length, "connection")} with their positions.`}
             </p>
           </div>
         )}

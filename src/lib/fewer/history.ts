@@ -58,6 +58,15 @@ function setCollapsed(nodes: FewerNode[], changes: readonly { nodeId: string; wa
   });
 }
 
+function setNodeTags(nodes: FewerNode[], changes: readonly { nodeId: string; from: string[]; to: string[] }[], pick: "from" | "to"): FewerNode[] {
+  if (changes.length === 0) return nodes;
+  const byId = new Map(changes.map((c) => [c.nodeId, c[pick]] as const));
+  return nodes.map((nd) => {
+    const ids = byId.get(nd.id);
+    return ids === undefined ? nd : { ...nd, data: { ...nd.data, tagIds: ids } };
+  });
+}
+
 function subtreeIds(op: { node: FewerNode; children: FewerNode[] }): Set<string> {
   return new Set([op.node.id, ...op.children.map((c) => c.id)]);
 }
@@ -108,7 +117,11 @@ const doRemoveEdges: AnyHandler = (nodes, edges, op) => {
 };
 const doMovePositions: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "move-positions" }>;
-  return { nodes: relocate(nodes, o.moves, "to"), edges };
+  // Leaf-tagged drag: only that view's position map moved (GraphCanvas writes
+  // `viewSettings[leafId].positions`, never shared positions), so redo must not
+  // plant this view's coordinates into the shared layout seed — every view
+  // without a map of its own renders from there.
+  return { nodes: o.leafId ? nodes : relocate(nodes, o.moves, "to"), edges };
 };
 const doResize: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "resize" }>;
@@ -117,6 +130,10 @@ const doResize: AnyHandler = (nodes, edges, op) => {
 const doCollapseBatch: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "collapse-batch" }>;
   return { nodes: setCollapsed(nodes, o.changes, "willCollapse"), edges };
+};
+const doSetNodeTags: AnyHandler = (nodes, edges, op) => {
+  const o = op as unknown as Extract<HistoryOp, { type: "set-node-tags" }>;
+  return { nodes: setNodeTags(nodes, o.changes, "to"), edges };
 };
 
 /**
@@ -176,7 +193,7 @@ const undoRemoveEdges: AnyHandler = (nodes, edges, op) => {
 };
 const undoMovePositions: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "move-positions" }>;
-  return { nodes: relocate(nodes, o.moves, "from"), edges };
+  return { nodes: o.leafId ? nodes : relocate(nodes, o.moves, "from"), edges };
 };
 const undoResize: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "resize" }>;
@@ -186,8 +203,12 @@ const undoCollapseBatch: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "collapse-batch" }>;
   return { nodes: setCollapsed(nodes, o.changes, "wasCollapsed"), edges };
 };
-const applyTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": doAddNode, "remove-node": doRemoveNode, "move-node": doMoveNode, rename: doRename, "bulk-import": doBulkImport, "toggle-collapse": doToggleCollapse, "remove-subtree": doRemoveSubtree, "refresh-subtree": doRefreshSubtree, connect: doConnect, "remove-edges": doRemoveEdges, "move-positions": doMovePositions, resize: doResize, "collapse-batch": doCollapseBatch, "view-state": passthrough };
-const undoTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": undoAddNode, "remove-node": undoRemoveNode, "move-node": undoMoveNode, rename: undoRename, "bulk-import": undoBulkImport, "toggle-collapse": undoToggleCollapse, "remove-subtree": undoRemoveSubtree, "refresh-subtree": undoRefreshSubtree, connect: undoConnect, "remove-edges": undoRemoveEdges, "move-positions": undoMovePositions, resize: undoResize, "collapse-batch": undoCollapseBatch, "view-state": passthrough };
+const undoSetNodeTags: AnyHandler = (nodes, edges, op) => {
+  const o = op as unknown as Extract<HistoryOp, { type: "set-node-tags" }>;
+  return { nodes: setNodeTags(nodes, o.changes, "from"), edges };
+};
+const applyTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": doAddNode, "remove-node": doRemoveNode, "move-node": doMoveNode, rename: doRename, "bulk-import": doBulkImport, "toggle-collapse": doToggleCollapse, "remove-subtree": doRemoveSubtree, "refresh-subtree": doRefreshSubtree, connect: doConnect, "remove-edges": doRemoveEdges, "move-positions": doMovePositions, resize: doResize, "collapse-batch": doCollapseBatch, "set-node-tags": doSetNodeTags, "view-state": passthrough };
+const undoTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": undoAddNode, "remove-node": undoRemoveNode, "move-node": undoMoveNode, rename: undoRename, "bulk-import": undoBulkImport, "toggle-collapse": undoToggleCollapse, "remove-subtree": undoRemoveSubtree, "refresh-subtree": undoRefreshSubtree, connect: undoConnect, "remove-edges": undoRemoveEdges, "move-positions": undoMovePositions, resize: undoResize, "collapse-batch": undoCollapseBatch, "set-node-tags": undoSetNodeTags, "view-state": passthrough };
 /** Apply a batch of ops in sequence (forward). */
 export function applyOps(nodes: FewerNode[], edges: FewerEdge[], ops: HistoryOp[]): Graph {
   let result = { nodes, edges };
@@ -227,6 +248,18 @@ export function leafPositionsFor(
     }
   }
   return changed ? out : null;
+}
+
+/**
+ * The leaf that recorded the drags in this op batch, if any. Used to aim the
+ * per-view position patch at the view that actually moved the cards instead of
+ * assuming the active one, and to tell leaf-scoped drags from shared-space ones.
+ */
+export function leafMoveOrigin(ops: HistoryOp[]): string | null {
+  for (const op of ops) {
+    if (op.type === "move-positions" && op.leafId) return op.leafId;
+  }
+  return null;
 }
 
 /**

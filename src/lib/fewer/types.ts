@@ -1,5 +1,13 @@
 import type { Node, Edge } from "@xyflow/react";
 
+/** A reusable label+color marker that can be assigned to any number of nodes. */
+export interface Tag {
+  id: string;
+  label: string;
+  /** Hex color (e.g. "#f87171"). Used for the assignment dot + the card ring. */
+  color: string;
+}
+
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
 
@@ -63,6 +71,12 @@ export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
 
 export type EdgeStyle = "curved" | "angled" | "straight";
 export type EdgeStrokeStyle = "solid" | "dashed" | "dotted";
+
+/** Height a collapsed folder card renders at — one-line pill (canvas + export). */
+export const COLLAPSED_PILL_HEIGHT = 38;
+
+/** Row height for virtual-scrolling child lists inside folder cards. */
+export const NODE_ITEM_HEIGHT = 28;
 
 /**
  * SVG `stroke-dasharray` for a stroke style. Used for BOTH the plain edges and
@@ -221,7 +235,7 @@ export const THEME_COLOR_META: ThemeColorMeta[] = [
   { key: "subtleText", label: "Secondary Text", cssVar: "--fewer-text-subtle", description: "Paths, sizes, and meta text", defaultColor: "#adb5bd", defaultOpacity: 1, openColor: { family: "gray", index: 5 } },
   { key: "itemHover", label: "Child Row Hover", cssVar: "--fewer-item-hover", description: "Hover background on folder children", defaultColor: "#adb5bd", defaultOpacity: 0.15, openColor: { family: "gray", index: 5 } },
   { key: "handle", label: "Connection Handle", cssVar: "--fewer-handle", description: "React Flow handle dots", defaultColor: "#868e96", defaultOpacity: 1, openColor: { family: "gray", index: 6 } },
-  { key: "edge", label: "Edge Line", cssVar: "--fewer-edge", description: "Default connection lines", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
+  { key: "edge", label: "Connection Line", cssVar: "--fewer-edge", description: "Default card connections", defaultColor: "#adb5bd", defaultOpacity: 0.5, openColor: { family: "gray", index: 5 } },
   { key: "selectRing", label: "Selection Ring", cssVar: "--fewer-select-ring", description: "Outline around the selected card", defaultColor: "#22d3ee", defaultOpacity: 1, openColor: { family: "cyan", index: 6 } },
   { key: "folderBg", label: "Folder Body", cssVar: "--fewer-folder-bg", gradientCssVar: "--fewer-folder-bg-gradient", description: "Main folder card background", defaultColor: "#fd7e14", defaultOpacity: 0.12, openColor: { family: "orange", index: 6 } },
   { key: "folderText", label: "Folder Text", cssVar: "--fewer-folder-text", description: "Folder title text", defaultColor: "#1e293b", defaultOpacity: 1, openColor: { family: "gray", index: 8 } },
@@ -296,6 +310,17 @@ export interface ViewState {
   /** Ids the user hid directly (toggleHidden / hideSelected roots) —
    *  showSubtree must not reveal them or their descendants. */
   independentlyHiddenIds: string[];
+  /** Active tag filter (tag ids) and the ids it added to hiddenIds, so undo
+   *  also turns the filter chip off instead of leaving it stale. Optional:
+   *  ops cached before the tag layer was recorded carry no tag state to
+   *  restore, and a missing key is skipped rather than treated as empty. */
+  tagFilter?: string[];
+  tagFilterHiddenIds?: string[];
+  /** Tag registry (id → Tag) as it stood for this snapshot. Optional and set
+   *  only by ops that change the registry (deleteTag): the rest of the ops skip
+   *  the key, so undoing an unrelated view-state op can never resurrect or drop
+   *  a tag. A missing key is skipped rather than treated as "no tags". */
+  tags?: Tag[];
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
@@ -329,6 +354,17 @@ export interface RemoveEdgesOp {
 export interface MovePositionsOp {
   type: "move-positions";
   moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[];
+  /**
+   * Canvas that recorded the drag. A leaf canvas keeps per-view positions
+   * (`viewSettings[leafId].positions`) and never writes shared `nodes[].position`,
+   * so undo/redo of a tagged op must leave the shared positions alone — they are
+   * the layout seed every view without a map of its own renders from, and
+   * relocating them smuggles this view's private coordinates into those views.
+   *
+   * Untagged ops (legacy history, drags on a canvas without a leaf) keep
+   * relocating shared nodes — those drags really did move them.
+   */
+  leafId?: string;
 }
 
 /** Node resize. Undo restores original dimensions. */
@@ -340,6 +376,13 @@ export interface ResizeOp {
 export interface CollapseBatchOp {
   type: "collapse-batch";
   changes: { nodeId: string; wasCollapsed: boolean; willCollapse: boolean }[];
+}
+
+/** Per-node `tagIds` rewrite (assign / unassign / strip-on-delete).
+ *  Undo restores `from` on each listed node, redo re-applies `to`. */
+export interface SetNodeTagsOp {
+  type: "set-node-tags";
+  changes: { nodeId: string; from: string[]; to: string[] }[];
 }
 
 /** Pure view-state change (hide/show, show-files, max-depth, auto-hide-threshold). */
@@ -378,6 +421,7 @@ export type HistoryOp =
   | MovePositionsOp
   | ResizeOp
   | CollapseBatchOp
+  | SetNodeTagsOp
   | RefreshSubtreeOp
   | ViewStateOp;
 

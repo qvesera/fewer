@@ -35,6 +35,7 @@ on:
     branches: [dev, main]
     paths:
       - "supabase/migrations/**"
+      - "supabase/config.toml"
   workflow_dispatch:
     inputs:
       project:
@@ -73,6 +74,14 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git fetch --no-tags origin "${{ github.base_ref }}"
           fi
+
+      - name: Check supabase config paths resolve
+        run: |
+          # config.toml content_path values resolve from the repo root (where the
+          # CLI runs), not supabase/. A wrong prefix breaks every `supabase` command.
+          for p in $(grep -o 'content_path *= *"[^"]*"' supabase/config.toml | cut -d'"' -f2); do
+            [ -f "$p" ] || { echo "::error::content_path not found from repo root: $p"; exit 1; }
+          done
 
       - name: Verify migration files
         run: |
@@ -121,6 +130,7 @@ jobs:
 
       - name: Verify baseline, then dry-run
         run: |
+          set -o pipefail
           supabase migration list --db-url "$SUPABASE_DB_URL" | tee /tmp/migration-list.txt
           git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
             > /tmp/added-migrations.txt || true
@@ -169,6 +179,7 @@ jobs:
 
       - name: Verify baseline, then dry-run
         run: |
+          set -o pipefail
           supabase migration list --db-url "$SUPABASE_DB_URL" | tee /tmp/migration-list.txt
           git diff --name-only "${{ github.event.before }}" HEAD -- supabase/migrations \
             > /tmp/added-migrations.txt || true

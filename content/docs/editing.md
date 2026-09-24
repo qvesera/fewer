@@ -34,7 +34,7 @@ From the context menu, **Paste** on a folder pastes the clipboard contents into 
 
 - **Delete / Backspace**: removes selected node(s)
 - **Right-click → Delete**: removes a single node
-- Deleting a folder cascades: all descendants (children, grandchildren, edges) are removed too
+- Deleting a folder cascades: all descendants (children, grandchildren, connections) are removed too
 - **Clear Canvas** (trash icon in the sidebar) wipes the whole graph after a confirmation dialog
 
 ## Unparenting
@@ -56,9 +56,8 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
 | Copy Paths      | Copies each selected node's full path to the clipboard, one per line                                                                                                                 |
-| Tags…           | Opens a shared tag picker: assign or remove any tag across the whole selection at once (creates new tags too)                                                                |
 | Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
-| Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection edge)                                                           |
+| Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
 
 Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
@@ -77,7 +76,7 @@ Drag from a node's **output handle** to another node's **input handle** to creat
 
 - No cycles: you cannot connect a descendant back to its ancestor
 - No orphans pushed below files: files have no children, so their output handle is hidden
-- Unparenting or deleting removes the affected edges automatically
+- Unparenting or deleting removes the affected connections automatically
 
 ## Hiding & Showing Children
 

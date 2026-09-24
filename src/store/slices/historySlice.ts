@@ -2,8 +2,9 @@
 import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry, LeafStacks } from "./types";
 import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
-import { applyOps, undoOps, getUndoViewState, getRedoViewState, leafPositionsFor } from "@/lib/fewer/history";
+import { applyOps, undoOps, getUndoViewState, getRedoViewState, leafPositionsFor, leafMoveOrigin } from "@/lib/fewer/history";
 import { applySearchHighlight } from "./searchHighlight";
+import { can } from "@/lib/fewer/tiers";
 
 const MAX_HISTORY = 50;
 const EMPTY_STACK: LeafStacks = { past: [], future: [] };
@@ -27,6 +28,8 @@ export function captureViewState(state: GraphState): ViewState {
     categoryFilter: (state.categoryFilter ?? []) as FileCategory[],
     categoryHiddenIds: (state.categoryHiddenIds ?? []) as string[],
     independentlyHiddenIds: (state.independentlyHiddenIds ?? []) as string[],
+    tagFilter: (state.tagFilter ?? []) as string[],
+    tagFilterHiddenIds: (state.tagFilterHiddenIds ?? []) as string[],
   };
 }
 
@@ -49,6 +52,13 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
   if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
   if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
   if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
+  // Tags are a Pro workspace feature — skip filter restoration for non-Pro tiers
+  // so undo/redo cannot resurrect a filter with no UI to clear it.
+  if (can("tags", (state as GraphState).tier ?? "guest")) {
+    if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
+    if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  }
+  if (view.tags !== undefined) patch.tags = view.tags;
   return patch;
 }
 
@@ -113,8 +123,9 @@ export function dropLeafHistory(state: GraphState, leafId: string): Partial<Grap
 /**
  * Per-leaf position patch for a drag op: leaf canvases render from
  * `viewSettings[leafId].positions`, so undoing a move also has to rewrite the
- * active leaf's map (patching shared `nodes[].position` alone looks like a no-op
- * in panel mode).
+ * recording leaf's map (patching shared `nodes[].position` alone looks like a
+ * no-op in panel mode — and, worse, it plants one view's private coordinates
+ * into the seed every other view renders from).
  */
 function leafPositionPatch(
   leafId: string | null,
@@ -124,7 +135,12 @@ function leafPositionPatch(
 ): Partial<GraphState> {
   if (!leafId) return {};
   const leaf = viewSettings?.[leafId];
-  const positions = leafPositionsFor(leaf?.positions, ops, pick);
+  // A leaf-tagged drag always has a view to restore. If that view's map is gone
+  // (cleared, or the leaf was rebuilt), write just the cards it moved so the
+  // drag still undoes in that view instead of silently doing nothing.
+  const positions =
+    leafPositionsFor(leaf?.positions, ops, pick) ??
+    (leafMoveOrigin(ops) ? leafPositionsFor({}, ops, pick) : null);
   if (!positions) return {};
   return { viewSettings: { ...viewSettings, [leafId]: { ...leaf, positions } } };
 }
@@ -158,7 +174,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
   },
 
   undo: () => {
-    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion, activeLeafId, viewSettings } = get();
+    const { past, future, nodes, edges, searchQuery, categoryFilter, graphVersion, activeLeafId, viewSettings, selectedNodeIds } = get();
     if (past.length === 0) return;
     const entry = past[past.length - 1];
     const { nodes: prevNodes, edges: prevEdges } = undoOps(nodes, edges, entry.ops);
@@ -167,14 +183,16 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
     const lastOp = entry.ops[entry.ops.length - 1];
     const vs = getUndoViewState(lastOp);
     if (vs) viewPatch = applyViewState(get(), vs);
+    const prevSelection = selectedNodeIds.filter((id) => prevNodes.some((n) => n.id === id));
     set({
       past: past.slice(0, -1),
       future: [entry, ...future].slice(0, MAX_HISTORY),
       nodes: applySearchHighlight(prevNodes, searchQuery, categoryFilter),
       edges: prevEdges,
       graphVersion: graphVersion + 1,
+      selectedNodeIds: prevSelection,
       ...viewPatch,
-      ...leafPositionPatch(activeLeafId as string | null, viewSettings, entry.ops, "from"),
+      ...leafPositionPatch(leafMoveOrigin(entry.ops) ?? (activeLeafId as string | null), viewSettings, entry.ops, "from"),
     });
   },
 
@@ -194,7 +212,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
-      ...leafPositionPatch(activeLeafId as string | null, viewSettings, entry.ops, "to"),
+      ...leafPositionPatch(leafMoveOrigin(entry.ops) ?? (activeLeafId as string | null), viewSettings, entry.ops, "to"),
     });
   },
 });

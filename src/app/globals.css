@@ -471,6 +471,15 @@ aside::-webkit-scrollbar-thumb:hover {
   filter: saturate(1.25) brightness(1.08);
 }
 
+/* Active leaf in a split layout: which leaf owns clicks and keyboard is
+   otherwise invisible. An inset accent border (plus a dot in the header) marks
+   it, drawn only when more than one leaf exists. Inset box-shadow rather than
+   outline: the leaf fills its grid cell, so an outline would be clipped by the
+   split container. */
+.gm-active-leaf {
+  box-shadow: inset 0 0 0 1px var(--fewer-select-ring, var(--brand-cyan-400));
+}
+
 /* Amber highlight ring for node cards (global search matches + sidebar Hidden-panel
    hover). Uses `outline` (like .gm-selected-ring) instead of Tailwind's box-shadow
    ring so it survives the custom .shadow-node-folder/.shadow-node-file box-shadow —
@@ -482,14 +491,15 @@ aside::-webkit-scrollbar-thumb:hover {
 }
 
 /* Tag highlight ring — a conic-gradient (set inline via --tag colors) painted as a
-   thin band around the card. The mask keeps ONLY the 3px padding band visible, so
+   thin band around the card. The mask keeps ONLY the padding band visible, so
    the gradient never bleeds through a translucent card body. The element is an
-   absolutely-positioned overlay inside the card (inset -3px) so it adds no layout
-   size and never interferes with React Flow's node ref/handles. */
+   absolutely-positioned overlay inside the card so it adds no layout size and
+   never interferes with React Flow's node ref/handles. `inset` + `padding` (the
+   band width) come from TAG_RING_WIDTH inline — see TagRing.tsx. */
 .gm-tag-ring {
   position: absolute;
-  inset: -3px;
-  padding: 3px;
+  /* `inset` + `padding` (the band width) are set inline from TAG_RING_WIDTH so
+     the canvas band and the exported ring stroke share one number. */
   border-radius: inherit;
   pointer-events: none;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -539,6 +549,14 @@ aside::-webkit-scrollbar-thumb:hover {
   .gm-node-fade-in {
     animation: none !important;
   }
+}
+
+/* ── Sidebar reorder lift ─────────────────────────────────────────────────── */
+
+[data-section-id][data-reordering] > section {
+  transform: scale(0.98);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Gradient Utility Classes ───────────────────────────────────────────────── */

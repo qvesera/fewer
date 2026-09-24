@@ -9,6 +9,14 @@
 export const FEWER_HOME_URL =
   process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.direct";
 
+/**
+ * App version stamped into exports and bug reports. next.config.ts injects
+ * NEXT_PUBLIC_APP_VERSION from package.json at build time, so `next dev` and
+ * `next build` both carry the real version. The `"unknown"` fallback only
+ * applies where Next is not involved (e.g. a bare `bun test` run).
+ */
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
+
 /** One credit line appended to every export when branding is enabled. */
 export const FEWER_CREDIT = `Created with fewer — ${FEWER_HOME_URL}`;
 
