@@ -80,6 +80,38 @@ python3 scripts/tasks.py report             # time rollup — paste totals into 
 CI fails the PR if any commit lacks a `Task: T-###` trailer, names an unknown
 task, or if that task is not in `review`/`done` with recorded time.
 
+## Hierarchy — sub-issues and subtasks
+
+`parent: T-###` links a task under another (its issue becomes a GitHub
+sub-issue). It is a *different graph* from `blocked_by`: parent = work breakdown,
+blocked_by = dependency; both are kept acyclic by `validate`.
+
+- **Decompose at pickup, not at triage.** Before `start` on a task whose
+  estimate is ≥ 2400 min (Tier 1+) or whose body holds several independent
+  deliverables: split it into 2–6 subtasks, each independently shippable with its
+  own estimate, each created as a real issue linked under the parent:
+  ```bash
+  bun run task:add --title "…" --parent T-006 --estimate-min <n>
+  bun run task:triage <child> --area <category>
+  python3 scripts/tasks.py gh-sync              # creates the issues + --parent links
+  ```
+  **Ask the user before creating more than three**, or when the split is a
+  judgement call. Then `start` the *first child* — `start` on a parent that has
+  children is refused ("decomposed umbrella").
+- Nothing is pre-decomposed: a flat backlog is valid, and existing rows stay
+  roots until their work actually starts.
+- Never leave a child unlinked (`gh-sync` writes the GitHub `--parent`), never
+  let a parent close with children open (`validate` fails it), and never let a
+  child be `internal` under an issue-backed parent (`validate` fails that too —
+  a GitHub sub-issue needs its own issue).
+- Inspect with `bun run task:report --tree`, `python3 scripts/tasks.py children
+  <T-id>`; move with `python3 scripts/tasks.py reparent <T-id> --parent …|--detach`
+  (follow with `gh-sync` / `gh-sync --relink`). `doctor` proves the ledger and
+  GitHub agree on every link, both directions.
+- End a triage session by showing the tree — the hierarchy stays visible, not
+  implied. Rollups (`rollup …` in `tree`, `rollup_min` in `--json`) add own +
+  descendant time; `spent_min` on a row is always that row's own measured time.
+
 ## Verbs
 
 `status · find · add · triage · start · stop · record-session · set-status ·

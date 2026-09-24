@@ -153,6 +153,12 @@ estimate, area from the `category:` label, blockers):
 python3 scripts/tasks.py triage <T-###> --estimate-min <n> --area <category> [--tier 0|1|2]
 ```
 
+If the chosen issue is one slice of a larger body, record the hierarchy now
+(`--parent <T-id>` on `triage`, or `reparent`); if picking up a Tier 1+ task
+(estimate ≥ 2400 min), decompose it into 2–6 linked subtasks **before** Step 4
+— ask first beyond three — and show `python3 scripts/tasks.py tree` so the
+split is visible.
+
 ---
 
 # Step 4 — Branch

@@ -52,7 +52,7 @@ TASK_RE = re.compile(r"T-\d{3,}")
 
 TASK_KEYS = (
     "id", "title", "status", "type", "area", "tier", "estimate_min",
-    "estimate_basis", "issue", "internal", "milestone", "blocked_by",
+    "estimate_basis", "issue", "internal", "milestone", "blocked_by", "parent",
     "source", "time_source", "reporter", "created_at", "notes", "sessions",
     "spent_min", "session_count",
 )
@@ -346,6 +346,7 @@ def new_row(*, title: str, rtype: str, area: str, status: str = "triaged",
             tier: int | None = None, estimate_min: int | None = None,
             issue: int | None = None, internal: bool = False,
             milestone: str | None = None, blocked_by: list[str] | None = None,
+            parent: str | None = None,
             source: str | None = None, time_source: str | None = None,
             reporter: str | None = None, created_at: str | None = None,
             estimate_basis: str = "type-default", notes: list[str] | None = None) -> dict[str, Any]:
@@ -353,10 +354,61 @@ def new_row(*, title: str, rtype: str, area: str, status: str = "triaged",
         "id": None, "title": title, "status": status, "type": rtype, "area": area,
         "tier": tier, "estimate_min": int(estimate_min or ESTIMATE_DEFAULT.get(rtype, 120)),
         "estimate_basis": estimate_basis, "issue": issue, "internal": internal,
-        "milestone": milestone, "blocked_by": blocked_by or [], "source": source,
-        "time_source": time_source, "reporter": reporter, "created_at": created_at or now_iso(),
-        "notes": notes or [], "sessions": [], "spent_min": 0, "session_count": 0,
+        "milestone": milestone, "blocked_by": blocked_by or [], "parent": parent,
+        "source": source, "time_source": time_source, "reporter": reporter,
+        "created_at": created_at or now_iso(), "notes": notes or [], "sessions": [],
+        "spent_min": 0, "session_count": 0,
     }
+
+
+# ── hierarchy: parent/child rows and their derived rollups ───────────────
+def children_map(ledger: dict[str, Any]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for row in ledger["tasks"]:
+        parent = row.get("parent")
+        if parent:
+            out.setdefault(parent, []).append(row["id"])
+    return out
+
+
+def descendants(ledger: dict[str, Any], rid: str) -> list[str]:
+    """Every row below `rid`, depth-first, cycles guarded."""
+    kids = children_map(ledger)
+    out: list[str] = []
+    seen = {rid}
+    stack = list(kids.get(rid, []))
+    while stack:
+        cur = stack.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        out.append(cur)
+        stack.extend(kids.get(cur, []))
+    return out
+
+
+def subtree_ids(ledger: dict[str, Any], rid: str) -> list[str]:
+    return [rid, *descendants(ledger, rid)]
+
+
+def depth_of(ledger: dict[str, Any], rid: str) -> int:
+    rows = {r["id"]: r for r in ledger["tasks"]}
+    depth, node, guard = 0, rows.get(rid), 0
+    while node and node.get("parent") and guard < 20:
+        depth += 1
+        guard += 1
+        node = rows.get(node["parent"])
+    return depth
+
+
+def rollup_minutes(ledger: dict[str, Any], rid: str) -> int:
+    rows = {r["id"]: r for r in ledger["tasks"]}
+    return sum(int(rows[t]["spent_min"] or 0) for t in subtree_ids(ledger, rid) if t in rows)
+
+
+def rollup_estimate(ledger: dict[str, Any], rid: str) -> int:
+    rows = {r["id"]: r for r in ledger["tasks"]}
+    return sum(int(rows[t]["estimate_min"] or 0) for t in subtree_ids(ledger, rid) if t in rows)
 
 
 def next_id(ledger: dict[str, Any]) -> str:
@@ -562,11 +614,16 @@ def cmd_add(args: argparse.Namespace) -> int:
         _die(f"issue #{args.issue} is already tracked as {row['id']}")  # type: ignore[union-attr]
     if args.title is None:
         _die("add requires --title")
+    if args.parent:
+        args.parent = args.parent.strip().upper()
+        if find_row(ledger, args.parent) is None:
+            _die(f"parent {args.parent} does not exist")
     row = new_row(
         title=args.title, rtype=args.type or "task", area=args.area or "other",
         status="backlog", tier=args.tier, estimate_min=args.estimate_min,
         estimate_basis="cli" if args.estimate_min else "type-default",
         issue=args.issue, internal=bool(args.internal),
+        parent=args.parent,
         source=args.source or (f"gh#{args.issue}" if args.issue else None),
     )
     row["id"] = next_id(ledger)
@@ -598,6 +655,13 @@ def cmd_triage(args: argparse.Namespace) -> int:
         row["type"] = args.type
     if args.blocked_by:
         row["blocked_by"] = args.blocked_by
+    if getattr(args, "parent", None):
+        parent = args.parent.strip().upper()
+        if find_row(ledger, parent) is None:
+            _die(f"parent {parent} does not exist")
+        if parent == row["id"]:
+            _die(f"{row['id']} cannot parent itself")
+        row["parent"] = parent
     if args.note:
         row["notes"].append(f"{now_iso()} · {args.note}")
     row["status"] = "triaged"
@@ -612,6 +676,10 @@ def cmd_start(args: argparse.Namespace) -> int:
     row = find_row(ledger, args.ref)
     if row is None:
         _die(f"no task {args.ref} — create it first (find / add / track)")
+    kids = children_map(ledger).get(row["id"], [])
+    if kids:
+        _die(f"{row['id']} is a decomposed umbrella — start a child instead "
+             f"(children: {', '.join(kids)}; python3 scripts/tasks.py tree)")
     running = open_session(ledger)
     if running:
         other, sess = running
@@ -762,6 +830,105 @@ def cmd_find(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── hierarchy verbs: children · tree · reparent ──────────────────────────
+def cmd_children(args: argparse.Namespace) -> int:
+    ledger = load()
+    row = find_row(ledger, args.ref)
+    if row is None:
+        _die(f"no task {args.ref}")
+    kids = children_map(ledger).get(row["id"], [])
+    if not kids:
+        print(f"{row['id']} has no children (not decomposed)")
+        return 0
+    by_id = {r["id"]: r for r in ledger["tasks"]}
+    for kid in kids:
+        k = by_id[kid]
+        issue = f"#{k['issue']}" if k.get("issue") else ("internal" if k.get("internal") else "-")
+        print(f"{kid}  {k['status']:<11} est {k['estimate_min']:>5}m  "
+              f"spent {k['spent_min']:>4}m  {issue:<9} {k['title'][:56]}")
+    n = len(descendants(ledger, row["id"]))
+    print(f"{n} descendant(s) · rollup {rollup_minutes(ledger, row['id'])}m spent "
+          f"of {rollup_estimate(ledger, row['id'])}m estimated")
+    return 0
+
+
+def cmd_tree(args: argparse.Namespace) -> int:
+    ledger = load()
+    rows = {r["id"]: r for r in ledger["tasks"]}
+    kids = children_map(ledger)
+    if args.root:
+        root = find_row(ledger, args.root)
+        if root is None:
+            _die(f"no task {args.root}")
+        roots = [root["id"]]
+    else:
+        roots = [r["id"] for r in ledger["tasks"] if not r.get("parent")]
+
+    def as_node(rid: str, seen: frozenset[str] = frozenset()) -> dict[str, Any]:
+        r = rows[rid]
+        child_ids = [k for k in kids.get(rid, []) if k not in seen]
+        return {"id": rid, "title": r["title"], "status": r["status"],
+                "estimate_min": r["estimate_min"], "spent_min": r["spent_min"],
+                "rollup_estimate_min": rollup_estimate(ledger, rid),
+                "rollup_min": rollup_minutes(ledger, rid),
+                "issue": r.get("issue"), "parent": r.get("parent"),
+                "children": [as_node(k, seen | {rid}) for k in child_ids]}
+
+    if args.json:
+        print(json.dumps([as_node(rid) for rid in roots], indent=2))
+        return 0
+
+    lines: list[str] = []
+
+    def walk(rid: str, depth: int, seen: frozenset[str]) -> None:
+        r = rows.get(rid)
+        if r is None or rid in seen:
+            return
+        n_kids = [k for k in kids.get(rid, []) if k not in seen]
+        roll = f"  rollup {rollup_minutes(ledger, rid)}m" if n_kids else ""
+        issue = f"#{r['issue']}" if r.get("issue") else ("internal" if r.get("internal") else "-")
+        lines.append(f"{'  ' * depth}{r['id']:<7} {r['status']:<11} "
+                     f"est {r['estimate_min']:>5}m spent {r['spent_min']:>4}m{roll}  "
+                     f"{issue:<8} {r['title'][:44]}")
+        for kid in n_kids:
+            walk(kid, depth + 1, seen | {rid})
+
+    for rid in roots:
+        walk(rid, 0, frozenset())
+    print("\n".join(lines) or "(no tasks)")
+    return 0
+
+
+def cmd_reparent(args: argparse.Namespace) -> int:
+    ledger = load()
+    row = find_row(ledger, args.ref)
+    if row is None:
+        _die(f"no task {args.ref}")
+    if args.detach:
+        if not row.get("parent"):
+            print(f"{row['id']} is already a root")
+            return 0
+        row["parent"] = None
+        save(ledger)
+        print(f"{row['id']} detached" + (f" (was under {args.parent})" if args.parent else "")
+              + " — GitHub: gh issue edit <issue> --remove-parent")
+        return 0
+    if not args.parent:
+        _die("pass --parent <T-id> to attach, or --detach")
+    target = args.parent.strip().upper()
+    if find_row(ledger, target) is None:
+        _die(f"parent {target} does not exist")
+    if target == row["id"]:
+        _die(f"{row['id']} cannot parent itself")
+    if target in subtree_ids(ledger, row["id"]):
+        _die(f"{target} is a descendant of {row['id']} — reparenting would make a cycle")
+    row["parent"] = target
+    save(ledger)
+    print(f"{row['id']} → parent {target} · "
+          f"link on GitHub: python3 scripts/tasks.py gh-sync --relink")
+    return 0
+
+
 # ── GitHub helpers: labels, bug payload, adoption ───────────────────────
 _LABELS_CACHE: list[str] | None = None
 
@@ -872,6 +1039,17 @@ def cmd_track(args: argparse.Namespace) -> int:
     title = strip_issue_prefix(args.title)
     if not args.title.strip():
         _die("track requires a description")
+    parent_id = getattr(args, "parent", None)
+    if parent_id:
+        parent_id = parent_id.strip().upper()
+        if find_row(ledger, parent_id) is None:
+            _die(f"parent {parent_id} does not exist")
+
+    def _apply_parent(row: dict[str, Any]) -> None:
+        if parent_id and row.get("parent") != parent_id:
+            if parent_id in subtree_ids(ledger, row["id"]):
+                _die(f"{parent_id} is a descendant of {row['id']} — would make a cycle")
+            row["parent"] = parent_id
 
     # Explicit refs short-circuit the search.
     if args.issue is not None:
@@ -940,16 +1118,18 @@ def cmd_track(args: argparse.Namespace) -> int:
             print(f"DECISION create (best candidate {best_score:.2f} < 0.75)")
             print(f"  would create issue {full_title!r} labels={labels}")
             print(f"  would create row status=triaged type={rtype} "
-                  f"estimate={ESTIMATE_DEFAULT.get(rtype, 120)}m, then start the session")
+                  f"estimate={ESTIMATE_DEFAULT.get(rtype, 120)}m, then start the session"
+                  + (f" · parent {parent_id}" if parent_id else ""))
             return 0
         number = create_issue(title=full_title, body=body, labels=labels)
         row = new_row(title=title, rtype=rtype, area=args.area or "other", issue=number,
-                      source=f"gh#{number}", estimate_basis="type-default")
+                      source=f"gh#{number}", estimate_basis="type-default", parent=parent_id)
         row["id"] = next_id(ledger)
         ledger["tasks"].append(row)
         save(ledger)
         print(f"DECISION create → #{number} · {row['id']} (no candidate ≥0.75; "
-              f"best {best_score:.2f})")
+              f"best {best_score:.2f})"
+              + (f" · parent {parent_id}" if parent_id else ""))
         return 0 if args.no_start else _start_row(ledger, row)
 
     # attach
@@ -961,6 +1141,8 @@ def cmd_track(args: argparse.Namespace) -> int:
         if args.dry_run:
             print("  (dry-run: no session started)")
             return 0
+        _apply_parent(row)
+        save(ledger)
         return 0 if args.no_start else _start_row(ledger, row)
     if issue:
         if args.dry_run:
@@ -968,8 +1150,10 @@ def cmd_track(args: argparse.Namespace) -> int:
                   f"(dry-run: nothing written)")
             return 0
         row = adopt_issue(ledger, issue, status="triaged")
+        _apply_parent(row)
         save(ledger)
-        print(f"DECISION attach → #{issue['number']} ({best_score:.2f}) adopted as {row['id']}")
+        print(f"DECISION attach → #{issue['number']} ({best_score:.2f}) adopted as {row['id']}"
+              + (f" · parent {parent_id}" if parent_id else ""))
         return 0 if args.no_start else _start_row(ledger, row)
     _die("internal: attach decided but nothing to attach to")
     return 1
@@ -1023,6 +1207,8 @@ def cmd_intake(args: argparse.Namespace) -> int:
         return 0
     adopted: list[str] = []
     proposals: list[str] = []
+    newly: list[dict[str, Any]] = []
+    hierarchy: list[str] = []
     for issue in missing:
         payload = parse_bug_payload(issue.get("body") or "")
         labels = [l["name"] for l in issue.get("labels") or []]
@@ -1060,10 +1246,35 @@ def cmd_intake(args: argparse.Namespace) -> int:
             proposals.append(f"#{issue['number']} has no bug payload — propose labels from prose "
                              f"(title: {strip_issue_prefix(issue['title'])[:60]})")
         adopted.append(f"{row['id']}←#{issue['number']}({target_status})")
+        newly.append(row)
     if not args.dry_run:
         save(ledger)
+    # Second pass: inherit hierarchy from GitHub (parents are adopted above).
+    if not args.dry_run and newly:
+        for row in newly:
+            number = row.get("issue")
+            if not number:
+                continue
+            try:
+                gh_parent = gh("issue", "view", str(number), "--json", "parent",
+                               "--jq", ".parent.number // 0", check=False).strip() or "0"
+            except (SystemExit, FileNotFoundError):
+                continue
+            if gh_parent == "0":
+                continue
+            parent_row = find_row(ledger, gh_parent)
+            if parent_row is None:
+                proposals.append(f"#{number} is a sub-issue of #{gh_parent}, which is not "
+                                 f"tracked yet — run intake again to adopt the parent")
+            else:
+                row["parent"] = parent_row["id"]
+                hierarchy.append(f"{row['id']}←{parent_row['id']}")
+        if hierarchy:
+            save(ledger)
     verb = "would adopt" if args.dry_run else "adopted"
     print(f"{verb} {len(missing)} issues: {', '.join(adopted) or '-'}")
+    if hierarchy:
+        print(f"hierarchy linked: {', '.join(hierarchy)}")
     for line in proposals:
         print(f"PROPOSE  {line}")
     return 0
@@ -1265,6 +1476,8 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
         if created:
             save(ledger)
 
+    by_id = {r["id"]: r for r in ledger["tasks"]}
+    linked: list[str] = []
     for row in ledger["tasks"]:
         number = row.get("issue")
         if not number:
@@ -1275,6 +1488,30 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
         except (SystemExit, FileNotFoundError):
             print("  ! gh unavailable — label mirror skipped")
             break
+
+        # Sub-issue link parity: ledger parent ↔ GitHub parent.
+        parent_row = by_id.get(row.get("parent") or "")
+        want_parent = str(parent_row["issue"]) if (parent_row and parent_row.get("issue")) else "0"
+        try:
+            gh_parent = gh("issue", "view", str(number), "--json", "parent",
+                           "--jq", ".parent.number // 0", check=False).strip() or "0"
+        except (SystemExit, FileNotFoundError):
+            gh_parent = None
+        if gh_parent is not None and gh_parent != want_parent:
+            if want_parent != "0":
+                cmd_args = ["issue", "edit", str(number), "--parent", want_parent]
+                linked.append(f"#{number}→sub-of-#{want_parent}")
+            elif args.relink:
+                cmd_args = ["issue", "edit", str(number), "--remove-parent"]
+                linked.append(f"#{number}→unlinked")
+            else:
+                cmd_args = []
+            if cmd_args:
+                if args.dry_run:
+                    print(f"would {' '.join(cmd_args)} (ledger parent: {row.get('parent') or 'root'})")
+                else:
+                    gh(*cmd_args, check=False)
+
         wanted = [target] if target else []
         stale = [l for l in _status_labels(current) if l not in wanted]
         add = [l for l in wanted if l not in current]
@@ -1292,9 +1529,11 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
             args_ += ["--remove-label", label]
         gh(*args_, check=False)
     if args.dry_run:
-        print(f"dry-run: created {len(created)}, relabelled {len(relabelled)}")
+        print(f"dry-run: created {len(created)}, relabelled {len(relabelled)}, "
+              f"sub-issue links {len(linked)}")
     else:
-        print(f"gh-sync: created {created or '-'} | relabelled {relabelled or '-'}")
+        print(f"gh-sync: created {created or '-'} | relabelled {relabelled or '-'} | "
+              f"sub-issues {linked or '-'}")
     return 0
 
 
@@ -1355,6 +1594,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     ledger = load()
     problems: list[str] = []
     rows = {r.get("issue"): r for r in ledger["tasks"] if r.get("issue")}
+    by_id = {r["id"]: r for r in ledger["tasks"]}
     if not have_gh():
         _die("doctor needs an authenticated gh (gh auth status failed)")
     issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
@@ -1374,9 +1614,31 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         if issue["state"] == "CLOSED" and row["status"] not in ("done", "wontfix"):
             problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status={row['status']} "
                             f"(run: python3 scripts/tasks.py reconcile --apply)")
+        # Sub-issue parity, both directions: GitHub must agree with the ledger.
+        parent_id = row.get("parent")
+        try:
+            gh_parent = gh("issue", "view", str(issue["number"]), "--json", "parent",
+                           "--jq", ".parent.number // 0", check=False).strip() or "0"
+        except (SystemExit, FileNotFoundError):
+            gh_parent = None
+        if gh_parent is None:
+            pass
+        elif parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
+            if gh_parent != str(by_id[parent_id]["issue"]):
+                problems.append(
+                    f"{row['id']} #{issue['number']}: GitHub parent is #{gh_parent}, "
+                    f"ledger says {parent_id}→#{by_id[parent_id]['issue']} "
+                    f"(run: python3 scripts/tasks.py gh-sync)")
+        elif not parent_id and gh_parent != "0":
+            problems.append(
+                f"{row['id']} #{issue['number']}: sub-issue of #{gh_parent} on GitHub but "
+                f"the ledger has no parent (run: intake to adopt it, or gh-sync --relink "
+                f"to unlink)")
     for row in ledger["tasks"]:
         if not row.get("issue") and not row.get("internal"):
             problems.append(f"{row['id']} has no issue and is not internal (run: gh-sync)")
+        if row.get("parent") and row["parent"] not in by_id:
+            problems.append(f"{row['id']} points at unknown parent {row['parent']}")
         if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
     payload = {"problems": problems, "count": len(problems)}
@@ -1393,6 +1655,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 # ── report ──────────────────────────────────────────────────────────────
 def cmd_report(args: argparse.Namespace) -> int:
     ledger = load()
+    if getattr(args, "tree", False):
+        return cmd_tree(argparse.Namespace(root=None, json=args.json))
     rows = ledger["tasks"]
     if args.since:
         cut = parse_iso(args.since)
@@ -1403,8 +1667,9 @@ def cmd_report(args: argparse.Namespace) -> int:
     total_est = sum(int(r["estimate_min"] or 0) for r in rows)
     total_spent = sum(int(r["spent_min"] or 0) for r in rows)
     if args.json:
-        print(json.dumps([{k: r.get(k) for k in ("id", "status", "title", "issue", "estimate_min",
-                                                  "spent_min", "session_count", "source")} for r in rows],
+        print(json.dumps([{k: r.get(k) for k in ("id", "status", "title", "issue", "parent",
+                                                  "estimate_min", "spent_min", "session_count",
+                                                  "source")} for r in rows],
                          indent=2))
         return 0
     lines = [f"{'id':<7} {'status':<12} {'est':>6} {'spent':>7} {'sess':>4}  {'issue':<7} title"]
@@ -1529,6 +1794,60 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
             fail(f"{rid}: blocked_by cycle")
             break
 
+    # hierarchy: parent exists, no self, no cycles, coherent parent/child states
+    children: dict[str, list[str]] = {}
+    for row in rows:
+        parent = row.get("parent")
+        if parent is None:
+            continue
+        if parent == row["id"]:
+            fail(f"{row['id']}: is its own parent")
+            continue
+        if parent not in by_id:
+            fail(f"{row['id']}: parent {parent} does not exist")
+            continue
+        children.setdefault(parent, []).append(row["id"])
+
+    def _parent_chain_ok(rid: str, seen: tuple[str, ...]) -> bool:
+        node = by_id.get(rid)
+        parent = (node or {}).get("parent")
+        if parent is None:
+            return True
+        if parent == rid or parent in seen:
+            return False
+        return _parent_chain_ok(parent, (*seen, rid))
+
+    for rid in by_id:
+        if not _parent_chain_ok(rid, ()):
+            fail(f"{rid}: parent cycle")
+            break
+
+    for row in rows:
+        rid = row["id"]
+        depth = depth_of(ledger, rid)
+        if depth > 3:
+            warn(f"{rid}: hierarchy depth {depth} (>3) — consider flattening")
+        kids = children.get(rid, [])
+        if row["status"] == "done" and kids:
+            open_kids = [k for k in kids if by_id[k]["status"] not in ("done", "wontfix")]
+            if open_kids:
+                fail(f"{rid}: done while child(ren) still open: {', '.join(open_kids)}")
+        if row["status"] == "wontfix" and kids:
+            live = [k for k in kids if by_id[k]["status"] not in ("done", "wontfix", "parked")]
+            if live:
+                warn(f"{rid}: wontfix while live child(ren): {', '.join(live)}")
+        parent = row.get("parent")
+        if parent in by_id:
+            prow = by_id[parent]
+            if prow.get("issue") is not None and row.get("internal"):
+                fail(f"{rid}: internal child of issue-backed parent {parent} "
+                     f"(a GitHub sub-issue needs an issue of its own)")
+    for parent, kids in children.items():
+        kid_total = sum(int(by_id[k]["estimate_min"] or 0) for k in kids)
+        if int(by_id[parent]["estimate_min"] or 0) < kid_total:
+            warn(f"{parent}: estimate {by_id[parent]['estimate_min']}m < "
+                 f"Σ children {kid_total}m (under-estimated umbrella)")
+
     # sessions + derived spend
     in_progress = 0
     for row in rows:
@@ -1614,8 +1933,8 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
 
     # Uncommitted ledger close-out: CI's gate can only judge what is committed,
     # so `stop`'s write must land before the push (ledger-only commit, no
-    # session required — see the hook).
-    if os.path.isdir(os.path.join(ROOT, ".git")):
+    # session required — see the hook). Only meaningful for the real ledger.
+    if path == LEDGER and os.path.isdir(os.path.join(ROOT, ".git")):
         dirty = git("status", "--porcelain", "--", os.path.relpath(LEDGER, ROOT),
                     check=False).strip()
         if dirty:
@@ -1851,6 +2170,82 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("tip gate: unknown task fails",
           status_gate({}, {"T-099"}) == ["references unknown task T-099"])
 
+    # hierarchy: links, rollups, and the parent/child coherence rules
+    p_row = new_row(title="umbrella", rtype="task", area="other", issue=500,
+                    estimate_min=600, source="gh#500")
+    p_row["id"] = "T-010"
+    c_row = new_row(title="subtask", rtype="task", area="other", issue=501, parent="T-010",
+                    estimate_min=300, source="gh#501")
+    c_row["id"] = "T-011"
+    c_row["sessions"] = [{"start": "2026-09-26T00:00:00Z", "end": "2026-09-26T01:00:00Z",
+                          "measured": True, "note": "", "proof": ["abc1234"], "effort": None}]
+    refresh(c_row)
+    hier = {"version": 1, "tasks": [p_row, c_row]}
+    check("hierarchy: descendants", descendants(hier, "T-010") == ["T-011"])
+    check("hierarchy: rollup estimate = own + descendants", rollup_estimate(hier, "T-010") == 900)
+    check("hierarchy: rollup minutes = own + descendants",
+          rollup_minutes(hier, "T-010") == 60 and rollup_minutes(hier, "T-011") == 60)
+    check("hierarchy: depth", depth_of(hier, "T-011") == 1 and depth_of(hier, "T-010") == 0)
+
+    def _write_hier(led: dict[str, Any], tag: str) -> str:
+        path = os.path.join(tempfile.gettempdir(), f"fewer-tasks-hier-{_slug(tag)}.yaml")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(emit_ledger(led))
+        return path
+
+    good_hier = _write_hier(hier, "clean")
+    with contextlib.redirect_stdout(io.StringIO()):
+        h_hard, h_soft = run_validate(good_hier)
+    check("validate accepts a clean hierarchy", h_hard == 0, f"{h_hard} hard, {h_soft} warn")
+
+    hier_variants = {
+        "parent done with open child": lambda led: (
+            led["tasks"][0].__setitem__("time_source", "none"),
+            led["tasks"][0].__setitem__("status", "done")),
+        "internal child of issue-backed parent": lambda led: led["tasks"][1].__setitem__("internal", True),
+        "self-parent": lambda led: led["tasks"][1].__setitem__("parent", "T-011"),
+        "unknown parent": lambda led: led["tasks"][1].__setitem__("parent", "T-099"),
+        "parent cycle": lambda led: (
+            led["tasks"][0].__setitem__("parent", "T-011"),
+            led["tasks"][1].__setitem__("parent", "T-010")),
+    }
+    for name, mutate in hier_variants.items():
+        led = json.loads(json.dumps(hier))
+        mutate(led)
+        path = _write_hier(led, name)
+        with contextlib.redirect_stdout(io.StringIO()):
+            hard2, _soft2 = run_validate(path)
+        check(f"validate rejects: {name}", hard2 >= 1)
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+    led = json.loads(json.dumps(hier))
+    led["tasks"][0]["estimate_min"] = 100
+    path = _write_hier(led, "under-estimated umbrella")
+    with contextlib.redirect_stdout(io.StringIO()):
+        h_hard, h_soft = run_validate(path)
+    check("under-estimated umbrella warns, does not fail", h_hard == 0 and h_soft >= 1,
+          f"hard={h_hard} soft={h_soft}")
+
+    deep = json.loads(json.dumps(hier))
+    for i, (rid, parent) in enumerate((("T-012", "T-011"), ("T-013", "T-012"), ("T-014", "T-013"))):
+        r = new_row(title=f"depth {i}", rtype="task", area="other", issue=600 + i, parent=parent,
+                    estimate_min=120, source=f"gh#{600 + i}")
+        r["id"] = rid
+        deep["tasks"].append(r)
+    path = _write_hier(deep, "deep hierarchy")
+    with contextlib.redirect_stdout(io.StringIO()):
+        h_hard, h_soft = run_validate(path)
+    check("hierarchy depth >3 warns, does not fail", h_hard == 0 and h_soft >= 1,
+          f"hard={h_hard} soft={h_soft}")
+    for path in (good_hier, path):
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
     good_path = os.path.join(tempfile.gettempdir(), "fewer-tasks-selftest-good.yaml")
     with open(good_path, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -1917,6 +2312,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--tier", type=int)
     sp.add_argument("--estimate-min", type=int)
     sp.add_argument("--source")
+    sp.add_argument("--parent", help="T-id of the parent task (subtask/child)")
 
     sp = add("triage", cmd_triage, "classify a row and set status: triaged")
     sp.add_argument("ref")
@@ -1925,6 +2321,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--area")
     sp.add_argument("--type", choices=TYPES)
     sp.add_argument("--blocked-by", nargs="+", default=[])
+    sp.add_argument("--parent", help="T-id of the parent task (subtask/child)")
     sp.add_argument("--note")
 
     sp = add("start", cmd_start, "open a timed session (status: in-progress)")
@@ -1972,10 +2369,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-start", action="store_true")
     sp.add_argument("--local", action="store_true", help="skip GitHub, search rows only")
     sp.add_argument("--body")
+    sp.add_argument("--parent", help="T-id to file the new sub-issue under")
 
     sp = add("attach", cmd_attach, "attach to an issue/task id and start timing")
     sp.add_argument("ref")
     sp.add_argument("--no-start", dest="start", action="store_false")
+    sp.add_argument("--parent", help="T-id to set as parent while attaching")
 
     sp = add("intake", cmd_intake, "adopt GitHub issues that have no ledger row")
     sp.add_argument("--state", choices=("open", "all", "closed"), default="open")
@@ -1989,6 +2388,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("gh-sync", cmd_gh_sync, "ledger → GitHub: create issues, mirror status labels")
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--status-only", action="store_true")
+    sp.add_argument("--relink", action="store_true",
+                    help="also drop GitHub sub-issue links the ledger no longer has")
 
     sp = add("reconcile", cmd_reconcile, "GitHub open/closed + PR merge → ledger status")
     sp.add_argument("--apply", action="store_true")
@@ -2000,6 +2401,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("report", cmd_report, "time and estimate rollup")
     sp.add_argument("--since", help="ISO date, e.g. 2026-09-01")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--tree", action="store_true", help="indented hierarchy view")
+
+    sp = add("children", cmd_children, "direct children of a task + its rollup")
+    sp.add_argument("ref")
+
+    sp = add("tree", cmd_tree, "the hierarchy with own and rollup time")
+    sp.add_argument("--root", help="restrict to one subtree")
+    sp.add_argument("--json", action="store_true")
+
+    sp = add("reparent", cmd_reparent, "move a task under another (or --detach)")
+    sp.add_argument("ref")
+    sp.add_argument("--parent", help="new parent T-id")
+    sp.add_argument("--detach", action="store_true", help="make it a root")
 
     add("validate", cmd_validate, "structural gate (CI runs this)")
 

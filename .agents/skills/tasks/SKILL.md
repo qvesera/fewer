@@ -62,6 +62,12 @@ merges are authoritative for `done` (`reconcile`).
 | Back-fill a session with real timestamps | `python3 scripts/tasks.py record-session <id> --start … --end … --reconstructed --proof <sha>` |
 | Reinstall the commit hook | `python3 scripts/tasks.py install-hooks` |
 | Engine self-check | `python3 scripts/tasks.py selftest` |
+| Direct children + rollup | `python3 scripts/tasks.py children <T-id>` |
+| Indented hierarchy (own vs rollup time) | `python3 scripts/tasks.py tree [--root T-id] [--json]` (= `report --tree`) |
+| Move a task under another / make it a root | `python3 scripts/tasks.py reparent <T-id> --parent T-… | --detach` |
+| Create a task under a parent | `bun run task:add --title … --parent T-…` / `bun run task:triage <id> --parent …` |
+| File a sub-issue under a parent | `python3 scripts/tasks.py track bug "…" --parent T-… [--dry-run]` |
+| Repair/drop GitHub sub-issue links | `python3 scripts/tasks.py gh-sync [--relink]` |
 
 ## `track` decision bands
 
@@ -76,6 +82,27 @@ open issues rank above closed. Sources searched: `TASKS.yaml` first (offline,
 no API call), then `gh issue list --state all --limit 200`. Creation applies
 `bug`/`enhancement`/`documentation` + `status:triaged` + `category:`/`severity:`
 when given, and always prints the `DECISION` line with the winning candidate.
+
+## Hierarchy: `parent` (sub-issues / subtasks)
+
+`parent: T-###` marks a task as the child of another; `validate` keeps the graph
+acyclic and `gh-sync` mirrors the link as a native GitHub sub-issue
+(`gh issue edit <child> --parent <parent>`). Distinct from `blocked_by`
+(dependency), which is a separate DAG.
+
+| rule | enforcement |
+| --- | --- |
+| decompose at **pickup**: estimate ≥ 2400 min (Tier 1+) or several independent deliverables → 2–6 subtasks, own estimates, real linked issues; **ask before creating more than three** | the rule/skill; no automatic splitting |
+| a parent never holds the session — `start` on it is refused ("decomposed umbrella") | `start` |
+| parent `done` requires every child `done`/`wontfix` | `validate` FAIL |
+| child of an issue-backed parent must have an issue (`internal: false`) | `validate` FAIL |
+| self-parent / unknown parent / parent cycle | `validate` FAIL |
+| depth > 3, parent `estimate_min` < Σ children, parent `wontfix` with live children | `validate` WARN |
+| ledger parent ↔ GitHub parent agree, both directions | `doctor` + `gh-sync [--relink]` |
+| a flat backlog is valid — nothing is pre-decomposed | `validate` (no nag) |
+
+`spent_min` is always a row's **own** measured time; `rollup_min` /
+`rollup_estimate_min` (in `tree --json`, `children`) add descendants.
 
 ## Session rules
 
@@ -98,4 +125,7 @@ when given, and always prints the `DECISION` line with the winning candidate.
 | `TASKS.yaml has uncommitted changes` (WARN) | `stop`'s close-out not committed yet | `git add TASKS.yaml && git commit -m "chore(tasks): close <id>"` |
 | `doctor: … no ledger row` | issue filed on GitHub outside `track` | `task:intake` |
 | `doctor: status labels … !=` | status changed without mirroring | `task:gh-sync` |
+| `doctor: … sub-issue of #N on GitHub but the ledger has no parent` | link made on GitHub outside the ledger | `task:intake` (adopt it) or `task:gh-sync --relink` (drop it) |
+| `start` → "decomposed umbrella" | parent has children | `start` a child instead (`task:tree`) |
+| `parent done while child(ren) still open` | parent closed too early | finish the children, or `set-status` the parent back to `triaged` |
 | ambiguous `track` (exit 3) | candidate in the 0.45–0.75 band | show candidates, ask, or rerun `--new` |

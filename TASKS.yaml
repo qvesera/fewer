@@ -14,6 +14,7 @@ tasks:
   internal: true
   milestone: null
   blocked_by: []
+  parent: null
   source: "cli"
   time_source: "measured"
   reporter: null
@@ -52,6 +53,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#back-export-the-three-posts-that-exist-only-in-the-database-v031-performance-v040-accounts-v050-remote-sources-into-content-blog-so-scripts-gen-seed-content-py-covers-every-row-in-content-pages"
   time_source: null
   reporter: null
@@ -72,6 +74,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#dcc-extension-taxonomy"
   time_source: null
   reporter: null
@@ -92,6 +95,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#frame-sequence-collapsing-naming-parse"
   time_source: null
   reporter: null
@@ -112,6 +116,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#studio-aware-import-profiles"
   time_source: null
   reporter: null
@@ -132,6 +137,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#symlink-support"
   time_source: null
   reporter: null
@@ -152,6 +158,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#diff-v2-with-change-detection"
   time_source: null
   reporter: null
@@ -172,6 +179,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#raise-depth-cap-add-node-budget"
   time_source: null
   reporter: null
@@ -192,6 +200,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#portable-snapshot-files"
   time_source: null
   reporter: null
@@ -212,6 +221,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#multi-root-compare-two-trees"
   time_source: null
   reporter: null
@@ -232,6 +242,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: ["T-015"]
+  parent: null
   source: "TO-DO.md#headless-cli"
   time_source: null
   reporter: null
@@ -252,6 +263,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: ["T-015", "T-004"]
+  parent: null
   source: "TO-DO.md#rule-validation-engine"
   time_source: null
   reporter: null
@@ -272,6 +284,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: ["T-004", "T-012"]
+  parent: null
   source: "TO-DO.md#preflight-intake-reports"
   time_source: null
   reporter: null
@@ -292,6 +305,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#plugin-system"
   time_source: null
   reporter: null
@@ -312,6 +326,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "TO-DO.md#licensing-the-strategic-blocker"
   time_source: null
   reporter: null
@@ -332,6 +347,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#180"
   time_source: "reconstructed"
   reporter: "qvesera"
@@ -358,6 +374,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#11"
   time_source: "none"
   reporter: "qvesera"
@@ -378,6 +395,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#6"
   time_source: "none"
   reporter: "qvesera"
@@ -398,6 +416,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#5"
   time_source: "none"
   reporter: "qvesera"
@@ -418,6 +437,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#4"
   time_source: "none"
   reporter: "qvesera"
@@ -438,6 +458,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#3"
   time_source: "none"
   reporter: "qvesera"
@@ -458,6 +479,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#2"
   time_source: "none"
   reporter: "qvesera"
@@ -478,6 +500,7 @@ tasks:
   internal: false
   milestone: null
   blocked_by: []
+  parent: null
   source: "gh#1"
   time_source: "none"
   reporter: "qvesera"
@@ -486,3 +509,30 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-024"
+  title: "Hierarchy: issues/sub-issues and tasks/subtasks (parent field, rollups, GitHub sub-issue linking, decomposition duties)"
+  status: "review"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "cli"
+  time_source: "measured"
+  reporter: null
+  created_at: "2026-09-24T21:25:47Z"
+  notes: ["2026-09-24T21:25:47Z · hierarchy machinery per approved plan; organic only — no re-parenting of existing rows"]
+  sessions:
+  - start: "2026-09-24T21:25:47Z"
+    end: "2026-09-24T21:37:52Z"
+    measured: true
+    note: "parent field + validate rules + children/tree/reparent + gh-sync/intake/doctor parity + docs; 40 selftest checks; live link/unlink verified both directions then reverted (organic-only)"
+    proof: ["fc0d032"]
+    effort: {commits: 1, files: 6, insertions: 551, deletions: 14}
+  spent_min: 12
+  session_count: 1
