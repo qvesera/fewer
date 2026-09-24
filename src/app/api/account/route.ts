@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { scheduledDeletionIso } from "@/lib/fewer/accountDeletion";
 
 /**
@@ -19,28 +18,6 @@ import { scheduledDeletionIso } from "@/lib/fewer/accountDeletion";
  *
  * Returns 204 on success. The client signs the user out afterwards.
  */
-async function getAuthedUser() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll: () => cookieStore.getAll(),
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return data.user;
-}
-
 /** Service-role client — bypasses RLS so we can clean shared data and delete the user. */
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -52,10 +29,11 @@ function getServiceClient() {
 }
 
 export async function DELETE() {
-  const user = await getAuthedUser();
-  if (!user) {
+  const authed = await getAuthedSupabase();
+  if (!authed) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+  const { user } = authed;
 
   let service;
   try {

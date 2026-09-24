@@ -46,10 +46,27 @@ export const createSearchSlice: SearchSliceCreator = (set, get) => ({
     try { sessionStorage.removeItem(SEARCH_HISTORY_KEY); } catch { /* ignore */ }
   },
   setCategoryFilter: (cats) => {
-    const { nodes, hiddenIds, categoryHiddenIds } = get();
+    const {
+      nodes,
+      hiddenIds,
+      categoryHiddenIds,
+      independentlyHiddenIds,
+      autoHiddenIds,
+      tagFilterHiddenIds,
+    } = get();
     const nextCatHidden = categoryHiddenNodeIds(nodes, cats);
     const prevCatSet = new Set(categoryHiddenIds);
-    const baseHidden = hiddenIds.filter((id) => !prevCatSet.has(id));
+    // Drop the ids the previous category filter hid, then add the ids this one
+    // hides. A node can be hidden by more than one layer, so an id the category
+    // filter added is only dropped when no other layer still owns it — manual
+    // hides (Hidden panel), auto-hide and the tag filter all survive a
+    // category-filter change.
+    const otherLayers = new Set([
+      ...independentlyHiddenIds,
+      ...autoHiddenIds,
+      ...tagFilterHiddenIds,
+    ]);
+    const baseHidden = hiddenIds.filter((id) => !prevCatSet.has(id) || otherLayers.has(id));
     const finalHidden = [...new Set([...baseHidden, ...nextCatHidden])];
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: finalHidden, categoryFilter: cats, categoryHiddenIds: nextCatHidden };

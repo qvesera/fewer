@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
+import { addNodeToast } from "@/lib/fewer/addNodeModel";
 import { AlertTriangle } from "lucide-react";
 
 interface AddNodeDialogProps {
@@ -58,18 +59,6 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
   }, [open]);
 
   // Real-time duplicate check
-  const displayName = useMemo(() => {
-    const trimmed = name.trim();
-    if (!trimmed) return "";
-    const ext = type === "file" ? (trimmed.includes(".") ? "" : "") : "";
-    if (type === "file") {
-      const dot = trimmed.lastIndexOf(".");
-      if (dot > 0) return trimmed.slice(0, dot);
-      return trimmed;
-    }
-    return trimmed;
-  }, [name, type]);
-
   const isDuplicate = useMemo(() => {
     const trimmed = name.trim();
     if (!trimmed) return false;
@@ -90,14 +79,16 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     if (mode === "parent") {
       const targetId = selectedNodeIds[0] ?? null;
       if (!targetId) return false;
-      // The new folder becomes a sibling of the target node (child of its
-      // current parent, or a root-level node if the target is unparented).
+      // The new folder takes over the target's slot (child of its current
+      // parent, or root-level if the target is unparented). The target itself
+      // is excluded — it moves under the new folder, so naming the parent after
+      // the target is legal; only other cards in this scope can collide.
       const parentEdge = edges.find((e) => e.target === targetId);
       const siblingNodeIds = parentEdge
         ? edges.filter((e) => e.source === parentEdge.source).map((e) => e.target)
         : nodes.filter((n) => !edges.some((e) => e.target === n.id)).map((n) => n.id);
       return nodes.some((n) => {
-        if (!siblingNodeIds.includes(n.id)) return false;
+        if (n.id === targetId || !siblingNodeIds.includes(n.id)) return false;
         const nFull = n.data.extension ? `${n.data.label}.${n.data.extension}` : n.data.label;
         return nFull.toLowerCase() === inputFullName;
       });
@@ -130,10 +121,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
     if (mode === "child") {
       addNode(selectedNodeIds[0] ?? null, trimmed, type, pending ?? undefined);
       onOpenChange(false);
-      toast({
-        title: type === "folder" ? "Folder added" : "File added",
-        description: `"${trimmed}" added to folder`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     } else if (mode === "parent") {
       const targetId = selectedNodeIds[0] ?? null;
       const result = targetId ? addParentNode(targetId, trimmed, pending ?? undefined) : null;
@@ -142,17 +130,11 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
         return;
       }
       onOpenChange(false);
-      toast({
-        title: "Parent folder added",
-        description: `"${trimmed}" is now the parent card`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     } else {
       addStandaloneNode(trimmed, type, pending ?? { x: 1000, y: 600 });
       onOpenChange(false);
-      toast({
-        title: type === "folder" ? "Folder added" : "File added",
-        description: `"${trimmed}" added to canvas`,
-      });
+      toast(addNodeToast(mode, type, trimmed));
     }
   };
 
@@ -213,7 +195,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
               {isDuplicate && name.trim() && (
                 <div className="flex items-center gap-1.5 text-[11px] text-red-400 animate-[tutorial-fade-in_0.2s_ease-out]">
                   <AlertTriangle className="h-3 w-3 shrink-0" />
-                  <span>A node with this name already exists here</span>
+                  <span>A card with this name already exists here</span>
                 </div>
               )}
             </div>

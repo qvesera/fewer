@@ -19,25 +19,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Cloud,
-  Download,
-  FolderOpen,
-  Globe,
-  Loader2,
-  Upload,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
-import { ImportOriginStep } from "./ImportOriginStep";
+import { ImportOriginStep, ORIGIN_ICONS } from "./ImportOriginStep";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import {
@@ -46,15 +35,9 @@ import {
   isSourceReady,
   sourceLabel,
 } from "@/lib/fewer/importFlow";
-import type {
-  ImportActionResult,
-  ImportOrigin,
-  OriginSource,
-} from "@/lib/fewer/importFlow";
-import { runFolderImport } from "@/lib/fewer/importActionFolder";
-import { runFileImport } from "@/lib/fewer/importActionFile";
-import { runUrlImport } from "@/lib/fewer/importActionUrl";
-import { runCloudImport } from "@/lib/fewer/importActionCloud";
+import type { ImportOrigin, OriginSource } from "@/lib/fewer/importFlow";
+import { runImport } from "@/lib/fewer/importAction";
+import { can } from "@/lib/fewer/tiers";
 
 type Step = 1 | 2 | 3;
 
@@ -64,11 +47,13 @@ const STEP_LABELS: Record<Step, string> = {
   3: "Import",
 };
 
-const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
-  folder: FolderOpen,
-  file: Upload,
-  url: Globe,
-  cloud: Cloud,
+const BASIC_MODE_OPTION_DEFAULTS: Partial<ImportOptions> = {
+  includeHidden: DEFAULT_IMPORT_OPTIONS.includeHidden,
+  includeVendored: DEFAULT_IMPORT_OPTIONS.includeVendored,
+  skipEmptyFolders: DEFAULT_IMPORT_OPTIONS.skipEmptyFolders,
+  includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
+  extensions: DEFAULT_IMPORT_OPTIONS.extensions,
+  caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
 };
 
 interface ImportFlowDialogProps {
@@ -94,8 +79,8 @@ export function ImportFlowDialog({
     }
   };
   const { toast } = useToast();
-  const { user } = useAuth();
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
+  const advancedFormats = can("advancedImportFormats", tier);
   const { importUrl, getResult: getUrlResult } = useImport();
   const { add: watchAdd } = useWatch();
 
@@ -112,13 +97,24 @@ export function ImportFlowDialog({
   const [actionError, setActionError] = useState<string | null>(null);
 
   // Reset the flow on each genuine open transition (open false->true).
+  // Re-seed options from the store (the source of truth): this dialog stays
+  // mounted while closed, so a long-lived instance would otherwise keep stale
+  // options after a cloud sync rewrote them. In basic mode the advanced fields
+  // are clamped to defaults, so a saved/synced advanced value can't leak into an
+  // import the user can no longer see or change.
   useEffect(() => {
     if (open) {
       handleFirstOpen();
       setStep(1);
       setOrigin(initialOrigin);
       setSource(defaultSourceFor(initialOrigin));
-      setOptions({ ...useGraphStore.getState().importOptions });
+      const { importOptions, advancedModeEnabled: advanced } =
+        useGraphStore.getState();
+      setOptions(
+        advanced
+          ? { ...importOptions }
+          : { ...importOptions, ...BASIC_MODE_OPTION_DEFAULTS },
+      );
       setActionError(null);
       setImporting(false);
     }
@@ -126,18 +122,10 @@ export function ImportFlowDialog({
 
   // Advanced mode off → advanced options fall back to defaults (same as old dialog).
   useEffect(() => {
-    if (!advancedModeEnabled) {
-      setOptions((prev) => ({
-        ...prev,
-        includeHidden: DEFAULT_IMPORT_OPTIONS.includeHidden,
-        includeVendored: DEFAULT_IMPORT_OPTIONS.includeVendored,
-        skipEmptyFolders: DEFAULT_IMPORT_OPTIONS.skipEmptyFolders,
-        includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
-        extensions: DEFAULT_IMPORT_OPTIONS.extensions,
-        caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
-      }));
+    if (!advancedFormats) {
+      setOptions((prev) => ({ ...prev, ...BASIC_MODE_OPTION_DEFAULTS }));
     }
-  }, [advancedModeEnabled]);
+  }, [advancedFormats]);
 
   // Persist the user's import preferences so the next session/dialog remembers
   // them (and so they're synced to the account in the cloud).
@@ -150,29 +138,11 @@ export function ImportFlowDialog({
     setImporting(true);
     setActionError(null);
 
-    let result: ImportActionResult;
-    switch (source.origin) {
-      case "folder":
-        result = await runFolderImport(options);
-        break;
-      case "file":
-        result = await runFileImport(source, options);
-        break;
-      case "url":
-        result = await runUrlImport(source, options, {
-          importUrl,
-          getTruncated: () => getUrlResult().truncated,
-          watchUrl: source.watch ? watchAdd : undefined,
-        });
-        if (!result.ok) {
-          const hookError = getUrlResult().error;
-          if (hookError) result = { ...result, error: hookError };
-        }
-        break;
-      case "cloud":
-        result = await runCloudImport(source, options);
-        break;
-    }
+    const result = await runImport(source, options, {
+      importUrl,
+      getUrlResult,
+      watchUrl: watchAdd,
+    });
 
     setImporting(false);
 
@@ -202,18 +172,13 @@ export function ImportFlowDialog({
   // focus is NOT on a button (buttons trigger their own Enter) or an editable
   // field (inputs/textareas keep their own Enter). Step 1 is handled inside
   // ImportOriginStep.
+/** Returns true if the keyboard event target is an editable element that should consume Enter instead of advancing the dialog step. */
+function isEditableTarget(el: HTMLElement): boolean {
+  return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON" || el.tagName === "A" || el.isContentEditable;
+}
   const handleStepKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (importing) return;
-    const t = e.target as HTMLElement;
-    if (
-      t.tagName === "INPUT" ||
-      t.tagName === "TEXTAREA" ||
-      t.tagName === "BUTTON" ||
-      t.tagName === "A" ||
-      t.isContentEditable
-    ) {
-      return;
-    }
+    if (isEditableTarget(e.target as HTMLElement)) return;
     if (e.key !== "Enter") return;
     e.preventDefault();
     if (step === 2) setStep(3);
@@ -289,8 +254,8 @@ export function ImportFlowDialog({
               }}
               source={source}
               onSourceChange={setSource}
-              advancedModeEnabled={advancedModeEnabled}
-              signedIn={!!user}
+              advancedFormats={advancedFormats}
+              cloudImport={can("cloudImport", tier)}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)
               }
@@ -307,7 +272,7 @@ export function ImportFlowDialog({
               onChange={(partial) =>
                 setOptions((prev) => ({ ...prev, ...partial }))
               }
-              advancedModeEnabled={advancedModeEnabled}
+              advancedFormats={advancedFormats}
             />
           </div>
 

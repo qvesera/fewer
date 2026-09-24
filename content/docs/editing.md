@@ -34,7 +34,7 @@ From the context menu, **Paste** on a folder pastes the clipboard contents into 
 
 - **Delete / Backspace**: removes selected node(s)
 - **Right-click → Delete**: removes a single node
-- Deleting a folder cascades: all descendants (children, grandchildren, edges) are removed too
+- Deleting a folder cascades: all descendants (children, grandchildren, connections) are removed too
 - **Clear Canvas** (trash icon in the sidebar) wipes the whole graph after a confirmation dialog
 
 ## Unparenting
@@ -56,9 +56,8 @@ Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
 | Copy Paths      | Copies each selected node's full path to the clipboard, one per line                                                                                                                 |
-| Tags…           | Opens a shared tag picker: assign or remove any tag across the whole selection at once (creates new tags too)                                                                |
 | Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
-| Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection edge)                                                           |
+| Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
 
 Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
@@ -77,7 +76,7 @@ Drag from a node's **output handle** to another node's **input handle** to creat
 
 - No cycles: you cannot connect a descendant back to its ancestor
 - No orphans pushed below files: files have no children, so their output handle is hidden
-- Unparenting or deleting removes the affected edges automatically
+- Unparenting or deleting removes the affected connections automatically
 
 ## Hiding & Showing Children
 
@@ -99,7 +98,7 @@ In Power User mode, right-click a folder for:
 | Delete                | Cascade                |
 | Show/Hide Children    | Power User mode        |
 | Add Child Node        | Power User mode        |
-| Open in File Explorer | Directory imports only |
+| Open in File Explorer | Disabled in the web build |
 | Copy Path             | Power User mode        |
 | Refresh from Disk     | Directory imports only |
 
@@ -111,15 +110,29 @@ In Power User mode, right-click a folder for:
 | Copy / Cut / Duplicate | Clipboard-aware                         |
 | Copy Name              | Copies filename to clipboard            |
 | Delete                 | Single node                             |
-| Open File              | Power User mode, directory imports only |
+| Open File              | Disabled in the web build               |
+
+> **OS integration is switched off in the web build.** "Open in File Explorer"
+> and "Open File" go through server-side OS openers (`/api/open-folder`,
+> `/api/open-file`) that only exist on a locally-running server, and those routes
+> are restricted to localhost requests. Both actions are gated by
+> `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts`, where every flag defaults to
+> `false`; a native build that replaces these paths with OS commands flips them.
+> Importing folders from disk is unaffected — it uses the `webkitdirectory`
+> fallback in every browser.
 
 ## Undo / Redo
 
-Every editing operation records an undo step:
+Every editing operation records an undo step — including node moves (drag a
+node, then **Ctrl+Z** to snap it back):
 
 - **Ctrl+Z**: undo
 - **Ctrl+Shift+Z / Ctrl+Y**: redo
 - 50-step history buffer
+
+With a **split panel layout**, each panel view keeps its own 50-step history.
+Undo/redo act on the view you last interacted with, so a drag in one view never
+rolls back an edit made in another.
 
 Use **Relayout** after heavy manual edits to tidy the graph.
 

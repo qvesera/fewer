@@ -5,6 +5,16 @@ description: Import directories from disk, GitHub, or files. Export your graph a
 
 Fewer lets you import file trees in multiple formats, whether it is directly from your disk, a github url, or from a previously exported file.
 
+Every source goes through one **3-step import dialog**:
+
+1. **Origin** — pick where the tree comes from: folder, file, URL, or a linked cloud account
+2. **Options** — the same configuration panel for every origin (depth, hidden files, filters, …)
+3. **Import** — a summary of what will be imported, then **Import**
+
+Press **Enter** to move through the steps. The same dialog is reachable from
+**Import from disk**, **Import from file**, **Import from URL**, and the cloud
+sources in the sidebar.
+
 ## Import from Disk
 
 1. Click **Import from disk** (or press **Alt+I**)
@@ -21,22 +31,16 @@ The graph builds instantly with auto-layout. Large imports show a progress indic
 
 ### Drag & Drop (empty canvas)
 
-On an empty canvas, drag a folder from your file system and drop it anywhere on
-the canvas to import it directly — no picker, no dialog. The import honors your
-**saved import settings** (scan depth, hidden files, extension filters, etc. —
-the same options configured in the Import dialog).
-
-- Works in Chromium-based browsers (Chrome, Edge, Vivaldi, Brave, …). Uses the
-  File System Access API, with a legacy file-entry fallback, and — when a
-  portalized install (Flatpak/Snap) delivers the drop only as a local path —
-  a local-dev-server fallback that reads the folder directly. Where none of
-  those channels exist you'll get a hint to use the Import dialog instead.
-- Dropping onto a canvas that already has nodes keeps the existing behavior:
-  the folder becomes a single expandable node rather than a full import.
+**Disabled in the web build.** Dropping a folder from your OS onto the canvas to
+import it directly (and dropping onto a populated canvas to expand it from disk)
+uses File System Access handles and OS drop events, which are switched off by the
+`LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`. Use **Import from
+disk** instead — the options are identical.
 
 ### Browser Support
 
-- **Chrome/Edge:** Full File System Access API: can read and write back to disk
+- **Chrome/Edge:** File System Access directory picker where enabled; the
+  shipped build falls back to `webkitdirectory` (read-only import)
 - **Firefox/Safari:** `webkitdirectory` fallback: read-only import
 - **Brave:** May require flag `brave://flags/#enable-experimental-web-platform-features`
 
@@ -120,7 +124,20 @@ Click **Import from File** and select your file. You can also paste content dire
 
 ### Export Selected
 
-Toggle **Export Selected** to export only the currently selected subtree instead of the full graph.
+Toggle **Export Selected** to export only the selected subtree.
+
+### Image Exports Mirror the Active View
+
+SVG and PNG render exactly what the active graph view shows, not the raw graph state:
+
+- cards the view hides stay out of the image (hidden children still appear as faded rows inside their folder card)
+- per-view card positions and the view's own derived layout (Layout Direction override, Crown Shyness intensity, sibling sort) are used as-is
+- collapsed folders export as their one-line pill
+- tag rings and tag dots use the same colors as the canvas
+- the current selection carries over: each selected card gets the themed selection ring outside its border, and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses
+- the view's edge style, stroke pattern, and edge width win over the global ones, and edges anchor to the view's layout direction exactly as the canvas handles do
+
+Click the graph view you want before exporting. Data formats (JSON, CSV, DOT, script, tree) always export the full graph and ignore view settings. The active-view marker shown in a split layout is a UI affordance and is never drawn into an export.
 
 ### PNG Options
 

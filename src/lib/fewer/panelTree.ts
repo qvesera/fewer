@@ -6,8 +6,44 @@
  * PanelArea nodes. The main graph canvas is a leaf — it can be split into
  * multiple side-by-side viewports of the same data.
  */
-import type { PanelArea, AreaEditor } from "./panelLayout";
-import { createArea, generateAreaId } from "./panelLayout";
+// ─ Area primitives ─
+// Declared here, in the base module of the split-tree data structure, so that
+// panelLayout depends on panelTree and not the reverse. (They used to live in
+// panelLayout, which made the two modules import each other.)
+
+export type AreaEditor =
+  | "graph"
+  | "file"
+  | "directories"
+  | "layout"
+  | "edges"
+  | "hidden"
+  | "tags"
+  | "analytics";
+
+export interface PanelArea {
+  id: string;
+  width: number;
+  editor: AreaEditor;
+}
+
+export const DEFAULT_SECTION_WIDTH = 280;
+export const DEFAULT_GRAPH_WIDTH = 480;
+
+let _counter = 0;
+/** Globally unique id for areas (works across SSR: increments only in browser). */
+export function generateAreaId(): string {
+  return `area-${Date.now()}-${++_counter}`;
+}
+
+/** Create a new PanelArea with sane defaults for the editor type. */
+export function createArea(editor: AreaEditor, width?: number): PanelArea {
+  return {
+    id: generateAreaId(),
+    width: width ?? (editor === "graph" ? DEFAULT_GRAPH_WIDTH : DEFAULT_SECTION_WIDTH),
+    editor,
+  };
+}
 
 // ── Node types ──
 
@@ -105,6 +141,8 @@ function replaceChild(root: PanelNode, leafId: string, replacement: PanelNode): 
 // ── Set leaf editor ──
 
 export function setLeafEditor(root: PanelNode, id: string, editor: AreaEditor): PanelNode {
+  const target = findLeaf(root, id);
+  if (!target || target.primary) return root;
   return patchLeaf(root, id, (l) => ({ ...l, area: { ...l.area, editor } }));
 }
 
@@ -113,12 +151,17 @@ export function setLeafEditor(root: PanelNode, id: string, editor: AreaEditor): 
 /**
  * Split a leaf in two. Existing leaf keeps position; new sibling with same
  * editor type appears beside or above it. `dir` = "h" → side-by-side.
+ * `side` = "end" (default) places the new sibling after the target (right /
+ * bottom); `side` = "start" places it before (left / top). `ratio` is the
+ * first child's share in both cases, so the divider always tracks the pointer.
  */
-export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", ratio = 0.5): PanelNode {
+export function splitLeaf(root: PanelNode, targetId: string, dir: "h" | "v", ratio = 0.5, side: "start" | "end" = "end"): PanelNode {
   const target = findLeaf(root, targetId);
   if (!target) return root;
   const sibling: PanelLeaf = { kind: "leaf", area: createArea(target.area.editor) };
-  const splitNode = makeSplit(dir, { ...target }, sibling, ratio);
+  const first = side === "start" ? sibling : { ...target };
+  const second = side === "start" ? { ...target } : sibling;
+  const splitNode = makeSplit(dir, first, second, ratio);
   if (isLeaf(root) && root.area.id === targetId) return splitNode;
   return replaceChild(root, targetId, splitNode);
 }
@@ -175,6 +218,15 @@ export function insertLeafAtEdge(root: PanelNode, side: "left" | "right", editor
   return side === "left"
     ? makeSplit("h", newNode, root, 0.25)
     : makeSplit("h", root, newNode, 0.75);
+}
+
+/**
+ * Determine dock side from a pointer X and a workspace bounding rect.
+ * Returns "left" if the pointer is in the left half of the workspace, "right" otherwise.
+ */
+export function dropSideForX(clientX: number, rect: DOMRect | { left: number; right: number }): "left" | "right" {
+  const mid = (rect.left + rect.right) / 2;
+  return clientX < mid ? "left" : "right";
 }
 
 // ── Adjust split ratio (divider drag) ──
@@ -253,6 +305,11 @@ export function dedupeLeafIds(root: PanelNode): PanelNode {
   if (!getPrimary(out)) {
     const graphLeaf = leafList(out).find((l) => l.area.editor === "graph");
     if (graphLeaf) out = patchLeaf(out, graphLeaf.area.id, (l) => ({ ...l, primary: true }));
+  }
+  // The primary leaf is always the main graph viewport — pin its editor to graph.
+  const primary = getPrimary(out);
+  if (primary && primary.area.editor !== "graph") {
+    out = patchLeaf(out, primary.area.id, (l) => ({ ...l, area: { ...l.area, editor: "graph" } }));
   }
   return out;
 }

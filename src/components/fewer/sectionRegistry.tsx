@@ -36,7 +36,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
     id: "directories",
     title: "Your Directories",
     icon: FolderOpen,
-    available: (s) => !!s.user,
+    available: (s) => !!s.tier && s.tier !== "guest",
   },
   {
     id: "layout",
@@ -46,7 +46,7 @@ export const SECTION_CATALOG: SectionMeta[] = [
   },
   {
     id: "edges",
-    title: "Edges & Style",
+    title: "Connections & Style",
     icon: Spline,
     available: () => true,
   },
@@ -60,13 +60,13 @@ export const SECTION_CATALOG: SectionMeta[] = [
     id: "tags",
     title: "Tags",
     icon: TagIcon,
-    available: (s) => s.nodes.length > 0,
+    available: (s) => s.tier === "pro" && s.nodes.length > 0,
   },
   {
     id: "analytics",
     title: "Graph Analytics",
     icon: Layers,
-    available: (s) => s.advancedModeEnabled && s.nodes.length > 0,
+    available: (s) => s.tier === "pro" && s.nodes.length > 0,
   },
 ];
 

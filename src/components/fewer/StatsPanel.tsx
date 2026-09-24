@@ -8,6 +8,7 @@ import { CATEGORY_META } from "@/lib/fewer/categoryMeta";
 import type { FileCategory } from "@/lib/fewer/types";
 import type { Tag } from "@/lib/fewer/tags";
 import { cn } from "@/lib/utils";
+import { can } from "@/lib/fewer/tiers";
 
 export function StatsPanel() {
   const nodes = useGraphStore((s) => s.nodes);
@@ -20,6 +21,7 @@ export function StatsPanel() {
   const tags = useGraphStore((s) => s.tags);
   const tagFilter = useGraphStore((s) => s.tagFilter);
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
+  const tier = useGraphStore((s) => s.tier);
   const stats = useMemo(() => computeStats(nodes, edges), [nodes, edges]);
 
   const tagCounts = useMemo(() => {
@@ -131,8 +133,8 @@ export function StatsPanel() {
         </div>
       )}
 
-      {/* ── By tag ── */}
-      {tags.length > 0 && (
+      {/* ── By tag (Pro workspace feature) ── */}
+      {can("tags", tier) && tags.length > 0 && (
         <div className="rounded-xl border border-border/40 bg-card/40 p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">

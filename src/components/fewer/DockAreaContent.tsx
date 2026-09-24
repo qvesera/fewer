@@ -13,6 +13,7 @@ import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
 import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
 import type { EdgeStyle } from "@/lib/fewer/types";
+import { can } from "@/lib/fewer/tiers";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 
 const GraphCanvasForArea = dynamic(
@@ -27,15 +28,13 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   // Live store selectors for availability checks
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const nodes = useGraphStore((s) => s.nodes);
-  const user = useGraphStore((s) => s.user);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
   const activeLeaf = useActiveLeaf();
 
   const storeSnapshot = {
     hiddenIds,
     nodes,
-    user,
-    advancedModeEnabled,
+    tier,
     activeLeafHiddenIds: activeLeaf?.resolved.hiddenIds.length ?? 0,
   };
   const meta = sectionMetaById(area.editor);
@@ -65,7 +64,7 @@ export function DockAreaContent({ area }: { area: PanelArea }) {
   }
 
   return (
-    <div className="flex-1 min-h-0 p-3 flex flex-col min-w-0 overflow-hidden">
+    <div data-leaf-scroll className="flex-1 min-h-0 p-3 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain gm-scroll">
       <SectionContent editor={area.editor} />
     </div>
   );
@@ -98,8 +97,7 @@ function LayoutSection() {
   const updateViewSettings = useGraphStore((s) => s.updateViewSettings);
   const setShowFiles = useGraphStore((s) => s.setShowFiles);
   const directionGlobal = useGraphStore((s) => s.direction);
-  const relayout = useGraphStore((s) => s.relayout);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const tier = useGraphStore((s) => s.tier);
 
   const showFiles = activeLeaf?.resolved.showFiles ?? true;
   const direction = activeLeaf?.resolved.direction ?? directionGlobal;
@@ -109,22 +107,17 @@ function LayoutSection() {
       <LayoutPicker
         direction={direction}
         onPick={(d) => { if (activeLeaf) updateViewSettings(activeLeaf.leafId, { direction: d }); else useGraphStore.getState().setDirection(d); }}
-        advancedModeEnabled={advancedModeEnabled}
+        advancedModeEnabled={can("layoutOrientation", tier)}
       />
       <Button
         size="sm"
         className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
         onClick={() => {
-          const store = useGraphStore.getState();
-          if (activeLeaf && Object.keys(store.viewSettings[activeLeaf.leafId] ?? {}).length > 0) {
-            store.clearViewPositions(activeLeaf.leafId);
-          } else {
-            relayout();
-          }
+          useGraphStore.getState().organize(activeLeaf?.leafId ?? null);
         }}
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">Rearrange</span>
+        <span className="truncate">Organize</span>
       </Button>
       <div className="flex items-center justify-between rounded-lg border border-border/20 p-2.5 bg-card/5 w-full min-w-0">
         <Label className="text-xs font-medium cursor-pointer truncate">Show File Cards</Label>

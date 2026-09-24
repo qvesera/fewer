@@ -13,9 +13,12 @@ import { Checkbox } from "@/components/ui/checkbox";
  * carry it, unselected = none do, mixed = some do (shows an indeterminate
  * dash). Toggling assigns or removes the tag across the whole selection in
  * one store call. A "+ New tag" row creates a tag and immediately assigns it.
+ * ponytail: unreachable today — setBatchTagOpen(true) is never called. The
+ * editing.md batch "Tags…" row was removed until this is wired.
  */
 export function BatchTagDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useGraphStore((s) => s.batchTagOpen);
+  const setOpen = useGraphStore((s) => s.setBatchTagOpen);
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");

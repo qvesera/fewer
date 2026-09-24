@@ -11,9 +11,12 @@ Two subcommands:
 
   baseline  Compares local migration versions against a project's recorded
             history (`supabase migration list --linked`) and fails when a local
-            migration is missing from history but was NOT added by the current
-            change. That means history drift: `db push` would replay old
-            migrations. Prints the exact `migration repair` command to run.
+            migration is older than the remote head AND missing from history but
+            was NOT added by the current change. That means out-of-order drift:
+            `db push` would silently skip those migrations. Local versions newer
+            than the remote head are "pending" (what `db push` is meant to
+            apply) and are reported but do not block. Prints the exact
+            `migration repair` command to run for any drift.
 
 Usage:
   python3 scripts/migrations.py verify --base origin/dev
@@ -147,6 +150,50 @@ def matches_canonical(path: str, canonical: str) -> bool:
 
 
 
+# Renames sanctioned despite hard rule 1 (an applied migration is immutable).
+#
+# Each entry exists because the source file could NEVER be recorded under its own
+# version, so no environment can silently miss it:
+#
+#   Two files claimed `0022` (`0022_account_plans.sql` and
+#   `0022_profiles_username_normalization.sql`) and
+#   `supabase_migrations.schema_migrations` has PRIMARY KEY (version), so
+#   recording the second raised 23505 — `db push` refused it forever ("Found
+#   local migration files to be inserted before the last migration on remote
+#   database") and `--include-all` could not help, because the history insert
+#   died on a duplicate key. Its effects were verified present in both projects
+#   (the two `profiles_username_*` check constraints and
+#   `profiles_username_unique_idx`) before the rename, and its content is
+#   byte-identical afterwards.
+#
+# A rename is only honoured when the target file exists and its content is
+# byte-identical to the source at `--base`: moved, never edited.
+SANCTIONED_RENAMES: dict[str, str] = {
+    "0022_profiles_username_normalization.sql": "0033_profiles_username_normalization.sql",
+}
+
+
+def sanctioned_rename(base: str, path: str) -> tuple[str, str] | None:
+    """Return the (old, new) pair when `path` is one side of a sanctioned rename.
+
+    Returns None when the path is unrelated, the target is missing, or the target
+    content differs from the source at `base` — an edited file, or a deletion with
+    no replacement, still fails the immutability check.
+    """
+    name = Path(path).name
+    for old, new in SANCTIONED_RENAMES.items():
+        if name not in {old, new}:
+            continue
+        target = MIGRATIONS_DIR / new
+        if not target.is_file():
+            continue
+        source_at_base = file_content_at(base, str(MIGRATIONS_DIR / old))
+        if source_at_base != target.read_text().replace("\r\n", "\n"):
+            continue
+        return old, new
+    return None
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     res = Result()
     files = migration_files()
@@ -179,12 +226,35 @@ def cmd_verify(args: argparse.Namespace) -> int:
         for path, status in sorted(git_changes(args.base).items()):
             if status not in {"M", "D", "R", "C"}:
                 continue
+            # A sanctioned rename is a move to a free number, not an edit (see
+            # SANCTIONED_RENAMES). git reports it as `R` keyed on the NEW path
+            # (rename detection is on by default), or as `D` + `A` when it is off
+            # — both shapes resolve to the same pair.
+            pair = sanctioned_rename(args.base, path)
+            if pair is not None:
+                old, new = pair
+                res.warn(
+                    f"{old}: renamed to {new} — sanctioned rename, content unchanged "
+                    "(see SANCTIONED_RENAMES in scripts/migrations.py)"
+                )
+                continue
             # Deletions always fail: there is no content that could already match
             # the canonical branch, so a stale base can never explain them.
             if status in {"M", "R", "C"} and matches_canonical(path, args.canonical):
                 res.warn(
                     f"{path}: differs from {args.base} but matches {args.canonical} — "
                     "the base branch is behind, not an edit made here"
+                )
+                continue
+            # If the file does not exist on the canonical branch (origin/main),
+            # it was never applied to production and may not have been applied to
+            # dev either (e.g. a pending migration that was never pushed through).
+            # Allow editing with a warning — the immutability rule protects
+            # *applied* migrations, not files that never left the repo.
+            if not file_content_at(args.canonical, path):
+                res.warn(
+                    f"{path}: modified but not present on {args.canonical} — "
+                    "treating as unapplied (safe to edit)"
                 )
                 continue
             res.error(
@@ -292,16 +362,29 @@ def cmd_baseline(args: argparse.Namespace) -> int:
             if prefix:
                 added.add(prefix)
 
-    drift = sorted(v for v in local - remote if v not in added)
+    # Versions below the remote head are genuinely out-of-order: they can
+    # never be applied by `db push` (which only appends) so they represent
+    # real drift that must be repaired first.  Versions above the head are
+    # pending — exactly what `db push` is meant to apply — and must not
+    # block recovery when a prior apply failed mid-way.
+    remote_head = max(remote, default="")
+    drift = sorted(v for v in local - remote if v not in added and v < remote_head)
+    pending = sorted(v for v in local - remote if v not in added and v >= remote_head)
+
     if drift:
         res.error(
-            "history drift: these local migrations are missing from the project's "
-            f"history and are not new in this change: {', '.join(drift)}. "
-            "A `supabase db push` would replay them. Record them as applied first:\n"
+            "history drift: these local migrations are out of order and missing from "
+            f"the project's history: {', '.join(drift)}. "
+            "A `supabase db push` would silently skip them. Record them as applied first:\n"
             f"    supabase migration repair --status applied {' '.join(drift)}"
         )
     else:
-        print(f"baseline ok — {len(remote)} recorded, {len(added)} new in this change")
+        parts = [f"{len(remote)} recorded"]
+        if added:
+            parts.append(f"{len(added)} new in this change")
+        if pending:
+            parts.append(f"{len(pending)} pending")
+        print(f"baseline ok — {', '.join(parts)}")
 
     return res.report("migration baseline")
 

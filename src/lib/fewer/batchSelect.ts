@@ -24,17 +24,17 @@ export function buildSelectActions(selectedIds: string[]): SelectAction[] {
   return [
     {
       id: "select-descendants",
-      label: "Select Descendants",
+      label: "Descendants",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectDescendants(selectedIds, useGraphStore.getState().edges)),
     },
     {
       id: "select-same-extension",
-      label: "Select Same Extension",
+      label: "By Extension",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectSameExtension(useGraphStore.getState().nodes, selectedIds)),
     },
     {
       id: "select-same-category",
-      label: "Select Same Category",
+      label: "By Category",
       run: () => useGraphStore.getState().setSelectedNodeIds(selectSameCategory(useGraphStore.getState().nodes, selectedIds)),
     },
   ];
@@ -84,4 +84,11 @@ export function selectSameCategory(
   const cats = new Set(distinctValues(nodes, selectedIds, "category"));
   if (cats.size === 0) return selectedIds;
   return nodes.filter((n) => n.data.category && cats.has(n.data.category)).map((n) => n.id);
+}
+
+/** Every node carrying the given tag id (`node.data.tagIds`). */
+export function selectByTag(nodes: FewerNode[], tagId: string): string[] {
+  return nodes
+    .filter((n) => (n.data.tagIds ?? []).includes(tagId))
+    .map((n) => n.id);
 }

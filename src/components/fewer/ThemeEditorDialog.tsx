@@ -5,16 +5,19 @@ import { useGraphStore } from "@/store/graphStore";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2 } from "lucide-react";
+import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
 import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
+import { can } from "@/lib/fewer/tiers";
 import { safeText, validateTextField } from "@/lib/fewer/textValidation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown } from "lucide-react";
 import { MinimizedDialogPill } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
 import {
   TOP_OFFSET,
@@ -23,6 +26,9 @@ import {
   colorOpacityToHexAlpha,
   dialogWidth,
   hexAlphaToColorOpacity,
+  isGradientOn,
+  normalizeGradientEnd,
+  galleryPublishError,
   recordSectionChange,
   popSectionUndo,
   sectionUndoDepth,
@@ -36,6 +42,8 @@ export function ThemeEditorDialog() {
   const resetCustomTheme = useGraphStore((s) => s.resetCustomTheme);
   const [expandedPicker, setExpandedPicker] = useState<string | null>(null);
   const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
+  const profile = useProfile();
   const { toast } = useToast();
 
   // Saved-to-cloud custom themes (grouped under "Custom" in the preset list).
@@ -48,10 +56,32 @@ export function ThemeEditorDialog() {
   const [presetOpen, setPresetOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  // Gallery publishing: opt-in when saving + per-theme publish state. One row
+  // per saved theme in shared_themes; saved_theme_id keys the Set.
+  const [shareGallery, setShareGallery] = useState(false);
+  const [galleryTitle, setGalleryTitle] = useState("");
+  const [galleryDescription, setGalleryDescription] = useState("");
+  const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
+  const [sharingId, setSharingId] = useState<string | null>(null);
+
+  // Publishing to the gallery requires a completed profile (first name +
+  // username) for attribution — same gate as the graph gallery.
+  const requireGalleryProfile = (): boolean => {
+    const err = galleryPublishError(profile.first_name, profile.username);
+    if (!err) return true;
+    toast({
+      title: "Profile required",
+      description: err,
+      variant: "destructive",
+    });
+    window.dispatchEvent(new Event("fewer-open-settings-account"));
+    return false;
+  };
 
   const loadThemes = useCallback(async () => {
     if (!user) {
       setSavedThemes([]);
+      setSharedIds(new Set());
       return;
     }
     setThemesLoading(true);
@@ -59,11 +89,20 @@ export function ThemeEditorDialog() {
       const res = await fetch("/api/themes");
       if (res.status === 401) {
         setSavedThemes([]);
+        setSharedIds(new Set());
         return;
       }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
       if (Array.isArray(json.themes)) setSavedThemes(json.themes);
+      // Track which saved themes are currently published to the gallery.
+      const shareRes = await fetch("/api/themes/share");
+      if (shareRes.ok) {
+        const shareJson = await shareRes.json();
+        if (Array.isArray(shareJson.shares)) {
+          setSharedIds(new Set(shareJson.shares.map((s: { saved_theme_id: string }) => s.saved_theme_id)));
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not load saved themes";
       toast({ title: "Could not load saved themes", description: msg, variant: "destructive" });
@@ -89,15 +128,71 @@ export function ThemeEditorDialog() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Save failed");
+      const savedId: string = json.theme?.id ?? "";
       setSaveOpen(false);
       setSaveName("");
       await loadThemes();
-      toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+      if (shareGallery && savedId) {
+        await publishTheme(savedId, name);
+      } else {
+        toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
+      }
+      setShareGallery(false);
+      setGalleryTitle("");
+      setGalleryDescription("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save theme";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Publish a saved theme to the gallery (one row per saved theme; idempotent). */
+  const publishTheme = async (id: string, themeName: string) => {
+    if (!user) return;
+    if (!requireGalleryProfile()) return;
+    setSharingId(id);
+    try {
+      const res = await fetch("/api/themes/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, title: safeText(galleryTitle), description: safeText(galleryDescription) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Publish failed");
+      // Reload shares so the editor stays in sync even if the saved theme name
+      // was edited since the last publish.
+      setSharedIds((prev) => new Set(prev).add(id));
+      toast({
+        title: "Published to the gallery",
+        description: `"${galleryTitle.trim() || themeName}" is now live in the community gallery.`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not publish theme";
+      toast({ title: "Could not publish", description: msg, variant: "destructive" });
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  /** Remove a saved theme from the gallery (keeps the saved theme itself). */
+  const unpublishTheme = async (id: string, themeName: string) => {
+    if (!user) return;
+    setSharingId(id);
+    try {
+      const res = await fetch(`/api/themes/share?saved_theme_id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unpublish failed");
+      setSharedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      toast({ title: "Removed from the gallery", description: `"${themeName}" is no longer listed.` });
+    } catch {
+      toast({ title: "Could not unpublish theme", variant: "destructive" });
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -176,7 +271,7 @@ export function ThemeEditorDialog() {
 
   const updateGradientEnd = useCallback(
     (key: keyof CustomTheme, c: string) => {
-      patchSlot(key, { gradientTo: c.replace(/^#?/, "#").slice(0, 7) });
+      patchSlot(key, { gradientTo: normalizeGradientEnd(c) });
     },
     [patchSlot],
   );
@@ -190,10 +285,8 @@ export function ThemeEditorDialog() {
     return colorOpacityToHexAlpha(theme.color, theme.opacity);
   };
 
-  const isGradientOn = (key: string) => {
-    const c = customTheme[key as keyof CustomTheme];
-    return Boolean(c.gradientTo && c.gradientTo.length > 0 && /^#?[0-9a-fA-F]{6}$/.test(c.gradientTo));
-  };
+  const isGradientOnKey = (key: string) =>
+    isGradientOn(customTheme[key as keyof CustomTheme]);
 
   // --- per-section undo -------------------------------------------------
   // Diff-based: an effect watches the store's customTheme and records a
@@ -300,7 +393,7 @@ export function ThemeEditorDialog() {
       <MinimizedDialogPill
         icon={<Palette className="h-3.5 w-3.5" />}
         label="Theme"
-        onRestore={() => setMinimized(false)}
+        onRestore={() => { setMinimized(false); setThemeEditorOpen(true); }}
       />
     )
   }
@@ -313,17 +406,6 @@ export function ThemeEditorDialog() {
     acc[preset.category].push(preset);
     return acc;
   }, {} as Record<string, typeof THEME_PRESETS>);
-
-  // Minimized: small docked pill (draggable, snaps to edges)
-  if (minimized) {
-    return (
-      <MinimizedDialogPill
-        icon={<Palette className="h-3.5 w-3.5" />}
-        label="Theme"
-        onRestore={() => setMinimized(false)}
-      />
-    );
-  }
 
   // Full dialog
   return (
@@ -358,7 +440,7 @@ export function ThemeEditorDialog() {
                 Save
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-60 p-2 space-y-2" align="start" sideOffset={4}>
+            <PopoverContent className="w-72 p-2 space-y-2" align="start" sideOffset={4}>
               <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                 Save custom theme
               </Label>
@@ -375,9 +457,36 @@ export function ThemeEditorDialog() {
                 className="h-8 text-xs"
                 autoFocus
               />
+              {user && (
+                <>
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <Checkbox
+                      checked={shareGallery}
+                      onCheckedChange={(checked) => setShareGallery(checked === true)}
+                    />
+                    <span className="text-[10px] text-foreground/80">Share to the community gallery</span>
+                  </label>
+                  {shareGallery && (
+                    <>
+                      <Input
+                        value={galleryTitle}
+                        onChange={(e) => setGalleryTitle(e.target.value)}
+                        placeholder="Gallery title (defaults to theme name)"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        value={galleryDescription}
+                        onChange={(e) => setGalleryDescription(e.target.value)}
+                        placeholder="Short description (optional)"
+                        className="h-8 text-xs"
+                      />
+                    </>
+                  )}
+                </>
+              )}
               <Button size="sm" className="w-full h-8 text-xs" disabled={saving} onClick={handleSaveTheme}>
                 {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                Save to account
+                {user && shareGallery ? "Save & publish" : "Save to account"}
               </Button>
             </PopoverContent>
           </Popover>
@@ -439,7 +548,7 @@ export function ThemeEditorDialog() {
                   <span>Custom</span>
                   {themesLoading && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
                 </div>
-                {user && savedThemes.length > 0 ? (
+                {can("savedThemes", tier) && savedThemes.length > 0 ? (
                   savedThemes.map((t) => (
                     <div
                       key={t.id}
@@ -490,6 +599,29 @@ export function ThemeEditorDialog() {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => {
+                              const shared = sharedIds.has(t.id);
+                              if (sharingId == null) {
+                                if (shared) unpublishTheme(t.id, t.name);
+                                else publishTheme(t.id, t.name);
+                              }
+                            }}
+                            className={`shrink-0 rounded p-0.5 transition-colors ${
+                              sharingId === t.id
+                                ? "text-muted-foreground animate-pulse"
+                                : sharedIds.has(t.id)
+                                  ? "text-green-600 hover:bg-green-500/10"
+                                  : "text-muted-foreground/50 hover:text-foreground"
+                            }`}
+                            title={
+                              sharedIds.has(t.id)
+                                ? `"${t.name}" is in the gallery — click to unshare`
+                                : `Publish "${t.name}" to the gallery`
+                            }
+                          >
+                            <Globe className="h-3 w-3" />
+                          </button>
                           <button
                             onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
                             className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
@@ -573,7 +705,7 @@ export function ThemeEditorDialog() {
                       >
                         {meta.label}
                       </Label>
-                      {meta.gradientCssVar && isGradientOn(meta.key) && (
+                      {meta.gradientCssVar && isGradientOnKey(meta.key) && (
                         <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
                           Gradient
                         </span>
@@ -609,15 +741,15 @@ export function ThemeEditorDialog() {
                               type="button"
                               onClick={() => toggleGradient(meta.key)}
                               className={`rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                isGradientOn(meta.key)
+                                isGradientOnKey(meta.key)
                                   ? "border-border/60 bg-foreground/5 text-foreground"
                                   : "border-border/40 text-muted-foreground hover:text-foreground"
                               }`}
                             >
-                              {isGradientOn(meta.key) ? "On" : "Add"}
+                              {isGradientOnKey(meta.key) ? "On" : "Add"}
                             </button>
                           </div>
-                          {isGradientOn(meta.key) && (
+                          {isGradientOnKey(meta.key) && (
                             <div className="space-y-3">
                               <div
                                 className="h-4 w-full rounded-md border border-border"

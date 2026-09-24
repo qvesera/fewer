@@ -5,7 +5,15 @@
  * Every graph leaf can override global defaults (edge style, theme, showFiles,
  * minimap visibility). Resolved settings = leaf override ?? global value.
  */
-import type { EdgeStyle, EdgeStrokeStyle } from "./types";
+import {
+  COLLAPSED_PILL_HEIGHT,
+  type EdgeStyle,
+  type EdgeStrokeStyle,
+  type FewerEdge,
+  type FewerNode,
+  type LayoutDirection,
+} from "./types";
+import { layoutGraphContour, type LayoutOptions } from "./layout";
 
 // ── Types ──
 
@@ -83,6 +91,98 @@ export function computeEffectiveHidden(
   return [...result];
 }
 
+// ── Derivation predicate ──
+
+/**
+ * True when a leaf renders a layout of its own instead of the shared (store)
+ * positions: its direction differs from the global one, it collapses folders,
+ * or its hide layers change the visible set.
+ *
+ * This is the single source of truth for both the canvas (which then runs the
+ * layout engine locally) and the Organize action (which knows that clearing a
+ * view's card positions is enough — no global relayout needed). Keys explicitly
+ * set to `undefined`, as `updateViewSettings` leaves behind when it clears
+ * positions, are not overrides.
+ */
+export function needsLayoutDerivation(
+  vs: ViewSettings | undefined,
+  global: { direction: "TB" | "LR" | "BT" | "RL"; hiddenIds: string[] },
+  allFileIds: string[],
+): boolean {
+  if (!vs) return false;
+  if (vs.direction !== undefined && vs.direction !== global.direction) return true;
+  if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
+  return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
+}
+
+// ── Collapsed-folder pill geometry ──
+
+/**
+ * Stamp the compact-pill height onto THIS leaf's copies of the folders it has
+ * collapsed. The shared store node keeps its expanded height, so collapsing a
+ * folder in one view can never squish the expanded card another view paints
+ * (nor the slot a global relayout reserves for it).
+ *
+ * Returns `nodes` by identity when the leaf collapses nothing.
+ */
+export function withCollapsedPillGeometry(
+  nodes: FewerNode[],
+  collapsedIds: string[],
+): FewerNode[] {
+  if (collapsedIds.length === 0) return nodes;
+  const collapsed = new Set(collapsedIds);
+  return nodes.map((n) =>
+    n.data.type === "folder" && collapsed.has(n.id)
+      ? { ...n, style: { ...n.style, height: COLLAPSED_PILL_HEIGHT } }
+      : n,
+  );
+}
+
+// ── View node resolution ──
+
+/**
+ * The node set + positions a leaf actually paints: explicit per-view card
+ * positions win, otherwise the layout engine re-derives when the view diverges
+ * (`needsLayoutDerivation`), otherwise the shared store positions pass through.
+ *
+ * Single source of truth for the canvas AND the image exporter, so exporting
+ * `nodes` from the store is no longer what an export shows — a view that hides
+ * nodes, overrides the direction or drags its own cards exports that way.
+ *
+ * `visibleNodes`/`visibleEdges` are the already-hidden-filtered graph; hidden
+ * nodes stay in the caller's full list so folder child rows can still show them.
+ */
+export function resolveViewNodes(
+  visibleNodes: FewerNode[],
+  visibleEdges: FewerEdge[],
+  raw: ViewSettings | undefined,
+  resolved: ResolvedViewSettings,
+  global: {
+    direction: LayoutDirection;
+    hiddenIds: string[];
+    /** All file ids — needed by the derivation predicate (bulk files layer). */
+    fileIds: string[];
+  },
+  layout: LayoutOptions = {},
+): FewerNode[] {
+  // 1. Explicit per-view positions (set by drag) take priority.
+  const positions = resolved.positions;
+  if (positions) {
+    return visibleNodes.map((n) =>
+      positions[n.id] ? { ...n, position: positions[n.id] } : n,
+    );
+  }
+  // 2. Direction override OR diverged visible set: derive from layout engine.
+  // Layout policy is global (Crown Shyness intensity, sibling sort), so the
+  // caller passes it in — without it the engine falls back to its own defaults
+  // and the Settings sliders look inert on per-view canvases.
+  if (needsLayoutDerivation(raw, global, global.fileIds)) {
+    return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
+  }
+  // 3. No override, shared visible set: use shared (store) positions.
+  return visibleNodes;
+}
+
 // ── Resolution ──
 
 /** Resolve a single setting: leaf override takes precedence over global. */
@@ -130,56 +230,85 @@ interface LayoutViewSettingsSnapshot {
   viewSettings: Record<string, ViewSettings>;
 }
 
-/** Valid ViewSettings keys for loose validation on load. */
-const VALID_KEYS = new Set<string>([
-  "showFiles", "minimapHidden", "edgeStyle", "edgeAnimated",
-  "edgeAnimatedSelectedOnly", "edgeStrokeStyle", "edgeWidth", "themeMode",
-]);
+/** Keep only the string entries of a possibly-untrusted array (else empty). */
+function stringIds(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((x: unknown) => typeof x === "string") : [];
+}
+
+/** Validate a folderId → hidden-descendant-ids map, dropping malformed entries. */
+function sanitizeSubtrees(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (Array.isArray(v)) out[k] = stringIds(v);
+    }
+  }
+  return out;
+}
 
 function sanitizeHideLayers(raw: unknown): HideLayers | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const obj = raw as Record<string, unknown>;
-  const individual = Array.isArray(obj.individual) ? obj.individual.filter((x: unknown) => typeof x === "string") : [];
-  const subtrees: Record<string, string[]> = {};
-  if (obj.subtrees && typeof obj.subtrees === "object") {
-    for (const [k, v] of Object.entries(obj.subtrees as Record<string, unknown>)) {
-      if (Array.isArray(v)) subtrees[k] = v.filter((x: unknown) => typeof x === "string");
-    }
-  }
   return {
-    individual,
-    subtrees,
+    individual: stringIds(obj.individual),
+    subtrees: sanitizeSubtrees(obj.subtrees),
     filesBulkActive: obj.filesBulkActive === true,
-    filesBulkExempt: Array.isArray(obj.filesBulkExempt) ? obj.filesBulkExempt.filter((x: unknown) => typeof x === "string") : [],
+    filesBulkExempt: stringIds(obj.filesBulkExempt),
   };
+}
+
+/**
+ * Recognised simple fields and the `typeof` that admits them. Fields needing
+ * their own sanitising step (hideLayers, collapsedFolderIds, positions) are
+ * handled explicitly below. `showFiles` is the v1 spelling that
+ * migrateLegacyHideLayers still reads straight off the raw object.
+ *
+ * Key order is the order the fields land in the collected object.
+ */
+const SIMPLE_FIELD_TYPES: Record<string, "boolean" | "string" | "number"> = {
+  showFiles: "boolean", // v1 compat: migrated into hideLayers below
+  minimapHidden: "boolean",
+  edgeStyle: "string",
+  edgeAnimated: "boolean",
+  edgeAnimatedSelectedOnly: "boolean",
+  edgeStrokeStyle: "string",
+  edgeWidth: "number",
+  direction: "string",
+};
+
+/** Copy the recognised ViewSettings fields off a raw object, applying the
+ *  v1→v2 migrations (legacy `showFiles` / `hiddenIds` → hide layers). */
+function collectViewSettings(raw: unknown): ViewSettings {
+  const out: Record<string, unknown> = {};
+  const obj = raw as Record<string, unknown>;
+  if (obj.hideLayers) out.hideLayers = sanitizeHideLayers(obj.hideLayers);
+  for (const [field, type] of Object.entries(SIMPLE_FIELD_TYPES)) {
+    if (typeof obj[field] === type) out[field] = obj[field];
+  }
+  if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
+  if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
+  migrateLegacyHideLayers(out, obj);
+  return out as ViewSettings;
+}
+
+/** Preserve legacy precedence: explicit layers, then showFiles, then hiddenIds. */
+function migrateLegacyHideLayers(
+  out: Record<string, unknown>,
+  obj: Record<string, unknown>,
+): void {
+  // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
+  if (!out.hideLayers && typeof obj.showFiles === "boolean") {
+    out.hideLayers = { ...emptyHideLayers(), filesBulkActive: !obj.showFiles };
+  }
+  // v1→v2 migration: convert legacy hiddenIds to individual layer
+  if (!out.hideLayers && Array.isArray(obj.hiddenIds)) {
+    out.hideLayers = { ...emptyHideLayers(), individual: obj.hiddenIds as string[] };
+  }
 }
 
 function sanitizeViewSettings(raw: unknown): ViewSettings {
   if (!raw || typeof raw !== "object") return {};
-  const out: Record<string, unknown> = {};
-  const obj = raw as Record<string, unknown>;
-  if (obj.hideLayers) out.hideLayers = sanitizeHideLayers(obj.hideLayers);
-  if (typeof obj.showFiles === "boolean") out.showFiles = obj.showFiles; // v1 compat: migrate below
-  if (typeof obj.minimapHidden === "boolean") out.minimapHidden = obj.minimapHidden;
-  if (typeof obj.edgeStyle === "string") out.edgeStyle = obj.edgeStyle;
-  if (typeof obj.edgeAnimated === "boolean") out.edgeAnimated = obj.edgeAnimated;
-  if (typeof obj.edgeAnimatedSelectedOnly === "boolean") out.edgeAnimatedSelectedOnly = obj.edgeAnimatedSelectedOnly;
-  if (typeof obj.edgeStrokeStyle === "string") out.edgeStrokeStyle = obj.edgeStrokeStyle;
-  if (typeof obj.edgeWidth === "number") out.edgeWidth = obj.edgeWidth;
-  if (typeof obj.direction === "string") out.direction = obj.direction;
-  if (Array.isArray(obj.collapsedFolderIds)) {
-    out.collapsedFolderIds = obj.collapsedFolderIds.filter((x: unknown) => typeof x === "string");
-  }
-  if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
-  // v1→v2 migration: convert legacy showFiles boolean to filesBulkActive layer
-  if (!out.hideLayers && typeof obj.showFiles === "boolean") {
-    out.hideLayers = { individual: [], subtrees: {}, filesBulkActive: !obj.showFiles, filesBulkExempt: [] };
-  }
-  // v1→v2 migration: convert legacy hiddenIds to individual layer
-  if (!out.hideLayers && Array.isArray(obj.hiddenIds)) {
-    out.hideLayers = { individual: obj.hiddenIds as string[], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] };
-  }
-  return out as ViewSettings;
+  return collectViewSettings(raw);
 }
 
 /** Create an empty HideLayers with all arrays empty and bulk inactive. */
@@ -213,7 +342,7 @@ export function mergeViewSettings(
   if (showFilesByLeaf) {
     for (const [k, v] of Object.entries(showFilesByLeaf)) {
       if (!out[k]) out[k] = {};
-      if (!out[k].hideLayers) out[k].hideLayers = { individual: [], subtrees: {}, filesBulkActive: !v, filesBulkExempt: [] };
+      if (!out[k].hideLayers) out[k].hideLayers = { ...emptyHideLayers(), filesBulkActive: !v };
       else out[k].hideLayers!.filesBulkActive = !v;
     }
   }

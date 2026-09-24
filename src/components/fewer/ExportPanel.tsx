@@ -38,8 +38,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGraphStore } from "@/store/graphStore";
-import { useAuth } from "@/hooks/use-auth";
+import { useGraphData, useLayoutConfig, useUiState } from "@/store/hooks";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
+import {
+  filterVisibleEdges,
+  filterVisibleNodes,
+} from "@/hooks/use-canvas-visible-graph";
 import { exportGraph } from "@/lib/fewer/exportUtils";
 import {
   exportDirectoryScript,
@@ -47,8 +52,14 @@ import {
 } from "@/lib/fewer/scriptExport";
 import { computeStats } from "@/lib/fewer/stats";
 import { getDescendants } from "@/lib/fewer/validation";
+import { resolveViewNodes } from "@/lib/fewer/viewState";
+import { makeTagLabelLookup } from "@/lib/fewer/tags";
+import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
+import { plural } from "@/lib/fewer/plural";
+import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
+import { can } from "@/lib/fewer/tiers";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -92,21 +103,20 @@ export function ExportPanel() {
   const setOpen = useGraphStore((s) => s.setExportOpen);
   const settings = useGraphStore((s) => s.exportSettings);
   const setSettings = useGraphStore((s) => s.setExportSettings);
-  const nodes = useGraphStore((s) => s.nodes);
-  const edges = useGraphStore((s) => s.edges);
-  const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
-  const hiddenIds = useGraphStore((s) => s.hiddenIds);
-  const nodeWidth = useGraphStore((s) => s.nodeWidth);
-  const nodeHeight = useGraphStore((s) => s.nodeHeight);
-  const edgeWidth = useGraphStore((s) => s.edgeWidth);
-  const cornerRadius = useGraphStore((s) => s.cornerRadius);
-  const advancedModeEnabled = useGraphStore((s) => s.advancedModeEnabled);
+  const shynessScale = useGraphStore((s) => s.shynessScale);
+  const sortKey = useGraphStore((s) => s.sortKey);
+  const sortDir = useGraphStore((s) => s.sortDir);
+  const tags = useGraphStore((s) => s.tags);
+  const viewSettings = useGraphStore((s) => s.viewSettings);
+  const { nodes, edges, hiddenIds } = useGraphData();
+  const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
+  const { selectedNodeIds } = useUiState();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   // Guests always export with the fewer watermark; the toggle stays functional
   // only for signed-in users.
-  const isGuest = authLoading ? false : !user;
-  const includeBranding = isGuest || settings.includeBranding;
+  const canRemoveBranding = can("unbrandedExport", tier);
+  const includeBranding = !canRemoveBranding || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -114,12 +124,8 @@ export function ExportPanel() {
   // selection" would export exactly one node — block it and hide the option
   // (folders and multi-node selections still qualify). Image formats (PNG/SVG)
   // still allow exporting a single file as an image.
-  const isImageFormat =
-    settings.format === "png" || settings.format === "svg";
-  const singleFileSelected =
-    selectedNodeIds.length === 1 &&
-    !isImageFormat &&
-    nodes.find((n) => n.id === selectedNodeIds[0])?.data?.type === "file";
+  const isImageFormat = settings.format === "png" || settings.format === "svg";
+  const singleFileSelected = isSingleFileSelected(selectedNodeIds, settings.format, nodes);
 
   // If the toggle was on and the selection collapses to a single file node,
   // switch it off so the export falls back to the full canvas.
@@ -129,12 +135,12 @@ export function ExportPanel() {
     }
   }, [exportSelected, singleFileSelected]);
 
-  const formats = advancedModeEnabled
+  const formats = can("advancedImportFormats", tier)
     ? [...BASIC_FORMATS, ...ADVANCED_FORMATS]
     : BASIC_FORMATS;
 
   useEffect(() => {
-    if (!advancedModeEnabled) {
+    if (!can("advancedImportFormats", tier)) {
       const isAdvancedFormat = ADVANCED_FORMATS.some(
         (f) => f.value === settings.format
       );
@@ -142,7 +148,7 @@ export function ExportPanel() {
         setSettings({ format: "png" });
       }
     }
-  }, [advancedModeEnabled, settings.format, setSettings]);
+  }, [tier, settings.format, setSettings]);
 
   const { exportNodes, exportEdges } = useMemo(() => {
     if (!exportSelected || selectedNodeIds.length === 0 || singleFileSelected) {
@@ -163,6 +169,81 @@ export function ExportPanel() {
     return { exportNodes: subNodes, exportEdges: subEdges };
   }, [exportSelected, selectedNodeIds, nodes, edges, singleFileSelected]);
 
+  // ── Image export mirrors the ACTIVE leaf's resolved view ──
+  // A canvas paints a per-view graph: view hidden layers, per-view card
+  // positions or its own derived layout, collapsed folders, tag rings, per-view
+  // edge style. Reusing the canvas's own resolver (resolveViewNodes) keeps the
+  // two in lockstep. The active-leaf indicator is a DOM overlay inside the leaf
+  // header, never part of the scene builder — exports stay clean by design.
+  const activeLeaf = useActiveLeaf();
+  const resolved = activeLeaf?.resolved;
+  // Raw per-view settings — the derivation predicate reads which keys are set.
+  const rawViewSettings = activeLeaf ? viewSettings[activeLeaf.leafId] : undefined;
+  const fileIds = useMemo(
+    () => nodes.filter((n) => n.data.type === "file").map((n) => n.id),
+    [nodes],
+  );
+  const viewHiddenIds = resolved?.hiddenIds ?? hiddenIds;
+  const viewHiddenSet = useMemo(() => new Set(viewHiddenIds), [viewHiddenIds]);
+
+  const imageGraph = useMemo(() => {
+    if (!isImageFormat) {
+      return {
+        nodes: exportNodes,
+        edges: exportEdges,
+        collapsedIds: undefined as Set<string> | undefined,
+      };
+    }
+    const visibleAll = filterVisibleNodes(nodes, viewHiddenIds);
+    const visibleEdgesAll = filterVisibleEdges(edges, viewHiddenIds);
+    const positioned = resolved
+      ? resolveViewNodes(
+          visibleAll,
+          visibleEdgesAll,
+          rawViewSettings,
+          resolved,
+          { direction, hiddenIds, fileIds },
+          { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
+        )
+      : visibleAll;
+    const viewById = new Map(positioned.map((n) => [n.id, n]));
+    // Keep the scope-filtered list whole (hidden children still show as folder
+    // rows) but take the position AND the layout stamp the view paints, so edge
+    // geometry never reads a stale `layoutDirection` from the shared layout.
+    const imageNodes = exportNodes.map((n) => {
+      const v = viewById.get(n.id);
+      if (!v) return n;
+      return {
+        ...n,
+        position: v.position,
+        data: {
+          ...n.data,
+          layoutDirection: v.data.layoutDirection,
+          isHorizontal: v.data.isHorizontal,
+        },
+      };
+    });
+    // Per-view edge style/width/stroke come from the resolved settings, exactly
+    // as the canvas applies them to its own edges.
+    const viewEdgeType = edgeTypeFromStyle(resolved?.edgeStyle ?? edgeStyle);
+    const viewDash = edgeDashPattern(resolved?.edgeStrokeStyle ?? edgeStrokeStyle);
+    const viewEdgeWidth = resolved?.edgeWidth ?? edgeWidth;
+    const imageEdges = exportEdges.map((e) => ({
+      ...e,
+      type: viewEdgeType,
+      style: { ...e.style, strokeWidth: viewEdgeWidth, strokeDasharray: viewDash },
+    }));
+    const collapsedIds = new Set<string>([
+      ...(resolved?.collapsedFolderIds ?? []),
+      ...nodes.filter((n) => n.data.collapsed).map((n) => n.id),
+    ]);
+    return { nodes: imageNodes, edges: imageEdges, collapsedIds };
+  }, [
+    isImageFormat, exportNodes, exportEdges, nodes, edges, viewHiddenIds, resolved,
+    rawViewSettings, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir,
+    tags, edgeStyle, edgeStrokeStyle, edgeWidth,
+  ]);
+
   const handleExport = () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
@@ -173,32 +254,45 @@ export function ExportPanel() {
       exportDirectoryTree(nodesToExport, edgesToExport, includeBranding);
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
-      exportGraph(nodesToExport, edgesToExport, { ...settings, includeBranding }, stats, {
-        selectedIds: selectedNodeIds,
-        hiddenIds,
-        nodeWidth,
-        nodeHeight,
-        edgeWidth,
-        cornerRadius,
-      });
+      // Images export the active view's graph; data formats export the raw graph.
+      exportGraph(
+        isImageFormat ? imageGraph.nodes : nodesToExport,
+        isImageFormat ? imageGraph.edges : edgesToExport,
+        { ...settings, includeBranding },
+        stats,
+        {
+          // Selection travels with the image: the renderer draws the accent
+          // selection ring on each selected card and highlights the ancestor-path
+          // edges feeding them, mirroring the canvas.
+          selectedIds: selectedNodeIds,
+          hiddenIds: viewHiddenIds,
+          nodeWidth,
+          nodeHeight,
+          edgeWidth: resolved?.edgeWidth ?? edgeWidth,
+          cornerRadius,
+          collapsedIds: imageGraph.collapsedIds,
+          tags,
+          // Canvas handles follow the view's direction; edges must too.
+          direction: resolved?.direction ?? direction,
+        },
+      );
     }
     setOpen(false);
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} node${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} edge${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}`,
     });
   };
 
   const isRaster = settings.format === "png";
   const canExportSelected = selectedNodeIds.length > 0 && !singleFileSelected;
 
-  // SVG/PNG render only the non-hidden subset of the export selection (hidden
-  // nodes are filtered out by buildGraphSVG). If every exportable node is
-  // hidden the image would be blank, so block those two formats.
-  const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  // SVG/PNG render only the non-hidden subset of the export selection (the
+  // active view's hidden set), so if every exportable node is hidden the image
+  // would be blank — block those two formats.
   const imageExportableCount = useMemo(
-    () => exportNodes.filter((n) => !hiddenSet.has(n.id)).length,
-    [exportNodes, hiddenSet],
+    () => exportNodes.filter((n) => !viewHiddenSet.has(n.id)).length,
+    [exportNodes, viewHiddenSet],
   );
   const imageBlocked = isImageFormat && imageExportableCount === 0;
 
@@ -271,7 +365,7 @@ export function ExportPanel() {
           {/* Action Buttons (Standard shadcn Button) */}
           {imageBlocked && (
             <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
-              Every node that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide nodes
+              Every card that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide cards
               (Hidden panel → Reveal All) to export an image.
             </div>
           )}
@@ -303,8 +397,8 @@ export function ExportPanel() {
                   <Label className="text-xs font-semibold">Export Selected</Label>
                   <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
                     {canExportSelected
-                      ? `${selectedNodeIds.length} node${selectedNodeIds.length === 1 ? "" : "s"} + descendants`
-                      : "Select nodes first"}
+                      ? `${plural(selectedNodeIds.length, "card")} + descendants`
+                      : "Select cards first"}
                   </p>
                 </div>
               </div>
@@ -320,7 +414,7 @@ export function ExportPanel() {
             <div className="space-y-0.5">
               <Label className="text-xs font-semibold">Include fewer branding</Label>
               <p className="text-xs text-muted-foreground">
-                {isGuest
+                {!canRemoveBranding
                   ? "Signed out — exports carry the fewer watermark until you sign in."
                   : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
               </p>
@@ -328,7 +422,7 @@ export function ExportPanel() {
             <Switch
               checked={includeBranding}
               onCheckedChange={(v) => setSettings({ includeBranding: v })}
-              disabled={isGuest}
+              disabled={!canRemoveBranding}
             />
           </div>
 
@@ -393,16 +487,16 @@ export function ExportPanel() {
                   <span>Cards</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
-                      ? `${exportNodes.length} nodes`
-                      : `${nodes.length} nodes`}
+                      ? `${exportNodes.length} cards`
+                      : `${nodes.length} cards`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">
-                  <span>Edges</span>
+                  <span>Connections</span>
                   <span className="font-mono text-foreground/90 font-semibold">
                     {exportSelected && canExportSelected
-                      ? `${exportEdges.length} edges`
-                      : `${edges.length} edges`}
+                      ? `${exportEdges.length} connections`
+                      : `${edges.length} connections`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-border/10 pb-1.5">

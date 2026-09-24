@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Trash2, Globe, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGraphStore } from "@/store/graphStore";
+import { can } from "@/lib/fewer/tiers";
 
 export function WatchedIndexesPanel() {
   const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
   const { watched, loading, remove } = useWatch();
   const { toast } = useToast();
   const [removing, setRemoving] = useState<string | null>(null);
 
-  if (!user) {
+  if (!can("watchIndexes", tier)) {
     return (
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-muted-foreground/80 leading-relaxed">

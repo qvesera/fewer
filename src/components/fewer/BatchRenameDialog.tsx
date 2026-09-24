@@ -24,7 +24,8 @@ import { fullName } from "@/lib/fewer/nodeName";
  * undoable history entry.
  */
 export function BatchRenameDialog() {
-  const [open, setOpen] = useState(false);
+  const open = useGraphStore((s) => s.batchRenameOpen);
+  const setOpen = useGraphStore((s) => s.setBatchRenameOpen);
   const [find, setFind] = useState("");
   const { toast } = useToast();
   const [replace, setReplace] = useState("");

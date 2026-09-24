@@ -30,7 +30,8 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **Ctrl+Shift+Z / Ctrl+Y** | Redo last action              |
 | **H**                  | Hide selected nodes              |
 | **Shift+H**            | Show all nodes                   |
-| **Enter**              | Open selected file, or focus first child of folder |
+| **Alt+S**              | Save current graph (signed in)   |
+| **Enter**              | Focus the folder's first child; opens the selected file when OS integration is enabled |
 
 ## Parent / Unparent
 
@@ -56,7 +57,9 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **0**      | Reset zoom to 100%                                                      |
 | **Ctrl+L** | Cycle layout direction (Top→Bottom, Left→Right, Bottom→Top, Right→Left) |
 | **Alt+F**  | Zoom to selection                                                       |
-| **Alt+R**  | Re-layout graph                                                         |
+| **Alt+R**  | Organize graph                                                           |
+| **Alt+↑**  | Move focused sidebar section up (drag grip or Alt+↑/↓)                   |
+| **Alt+↓**  | Move focused sidebar section down (drag grip or Alt+↑/↓)                 |
 
 ## Export
 
@@ -69,7 +72,10 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | Key       | Action             |
 | --------- | ------------------ |
 | **Alt+I** | Open import dialog (choose folder / file / URL / cloud source) |
-| **Alt+O** | Open selected folder in file explorer |
+| **Alt+O** | Open selected folder in file explorer (disabled in the web build) |
+
+> **Alt+O is disabled in the shipped web build** — it needs the server-side OS
+> opener gated by `LOCAL_FS_FEATURES.openInOs` (`src/lib/fewer/features.ts`).
 
 ## Reference
 
@@ -89,4 +95,4 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 - Shortcuts work when the canvas is focused
 - Use **Tab** to move focus between panels if needed
 - **Ctrl+A** selects all visible nodes
-- **Ctrl+click** a node handle removes its connected edges
+- **Ctrl+click** a node handle removes its connected connections

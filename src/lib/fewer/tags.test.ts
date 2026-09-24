@@ -4,8 +4,10 @@ import {
   firstTagId,
   makeTagLabelLookup,
   colorForTag,
+  tagRingColors,
   compareSiblingsByTag,
   TAG_FALLBACK_COLOR,
+  TAG_RING_CAP,
 } from "./tags";
 import type { Tag } from "./tags";
 import type { FewerNode } from "./types";
@@ -28,15 +30,20 @@ test("buildTagRingGradient: single color → solid", () => {
   expect(buildTagRingGradient(["#f87171"])).toBe("#f87171");
 });
 
-test("buildTagRingGradient: two colors split 50/50 (hard stops)", () => {
-  expect(buildTagRingGradient(["#f00", "#00f"])).toBe("conic-gradient(#f00 0%, #f00 50%, #00f 50%, #00f 100%)");
+test("buildTagRingGradient: two colors — first color starts at the LEFT seam", () => {
+  // Seam = bottom-left corner (225° square fallback); color 1 runs clockwise
+  // from there (left edge + top), color 2 wraps right + bottom back to the seam.
+  expect(buildTagRingGradient(["#f00", "#00f"]))
+    .toBe("conic-gradient(from 225deg, #f00 0%, #f00 50%, #00f 50%, #00f 100%)");
 });
 
-test("buildTagRingGradient: three colors split evenly (33.33 each)", () => {
+test("buildTagRingGradient: three colors step clockwise in tag order", () => {
+  // Equal-angle thirds from the 225° seam; #f00 (first tag) starts there, so
+  // reading clockwise from the left is #f00 → #0f0 → #00f — never backwards.
   const g = buildTagRingGradient(["#f00", "#0f0", "#00f"]);
-  expect(g).toContain("#f00 0%");
-  expect(g).toContain("#0f0 33.33%");
-  expect(g).toContain("#00f 66.67%");
+  expect(g).toBe(
+    "conic-gradient(from 225deg, #f00 0%, #f00 33.33%, #0f0 33.33%, #0f0 66.67%, #00f 66.67%, #00f 100%)",
+  );
 });
 
 test("buildTagRingGradient: caps at 5 slices", () => {
@@ -44,6 +51,31 @@ test("buildTagRingGradient: caps at 5 slices", () => {
   const stops = g.match(/#/g) ?? [];
   // 5 colors × 2 stops each = 10 hex markers
   expect(stops.length).toBe(10);
+});
+
+test("buildTagRingGradient: odd count splits by OUTLINE LENGTH on a 2:1 card", () => {
+  // Equal-angle thirds would render a short middle band on a 240×120 rect.
+  // Perimeter stops from the bottom-left seam (243.43°) keep every band the
+  // same outline length; the top edge reads #f00 → #0f0 left-to-right, #00f
+  // wraps the bottom back to the seam.
+  const g = buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 240, height: 120 });
+  expect(g).toBe(
+    "conic-gradient(from 243.43deg, #f00 0%, #f00 32.38%, #0f0 32.38%, #0f0 64.76%, #00f 64.76%, #00f 100%)",
+  );
+});
+
+test("buildTagRingGradient: equal-angle fallback when dims are invalid", () => {
+  // Invalid dims fall back to equal-angle stops from the 225° seam.
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: 0, height: 120 }))
+    .toContain("#f00 0%");
+  expect(buildTagRingGradient(["#f00", "#0f0", "#00f"], { width: -1, height: 0 }))
+    .toContain("#0f0 33.33%");
+});
+
+test("buildTagRingGradient: square card keeps uniform angle stops", () => {
+  // On a square, equal perimeter = equal angle; the seam stays at 225°.
+  expect(buildTagRingGradient(["#f00", "#00f"], { width: 200, height: 200 }))
+    .toBe("conic-gradient(from 225deg, #f00 0%, #f00 50%, #00f 50%, #00f 100%)");
 });
 
 test("firstTagId returns first id or null", () => {
@@ -61,6 +93,52 @@ test("makeTagLabelById resolves labels, unknown → empty", () => {
 test("colorForTag resolves registry color, unknown → fallback", () => {
   expect(colorForTag(tags, "t1")).toBe("#f87171");
   expect(colorForTag(tags, "nope")).toBe(TAG_FALLBACK_COLOR);
+});
+
+test("tagRingColors: registry colors in display order, unknown id → fallback", () => {
+  // Order is the node's assignment order — this is the ring's display order.
+  expect(tagRingColors(tags, ["t2", "t1"])).toEqual(["#60a5fa", "#f87171"]);
+  expect(tagRingColors(tags, ["nope"])).toEqual([TAG_FALLBACK_COLOR]);
+});
+
+test("tagRingColors: no registry or no ids → nothing to paint", () => {
+  expect(tagRingColors(undefined, ["t1"])).toEqual([]);
+  expect(tagRingColors([], ["t1"])).toEqual([]);
+  expect(tagRingColors(tags, [])).toEqual([]);
+  expect(tagRingColors(tags, undefined)).toEqual([]);
+});
+
+test("tagRingColors: caps at TAG_RING_CAP even when more ids are assigned", () => {
+  const many: Tag[] = Array.from({ length: TAG_RING_CAP + 2 }, (_, i) => ({
+    id: `m${i}`,
+    label: `M${i}`,
+    color: `#00000${i}`,
+  }));
+  expect(tagRingColors(many, many.map((t) => t.id))).toEqual(
+    many.slice(0, TAG_RING_CAP).map((t) => t.color),
+  );
+});
+
+test("tagRingColors: an unpaintable color is dropped BEFORE the cap", () => {
+  // A blank color would otherwise punch a hole 1/N of the way around the ring,
+  // and — dropped AFTER the cap — would silently cost a visible band: the cap
+  // would already have been spent on the blank id.
+  const many: Tag[] = Array.from({ length: TAG_RING_CAP + 2 }, (_, i) => ({
+    id: `m${i}`,
+    label: `M${i}`,
+    color: `#00000${i}`,
+  }));
+  const ids = many.map((t) => t.id);
+  const blanked: Tag[] = many.map((t, i) => (i === 1 ? { ...t, color: "" } : t));
+
+  // Seven ids assigned, one unpaintable → five PAINTED bands, so the sixth id
+  // is reached. Capping first would stop at m4 and paint only four.
+  const out = tagRingColors(blanked, ids);
+  expect(out).toEqual(["#000000", "#000002", "#000003", "#000004", "#000005"]);
+  expect(out.length).toBe(TAG_RING_CAP);
+  expect(out).not.toContain("");
+  // A registry of nothing but blanks has nothing to paint.
+  expect(tagRingColors([{ id: "b", label: "B", color: "" }], ["b"])).toEqual([]);
 });
 
 test("compareSiblingsByTag: asc — tagged first, alphabetical by label", () => {

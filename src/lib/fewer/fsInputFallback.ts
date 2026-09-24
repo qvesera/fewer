@@ -5,6 +5,7 @@ import type { ImportOptions } from "./importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
 import { isExtAllowed } from "./fsFilters";
+import { sortTreeFoldersFirst } from "./treeSort";
 
 function filterInputFiles(
   allFiles: File[],
@@ -77,15 +78,6 @@ function removeEmptyFolders(entry: TreeEntry): boolean {
   return entry.children.length > 0;
 }
 
-function sortTree(entry: TreeEntry) {
-  if (!entry.children) return;
-  entry.children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  for (const c of entry.children) sortTree(c);
-}
-
 function showInputPicker(): Promise<FileList | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
@@ -130,6 +122,6 @@ export async function pickDirectoryViaInput(
     removeEmptyFolders(tree);
   }
 
-  sortTree(tree);
+  sortTreeFoldersFirst(tree);
   return tree;
 }

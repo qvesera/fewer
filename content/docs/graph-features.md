@@ -1,6 +1,6 @@
 ---
 title: Graph Features
-description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, edge styles, and navigation features.
+description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, connection styles, and navigation features.
 ---
 
 Fewer is a very feature-rich directory viewer. Here is a deep dive into all of its features:
@@ -23,8 +23,9 @@ Right-click empty canvas space to open quick actions:
 
 - **Fit View**: zoom to show all nodes
 - **Select All**: select every visible node
+- **Organize**: re-run the tree layout to reflow the graph
 - **Zoom In / Zoom Out**
-- **Delete Edge**: removes the last-clicked edge
+- **Delete Connection**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
 - **Show All Cards**: reveal hidden nodes (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
@@ -56,7 +57,7 @@ Select a node to see resize handles:
 
 ### Handle Shortcuts
 
-**Ctrl+click** a node's input or output handle removes all edges connected to that handle.
+**Ctrl+click** a node's input or output handle removes all connections from that handle.
 
 ### Build the Tree by Dragging Handles
 
@@ -66,20 +67,26 @@ Every node has an **input handle** (entry, on the left/top) and an **output hand
 - **Drag from any node's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the node's new parent. The new parent is always a folder:
   - If the node is already rooted elsewhere, the folder is inserted between the node and its current parent.
   - If the node has no parent yet, the folder becomes the node's new root parent.
+  - The new folder may share the node's own name (a self-nesting `docs/docs`) — the node moves inside it, so it is no longer a sibling. Only a name already taken by another card in that scope is rejected.
 
 ## Multi-Select
 
 - **Ctrl+A**: select all visible nodes
 - **Shift+Arrow keys**: add nodes to the selection while navigating
 - **Set as Parent**: batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
-- **Alt+Shift+P**: unparent all selected nodes
+- **Alt+Shift+P**: unparent all selected nodes — only the top-most selected cards detach (a selected descendant whose selected ancestor also detaches stays put); one undo step, and nothing is toasted when there was nothing to detach
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
-## Drag & Drop
+## Drag & Drop (from your OS)
 
-Drag a folder from your file system onto the canvas to expand it and load its contents from disk. Dropped folders become standalone nodes with their children loaded.
+**Disabled in the web build.** Dropping a folder from your file system onto the
+canvas — to expand it from disk, or to import it directly on an empty canvas —
+needs OS drop events and File System Access handles, which are switched off by
+the `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`. Use **Import from
+disk** (**Alt+I**) instead.
 
-On an **empty** canvas, dropping a folder starts a full import using your saved import settings (no picker or dialog) — the shortcut for "import this directory with the settings I use every time".
+Dragging **nodes within the canvas** (reparenting, adding a child from a folder's
+output handle) is unaffected: it uses the app's own drag payload, not the OS.
 
 ## Layout Engine
 
@@ -87,7 +94,7 @@ Fewer ships a single custom **Reingold-Tilford tree layout** with contour matchi
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3×) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom multiplier; it takes effect on the next Rearrange
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom intensity; it takes effect as soon as you release the slider (or commit a typed value; changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the spacing a default canvas has always had, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as the layout gets (roughly +70% spread on a wide graph, against about +10% before this was tuned)
 - Best for large graphs (1K+ nodes)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
@@ -113,17 +120,19 @@ Children within each folder are drawn in a chosen order. The sort applies recurs
 
 Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
 
-## Tags
+## Tags (Pro)
 
-Tags are named, colored labels you can attach to any folder or file card.
+Tags are named, colored labels you can attach to any folder or file card. Tagging requires a signed-in Pro account.
 
-**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **New tag** row that creates one and assigns it in one step. A card can carry any number of tags; assigned tags also appear as colored dots on the card.
+**Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
 **The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
 
 **Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
 
-**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — a card stays bright when it carries at least one selected tag (OR semantics); everything else dims, exactly like a text search. Clear with the ✕.
+**Undo**: assigning or unassigning a tag is undoable (**Ctrl+Z**) — a batch assignment reverts as one step. Deleting a tag is undoable too: undo restores the tag itself, re-assigns the cards it was stripped from, and returns it to the active filter. Deleting a tag that was filtering also releases the cards it was hiding (hides owned by other layers stay). Creating, renaming, or recoloring a tag only edits the palette and is not a history step.
+
+**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — only cards that carry at least one selected tag (OR semantics) stay visible; every other card is removed from the canvas. Folders are hidden too, but only when neither they nor anything inside them matches, so a folder that contains a matching card stays visible as an anchor. Clear with the ✕.
 
 **Sort by tag**: **Settings → Appearance → Sibling Sort → Order by: Tag** orders siblings by the alphabetical label of their first tag; untagged cards always trail.
 
@@ -133,7 +142,7 @@ Tags are part of the graph data: they ride along with saved graphs, share links,
 
 Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
 
-## Edge Styles
+## Connection Styles
 
 ### Curved
 
@@ -147,35 +156,35 @@ Sharp corners with configurable radius (0-20px). Adjust via sidebar.
 
 Direct lines. Minimalist look.
 
-## Edge Motion
+## Connection Motion
 
 Optional motion effects:
 
-- **None**: static edges
+- **None**: static connections
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
-Edge motion is a signed-in (Power User) feature: it's only available to
+Connection motion is a signed-in (Power User) feature: it's only available to
 authenticated users. A Settings → Appearance toggle, **Animate Selected
 Edges Only**, limits the
-animation to the edges along the selected nodes' path to the root (the same
-edges that get the selection highlight) instead of every edge on the canvas.
+animation to the connections along the selected nodes' path to the root (the same
+connections that get the selection highlight) instead of every connection on the canvas.
 It works standalone — no need to turn on the edge motion toggle first — and
-its animated edges use the **Selected Edge Pattern** (dashed or dotted) chosen
+its animated edges use the **Selected Connection Pattern** (dashed or dotted) chosen
 in the same dialog. Edges outside the selection follow the Motion
 and Pattern controls in the same tab.
 
-## Edge Pattern & Weight
+## Connection Pattern & Weight
 
-In Power User mode, Settings → Appearance → **Edge Styling** controls:
+In Power User mode, Settings → Appearance → **Connection Styling** controls:
 
 - **Motion**: static or animated — applies to all edges globally, or to the
-  non-selected edges only when **Animate Selected Edges Only** is on
+  non-selected connections only when **Animate Selected Connections Only** is on
 - **Pattern**: solid, dashed, or dotted — same scope as Motion
 - **Line Thickness**: 0.5px to 6px slider
 
 The sidebar keeps a quick **Style** picker (curved / straight / angled); corner
-radius for angled edges also lives in Edge Styling.
+radius for angled connections also lives in Connection Styling.
 
 ## Breadcrumb Bar
 
@@ -187,6 +196,11 @@ Folders with more than N children (default: 10) auto-hide their children on impo
 
 **Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
 
+## Visibility: Hide Files / Show Children
+
+- **Hide Files / Show Files** (canvas toolbar or right-click → **Visibility**) hides or reveals every file card. Folders stay visible either way.
+- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree — and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
+
 ## Hidden Cards Panel
 
 Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
@@ -195,7 +209,7 @@ Access via sidebar. Shows all hidden nodes grouped by their visible parent folde
 - **Nested expandable tree** (any depth) for fully-hidden subtrees
 - **Eye button** reveals an individual item (or a whole hidden subtree)
 - **"Show All" button** reveals everything
-- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path edges (root→folder), like global search and selection
+- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
 
 ## Search
@@ -207,10 +221,22 @@ Fuzzy search across filenames, paths, and extensions.
 - **Highlight/dim** matched/unmatched nodes
 - **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
+## Multiple Graph Views
+
+Split the workspace into two or more areas and every graph view keeps its own settings: hidden cards, collapsed folders, card positions, layout direction, connection style and connection width. Clicking a card, its pane, or its header makes that view the active one — the view that owns clicks, selection and keyboard actions.
+
+The active view is marked with an accent inset border plus a dot in its header, so it is obvious which pane will respond. The marker only appears when the workspace holds more than one view, keeping a single-view layout unmarked. It is a UI affordance: it is never drawn into SVG/PNG exports.
+
+Image exports mirror the active view (see [Import & Export](/docs/import-export)); JSON, CSV, DOT, script and tree exports always cover the full graph.
+
+Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
+
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Sidebar sections can be reordered by dragging the grip handle (⋮⋮) next to each section title — sections shift as you cross their midpoints, and Escape cancels. Dragging a section outside the sidebar docks it as a ~25% column (Pro only); the same dock preview band shows where the column will land. Keyboard: focus a section grip and press **Alt+↑/↓** to move it. Panel docking is a Pro feature; Tags requires Pro.
+
 ## Sidebar
 
 - **Drag-resizable**: drag the right edge to resize (200-560px)
-- **Collapsible sections**: File & Actions, Layout, Edges & Style, Hidden Cards, Graph Analytics
+- **Collapsible sections**: File & Actions, Layout, Connections & Style, Hidden Cards, Graph Analytics
 
 ## Stats Panel
 

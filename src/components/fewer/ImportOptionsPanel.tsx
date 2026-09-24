@@ -19,13 +19,13 @@ import type { ImportOptions } from "@/lib/fewer/importOptions";
 interface ImportOptionsPanelProps {
   options: ImportOptions;
   onChange: (partial: Partial<ImportOptions>) => void;
-  advancedModeEnabled: boolean;
+  advancedFormats: boolean;
 }
 
 export function ImportOptionsPanel({
   options,
   onChange,
-  advancedModeEnabled,
+  advancedFormats,
 }: ImportOptionsPanelProps) {
   const update = (partial: Partial<ImportOptions>) => onChange(partial);
 
@@ -97,12 +97,12 @@ export function ImportOptionsPanel({
           step={1}
         />
         <p className="text-xs text-muted-foreground leading-normal">
-          How deep to display after import. Deeper nodes go to Hidden Cards.
+          How deep to display after import. Deeper cards go to Hidden Cards.
         </p>
       </div>
 
       {/* Advanced Options */}
-      {advancedModeEnabled && (
+      {advancedFormats && (
         <>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/85 block">
             Advanced Options
@@ -180,7 +180,7 @@ export function ImportOptionsPanel({
                   Show Files on Canvas
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Show file nodes. Off = directories only.
+                  Show file cards. Off = directories only.
                 </p>
               </div>
             </div>

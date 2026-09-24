@@ -4,11 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
-  Layers,
-  MousePointerClick,
-  Search,
-  Download,
   Check,
   X,
   BookOpen,
@@ -21,57 +16,8 @@ import { useDarkBackground } from "@/hooks/use-dark-background";
 import { DEMO_KEYFRAMES } from "@/lib/fewer/tutorial";
 import { getBeginnerChecklist } from "@/lib/fewer/tutorial";
 import { useDevice } from "@/hooks/use-device";
+import { isStepComplete, shouldAutoDismiss } from "@/lib/fewer/tutorialModel";
 import { Logo } from "./Logo";
-
-/* -------------------------------------------------------------------------- */
-/*  Demo stage - animated node preview                                        */
-/* -------------------------------------------------------------------------- */
-
-function DemoStage({ step }: { step: number }) {
-  const nodes = [
-    { label: "src", type: "folder", delay: "0ms", x: 0 },
-    { label: "components", type: "folder", delay: "150ms", x: 120 },
-    { label: "App.tsx", type: "file", delay: "300ms", x: 240 },
-    { label: "index.ts", type: "file", delay: "450ms", x: 240 },
-    { label: "styles", type: "folder", delay: "150ms", x: -120 },
-    { label: "globals.css", type: "file", delay: "300ms", x: -120 },
-  ];
-
-  return (
-    <div className="relative h-20 w-full overflow-hidden rounded-lg bg-muted/30 border border-border/40">
-      <div className="absolute inset-0 flex items-center justify-center gap-2">
-        {nodes.slice(0, step).map((n, i) => (
-          <div
-            key={i}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[10px] font-medium shadow-sm border",
-              "animate-[tutorial-bounce-in_0.5s_ease-out_both]",
-              n.type === "folder"
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-purple-400/40 bg-purple-500/10 text-primary",
-            )}
-            style={{
-              animationDelay: n.delay,
-              transform: `translateX(${n.x}px)`,
-            }}
-          >
-            <div
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                n.type === "folder" ? "bg-orange-400" : "bg-primary",
-              )}
-            />
-            {n.label}
-          </div>
-        ))}
-      </div>
-      <div
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent bg-[length:200%_100%] animate-[tutorial-shimmer_3s_ease-in-out_infinite]"
-        style={{ pointerEvents: "none" }}
-      />
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Checklist item                                                            */
@@ -201,16 +147,10 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   useEffect(() => {
     const unsubscribe = useGraphStore.subscribe((state) => {
       for (const item of beginnerItems) {
-        if (state.tutorialBeginnerDone.includes(item.id)) continue;
-        if (!item.watchState) continue;
-        const { key, value } = item.watchState;
-        const stateValue = (state as unknown as Record<string, unknown>)[key];
-        if (value === null) {
-          if (key === "selectedNodeIds" && Array.isArray(stateValue) && stateValue.length > 0) {
+        if (isStepComplete(state as Record<string, unknown>, item, state.tutorialBeginnerDone)) {
+          if (!state.tutorialBeginnerDone.includes(item.id)) {
             useGraphStore.getState().markTutorialBeginnerStep(item.id);
           }
-        } else if (stateValue === value) {
-          useGraphStore.getState().markTutorialBeginnerStep(item.id);
         }
       }
     });
@@ -252,7 +192,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   if (!open && !minimized) {
     return null;
   }
-  if (useGraphStore.getState().tutorialDismissed && restartKey === 0) {
+  if (shouldAutoDismiss(useGraphStore.getState().tutorialDismissed, restartKey)) {
     return null;
   }
 
@@ -260,11 +200,15 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
   if (minimized) {
     return (
       <Portal>
-        <MinimizedDialogPill
-          icon={<BookOpen className="h-3.5 w-3.5" />}
-          label="Tutorial"
-          onRestore={() => setMinimized(false)}
-        />
+        {/* Same pointer-events override as above: stay clickable while a Radix
+            modal dialog has shielded `body` with `pointer-events: none`. */}
+        <div style={{ pointerEvents: "auto" }}>
+          <MinimizedDialogPill
+            icon={<BookOpen className="h-3.5 w-3.5" />}
+            label="Tutorial"
+            onRestore={() => setMinimized(false)}
+          />
+        </div>
       </Portal>
     );
   }
@@ -274,7 +218,14 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
     return (
       <Portal>
         <style suppressHydrationWarning>{DEMO_KEYFRAMES}</style>
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+        <div
+          className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+          // Parent `body` gets `pointer-events: none` while any Radix modal
+          // dialog is open (outside-click shielding). This portal lives
+          // outside that tree, so re-enable clicks to keep z + click priority
+          // identical.
+          style={{ pointerEvents: "auto" }}
+        >
   <div className="w-full max-w-[380px] overflow-hidden rounded-3xl border border-primary/40 bg-card/90 p-6 shadow-2xl shadow-primary/25 backdrop-blur-2xl transition-all animate-in fade-in zoom-in-95 duration-200">
     
     {/* Header & Logo */}

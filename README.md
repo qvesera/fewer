@@ -88,18 +88,18 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
-> **Tip:** On an empty canvas you can also **drag a folder** from your file
-> system straight onto the canvas — it imports immediately with your saved
-> import settings (Chromium-based browsers).
+> **Note:** Drag-and-drop import from your OS, "Open in File Explorer", and
+> "Open File" are switched off in the web build (build-time `LOCAL_FS_FEATURES`
+> flags in `src/lib/fewer/features.ts`) — use **Import → From disk** instead.
 
 ### Edit the graph
 
 - **Rename** a node: **F2** or right-click
 - **Add** a node: **Alt+N**
-- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release)
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
-- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history)
+- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; node moves and tag assignments/deletes included)
 
 ---
 
@@ -112,10 +112,11 @@ docker run -p 3000:3000 fewer
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
-- **3 edge styles**: Curved, Angled (adjustable radius), Straight
+- **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
-- **Tags**: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Tags** *(Pro)*: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
 - **Breadcrumb bar**: selected node's full path
 
 </details>
@@ -157,7 +158,7 @@ docker run -p 3000:3000 fewer
 | Target     | Actions                                                          |
 | ---------- | ---------------------------------------------------------------- |
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
-| **File**   | Rename, Open File, Copy Name, Copy, Cut, Delete                  |
+| **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
 | **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
 | **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
 
@@ -166,7 +167,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Import</b></summary>
 
-- **File System Access API** (Chrome/Edge): real directory read with depth, hidden file, and extension filters
+- **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
@@ -180,6 +181,7 @@ docker run -p 3000:3000 fewer
 - **Light / Dark / Custom** modes
 - **16 CSS color variables**: separate folder and file colors
 - **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
+- **Community theme gallery**: publish your saved themes (attributed to your profile), search themes and authors, apply any theme instantly on the gallery page, and open `#t:` links that set it as your last-used theme
 - **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
 - Changes apply instantly to all nodes
 
@@ -243,12 +245,14 @@ docker run -p 3000:3000 fewer
 | **SVG**    | Vector with theme background               | Documentation, presentations  |
 | **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
 | **JSON**   | Full graph state                           | Re-import, programmatic use   |
-| **CSV**    | Tabular nodes + edges                      | Spreadsheets, data analysis   |
+| **CSV**    | Tabular nodes + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
+
+Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 
 ---
 
@@ -273,7 +277,7 @@ Writes go through the service role (RLS is public-read-only for published rows).
 User action → KeyboardShortcuts / ContextMenu → graphStore (Zustand) → React Flow re-render
 ```
 
-The **Zustand store** is the single source of truth. React Flow nodes/edges are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer.
+The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -307,7 +311,7 @@ src/
 ├── lib/fewer/
 │   ├── types.ts              # TypeScript types + theme metadata
 │   ├── layout.ts             # Custom tree layout with type-aware dimensions
-│   ├── treeToGraph.ts        # Tree → flat nodes/edges
+│   ├── treeToGraph.ts        # Tree → flat nodes/connections
 │   ├── fileSystem.ts         # File System Access API
 │   ├── fileOps.ts            # Copy/move/delete/create/open on disk
 │   ├── importOptions.ts      # Import configuration
@@ -320,7 +324,7 @@ src/
 │   ├── share.ts              # URL sharing
 │   ├── errors.ts             # Type-safe error system
 │   └── stats.ts              # Stats computation + fuzzy match
-├── store/graphStore.ts       # Zustand store (nodes, edges, history, theme, clipboard)
+├── store/graphStore.ts       # Zustand store (nodes, connections, history, theme, clipboard)
 └── hooks/
     ├── use-device.ts         # Mobile/tablet/touch/reduced-motion detection
     ├── use-mobile.ts         # Mobile breakpoint hook
@@ -341,7 +345,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Prisma ORM + SQLite; Supabase (auth, saved graphs, share links, headless blog/docs) |
+| Database  | Supabase (Postgres) — auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 
@@ -352,12 +356,17 @@ src/
 | Feature                            | Chrome/Edge | Firefox | Safari |
 | ---------------------------------- | :---------: | :-----: | :----: |
 | Graph visualization                |     ✅      |   ✅    |   ✅   |
-| Import directory (FS Access API)   |     ✅      |   ❌    |   ❌   |
 | Import directory (webkitdirectory) |     ✅      |   ✅    |   ✅   |
-| Open files from disk               |     ✅      |   ❌    |   ❌   |
 | Export (all formats)               |     ✅      |   ✅    |   ✅   |
 | Keyboard shortcuts                 |     ✅      |   ✅    |   ✅   |
 | Custom theme                       |     ✅      |   ✅    |   ✅   |
+
+> **OS integration is switched off in the web build.** The File System Access
+> directory picker, "Open File", and "Open in File Explorer" are gated behind
+> `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts` (all flags `false`), so they
+> are unavailable in every browser until a build flips them — see
+> [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
+> Folder import works everywhere through the `webkitdirectory` fallback.
 
 ---
 
@@ -365,7 +374,7 @@ src/
 
 **Q: Does fewer send my directory data anywhere?**
 
-A: No. Everything runs in your browser. The only network call is an optional GitHub import (public repos only). No telemetry, no analytics.
+A: Your directory is never uploaded — local import, editing, layout, and export run entirely in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
 
@@ -373,7 +382,7 @@ A: Yes. The standalone version is available at [app.fewer.directory](https://app
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
-A: File System Access API is Chrome/Edge-only. Firefox and Safari use the `webkitdirectory` fallback, which works for import but can't write back to disk.
+A: Folder import works in every browser — Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only — and are currently switched off entirely in the web build (see the note above).
 
 **Q: How do I uninstall?**
 
@@ -382,6 +391,10 @@ A: Delete the repo folder. That's it. No background processes, no config files, 
 **Q: Do I need an account?**
 
 A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
+
+**Q: Can I set my own avatar?**
+
+A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload — that keeps the app free of image storage without giving up identity in the toolbar.
 
 ---
 

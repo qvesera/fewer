@@ -3,14 +3,17 @@ import type {
   FewerEdge,
   ExportSettings,
   DirectoryStats,
+  LayoutDirection,
 } from "./types";
 import {
   buildGraphSVG,
   readThemePalette,
   readBodyFont,
   readDashOffset,
+  type GraphRenderOptions,
 } from "./graphRenderer";
-import { FEWER_CREDIT } from "./branding";
+import type { Tag } from "./tags";
+import { APP_VERSION, FEWER_CREDIT } from "./branding";
   
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -38,7 +41,8 @@ function timestamp(): string {
 
 /**
  * Extra image-export options passed from the ExportPanel so the renderer can
- * mirror the live canvas (selection, hidden nodes, edge + node settings).
+ * mirror the live canvas (hidden nodes, per-view positions, collapsed folders,
+ * tags, edge + node settings).
  */
 export interface ImageExportOptions {
   selectedIds?: string[];
@@ -47,6 +51,35 @@ export interface ImageExportOptions {
   nodeHeight?: number;
   edgeWidth?: number;
   cornerRadius?: number;
+  /** Folder ids the active view renders as a collapsed pill. */
+  collapsedIds?: Set<string>;
+  /** Tag registry — exported rings/dots use the same colors as the canvas. */
+  tags?: Tag[];
+  /** Layout direction of the active view — edges anchor to it, as on canvas. */
+  direction?: LayoutDirection;
+}
+
+/** Fold the shared image options into the renderer's option bag. */
+function imageRenderOptions(
+  settings: ExportSettings,
+  opts: ImageExportOptions,
+): GraphRenderOptions {
+  return {
+    palette: readThemePalette(),
+    fontFamily: readBodyFont(),
+    selectedIds: new Set(opts.selectedIds ?? []),
+    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
+    transparentBackground: settings.transparentBackground,
+    includeBranding: settings.includeBranding,
+    nodeWidth: opts.nodeWidth,
+    nodeHeight: opts.nodeHeight,
+    defaultEdgeWidth: opts.edgeWidth,
+    cornerRadius: opts.cornerRadius,
+    dashOffset: readDashOffset(),
+    collapsedIds: opts.collapsedIds?.size ? opts.collapsedIds : undefined,
+    tags: opts.tags,
+    direction: opts.direction,
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -60,19 +93,7 @@ export function exportSVG(
   opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const { svg, width } = buildGraphSVG(nodes, edges, {
-    palette: readThemePalette(),
-    fontFamily: readBodyFont(),
-    selectedIds: new Set(opts.selectedIds ?? []),
-    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
-    transparentBackground: settings.transparentBackground,
-    includeBranding: settings.includeBranding,
-    nodeWidth: opts.nodeWidth,
-    nodeHeight: opts.nodeHeight,
-    defaultEdgeWidth: opts.edgeWidth,
-    cornerRadius: opts.cornerRadius,
-    dashOffset: readDashOffset(),
-  });
+  const { svg, width } = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
   if (width === 0) return;
   downloadBlob(svg, `fewer-${timestamp()}.svg`, "image/svg+xml");
 }
@@ -88,19 +109,7 @@ export function exportPNG(
   opts: ImageExportOptions = {},
 ) {
   if (nodes.length === 0) return;
-  const scene = buildGraphSVG(nodes, edges, {
-    palette: readThemePalette(),
-    fontFamily: readBodyFont(),
-    selectedIds: new Set(opts.selectedIds ?? []),
-    hiddenIds: opts.hiddenIds?.length ? new Set(opts.hiddenIds) : undefined,
-    transparentBackground: settings.transparentBackground,
-    includeBranding: settings.includeBranding,
-    nodeWidth: opts.nodeWidth,
-    nodeHeight: opts.nodeHeight,
-    defaultEdgeWidth: opts.edgeWidth,
-    cornerRadius: opts.cornerRadius,
-    dashOffset: readDashOffset(),
-  });
+  const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
   if (scene.width === 0 || scene.height === 0) return;
 
   const scale = Math.max(1, settings.quality / 50);
@@ -133,19 +142,23 @@ export function exportPNG(
 /*                                  JSON                                      */
 /* -------------------------------------------------------------------------- */
 
-export function exportJSON(
+/**
+ * Build the JSON export payload. Pure — `exportJSON` downloads it, tests and
+ * any future importer can read it without touching the DOM.
+ */
+export function buildJsonExport(
   nodes: FewerNode[],
   edges: FewerEdge[],
   stats?: DirectoryStats,
   includeBranding = true,
-) {
+): Record<string, unknown> {
   const meta: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
     application: "fewer",
-    version: "1.0.0",
+    version: APP_VERSION,
   };
   if (includeBranding) meta.generatedBy = FEWER_CREDIT;
-  const payload = {
+  return {
     meta,
     stats: stats ?? null,
     nodes: nodes.map((n) => ({
@@ -164,8 +177,16 @@ export function exportJSON(
       target: e.target,
     })),
   };
+}
+
+export function exportJSON(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  stats?: DirectoryStats,
+  includeBranding = true,
+) {
   downloadBlob(
-    JSON.stringify(payload, null, 2),
+    JSON.stringify(buildJsonExport(nodes, edges, stats, includeBranding), null, 2),
     `fewer-${timestamp()}.json`,
     "application/json",
   );

@@ -11,7 +11,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
-import { useAuth } from "@/hooks/use-auth";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 
 // Render the four navigation arrows with lucide icons so they all draw with
@@ -26,8 +25,8 @@ const ARROW_ICONS: Record<string, LucideIcon> = {
 interface Shortcut {
   keys: string[];
   action: string;
-  /** Hidden for signed-out users (requires a cloud account). */
-  signedInOnly?: boolean;
+  /** Hidden when the user's tier is below this minimum. */
+  minTier?: "free" | "pro";
   /** Hidden when the feature flag is off (no side effect in plain filter). */
   featureKey?: keyof typeof LOCAL_FS_FEATURES;
 }
@@ -55,26 +54,26 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: "Selection & Cards",
     shortcuts: [
-      { keys: ["⌘", "Ctrl", "A"], action: "Select all nodes" },
-      { keys: ["F2"], action: "Rename selected node" },
-      { keys: ["Enter"], action: "Open selected file" },
-      { keys: ["Delete"], action: "Delete selected nodes" },
-      { keys: ["H"], action: "Hide selected nodes" },
-      { keys: ["Shift", "H"], action: "Show all nodes" },
-      { keys: ["Alt", "N"], action: "Open add node dialog" },
+      { keys: ["⌘", "Ctrl", "A"], action: "Select all cards" },
+      { keys: ["F2"], action: "Rename selected card" },
+      { keys: ["Enter"], action: "Open file (off in the web build) / focus first child" },
+      { keys: ["Delete"], action: "Delete selected cards" },
+      { keys: ["H"], action: "Hide selected cards" },
+      { keys: ["Shift", "H"], action: "Show all cards" },
+      { keys: ["Alt", "N"], action: "Open add card dialog" },
       { keys: ["Alt", "Shift", "N"], action: "Clear canvas" },
-      { keys: ["Alt", "P"], action: "Parent selected nodes" },
-      { keys: ["Alt", "Shift", "P"], action: "Unparent selected nodes" },
-      { keys: ["Alt", "S"], action: "Save current graph", signedInOnly: true },
+      { keys: ["Alt", "P"], action: "Parent selected cards" },
+      { keys: ["Alt", "Shift", "P"], action: "Unparent selected cards" },
+      { keys: ["Alt", "S"], action: "Save current graph", minTier: "free" },
     ],
   },
   {
     title: "Clipboard & History",
     shortcuts: [
-      { keys: ["⌘", "Ctrl", "C"], action: "Copy selected nodes" },
-      { keys: ["⌘", "Ctrl", "X"], action: "Cut selected nodes" },
-      { keys: ["⌘", "Ctrl", "V"], action: "Paste nodes" },
-      { keys: ["⌘", "Ctrl", "D"], action: "Duplicate selected nodes" },
+      { keys: ["⌘", "Ctrl", "C"], action: "Copy selected cards" },
+      { keys: ["⌘", "Ctrl", "X"], action: "Cut selected cards" },
+      { keys: ["⌘", "Ctrl", "V"], action: "Paste cards" },
+      { keys: ["⌘", "Ctrl", "D"], action: "Duplicate selected cards" },
       { keys: ["⌘", "Ctrl", "Z"], action: "Undo" },
       { keys: ["⌘", "Ctrl", "Shift", "Z"], action: "Redo" },
       { keys: ["⌘", "Ctrl", "Y"], action: "Redo (alternate)" },
@@ -88,10 +87,12 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["←"], action: "Navigate left / sibling" },
       { keys: ["→"], action: "Navigate right / sibling" },
       { keys: ["Shift", "↑↓←→"], action: "Add to selection" },
-      { keys: ["Alt", "R"], action: "Re-layout graph" },
+      { keys: ["Alt", "R"], action: "Organize graph" },
       { keys: ["Alt", "F"], action: "Zoom to selection" },
       { keys: ["Alt", "I"], action: "Import" },
       { keys: ["Alt", "O"], action: "Open in file explorer", featureKey: "openInOs" },
+      { keys: ["Alt", "↑"], action: "Move focused sidebar section up" },
+      { keys: ["Alt", "↓"], action: "Move focused sidebar section down" },
     ],
   },
 ];
@@ -185,7 +186,9 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
 export function ShortcutsDialog() {
   const open = useGraphStore((s) => s.shortcutsOpen);
   const setOpen = useGraphStore((s) => s.setShortcutsOpen);
-  const { user } = useAuth();
+  const tier = useGraphStore((s) => s.tier);
+
+  const TIER_RANK: Record<string, number> = { guest: 0, free: 1, pro: 2 };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -208,7 +211,7 @@ export function ShortcutsDialog() {
               </h3>
               <div className="flex flex-col gap-1">
                 {group.shortcuts
-                  .filter((s) => (!s.signedInOnly || user) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]))
+                  .filter((s) => (!s.minTier || TIER_RANK[tier] >= TIER_RANK[s.minTier]) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]))
                   .map((s, idx) => (
                     <ShortcutRow key={idx} shortcut={s} />
                   ))}

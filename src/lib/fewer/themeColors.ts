@@ -17,6 +17,31 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
+/**
+ * Relative luminance (ITU-R BT.601 luma) of an rgb triplet, on the 0-255 scale.
+ *
+ * Integer inputs make this exact to three decimals, so a threshold decision can
+ * never straddle a boundary through a rounding error — the legacy
+ * `r * 0.299 + g * 0.587 + b * 0.114` form returned 127.99999999999999 for
+ * #808080, where this returns exactly 128.
+ *
+ * Single source of truth for every "is this color light or dark?" call.
+ */
+export function luma(rgb: { r: number; g: number; b: number }): number {
+  return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+}
+
+/** Luma of a `#rrggbb` string, or null when unparseable. */
+export function lumaHex(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  return rgb ? luma(rgb) : null;
+}
+
+/** The 128 midpoint: true when a color reads as light (luma strictly above). */
+export function isLightRgb(rgb: { r: number; g: number; b: number }): boolean {
+  return luma(rgb) > 128;
+}
+
 /** Clamp opacity to [0, 1] with two decimal precision. */
 export function clampOpacity(opacity: number): number {
   if (!Number.isFinite(opacity)) return 1;
@@ -72,8 +97,7 @@ export function mixHex(a: string, b: string, t: number): string {
 export function suggestGradientEnd(base: string): string {
   const rgb = hexToRgb(base);
   if (!rgb) return base;
-  const luminance = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
-  return mixHex(base, luminance > 128 ? "#000000" : "#ffffff", 0.6);
+  return mixHex(base, isLightRgb(rgb) ? "#000000" : "#ffffff", 0.6);
 }
 
 /** Resolve one color slot from a possibly-legacy raw value, filling gaps from
@@ -121,10 +145,8 @@ export function migrateCustomTheme(input: unknown): CustomTheme {
 
 /** Extract a hex color + opacity from a legacy CSS string (hex or rgba). */
 function parseLegacyColor(value: string): { color: string; opacity: number } | null {
-  const hex = /^#?([0-9a-fA-F]{6})$/.exec(value.trim());
-  if (hex) {
-    const rgb = hexToRgb(value.trim());
-    if (!rgb) return null;
+  const rgb = hexToRgb(value.trim());
+  if (rgb) {
     const color = `#${rgb.r.toString(16).padStart(2, "0")}${rgb.g.toString(16).padStart(2, "0")}${rgb.b.toString(16).padStart(2, "0")}`;
     return { color, opacity: 1 };
   }
@@ -146,6 +168,84 @@ export function resolveCss(theme: CustomTheme, key: keyof CustomTheme): string {
 }
 
 /**
+ * Luma cutoff for `--primary-foreground`. Deliberately above the 128 surface
+ * midpoint: a mid-tone accent keeps white text instead of flipping to black.
+ * Not the same threshold as `isLightRgb`, and not to be merged with it.
+ */
+export const PRIMARY_FG_LUMA_THRESHOLD = 140;
+
+/**
+ * `--primary-foreground`: the text color that reads on top of the primary
+ * accent — black on bright accents, white otherwise. An unparseable accent
+ * reads as black, which lands on the white branch.
+ */
+export function computePrimaryFgFinal(accent: string): string {
+  return (lumaHex(accent) ?? 0) > PRIMARY_FG_LUMA_THRESHOLD ? "#000000" : "#ffffff";
+}
+
+/**
+ * Derive the shadcn/ui CSS variables from a custom theme (pure — no DOM).
+ * Card/muted backgrounds, border tones, and foreground contrast are computed
+ * from the theme's background / text / accent slots.
+ */
+export function deriveShadcnVars(theme: CustomTheme): [string, string][] {
+  const bg = theme.background.color;
+  const fg = theme.defaultText.color;
+  const subtle = theme.subtleText.color;
+  const accent = theme.folderIcon.color;
+  const handle = theme.handle.color;
+
+  const bgRgb = hexToRgb(bg);
+  const isLight = bgRgb ? isLightRgb(bgRgb) : true;
+
+  // Derive card/muted backgrounds from the actual theme background. An
+  // unparseable background keeps the legacy split — black rgb components (the
+  // old `|| 0`) but light polarity — so it lightens upward from 0.
+  const { r, g, b } = bgRgb ?? { r: 0, g: 0, b: 0 };
+
+  // Card: slightly lighter than background for light themes, slightly darker for dark
+  const cardR = isLight ? Math.min(255, r + 8) : Math.max(0, r - 8);
+  const cardG = isLight ? Math.min(255, g + 8) : Math.max(0, g - 8);
+  const cardB = isLight ? Math.min(255, b + 8) : Math.max(0, b - 8);
+  const cardBg = `#${cardR.toString(16).padStart(2, "0")}${cardG.toString(16).padStart(2, "0")}${cardB.toString(16).padStart(2, "0")}`;
+
+  // Muted: even more offset
+  const mutedR = isLight ? Math.min(255, r + 15) : Math.max(0, r - 15);
+  const mutedG = isLight ? Math.min(255, g + 15) : Math.max(0, g - 15);
+  const mutedB = isLight ? Math.min(255, b + 15) : Math.max(0, b - 15);
+  const mutedBg = `#${mutedR.toString(16).padStart(2, "0")}${mutedG.toString(16).padStart(2, "0")}${mutedB.toString(16).padStart(2, "0")}`;
+
+  // Borders: subtle lines that work on any background
+  const borderColor = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.2)` : `rgba(255, 255, 255, 0.08)`;
+  const borderLight = isLight ? `rgba(${Math.round(r * 0.1)}, ${Math.round(g * 0.1)}, ${Math.round(b * 0.1)}, 0.12)` : `rgba(255, 255, 255, 0.05)`;
+
+  const primaryFgFinal = computePrimaryFgFinal(accent);
+
+  return [
+    ["--background", toCssColor(bg, theme.background.opacity)],
+    ["--foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--card", cardBg],
+    ["--card-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--popover", cardBg],
+    ["--popover-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--primary", toCssColor(accent, 1)],
+    ["--primary-foreground", primaryFgFinal],
+    ["--secondary", mutedBg],
+    ["--secondary-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--muted", mutedBg],
+    ["--muted-foreground", toCssColor(subtle, theme.subtleText.opacity)],
+    ["--accent", toCssColor(accent, 0.15)],
+    ["--accent-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--border", borderColor],
+    ["--input", borderLight],
+    ["--ring", toCssColor(handle, theme.handle.opacity)],
+    ["--sidebar", cardBg],
+    ["--sidebar-foreground", toCssColor(fg, theme.defaultText.opacity)],
+    ["--sidebar-border", borderLight],
+  ];
+}
+
+/**
  * Adaptive chip colors for the "N nodes hidden" pill on the canvas. Derives a
  * readable background/text pair from the canvas background's luminance:
  * dark backgrounds get a lightened chip, light backgrounds a darkened one.
@@ -162,8 +262,7 @@ export function canvasChipStyle(rawBackground: string | undefined): CanvasChipSt
   const rgb = hexToRgb(bg);
   if (!rgb) return {};
   const { r, g, b } = rgb;
-  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-  if (luminance > 128) {
+  if (isLightRgb(rgb)) {
     return {
       backgroundColor: `rgba(${Math.round(r * 0.25)}, ${Math.round(g * 0.25)}, ${Math.round(b * 0.25)}, 0.8)`,
       color: "rgba(255, 255, 255, 0.9)",

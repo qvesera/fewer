@@ -1,6 +1,7 @@
 "use client";
 
 import { useGraphStore } from "@/store/graphStore";
+import { hexToRgb, isLightRgb } from "@/lib/fewer/themeColors";
 
 /**
  * Surface polarity: is the page background dark?
@@ -17,9 +18,7 @@ export function useDarkBackground() {
   const customTheme = useGraphStore((s) => s.customTheme);
   if (themeMode === "dark") return true;
   if (themeMode === "light") return false;
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(customTheme.background.color);
-  if (!m) return true;
-  const n = parseInt(m[1], 16);
-  const lum = ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114;
-  return lum <= 128;
+  const rgb = hexToRgb(customTheme.background.color);
+  if (!rgb) return true;
+  return !isLightRgb(rgb);
 }

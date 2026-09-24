@@ -20,6 +20,7 @@ import {
   SHARE_HASH_THRESHOLD,
 } from "@/lib/fewer/share";
 import { Link, Copy, Check, Loader2 } from "lucide-react";
+import { plural } from "@/lib/fewer/plural";
 
 export function ShareDialog() {
   const open = useGraphStore((s) => s.shareOpen);
@@ -29,7 +30,8 @@ export function ShareDialog() {
   const localRootPath = useGraphStore((s) => s.localRootPath);
   const { toast } = useToast();
   const { user } = useAuth();
-  const isGuest = !user;
+  const tier = useGraphStore((s) => s.tier);
+  const isGuest = tier === "guest";
 
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -118,7 +120,7 @@ export function ShareDialog() {
 
         {nodes.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            Nothing to share: add nodes to your canvas first.
+            Nothing to share: add cards to your canvas first.
           </p>
         ) : (
           <div className="space-y-3 py-2">
@@ -165,7 +167,7 @@ export function ShareDialog() {
             <p className="text-xs text-muted-foreground">
               {building
                 ? "Storing large graph for a short share link…"
-                : `This link contains all ${nodes.length} node${ nodes.length === 1 ? "" : "s" } and ${edges.length} edge${ edges.length === 1 ? "" : "s" } with their positions.`}
+                : `This link contains ${plural(nodes.length, "card")} and ${plural(edges.length, "connection")} with their positions.`}
             </p>
           </div>
         )}

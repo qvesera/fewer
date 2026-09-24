@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDescendants } from "@/lib/fewer/validation";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -48,17 +49,9 @@ export function ParentPickerDialog() {
   // selected subtree (can't move a node under itself).
   const eligibleFolders = useMemo(() => {
     if (!open) return [];
-    const blocked = new Set<string>(ids);
-    const queue = [...ids];
-    while (queue.length) {
-      const nid = queue.shift()!;
-      for (const e of edges) {
-        if (e.source === nid && !blocked.has(e.target)) {
-          blocked.add(e.target);
-          queue.push(e.target);
-        }
-      }
-    }
+    // Shared walk (see deleteNodes): selection plus every descendant, one entry
+    // per node — the subtree can never be its own parent.
+    const blocked = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
     const q = query.trim().toLowerCase();
     return nodes.filter(
       (n) =>

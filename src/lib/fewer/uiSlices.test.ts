@@ -1,6 +1,22 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { useGraphStore } from "@/store/graphStore";
+import { useGraphStore, isAnyDialogOpen } from "@/store/graphStore";
 import type { FewerNode, FewerEdge } from "./types";
+import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "./tutorial";
+
+// bun's test env ships no localStorage; dialogsSlice gate-guards on
+// `typeof window === "undefined"`, so stub both (same harness as snapshot.test.ts).
+function makeStorage() {
+  const store = new Map<string, string>();
+  return {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => { store.set(k, v); },
+    removeItem: (k: string) => { store.delete(k); },
+    clear: () => store.clear(),
+  };
+}
+const localStorage = makeStorage();
+(globalThis as Record<string, unknown>).window = globalThis;
+(globalThis as Record<string, unknown>).localStorage = localStorage;
 
 function makeNode(id: string, type: "folder" | "file", opts: Partial<FewerNode["data"]> = {}): FewerNode {
   return {
@@ -182,6 +198,27 @@ describe("folderSlice (per-leaf hide layers)", () => {
     expect(s().viewSettings["leaf1"].hideLayers!.subtrees["outer"]).toBeUndefined();
   });
 
+  it("showSubtreeForLeaf reveals files hidden by the bulk Hide Files layer", () => {
+    s().setFilesBulkForLeaf("leaf1", true);
+    s().showSubtreeForLeaf("leaf1", "outer");
+    const layers = s().viewSettings["leaf1"].hideLayers!;
+    // The folder's files are exempted so Show Children wins over Hide Files…
+    expect(layers.filesBulkExempt).toEqual(expect.arrayContaining(["inner1", "inner2"]));
+    // …while the bulk layer stays on and other files remain hidden.
+    expect(layers.filesBulkActive).toBe(true);
+    expect(layers.filesBulkExempt).not.toContain("sibling");
+  });
+
+  it("showSubtreeForLeaf reveals descendants hidden globally (show files off)", () => {
+    s().setShowFiles(false);
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner1", "inner2", "sibling"]));
+    s().showSubtreeForLeaf("leaf1", "outer");
+    expect(s().hiddenIds).not.toContain("inner1");
+    expect(s().hiddenIds).not.toContain("inner2");
+    // Files outside the folder stay hidden — only this folder's subtree is revealed.
+    expect(s().hiddenIds).toContain("sibling");
+  });
+
   it("setFilesBulkForLeaf toggles bulk layer; revealAllForLeaf clears all", () => {
     s().setFilesBulkForLeaf("leaf1", true);
     expect(s().viewSettings["leaf1"].hideLayers!.filesBulkActive).toBe(true);
@@ -201,6 +238,17 @@ describe("collapseSlice", () => {
     expect(s().viewSettings["leaf1"].collapsedFolderIds).toContain("outer");
     s().toggleCollapseForLeaf("leaf1", "outer");
     expect(s().viewSettings["leaf1"].collapsedFolderIds ?? []).not.toContain("outer");
+  });
+
+  it("is view-only: the shared node keeps the geometry other views draw from", () => {
+    const before = s().nodes.find((n) => n.id === "outer")!;
+    s().toggleCollapseForLeaf("leaf1", "outer");
+    const after = s().nodes.find((n) => n.id === "outer")!;
+    // Untouched by identity — no height cleared, no pill measurement pinned.
+    expect(after).toBe(before);
+    expect(after.style?.height).toBe(120);
+    // Only the toggling leaf's own settings change.
+    expect(s().viewSettings["leaf2"]?.collapsedFolderIds ?? []).not.toContain("outer");
   });
 });
 
@@ -226,5 +274,117 @@ describe("nodeName shared helper", () => {
     const { fullName } = await import("./nodeName");
     expect(fullName({ data: { label: "a" } })).toBe("a");
     expect(fullName({ data: { label: "a", extension: "ts" } })).toBe("a.ts");
+  });
+});
+
+describe("searchSlice (category filter hide layer)", () => {
+  // Categories come off node.data.category (see categorize.ts), which seedTree
+  // leaves unset, so this block re-seeds the same shape with categories.
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: [
+        makeNode("root", "folder", { isRoot: true }),
+        makeNode("outer", "folder"),
+        makeNode("inner1", "file", { category: "code" }),
+        makeNode("inner2", "file", { category: "image" }),
+        makeNode("sibling", "file", { category: "code" }),
+      ],
+      categoryFilter: [],
+      categoryHiddenIds: [],
+      hiddenIds: [],
+      independentlyHiddenIds: [],
+    });
+  });
+
+  it("hides exactly the files outside the selected categories", () => {
+    s().setCategoryFilter(["code"]);
+    expect(s().hiddenIds).toEqual(["inner2"]);
+    expect(s().categoryHiddenIds).toEqual(["inner2"]);
+  });
+
+  it("preserves a manual hide overlapping the category-hidden set", () => {
+    s().toggleHidden("inner2"); // manual hide on an image file
+    s().setCategoryFilter(["code"]); // category layer hides that very node
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner2"]));
+
+    s().setCategoryFilter(["image"]); // swap: the code files go, inner2 returns
+    expect(s().hiddenIds).toEqual(expect.arrayContaining(["inner1", "inner2", "sibling"]));
+
+    s().clearCategoryFilter(); // clearing must not reveal a manual hide
+    expect(s().hiddenIds).toEqual(["inner2"]);
+  });
+
+  it("records the category filter so undo restores the chip and the hidden set", () => {
+    const pastBefore = s().past.length;
+    s().setCategoryFilter(["code"]);
+    expect(s().past.length).toBe(pastBefore + 1);
+
+    s().undo();
+    expect(s().categoryFilter).toEqual([]);
+    expect(s().categoryHiddenIds).toEqual([]);
+    expect(s().hiddenIds).toEqual([]);
+  });
+});
+describe("dialogsSlice", () => {
+  beforeEach(() => {
+    useGraphStore.setState({
+      tutorialBeginnerDone: [],
+      tutorialDismissed: false,
+      tutorialDemoStep: 0,
+      rightClickDetected: false,
+    });
+    localStorage.clear();
+  });
+
+  it("markTutorialBeginnerStep dedupes and persists the checklist", () => {
+    s().markTutorialBeginnerStep("load-sample");
+    s().markTutorialBeginnerStep("load-sample");
+    s().markTutorialBeginnerStep("search");
+    expect(s().tutorialBeginnerDone).toEqual(["load-sample", "search"]);
+    expect(JSON.parse(localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY)!)).toEqual(["load-sample", "search"]);
+  });
+
+  it("unmarkTutorialBeginnerStep drops the step and persists", () => {
+    s().markTutorialBeginnerStep("load-sample");
+    s().markTutorialBeginnerStep("search");
+    s().unmarkTutorialBeginnerStep("load-sample");
+    expect(s().tutorialBeginnerDone).toEqual(["search"]);
+    expect(JSON.parse(localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY)!)).toEqual(["search"]);
+    s().unmarkTutorialBeginnerStep("never-marked"); // no-op, no duplicate write
+    expect(s().tutorialBeginnerDone).toEqual(["search"]);
+  });
+
+  it("setTutorialDismissed persists, resetTutorial clears state and storage", () => {
+    s().setTutorialDismissed();
+    expect(s().tutorialDismissed).toBe(true);
+    expect(localStorage.getItem(TUTORIAL_STORAGE_KEY)).toBe("true");
+
+    s().markTutorialBeginnerStep("search");
+    s().setTutorialDemoStep(3);
+    s().setRightClickDetected();
+    s().resetTutorial();
+
+    expect(s().tutorialDismissed).toBe(false);
+    expect(s().tutorialBeginnerDone).toEqual([]);
+    expect(s().tutorialDemoStep).toBe(0);
+    expect(s().rightClickDetected).toBe(false);
+    expect(localStorage.getItem(TUTORIAL_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(TUTORIAL_BEGINNER_DONE_KEY)).toBeNull();
+  });
+
+  it("isAnyDialogOpen gates every *Open flag except the search panel and sidebar", () => {
+    // Derived from live state, so a dialog added without updating the gate fails here.
+    // Boolean-only: the `set*Open` setters end in "Open" too.
+    const flags = Object.keys(s()).filter((k) => k.endsWith("Open") && typeof s()[k] === "boolean");
+    const excluded = ["searchOpen", "sidebarOpen"]; // transient chrome (PR #119)
+    expect(flags.length).toBeGreaterThan(excluded.length);
+
+    expect(isAnyDialogOpen(s())).toBe(false);
+    for (const flag of excluded) {
+      expect(isAnyDialogOpen({ ...s(), [flag]: true })).toBe(false);
+    }
+    for (const flag of flags.filter((f) => !excluded.includes(f))) {
+      expect(isAnyDialogOpen({ ...s(), [flag]: true })).toBe(true);
+    }
   });
 });

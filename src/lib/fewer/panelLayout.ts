@@ -4,21 +4,21 @@
  * Components in the UI layer call these for layout logic.
  */
 
-export type AreaEditor =
-  | "graph"
-  | "file"
-  | "directories"
-  | "layout"
-  | "edges"
-  | "hidden"
-  | "tags"
-  | "analytics";
+// Area primitives (the editor union, PanelArea, its constructors and width
+// defaults) are declared in panelTree.ts — the base module of the split-tree
+// data structure. They used to be declared here, which made panelTree import
+// panelLayout and vice versa: a real two-module cycle. Re-exported below so
+// existing `from "./panelLayout"` import sites keep working unchanged.
+import {
+  createArea,
+  generateAreaId,
+  DEFAULT_SECTION_WIDTH,
+  DEFAULT_GRAPH_WIDTH,
+} from "./panelTree";
+import type { AreaEditor, PanelArea } from "./panelTree";
 
-export interface PanelArea {
-  id: string;
-  width: number;
-  editor: AreaEditor;
-}
+export type { AreaEditor, PanelArea };
+export { createArea, generateAreaId, DEFAULT_SECTION_WIDTH, DEFAULT_GRAPH_WIDTH };
 
 export type PanelSide = "left" | "right";
 
@@ -28,35 +28,18 @@ export const AREA_EDITOR_LABELS: Record<AreaEditor, string> = {
   file: "File & Actions",
   directories: "Your Directories",
   layout: "Layout",
-  edges: "Edges & Style",
+  edges: "Connections & Style",
   hidden: "Hidden Cards",
   tags: "Tags",
   analytics: "Graph Analytics",
 };
 
-export const DEFAULT_SECTION_WIDTH = 280;
-export const DEFAULT_GRAPH_WIDTH = 480;
 export const MIN_AREA_WIDTH = 200;
 export const MAX_AREA_WIDTH = 560;
-
-let _counter = 0;
-/** Globally unique id for areas (works across SSR: increments only in browser). */
-export function generateAreaId(): string {
-  return `area-${Date.now()}-${++_counter}`;
-}
 
 /** Clamp a width to the allowed range. */
 export function clampWidth(w: number): number {
   return Math.max(MIN_AREA_WIDTH, Math.min(MAX_AREA_WIDTH, w));
-}
-
-/** Create a new PanelArea with sane defaults for the editor type. */
-export function createArea(editor: AreaEditor, width?: number): PanelArea {
-  return {
-    id: generateAreaId(),
-    width: width ?? (editor === "graph" ? DEFAULT_GRAPH_WIDTH : DEFAULT_SECTION_WIDTH),
-    editor,
-  };
 }
 
 /** Given a pointer x and viewport width, return which side to dock. */
@@ -144,10 +127,23 @@ export function loadLayoutFromStorage(): LayoutSnapshot | null {
 }
 
 /** Save layout to localStorage (SSR-safe). */
-export function saveLayoutToStorage(snap: LayoutSnapshot): void {
+export function saveLayoutToStorage(snap: LayoutSnapshot, opts?: { keepStoredTree?: boolean }): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(snap));
+    if (opts?.keepStoredTree) {
+      // When gated off, preserve the stored tree (it belongs to a signed-in
+      // workspace) and only write the parts a guest owns.
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const existing = raw ? parseLayoutStorage(raw) : null;
+      const toStore: LayoutSnapshot = {
+        sidebarSide: snap.sidebarSide,
+        panelTree: existing?.panelTree ?? snap.panelTree,
+        viewSettings: snap.viewSettings,
+      };
+      localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(toStore));
+    } else {
+      localStorage.setItem(STORAGE_KEY, serializeLayoutStorage(snap));
+    }
   } catch { /* ignore */ }
 }
 
@@ -162,4 +158,14 @@ export function clearLayoutStorage(): void {
 /** Default layout: sidebar left, single graph canvas. */
 export function defaultLayout(): LayoutSnapshot {
   return { sidebarSide: "left", panelTree: { kind: "leaf", area: createArea("graph"), primary: true } };
+}
+
+/**
+ * Guests / non-Pro accounts get the default single-canvas layout.
+ * Pro accounts get whatever tree the caller provides.
+ * ponytail: avoids id churn — returns the existing tree unchanged when allowed,
+ * only creates the default when gating is needed.
+ */
+export function accessibleLayout(tree: PanelNode, proWorkspace: boolean): PanelNode {
+  return proWorkspace ? tree : defaultLayout().panelTree;
 }

@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { Resend } from "resend";
-import { isDangerousText } from "@/lib/fewer/textValidation";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
+import {
+  countNodes,
+  galleryProps,
+  galleryTextError,
+  inviteContext,
+  inviteEmailHtml,
+  inviteEmailText,
+  normalizeInvitedEmails,
+  shareResponseBody,
+  shouldSendInvites,
+  type ShareAccess,
+  type ShareGalleryProps,
+} from "@/lib/fewer/shareModel";
 import { getSupabaseCookieClient } from "@/lib/fewer/supabaseServer";
 import { serverError } from "@/lib/fewer/apiHelpers";
 
@@ -52,33 +64,31 @@ async function sharePlanError(
   return null;
 }
 
-/** Count nodes in a graph payload (0 when the shape is unexpected). */
-function countNodes(data: unknown): number {
-  return typeof data === "object" && data !== null
-    && Array.isArray((data as { nodes?: unknown[] }).nodes)
-    ? (data as { nodes: unknown[] }).nodes.length
-    : 0;
-}
-
-/** Pure: gallery opt-in props (owned, public shares only). Metadata is
- *  surfaced on /api/gallery; broken text is rejected before it's stored. */
-function galleryProps(
-  body: Record<string, unknown> | null,
-  access: "invite" | "public",
-  userId: string | null,
-): { in_gallery: boolean; gallery_title: string | null; gallery_description: string | null } {
-  const inGallery = access === "public" && userId && body?.in_gallery === true;
-  return inGallery
-    ? {
-        in_gallery: true,
-        gallery_title: typeof body?.gallery_title === "string" && body.gallery_title.trim()
-          ? body.gallery_title.trim().slice(0, 200)
-          : null,
-        gallery_description: typeof body?.gallery_description === "string" && body.gallery_description.trim()
-          ? body.gallery_description.trim().slice(0, 500)
-          : null,
-      }
-    : { in_gallery: false, gallery_title: null, gallery_description: null };
+/** Send one invitee their per-email token link. A failed token insert or a
+ *  failed email warns and moves on — one bad invitee must not block others. */
+async function sendInvite(
+  supabase: Authed["supabase"],
+  resend: Resend,
+  invite: { shareId: string; email: string; graphName: string; inviterEmail: string },
+) {
+  const token = randomBytes(24).toString("base64url");
+  const { error } = await supabase.from("share_invites").insert({ share_id: invite.shareId, email: invite.email, token });
+  if (error) {
+    console.warn(`Failed to create invite for ${invite.email}:`, error.message);
+    return;
+  }
+  const link = `${APP_ORIGIN}/#i:${token}`;
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [invite.email],
+      subject: `You're invited to view "${invite.graphName}"`,
+      html: inviteEmailHtml(invite.inviterEmail, invite.graphName, link),
+      text: inviteEmailText(invite.inviterEmail, invite.graphName, link),
+    });
+  } catch (err) {
+    console.warn(`Failed to email ${invite.email}:`, err instanceof Error ? err.message : err);
+  }
 }
 
 /** Invite-only: create a per-email token for each invitee and email them a
@@ -90,63 +100,9 @@ async function sendInvites(supabase: Authed["supabase"], shareId: string, emails
     return;
   }
   const resend = new Resend(resendKey);
-
   for (const email of emails) {
-    const token = randomBytes(24).toString("base64url");
-    const { error } = await supabase.from("share_invites").insert({ share_id: shareId, email, token });
-    if (error) {
-      console.warn(`Failed to create invite for ${email}:`, error.message);
-      continue;
-    }
-    const link = `${APP_ORIGIN}/#i:${token}`;
-    try {
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: [email],
-        subject: `You're invited to view "${graphName}"`,
-        html: inviteEmailHtml(inviterEmail, graphName, link),
-        text: inviteEmailText(inviterEmail, graphName, link),
-      });
-    } catch (err) {
-      console.warn(`Failed to email ${email}:`, err instanceof Error ? err.message : err);
-    }
+    await sendInvite(supabase, resend, { shareId, email, graphName, inviterEmail });
   }
-}
-
-/** HTML body of the invite email (pure). */
-function inviteEmailHtml(inviterEmail: string, graphName: string, link: string): string {
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b0b13;padding:32px 16px;">
-        <div style="max-width:480px;margin:0 auto;background:#16161f;border:1px solid #2a2a3a;border-radius:16px;overflow:hidden;">
-          <div style="padding:28px 32px;border-bottom:1px solid #2a2a3a;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:20px;">🗂️</span>
-              <span style="font-size:18px;font-weight:700;color:#f8f9fa;">fewer</span>
-            </div>
-          </div>
-          <div style="padding:32px;">
-            <h1 style="margin:0 0 8px;font-size:20px;color:#f8f9fa;">You're invited to view a graph</h1>
-            <p style="margin:0 0 20px;font-size:14px;color:#adb5bd;line-height:1.5;">
-              <strong style="color:#f8f9fa;">${inviterEmail}</strong> shared <strong style="color:#f8f9fa;">"${graphName}"</strong> with you on fewer.
-            </p>
-            <a href="${link}" style="display:inline-block;background:#fd7e14;color:#1e293b;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
-              Open the graph
-            </a>
-            <p style="margin:24px 0 0;font-size:12px;color:#868e96;line-height:1.5;">
-              This link is private — don't forward it. It works without an account.
-            </p>
-          </div>
-          <div style="padding:16px 32px;border-top:1px solid #2a2a3a;text-align:center;">
-            <span style="font-size:12px;color:#868e96;">fewer · Interactive File & System Graph Visualizer</span>
-          </div>
-        </div>
-      </div>
-    `;
-}
-
-/** Plain-text body of the invite email (pure). */
-function inviteEmailText(inviterEmail: string, graphName: string, link: string): string {
-  return `${inviterEmail} invited you to view "${graphName}" on fewer.\n\nOpen the graph: ${link}\n\nThis link is private — don't forward it.`;
 }
 
 /**
@@ -183,14 +139,12 @@ export async function POST(request: Request) {
     }
 
     // Reject broken gallery text (e.g. "[object Object]") before it's stored.
-    const badGallery = (v: unknown) => v != null && isDangerousText(v);
-    if (badGallery(body?.gallery_title) || badGallery(body?.gallery_description)) {
-      return NextResponse.json({ error: "Invalid gallery text" }, { status: 400 });
+    const galleryError = galleryTextError(body);
+    if (galleryError) {
+      return NextResponse.json({ error: galleryError }, { status: 400 });
     }
 
-    const invitedEmails: string[] = Array.isArray(body?.invited_emails)
-      ? body.invited_emails.filter((e: unknown) => typeof e === "string").map((e: string) => e.trim().toLowerCase()).filter(Boolean)
-      : [];
+    const invitedEmails = normalizeInvitedEmails(body?.invited_emails);
     const savedGraphId = body?.saved_graph_id ?? null;
     const gallery = galleryProps(body, access, user.id);
 
@@ -205,15 +159,12 @@ export async function POST(request: Request) {
     });
 
     // Invite-only: create a per-email token and email each invitee a link.
-    if (!reused && access === "invite" && invitedEmails.length > 0) {
-      const graphName = (body?.name ?? "a graph").toString().slice(0, 200);
-      const inviterEmail = user.email ?? "a fewer user";
+    if (shouldSendInvites(reused, access, invitedEmails)) {
+      const { graphName, inviterEmail } = inviteContext(body, user.email);
       await sendInvites(supabase, id, invitedEmails, graphName, inviterEmail);
     }
 
-    return reused
-      ? NextResponse.json({ id, access, invited_emails: invitedEmails, ...gallery })
-      : NextResponse.json({ id, access, invited_emails: invitedEmails });
+    return NextResponse.json(shareResponseBody(id, access, invitedEmails, gallery, reused));
   } catch (err) {
     return serverError(err);
   }
@@ -229,10 +180,10 @@ async function upsertShare(
     data: unknown;
     userId: string | null;
     savedGraphId: string | null;
-    access: "invite" | "public";
+    access: ShareAccess;
     nodeCount: number;
     invitedEmails: string[];
-    gallery: { in_gallery: boolean; gallery_title: string | null; gallery_description: string | null };
+    gallery: ShareGalleryProps;
   },
 ): Promise<{ id: string; reused: boolean }> {
   if (params.userId && params.savedGraphId) {

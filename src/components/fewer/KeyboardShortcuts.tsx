@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useGraphStore } from "@/store/graphStore";
+import { isAnyDialogOpen, type GraphState } from "@/store/graphStore";
 import { useAuth } from "@/hooks/use-auth";
 import { useReactFlow } from "@xyflow/react";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +10,6 @@ import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import {
   buildKeyboardRules,
   handleKeyboardShortcut,
-  toStoreReader,
   type ShortcutCtx,
 } from "@/lib/fewer/keyboardShortcuts";
 import { openNodeFile, openFolderInExplorer } from "@/lib/fewer/fileOps";
@@ -21,13 +21,13 @@ import { openNodeFile, openFolderInExplorer } from "@/lib/fewer/fileOps";
 export function KeyboardShortcuts() {
   const reactFlow = useReactFlow();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     const getStore = () => useGraphStore.getState();
 
     const ctx: ShortcutCtx = {
-      getState: () => toStoreReader(getStore()),
+      getState: () => getStore(),
+      isAnyDialogOpen: (s: GraphState) => isAnyDialogOpen(s),
       undo: getStore().undo,
       redo: getStore().redo,
       setSearchOpen: getStore().setSearchOpen,
@@ -38,7 +38,7 @@ export function KeyboardShortcuts() {
       setClipboard: getStore().setClipboard,
       clearClipboard: getStore().clearClipboard,
       setFocusedNodeId: getStore().setFocusedNodeId,
-              hideNodes: getStore().hideNodes,
+      hideNodes: getStore().hideNodes,
       showAll: getStore().showAll,
       setShowFiles: getStore().setShowFiles,
       hideNodesForLeaf: getStore().hideNodesForLeaf,
@@ -50,13 +50,13 @@ export function KeyboardShortcuts() {
       moveNode: getStore().moveNode,
       connectNodes: getStore().connectNodes,
       removeEdgesFromHandle: getStore().removeEdgesFromHandle,
+      unparentNodes: getStore().unparentNodes,
       deleteEdges: getStore().deleteEdges,
       duplicateNodeUnderParent: getStore().duplicateNodeUnderParent,
       setAuthOpen: getStore().setAuthOpen,
-      relayout: getStore().relayout,
+      organize: getStore().organize,
       reactFlow,
       toast,
-      user,
       localFs: LOCAL_FS_FEATURES,
       openNodeFile,
       openFolderInExplorer,
@@ -69,7 +69,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [reactFlow, toast, user]);
+  }, [reactFlow, toast]);
 
   return null;
 }

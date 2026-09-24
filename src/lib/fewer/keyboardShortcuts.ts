@@ -1,6 +1,7 @@
 "use client";
 
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
+import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
 
@@ -66,6 +67,7 @@ export interface StoreReader {
   localRootPath: string | null;
   activeLeafId: string | null;
   showFilesByLeaf: Record<string, { showFiles?: boolean; hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }>;
+  tier: string;
 }
 
 /** Count nodes hidden by a leaf's hideLayers (individual + subtrees + bulk files). */
@@ -95,11 +97,13 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     localRootPath: s.localRootPath ?? null,
     activeLeafId: s.activeLeafId ?? null,
     showFilesByLeaf: s.viewSettings ?? {},
+    tier: s.tier ?? "guest",
   };
 }
 
 export interface ShortcutCtx {
-  getState(): StoreReader;
+  getState(): GraphState;
+  isAnyDialogOpen: (state: GraphState) => boolean;
   undo(): void; redo(): void; setSearchOpen(v: boolean): void; setDirection(d: LayoutDirection): void;
   setSelectedNodeIds(ids: string[]): void; deleteNodes(ids: string[]): void;
   setRenamingId(id: string | null, source?: "canvas" | "folder"): void;
@@ -112,8 +116,12 @@ export interface ShortcutCtx {
   pasteFromClipboard(parentId?: string | null): void; moveNode(id: string): void;
   connectNodes(connection: { source: string; target: string }): { ok: boolean; reason?: string };
   removeEdgesFromHandle(nodeId: string, handleType: "source" | "target"): void;
+  /** Detach the top-most selected roots from their parents; returns the detached count (0 = no-op). */
+  unparentNodes(ids: string[]): number;
   deleteEdges(ids: string[]): void; duplicateNodeUnderParent(id: string): void;
-  setAuthOpen(v: boolean): void; relayout(): void;
+  setAuthOpen(v: boolean): void;
+  /** Organize the view the user is looking at (Alt+R). `leafId` is that view, if any. */
+  organize(leafId?: string | null): void;
   reactFlow: {
     setNodes(fn: (prev: readonly any[]) => any[]): void;
     fitView(opts?: { nodes?: { id: string }[]; duration?: number; padding?: number }): void;
@@ -124,7 +132,6 @@ export interface ShortcutCtx {
     getEdges(): { id: string; selected?: boolean }[];
   };
   toast(opts: { title: string; description?: string; variant?: "destructive" }): void;
-  user: { id?: string } | null;
   localFs: typeof LOCAL_FS_FEATURES;
   openNodeFile(node: FewerNode, dataSource: string): Promise<boolean>;
   openFolderInExplorer(path: string): Promise<boolean>;
@@ -163,9 +170,9 @@ export function buildKeyboardRules(): ShortcutRule[] {
         window.dispatchEvent(new CustomEvent(
           st.selectedNodeIds.length===1 && st.nodes.some((n)=>n.id===st.selectedNodeIds[0]&&n.data.type==="folder")
           ? FEWER_ADD_NODE : FEWER_ADD_NODE_STANDALONE)); } },
-    // Alt+R — re-layout
+    // Alt+R — organize
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
-            handle(e,ctx,_kc) { e.preventDefault(); ctx.relayout(); if(ctx.getState().nodes.length>0)ctx.toast({ title:"Graph relayouted" }); } },
+            handle(e,ctx,_kc) { e.preventDefault(); const st=ctx.getState(); const before=st.nodes.length; st.organize(st.activeLeafId); if(before>0)ctx.toast({ title:"Graph organized" }); } },
     // Alt+F — zoom to selection
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();
@@ -186,17 +193,17 @@ export function buildKeyboardRules(): ShortcutRule[] {
             ctx.openFolderInExplorer(node.data.path).then((ok)=>{ctx.toast({title:ok?"Opening folder":"Folder not found",description:node.data.label,...(ok?{}:{variant:"destructive"})});}); } } },
     // Alt+S — save graph
     { test(_e,_ctx,kc) { return kc.alt&&!kc.shift&&kc.altKey==="s"&&!kc.inEditable; },
-      handle(e,ctx,_kc) { e.preventDefault(); if(!ctx.user){ctx.setAuthOpen(true);return;} window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH)); } },
+      handle(e,ctx,_kc) { e.preventDefault(); if(ctx.getState().tier==="guest"){ctx.setAuthOpen(true);return;} window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH)); } },
     // Alt+P — parent nodes
     { test(_e,_ctx,kc) { return kc.alt&&!kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault(); const ids=ctx.getState().selectedNodeIds;
         if(ids.length>=2){const last=ctx.getState().nodes.find((n)=>n.id===ids[ids.length-1]);if(last?.data.type==="folder"){
           let ok=0,fail=0;for(const c of ids.slice(0,-1)){if(ctx.connectNodes({source:ids[ids.length-1],target:c}).ok)ok++;else fail++;}
-                    if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} node${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
-    // Alt+Shift+P — unparent
+                    if(ok>0)ctx.toast({title:"Cards parented",description:`${ok} card${ok!==1?"s":""} parented${fail?`, ${fail} skipped`:""}`});}}}},
+    // Alt+Shift+P — unparent (top-most selection roots only, one history entry)
     { test(_e,_ctx,kc) { return kc.alt&&kc.shift&&kc.altKey==="p"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;
-        if(ids.length>0){for(const id of ids)ctx.removeEdgesFromHandle(id,"target");ctx.toast({title:"Unparented",description:`${ids.length} node${ids.length!==1?"s":""} unparented`});}}},
+        if(ids.length>0){const detached=ctx.unparentNodes(ids);if(detached>0)ctx.toast({title:"Unparented",description:`${detached} card${detached!==1?"s":""} unparented`});}}},
     // Ctrl/Cmd+E — open export
     { test(_e,_ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="e"; },
       handle(e,ctx,_kc) { e.preventDefault(); ctx.setExportOpen(true); } },
@@ -251,7 +258,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           }
           if (n > 0) {
             if (st.hiddenIds.length > 0) ctx.showAll();
-            ctx.toast({ title: "Unhid all nodes", description: `${pluralizeCount(n, "node")} restored` });
+            ctx.toast({ title: "Unhid all cards", description: `${pluralizeCount(n, "card")} restored` });
           }
           ctx.setShowFiles(true);
         } else {
@@ -261,7 +268,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
             // Leaf-aware hide: route selection into the active leaf's hide layer.
             if (st.activeLeafId) ctx.hideNodesForLeaf(st.activeLeafId, ids);
             else ctx.hideNodes(ids);
-            ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore` });
+            ctx.toast({ title: "Cards hidden", description: `${pluralizeCount(ids.length, "card")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subcard")})` : ""}: press Shift+H to restore` });
           }
         }
       },
@@ -325,7 +332,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
         if (st.selectedNodeIds.length > 0) ctx.deleteNodes(st.selectedNodeIds);
         const parts: string[] = [];
         if (st.selectedNodeIds.length > 0) parts.push(pluralizeCount(st.selectedNodeIds.length, "item"));
-        if (rfEdges.length > 0) parts.push(pluralizeCount(rfEdges.length, "edge"));
+        if (rfEdges.length > 0) parts.push(pluralizeCount(rfEdges.length, "connection"));
         ctx.toast({ title: "Deleted", description: `${parts.join(" and ")} removed` });
       },
     },
@@ -370,6 +377,8 @@ export function handleKeyboardShortcut(
   ctx: ShortcutCtx,
 ): boolean {
   const kc = buildKeyContext(e);
+  const st = ctx.getState();
+  if (ctx.isAnyDialogOpen(st)) return false;
   for (const rule of rules) {
     if (rule.test(e, ctx, kc)) {
       rule.handle(e, ctx, kc);

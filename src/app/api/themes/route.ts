@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { isDangerousText } from "@/lib/fewer/textValidation";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 
@@ -8,32 +7,9 @@ import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
  * Authed CRUD for a user's saved custom themes. Uses the session cookie so RLS
  * (owner-only) is enforced server-side. Returns 401 when not signed in.
  */
-async function getAuthedClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {
-          /* ignore */
-        }
-      },
-    },
-  });
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return { supabase, user: data.user };
-}
 
 export async function GET() {
-  const authed = await getAuthedClient();
+  const authed = await getAuthedSupabase();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { supabase } = authed;
 
@@ -47,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authed = await getAuthedClient();
+  const authed = await getAuthedSupabase();
   if (!authed) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { supabase, user } = authed;
 

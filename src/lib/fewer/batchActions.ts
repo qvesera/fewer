@@ -82,7 +82,7 @@ export function buildBatchActions(opts: {
         else s.hideNodes(list);
         toast({
           title: "Cards hidden",
-          description: `${pluralizeCount(list.length, "node")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subnode")})` : ""}: press Shift+H to restore`,
+          description: `${pluralizeCount(list.length, "card")} hidden${sub > 0 ? ` (${pluralizeCount(sub, "subcard")})` : ""}: press Shift+H to restore`,
         });
       },
     },
@@ -190,8 +190,9 @@ export function buildBatchActions(opts: {
       run: () => {
         const s = g();
         const list = s.selectedNodeIds;
-        s.unparentNodes(list);
-        toast({ title: "Unparented", description: `${items(list.length)} made root-level` });
+        const n = s.unparentNodes(list);
+        if (n === 0) return;
+        toast({ title: "Unparented", description: `${items(n)} made root-level` });
       },
     },
     {

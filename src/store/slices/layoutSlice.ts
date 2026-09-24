@@ -30,7 +30,7 @@ export type LayoutSliceCreator = StateCreator<
     nodeWidth: number;
     nodeHeight: number;
     /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Read by
-     *  relayout, so a change applies the next time Rearrange runs. */
+     *  relayout, so a change applies the next time Organize runs. */
     shynessScale: number;
     /** Sibling sort key read by relayout. */
     sortKey: SortKey;
@@ -109,7 +109,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
 
   setDirection: (direction) => {
     // No automatic relayout: nodes keep their positions and edges re-route to
-    // the new handle sides. Re-layout runs only via the Rearrange button/
+    // the new handle sides. Re-layout runs only via the Organize button/
     // shortcut. Ids regenerate in the same write so React Flow remounts the
     // edge components with the new orientation.
     set((s) => ({
@@ -196,12 +196,16 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     }));
   },
 
-    setShynessScale: (scale) => {
+  setShynessScale: (scale) => {
     const clamped = Math.max(0, Math.min(3, scale));
     if (clamped === get().shynessScale) return;
-    // No automatic relayout — the new intensity is picked up on the next
-    // explicit Rearrange (relayout reads shynessScale from the store).
+    // Crown Shyness is layout policy, like sortKey/sortDir below: apply it now
+    // rather than waiting for the next Organize, or the slider reads as inert.
+    // Relayout alone is not enough for a dock pane, whose per-view positions
+    // would keep winning over the engine's output, so go through organize — it
+    // drops those stale positions (spaced for the old intensity) and re-derives.
     set({ shynessScale: clamped });
+    get().organize(get().activeLeafId);
   },
 
   setSortKey: (key) => {

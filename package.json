@@ -18,12 +18,14 @@
     "build": "bun next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "bun eslint .",
-    "test": "bun test src/lib/fewer",
+    "test": "bun test src && bun run test:components",
+    "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
     "build:netlify": "bun next build",
     "env": "bun run scripts/env-sync.ts",
     "env:check": "bun run scripts/env-sync.ts check",
     "migrations:verify": "python3 scripts/migrations.py verify",
-    "migrations:baseline": "python3 scripts/migrations.py baseline"
+    "migrations:baseline": "python3 scripts/migrations.py baseline",
+    "email:templates": "bun run scripts/gen-email-templates.ts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
@@ -89,14 +91,19 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.14.5",
     "@netlify/plugin-nextjs": "^5.11.3",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
+    "happy-dom": "^20.14.5",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5"

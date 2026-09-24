@@ -17,7 +17,11 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 
 If you try to sign up with an email that already has an account, you're told and pointed to the sign-in form.
 
-After signing in, the navbar shows your account menu with a **Sign out** option.
+Signing up with Google or GitHub fills your profile's first and last name from the provider's display name. You can change them anytime in **Settings → Account**.
+
+After signing in, the navbar shows your avatar and name. Click to open the account menu with **Account settings** (opens the Profile card), **Your saved graphs** (reveals and expands the **Your Directories** section in the sidebar), and **Sign out**.
+
+Your avatar is the profile picture from Google or GitHub when you signed up with one; accounts created with an email address show your initials instead. Fewer doesn't host user images, so there's no avatar upload — the name fields in **Settings → Account** are the parts of your profile you can edit here.
 
 ## Change Your Email
 
@@ -39,9 +43,9 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 
 A saved graph captures the graph itself:
 
-- Cards, edges, and their positions
+- Cards, connections, and their positions
 
-Your app settings (layout direction, edge style, theme, node dimensions, minimap, display filters) are not part of the graph — they follow **you** as account settings, so loading a graph never overwrites your current settings.
+Your app settings (layout direction, connection style, theme, node dimensions, minimap, display filters) are not part of the graph — they follow **you** as account settings, so loading a graph never overwrites your current settings.
 
 ## Load, Rename, Delete
 
@@ -51,6 +55,20 @@ The **Your Directories** section lists your saved graphs. Each row lets you:
 - **Rename**: click the pencil icon, type a new name, press Enter
 - **Share**: click the link icon (see [Sharing](/docs/sharing))
 - **Delete**: click the trash icon
+
+## Version History
+
+Every saved graph keeps automatic snapshots — save it again and the previous
+state is retained, so a bad edit never means losing the good version.
+
+- Click the **clock icon** on a row in **Your Directories** to open **Version
+  history**. Each entry shows when it was taken and how many cards it held.
+- **Restore** loads that snapshot back into the canvas (and saves it as the
+  latest state); **Delete** removes a single snapshot.
+- Saving without changing anything records nothing — identical snapshots are
+  skipped, so history stays meaningful.
+- The window depends on your plan: **30 days** on Free, **365 days** on Pro, and
+  at most **50 snapshots per graph** are kept (older ones are pruned).
 
 ## Sharing Saved Graphs
 

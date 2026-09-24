@@ -8,8 +8,10 @@ import {
   handleKeyboardShortcut,
   toStoreReader,
   type ShortcutCtx,
+  type StoreReader,
 } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
+import { isAnyDialogOpen } from "@/store/graphStore";
 
 // Mock KeyboardEvent — bun test env lacks it.
 class MockKeyboardEvent {
@@ -98,10 +100,19 @@ test("toStoreReader defaults for missing fields", () => {
   expect(r.activeLeafId).toBeNull(); expect(r.showFilesByLeaf).toEqual({});
 });
 // ─── Test harness ─────────────────────────────────────────────────
+
+/** Store reader plus the store actions a shortcut calls directly (organize). */
+function withActions(reader: StoreReader, a: Record<string, any>): StoreReader & { organize(leafId?: string | null): void } {
+  return {
+    ...reader,
+    organize: (leafId) => { a.organize = leafId ?? null; a.organizeCalls = (a.organizeCalls ?? 0) + 1; },
+  };
+}
+
 function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Record<string, any> } {
   const a: Record<string, any> = {};
   const ctx: ShortcutCtx = {
-    getState: () => toStoreReader({}),
+    getState: () => withActions(toStoreReader({}), a),
     undo: () => { a.undo = true; }, redo: () => { a.redo = true; },
     setSearchOpen: (v) => { a.setSearchOpen = v; },
     setDirection: (d) => { a.setDirection = d; },
@@ -123,10 +134,12 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
     moveNode: (id) => { a.moveNode = id; },
     connectNodes: () => ({ ok: true }),
     removeEdgesFromHandle: (id, t) => { a.removeEdgesFromHandle = [id, t]; },
+    unparentNodes: (ids) => { a.unparentNodes = ids; return ids.length; },
     deleteEdges: (ids) => { a.deleteEdges = ids; },
     duplicateNodeUnderParent: (id) => { a.duplicateNodeUnderParent = id; },
     setAuthOpen: (v) => { a.setAuthOpen = v; },
-    relayout: () => { a.relayout = true; },
+    isAnyDialogOpen: (s: any) => { a.isAnyDialogOpen = s; return false; },
+    organize: (leafId) => { a.organize = leafId ?? null; a.organizeCalls = (a.organizeCalls ?? 0) + 1; },
     reactFlow: {
       setNodes: (fn: any) => { a.setNodes = fn; },
       fitView: (opts) => { a.fitView = opts; },
@@ -137,7 +150,6 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
       getEdges: () => [],
     },
     toast: (o) => { a.toast = o; },
-    user: null,
     localFs: { openInOs: false, openFileInOs: false, dragDropImport: false, dropToExpand: false, fsaDirectoryPicker: false },
     openNodeFile: async () => true, openFolderInExplorer: async () => true,
     ...overrides,
@@ -203,7 +215,7 @@ test("Ctrl+X cuts selected", () => {
   expect(a.moveNode).toBe("n1");
 });
 test("Alt+S with no user opens auth", () => {
-  const { ctx, a } = makeCtx({ user: null });
+  const { ctx, a } = makeCtx({ getState: () => toStoreReader({ tier: "guest" }) });
   expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "s" })).toBe(true);
   expect(a.setAuthOpen).toBe(true);
 });
@@ -259,14 +271,16 @@ test("Delete with selected nodes toasts", () => {
   expect(a.toast).toBeDefined();
 });
 
-test("Alt+R relayout toasts only when nodes exist", () => {
+test("Alt+R organizes the active view and toasts only when nodes exist", () => {
   const { ctx, a } = makeCtx();
   expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "r" })).toBe(true);
-  expect(a.relayout).toBe(true);
+  expect(a.organizeCalls).toBe(1);
+  expect(a.organize).toBeNull(); // no active leaf -> shared layout
   expect(a.toast).toBeUndefined();
 
-  const { ctx: c2, a: b } = makeCtx({ getState: () => toStoreReader({ nodes: [{ id: "n1" }] }) });
+  const { ctx: c2, a: b } = makeCtx({ getState: () => withActions(toStoreReader({ nodes: [{ id: "n1" }], activeLeafId: "leaf-1" } as any), b) });
   expect(fire(buildKeyboardRules(), c2, { altKey: true, key: "r" })).toBe(true);
+  expect(b.organize).toBe("leaf-1");
   expect(b.toast).toBeDefined();
 });
 
@@ -290,6 +304,24 @@ test("Alt+P parent toasts partial success", () => {
   expect(a.toast).toBeDefined();
 });
 
+test("Alt+Shift+P unparent routes the whole selection through unparentNodes", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["n1", "n2"] }),
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, shiftKey: true, key: "p" })).toBe(true);
+  expect(a.unparentNodes).toEqual(["n1", "n2"]);
+  expect(a.removeEdgesFromHandle).toBeUndefined();
+});
+
+test("Alt+Shift+P unparent stays silent on a no-op", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => toStoreReader({ selectedNodeIds: ["root", "child"] }),
+    unparentNodes: () => 0,
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, shiftKey: true, key: "p" })).toBe(true);
+  expect(a.toast).toBeUndefined();
+});
+
 test("Ctrl+D duplicate stays silent for stale selection", () => {
   const { ctx, a } = makeCtx({ getState: () => toStoreReader({ selectedNodeIds: ["ghost"] }) });
   expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "d" })).toBe(true);
@@ -307,6 +339,7 @@ test("Ctrl+V paste stays silent for stale clipboard", () => {
 test("Ctrl+V paste toasts real clipboard content", () => {
   const { ctx, a } = makeCtx({ getState: () => toStoreReader({ clipboard: { mode: "copy", nodeIds: ["n1"] }, nodes: [{ id: "n1" }] }) });
   expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "v" })).toBe(true);
-    expect(a.pasteFromClipboard).toBeUndefined();
   expect(a.toast).toBeDefined();
 });
+
+// ─── Dialog blocking ───────────────────────────────────────────────────

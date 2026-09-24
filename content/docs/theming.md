@@ -47,7 +47,7 @@ Access via Settings → Appearance → Custom Theme (Power User mode only).
 
 Colors are grouped into three sections:
 
-- **Canvas & Text**: background, primary/secondary text, hover, handles, edges
+- **Canvas & Text**: background, primary/secondary text, hover, handles, connections
 - **Folders**: body, text, secondary text, border, icon
 - **Files**: body, text, secondary text, border, icon
 
@@ -70,7 +70,7 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-text-subtle`        | Secondary/subtle text      |
 | `--fewer-item-hover`         | Hover state background     |
 | `--fewer-handle`             | Connection handle color    |
-| `--fewer-edge`               | Graph edge color           |
+| `--fewer-edge`               | Graph connection color           |
 | `--fewer-select-ring`        | Selected node outline      |
 | `--fewer-folder-bg`          | Folder card background     |
 | `--fewer-folder-border`      | Folder card border         |
@@ -125,6 +125,36 @@ Folder and file cards each have separate text controls:
 - **File text**: filename color
 - **File secondary text**: extension and size color
 
+## Community Theme Gallery
+
+Custom themes saved to your account can be published to the community gallery at
+[`/gallery`](https://fewer.directory/gallery) — a browsable, logged-out index with
+theme and author search, built next to the graph gallery.
+
+**Publishing** (must be signed in, and saved themes are a Pro feature):
+
+1. Open the **Custom Theme** editor and click **Save**
+2. Tick **Share to the community gallery** and optionally add a gallery title
+   and short description, then **Save & publish**
+
+Already-saved themes get a globe button in the **Custom** preset list — click it
+to publish or unpublish at any time. Publishing requires your profile to have a
+**first name and a username** (how gallery entries are attributed — Fewer sends
+you to Settings → Account if either is missing). Deleting a saved theme also
+removes its gallery listing.
+
+**Browsing and applying:**
+
+- The gallery's **Themes** tab shows each theme's name, colors, author and date,
+  plus a search box that matches theme names, titles, descriptions, and authors.
+- **Apply** restyles the page you're on immediately — the gallery is themed
+  with the same CSS variables and shadcn tokens the app uses, so you try the
+  theme on a real page before leaving.
+- **Open in app** loads `#t:<id>` in the app, which applies the theme and sets
+  it as your last-used theme (it persists through the normal settings sync).
+  Anyone with a gallery theme link can apply the theme without an account.
+- Signed-in viewers can **Save** a gallery theme straight to their own account.
+
 ## Aurora Haze Tokens
 
 Motion tokens for consistent transitions:
@@ -136,27 +166,27 @@ Motion tokens for consistent transitions:
 
 These power sidebar hover states, expand animations, and UI transitions.
 
-## Edge Styles
+## Connection Styles
 
-Three edge styles available:
+Three connection styles available:
 
 1. **Curved**: smooth bezier curves
 2. **Angled**: sharp corners with configurable radius
 3. **Straight**: direct lines
 
-Adjust via sidebar Edges section or cycle with layout controls.
+Adjust via sidebar Connections section or cycle with layout controls.
 
-## Edge Motion
+## Connection Motion
 
 Optional motion effects:
 
-- **None**: static edges
+- **None**: static connections
 - **Flow**: animated dash offset
 - **Pulse**: animated stroke opacity
 
-## Edge Pattern & Weight
+## Connection Pattern & Weight
 
-In Power User mode, the sidebar Edges section also controls:
+In Power User mode, the sidebar Connections section also controls:
 
 - **Pattern**: solid, dashed, or dotted
 - **Line Thickness**: 0.5px to 6px slider
@@ -165,4 +195,4 @@ In Power User mode, the sidebar Edges section also controls:
 ## Next Steps
 
 - [Settings](/docs/settings): Power User mode and node dimensions
-- [Graph Features](/docs/graph-features): canvas, layout, and edge behavior
+- [Graph Features](/docs/graph-features): canvas, layout, and connection behavior

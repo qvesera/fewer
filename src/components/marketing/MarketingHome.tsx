@@ -29,7 +29,7 @@ const FEATURES = [
   {
     icon: Shapes,
     title: "Explore & edit",
-    body: "Pan and zoom a React Flow canvas, auto-layout folders with type-aware sizing, and add, rename, or delete nodes right on the graph.",
+    body: "Pan and zoom a React Flow canvas, auto-layout folders with type-aware sizing, and add, rename, or delete cards right on the graph.",
   },
   {
     icon: Download,
