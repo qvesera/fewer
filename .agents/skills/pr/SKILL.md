@@ -77,10 +77,14 @@ README/docs, `TO-DO.md` for major features, PR template, tests, e2e, themes.
 
 ## 5. Stacked PRs
 
-When the base branch is another feature branch (not `dev`), CI does **not** run
-(the `pull_request` trigger is scoped to `main`/`dev`/`release/prod`), so local
-gates are the interim signal. GitHub retargets the PR to `dev` automatically
-when its base branch merges — check `gh pr checks` again then.
+`ci.yml` / `e2e.yml` are scoped to `main`/`dev`/`release/prod` bases, so a PR
+stacked on another feature branch runs **no build/test** until it retargets —
+local gates are the interim signal, and GitHub retargets it to `dev` when its
+base merges (re-check `gh pr checks` then).
+
+`.github/workflows/pr-metadata.yml` deliberately has **no branch filter**, so
+metadata is applied to stacked PRs too (verified: it labelled #198, whose base
+was `chore/task-hierarchy`).
 
 ## 6. Verify
 

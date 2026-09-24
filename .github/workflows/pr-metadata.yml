@@ -4,9 +4,10 @@ name: PR Metadata
 # lands bare. Procedure: .agents/skills/pr/SKILL.md — section 0 of
 # .clinerules/pr-dev-checks.md requires it before requesting review.
 #
-# Only runs for PRs targeting main/dev/release/prod (same trigger scope as CI):
-# a stacked PR gets its metadata when it retargets, or run it locally first:
-#   python3 scripts/tasks.py pr-metadata <N>
+# No `branches:` filter on purpose: ci.yml/e2e.yml are scoped to
+# main/dev/release/prod, but this job is metadata-only and cheap, so it also
+# covers stacked PRs (their base is another feature branch). Verified live:
+# it labelled PR #198, which was raised against a stacked base.
 
 on:
   pull_request:
