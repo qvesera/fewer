@@ -37,7 +37,7 @@ Switch themes via Settings → Appearance tab or use the theme toggle in the sid
 
 Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark, One Light, GitHub Light, GitHub Dark, Material, and more.
 
-Each preset is hand-tuned with Open Color values for consistent, accessible contrast. Select a preset from the dropdown in the Custom Theme Editor.
+Each preset is hand-tuned with Open Color values for consistent, accessible contrast. Select a preset from the dropdown in the Custom Theme Editor. Eight additional "Gallery" presets (Terminal Amber, Blueprint, Ink & Clay, Neon Grid, Mono Print, Canopy, Aurora Depth, Slate Highlighter) are curated starter themes that also appear in the community gallery.
 
 ## Custom Theme Editor
 
