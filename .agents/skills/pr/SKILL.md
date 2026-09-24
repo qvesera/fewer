@@ -49,7 +49,7 @@ already stamped `pr:`) and derives:
 | `size:*` | from `estimate_min`: **xs** ≤60m · **s** ≤240m · **m** ≤960m · **l** ≤2400m · **xl** >2400m (labels created on demand) |
 | milestone | row `milestone` → its issue's milestone → the **earliest open release train** (`next_milestone()`) → else none |
 | assignee | row `assignee` (default `qvesera`) |
-| project | `--project <N>` (or `PROJECT_NUMBER`): `gh project item-add` + Status mirrored from the ledger status |
+| project | board `#1 · fewer - file viz` (owner `qvesera`, `PROJECT_NUMBER = 1`): adds the item, mirrors **Status** from the ledger (`triaged→Ready`, `review→In review`, `blocked/parked→Backlog`, `done→Done`, … the board's own option names live in `STATUS_TO_PROJECT`) and **Size** from the same band (`size:m → M`) |
 
 - **No tracked task → it derives nothing and guesses nothing.** Fix the missing
   `Task:` trailer instead (the `tasks` CI job fails such a PR anyway).
@@ -58,17 +58,21 @@ already stamped `pr:`) and derives:
 - `--no-write` skips the ledger `pr:` stamp — that is what CI uses, because a CI
   checkout is throwaway.
 
-### Project board — two paths
+### Project board — configured
 
-1. **No tokens:** board → **Workflows → Auto-add to project** → filter
-   `is:issue` → `is:issue,is:pr`. Every new PR lands on the board automatically.
-2. **Scripted (Status too):** run `gh auth refresh -s project` once, then set
-   `PROJECT_NUMBER` in `scripts/tasks.py` (or pass `--project <N>`). CI needs a
-   PAT with the `project` scope as the `PROJECTS_TOKEN` secret — see
-   `.github/workflows/pr-metadata.yml`.
-
-Until one of those is true the verb prints `project: skipped …` and exits 0 —
-it never pretends an item was added.
+- The scope is granted (`gh auth refresh -s project`) and `PROJECT_NUMBER = 1`
+  is set, so plain `pr-metadata <N>` now adds the item **and** syncs Status +
+  Size (verified by GraphQL read-back: #196/#197 `In review`/`M`, #198
+  `In progress`/`M` while its session is open).
+- **CI Status sync** still needs a PAT: add a `PROJECTS_TOKEN` secret (scope
+  `project`) and uncomment the step in `.github/workflows/pr-metadata.yml` —
+  `GITHUB_TOKEN` cannot reach Projects v2.
+- **Zero-token alternative** (a second safety net): the board's built-in
+  **Auto-add to project** workflow filter can be widened from `is:issue` to
+  `state:open` so PRs land on the board without the script.
+- If a board ever has different option names, `pr-metadata` prints
+  `Status option '…' not on this board (have: …)` — update `STATUS_TO_PROJECT`
+  to match (never rename board options from the script).
 
 ## 4. Gates
 

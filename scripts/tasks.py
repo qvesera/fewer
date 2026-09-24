@@ -34,7 +34,9 @@ DEFAULT_ASSIGNEE = "qvesera"
 PROJECT_OWNER = "qvesera"
 # Set once `gh project list` works (needs the read:project scope); `pr-metadata
 # --project <n>` overrides it per call.
-PROJECT_NUMBER: int | None = None
+# PROJECT_NUMBER: set once the board is known (board `#1 · fewer - file viz`,
+# owner qvesera) — `pr-metadata --project <n>` still overrides per call.
+PROJECT_NUMBER: int | None = 1
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -950,8 +952,12 @@ def cmd_reparent(args: argparse.Namespace) -> int:
 
 
 # ── pr-metadata: labels · milestone · assignee · project item for a PR ───
-STATUS_TO_PROJECT = {"backlog": "Todo", "triaged": "Todo", "in-progress": "In progress",
-                     "blocked": "In progress", "review": "In review", "parked": "Todo",
+# Board `#1 · fewer - file viz` Status options: To triage, Backlog, Ready,
+# In progress, In review, Done. Ledger → board: a triaged task is Ready, a
+# blocked/parked one is not (Backlog).
+STATUS_TO_PROJECT = {"backlog": "Backlog", "triaged": "Ready",
+                     "in-progress": "In progress", "blocked": "Backlog",
+                     "review": "In review", "parked": "Backlog",
                      "done": "Done", "wontfix": "Done"}
 
 
@@ -974,7 +980,12 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
     return rows
 
 
-def _apply_project(number: int, info: dict[str, Any], status: str) -> None:
+def size_option_name(estimate_min: int) -> str:
+    """Board Size option for a task: `size:m` → `M` (the board's XS/S/M/L/XL)."""
+    return size_label(estimate_min).split(":", 1)[1].upper()
+
+
+def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int) -> None:
     """Best effort: add the PR to the board and mirror its Status.
 
     Every failure prints why and returns — never raises. Needs the
@@ -1011,14 +1022,32 @@ def _apply_project(number: int, info: dict[str, Any], status: str) -> None:
     if not option:
         names = ", ".join(o.get("name", "?") for o in status_field.get("options", []))
         print(f"project: Status option {want!r} not on this board (have: {names})")
-        return
-    try:
-        gh("project", "item-edit", "--id", added["id"],
-           "--field-id", status_field["id"], "--project-id", project_id,
-           "--single-select-option-id", option["id"], check=False)
-        print(f"project: Status → {option['name']}")
-    except (SystemExit, FileNotFoundError):
-        print("project: Status sync failed")
+    else:
+        try:
+            gh("project", "item-edit", "--id", added["id"],
+               "--field-id", status_field["id"], "--project-id", project_id,
+               "--single-select-option-id", option["id"], check=False)
+            print(f"project: Status → {option['name']}")
+        except (SystemExit, FileNotFoundError):
+            print("project: Status sync failed")
+
+    # The board has a Size single-select (XS/S/M/L/XL) — same band as size:*.
+    size_field = next((f for f in fields.get("fields", [])
+                       if (f.get("name") or "").lower() == "size"), None)
+    if size_field:
+        want_size = size_option_name(estimate)
+        size_option = next((o for o in size_field.get("options", [])
+                            if (o.get("name") or "").upper() == want_size), None)
+        if size_option:
+            try:
+                gh("project", "item-edit", "--id", added["id"],
+                   "--field-id", size_field["id"], "--project-id", project_id,
+                   "--single-select-option-id", size_option["id"], check=False)
+                print(f"project: Size → {size_option['name']}")
+            except (SystemExit, FileNotFoundError):
+                print("project: Size sync failed")
+        else:
+            print(f"project: Size option {want_size!r} not on this board")
 
 
 def next_milestone() -> str | None:
@@ -1118,7 +1147,7 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     if project is None:
         print("project: skipped — no board configured")
     else:
-        _apply_project(project, info, status)
+        _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
     return 0
@@ -2417,6 +2446,8 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("size band: m ≤960", size_label(960) == "size:m")
     check("size band: l ≤2400", size_label(2400) == "size:l")
     check("size band: xl >2400", size_label(2401) == "size:xl")
+    check("board Size option: size:m → M, size:xs → XS",
+          size_option_name(600) == "M" and size_option_name(30) == "XS")
     check("derived labels: status + type + category + size",
           derived_labels([{"type": "feat", "area": "import", "estimate_min": 480,
                            "status": "review"}])
