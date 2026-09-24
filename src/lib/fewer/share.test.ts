@@ -54,10 +54,10 @@ describe("parseDbShareId", () => {
 describe("encode/decode share data", () => {
   it("round-trips a small graph", () => {
     const data = {
-      nodes: [{ id: "n1", type: "folder", data: { label: "root", path: "/", type: "folder" as const }, position: { x: 0, y: 0 } }],
+      nodes: [{ id: "n1", type: "folder" as const, data: { label: "root", path: "/", type: "folder" as const }, position: { x: 0, y: 0 } }],
       edges: [],
     };
-    const encoded = encodeShareData(data);
+    const encoded = encodeShareData(data as never);
     expect(typeof encoded).toBe("string");
     const decoded = decodeShareData(encoded);
     expect(decoded).not.toBeNull();

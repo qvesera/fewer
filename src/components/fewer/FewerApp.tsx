@@ -395,7 +395,8 @@ export function FewerApp() {
   }, []);
 
 
-  // Handle OAuth callback query params (?cloud=connected|error)
+  // Handle OAuth callback query params (?cloud=connected|error) and
+  // gallery "Open in app" unauthenticated gate (?auth=open).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cloud = params.get("cloud");
@@ -405,6 +406,10 @@ export function FewerApp() {
       window.history.replaceState(null, "", window.location.pathname);
     } else if (cloud === "error") {
       toast({ title: "Cloud connection failed", description: params.get("msg") || "Unknown error", variant: "destructive" });
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    if (params.get("auth") === "open") {
+      setAuthOpen(true);
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, [toast]);

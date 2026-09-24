@@ -200,7 +200,7 @@ export function ThemeGallerySection() {
                       <Sparkles className="h-3.5 w-3.5" /> Apply
                     </Button>
                     <a
-                      href={`${APP_URL}/#t:${item.id}`}
+                      href={user ? `${APP_URL}/#t:${item.id}` : `${APP_URL}/?auth=open#t:${item.id}`}
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
                     >
                       Open in app

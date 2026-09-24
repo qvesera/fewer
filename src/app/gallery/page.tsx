@@ -5,6 +5,7 @@ import { MarketingLayout, APP_URL } from "@/components/marketing/MarketingLayout
 import { ThemeGallerySection } from "@/components/marketing/ThemeGallerySection";
 import { Button } from "@/components/ui/button";
 import { FolderTree, Loader2, Globe2, Palette } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface GalleryItem {
   id: string;
@@ -31,6 +32,7 @@ export default function GalleryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const load = useCallback(async (offset: number) => {
     setError(null);
@@ -107,7 +109,7 @@ export default function GalleryPage() {
                   {items.map((g) => (
                     <a
                       key={g.id}
-                      href={`${APP_URL}/#s:${g.id}`}
+                      href={user ? `${APP_URL}/#s:${g.id}` : `${APP_URL}/?auth=open#s:${g.id}`}
                       className="group flex flex-col rounded-xl border border-border/40 bg-background/60 p-5 transition-colors hover:border-primary/40"
                     >
                       <div className="flex items-center gap-2 text-primary/80">
