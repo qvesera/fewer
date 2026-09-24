@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 2 complete: remaining advancedModeEnabled sites migrated — CanvasToolbar, CustomNode, ImportOriginStep, ImportOptionsPanel, ImportFlowDialog, DockAreaContent, ExportPanel cleanup, sectionRegistry simplified. Only intentional vestiges remain: LayoutPicker prop interface, FewerApp derivation, userSettings persisted field, sidebarModel (test-only).
 - Sidebar section reorder now animates with a smooth ease-out curve (180ms, matches section expand/collapse motion)
 - Unified email shell for all outbound emails (auth, digest, invite) — shared dark design, fewer.directory wordmark, orange CTA, table-based Outlook-compatible layout. Supabase auth templates generated from the same source to prevent drift. New emailTemplate.ts + gen-email-templates.ts + tests.
+- Gallery publishing no longer requires a profile name/username to toggle on — entries without a profile show as Anonymous with a non-blocking hint in the share dialog
 
 ### Fixed
 

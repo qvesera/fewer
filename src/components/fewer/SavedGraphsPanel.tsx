@@ -747,7 +747,7 @@ function ShareGraphDialog({
                   <p className="text-xs font-medium">List in the public gallery</p>
                   <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
                 </div>
-                <Switch checked={gallery} onCheckedChange={(checked) => { if (checked && !requireGalleryProfile()) return; setGallery(checked); }} className="ml-auto shrink-0" />
+                <Switch checked={gallery} onCheckedChange={(checked) => setGallery(checked)} className="ml-auto shrink-0" />
               </div>
               {gallery && (
                 <div className="space-y-1.5 pt-1">
@@ -769,6 +769,15 @@ function ShareGraphDialog({
                       placeholder="What makes this graph interesting?"
                     />
                   </div>
+                  {gallery && (!profile.first_name.trim() || !profile.username.trim()) && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                      Your gallery entry will show as Anonymous. Add your name in{" "}
+                      <button type="button" onClick={() => { /* handled by parent — open settings */ }} className="underline cursor-pointer">
+                        Settings → Account
+                      </button>{" "}
+                      to show attribution.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
