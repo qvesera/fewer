@@ -18,6 +18,11 @@ reference: `.agents/skills/tasks/SKILL.md` (`bun run task:status` first).
    and refuses commits while no session is open).
 5. `bun run task:stop <T-###> --note "…"` closes the session; `bun run
    task:validate` must pass before push, and `task:report` totals go in the PR.
+6. **Decompose at pickup**: before `task:start` on a task estimated ≥ 2400 min
+   (Tier 1+) or with several independent deliverables, split it into 2–6
+   linked subtasks (`task:add --parent T-…`, then `gh-sync`), **asking first**
+   beyond three — then start a child, never the umbrella (`bun run task:tree` shows
+   the hierarchy; `--parent` / `reparent` manage it).
 
 ## Quick Reference
 
