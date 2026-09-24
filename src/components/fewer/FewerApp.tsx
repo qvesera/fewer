@@ -229,6 +229,9 @@ export function FewerApp() {
   }, []);
 
   const handledHashRef = useRef("");
+  // ponytail: stores the hash from ?auth=open URLs so it can be processed
+  // after the user logs in, instead of applying the theme/graph immediately.
+  const pendingAuthHashRef = useRef("");
 
   /**
    * Core hash-link handler — called on mount and on `hashchange`.
@@ -409,10 +412,23 @@ export function FewerApp() {
       window.history.replaceState(null, "", window.location.pathname);
     }
     if (params.get("auth") === "open") {
+      // Save the hash so it can be processed after login, not now.
+      const h = window.location.hash.replace(/^#/, "");
+      if (h) pendingAuthHashRef.current = h;
+      setHashLoaded(true); // prevent sessionStorage restore while auth dialog is open
       setAuthOpen(true);
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, [toast]);
+
+  // After login, process any hash that was deferred by ?auth=open.
+  useEffect(() => {
+    if (user && pendingAuthHashRef.current) {
+      const h = pendingAuthHashRef.current;
+      pendingAuthHashRef.current = "";
+      handleHashLink(h);
+    }
+  }, [user, handleHashLink]);
 
   // Every import entry point opens the SAME 3-step flow; only the
   // preselected origin differs.
