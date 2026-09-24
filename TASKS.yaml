@@ -4,7 +4,7 @@ version: 1
 tasks:
 - id: "T-001"
   title: "Task tracking: ledger, validate/validate-commits gates, commit hook, rule + skill, TO-DO/GitHub bootstrap"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "other"
   tier: null
@@ -27,13 +27,19 @@ tasks:
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   - start: "2026-09-24T20:59:07Z"
-    end: null
+    end: "2026-09-24T21:04:26Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 12
-  session_count: 2
+    note: "engine + selftest + enforcement docs + bootstrap; hook verified (refuse + stamp), prepare verified on bun install"
+    proof: ["14038c7"]
+    effort: {commits: 1, files: 8, insertions: 2959, deletions: 0}
+  - start: "2026-09-24T21:12:10Z"
+    end: "2026-09-24T21:22:47Z"
+    measured: true
+    note: "gate fix: tip-based status check + ledger-only commit exemption + dirty-ledger WARN, 28 selftest checks"
+    proof: ["52dce9e", "#196"]
+    effort: {commits: 1, files: 4, insertions: 97, deletions: 14}
+  spent_min: 28
+  session_count: 3
 - id: "T-002"
   title: "Back-export the three posts that exist only in the database (`v031-performance`, `v040-accounts`, `v050-remote-sources`) into `content/blog/`, so `scripts/gen-seed-content.py` covers every row in `content_pages`."
   status: "triaged"
