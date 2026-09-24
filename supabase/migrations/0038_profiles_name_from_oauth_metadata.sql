@@ -51,14 +51,14 @@ as $$
       nullif(regexp_replace(
         coalesce(meta->>'full_name', meta->>'name', ''),
         '\s+', ' ', 'g'
-      ), '') as full
+      ), '') as "full"
   )
   select
-    nullif(left(coalesce(trim(given), split_part(full, ' ', 1)), 100), ''),
+    nullif(left(coalesce(trim(given), split_part("full", ' ', 1)), 100), ''),
     nullif(left(
       coalesce(
         trim(family),
-        nullif(trim(substr(full, length(split_part(full, ' ', 1)) + 1)), '')
+        nullif(trim(substr("full", length(split_part("full", ' ', 1)) + 1)), '')
       ),
       100
     ), '')
