@@ -34,6 +34,13 @@
 - [ ] My changes work in both light and dark themes
 - [ ] I have considered keyboard accessibility for new UI elements
 
+## Task & metadata
+
+<!-- Filled by `python3 scripts/tasks.py pr-metadata <PR#>` (CI re-applies it). -->
+
+- [ ] `pr-metadata` applied: labels (`status:*` + type + `category:*` + `size:*`), milestone, assignee, project item
+- Task: <!-- T-### -->
+
 ## Screenshots (if applicable)
 
 <!-- Add screenshots of UI changes -->

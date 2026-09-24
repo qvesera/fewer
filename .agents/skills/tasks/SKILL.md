@@ -62,6 +62,7 @@ merges are authoritative for `done` (`reconcile`).
 | Back-fill a session with real timestamps | `python3 scripts/tasks.py record-session <id> --start … --end … --reconstructed --proof <sha>` |
 | Reinstall the commit hook | `python3 scripts/tasks.py install-hooks` |
 | Engine self-check | `python3 scripts/tasks.py selftest` |
+| PR labels + milestone + assignee + project | `python3 scripts/tasks.py pr-metadata <PR#> [--dry-run] [--no-write] [--project N] [--milestone X]` (procedure: `.agents/skills/pr/SKILL.md`) |
 | Direct children + rollup | `python3 scripts/tasks.py children <T-id>` |
 | Indented hierarchy (own vs rollup time) | `python3 scripts/tasks.py tree [--root T-id] [--json]` (= `report --tree`) |
 | Move a task under another / make it a root | `python3 scripts/tasks.py reparent <T-id> --parent T-… | --detach` |
@@ -129,3 +130,6 @@ acyclic and `gh-sync` mirrors the link as a native GitHub sub-issue
 | `start` → "decomposed umbrella" | parent has children | `start` a child instead (`task:tree`) |
 | `parent done while child(ren) still open` | parent closed too early | finish the children, or `set-status` the parent back to `triaged` |
 | ambiguous `track` (exit 3) | candidate in the 0.45–0.75 band | show candidates, ask, or rerun `--new` |
+| `pr-metadata: … carries no tracked task` | commit lacks a `Task:` trailer | `task:start`, amend trailers, rerun |
+| `project: skipped — no board configured` | no board number / no `read:project` | set `PROJECT_NUMBER`, or flip the board's Auto-add filter to include PRs |
+| PR labels drifted after re-triage | row changed post-PR | `pr-metadata <N>` again (idempotent) |
