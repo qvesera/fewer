@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { APP_URL } from "@/components/marketing/MarketingLayout";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export function GraphGallerySection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("");
+  const allCategoriesRef = useRef<string[]>([]);
   const { user } = useAuth();
 
   const load = useCallback(
@@ -54,6 +55,12 @@ export function GraphGallerySection() {
         setItems((prev) => (offset === 0 ? json.items : [...prev, ...json.items]));
         setTotal(json.total ?? 0);
         setHasMore(!!json.hasMore);
+        // On the first unfiltered load, snapshot all distinct categories so
+        // the filter chips persist even when a narrow filter is active.
+        if (!cat && offset === 0) {
+          const cats = [...new Set(json.items.map((i: GraphGalleryItem) => i.gallery_category).filter(Boolean))] as string[];
+          if (cats.length > allCategoriesRef.current.length) allCategoriesRef.current = cats;
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load the gallery");
       } finally {
@@ -68,8 +75,8 @@ export function GraphGallerySection() {
     load(0, category);
   }, [load, category]);
 
-  // Derive distinct category chips from the first page (stable set)
-  const categories = [...new Set(items.map((i) => i.gallery_category).filter(Boolean))] as string[];
+  // Derive distinct category chips from the cached unfiltered set
+  const categories = allCategoriesRef.current;
 
   return (
     <>
