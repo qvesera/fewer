@@ -511,7 +511,7 @@ tasks:
   session_count: 0
 - id: "T-024"
   title: "Hierarchy: issues/sub-issues and tasks/subtasks (parent field, rollups, GitHub sub-issue linking, decomposition duties)"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "other"
   tier: null
@@ -523,16 +523,16 @@ tasks:
   blocked_by: []
   parent: null
   source: "cli"
-  time_source: null
+  time_source: "measured"
   reporter: null
   created_at: "2026-09-24T21:25:47Z"
   notes: ["2026-09-24T21:25:47Z · hierarchy machinery per approved plan; organic only — no re-parenting of existing rows"]
   sessions:
   - start: "2026-09-24T21:25:47Z"
-    end: null
+    end: "2026-09-24T21:37:52Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "parent field + validate rules + children/tree/reparent + gh-sync/intake/doctor parity + docs; 40 selftest checks; live link/unlink verified both directions then reverted (organic-only)"
+    proof: ["fc0d032"]
+    effort: {commits: 1, files: 6, insertions: 551, deletions: 14}
+  spent_min: 12
   session_count: 1
