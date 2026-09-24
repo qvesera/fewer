@@ -193,6 +193,77 @@ test("Select Children selects the folder's children, not the folder", async ({ p
   await expect(src).not.toHaveClass(selected());
 });
 
+// Shift+drag box select starts on empty pane (React Flow ignores drags that
+// begin on a card) and its rect must fully contain the target — the default
+// SelectionMode.Full only selects cards the rect encloses.
+async function boxSelect(page: Page, targetName: string) {
+  const cards = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return {
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        h: r.height,
+        // Cards render their own title first, so match the header, not a child
+        // chip that happens to mention the folder (root lists "src" too).
+        title: (e as HTMLElement).innerText.split("\n")[0].trim(),
+      };
+    }),
+  );
+  const target = cards.find((c) => c.title === targetName);
+  expect(target, `card "${targetName}" must be on the canvas`).toBeTruthy();
+
+  const pane = (await page.locator(".react-flow__pane").boundingBox())!;
+  const hitsCard = (x: number, y: number) =>
+    cards.some((c) => x > c.x - 6 && x < c.x + c.w + 6 && y > c.y - 6 && y < c.y + c.h + 6);
+
+  let start: { x: number; y: number } | null = null;
+  for (let y = pane.y + 20; y < pane.y + pane.height - 20 && !start; y += 40) {
+    for (let x = pane.x + 20; x < pane.x + pane.width - 20 && !start; x += 40) {
+      if (!hitsCard(x, y) && !hitsCard(x + 2, y + 2)) start = { x, y };
+    }
+  }
+  expect(start, "empty pane point to start the box select from").toBeTruthy();
+
+  const end = {
+    x: start!.x < target!.x ? target!.x + target!.w + 12 : target!.x - 12,
+    y: start!.y < target!.y ? target!.y + target!.h + 12 : target!.y - 12,
+  };
+
+  await page.keyboard.down("Shift");
+  await page.mouse.move(start!.x, start!.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 10 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+}
+
+// Regression (#180): finishing a Shift+drag box select leaves React Flow's
+// group-selection rect (.react-flow__nodesselection-rect) painted over the
+// selected cards with `pointer-events: all`. It sits above them (z-index 3 and
+// later in DOM order), so Ctrl+click landed on the rect and the card never saw
+// it — a card selected by box select could not be deselected until you clicked
+// empty canvas. globals.css now makes that rect click-through.
+test("ctrl+click deselects a card that a shift-drag box select selected", async ({ page }) => {
+  await openCanvas(page);
+  await boxSelect(page, "src");
+
+  const src = srcHeader(page).first();
+  await expect(src).toHaveClass(selected(), { timeout: 10000 });
+
+  // Coordinate click rather than locator.click(): no actionability wait should
+  // be able to mask (or fake) the deselection.
+  const box = (await src.boundingBox())!;
+  await page.keyboard.down("Control");
+  await page.mouse.move(box.x + box.width / 2, box.y + 12);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.keyboard.up("Control");
+
+  await expect(src).not.toHaveClass(selected(), { timeout: 5000 });
+});
+
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 

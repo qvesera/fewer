@@ -112,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared/template graphs no longer load with all cards hidden — the loaded graph calls showAll on mount to clear auto-hide so the deep-linked graph is immediately visible
 - Deep-link hash handling is now robust: handles hashchange events for same-document navigation, supports multiple sequential deep links in one session, and reports 'Unsupported link' for unknown hash prefixes instead of the misleading 'Could not decode the graph'
 - Gallery 'Open in app' links are held until sign-in succeeds — the app opens the sign-in dialog without applying the theme or loading the graph; the link is stored (sessionStorage, so it survives GitHub/Google sign-in) and replayed only after login, instead of applying the gallery theme to a signed-out visitor
+- Cards picked with a Shift+drag box select can be deselected again with Ctrl+click: React Flow's group-selection rectangle stays painted over the selected cards after the gesture and intercepted every click before it reached a card, so nothing inside the box could be deselected (or clicked at all) until you clicked empty canvas first. The rectangle is now click-through; dragging any selected card still moves the whole group.
 
 ### Added
 
