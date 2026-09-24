@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { APP_URL } from "@/components/marketing/MarketingLayout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { galleryAuthorLine, galleryDisplayTitle } from "@/lib/fewer/galleryThemes";
-import { FolderTree, Loader2, Search } from "lucide-react";
+import { FolderTree, Loader2 } from "lucide-react";
 
 interface GraphGalleryItem {
   id: string;
@@ -21,6 +20,8 @@ interface GraphGalleryItem {
   gallery_preview: { root: string; children: string[]; nodeCount: number } | null;
 }
 
+const PAGE_SIZE = 24;
+
 function prettyDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
@@ -31,65 +32,66 @@ function prettyDate(iso: string) {
 
 /**
  * Graphs + templates section of the community gallery.
- * Filter chips derived from the distinct gallery_category values in the page.
+ * Fetches all items once, filters client-side by category chip.
  */
 export function GraphGallerySection() {
-  const [items, setItems] = useState<GraphGalleryItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const allItemsRef = useRef<GraphGalleryItem[]>([]);
+  const [category, setCategory] = useState("");
+  const [visible, setVisible] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("");
-  const allCategoriesRef = useRef<string[]>([]);
   const { user } = useAuth();
 
-  const load = useCallback(
-    async (offset: number, cat: string) => {
-      setError(null);
+  // Single fetch on mount — gets everything
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
       try {
-        const params = new URLSearchParams({ offset: String(offset) });
-        if (cat) params.set("category", cat);
-        const res = await fetch(`/api/gallery?${params}`);
+        const res = await fetch("/api/gallery?limit=200");
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
-        setItems((prev) => (offset === 0 ? json.items : [...prev, ...json.items]));
-        setTotal(json.total ?? 0);
-        setHasMore(!!json.hasMore);
-        // On the first unfiltered load, snapshot all distinct categories so
-        // the filter chips persist even when a narrow filter is active.
-        if (!cat && offset === 0) {
-          const cats = [...new Set(json.items.map((i: GraphGalleryItem) => i.gallery_category).filter(Boolean))] as string[];
-          if (cats.length > allCategoriesRef.current.length) allCategoriesRef.current = cats;
-        }
+        if (cancelled) return;
+        allItemsRef.current = json.items;
+        setVisible(PAGE_SIZE);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load the gallery");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load the gallery");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    },
-    [],
-  );
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    load(0, category);
-  }, [load, category]);
+  // Client-side filter — no API call
+  const filtered = useMemo(() => {
+    if (!category) return allItemsRef.current;
+    return allItemsRef.current.filter((i) => i.gallery_category === category);
+  }, [category, /* recompute when allItemsRef changes (mount only) */ allItemsRef.current.length > 0 ? "x" : "y"]);
 
-  // Derive distinct category chips from the cached unfiltered set
-  const categories = allCategoriesRef.current;
+  // Distinct categories from the full set (stable, never shrinks)
+  const categories = useMemo(() => {
+    return [...new Set(allItemsRef.current.map((i) => i.gallery_category).filter(Boolean))] as string[];
+  }, [allItemsRef.current.length > 0 ? "x" : "y"]);
+
+  const shown = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
 
   return (
     <>
       {error ? (
         <p className="mt-8 text-sm text-muted-foreground">{error}</p>
-      ) : loading && items.length === 0 ? (
+      ) : loading ? (
         <div className="mt-10 flex items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading…
         </div>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="mt-10 rounded-xl border border-border/40 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
           <FolderTree className="mx-auto h-6 w-6 opacity-60" />
-          <p className="mt-3">No graphs in the gallery yet. Be the first to share one.</p>
+          <p className="mt-3">
+            {category
+              ? `No graphs in the "${category}" category.`
+              : "No graphs in the gallery yet. Be the first to share one."}
+          </p>
         </div>
       ) : (
         <>
@@ -109,7 +111,7 @@ export function GraphGallerySection() {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setCategory(cat)}
+                  onClick={() => setCategory(category === cat ? "" : cat)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors cursor-pointer ${
                     category === cat
                       ? "border-primary bg-primary text-primary-foreground"
@@ -123,10 +125,10 @@ export function GraphGallerySection() {
           )}
 
           <p className="mt-6 mb-4 text-xs text-muted-foreground/70">
-            {total} public {total === 1 ? "graph" : "graphs"}
+            {filtered.length} public {filtered.length === 1 ? "graph" : "graphs"}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((g) => (
+            {shown.map((g) => (
               <a
                 key={g.id}
                 href={user ? `${APP_URL}/#s:${g.id}` : `${APP_URL}/?auth=open#s:${g.id}`}
@@ -149,9 +151,7 @@ export function GraphGallerySection() {
                   <div className="mt-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground/80">
                     <div className="font-semibold text-foreground/80">{g.gallery_preview.root}</div>
                     {g.gallery_preview.children.map((c, i) => (
-                      <div key={i} className="pl-3">
-                        {c}
-                      </div>
+                      <div key={i} className="pl-3">{c}</div>
                     ))}
                     {g.gallery_preview.nodeCount > 1 + g.gallery_preview.children.length && (
                       <div className="pl-3 text-muted-foreground/50">
@@ -176,13 +176,7 @@ export function GraphGallerySection() {
 
           {hasMore && (
             <div className="mt-8 text-center">
-              <Button
-                variant="outline"
-                onClick={() => load(items.length, category)}
-                disabled={loading}
-                className="cursor-pointer"
-              >
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              <Button variant="outline" onClick={() => setVisible((v) => v + PAGE_SIZE)} className="cursor-pointer">
                 Load more
               </Button>
             </div>
