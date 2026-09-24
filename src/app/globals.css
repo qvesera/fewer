@@ -339,6 +339,18 @@
 .react-flow__node.selected {
   outline: none;
 }
+/* #180: after a Shift+drag box select, React Flow paints the group-selection
+   rect (.react-flow__nodesselection-rect) over the selected cards with
+   `pointer-events: all`. It sits above them (z-index 3, later in DOM order), so
+   every click — Ctrl+click included — lands on the rect and the cards never see
+   it: nothing could be deselected until you clicked empty canvas. Make it
+   click-through. The group is still movable by dragging any selected card (RF
+   drags all selected nodes together, getDragItems) and arrow keys still nudge
+   the focused selection. Scoped under the wrapper so it beats RF's
+   single-class rule regardless of stylesheet order. */
+.react-flow__nodesselection .react-flow__nodesselection-rect {
+  pointer-events: none;
+}
 .react-flow__node > div {
   animation: gm-node-fade-in 0.3s ease-out both;
 }
