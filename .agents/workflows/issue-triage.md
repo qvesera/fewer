@@ -265,7 +265,17 @@ gh issue view <N> --json labels,milestone   # labels + milestone actually applie
    effort proof, optionally comments the time on the issue), then both
    `python3 scripts/tasks.py validate` and
    `python3 scripts/tasks.py validate-commits --base origin/dev` must pass.
-6. Loop back to Step 1 and re-list the open issues; report what shipped and what
+   Commit that ledger close-out (a `TASKS.yaml`-only commit needs no session).
+6. **Raise the PR with its metadata** — template, `Fixes #N`, `Task: T-###`,
+   report totals, then (per `.agents/skills/pr/SKILL.md`):
+
+```bash
+python3 scripts/tasks.py pr-metadata <PR#> --dry-run   # show the derived plan
+python3 scripts/tasks.py pr-metadata <PR#>             # labels + milestone + assignee (+ project)
+```
+
+   CI re-applies it on every PR event (`.github/workflows/pr-metadata.yml`).
+7. Loop back to Step 1 and re-list the open issues; report what shipped and what
    is left (`python3 scripts/tasks.py report`).
 
 ---

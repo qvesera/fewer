@@ -30,6 +30,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LEDGER = os.path.join(ROOT, "TASKS.yaml")
 TODO_MD = os.path.join(ROOT, "TO-DO.md")
 REPO_SLUG = "qvesera/fewer"
+DEFAULT_ASSIGNEE = "qvesera"
+PROJECT_OWNER = "qvesera"
+# Set once `gh project list` works (needs the read:project scope); `pr-metadata
+# --project <n>` overrides it per call.
+PROJECT_NUMBER: int | None = None
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -52,9 +57,9 @@ TASK_RE = re.compile(r"T-\d{3,}")
 
 TASK_KEYS = (
     "id", "title", "status", "type", "area", "tier", "estimate_min",
-    "estimate_basis", "issue", "internal", "milestone", "blocked_by", "parent",
-    "source", "time_source", "reporter", "created_at", "notes", "sessions",
-    "spent_min", "session_count",
+    "estimate_basis", "issue", "pr", "internal", "milestone", "blocked_by",
+    "parent", "source", "time_source", "reporter", "assignee", "created_at",
+    "notes", "sessions", "spent_min", "session_count",
 )
 SESSION_KEYS = ("start", "end", "measured", "note", "proof", "effort")
 
@@ -320,9 +325,22 @@ def load() -> dict[str, Any]:
 
 def save(ledger: dict[str, Any]) -> None:
     for row in ledger["tasks"]:
+        backfill(row)
         refresh(row)
     with open(LEDGER, "w", encoding="utf-8") as fh:
         fh.write(emit_ledger(ledger))
+
+
+def backfill(row: dict[str, Any]) -> None:
+    """Identity fields every row must carry when the schema grows — applied on
+    every save, so an older ledger self-migrates instead of failing validate."""
+    if not row.get("assignee"):
+        row["assignee"] = DEFAULT_ASSIGNEE
+    if "pr" not in row:
+        row["pr"] = None
+    if "parent" not in row:
+        row["parent"] = None
+    row.setdefault("sessions", [])
 
 
 # ── row / session helpers ───────────────────────────────────────────────
@@ -346,16 +364,18 @@ def new_row(*, title: str, rtype: str, area: str, status: str = "triaged",
             tier: int | None = None, estimate_min: int | None = None,
             issue: int | None = None, internal: bool = False,
             milestone: str | None = None, blocked_by: list[str] | None = None,
-            parent: str | None = None,
+            parent: str | None = None, pr: int | None = None,
             source: str | None = None, time_source: str | None = None,
-            reporter: str | None = None, created_at: str | None = None,
+            reporter: str | None = None, assignee: str | None = None,
+            created_at: str | None = None,
             estimate_basis: str = "type-default", notes: list[str] | None = None) -> dict[str, Any]:
     return {
         "id": None, "title": title, "status": status, "type": rtype, "area": area,
         "tier": tier, "estimate_min": int(estimate_min or ESTIMATE_DEFAULT.get(rtype, 120)),
-        "estimate_basis": estimate_basis, "issue": issue, "internal": internal,
+        "estimate_basis": estimate_basis, "issue": issue, "pr": pr, "internal": internal,
         "milestone": milestone, "blocked_by": blocked_by or [], "parent": parent,
         "source": source, "time_source": time_source, "reporter": reporter,
+        "assignee": assignee or DEFAULT_ASSIGNEE,
         "created_at": created_at or now_iso(), "notes": notes or [], "sessions": [],
         "spent_min": 0, "session_count": 0,
     }
@@ -929,6 +949,181 @@ def cmd_reparent(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── pr-metadata: labels · milestone · assignee · project item for a PR ───
+STATUS_TO_PROJECT = {"backlog": "Todo", "triaged": "Todo", "in-progress": "In progress",
+                     "blocked": "In progress", "review": "In review", "parked": "Todo",
+                     "done": "Done", "wontfix": "Done"}
+
+
+def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> list[dict[str, Any]]:
+    """Rows that own this PR: `Task: T-###` trailers in its commits (or the
+    body), plus any row already stamped `pr: <n>`."""
+    by_id = {r["id"]: r for r in ledger["tasks"]}
+    ids: set[str] = set()
+    for commit in pr_info.get("commits") or []:
+        subject = commit.get("messageHeadline") or ""
+        body = commit.get("messageBody") or ""
+        ids.update(commit_trailers(body, subject))
+    for line in (pr_info.get("body") or "").splitlines():
+        if re.match(r"^\s*[-*]?\s*Task:\s*", line, flags=re.I):
+            ids.update(TASK_RE.findall(line))
+    rows = [by_id[i] for i in sorted(ids) if i in by_id]
+    for row in ledger["tasks"]:
+        if row.get("pr") == pr and row not in rows:
+            rows.append(row)
+    return rows
+
+
+def _apply_project(number: int, info: dict[str, Any], status: str) -> None:
+    """Best effort: add the PR to the board and mirror its Status.
+
+    Every failure prints why and returns — never raises. Needs the
+    read:project scope (`gh auth refresh -s project`).
+    """
+    try:
+        raw = gh("project", "item-add", str(number), "--owner", PROJECT_OWNER,
+                 "--url", info["url"], "--format", "json", check=False)
+        added = json.loads(raw) if raw.strip().startswith("{") else {}
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        added = {}
+    if not added.get("id"):
+        hint = "needs the read:project scope — run `gh auth refresh -s project`"
+        print(f"project: item not added ({hint})")
+        return
+    print(f"project: added to {PROJECT_OWNER}/{number}")
+    try:
+        proj = json.loads(gh("project", "view", str(number), "--owner", PROJECT_OWNER,
+                             "--format", "json", check=False))
+        fields = json.loads(gh("project", "field-list", str(number), "--owner", PROJECT_OWNER,
+                               "--format", "json", check=False))
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        print("project: could not read the board's fields — Status not synced")
+        return
+    status_field = next((f for f in fields.get("fields", [])
+                         if (f.get("name") or "").lower() == "status"), None)
+    project_id = proj.get("id")
+    if not status_field or not project_id:
+        print("project: no Status field (or no project id) — left as-is")
+        return
+    want = STATUS_TO_PROJECT.get(status, "In progress")
+    option = next((o for o in status_field.get("options", [])
+                   if (o.get("name") or "").lower() == want.lower()), None)
+    if not option:
+        names = ", ".join(o.get("name", "?") for o in status_field.get("options", []))
+        print(f"project: Status option {want!r} not on this board (have: {names})")
+        return
+    try:
+        gh("project", "item-edit", "--id", added["id"],
+           "--field-id", status_field["id"], "--project-id", project_id,
+           "--single-select-option-id", option["id"], check=False)
+        print(f"project: Status → {option['name']}")
+    except (SystemExit, FileNotFoundError):
+        print("project: Status sync failed")
+
+
+def next_milestone() -> str | None:
+    """The open release train we are shipping toward: earliest due date first.
+    Used when neither the task row nor its linked issue carries a milestone."""
+    try:
+        trains = gh_json("api", f"repos/{REPO_SLUG}/milestones?state=open")
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError, TypeError):
+        return None
+    if not trains:
+        return None
+    dated = [t for t in trains if t.get("due_on")]
+    if dated:
+        return sorted(dated, key=lambda t: t["due_on"])[0]["title"]
+    return trains[0]["title"]
+
+
+def cmd_pr_metadata(args: argparse.Namespace) -> int:
+    pr = args.pr_number
+    if not have_gh():
+        _die("pr-metadata needs an authenticated gh")
+    ledger = load()
+    info = gh_json("pr", "view", str(pr), "--json",
+                   "number,title,url,state,labels,milestone,assignees,commits,body")
+    rows = pr_task_rows(ledger, info, pr)
+    if not rows:
+        print(f"pr-metadata: PR #{pr} carries no tracked task (no `Task: T-###` trailer "
+              f"and no row with pr: {pr}) — nothing derived, nothing guessed "
+              f"(see .agents/skills/pr/SKILL.md)")
+        return 0
+
+    want = derived_labels(rows)
+    current = [l["name"] for l in info.get("labels") or []]
+    add = [l for l in want if l not in current]
+    drop = [l for l in current
+            if (l.startswith("size:") or l.startswith("status:")) and l not in want]
+
+    milestone = next((r.get("milestone") for r in rows if r.get("milestone")), None)
+    if milestone is None:
+        for row in rows:
+            if row.get("issue"):
+                try:
+                    linked = gh("issue", "view", str(row["issue"]), "--json", "milestone",
+                                "--jq", ".milestone.title // \"\"", check=False).strip()
+                except (SystemExit, FileNotFoundError):
+                    linked = ""
+                if linked:
+                    milestone = linked
+                    break
+    if milestone is None and args.milestone:
+        milestone = args.milestone
+    if milestone is None:
+        milestone = next_milestone()
+    current_ms = (info.get("milestone") or {}).get("title") if info.get("milestone") else None
+
+    assignee = next((r.get("assignee") for r in rows if r.get("assignee")), DEFAULT_ASSIGNEE)
+    have_assignees = [a["login"] for a in info.get("assignees") or []]
+
+    print(f"PR #{pr} · tasks: {', '.join(r['id'] for r in rows)}")
+    print(f"  labels    now=[{', '.join(current) or '-'}]")
+    print(f"             want={want}")
+    print(f"             +{add or '-'}  -{drop or '-'}")
+    print(f"  milestone now={current_ms or '-'} → want={milestone or '-'}")
+    print(f"  assignee  now=[{', '.join(have_assignees) or '-'}] → want={assignee}")
+    project = args.project if args.project is not None else PROJECT_NUMBER
+    print(f"  project   {project or 'not configured'}" +
+          ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
+
+    if args.dry_run:
+        print("  (dry-run: nothing written)")
+        return 0
+
+    cmd = ["pr", "edit", str(pr)]
+    for label in add:
+        ensure_label(label)          # size:* may not exist yet — create lazily
+        cmd += ["--add-label", label]
+    for label in drop:
+        cmd += ["--remove-label", label]
+    if milestone and milestone != current_ms:
+        cmd += ["--milestone", milestone]
+    if assignee not in have_assignees:
+        cmd += ["--add-assignee", assignee]
+    if len(cmd) > 3:
+        gh(*cmd, check=False)
+
+    stamped = False
+    for row in rows:
+        if row.get("pr") != pr:
+            row["pr"] = pr
+            stamped = True
+    if stamped and not args.no_write:
+        save(ledger)
+    elif stamped:
+        print("  (--no-write: ledger pr: stamp skipped — CI checkout)")
+
+    status = rows[0].get("status") or "review"
+    if project is None:
+        print("project: skipped — no board configured")
+    else:
+        _apply_project(project, info, status)
+    print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
+          f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
+    return 0
+
+
 # ── GitHub helpers: labels, bug payload, adoption ───────────────────────
 _LABELS_CACHE: list[str] | None = None
 
@@ -972,6 +1167,38 @@ def parse_bug_payload(body: str) -> dict[str, str]:
 
 def type_labels(rtype: str) -> list[str]:
     return {"fix": ["bug"], "feat": ["enhancement"], "docs": ["documentation"]}.get(rtype, [])
+
+
+SIZE_LABELS = ("size:xs", "size:s", "size:m", "size:l", "size:xl")
+
+
+def size_label(estimate_min: int) -> str:
+    """Effort band from the task's estimate (xs ≤60m · s ≤240m · m ≤960m ·
+    l ≤2400m · xl >2400m) — a single family, shared by issues and PRs."""
+    n = int(estimate_min or 0)
+    if n <= 60:
+        return "size:xs"
+    if n <= 240:
+        return "size:s"
+    if n <= 960:
+        return "size:m"
+    if n <= 2400:
+        return "size:l"
+    return "size:xl"
+
+
+def derived_labels(rows: list[dict[str, Any]]) -> list[str]:
+    """Label set for a PR (or issue) derived from its task rows: status label +
+    type + category + one size band, unioned and deduped."""
+    out: set[str] = set()
+    for row in rows:
+        out.update(type_labels(row["type"]))
+        out.add(f"category:{row['area']}")
+        out.add(size_label(row["estimate_min"]))
+        status_label = STATUS_LABEL.get(row.get("status") or "")
+        if status_label:
+            out.add(status_label)
+    return sorted(l for l in out if l)
 
 
 def issue_title(rtype: str, title: str) -> str:
@@ -1220,6 +1447,7 @@ def cmd_intake(args: argparse.Namespace) -> int:
             applied.append(f"category:{payload['category']}")
         if STATUS_LABEL[target_status]:
             applied.append(STATUS_LABEL[target_status])
+        applied.append(size_label(ESTIMATE_DEFAULT.get(rtype, 120)))
         if args.dry_run:
             adopted.append(f"#{issue['number']}({target_status})")
             print(f"would adopt #{issue['number']} → status={target_status} "
@@ -1445,8 +1673,9 @@ def _issue_labels(number: int) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
-def _status_labels(labels: list[str]) -> list[str]:
-    return [l for l in labels if l.startswith("status:") or l == "wontfix"]
+def _managed_labels(labels: list[str]) -> list[str]:
+    """The label families gh-sync/doctor own: status + size (+ the wontfix flag)."""
+    return [l for l in labels if l.startswith("status:") or l.startswith("size:") or l == "wontfix"]
 
 
 def cmd_gh_sync(args: argparse.Namespace) -> int:
@@ -1460,6 +1689,7 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
             labels = type_labels(row["type"])
             labels.append(STATUS_LABEL["triaged"] or "status:triaged")
             labels.append(f"category:{row['area']}")
+            labels.append(size_label(row["estimate_min"]))
             section = todo_section(row["title"]) if str(row.get("source", "")).startswith("TO-DO.md#") else ""
             body = (section + "\n\n" if section else "") + (
                 f"<!-- task:{row['id']} -->\n\n"
@@ -1512,8 +1742,8 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
                 else:
                     gh(*cmd_args, check=False)
 
-        wanted = [target] if target else []
-        stale = [l for l in _status_labels(current) if l not in wanted]
+        wanted = [l for l in (([target] if target else []) + [size_label(row["estimate_min"])]) if l]
+        stale = [l for l in _managed_labels(current) if l not in wanted]
         add = [l for l in wanted if l not in current]
         if not add and not stale:
             continue
@@ -1606,10 +1836,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                             f"(run: python3 scripts/tasks.py intake)")
             continue
         target = STATUS_LABEL.get(row["status"])
-        have = set(_status_labels([l["name"] for l in issue.get("labels") or []]))
-        want = {target} if target else set()
+        have = set(_managed_labels([l["name"] for l in issue.get("labels") or []]))
+        want = {l for l in ([target] if target else []) + [size_label(row["estimate_min"])] if l}
         if have != want:
-            problems.append(f"{row['id']} #{issue['number']}: status labels {sorted(have)} != "
+            problems.append(f"{row['id']} #{issue['number']}: managed labels {sorted(have)} != "
                             f"{sorted(want)} (run: python3 scripts/tasks.py gh-sync)")
         if issue["state"] == "CLOSED" and row["status"] not in ("done", "wontfix"):
             problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status={row['status']} "
@@ -1773,6 +2003,16 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
                 seen_issues[number] = rid
         if not isinstance(row.get("title"), str) or not row.get("title"):
             fail(f"{rid}: title missing")
+        assignee = row.get("assignee")
+        if not isinstance(assignee, str) or not assignee.strip():
+            fail(f"{rid}: assignee missing (default {DEFAULT_ASSIGNEE} — "
+                 f"run `python3 scripts/tasks.py fmt` to backfill)")
+        pr_no = row.get("pr")
+        if pr_no is not None and not isinstance(pr_no, int):
+            fail(f"{rid}: pr must be an integer or null, got {pr_no!r}")
+        elif pr_no is not None and row.get("status") not in ("review", "done"):
+            warn(f"{rid}: PR #{pr_no} is open but status={row.get('status')} "
+                 f"(stop moves it to review)")
         if not isinstance(row.get("notes"), list):
             fail(f"{rid}: notes must be a list")
 
@@ -1955,6 +2195,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
 def cmd_fmt(args: argparse.Namespace) -> int:
     ledger = load()
     for row in ledger["tasks"]:
+        backfill(row)
         refresh(row)
     text = emit_ledger(ledger)
     if text == open(LEDGER, encoding="utf-8").read():
@@ -2170,6 +2411,39 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("tip gate: unknown task fails",
           status_gate({}, {"T-099"}) == ["references unknown task T-099"])
 
+    # PR metadata: size bands, label derivation, task resolution from a PR
+    check("size band: xs ≤60", size_label(60) == "size:xs")
+    check("size band: s ≤240", size_label(240) == "size:s")
+    check("size band: m ≤960", size_label(960) == "size:m")
+    check("size band: l ≤2400", size_label(2400) == "size:l")
+    check("size band: xl >2400", size_label(2401) == "size:xl")
+    check("derived labels: status + type + category + size",
+          derived_labels([{"type": "feat", "area": "import", "estimate_min": 480,
+                           "status": "review"}])
+          == ["category:import", "enhancement", "size:m", "status:review"])
+    check("derived labels: a status with no label emits none",
+          derived_labels([{"type": "task", "area": "other", "estimate_min": 300,
+                           "status": "parked"}])
+          == ["category:other", "size:m"])
+    check("derived labels: unions across the PR's tasks",
+          derived_labels([{"type": "fix", "area": "import", "estimate_min": 120, "status": "review"},
+                          {"type": "docs", "area": "blog", "estimate_min": 5000, "status": "review"}])
+          == ["bug", "category:blog", "category:import", "documentation", "size:s",
+              "size:xl", "status:review"])
+    pr_info = {"commits": [{"messageHeadline": "feat: hierarchy",
+                            "messageBody": "Adds the parent field.\n\nTask: T-001"}],
+               "body": "## Task & metadata\n- Task: T-002 · labels\n"}
+    check("pr rows: commit trailers + body lines",
+          [r["id"] for r in pr_task_rows({"tasks": [row_a, row_b]}, pr_info, 7)]
+          == ["T-001", "T-002"])
+    check("pr rows: nothing tracked → empty (skip, never guess)",
+          pr_task_rows({"tasks": [row_a]}, {"commits": [], "body": "chore: x"}, 9) == [])
+    stamped = json.loads(json.dumps(row_a))
+    stamped["pr"] = 9
+    check("pr rows: a row already stamped pr: joins the PR",
+          [r["id"] for r in pr_task_rows({"tasks": [stamped]},
+                                         {"commits": [], "body": ""}, 9)] == ["T-001"])
+
     # hierarchy: links, rollups, and the parent/child coherence rules
     p_row = new_row(title="umbrella", rtype="task", area="other", issue=500,
                     estimate_min=600, source="gh#500")
@@ -2375,6 +2649,17 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("ref")
     sp.add_argument("--no-start", dest="start", action="store_false")
     sp.add_argument("--parent", help="T-id to set as parent while attaching")
+
+    sp = add("pr-metadata", cmd_pr_metadata,
+             "labels + milestone + assignee + project item for a PR, from its task rows")
+    sp.add_argument("pr_number", type=int, help="PR number")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--json", action="store_true")
+    sp.add_argument("--no-write", action="store_true",
+                    help="do not stamp `pr:` back into the ledger (CI checkout)")
+    sp.add_argument("--project", type=int, help="board number (default: PROJECT_NUMBER)")
+    sp.add_argument("--milestone",
+                    help="override the default (earliest open milestone when the task has none)")
 
     sp = add("intake", cmd_intake, "adopt GitHub issues that have no ledger row")
     sp.add_argument("--state", choices=("open", "all", "closed"), default="open")

@@ -11,6 +11,7 @@ tasks:
   estimate_min: 600
   estimate_basis: "cli"
   issue: null
+  pr: 196
   internal: true
   milestone: null
   blocked_by: []
@@ -18,6 +19,7 @@ tasks:
   source: "cli"
   time_source: "measured"
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: ["2026-09-24T20:47:11Z · build of TASKS.yaml + scripts/tasks.py + enforcement (this PR)"]
   sessions:
@@ -50,6 +52,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "todo-item"
   issue: 182
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -57,6 +60,7 @@ tasks:
   source: "TO-DO.md#back-export-the-three-posts-that-exist-only-in-the-database-v031-performance-v040-accounts-v050-remote-sources-into-content-blog-so-scripts-gen-seed-content-py-covers-every-row-in-content-pages"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -71,6 +75,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "todo-tier"
   issue: 183
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -78,6 +83,7 @@ tasks:
   source: "TO-DO.md#dcc-extension-taxonomy"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -92,6 +98,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "todo-tier"
   issue: 184
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -99,6 +106,7 @@ tasks:
   source: "TO-DO.md#frame-sequence-collapsing-naming-parse"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -113,6 +121,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "todo-tier"
   issue: 185
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -120,6 +129,7 @@ tasks:
   source: "TO-DO.md#studio-aware-import-profiles"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -134,6 +144,7 @@ tasks:
   estimate_min: 2400
   estimate_basis: "todo-tier"
   issue: 186
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -141,6 +152,7 @@ tasks:
   source: "TO-DO.md#symlink-support"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -155,6 +167,7 @@ tasks:
   estimate_min: 2400
   estimate_basis: "todo-tier"
   issue: 187
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -162,6 +175,7 @@ tasks:
   source: "TO-DO.md#diff-v2-with-change-detection"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -176,6 +190,7 @@ tasks:
   estimate_min: 2400
   estimate_basis: "todo-tier"
   issue: 188
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -183,6 +198,7 @@ tasks:
   source: "TO-DO.md#raise-depth-cap-add-node-budget"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -197,6 +213,7 @@ tasks:
   estimate_min: 2400
   estimate_basis: "todo-tier"
   issue: 189
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -204,6 +221,7 @@ tasks:
   source: "TO-DO.md#portable-snapshot-files"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -218,6 +236,7 @@ tasks:
   estimate_min: 2400
   estimate_basis: "todo-tier"
   issue: 190
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -225,6 +244,7 @@ tasks:
   source: "TO-DO.md#multi-root-compare-two-trees"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -239,6 +259,7 @@ tasks:
   estimate_min: 9600
   estimate_basis: "todo-tier"
   issue: 191
+  pr: null
   internal: false
   milestone: null
   blocked_by: ["T-015"]
@@ -246,6 +267,7 @@ tasks:
   source: "TO-DO.md#headless-cli"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -260,6 +282,7 @@ tasks:
   estimate_min: 9600
   estimate_basis: "todo-tier"
   issue: 192
+  pr: null
   internal: false
   milestone: null
   blocked_by: ["T-015", "T-004"]
@@ -267,6 +290,7 @@ tasks:
   source: "TO-DO.md#rule-validation-engine"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -281,6 +305,7 @@ tasks:
   estimate_min: 9600
   estimate_basis: "todo-tier"
   issue: 193
+  pr: null
   internal: false
   milestone: null
   blocked_by: ["T-004", "T-012"]
@@ -288,6 +313,7 @@ tasks:
   source: "TO-DO.md#preflight-intake-reports"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -302,6 +328,7 @@ tasks:
   estimate_min: 9600
   estimate_basis: "todo-tier"
   issue: 194
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -309,6 +336,7 @@ tasks:
   source: "TO-DO.md#plugin-system"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -323,6 +351,7 @@ tasks:
   estimate_min: 9600
   estimate_basis: "todo-tier"
   issue: 195
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -330,6 +359,7 @@ tasks:
   source: "TO-DO.md#licensing-the-strategic-blocker"
   time_source: null
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
   sessions: []
@@ -344,6 +374,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 180
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -351,6 +382,7 @@ tasks:
   source: "gh#180"
   time_source: "reconstructed"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-09-24T09:53:33Z"
   notes: ["2026-09-24T20:47:54Z · adopted at intake from GitHub (open)"]
   sessions:
@@ -371,6 +403,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 11
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -378,6 +411,7 @@ tasks:
   source: "gh#11"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-19T22:38:16Z"
   notes: ["2026-09-24T20:47:57Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -392,6 +426,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 6
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -399,6 +434,7 @@ tasks:
   source: "gh#6"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T16:56:21Z"
   notes: ["2026-09-24T20:48:00Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -413,6 +449,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 5
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -420,6 +457,7 @@ tasks:
   source: "gh#5"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T16:22:04Z"
   notes: ["2026-09-24T20:48:03Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -434,6 +472,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 4
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -441,6 +480,7 @@ tasks:
   source: "gh#4"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T16:18:36Z"
   notes: ["2026-09-24T20:48:05Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -455,6 +495,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 3
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -462,6 +503,7 @@ tasks:
   source: "gh#3"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T16:01:43Z"
   notes: ["2026-09-24T20:48:08Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -476,6 +518,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 2
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -483,6 +526,7 @@ tasks:
   source: "gh#2"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T10:10:23Z"
   notes: ["2026-09-24T20:48:10Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -497,6 +541,7 @@ tasks:
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 1
+  pr: null
   internal: false
   milestone: null
   blocked_by: []
@@ -504,6 +549,7 @@ tasks:
   source: "gh#1"
   time_source: "none"
   reporter: "qvesera"
+  assignee: "qvesera"
   created_at: "2026-07-14T06:55:35Z"
   notes: ["2026-09-24T20:48:12Z · adopted at intake from GitHub (closed)"]
   sessions: []
@@ -518,6 +564,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
+  pr: 197
   internal: true
   milestone: null
   blocked_by: []
@@ -525,6 +572,7 @@ tasks:
   source: "cli"
   time_source: "measured"
   reporter: null
+  assignee: "qvesera"
   created_at: "2026-09-24T21:25:47Z"
   notes: ["2026-09-24T21:25:47Z · hierarchy machinery per approved plan; organic only — no re-parenting of existing rows"]
   sessions:
@@ -535,4 +583,33 @@ tasks:
     proof: ["fc0d032"]
     effort: {commits: 1, files: 6, insertions: 551, deletions: 14}
   spent_min: 12
+  session_count: 1
+- id: "T-025"
+  title: "PR metadata: labels, milestone, assignee, size, project item on every PR (pr-metadata verb + CI job + docs)"
+  status: "in-progress"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "cli"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-24T21:47:09Z"
+  notes: ["2026-09-24T21:47:09Z · plan-locked: assignees + size:* labels + project; gh scope for projects still missing"]
+  sessions:
+  - start: "2026-09-24T21:47:09Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
   session_count: 1

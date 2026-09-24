@@ -1,0 +1,40 @@
+name: PR Metadata
+# Applies the ledger's derived labels, milestone, assignee (and the project
+# item when a board number + token are configured) to every PR, so a PR never
+# lands bare. Procedure: .agents/skills/pr/SKILL.md — section 0 of
+# .clinerules/pr-dev-checks.md requires it before requesting review.
+#
+# Only runs for PRs targeting main/dev/release/prod (same trigger scope as CI):
+# a stacked PR gets its metadata when it retargets, or run it locally first:
+#   python3 scripts/tasks.py pr-metadata <N>
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Labels, milestone and assignee from the task rows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped
+        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write
+
+      # Project board (needs a PAT with the `project` scope AND a board number
+      # in scripts/tasks.py / on the command line). Without both, the step above
+      # prints `project: skipped` and this stays commented out.
+      # - name: Add to the project board and sync Status
+      #   env:
+      #     GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+      #   run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --project <N>

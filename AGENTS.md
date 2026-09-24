@@ -315,8 +315,12 @@ the timed session (see the workflow's Steps 2/4/6).
 2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes) to the Unreleased section via `python3 scripts/changelog.py add <group> "..."`. The changelog must be updated before committing.
 3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog (verify with `python3 scripts/changelog.py validate`).
 4. **Commit changes**: Meaningful commit message (conventional commits)
-5. **PUSH TO REMOTE**: This is MANDATORY
-6. **Verify**: All changes committed AND pushed
+5. **PR metadata**: `python3 scripts/tasks.py pr-metadata <PR#> --dry-run` then
+   `--apply` — labels (`status:*`, type, `category:*`, `size:*`), milestone,
+   assignee (+ project item when the board scope is configured). Never raise a
+   bare PR. Procedure: `.agents/skills/pr/SKILL.md`.
+6. **PUSH TO REMOTE**: This is MANDATORY
+7. **Verify**: All changes committed AND pushed
 
 **CRITICAL RULES:**
 
