@@ -26,6 +26,20 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: python3 scripts/decisions.py validate
+      - run: python3 scripts/tasks.py validate
+
+  # Task-tracking gate: every commit names a tracked task, and that task is in
+  # review/done with recorded time. Full history so the base..HEAD range exists.
+  tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ledger is canonical and internally consistent
+        run: python3 scripts/tasks.py validate
+      - name: Every commit names a tracked task in review/done
+        run: python3 scripts/tasks.py validate-commits --base origin/${{ github.base_ref }}
 
   typecheck:
     runs-on: ubuntu-latest
