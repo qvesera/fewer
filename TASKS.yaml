@@ -617,5 +617,11 @@ tasks:
     note: "CI workflow verified live on #198 (bot labelled it from scratch); trigger scope corrected in workflow comment, pr skill and PR body"
     proof: ["65b0e18", "#198"]
     effort: {commits: 1, files: 2, insertions: 12, deletions: 7}
-  spent_min: 16
-  session_count: 2
+  - start: "2026-09-24T22:18:36Z"
+    end: "2026-09-24T22:27:14Z"
+    measured: true
+    note: "board #1 wired: Status+Size sync, PROJECT_NUMBER=1, option-name fix; verified by GraphQL read-back (196/197 In review M, 198 In progress M); 52 checks"
+    proof: ["effc959", "#198"]
+    effort: {commits: 1, files: 2, insertions: 60, deletions: 25}
+  spent_min: 25
+  session_count: 3
