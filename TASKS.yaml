@@ -1,0 +1,488 @@
+# fewer task ledger — owned by scripts/tasks.py. Never edit by hand:
+# run a verb (python3 scripts/tasks.py -h) and `validate` to check.
+version: 1
+tasks:
+- id: "T-001"
+  title: "Task tracking: ledger, validate/validate-commits gates, commit hook, rule + skill, TO-DO/GitHub bootstrap"
+  status: "review"
+  type: "infra"
+  area: "other"
+  tier: null
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  source: "cli"
+  time_source: "measured"
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: ["2026-09-24T20:47:11Z · build of TASKS.yaml + scripts/tasks.py + enforcement (this PR)"]
+  sessions:
+  - start: "2026-09-24T20:47:11Z"
+    end: "2026-09-24T20:58:57Z"
+    measured: true
+    note: "sessions 1: engine + bootstrap + docs written; no commits yet"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-09-24T20:59:07Z"
+    end: "2026-09-24T21:04:26Z"
+    measured: true
+    note: "engine + selftest + enforcement docs + bootstrap; hook verified (refuse + stamp), prepare verified on bun install"
+    proof: ["14038c7"]
+    effort: {commits: 1, files: 8, insertions: 2959, deletions: 0}
+  - start: "2026-09-24T21:12:10Z"
+    end: "2026-09-24T21:22:47Z"
+    measured: true
+    note: "gate fix: tip-based status check + ledger-only commit exemption + dirty-ledger WARN, 28 selftest checks"
+    proof: ["52dce9e", "#196"]
+    effort: {commits: 1, files: 4, insertions: 97, deletions: 14}
+  spent_min: 28
+  session_count: 3
+- id: "T-002"
+  title: "Back-export the three posts that exist only in the database (`v031-performance`, `v040-accounts`, `v050-remote-sources`) into `content/blog/`, so `scripts/gen-seed-content.py` covers every row in `content_pages`."
+  status: "triaged"
+  type: "docs"
+  area: "blog"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "todo-item"
+  issue: 182
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#back-export-the-three-posts-that-exist-only-in-the-database-v031-performance-v040-accounts-v050-remote-sources-into-content-blog-so-scripts-gen-seed-content-py-covers-every-row-in-content-pages"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-003"
+  title: "DCC extension taxonomy"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "todo-tier"
+  issue: 183
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#dcc-extension-taxonomy"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-004"
+  title: "Frame-sequence collapsing + naming parse"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "todo-tier"
+  issue: 184
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#frame-sequence-collapsing-naming-parse"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-005"
+  title: "Studio-aware import profiles"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "todo-tier"
+  issue: 185
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#studio-aware-import-profiles"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-006"
+  title: "Symlink support"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "todo-tier"
+  issue: 186
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#symlink-support"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-007"
+  title: "Diff v2 with change detection"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "todo-tier"
+  issue: 187
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#diff-v2-with-change-detection"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-008"
+  title: "Raise depth cap + add node budget"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "todo-tier"
+  issue: 188
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#raise-depth-cap-add-node-budget"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-009"
+  title: "Portable snapshot files"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "todo-tier"
+  issue: 189
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#portable-snapshot-files"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-010"
+  title: "Multi-root / compare two trees"
+  status: "triaged"
+  type: "feat"
+  area: "layout"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "todo-tier"
+  issue: 190
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#multi-root-compare-two-trees"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-011"
+  title: "Headless CLI"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 2
+  estimate_min: 9600
+  estimate_basis: "todo-tier"
+  issue: 191
+  internal: false
+  milestone: null
+  blocked_by: ["T-015"]
+  source: "TO-DO.md#headless-cli"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-012"
+  title: "Rule / validation engine"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 2
+  estimate_min: 9600
+  estimate_basis: "todo-tier"
+  issue: 192
+  internal: false
+  milestone: null
+  blocked_by: ["T-015", "T-004"]
+  source: "TO-DO.md#rule-validation-engine"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-013"
+  title: "Preflight / intake reports"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 2
+  estimate_min: 9600
+  estimate_basis: "todo-tier"
+  issue: 193
+  internal: false
+  milestone: null
+  blocked_by: ["T-004", "T-012"]
+  source: "TO-DO.md#preflight-intake-reports"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-014"
+  title: "Plugin system"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 2
+  estimate_min: 9600
+  estimate_basis: "todo-tier"
+  issue: 194
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#plugin-system"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-015"
+  title: "Licensing — the strategic blocker"
+  status: "triaged"
+  type: "task"
+  area: "other"
+  tier: 2
+  estimate_min: 9600
+  estimate_basis: "todo-tier"
+  issue: 195
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "TO-DO.md#licensing-the-strategic-blocker"
+  time_source: null
+  reporter: null
+  created_at: "2026-09-24T20:47:11Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-016"
+  title: "Can't deselect using Ctrl when selection is made through Shift select"
+  status: "review"
+  type: "fix"
+  area: "file-ops"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 180
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#180"
+  time_source: "reconstructed"
+  reporter: "qvesera"
+  created_at: "2026-09-24T09:53:33Z"
+  notes: ["2026-09-24T20:47:54Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-24T18:26:00Z"
+    end: "2026-09-24T18:50:48Z"
+    measured: false
+    note: "reconstructed: bounded by the label event at 18:26:00Z and the PR #181 cross-reference at 18:50:48Z (issue timeline); the pre-triage investigation has no timestamp, so only this window is claimed"
+    proof: ["9cb0075", "#181"]
+    effort: {commits: 1, files: 3, insertions: 84, deletions: 0}
+  spent_min: 25
+  session_count: 1
+- id: "T-017"
+  title: "Custom theme is not working"
+  status: "done"
+  type: "task"
+  area: "theme"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 11
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#11"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-19T22:38:16Z"
+  notes: ["2026-09-24T20:47:57Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-018"
+  title: "Importing incorrectly when import files as nodes is disabled"
+  status: "done"
+  type: "fix"
+  area: "import"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 6
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#6"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T16:56:21Z"
+  notes: ["2026-09-24T20:48:00Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-019"
+  title: "Hiding files hides items in the folder"
+  status: "done"
+  type: "fix"
+  area: "file-ops"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 5
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#5"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T16:22:04Z"
+  notes: ["2026-09-24T20:48:03Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-020"
+  title: "Hiding and deleting selects all the remaing nodes"
+  status: "done"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 4
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#4"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T16:18:36Z"
+  notes: ["2026-09-24T20:48:05Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-021"
+  title: "Conflicting keyboard shortcuts"
+  status: "done"
+  type: "fix"
+  area: "keyboard"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 3
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#3"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T16:01:43Z"
+  notes: ["2026-09-24T20:48:08Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-022"
+  title: "not in alphabetical order"
+  status: "done"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 2
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#2"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T10:10:23Z"
+  notes: ["2026-09-24T20:48:10Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-023"
+  title: "Can't report bugs on mobile"
+  status: "done"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 1
+  internal: false
+  milestone: null
+  blocked_by: []
+  source: "gh#1"
+  time_source: "none"
+  reporter: "qvesera"
+  created_at: "2026-07-14T06:55:35Z"
+  notes: ["2026-09-24T20:48:12Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0

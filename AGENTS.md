@@ -2,6 +2,23 @@
 
 This project uses **Next.js 16 + React Flow v12** for an interactive graph-based directory visualizer. Run `bun run dev` to get started.
 
+## Task Tracking — read before any work
+
+No work starts untracked. Full rule: `.clinerules/task-tracking.md`; verb
+reference: `.agents/skills/tasks/SKILL.md` (`bun run task:status` first).
+
+1. `bun run task:status` — resumes/closes an open session and lists untracked
+   GitHub issues (adopt them: `python3 scripts/tasks.py intake`).
+2. Find it (`bun run task:find "<words>"`) or create + triage it
+   (`bun run task:add …` → `bun run task:triage <T-###> …`, status `triaged`
+   before any branch or edit exists).
+3. `bun run task:start <T-###>` opens the timed session. Saying **"track
+   bug …"** runs the whole find-or-create-issue-and-start flow in one step.
+4. Every commit carries a `Task: T-###` trailer (the installed hook stamps it
+   and refuses commits while no session is open).
+5. `bun run task:stop <T-###> --note "…"` closes the session; `bun run
+   task:validate` must pass before push, and `task:report` totals go in the PR.
+
 ## Quick Reference
 
 ```bash
@@ -271,10 +288,24 @@ python3 scripts/migrations.py baseline --list <list-output>     # drift gate
 bun run migrations:verify                                       # wrapper
 ```
 
+## Issue Triage & Delivery
+
+Working a GitHub issue (survey open issues → ask which one first → labels +
+milestone → linked branch → fix → PR): follow
+`.agents/workflows/issue-triage.md`. One issue = one branch = one PR, and one
+ledger row per issue: `python3 scripts/tasks.py attach <N>` claims it and opens
+the timed session (see the workflow's Steps 2/4/6).
+
 ## Landing the Plane (Session Completion)
 
 **MANDATORY WORKFLOW:**
 
+0. **Close the task first**: `bun run task:stop <T-###> --note "…"` records the
+   session's time + effort (harvested from git) and `bun run task:validate`
+   must pass — CI fails a PR whose commits lack a `Task: T-###` trailer or
+   whose task is not in `review`/`done` with recorded time **at HEAD**. Commit
+   the ledger close-out too (`git add TASKS.yaml && git commit …`): a commit
+   staging only `TASKS.yaml` needs no open session and gets no trailer.
 1. **Run quality gates**: `bun run lint && bun run build`
 2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes) to the Unreleased section via `python3 scripts/changelog.py add <group> "..."`. The changelog must be updated before committing.
 3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog (verify with `python3 scripts/changelog.py validate`).
@@ -285,6 +316,7 @@ bun run migrations:verify                                       # wrapper
 **CRITICAL RULES:**
 
 - Work is NOT complete until `git push` succeeds
+- Work is NOT tracked until `task:status` shows no open session
 - NEVER push to release/prod
 - NEVER stop before pushing
 - NEVER say "ready to push when you are": YOU must push
