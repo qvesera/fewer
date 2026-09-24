@@ -66,11 +66,16 @@ describe("galleryProps", () => {
       in_gallery: true,
       gallery_title: "T",
       gallery_description: "d".repeat(500),
+      author_name: null,
+      author_username: null,
+      gallery_category: null,
+      gallery_categories: null,
+      gallery_preview: null,
     });
   });
 
   it("stays out for guests, invite shares and missing opt-in", () => {
-    const out = { in_gallery: false, gallery_title: null, gallery_description: null };
+    const out = { in_gallery: false, gallery_title: null, gallery_description: null, author_name: null, author_username: null, gallery_category: null, gallery_categories: null, gallery_preview: null };
     expect(galleryProps(body, "public", null)).toEqual(out);
     expect(galleryProps(body, "invite", "u1")).toEqual(out);
     expect(galleryProps({}, "public", "u1")).toEqual(out);
@@ -97,7 +102,7 @@ describe("shouldSendInvites", () => {
 });
 
 describe("shareResponseBody", () => {
-  const gallery = { in_gallery: true, gallery_title: "T", gallery_description: null };
+  const gallery = { in_gallery: true, gallery_title: "T", gallery_description: null, author_name: null, author_username: null, gallery_category: null, gallery_categories: null, gallery_preview: null };
 
   it("a reused share surfaces the stored gallery props", () => {
     expect(shareResponseBody("id1", "public", ["a@b.c"], gallery, true)).toEqual({
@@ -107,6 +112,11 @@ describe("shareResponseBody", () => {
       in_gallery: true,
       gallery_title: "T",
       gallery_description: null,
+      author_name: null,
+      author_username: null,
+      gallery_category: null,
+      gallery_categories: null,
+      gallery_preview: null,
     });
   });
 

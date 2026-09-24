@@ -15,6 +15,11 @@ export interface ShareGalleryProps {
   in_gallery: boolean;
   gallery_title: string | null;
   gallery_description: string | null;
+  author_name: string | null;
+  author_username: string | null;
+  gallery_category: string | null;
+  gallery_categories: Record<string, number> | null;
+  gallery_preview: { root: string; children: string[]; nodeCount: number } | null;
 }
 
 /** Count nodes in a graph payload (0 when the shape is unexpected). */
@@ -61,8 +66,13 @@ export function galleryProps(
         in_gallery: true,
         gallery_title: text(b.gallery_title, 200),
         gallery_description: text(b.gallery_description, 500),
+        author_name: null,
+        author_username: null,
+        gallery_category: null,
+        gallery_categories: null,
+        gallery_preview: null,
       }
-    : { in_gallery: false, gallery_title: null, gallery_description: null };
+    : { in_gallery: false, gallery_title: null, gallery_description: null, author_name: null, author_username: null, gallery_category: null, gallery_categories: null, gallery_preview: null };
 }
 
 /** Graph name and inviter fallbacks for the invite email subject/body.

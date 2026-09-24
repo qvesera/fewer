@@ -20,15 +20,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Math.max(Number(searchParams.get("limit")) || GALLERY_PAGE_SIZE, 1), 60);
   const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
+  const category = (searchParams.get("category") ?? "").trim();
+  // ponytail: category is validated against a closed allowlist in the query
+  const VALID_CATS = new Set(["code","config","image","document","archive","data","media","binary","text"]);
+  const catFilter = category && VALID_CATS.has(category) ? category : null;
 
   const supabase = createClient(url, key);
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("shared_graphs")
-    .select("id, gallery_title, gallery_description, node_count, created_at", { count: "exact" })
+    .select(
+      "id, gallery_title, gallery_description, node_count, created_at, author_name, author_username, gallery_category, gallery_categories, gallery_preview",
+      { count: "exact" },
+    )
     .eq("in_gallery", true)
     .eq("access", "public")
-    .is("expires_at", null)
+    .is("expires_at", null);
+
+  if (catFilter) query = query.eq("gallery_category", catFilter);
+
+  const { data, error, count } = await query
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -42,6 +53,11 @@ export async function GET(request: Request) {
     description: g.gallery_description ?? "",
     node_count: g.node_count ?? 0,
     created_at: g.created_at,
+    author_name: g.author_name ?? "",
+    author_username: g.author_username ?? "",
+    gallery_category: g.gallery_category ?? null,
+    gallery_categories: g.gallery_categories ?? null,
+    gallery_preview: g.gallery_preview ?? null,
   }));
   const total = count ?? 0;
   const hasMore = offset + items.length < total;

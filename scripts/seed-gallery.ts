@@ -20,6 +20,7 @@ import { TEMPLATE_GRAPHS, templateGraphId } from "../src/lib/fewer/templates";
 import { THEME_PRESETS } from "../src/lib/fewer/themePresets";
 import { treeToGraph } from "../src/lib/fewer/treeToGraph";
 import { layoutGraphSync } from "../src/lib/fewer/layout";
+import { deriveCardMeta } from "../src/lib/fewer/galleryCategories";
 
 // ── env guard ──────────────────────────────────────────────────────────────
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -94,6 +95,7 @@ async function main() {
       const rows = TEMPLATE_GRAPHS.map((t, i) => {
         const { data, nodeCount } = buildGraphPayload(t);
         const ts = new Date(Date.now() - i * 60_000).toISOString(); // stagger by 1 min each
+        const meta = deriveCardMeta(data.nodes as never, { first_name: "fewer", username: "fewer" });
         return {
           id: templateGraphId(t.slug),
           data,
@@ -106,6 +108,8 @@ async function main() {
           gallery_description: t.description,
           expires_at: null,
           created_at: ts,
+          ...meta,
+          gallery_category: t.galleryCategory,
         };
       });
 

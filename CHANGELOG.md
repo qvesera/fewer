@@ -121,6 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar sections can be reordered by dragging the section grip; Alt+ArrowUp/Down moves the focused section
 - 8 curated gallery starter themes (Terminal Amber, Blueprint, Ink & Clay, Neon Grid, Mono Print, Canopy, Aurora Depth, Slate Highlighter) added to the built-in preset dropdown
 - 8 curated starter graph templates seeded into the community gallery via the new gallery:seed script
+- Gallery graph cards now show category chips (derived from file types), a monospace preview block (root + first children), and author attribution (name and username)
+- Gallery graph tab has category filter chips (All, Code, Config, Docs, Data, Media, Images) that filter the listing server-side
 
 ### Performance
 

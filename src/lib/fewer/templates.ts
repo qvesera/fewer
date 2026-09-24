@@ -14,6 +14,8 @@ export interface GraphTemplate {
   title: string;
   description: string;
   category: string;
+  /** FileCategory value used as gallery_category for this template. */
+  galleryCategory: string;
   direction: LayoutDirection;
   edgeStyle: EdgeStyle;
   edgeStroke: EdgeStrokeStyle;
@@ -46,6 +48,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "App Router project with API routes, components, billing, and docs. ~34 cards. Best viewed LR · angled edges · Blueprint theme.",
     category: "Frontend",
+    galleryCategory: "code",
     direction: "LR",
     edgeStyle: "angled",
     edgeStroke: "solid",
@@ -89,6 +92,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Multi-app workspace with shared packages and CI. ~47 cards. Best viewed TB · straight edges · Neon Grid theme.",
     category: "Repo & Infra",
+    galleryCategory: "config",
     direction: "TB",
     edgeStyle: "straight",
     edgeStroke: "solid",
@@ -143,6 +147,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Logos, fonts, illustrations, and export formats. ~38 cards. Best viewed TB · curved edges · Ink & Clay theme.",
     category: "Media",
+    galleryCategory: "image",
     direction: "TB",
     edgeStyle: "curved",
     edgeStroke: "solid",
@@ -195,6 +200,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Manuscript, figures, data, and notebooks for reproducibility. ~26 cards. Best viewed LR · curved edges · Mono Print theme.",
     category: "Data",
+    galleryCategory: "data",
     direction: "LR",
     edgeStyle: "curved",
     edgeStroke: "solid",
@@ -243,6 +249,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Movies, TV series, music, and subtitles. ~54 cards. Best viewed TB · curved edges · Canopy theme. Great for auto-hide threshold demo.",
     category: "Media",
+    galleryCategory: "media",
     direction: "TB",
     edgeStyle: "curved",
     edgeStroke: "solid",
@@ -331,6 +338,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Binary, licenses, completions, and checksums for acme-cli v1.4.0. ~20 cards. Best viewed LR · angled edges · Terminal Amber theme.",
     category: "Ops",
+    galleryCategory: "config",
     direction: "LR",
     edgeStyle: "angled",
     edgeStroke: "solid",
@@ -369,6 +377,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Multi-language docs with snippets and MDX. ~32 cards. Best viewed LR · dotted curved edges · Slate Highlighter theme.",
     category: "Docs",
+    galleryCategory: "document",
     direction: "LR",
     edgeStyle: "curved",
     edgeStroke: "dotted",
@@ -424,6 +433,7 @@ export const TEMPLATE_GRAPHS: GraphTemplate[] = [
     description:
       "Source, configs, experiment runs, and notebooks for model training. ~36 cards. Best viewed TB · dashed curved edges · Aurora Depth theme.",
     category: "Data",
+    galleryCategory: "data",
     direction: "TB",
     edgeStyle: "curved",
     edgeStroke: "dashed",
