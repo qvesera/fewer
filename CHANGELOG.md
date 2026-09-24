@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar section reorder now animates with a smooth ease-out curve (180ms, matches section expand/collapse motion)
 - Unified email shell for all outbound emails (auth, digest, invite) — shared dark design, fewer.directory wordmark, orange CTA, table-based Outlook-compatible layout. Supabase auth templates generated from the same source to prevent drift. New emailTemplate.ts + gen-email-templates.ts + tests.
 - Gallery publishing no longer requires a profile name/username to toggle on — entries without a profile show as Anonymous with a non-blocking hint in the share dialog
+- Docs, blog, 404 and password-reset pages now share the site header and footer from the main page (Features / Gallery / Privacy / Docs / Blog + Launch the app) — DocsLayout dropped its own minimal navbar so every non-app page has the same navigation; the app at /app keeps its own GlobalNavbar
 
 ### Fixed
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Home, FileText } from "lucide-react";
+import { BookOpen, FileText, ArrowLeft } from "lucide-react";
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
@@ -11,46 +12,41 @@ interface DocsLayoutProps {
   backLabel?: string;
 }
 
+/**
+ * Shell for docs + blog pages. Renders the site's MarketingLayout header/footer
+ * (same nav as the main page) and keeps only the prose styling + a slim
+ * context row above the content — its own navbar/footer are gone so every
+ * non-app page shares one header.
+ */
 export function DocsLayout({ children, type, title, backHref, backLabel }: DocsLayoutProps) {
   const accentColor = type === "blog" ? "var(--fewer-file-icon)" : "var(--fewer-folder-icon)";
   const iconColor = type === "blog" ? "text-fewer-file-icon" : "text-fewer-folder-icon";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Navbar matching app style */}
-      <div className="relative z-10 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className={`flex items-center gap-2 ${iconColor}`}>
-              <Home className="h-4 w-4" />
-              <span className="text-sm font-medium">fewer</span>
-            </Link>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              {type === "docs" ? (
-                <BookOpen className={`h-4 w-4 ${iconColor}`} />
-              ) : (
-                <FileText className={`h-4 w-4 ${iconColor}`} />
-              )}
-              <span className="font-semibold text-foreground">{title}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {backHref && backLabel && (
-              <Link
-                href={backHref}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                ← {backLabel}
-              </Link>
+    <MarketingLayout>
+      <div className="mx-auto max-w-4xl px-6 py-10">
+        {/* Context row: page type + title + optional back link */}
+        <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            {type === "docs" ? (
+              <BookOpen className={`h-4 w-4 shrink-0 ${iconColor}`} />
+            ) : (
+              <FileText className={`h-4 w-4 shrink-0 ${iconColor}`} />
             )}
+            <span className={`truncate text-sm font-semibold ${iconColor}`}>{title}</span>
           </div>
+          {backHref && backLabel && (
+            <Link
+              href={backHref}
+              className="inline-flex shrink-0 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {backLabel}
+            </Link>
+          )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="relative z-10 mx-auto max-w-4xl px-6 py-12">
-        <div className="prose prose-slate dark:prose-invert max-w-none">
+        {/* Content */}
+        <div className="prose prose-slate dark:prose-invert max-w-none pt-8">
           {children}
         </div>
         <style jsx global>{`
@@ -87,29 +83,6 @@ export function DocsLayout({ children, type, title, backHref, backLabel }: DocsL
           }
         `}</style>
       </div>
-
-      {/* Footer with legal links */}
-      <footer className="relative z-10 border-t border-border/40 bg-background/95">
-        <div className="mx-auto max-w-4xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} fewer ·{" "}
-            <Link href="/" className="hover:text-foreground">
-              fewer.directory
-            </Link>
-          </p>
-          <nav className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link href="/docs/privacy" className="hover:text-foreground">
-              Privacy Policy
-            </Link>
-            <Link href="/docs/terms" className="hover:text-foreground">
-              Terms of Use
-            </Link>
-            <Link href="/docs" className="hover:text-foreground">
-              Docs
-            </Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
+    </MarketingLayout>
   );
 }
