@@ -3,11 +3,6 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Aurora Haze background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="gm-canvas-aurora" />
-        <div className="gm-canvas-aurora-3" />
-      </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 py-12 text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-primary">

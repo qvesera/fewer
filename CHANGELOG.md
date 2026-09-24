@@ -116,6 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The active graph view is marked in split layouts: an accent inset border plus a header dot on the pane that owns clicks, keys and selection, shown only when more than one graph view is open
 - Signing up with GitHub or Google now fills your profile's first and last name from the provider's display name (editable in Settings → Account)
 - Sidebar sections can be reordered by dragging the section grip; Alt+ArrowUp/Down moves the focused section
+- 8 curated gallery starter themes (Terminal Amber, Blueprint, Ink & Clay, Neon Grid, Mono Print, Canopy, Aurora Depth, Slate Highlighter) added to the built-in preset dropdown
+- 8 curated starter graph templates seeded into the community gallery via the new gallery:seed script
 
 ### Performance
 
