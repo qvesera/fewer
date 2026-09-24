@@ -17,12 +17,6 @@ export function DocsLayout({ children, type, title, backHref, backLabel }: DocsL
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Aurora Haze background */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="gm-canvas-aurora" />
-        <div className="gm-canvas-aurora-3" />
-      </div>
-
       {/* Navbar matching app style */}
       <div className="relative z-10 border-b border-border/40 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">

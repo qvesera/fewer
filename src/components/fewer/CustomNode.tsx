@@ -1141,7 +1141,6 @@ if (isCollapsed) {
         className={cn(
           "group relative flex flex-col w-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
-          data.isRoot && "gm-aurora gm-aurora-brand",
           data.highlighted && "gm-highlight-ring",
           isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
