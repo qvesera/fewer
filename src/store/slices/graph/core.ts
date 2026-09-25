@@ -23,6 +23,9 @@ export type CoreSliceCreator = StateCreator<GraphState, [], [], {
   triggerHiddenPanelExpand: GraphState["triggerHiddenPanelExpand"];
   triggerSavedGraphsExpand: GraphState["triggerSavedGraphsExpand"];
   relayout: GraphState["relayout"];
+  /** Relayout only when `autoRelayout` is on. The single gate for the implicit
+   *  re-flows that hide/show and folder-collapse actions used to run. */
+  relayoutIfAuto: GraphState["relayoutIfAuto"];
   organize: GraphState["organize"];
   organizeAll: GraphState["organizeAll"];
   applySearch: GraphState["applySearch"];
@@ -88,6 +91,10 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
     const searched = applySearchHighlight(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });
+  },
+  relayoutIfAuto: () => {
+    if (!get().autoRelayout) return;
+    get().relayout();
   },
   organize: (leafId) => {
     const s = get();

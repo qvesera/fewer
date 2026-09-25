@@ -697,27 +697,39 @@ tasks:
   session_count: 0
 - id: "T-028"
   title: "Auto-relayout fires after many actions - add \"Disable auto relayout\" toggle in advanced settings"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "layout"
   tier: null
   estimate_min: 120
   estimate_basis: "cli"
   issue: 203
-  pr: null
+  pr: 224
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:14Z"
   notes: ["2026-09-25T12:38:20Z · reporter: relayout happens automatically after a lot of actions; wants an off switch in advanced settings"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-09-25T15:23:04Z"
+    end: "2026-09-25T15:28:33Z"
+    measured: true
+    note: "autoRelayout gate (relayoutIfAuto) on the 9 implicit re-flow call sites (show/reveal/bulk in hideShow + folderSlice); Organize and Sort deliberately ungated. Persisted via UserSettings (4 touchpoints) + Advanced>Layout Policy Switch. 8 new store tests; full suite 163, e2e 12."
+    proof: ["459acb5"]
+    effort: {commits: 1, files: 10, insertions: 206, deletions: 13}
+  - start: "2026-09-25T15:45:22Z"
+    end: "2026-09-25T15:45:27Z"
+    measured: true
+    note: "follow-up: CI test job failed on the first push. The Advanced tab now has two switches, and the Scroll-to-Zoom switch had no accessible name (its Label was not associated), so the test could only query 'the one switch'. Added aria-label + named queries, plus a component test for the new switch. components 165/165, src 1237."
+    proof: ["4759eb3", "#224"]
+    effort: {commits: 1, files: 3, insertions: 27, deletions: 4}
+  spent_min: 5
+  session_count: 2
 - id: "T-029"
   title: "Card dragged from parent handle is not repositioned by Organize"
   status: "done"

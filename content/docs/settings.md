@@ -40,6 +40,7 @@ Settings in Advanced:
 | **Node Width**       | Card width slider, 120–400px                   |
 | **Node Height**      | Card height slider, 40–300px                   |
 | **Crown Shyness**    | Branch-spacing intensity, 0–3 — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value — changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as it gets |
+| **Auto-relayout**    | On (default), showing, revealing or bulk-revealing cards re-flows the tree so the new cards find their slots. Turn it off to keep the current arrangement through those actions and re-flow when you choose. Hiding a card never moved anything on its own, and **Organize** and **Sort** always re-flow, whatever this is set to |
 
 ## Help
 

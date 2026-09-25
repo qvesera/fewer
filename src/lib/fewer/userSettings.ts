@@ -60,6 +60,8 @@ export interface UserSettings {
   sortKey: SortKey;
   /** Sibling sort direction. */
   sortDir: SortDir;
+  /** Let show/hide and folder-collapse re-run the layout (see layoutSlice). */
+  autoRelayout: boolean;
   // Display
   showMiniMap: boolean;
   miniMapPosition: string;
@@ -105,6 +107,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     nodeHeight: store.nodeHeight as number,
     sortKey: store.sortKey as SortKey,
     sortDir: store.sortDir as SortDir,
+    autoRelayout: store.autoRelayout as boolean,
     showMiniMap: store.showMiniMap as boolean,
     miniMapPosition: store.miniMapPosition as string,
     miniMapSize: store.miniMapSize as number,
@@ -212,6 +215,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
     nodeHeight: data.nodeHeight ?? s.nodeHeight,
     sortKey: data.sortKey ?? s.sortKey,
     sortDir: data.sortDir ?? s.sortDir,
+    autoRelayout: data.autoRelayout ?? s.autoRelayout,
     showMiniMap: data.showMiniMap ?? s.showMiniMap,
     miniMapPosition: data.miniMapPosition ?? s.miniMapPosition,
     miniMapSize: data.miniMapSize ?? s.miniMapSize,

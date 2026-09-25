@@ -130,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 8 curated starter graph templates seeded into the community gallery via the new gallery:seed script
 - Gallery graph cards now show category chips (derived from file types), a monospace preview block (root + first children), and author attribution (name and username)
 - Gallery graph tab has category filter chips (All, Code, Config, Docs, Data, Media, Images) that filter the listing server-side
+- Advanced settings gain an Auto-relayout switch (Settings, Advanced, Layout Policy). Off, showing, revealing or bulk-revealing cards no longer re-flows the tree, so a long editing session keeps the arrangement you set; Organize and Sort still re-flow, and hiding a card never moved anything on its own. The setting is persisted and synced with the rest of your preferences.
 
 ### Performance
 

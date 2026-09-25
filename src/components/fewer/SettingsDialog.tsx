@@ -1083,6 +1083,8 @@ function AdvancedTab() {
   const setAutoHideThreshold = useGraphStore((s) => s.setAutoHideThreshold);
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const setShynessScale = useGraphStore((s) => s.setShynessScale);
+  const autoRelayout = useGraphStore((s) => s.autoRelayout);
+  const setAutoRelayout = useGraphStore((s) => s.setAutoRelayout);
 
   // Crown-shyness slider: local value for live drag preview; the store commit
   // happens on drag release (or when a custom value is typed). No auto-relayout
@@ -1156,8 +1158,18 @@ function AdvancedTab() {
               aria-label="Crown shyness intensity"
             />
           </div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <Label className="text-xs font-medium text-foreground">Auto-relayout</Label>
+              <p className="text-[11px] text-muted-foreground/70">
+                Re-flow the tree when you hide or show cards and collapse folders. Turn this off to keep
+                the current arrangement through those actions, and re-flow when you choose.
+              </p>
+            </div>
+            <Switch checked={autoRelayout} onCheckedChange={setAutoRelayout} className="shrink-0" aria-label="Auto-relayout" />
+          </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Max Depth and Auto-hide apply immediately. Crown Shyness re-runs the layout as soon as you release the slider (or commit a typed value). Changing it clears the current view's manual card positions, since those were spaced for the old intensity.
+            Max Depth and Auto-hide apply immediately. Crown Shyness re-runs the layout as soon as you release the slider (or commit a typed value). Changing it clears the current view's manual card positions, since those were spaced for the old intensity. Organize and Sort always re-flow, whatever Auto-relayout is set to.
           </p>
         </div>
       )}
@@ -1175,6 +1187,7 @@ function AdvancedTab() {
             <Switch
               checked={scrollAction === "zoom"}
               onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+              aria-label="Scroll to Zoom"
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
