@@ -586,7 +586,7 @@ tasks:
   session_count: 1
 - id: "T-025"
   title: "PR metadata: labels, milestone, assignee, size, project item on every PR (pr-metadata verb + CI job + docs)"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "other"
   tier: null
@@ -624,10 +624,10 @@ tasks:
     proof: ["effc959", "#198"]
     effort: {commits: 1, files: 2, insertions: 60, deletions: 25}
   - start: "2026-09-24T22:36:54Z"
-    end: null
+    end: "2026-09-25T06:35:40Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 25
+    note: "rescued board wiring + reconcile merged-PR detection after #198 merged and its branch was deleted; 3 rows auto-closed, #180 closed with comment"
+    proof: ["b443fc7"]
+    effort: {commits: 1, files: 2, insertions: 27, deletions: 7}
+  spent_min: 504
   session_count: 4
