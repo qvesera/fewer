@@ -326,7 +326,7 @@ tasks:
   area: "other"
   tier: 2
   estimate_min: 9600
-  estimate_basis: "todo-tier"
+  estimate_basis: "cli"
   issue: 194
   pr: null
   internal: false
@@ -338,7 +338,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'plugin system for custom exporters and importers' is this row (Plugin system, #194). Scope note: the ask is narrower than node types - exporter/importer registration first."]
+  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'plugin system for custom exporters and importers' is this row (Plugin system, #194). Scope note: the ask is narrower than node types - exporter/importer registration first.", "2026-09-25T16:38:56Z · restored after the demote test (ready --demote) — milestone re-assigned, re-triaged"]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -1139,3 +1139,38 @@ tasks:
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   spent_min: 0
   session_count: 1
+- id: "T-046"
+  title: "Task workflow enforcement: readiness gate (start only from triaged, ready verb, validate fails on an unready row) and correct PR attachment on stop (pr_for_session + attach-pr)"
+  status: "review"
+  type: "infra"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 227
+  pr: 228
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T16:30:08Z"
+  notes: ["2026-09-25T16:30:13Z · from the backlog review: start did not require triaged, there was no readiness notion, and current_pr() attached whatever PR the checked-out branch resolved to (it attached a dev-to-main release PR to two unrelated rows)"]
+  sessions:
+  - start: "2026-09-25T16:31:30Z"
+    end: "2026-09-25T16:46:52Z"
+    measured: true
+    note: "readiness_issues() is the single gate behind start/ready/validate; ready --demote sends milestone-only rows to backlog; stop resolves the PR from the session's commits via pr_for_session and writes row.pr; attach-pr verb; 12 new selftest checks; rule/skill/AGENTS docs. Live demote verified on T-014 (milestone removed -> ready flagged it -> --demote moved it to backlog -> re-milestoned + re-triaged)."
+    proof: ["d082eed"]
+    effort: {commits: 1, files: 6, insertions: 407, deletions: 24}
+  - start: "2026-09-25T16:51:05Z"
+    end: "2026-09-25T16:51:10Z"
+    measured: true
+    note: "two defects found by using the gate on itself: (1) attach-pr's jq quoted .state so it never saw OPEN and skipped the status move, and its pr write was only saved inside the OPEN branch (lost on MERGED); (2) start refused a row in review, blocking the routine follow-up commit after CI feedback. review is now startable; 2 new selftest checks."
+    proof: ["b7434a8"]
+    effort: {commits: 1, files: 4, insertions: 44, deletions: 16}
+  spent_min: 15
+  session_count: 2
