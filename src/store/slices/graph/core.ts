@@ -24,6 +24,7 @@ export type CoreSliceCreator = StateCreator<GraphState, [], [], {
   triggerSavedGraphsExpand: GraphState["triggerSavedGraphsExpand"];
   relayout: GraphState["relayout"];
   organize: GraphState["organize"];
+  organizeAll: GraphState["organizeAll"];
   applySearch: GraphState["applySearch"];
   applyFolderRefresh: GraphState["applyFolderRefresh"];
 }>;
@@ -106,6 +107,19 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     } else {
       set({ graphVersion: get().graphVersion + 1 });
     }
+  },
+  /** Re-flow everything the user can see. `organize` stays per-view on
+   *  purpose (Crown Shyness is documented as clearing the current view's manual
+   *  card positions), but the Organize *action* — button, Alt+R, canvas context
+   *  menu — is a "re-flow the tree" command. Scoping it to the active leaf left
+   *  every other pane pinned to positions spaced for the old tree, so a card
+   *  dragged out of a parent in one view never moved in the other. */
+  organizeAll: () => {
+    const s = get();
+    for (const leafId of Object.keys(s.viewSettings)) {
+      if (s.viewSettings[leafId]?.positions) s.clearViewPositions(leafId);
+    }
+    s.relayout();
   },
   applySearch: () => {
     const { nodes, searchQuery, categoryFilter, graphVersion } = get();

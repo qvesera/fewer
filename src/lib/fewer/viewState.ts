@@ -165,22 +165,28 @@ export function resolveViewNodes(
   },
   layout: LayoutOptions = {},
 ): FewerNode[] {
-  // 1. Explicit per-view positions (set by drag) take priority.
+  // 1. Direction override OR diverged visible set: derive this view's own
+  //    layout. This runs BEFORE the per-view positions are applied, because a
+  //    view's map only ever holds the cards the user dragged in that view — a
+  //    card it has no entry for (created after the map was seeded by a drag,
+  //    or inherited when the graph was re-flowed) has to land in the layout its
+  //    siblings were placed by. Falling through to the shared store position
+  //    instead put a new card at a coordinate from the *global* layout, which
+  //    is how a card created in the primary view showed up in a dock pane in
+  //    the wrong slot — and why Sort/Organize read as inert on that pane.
+  const derives = needsLayoutDerivation(raw, global, global.fileIds);
+  const laid = derives ? layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout) : null;
+  // 2. Explicit per-view positions (set by drag) override, card by card. With
+  //    no derived layout the shared positions are already this view's layout,
+  //    so only the overridden cards are cloned and the rest keep identity.
   const positions = resolved.positions;
   if (positions) {
-    return visibleNodes.map((n) =>
+    return (laid ?? visibleNodes).map((n) =>
       positions[n.id] ? { ...n, position: positions[n.id] } : n,
     );
   }
-  // 2. Direction override OR diverged visible set: derive from layout engine.
-  // Layout policy is global (Crown Shyness intensity, sibling sort), so the
-  // caller passes it in — without it the engine falls back to its own defaults
-  // and the Settings sliders look inert on per-view canvases.
-  if (needsLayoutDerivation(raw, global, global.fileIds)) {
-    return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
-  }
   // 3. No override, shared visible set: use shared (store) positions.
-  return visibleNodes;
+  return laid ?? visibleNodes;
 }
 
 // ── Resolution ──

@@ -113,6 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deep-link hash handling is now robust: handles hashchange events for same-document navigation, supports multiple sequential deep links in one session, and reports 'Unsupported link' for unknown hash prefixes instead of the misleading 'Could not decode the graph'
 - Gallery 'Open in app' links are held until sign-in succeeds — the app opens the sign-in dialog without applying the theme or loading the graph; the link is stored (sessionStorage, so it survives GitHub/Google sign-in) and replayed only after login, instead of applying the gallery theme to a signed-out visitor
 - Cards picked with a Shift+drag box select can be deselected again with Ctrl+click: React Flow's group-selection rectangle stays painted over the selected cards after the gesture and intercepted every click before it reached a card, so nothing inside the box could be deselected (or clicked at all) until you clicked empty canvas first. The rectangle is now click-through; dragging any selected card still moves the whole group.
+- Cards created after a view was first dragged now land in that view's own layout slot instead of at their shared store coordinate: a per-view position map only holds the cards the user dragged, so a card missing from it falls through to the global layout while its siblings were placed by the view's contour layout
+- Organize (button, Alt+R, canvas context menu) now re-flows every view that holds manual card positions, not only the active one, so a card moved or created in one pane no longer sits stale in the others
+- Sort by Name/Size/Type now re-flows a per-view canvas that holds manual card positions (sort re-derives the view's own layout, with dragged cards still winning)
 
 ### Added
 

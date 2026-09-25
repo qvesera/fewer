@@ -23,7 +23,7 @@ Right-click empty canvas space to open quick actions:
 
 - **Fit View**: zoom to show all nodes
 - **Select All**: select every visible node
-- **Organize**: re-run the tree layout to reflow the graph
+- **Organize**: re-run the tree layout to reflow the graph (every view, not just the active one)
 - **Zoom In / Zoom Out**
 - **Delete Connection**: removes the last-clicked edge
 - **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
@@ -230,6 +230,10 @@ The active view is marked with an accent inset border plus a dot in its header, 
 Image exports mirror the active view (see [Import & Export](/docs/import-export)); JSON, CSV, DOT, script and tree exports always cover the full graph.
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
+
+Organize (sidebar, **Alt+R**, or the canvas context menu) is the exception: it re-flows the whole graph, dropping the manual card positions of **every** view and re-running the layout, so a card that was moved or created in one pane never sits stale in another. Within a view, a card you dragged keeps its spot while every other card re-flows around it.
+
+Sort by Name/Size/Type is a lighter touch than Organize: it re-flows the layout in every view but keeps manual card positions, so a hand-placed card stays where you put it and its siblings re-order around it.
 
 Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Sidebar sections can be reordered by dragging the grip handle (⋮⋮) next to each section title — sections shift as you cross their midpoints, and Escape cancels. Dragging a section outside the sidebar docks it as a ~25% column (Pro only); the same dock preview band shows where the column will land. Keyboard: focus a section grip and press **Alt+↑/↓** to move it. Panel docking is a Pro feature; Tags requires Pro.
 

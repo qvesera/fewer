@@ -205,7 +205,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             onPick={(d) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { direction: d }); else setDirection(d); }}
             advancedModeEnabled={can("layoutOrientation", tier)}
           />
-          <Button size="sm" className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0" onClick={() => { useGraphStore.getState().organize(activeLeaf?.leafId ?? null); toast({ title: "Graph organized" }); }}>
+          <Button size="sm" className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0" onClick={() => { useGraphStore.getState().organizeAll(); toast({ title: "Graph organized" }); }}>
             <RefreshCw className="h-3.5 w-3.5 shrink-0 text" />
             <span className="truncate">Organize</span>
           </Button>

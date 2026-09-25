@@ -242,7 +242,7 @@ export function CanvasContextMenu({
         </button>
         <button
           onClick={() => {
-            useGraphStore.getState().organize(leafId ?? null);
+            useGraphStore.getState().organizeAll();
             toast({ title: "Graph organized" });
             close();
           }}

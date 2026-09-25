@@ -743,7 +743,7 @@ tasks:
   session_count: 0
 - id: "T-030"
   title: "New card created in primary view appears in secondary leaf at wrong position"
-  status: "triaged"
+  status: "in-progress"
   type: "fix"
   area: "layout"
   tier: null
@@ -761,9 +761,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:14Z"
   notes: ["2026-09-25T12:38:20Z · reporter marked it acceptable - low severity; the dock pane derives its own layout so its positions do not match the main graph"]
-  sessions: []
+  sessions:
+  - start: "2026-09-25T14:57:56Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-031"
   title: "Remove the AI-vibe glow across all bundled designs"
   status: "triaged"
@@ -1083,6 +1089,29 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:17Z"
   notes: ["2026-09-25T12:38:21Z · come up with templates and designs for the gallery plus an initial startup setting for new users"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-045"
+  title: "Sort by Name/Size/Type does not re-flow a per-view canvas (dock pane keeps per-view positions, which outrank the layout engine)"
+  status: "triaged"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 221
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T14:57:04Z"
+  notes: ["2026-09-25T14:57:10Z · found while planning the Organize fix: setSortKey/setSortDir call relayout(), which per-view positions outrank (layoutSlice.ts:204-206) - so sort looks inert on a dock pane. Fix folds into the T-030 root-cause PR."]
   sessions: []
   spent_min: 0
   session_count: 0
