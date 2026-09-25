@@ -113,7 +113,7 @@ function LayoutSection() {
         size="sm"
         className="w-full gap-2 border-border/60 text-xs font-semibold min-w-0"
         onClick={() => {
-          useGraphStore.getState().organize(activeLeaf?.leafId ?? null);
+          useGraphStore.getState().organizeAll();
         }}
       >
         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
