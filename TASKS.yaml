@@ -629,5 +629,11 @@ tasks:
     note: "rescued board wiring + reconcile merged-PR detection after #198 merged and its branch was deleted; 3 rows auto-closed, #180 closed with comment"
     proof: ["b443fc7"]
     effort: {commits: 1, files: 2, insertions: 27, deletions: 7}
+  - start: "2026-09-25T07:46:08Z"
+    end: "2026-09-25T07:46:19Z"
+    measured: true
+    note: "CI board step enabled: PROJECTS_TOKEN (PAT, scope project) added by user; pr-metadata job now runs labels/milestone/assignee with GITHUB_TOKEN then board item+Status+Size with the PAT"
+    proof: ["c089fff", "#200"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 7}
   spent_min: 504
-  session_count: 4
+  session_count: 5
