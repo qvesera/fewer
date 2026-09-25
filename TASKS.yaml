@@ -603,7 +603,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T21:47:09Z"
-  notes: ["2026-09-24T21:47:09Z · plan-locked: assignees + size:* labels + project; gh scope for projects still missing"]
+  notes: ["2026-09-24T21:47:09Z · plan-locked: assignees + size:* labels + project; gh scope for projects still missing", "2026-09-25T06:36:51Z · 479m session spans a work break (idle time included) — treat the effort (1 commit / 2 files) and the per-commit stop timestamps as the real signal; future sessions: stop when you stop working"]
   sessions:
   - start: "2026-09-24T21:47:09Z"
     end: "2026-09-24T22:02:32Z"
