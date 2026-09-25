@@ -1810,6 +1810,20 @@ def _linked_prs(number: int) -> list[dict[str, Any]]:
 def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
     plan = []
     for row in ledger["tasks"]:
+        # An open session means the work is live — never auto-close it, even if
+        # the PR it references has merged (it may be carried into a follow-up).
+        if any(not s.get("end") for s in row.get("sessions") or []):
+            continue
+        pr_no = row.get("pr")
+        if pr_no and row["status"] in ("review", "in-progress"):
+            try:
+                pr_state = gh("pr", "view", str(pr_no), "--json", "state",
+                              "--jq", ".state", check=False).strip()
+            except (SystemExit, FileNotFoundError):
+                pr_state = ""
+            if pr_state == "MERGED":
+                plan.append((row, "done", f"PR #{pr_no} merged"))
+                continue
         number = row.get("issue")
         if not number:
             continue
@@ -2040,8 +2054,8 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         if pr_no is not None and not isinstance(pr_no, int):
             fail(f"{rid}: pr must be an integer or null, got {pr_no!r}")
         elif pr_no is not None and row.get("status") not in ("review", "done"):
-            warn(f"{rid}: PR #{pr_no} is open but status={row.get('status')} "
-                 f"(stop moves it to review)")
+            warn(f"{rid}: references PR #{pr_no} but status={row.get('status')} "
+                 f"(stop moves it to review; reconcile closes it once the PR merges)")
         if not isinstance(row.get("notes"), list):
             fail(f"{rid}: notes must be a list")
 

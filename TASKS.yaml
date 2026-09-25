@@ -4,7 +4,7 @@ version: 1
 tasks:
 - id: "T-001"
   title: "Task tracking: ledger, validate/validate-commits gates, commit hook, rule + skill, TO-DO/GitHub bootstrap"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "other"
   tier: null
@@ -367,7 +367,7 @@ tasks:
   session_count: 0
 - id: "T-016"
   title: "Can't deselect using Ctrl when selection is made through Shift select"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "file-ops"
   tier: null
@@ -557,7 +557,7 @@ tasks:
   session_count: 0
 - id: "T-024"
   title: "Hierarchy: issues/sub-issues and tasks/subtasks (parent field, rollups, GitHub sub-issue linking, decomposition duties)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "other"
   tier: null
@@ -586,7 +586,7 @@ tasks:
   session_count: 1
 - id: "T-025"
   title: "PR metadata: labels, milestone, assignee, size, project item on every PR (pr-metadata verb + CI job + docs)"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "other"
   tier: null
@@ -623,5 +623,11 @@ tasks:
     note: "board #1 wired: Status+Size sync, PROJECT_NUMBER=1, option-name fix; verified by GraphQL read-back (196/197 In review M, 198 In progress M); 52 checks"
     proof: ["effc959", "#198"]
     effort: {commits: 1, files: 2, insertions: 60, deletions: 25}
+  - start: "2026-09-24T22:36:54Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 25
-  session_count: 3
+  session_count: 4
