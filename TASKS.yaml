@@ -586,7 +586,7 @@ tasks:
   session_count: 1
 - id: "T-025"
   title: "PR metadata: labels, milestone, assignee, size, project item on every PR (pr-metadata verb + CI job + docs)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "other"
   tier: null
@@ -720,7 +720,7 @@ tasks:
   session_count: 0
 - id: "T-029"
   title: "Card dragged from parent handle is not repositioned by Organize"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: null
@@ -733,17 +733,23 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:14Z"
   notes: ["2026-09-25T12:38:20Z · reporter says untested - repro on the vertical layout before fixing; suspect the per-view position override in the layout slice"]
-  sessions: []
+  sessions:
+  - start: "2026-09-25T15:14:12Z"
+    end: "2026-09-25T15:14:26Z"
+    measured: true
+    note: "verified fixed on merged dev (6fcfd43): the 'Organize re-flows every view' test passes, and the full suite is 164/164. Reporter called this untested; no separate code change was needed - it shared T-030's root cause (organize scoped to the active leaf + per-view positions replacing the view's layout)."
+    proof: ["#176"]
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-030"
   title: "New card created in primary view appears in secondary leaf at wrong position"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: null
@@ -1094,7 +1100,7 @@ tasks:
   session_count: 0
 - id: "T-045"
   title: "Sort by Name/Size/Type does not re-flow a per-view canvas (dock pane keeps per-view positions, which outrank the layout engine)"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: null
@@ -1107,11 +1113,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T14:57:04Z"
   notes: ["2026-09-25T14:57:10Z · found while planning the Organize fix: setSortKey/setSortDir call relayout(), which per-view positions outrank (layoutSlice.ts:204-206) - so sort looks inert on a dock pane. Fix folds into the T-030 root-cause PR."]
-  sessions: []
+  sessions:
+  - start: "2026-09-25T15:15:04Z"
+    end: "2026-09-25T15:15:09Z"
+    measured: true
+    note: "verified fixed on merged dev (6fcfd43) by the T-030 root-cause fix: sortKey was already a positionedNodes memo dep, so once a deriving view recomputes its own base, the re-order reaches per-view canvases. Covered by 'Sort by Size re-derives a view that holds manual positions' (fails on pre-fix dev)."
+    proof: ["#176"]
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   spent_min: 0
-  session_count: 0
+  session_count: 1
