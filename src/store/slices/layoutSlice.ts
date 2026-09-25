@@ -36,6 +36,15 @@ export type LayoutSliceCreator = StateCreator<
     sortKey: SortKey;
     /** Sibling sort direction read by relayout. */
     sortDir: SortDir;
+    /**
+     * Whether show/hide and folder-collapse actions re-run the layout.
+     * On (default) those actions re-flow the tree so a hidden branch closes
+     * its gap; off, they only change what is visible and the arrangement the
+     * user (or Organize) last set stays put. Explicit re-flows — the Organize
+     * action, and Sort, which is itself a request to re-order — are never
+     * gated, so a control the user clicked always takes effect.
+     */
+    autoRelayout: boolean;
 
     setDirection: (d: LayoutDirection) => void;
     setEdgeStyle: (s: EdgeStyle) => void;
@@ -49,6 +58,7 @@ export type LayoutSliceCreator = StateCreator<
     setShynessScale: (scale: number) => void;
     setSortKey: (key: SortKey) => void;
     setSortDir: (dir: SortDir) => void;
+    setAutoRelayout: (v: boolean) => void;
   }
 >;
 
@@ -106,6 +116,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   shynessScale: 1,
   sortKey: DEFAULT_SORT_KEY,
   sortDir: DEFAULT_SORT_DIR,
+  autoRelayout: true,
 
   setDirection: (direction) => {
     // No automatic relayout: nodes keep their positions and edges re-route to
@@ -217,6 +228,10 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   setSortDir: (dir) => {
     if (dir === get().sortDir) return;
     set({ sortDir: dir });
+    // Not gated by autoRelayout: Sort is itself a request to re-order, so it
+    // must take effect even when the implicit re-flows are switched off.
     get().relayout();
   },
+
+  setAutoRelayout: (v) => set({ autoRelayout: v }),
 });

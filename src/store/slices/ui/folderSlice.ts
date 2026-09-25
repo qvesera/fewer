@@ -77,7 +77,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     }
     const filesBulkExempt = layers.filesBulkActive ? [...layers.filesBulkExempt, id] : layers.filesBulkExempt;
     withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, individual, subtrees: sub, filesBulkExempt } });
-    get().relayout();
+    get().relayoutIfAuto();
   },
 
   hideSubtreeForLeaf: (leafId, folderId, descendantIds) => {
@@ -115,7 +115,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     const globalHidden = new Set(get().hiddenIds);
     const hiddenDesc = descendants.filter((d) => globalHidden.has(d) && !indieSet.has(d));
     if (hiddenDesc.length > 0) get().showSubtrees(hiddenDesc);
-    get().relayout();
+    get().relayoutIfAuto();
   },
 
   setFilesBulkForLeaf: (leafId, active) => {
@@ -124,14 +124,14 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     const layers = leaf.hideLayers ?? emptyHideLayers();
     withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, filesBulkActive: active, filesBulkExempt: active ? [] : layers.filesBulkExempt } });
     // Relayout when showing files (unhide), not when hiding them
-    if (!active) get().relayout();
+    if (!active) get().relayoutIfAuto();
   },
 
   revealAllForLeaf: (leafId) => {
     const s = get();
     const leaf = s.viewSettings[leafId] ?? {};
     withLeaf(set, get, leafId, { ...leaf, hideLayers: emptyHideLayers() });
-    get().relayout();
+    get().relayoutIfAuto();
   },
 
   hideNodesForLeaf: (leafId, ids) => get().hideForLeaf(leafId, ids),

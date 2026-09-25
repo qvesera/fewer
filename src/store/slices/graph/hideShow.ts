@@ -29,7 +29,7 @@ function commitShow(
     autoHiddenIds: shown(get().autoHiddenIds),
     graphVersion: get().graphVersion + 1,
   });
-  get().relayout();
+  get().relayoutIfAuto();
 }
 
 export type HideShowSliceCreator = StateCreator<GraphState, [], [], {
@@ -88,7 +88,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id), graphVersion: s.graphVersion + 1 }));
-    get().relayout();
+    get().relayoutIfAuto();
   },
   showAncestors: (id) => {
     const { hiddenIds, edges, revealedFromHidden, autoHiddenIds, independentlyHiddenIds } = get();
@@ -105,7 +105,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
     set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
-    get().relayout();
+    get().relayoutIfAuto();
   },
   showSubtree: (id) => {
     const { hiddenIds, edges, independentlyHiddenIds } = get();
@@ -124,7 +124,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     const after = { ...before, hiddenIds: [] };
     get().pushOp(viewStateOp(before, after));
     set((s) => ({ hiddenIds: [], autoHiddenIds: [], revealedRootIds: [], graphVersion: s.graphVersion + 1 }));
-    get().relayout();
+    get().relayoutIfAuto();
   },
   revealSubtree: (id) => {
     const { revealedRootIds } = get();
@@ -132,7 +132,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     get().showSubtree(id);
     set({ revealedRootIds: [...new Set([...revealedRootIds, id])] });
     get().autoHideLargeFolders();
-    get().relayout();
+    get().relayoutIfAuto();
   },
   setMaxDisplayDepth: (maxDepth) => {
     const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion, maxDisplayDepth: oldMaxDepth, revealedFromHidden } = get();
