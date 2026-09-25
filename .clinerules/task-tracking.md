@@ -24,8 +24,9 @@ the gate, and no task may start until these steps have run.**
        [--blocked-by T-00x] [--issue <N>]
    ```
 4. `bun run task:ready` — **the start gate.** A row is startable only when it is
-   `triaged`, estimated, classified (`--area`), linked to an issue (or
-   `internal`), unblocked, and its issue carries a **milestone**:
+   `triaged` (or already in `review`, for a follow-up session), estimated,
+   classified (`--area`), linked to an issue (or `internal`), unblocked, and its
+   issue carries a **milestone**:
    ```bash
    bun run task:ready              # list what is not startable, and why
    bun run task:ready --strict     # same, non-zero exit (CI)

@@ -46,7 +46,8 @@ backlog → triaged → in-progress → review → done
 `readiness_issues()` is the single source; `start` refuses on it, `ready` prints
 it, `validate` fails on it. A row is startable when it is:
 
-- `triaged` (not `backlog` / `blocked` / `parked`)
+- `triaged` (a row in `review` also qualifies — it was groomed enough to get
+  a PR, and a follow-up session on in-review work is routine)
 - estimated (`estimate_min > 0`)
 - classified (`area` set — it becomes the `category:*` label)
 - linked to an issue, or `internal: true`

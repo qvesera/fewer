@@ -582,7 +582,11 @@ def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
     whose issue has none lands on the board unmilestoned.
     """
     out: list[str] = []
-    if row.get("status") != "triaged":
+    # `review` is startable too: the row was demonstrably groomed (it got a PR),
+    # and a follow-up session on in-review work is routine — CI catches
+    # something, you push the fix. The ungroomed states (backlog/blocked/parked)
+    # and the terminal ones (done/wontfix) are not startable.
+    if row.get("status") not in ("triaged", "review"):
         out.append(f"status is {row.get('status')!r}, not triaged")
     if not row.get("estimate_min"):
         out.append("no estimate — triage it")
@@ -618,6 +622,8 @@ def is_demotable(status: str, reasons: list[str]) -> bool:
     is part of triage, so an ungroomed row does not belong in the triaged queue.
     Anything mixed in (no estimate, blocked, unlinked) needs a human, so the row
     is reported and left alone. Reversible — `triaged -> backlog` is legal.
+    `review` is excluded: it is startable (a follow-up session), and demoting
+    work that already has a PR open would be nonsense.
     """
     return status == "triaged" and bool(reasons) and all(
         r.startswith(MILESTONE_REASON) for r in reasons)
@@ -864,26 +870,32 @@ def cmd_attach_pr(args: argparse.Namespace) -> int:
     state, title = "", ""
     if have_gh():
         try:
+            # `.state` is the PR's field, not a literal: inside the JSON array it
+            # must not be quoted, or state comes back as the string ".state" and
+            # the OPEN/MERGED branches below never fire.
             out = gh("pr", "view", str(number), "--json", "state,title",
-                     "--jq", "[\".state\", .title] | @tsv", check=False).strip()
+                     "--jq", "[.state, .title] | @tsv", check=False).strip()
             state, _, title = out.partition("\t")
         except (SystemExit, FileNotFoundError):
             state = ""
-        if not state:
+        if not state or state.startswith("."):
             _die(f"PR #{number} not found (or gh unavailable)")
     if row.get("pr") == number:
+        # Already attached: still converge the status, so re-running after a
+        # merge is safe and self-healing rather than a no-op.
         print(f"{row['id']} already attached to PR #{number}")
-        return 0
-    previous = row.get("pr")
-    row["pr"] = number
-    save(ledger)
-    print(f"{row['id']}  pr: {('#' + str(previous)) if previous else '-'} → #{number}  {title}")
+    else:
+        previous = row.get("pr")
+        row["pr"] = number
+        print(f"{row['id']}  pr: {('#' + str(previous)) if previous else '-'} → #{number}  {title}")
     if state == "OPEN" and row.get("status") in ("triaged", "in-progress"):
         row["status"] = "review"
-        save(ledger)
         print(f"  status → review (PR #{number} is open)")
     elif state and state.upper() == "MERGED":
         print("  PR is already merged — run: python3 scripts/tasks.py reconcile --apply")
+    # Unconditional: the pr/status writes above must land even on the MERGED
+    # branch, or the attach is silently lost.
+    save(ledger)
     return 0
 
 
@@ -2898,6 +2910,14 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     blocked_row["status"] = "blocked"
     check("readiness: a blocked row is not startable",
           any("not triaged" in r for r in readiness_issues(blocked_row, led_ready, check_milestone=False)))
+    in_review = json.loads(json.dumps(ready_row))
+    in_review["status"] = "review"
+    check("readiness: a row in review is startable (follow-up session)",
+          readiness_issues(in_review, led_ready, check_milestone=False) == [],
+          str(readiness_issues(in_review, led_ready, check_milestone=False)))
+    check("readiness: a done row is not startable",
+          any("not triaged" in r for r in
+              readiness_issues({**in_review, "status": "done"}, led_ready, check_milestone=False)))
     cleared = json.loads(json.dumps(dependent))
     cleared["blocked_by"] = []
     check("readiness: clearing the blocker makes it startable again",

@@ -1148,23 +1148,29 @@ tasks:
   estimate_min: 480
   estimate_basis: "cli"
   issue: 227
-  pr: null
+  pr: 228
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T16:30:08Z"
   notes: ["2026-09-25T16:30:13Z · from the backlog review: start did not require triaged, there was no readiness notion, and current_pr() attached whatever PR the checked-out branch resolved to (it attached a dev-to-main release PR to two unrelated rows)"]
   sessions:
   - start: "2026-09-25T16:31:30Z"
+    end: "2026-09-25T16:46:52Z"
+    measured: true
+    note: "readiness_issues() is the single gate behind start/ready/validate; ready --demote sends milestone-only rows to backlog; stop resolves the PR from the session's commits via pr_for_session and writes row.pr; attach-pr verb; 12 new selftest checks; rule/skill/AGENTS docs. Live demote verified on T-014 (milestone removed -> ready flagged it -> --demote moved it to backlog -> re-milestoned + re-triaged)."
+    proof: ["d082eed"]
+    effort: {commits: 1, files: 6, insertions: 407, deletions: 24}
+  - start: "2026-09-25T16:51:05Z"
     end: null
     measured: true
     note: ""
     proof: []
     effort: null
-  spent_min: 0
-  session_count: 1
+  spent_min: 15
+  session_count: 2
