@@ -743,7 +743,7 @@ tasks:
   session_count: 0
 - id: "T-030"
   title: "New card created in primary view appears in secondary leaf at wrong position"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "layout"
   tier: null
@@ -756,19 +756,19 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:14Z"
   notes: ["2026-09-25T12:38:20Z · reporter marked it acceptable - low severity; the dock pane derives its own layout so its positions do not match the main graph"]
   sessions:
   - start: "2026-09-25T14:57:56Z"
-    end: null
+    end: "2026-09-25T15:08:32Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "root cause: resolveViewNodes returned early on 'view has a positions map', so a card the map lacks fell through to the shared store position while its siblings sat in the view's contour layout; organize was also scoped to the active leaf. New leafPositions.test.ts (6 tests, 4 failed before the fix), organizeAll added, 4 UI call sites routed, docs + changelog."
+    proof: ["74f8dd0"]
+    effort: {commits: 1, files: 11, insertions: 314, deletions: 18}
+  spent_min: 11
   session_count: 1
 - id: "T-031"
   title: "Remove the AI-vibe glow across all bundled designs"
