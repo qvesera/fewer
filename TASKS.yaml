@@ -154,7 +154,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: []
+  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25 in a backlog review: still an open question - how symlink nodes are represented and how cycles/loops are bounded. No new row; this one owns it."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -246,7 +246,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: []
+  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'visualise multiple directories on drive' is this row, not a new one. Open question: how to pull multiple roots into one graph (and whether they merge or sit as sibling views)."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -338,7 +338,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: []
+  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'plugin system for custom exporters and importers' is this row (Plugin system, #194). Scope note: the ask is narrower than node types - exporter/importer registration first."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -384,7 +384,7 @@ tasks:
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-09-24T09:53:33Z"
-  notes: ["2026-09-24T20:47:54Z · adopted at intake from GitHub (open)"]
+  notes: ["2026-09-24T20:47:54Z · adopted at intake from GitHub (open)", "2026-09-25T12:39:00Z · 2026-09-25: re-raised in a backlog dump as still broken; reporter confirms it is fixed. Keeping done - closed as a false alarm."]
   sessions:
   - start: "2026-09-24T18:26:00Z"
     end: "2026-09-24T18:50:48Z"
@@ -649,3 +649,440 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 8, deletions: 1}
   spent_min: 505
   session_count: 7
+- id: "T-026"
+  title: "CSV + Graphviz DOT import (export side already ships)"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 201
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:14Z"
+  notes: ["2026-09-25T12:38:05Z · from roadmap: import/export gap - both formats already export, neither parses"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-027"
+  title: "Mermaid markdown import + export"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 202
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:14Z"
+  notes: ["2026-09-25T12:38:20Z · zero mermaid support today; ROADMAP lists import+export separately, kept as one row (same parser surface)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-028"
+  title: "Auto-relayout fires after many actions - add \"Disable auto relayout\" toggle in advanced settings"
+  status: "triaged"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 203
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:14Z"
+  notes: ["2026-09-25T12:38:20Z · reporter: relayout happens automatically after a lot of actions; wants an off switch in advanced settings"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-029"
+  title: "Card dragged from parent handle is not repositioned by Organize"
+  status: "triaged"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 204
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:14Z"
+  notes: ["2026-09-25T12:38:20Z · reporter says untested - repro on the vertical layout before fixing; suspect the per-view position override in the layout slice"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-030"
+  title: "New card created in primary view appears in secondary leaf at wrong position"
+  status: "triaged"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 205
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:14Z"
+  notes: ["2026-09-25T12:38:20Z · reporter marked it acceptable - low severity; the dock pane derives its own layout so its positions do not match the main graph"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-031"
+  title: "Remove the AI-vibe glow across all bundled designs"
+  status: "triaged"
+  type: "refactor"
+  area: "theme"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 206
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · nodes use backdrop-blur-xl plus preset shadows; strip the glow and rebalance contrast in every preset"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-032"
+  title: "Depth-level colour coding / gradient by hierarchy depth"
+  status: "triaged"
+  type: "feat"
+  area: "theme"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 207
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · colourcode levels as gradients by depth; must survive export (SVG/PNG share canvas colors) and tag rings"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-033"
+  title: "Layout research: radial vs tree vs grid - when to use which"
+  status: "triaged"
+  type: "research"
+  area: "layout"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 208
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · open question: radial vs tree graph, what each is good at, whether to ship a third layout mode"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-034"
+  title: "Cold-outreach email draft for prospective users"
+  status: "triaged"
+  type: "task"
+  area: "growth"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 209
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · draft the cold email copy; no send"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-035"
+  title: "User research: recruit + run live Zoom walkthroughs while people explore"
+  status: "triaged"
+  type: "research"
+  area: "growth"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 210
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · email people to ask for live feedback over Zoom as they explore the project"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-036"
+  title: "Pricing"
+  status: "triaged"
+  type: "task"
+  area: "business"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 211
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:15Z"
+  notes: ["2026-09-25T12:38:20Z · pricing decision + page; content/docs/plans.md and the free/pro tier split already exist"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-037"
+  title: "README refresh"
+  status: "triaged"
+  type: "docs"
+  area: "docs"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 212
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:20Z · README still says 7 export formats and pre-dates the current docs set"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-038"
+  title: "Docs update sweep (content/docs/*)"
+  status: "triaged"
+  type: "docs"
+  area: "docs"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 213
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:21Z · bring every docs page back in sync with shipped behavior"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-039"
+  title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
+  status: "triaged"
+  type: "research"
+  area: "infra"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 214
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:21Z · disk import uses the browser File System Access API today; evaluate Tauri (Rust) vs a Swift native shell for the compute-heavy paths"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-040"
+  title: "Collaborative editing with live WebSocket sync"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 215
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:21Z · ROADMAP \"Collaborative graphs\"; needs a sync/CRDT decision and a permission model"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-041"
+  title: "Diff view between directory versions (composes with T-007 Diff v2)"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 216
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:21Z · side-by-side diff of two directory snapshots; reuses the T-007 change detection"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-042"
+  title: "GitHub PR review visualization mode"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 217
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:16Z"
+  notes: ["2026-09-25T12:38:21Z · render a PR as a graph view with review state per node"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-043"
+  title: "VS Code extension for in-editor preview"
+  status: "triaged"
+  type: "feat"
+  area: "devtools"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 218
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:17Z"
+  notes: ["2026-09-25T12:38:21Z · in-editor graph preview backed by the same parsers and exporters"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-044"
+  title: "Gallery templates + first-run startup defaults for new users"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 219
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T12:37:17Z"
+  notes: ["2026-09-25T12:38:21Z · come up with templates and designs for the gallery plus an initial startup setting for new users"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
