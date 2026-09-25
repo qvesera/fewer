@@ -697,7 +697,7 @@ tasks:
   session_count: 0
 - id: "T-028"
   title: "Auto-relayout fires after many actions - add \"Disable auto relayout\" toggle in advanced settings"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: null
