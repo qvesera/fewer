@@ -252,7 +252,7 @@ tasks:
   session_count: 0
 - id: "T-011"
   title: "Headless CLI"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "other"
   tier: 2
@@ -269,13 +269,13 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: []
+  notes: ["2026-09-25T16:25:01Z · blocked_by T-015 (licensing) is still open - Tier 2 is gated on the AGPL/commercial decision"]
   sessions: []
   spent_min: 0
   session_count: 0
 - id: "T-012"
   title: "Rule / validation engine"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "other"
   tier: 2
@@ -298,7 +298,7 @@ tasks:
   session_count: 0
 - id: "T-013"
   title: "Preflight / intake reports"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "other"
   tier: 2
