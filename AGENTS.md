@@ -7,17 +7,29 @@ This project uses **Next.js 16 + React Flow v12** for an interactive graph-based
 No work starts untracked. Full rule: `.clinerules/task-tracking.md`; verb
 reference: `.agents/skills/tasks/SKILL.md` (`bun run task:status` first).
 
-1. `bun run task:status` — resumes/closes an open session and lists untracked
-   GitHub issues (adopt them: `python3 scripts/tasks.py intake`).
+1. `bun run task:status` — resumes/closes an open session, reports how many
+   triaged rows are **not startable**, and lists untracked GitHub issues
+   (adopt them: `python3 scripts/tasks.py intake`).
 2. Find it (`bun run task:find "<words>"`) or create + triage it
    (`bun run task:add …` → `bun run task:triage <T-###> …`, status `triaged`
    before any branch or edit exists).
-3. `bun run task:start <T-###>` opens the timed session. Saying **"track
-   bug …"** runs the whole find-or-create-issue-and-start flow in one step.
-4. Every commit carries a `Task: T-###` trailer (the installed hook stamps it
+3. `bun run task:ready` — **before starting anything.** A row is startable only
+   when it is `triaged`, estimated, classified (`--area`), linked to an issue,
+   unblocked, and its issue carries a **milestone**. `start` refuses an unready
+   row and prints why; `--force` overrides. `ready --demote` sends triaged rows
+   whose only gap is a missing milestone back to `backlog` (a release train is
+   part of triage), and `validate` fails on them in CI.
+4. `bun run task:start <T-###>` opens the timed session and sets
+   **in-progress**. Saying **"track bug …"** runs the whole
+   find-or-create-issue-and-start flow in one step.
+5. Every commit carries a `Task: T-###` trailer (the installed hook stamps it
    and refuses commits while no session is open).
-5. `bun run task:stop <T-###> --note "…"` closes the session; `bun run
-   task:validate` must pass before push, and `task:report` totals go in the PR.
+6. `bun run task:stop <T-###> --note "…"` closes the session, attaches the PR
+   its commits belong to, and moves the row to **review**. If no PR resolves,
+   the row stays `triaged` and the command tells you to run
+   `python3 scripts/tasks.py attach-pr <T-###> <PR#>` once the PR exists.
+   `bun run task:validate` must pass before push, and `task:report` totals go
+   in the PR.
 6. **Decompose at pickup**: before `task:start` on a task estimated ≥ 2400 min
    (Tier 1+) or with several independent deliverables, split it into 2–6
    linked subtasks (`task:add --parent T-…`, then `gh-sync`), **asking first**

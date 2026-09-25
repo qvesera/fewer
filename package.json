@@ -32,6 +32,7 @@
     "task:find": "python3 scripts/tasks.py find",
     "task:add": "python3 scripts/tasks.py add",
     "task:triage": "python3 scripts/tasks.py triage",
+    "task:ready": "python3 scripts/tasks.py ready",
     "task:start": "python3 scripts/tasks.py start",
     "task:stop": "python3 scripts/tasks.py stop",
     "task:track": "python3 scripts/tasks.py track",

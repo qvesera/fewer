@@ -545,12 +545,125 @@ def effort_for_commits(shas: list[str]) -> dict[str, int] | None:
 
 
 def current_pr() -> str | None:
-    """PR for the checked-out branch, best effort."""
+    """PR for the checked-out branch, best effort.
+
+    Only a fallback: the checked-out branch is not the session's branch (after a
+    merge you are back on dev, and `gh pr view` on dev resolves to whichever
+    release PR happens to point at it). Use `pr_for_session` to attach the PR a
+    session actually belongs to.
+    """
     try:
         out = gh("pr", "view", "--json", "number,url", "--jq", ".number", check=False).strip()
         return f"#{out}" if out.isdigit() else None
     except (SystemExit, FileNotFoundError):
         return None
+
+
+# ── Definition of ready: one function, three entry points ────────────────
+# start refuses an unready row, validate fails on an unready triaged row, and
+# `ready` prints the list. One implementation, so the three can never disagree
+# about what "ready" means.
+
+def _issue_milestone(number: int) -> str | None:
+    """Title of the issue's milestone, or None (empty string means none set)."""
+    try:
+        return gh("issue", "view", str(number), "--json", "milestone",
+                  "--jq", ".milestone.title // \"\"", check=False).strip() or None
+    except (SystemExit, FileNotFoundError):
+        return None
+
+
+def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
+                     check_milestone: bool = True) -> list[str]:
+    """Why this row is not startable. Empty list = ready.
+
+    The milestone check reads GitHub because that is where the milestone
+    actually lives: `pr-metadata` derives it from the linked issue, so a row
+    whose issue has none lands on the board unmilestoned.
+    """
+    out: list[str] = []
+    if row.get("status") != "triaged":
+        out.append(f"status is {row.get('status')!r}, not triaged")
+    if not row.get("estimate_min"):
+        out.append("no estimate — triage it")
+    if not row.get("area"):
+        out.append("no area — triage it")
+    if row.get("issue") is None and not row.get("internal"):
+        out.append("no issue and not internal — link it or mark internal")
+    rows = {r["id"]: r for r in ledger["tasks"]}
+    for dep in row.get("blocked_by") or []:
+        target = rows.get(dep)
+        if target and target.get("status") not in ("done", "wontfix"):
+            out.append(f"blocked by {dep} ({target.get('status')})")
+    number = row.get("issue")
+    if check_milestone and number and have_gh():
+        milestone = _issue_milestone(int(number))
+        if milestone is None:
+            # The MILESTONE_REASON prefix is machine-readable: `ready --demote`
+            # moves a row whose *only* problem is this one back to backlog,
+            # because a release train is part of what triage decides.
+            out.append(f"{MILESTONE_REASON} issue #{number} has no milestone — assign one "
+                       f"(gh issue edit {number} --milestone <title>) or move the row "
+                       f"to backlog (ready --demote)")
+    return out
+
+
+MILESTONE_REASON = "milestone:"
+
+
+def is_demotable(status: str, reasons: list[str]) -> bool:
+    """Should `ready --demote` move this row from triaged back to backlog?
+
+    Only when a missing milestone is the *sole* problem: picking a release train
+    is part of triage, so an ungroomed row does not belong in the triaged queue.
+    Anything mixed in (no estimate, blocked, unlinked) needs a human, so the row
+    is reported and left alone. Reversible — `triaged -> backlog` is legal.
+    """
+    return status == "triaged" and bool(reasons) and all(
+        r.startswith(MILESTONE_REASON) for r in reasons)
+
+
+def cmd_ready(args: argparse.Namespace) -> int:
+    """Report rows that are not startable, with the reason for each.
+
+    `--demote` writes: a triaged row whose ONLY problem is a missing milestone
+    goes back to backlog, because picking a release train is part of what triage
+    decides — an untriaged row should not sit in the triaged queue. Rows with
+    other problems (no estimate, blocked, unlinked) are reported, never moved:
+    those need a human. `triaged -> backlog` is legal, so this is reversible.
+    """
+    ledger = load()
+    check_ms = not args.no_milestone
+    unready: list[tuple[dict[str, Any], list[str]]] = []
+    moved: list[str] = []
+    for row in ledger["tasks"]:
+        if row.get("status") not in ("triaged", "backlog"):
+            continue
+        reasons = readiness_issues(row, ledger, check_milestone=check_ms)
+        if not reasons:
+            continue
+        unready.append((row, reasons))
+        if (args.demote and is_demotable(row.get("status", ""), reasons)):
+            row["status"] = "backlog"
+            moved.append(row["id"])
+    if moved:
+        save(ledger)
+    if not unready:
+        print("ready: every triaged/backlog row is startable")
+        return 0
+    for row, reasons in unready:
+        ref = f"#{row['issue']}" if row.get("issue") else "internal"
+        flag = "→ backlog" if row["id"] in moved else row["status"]
+        print(f"{row['id']}  {flag}  {ref}  {row['title'][:60]}")
+        for reason in reasons:
+            print(f"  - {reason}")
+    if moved:
+        print(f"\nmoved to backlog: {', '.join(moved)} "
+              f"(assign a milestone, then triage them back)")
+    print(f"\nready: {len(unready)} row(s) not startable "
+          f"(triage/fix them, then re-run: python3 scripts/tasks.py ready)")
+    return 1 if args.strict else 0
+
 
 
 # ── text scoring (find / track dedupe) ─────────────────────────────────
@@ -612,6 +725,16 @@ def cmd_status(args: argparse.Namespace) -> int:
             lines.append(f"  ! over {MAX_SESSION_MIN}m — stop it: python3 scripts/tasks.py stop {row['id']}")
     else:
         lines.append("OPEN SESSION  none")
+
+    # Definition of ready: the count the start gate enforces, on the default view.
+    unready = [r for r in ledger["tasks"]
+               if r.get("status") in ("triaged", "backlog")
+               and readiness_issues(r, ledger)]
+    if unready:
+        lines.append(f"UNREADY  {len(unready)} of "
+                     f"{sum(1 for r in ledger['tasks'] if r.get('status') == 'triaged')} "
+                     f"triaged rows are not startable")
+        lines.append("  run: python3 scripts/tasks.py ready")
 
     if have_gh():
         rows_with_issue = {row["issue"] for row in ledger["tasks"] if row.get("issue")}
@@ -693,6 +816,77 @@ def cmd_triage(args: argparse.Namespace) -> int:
     return 0
 
 
+def pr_for_session(sess: dict[str, Any], row: dict[str, Any]) -> str | None:
+    """The PR this session's commits belong to, or None.
+
+    Resolved from the session's own commit SHAs (`/commits/<sha>/pulls`), not
+    from the checked-out branch: after a merge you are back on dev, where
+    `gh pr view` resolves to whichever release PR points at dev — which is how
+    two rows once got an unrelated `dev -> main` release PR attached to them.
+    An OPEN PR wins over a MERGED one (a rebase PR would list both).
+    """
+    if not have_gh():
+        return None
+    shas = [p for p in (sess.get("proof") or []) if re.fullmatch(r"[0-9a-f]{7,40}", p)]
+    if not shas:
+        return None
+    best: tuple[str, str] | None = None
+    for sha in shas:
+        try:
+            pulls = gh_json("api", f"repos/{REPO_SLUG}/commits/{sha}/pulls")
+        except (SystemExit, FileNotFoundError):
+            continue
+        for pull in pulls:
+            number = pull.get("number")
+            if not number:
+                continue
+            label = f"#{number}"
+            state = str(pull.get("state") or "").upper()
+            if state == "OPEN":
+                return label
+            if state == "MERGED" and best is None:
+                best = (label, str(pull.get("title") or ""))
+    return best[0] if best else None
+
+
+def cmd_attach_pr(args: argparse.Namespace) -> int:
+    """Attach an existing PR to a row (idempotent).
+
+    `stop` only resolves a PR from commits that existed when the session
+    closed; when the PR is opened afterwards (or the session made no commits,
+    e.g. a verify-only session), this is the explicit way to attach it.
+    """
+    ledger = load()
+    row = find_row(ledger, args.ref)
+    if row is None:
+        _die(f"no task {args.ref}")
+    number = int(str(args.pr).lstrip("#"))
+    state, title = "", ""
+    if have_gh():
+        try:
+            out = gh("pr", "view", str(number), "--json", "state,title",
+                     "--jq", "[\".state\", .title] | @tsv", check=False).strip()
+            state, _, title = out.partition("\t")
+        except (SystemExit, FileNotFoundError):
+            state = ""
+        if not state:
+            _die(f"PR #{number} not found (or gh unavailable)")
+    if row.get("pr") == number:
+        print(f"{row['id']} already attached to PR #{number}")
+        return 0
+    previous = row.get("pr")
+    row["pr"] = number
+    save(ledger)
+    print(f"{row['id']}  pr: {('#' + str(previous)) if previous else '-'} → #{number}  {title}")
+    if state == "OPEN" and row.get("status") in ("triaged", "in-progress"):
+        row["status"] = "review"
+        save(ledger)
+        print(f"  status → review (PR #{number} is open)")
+    elif state and state.upper() == "MERGED":
+        print("  PR is already merged — run: python3 scripts/tasks.py reconcile --apply")
+    return 0
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     ledger = load()
     row = find_row(ledger, args.ref)
@@ -716,6 +910,18 @@ def cmd_start(args: argparse.Namespace) -> int:
     if inprog:
         _die(f"WIP limit {WIP_LIMIT}: {inprog[0]['id']} is already in-progress — "
              f"stop it (or set-status parked/triaged) first")
+    # Definition of ready. A row is triaged, estimated, classified, linked and
+    # unblocked before a session opens, so the session cannot be spent on work
+    # nobody groomed. `ready` prints the same list; validate fails on it.
+    reasons = readiness_issues(row, ledger)
+    if reasons and not args.force:
+        print(f"{row['id']} is not ready to start:", file=sys.stderr)
+        for reason in reasons:
+            print(f"  - {reason}", file=sys.stderr)
+        print(f"  fix the above, or re-run with --force", file=sys.stderr)
+        return 1
+    if reasons:
+        print(f"! {row['id']} started with --force despite: {', '.join(reasons)}")
     row["sessions"].append({"start": now_iso(), "end": None, "measured": True,
                             "note": "", "proof": [], "effort": None})
     row["status"] = "in-progress"
@@ -747,9 +953,15 @@ def cmd_stop(args: argparse.Namespace) -> int:
     effort, proof = collect_evidence(sess["start"])
     sess["effort"] = effort
     sess["proof"] = proof
-    pr = current_pr()
-    if pr and pr not in sess["proof"]:
-        sess["proof"].append(pr)
+    # The PR this session's commits belong to — resolved from those commits, and
+    # attached to the row so `review` means "a real PR is open for this work".
+    pr = pr_for_session(sess, row)
+    if pr:
+        pr_no = int(pr.lstrip("#"))
+        if not row.get("pr"):
+            row["pr"] = pr_no
+        if pr not in sess["proof"]:
+            sess["proof"].append(pr)
     minutes = session_minutes(sess)
 
     if args.to:
@@ -765,6 +977,9 @@ def cmd_stop(args: argparse.Namespace) -> int:
     print(f"STOPPED {row['id']} · {minutes}m · status={row['status']} · "
           f"effort={effort['commits']} commits/{effort['files']} files/"
           f"+{effort['insertions']}/-{effort['deletions']} · proof={proof or '-'}")
+    if not pr and not args.to:
+        print(f"  no PR found for this session's commits (not guessing from the current "
+              f"branch) — open the PR, then: python3 scripts/tasks.py attach-pr {row['id']} <PR#>")
 
     comment = args.comment
     if comment == "auto":
@@ -2068,6 +2283,21 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
             fail(f"{rid}: created_at is not an ISO timestamp: {row.get('created_at')!r}")
         if row.get("issue") is None and not row.get("internal"):
             fail(f"{rid}: no issue and not internal — link it or mark internal: true")
+        # Definition of ready: a triaged row must be startable. Milestones are
+        # read from GitHub, so skip that leg when gh is unavailable (an offline
+        # validate still catches the ledger-only reasons).
+        if status == "triaged":
+            reasons = readiness_issues(row, ledger,
+                                       check_milestone=have_gh() and path == LEDGER)
+            if reasons:
+                fail(f"{rid}: triaged but not ready to start — " + "; ".join(reasons))
+        if status == "blocked":
+            rows_by_id = {r["id"]: r for r in rows}
+            stale = [d for d in (row.get("blocked_by") or [])
+                     if d in rows_by_id and rows_by_id[d].get("status") in ("done", "wontfix")]
+            if stale and len(stale) == len(row.get("blocked_by") or []):
+                warn(f"{rid}: blocked but every blocker is closed ({', '.join(stale)}) — "
+                     f"re-triage it")
         if row.get("issue") is not None:
             number = row["issue"]
             if not isinstance(number, int):
@@ -2633,6 +2863,58 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     except OSError:
         pass
 
+    # Definition of ready: the start gate, the ready report and validate all
+    # read this one function, so pin its reasons here.
+    ready_row = new_row(title="ready work", rtype="feat", area="import", issue=501,
+                        status="triaged", estimate_min=240, source="cli")
+    ready_row["id"] = "T-100"
+    blocker = new_row(title="licensing", rtype="task", area="other", issue=502,
+                      status="triaged", estimate_min=120, source="cli")
+    blocker["id"] = "T-101"
+    led_ready = {"version": 1, "tasks": [ready_row, blocker]}
+    check("readiness: a triaged, estimated, linked, unblocked row is ready",
+          readiness_issues(ready_row, led_ready, check_milestone=False) == [],
+          str(readiness_issues(ready_row, led_ready, check_milestone=False)))
+    backlog_row = json.loads(json.dumps(ready_row))
+    backlog_row["status"] = "backlog"
+    check("readiness: backlog is refused (triage first)",
+          any("not triaged" in r for r in readiness_issues(backlog_row, led_ready, check_milestone=False)))
+    no_estimate = json.loads(json.dumps(ready_row))
+    no_estimate["estimate_min"] = None
+    check("readiness: missing estimate is a reason",
+          any("estimate" in r for r in readiness_issues(no_estimate, led_ready, check_milestone=False)))
+    no_issue = json.loads(json.dumps(ready_row))
+    no_issue["issue"] = None
+    no_issue["internal"] = False
+    check("readiness: unlinked row is a reason",
+          any("no issue" in r for r in readiness_issues(no_issue, led_ready, check_milestone=False)))
+    dependent = json.loads(json.dumps(ready_row))
+    dependent["id"] = "T-102"
+    dependent["blocked_by"] = ["T-101"]
+    led_dep = {"version": 1, "tasks": [ready_row, blocker, dependent]}
+    check("readiness: an open blocker is a reason",
+          any("blocked by T-101" in r for r in readiness_issues(dependent, led_dep, check_milestone=False)))
+    blocked_row = json.loads(json.dumps(ready_row))
+    blocked_row["status"] = "blocked"
+    check("readiness: a blocked row is not startable",
+          any("not triaged" in r for r in readiness_issues(blocked_row, led_ready, check_milestone=False)))
+    cleared = json.loads(json.dumps(dependent))
+    cleared["blocked_by"] = []
+    check("readiness: clearing the blocker makes it startable again",
+          readiness_issues(cleared, led_ready, check_milestone=False) == [])
+
+    # Demote policy: a missing milestone is triage's job, so it is the one reason
+    # that moves a row back to backlog by itself. Anything else needs a human.
+    ms_only = [f"{MILESTONE_REASON} issue #501 has no milestone"]
+    check("demote: milestone-only row is demotable", is_demotable("triaged", ms_only))
+    check("demote: mixed reasons are not demotable",
+          not is_demotable("triaged", ms_only + ["no estimate — triage it"]))
+    check("demote: a blocker is not demotable",
+          not is_demotable("triaged", ["blocked by T-101 (triaged)"]))
+    check("demote: an already-backlog row is not moved",
+          not is_demotable("backlog", ms_only))
+    check("demote: a ready row is not demotable", not is_demotable("triaged", []))
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -2652,7 +2934,19 @@ def build_parser() -> argparse.ArgumentParser:
         sp.set_defaults(fn=fn)
         return sp
 
-    add("status", cmd_status, "open session, totals, untracked GitHub issues")
+    add("status", cmd_status, "open session, totals, readiness, untracked GitHub issues")
+
+    sp = add("ready", cmd_ready, "list rows that are not startable, with the reason")
+    sp.add_argument("--strict", action="store_true", help="exit 1 when anything is unready")
+    sp.add_argument("--no-milestone", action="store_true",
+                    help="skip the GitHub milestone check (offline / faster)")
+    sp.add_argument("--demote", action="store_true",
+                    help="move triaged rows whose only problem is a missing milestone to backlog")
+
+    sp = add("attach-pr", cmd_attach_pr,
+             "attach an existing PR to a row (status → review when it is open)")
+    sp.add_argument("ref")
+    sp.add_argument("pr", help="PR number, with or without #")
 
     sp = add("add", cmd_add, "create a task row (status: backlog)")
     sp.add_argument("--title", required=True)
@@ -2677,6 +2971,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("start", cmd_start, "open a timed session (status: in-progress)")
     sp.add_argument("ref")
+    sp.add_argument("--force", action="store_true",
+                    help="start even if the row is not ready (records the reasons)")
 
     sp = add("stop", cmd_stop, "close the session, harvest proof/effort from git")
     sp.add_argument("ref", nargs="?")

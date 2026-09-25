@@ -23,8 +23,22 @@ the gate, and no task may start until these steps have run.**
    bun run task:triage <T-###> --estimate-min <n> [--tier 0|1|2] --area <category> \
        [--blocked-by T-00x] [--issue <N>]
    ```
-4. `bun run task:start <T-###>` — opens the timed session. Refuses when another
-   session is open (WIP limit 1).
+4. `bun run task:ready` — **the start gate.** A row is startable only when it is
+   `triaged`, estimated, classified (`--area`), linked to an issue (or
+   `internal`), unblocked, and its issue carries a **milestone**:
+   ```bash
+   bun run task:ready              # list what is not startable, and why
+   bun run task:ready --strict     # same, non-zero exit (CI)
+   bun run task:ready --demote     # move milestone-less triaged rows to backlog
+   ```
+   `start` refuses an unready row and prints the reasons (`--force` overrides).
+   `validate` **fails** on an unready `triaged` row, so the CI `tasks` job
+   enforces it on every PR. A missing milestone is triage's job — it decides the
+   release train — so `ready --demote` sends such rows back to `backlog`; a row
+   with any other gap is reported and left alone for a human.
+5. `bun run task:start <T-###>` — opens the timed session and sets the row
+   **in-progress**. Refuses when the row is not ready, when another session is
+   open (WIP limit 1), or when the row is a decomposed umbrella.
 
 ## Trigger phrases (say these instead of narrating intent)
 
@@ -54,8 +68,14 @@ the `DECISION` line and why (candidate, score, state) before continuing.
 ## Closing
 
 - `bun run task:stop <T-###> --note "…"` closes the session and harvests proof
-  + effort (commits, files, insertions/deletions) from git. It moves
-  `in-progress → review` when a PR is detected, else back to `triaged`.
+  + effort (commits, files, insertions/deletions) from git. It resolves the PR
+  **from that session's own commits** (`/commits/<sha>/pulls`) — never from the
+  checked-out branch, which after a merge is `dev`, where `gh pr view` resolves
+  to whichever release PR points at it — attaches it to the row, and moves
+  `in-progress → review`. With no resolvable PR (the PR was opened afterwards,
+  or the session was verify-only) the row stays `triaged` and `stop` prints the
+  command to finish the job: `python3 scripts/tasks.py attach-pr <T-###> <PR#>`,
+  which sets the PR and moves the row to `review` when it is open.
 - **Then commit the close-out**: `git add TASKS.yaml && git commit -m
   "chore(tasks): close T-###"`. A commit that stages *only* `TASKS.yaml` needs
   no open session and gets no trailer — that is how `stop`, `intake`,
@@ -114,7 +134,8 @@ blocked_by = dependency; both are kept acyclic by `validate`.
 
 ## Verbs
 
-`status · find · add · triage · start · stop · record-session · set-status ·
-note · track · attach · intake · import-todo · gh-sync · reconcile · doctor ·
-report · validate · validate-commits · fmt · install-hooks · selftest`
+`status · find · add · triage · ready · start · stop · attach-pr ·
+record-session · set-status · note · track · attach · intake · import-todo ·
+gh-sync · reconcile · doctor · report · validate · validate-commits · fmt ·
+install-hooks · selftest`
 — `python3 scripts/tasks.py <verb> -h` for flags.

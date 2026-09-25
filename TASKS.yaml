@@ -326,7 +326,7 @@ tasks:
   area: "other"
   tier: 2
   estimate_min: 9600
-  estimate_basis: "todo-tier"
+  estimate_basis: "cli"
   issue: 194
   pr: null
   internal: false
@@ -338,7 +338,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
-  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'plugin system for custom exporters and importers' is this row (Plugin system, #194). Scope note: the ask is narrower than node types - exporter/importer registration first."]
+  notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25: 'plugin system for custom exporters and importers' is this row (Plugin system, #194). Scope note: the ask is narrower than node types - exporter/importer registration first.", "2026-09-25T16:38:56Z · restored after the demote test (ready --demote) — milestone re-assigned, re-triaged"]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -1137,5 +1137,34 @@ tasks:
     note: "verified fixed on merged dev (6fcfd43) by the T-030 root-cause fix: sortKey was already a positionedNodes memo dep, so once a deriving view recomputes its own base, the re-order reaches per-view canvases. Covered by 'Sort by Size re-derives a view that holds manual positions' (fails on pre-fix dev)."
     proof: ["#176"]
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 0
+  session_count: 1
+- id: "T-046"
+  title: "Task workflow enforcement: readiness gate (start only from triaged, ready verb, validate fails on an unready row) and correct PR attachment on stop (pr_for_session + attach-pr)"
+  status: "in-progress"
+  type: "infra"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 227
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-25T16:30:08Z"
+  notes: ["2026-09-25T16:30:13Z · from the backlog review: start did not require triaged, there was no readiness notion, and current_pr() attached whatever PR the checked-out branch resolved to (it attached a dev-to-main release PR to two unrelated rows)"]
+  sessions:
+  - start: "2026-09-25T16:31:30Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
   session_count: 1

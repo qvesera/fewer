@@ -34,11 +34,29 @@ backlog → triaged → in-progress → review → done
 
 | status | means | advanced by |
 | --- | --- | --- |
-| `triaged` | classified, estimated, ready — nothing started | `triage`, `track`, `intake` |
+| `triaged` | classified, estimated, **milestoned** — nothing started. `ready` is the gate; `validate` fails if it is not startable | `triage`, `track`, `intake` |
 | `in-progress` | a session is open (validate ⇔ exactly one open) | `start` |
-| `review` | PR open / waiting on merge | `stop` (auto when a PR is found) |
+| `review` | PR open / waiting on merge | `stop` / `attach-pr` (both attach the PR to the row) |
 | `done` | merged/closed, with proof or explicit `time_source: none\|reconstructed` | `set-status`, `reconcile --apply` |
 | `blocked` / `parked` / `wontfix` | deliberately not moving | `set-status` |
+| `backlog` | filed, not yet groomed | `triage`; `ready --demote` sends milestone-less rows here |
+
+## Definition of ready (one function, three gates)
+
+`readiness_issues()` is the single source; `start` refuses on it, `ready` prints
+it, `validate` fails on it. A row is startable when it is:
+
+- `triaged` (not `backlog` / `blocked` / `parked`)
+- estimated (`estimate_min > 0`)
+- classified (`area` set — it becomes the `category:*` label)
+- linked to an issue, or `internal: true`
+- unblocked — every `blocked_by` entry is `done` / `wontfix`
+- **milestoned** — the linked issue carries a milestone, because that is where
+  the release train actually lives (`pr-metadata` derives it from the issue)
+
+`--force` on `start` overrides. `ready --demote` moves a triaged row back to
+`backlog` when a missing milestone is its *only* problem — triage picks the
+train — and reports (never moves) any row with other gaps.
 
 `status:*` labels mirror state on GitHub (`gh-sync`); GitHub open/closed and PR
 merges are authoritative for `done` (`reconcile`).
@@ -47,12 +65,14 @@ merges are authoritative for `done` (`reconcile`).
 
 | intent | command |
 | --- | --- |
-| Where am I? open session, totals, untracked issues | `bun run task:status` |
+| Where am I? open session, totals, untracked issues, readiness | `bun run task:status` |
+| What can I start? (the start gate) | `python3 scripts/tasks.py ready [--strict] [--demote] [--no-milestone]` |
 | Search rows | `python3 scripts/tasks.py find "symlink walk"` |
 | Find-or-create issue + row, start timing | `python3 scripts/tasks.py track bug "…" [--area --severity --issue --id --new --dry-run --no-start --local --body]` |
 | Attach to `#180` / `T-006` and start | `python3 scripts/tasks.py attach 180` |
 | Adopt issues raised directly on GitHub | `python3 scripts/tasks.py intake [--state all] [--dry-run] [--auto]` |
 | Bulk-import TO-DO.md (all `triaged`) | `python3 scripts/tasks.py import-todo [--dry-run]` |
+| Attach a PR to a row (opens it later / verify-only session) | `python3 scripts/tasks.py attach-pr <T-###> <PR#>` |
 | Ledger → GitHub (create missing issues, mirror labels) | `python3 scripts/tasks.py gh-sync [--dry-run] [--status-only]` |
 | GitHub state → status | `python3 scripts/tasks.py reconcile [--apply]` |
 | Ledger ↔ GitHub drift proof | `python3 scripts/tasks.py doctor [--json]` |
@@ -121,6 +141,10 @@ acyclic and `gh-sync` mirrors the link as a native GitHub sub-issue
 | --- | --- | --- |
 | `not canonical` | hand edit or derived drift | `python3 scripts/tasks.py fmt` |
 | `WIP limit 1` | another row is `in-progress` | `stop` it or `set-status … parked` |
+| `T-0xx is not ready to start` | the row is not triaged, has no estimate/area/issue, is blocked, or its issue has no milestone | fix the listed reasons (`ready` prints them all), or `start --force` deliberately |
+| `triaged but not ready to start` (validate FAIL) | a triaged row lost a required field, or its issue lost its milestone | `python3 scripts/tasks.py ready`; `ready --demote` sends milestone-only rows back to `backlog` |
+| `no PR found for this session's commits` | the PR was opened after the session closed, or the session made no commits (verify-only) | open the PR, then `python3 scripts/tasks.py attach-pr T-0xx <PR#>` |
+| `doctor: … reopened` | the ledger says `done` but the GitHub issue is still open | close the issue (with a comment pointing at the fix), then `reconcile --apply` |
 | commit refused by hook | no open session | `task:start <id>` (escape: `--no-verify`) |
 | `validate-commits` FAIL | missing `Task:` trailer, or the task is not `review`/`done` **at HEAD** because the close-out was never committed | `task:stop <id>`, then commit `TASKS.yaml` (ledger-only, needs no session) |
 | `TASKS.yaml has uncommitted changes` (WARN) | `stop`'s close-out not committed yet | `git add TASKS.yaml && git commit -m "chore(tasks): close <id>"` |
