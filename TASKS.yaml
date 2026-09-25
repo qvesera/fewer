@@ -635,5 +635,11 @@ tasks:
     note: "CI board step enabled: PROJECTS_TOKEN (PAT, scope project) added by user; pr-metadata job now runs labels/milestone/assignee with GITHUB_TOKEN then board item+Status+Size with the PAT"
     proof: ["c089fff", "#200"]
     effort: {commits: 1, files: 1, insertions: 7, deletions: 7}
-  spent_min: 504
-  session_count: 5
+  - start: "2026-09-25T07:48:35Z"
+    end: "2026-09-25T07:49:42Z"
+    measured: true
+    note: "diagnostics: real gh stderr on project failure + --no-project split between the two CI steps"
+    proof: ["a1330f9", "#200"]
+    effort: {commits: 1, files: 2, insertions: 44, deletions: 16}
+  spent_min: 505
+  session_count: 6
