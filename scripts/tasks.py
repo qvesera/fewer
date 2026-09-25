@@ -1005,10 +1005,17 @@ def _gh_project(args: list[str]) -> tuple[int, str]:
 def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int) -> None:
     """Best effort: add the PR to the board and mirror its Status/Size.
 
-    Every failure prints gh's own error and returns — never raises.
+    Every failure prints gh's own error and returns — never raises. If the
+    literal owner login cannot be resolved (`unknown owner type`, common with
+    a PAT whose owner-type lookup is restricted), retry with `--owner @me`,
+    which resolves from the token itself instead of from the login.
     """
     code, out = _gh_project(["project", "item-add", str(number), "--owner", PROJECT_OWNER,
                              "--url", info["url"], "--format", "json"])
+    if code != 0 and "unknown owner type" in str(out).lower():
+        print(f"project: {PROJECT_OWNER} could not be resolved ({out}) — retrying --owner @me")
+        code, out = _gh_project(["project", "item-add", str(number), "--owner", "@me",
+                                 "--url", info["url"], "--format", "json"])
     added: dict[str, Any] = {}
     if code == 0:
         try:
