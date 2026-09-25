@@ -697,7 +697,7 @@ tasks:
   session_count: 0
 - id: "T-028"
   title: "Auto-relayout fires after many actions - add \"Disable auto relayout\" toggle in advanced settings"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "layout"
   tier: null
@@ -722,8 +722,14 @@ tasks:
     note: "autoRelayout gate (relayoutIfAuto) on the 9 implicit re-flow call sites (show/reveal/bulk in hideShow + folderSlice); Organize and Sort deliberately ungated. Persisted via UserSettings (4 touchpoints) + Advanced>Layout Policy Switch. 8 new store tests; full suite 163, e2e 12."
     proof: ["459acb5"]
     effort: {commits: 1, files: 10, insertions: 206, deletions: 13}
+  - start: "2026-09-25T15:45:22Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 5
-  session_count: 1
+  session_count: 2
 - id: "T-029"
   title: "Card dragged from parent handle is not repositioned by Organize"
   status: "done"

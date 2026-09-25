@@ -1187,6 +1187,7 @@ function AdvancedTab() {
             <Switch
               checked={scrollAction === "zoom"}
               onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
+              aria-label="Scroll to Zoom"
             />
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">

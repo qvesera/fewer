@@ -210,7 +210,9 @@ describe("Advanced tab controls", () => {
 
   test("scroll-to-zoom switch toggles the store action", async () => {
     await openAdvanced();
-    const control = screen.getByRole("switch");
+    // Query by name: the Advanced tab has more than one switch (Auto-relayout
+    // lives in Layout Policy), and "the only switch" is not a contract.
+    const control = screen.getByRole("switch", { name: "Scroll to Zoom" });
     fireEvent.click(control);
     expect(useGraphStore.getState().scrollAction).toBe("zoom");
     expect(control.getAttribute("aria-checked")).toBe("true");
@@ -218,12 +220,26 @@ describe("Advanced tab controls", () => {
     expect(useGraphStore.getState().scrollAction).toBe("pan");
   });
 
+  test("auto-relayout switch toggles the store flag", async () => {
+    await openAdvanced();
+    const control = screen.getByRole("switch", { name: "Auto-relayout" });
+    expect(control.getAttribute("aria-checked")).toBe("true"); // default on
+    fireEvent.click(control);
+    expect(useGraphStore.getState().autoRelayout).toBe(false);
+    expect(control.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(control);
+    expect(useGraphStore.getState().autoRelayout).toBe(true);
+  });
+
   test("mobile retains advanced layout controls but hides canvas navigation", async () => {
     mobile = true;
     await openAdvanced();
     expect(screen.getByText("Layout Policy")).toBeTruthy();
     expect(screen.queryByText("Canvas Navigation")).toBeNull();
-    expect(screen.queryByRole("switch")).toBeNull();
+    // Layout Policy keeps its own switch on mobile; only the desktop
+    // Canvas Navigation card goes away.
+    expect(screen.getByRole("switch", { name: "Auto-relayout" })).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Scroll to Zoom" })).toBeNull();
   });
 
   test("basic mode hides layout policy and card metrics, not desktop navigation", async () => {
