@@ -29,13 +29,14 @@ jobs:
       - name: Labels, milestone and assignee from the task rows
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped
-        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write
+        # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped.
+        # --no-project: this token cannot reach Projects v2; the next step owns the board.
+        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --no-project
 
-      # Project board (needs a PAT with the `project` scope AND a board number
-      # in scripts/tasks.py / on the command line). Without both, the step above
-      # prints `project: skipped` and this stays commented out.
-      # - name: Add to the project board and sync Status
-      #   env:
-      #     GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
-      #   run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --project <N>
+      # Project board: needs a PAT with the `project` scope (PROJECTS_TOKEN).
+      # `GITHUB_TOKEN` above cannot reach Projects v2 — hence a second step with
+      # its own token. PROJECT_NUMBER = 1 lives in scripts/tasks.py, so no flag.
+      - name: Add to the project board and sync Status
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write

@@ -34,7 +34,9 @@ DEFAULT_ASSIGNEE = "qvesera"
 PROJECT_OWNER = "qvesera"
 # Set once `gh project list` works (needs the read:project scope); `pr-metadata
 # --project <n>` overrides it per call.
-PROJECT_NUMBER: int | None = None
+# PROJECT_NUMBER: set once the board is known (board `#1 · fewer - file viz`,
+# owner qvesera) — `pr-metadata --project <n>` still overrides per call.
+PROJECT_NUMBER: int | None = 1
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -950,8 +952,12 @@ def cmd_reparent(args: argparse.Namespace) -> int:
 
 
 # ── pr-metadata: labels · milestone · assignee · project item for a PR ───
-STATUS_TO_PROJECT = {"backlog": "Todo", "triaged": "Todo", "in-progress": "In progress",
-                     "blocked": "In progress", "review": "In review", "parked": "Todo",
+# Board `#1 · fewer - file viz` Status options: To triage, Backlog, Ready,
+# In progress, In review, Done. Ledger → board: a triaged task is Ready, a
+# blocked/parked one is not (Backlog).
+STATUS_TO_PROJECT = {"backlog": "Backlog", "triaged": "Ready",
+                     "in-progress": "In progress", "blocked": "Backlog",
+                     "review": "In review", "parked": "Backlog",
                      "done": "Done", "wontfix": "Done"}
 
 
@@ -974,21 +980,53 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
     return rows
 
 
-def _apply_project(number: int, info: dict[str, Any], status: str) -> None:
-    """Best effort: add the PR to the board and mirror its Status.
+def size_option_name(estimate_min: int) -> str:
+    """Board Size option for a task: `size:m` → `M` (the board's XS/S/M/L/XL)."""
+    return size_label(estimate_min).split(":", 1)[1].upper()
 
-    Every failure prints why and returns — never raises. Needs the
-    read:project scope (`gh auth refresh -s project`).
+
+def _gh_project(args: list[str]) -> tuple[int, str]:
+    """Run a `gh project …` call and return (exit_code, first-line-of-error).
+
+    stdout is returned separately by callers that need JSON; this exists so a
+    failure reports gh's own words instead of a generic hint.
     """
     try:
-        raw = gh("project", "item-add", str(number), "--owner", PROJECT_OWNER,
-                 "--url", info["url"], "--format", "json", check=False)
-        added = json.loads(raw) if raw.strip().startswith("{") else {}
-    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
-        added = {}
+        r = subprocess.run(["gh", *args], cwd=ROOT, capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return 127, "gh not installed"
+    if r.returncode == 0:
+        return 0, r.stdout
+    first = next((ln.strip() for ln in (r.stderr or r.stdout).splitlines() if ln.strip()), "")
+    return r.returncode, first or f"gh exited {r.returncode}"
+
+
+def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int) -> None:
+    """Best effort: add the PR to the board and mirror its Status/Size.
+
+    Every failure prints gh's own error and returns — never raises. If the
+    literal owner login cannot be resolved (`unknown owner type`, common with
+    a PAT whose owner-type lookup is restricted), retry with `--owner @me`,
+    which resolves from the token itself instead of from the login.
+    """
+    code, out = _gh_project(["project", "item-add", str(number), "--owner", PROJECT_OWNER,
+                             "--url", info["url"], "--format", "json"])
+    if code != 0 and "unknown owner type" in str(out).lower():
+        print(f"project: {PROJECT_OWNER} could not be resolved ({out}) — retrying --owner @me")
+        code, out = _gh_project(["project", "item-add", str(number), "--owner", "@me",
+                                 "--url", info["url"], "--format", "json"])
+    added: dict[str, Any] = {}
+    if code == 0:
+        try:
+            added = json.loads(out)
+        except json.JSONDecodeError:
+            added = {}
     if not added.get("id"):
-        hint = "needs the read:project scope — run `gh auth refresh -s project`"
-        print(f"project: item not added ({hint})")
+        print(f"project: item not added — {out}")
+        if "scope" in str(out) or "auth" in str(out).lower():
+            print("  hint: PAT needs the classic `project` scope; GH_TOKEN in that job is set "
+                  "from secrets.PROJECTS_TOKEN — see .agents/skills/pr/SKILL.md")
         return
     print(f"project: added to {PROJECT_OWNER}/{number}")
     try:
@@ -1011,14 +1049,32 @@ def _apply_project(number: int, info: dict[str, Any], status: str) -> None:
     if not option:
         names = ", ".join(o.get("name", "?") for o in status_field.get("options", []))
         print(f"project: Status option {want!r} not on this board (have: {names})")
-        return
-    try:
-        gh("project", "item-edit", "--id", added["id"],
-           "--field-id", status_field["id"], "--project-id", project_id,
-           "--single-select-option-id", option["id"], check=False)
-        print(f"project: Status → {option['name']}")
-    except (SystemExit, FileNotFoundError):
-        print("project: Status sync failed")
+    else:
+        try:
+            gh("project", "item-edit", "--id", added["id"],
+               "--field-id", status_field["id"], "--project-id", project_id,
+               "--single-select-option-id", option["id"], check=False)
+            print(f"project: Status → {option['name']}")
+        except (SystemExit, FileNotFoundError):
+            print("project: Status sync failed")
+
+    # The board has a Size single-select (XS/S/M/L/XL) — same band as size:*.
+    size_field = next((f for f in fields.get("fields", [])
+                       if (f.get("name") or "").lower() == "size"), None)
+    if size_field:
+        want_size = size_option_name(estimate)
+        size_option = next((o for o in size_field.get("options", [])
+                            if (o.get("name") or "").upper() == want_size), None)
+        if size_option:
+            try:
+                gh("project", "item-edit", "--id", added["id"],
+                   "--field-id", size_field["id"], "--project-id", project_id,
+                   "--single-select-option-id", size_option["id"], check=False)
+                print(f"project: Size → {size_option['name']}")
+            except (SystemExit, FileNotFoundError):
+                print("project: Size sync failed")
+        else:
+            print(f"project: Size option {want_size!r} not on this board")
 
 
 def next_milestone() -> str | None:
@@ -1084,8 +1140,11 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     print(f"  milestone now={current_ms or '-'} → want={milestone or '-'}")
     print(f"  assignee  now=[{', '.join(have_assignees) or '-'}] → want={assignee}")
     project = args.project if args.project is not None else PROJECT_NUMBER
-    print(f"  project   {project or 'not configured'}" +
-          ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
+    if getattr(args, "no_project", False):
+        print("  project   skipped (--no-project)")
+    else:
+        print(f"  project   {project or 'not configured'}" +
+              ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
 
     if args.dry_run:
         print("  (dry-run: nothing written)")
@@ -1115,10 +1174,12 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         print("  (--no-write: ledger pr: stamp skipped — CI checkout)")
 
     status = rows[0].get("status") or "review"
-    if project is None:
+    if args.no_project:
+        print("project: skipped (--no-project: labels/milestone/assignee only)")
+    elif project is None:
         print("project: skipped — no board configured")
     else:
-        _apply_project(project, info, status)
+        _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
     return 0
@@ -1781,6 +1842,20 @@ def _linked_prs(number: int) -> list[dict[str, Any]]:
 def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
     plan = []
     for row in ledger["tasks"]:
+        # An open session means the work is live — never auto-close it, even if
+        # the PR it references has merged (it may be carried into a follow-up).
+        if any(not s.get("end") for s in row.get("sessions") or []):
+            continue
+        pr_no = row.get("pr")
+        if pr_no and row["status"] in ("review", "in-progress"):
+            try:
+                pr_state = gh("pr", "view", str(pr_no), "--json", "state",
+                              "--jq", ".state", check=False).strip()
+            except (SystemExit, FileNotFoundError):
+                pr_state = ""
+            if pr_state == "MERGED":
+                plan.append((row, "done", f"PR #{pr_no} merged"))
+                continue
         number = row.get("issue")
         if not number:
             continue
@@ -2011,8 +2086,8 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         if pr_no is not None and not isinstance(pr_no, int):
             fail(f"{rid}: pr must be an integer or null, got {pr_no!r}")
         elif pr_no is not None and row.get("status") not in ("review", "done"):
-            warn(f"{rid}: PR #{pr_no} is open but status={row.get('status')} "
-                 f"(stop moves it to review)")
+            warn(f"{rid}: references PR #{pr_no} but status={row.get('status')} "
+                 f"(stop moves it to review; reconcile closes it once the PR merges)")
         if not isinstance(row.get("notes"), list):
             fail(f"{rid}: notes must be a list")
 
@@ -2417,6 +2492,8 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("size band: m ≤960", size_label(960) == "size:m")
     check("size band: l ≤2400", size_label(2400) == "size:l")
     check("size band: xl >2400", size_label(2401) == "size:xl")
+    check("board Size option: size:m → M, size:xs → XS",
+          size_option_name(600) == "M" and size_option_name(30) == "XS")
     check("derived labels: status + type + category + size",
           derived_labels([{"type": "feat", "area": "import", "estimate_min": 480,
                            "status": "review"}])
@@ -2658,6 +2735,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-write", action="store_true",
                     help="do not stamp `pr:` back into the ledger (CI checkout)")
     sp.add_argument("--project", type=int, help="board number (default: PROJECT_NUMBER)")
+    sp.add_argument("--no-project", action="store_true",
+                    help="labels/milestone/assignee only — leave the board to a later step")
     sp.add_argument("--milestone",
                     help="override the default (earliest open milestone when the task has none)")
 

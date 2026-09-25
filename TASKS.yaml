@@ -4,7 +4,7 @@ version: 1
 tasks:
 - id: "T-001"
   title: "Task tracking: ledger, validate/validate-commits gates, commit hook, rule + skill, TO-DO/GitHub bootstrap"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "other"
   tier: null
@@ -367,7 +367,7 @@ tasks:
   session_count: 0
 - id: "T-016"
   title: "Can't deselect using Ctrl when selection is made through Shift select"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "file-ops"
   tier: null
@@ -557,7 +557,7 @@ tasks:
   session_count: 0
 - id: "T-024"
   title: "Hierarchy: issues/sub-issues and tasks/subtasks (parent field, rollups, GitHub sub-issue linking, decomposition duties)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "other"
   tier: null
@@ -593,7 +593,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
-  pr: 198
+  pr: 200
   internal: true
   milestone: null
   blocked_by: []
@@ -603,7 +603,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T21:47:09Z"
-  notes: ["2026-09-24T21:47:09Z · plan-locked: assignees + size:* labels + project; gh scope for projects still missing"]
+  notes: ["2026-09-24T21:47:09Z · plan-locked: assignees + size:* labels + project; gh scope for projects still missing", "2026-09-25T06:36:51Z · 479m session spans a work break (idle time included) — treat the effort (1 commit / 2 files) and the per-commit stop timestamps as the real signal; future sessions: stop when you stop working"]
   sessions:
   - start: "2026-09-24T21:47:09Z"
     end: "2026-09-24T22:02:32Z"
@@ -617,5 +617,35 @@ tasks:
     note: "CI workflow verified live on #198 (bot labelled it from scratch); trigger scope corrected in workflow comment, pr skill and PR body"
     proof: ["65b0e18", "#198"]
     effort: {commits: 1, files: 2, insertions: 12, deletions: 7}
-  spent_min: 16
-  session_count: 2
+  - start: "2026-09-24T22:18:36Z"
+    end: "2026-09-24T22:27:14Z"
+    measured: true
+    note: "board #1 wired: Status+Size sync, PROJECT_NUMBER=1, option-name fix; verified by GraphQL read-back (196/197 In review M, 198 In progress M); 52 checks"
+    proof: ["effc959", "#198"]
+    effort: {commits: 1, files: 2, insertions: 60, deletions: 25}
+  - start: "2026-09-24T22:36:54Z"
+    end: "2026-09-25T06:35:40Z"
+    measured: true
+    note: "rescued board wiring + reconcile merged-PR detection after #198 merged and its branch was deleted; 3 rows auto-closed, #180 closed with comment"
+    proof: ["b443fc7"]
+    effort: {commits: 1, files: 2, insertions: 27, deletions: 7}
+  - start: "2026-09-25T07:46:08Z"
+    end: "2026-09-25T07:46:19Z"
+    measured: true
+    note: "CI board step enabled: PROJECTS_TOKEN (PAT, scope project) added by user; pr-metadata job now runs labels/milestone/assignee with GITHUB_TOKEN then board item+Status+Size with the PAT"
+    proof: ["c089fff", "#200"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 7}
+  - start: "2026-09-25T07:48:35Z"
+    end: "2026-09-25T07:49:42Z"
+    measured: true
+    note: "diagnostics: real gh stderr on project failure + --no-project split between the two CI steps"
+    proof: ["a1330f9", "#200"]
+    effort: {commits: 1, files: 2, insertions: 44, deletions: 16}
+  - start: "2026-09-25T07:57:42Z"
+    end: "2026-09-25T07:57:42Z"
+    measured: true
+    note: "@me fallback for unknown owner type (CI with PAT)"
+    proof: ["484dfa3", "#200"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 1}
+  spent_min: 505
+  session_count: 7
