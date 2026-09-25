@@ -29,8 +29,9 @@ jobs:
       - name: Labels, milestone and assignee from the task rows
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped
-        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write
+        # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped.
+        # --no-project: this token cannot reach Projects v2; the next step owns the board.
+        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --no-project
 
       # Project board: needs a PAT with the `project` scope (PROJECTS_TOKEN).
       # `GITHUB_TOKEN` above cannot reach Projects v2 — hence a second step with

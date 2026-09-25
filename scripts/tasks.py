@@ -985,21 +985,41 @@ def size_option_name(estimate_min: int) -> str:
     return size_label(estimate_min).split(":", 1)[1].upper()
 
 
-def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int) -> None:
-    """Best effort: add the PR to the board and mirror its Status.
+def _gh_project(args: list[str]) -> tuple[int, str]:
+    """Run a `gh project …` call and return (exit_code, first-line-of-error).
 
-    Every failure prints why and returns — never raises. Needs the
-    read:project scope (`gh auth refresh -s project`).
+    stdout is returned separately by callers that need JSON; this exists so a
+    failure reports gh's own words instead of a generic hint.
     """
     try:
-        raw = gh("project", "item-add", str(number), "--owner", PROJECT_OWNER,
-                 "--url", info["url"], "--format", "json", check=False)
-        added = json.loads(raw) if raw.strip().startswith("{") else {}
-    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
-        added = {}
+        r = subprocess.run(["gh", *args], cwd=ROOT, capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return 127, "gh not installed"
+    if r.returncode == 0:
+        return 0, r.stdout
+    first = next((ln.strip() for ln in (r.stderr or r.stdout).splitlines() if ln.strip()), "")
+    return r.returncode, first or f"gh exited {r.returncode}"
+
+
+def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int) -> None:
+    """Best effort: add the PR to the board and mirror its Status/Size.
+
+    Every failure prints gh's own error and returns — never raises.
+    """
+    code, out = _gh_project(["project", "item-add", str(number), "--owner", PROJECT_OWNER,
+                             "--url", info["url"], "--format", "json"])
+    added: dict[str, Any] = {}
+    if code == 0:
+        try:
+            added = json.loads(out)
+        except json.JSONDecodeError:
+            added = {}
     if not added.get("id"):
-        hint = "needs the read:project scope — run `gh auth refresh -s project`"
-        print(f"project: item not added ({hint})")
+        print(f"project: item not added — {out}")
+        if "scope" in str(out) or "auth" in str(out).lower():
+            print("  hint: PAT needs the classic `project` scope; GH_TOKEN in that job is set "
+                  "from secrets.PROJECTS_TOKEN — see .agents/skills/pr/SKILL.md")
         return
     print(f"project: added to {PROJECT_OWNER}/{number}")
     try:
@@ -1113,8 +1133,11 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     print(f"  milestone now={current_ms or '-'} → want={milestone or '-'}")
     print(f"  assignee  now=[{', '.join(have_assignees) or '-'}] → want={assignee}")
     project = args.project if args.project is not None else PROJECT_NUMBER
-    print(f"  project   {project or 'not configured'}" +
-          ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
+    if getattr(args, "no_project", False):
+        print("  project   skipped (--no-project)")
+    else:
+        print(f"  project   {project or 'not configured'}" +
+              ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
 
     if args.dry_run:
         print("  (dry-run: nothing written)")
@@ -1144,7 +1167,9 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         print("  (--no-write: ledger pr: stamp skipped — CI checkout)")
 
     status = rows[0].get("status") or "review"
-    if project is None:
+    if args.no_project:
+        print("project: skipped (--no-project: labels/milestone/assignee only)")
+    elif project is None:
         print("project: skipped — no board configured")
     else:
         _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
@@ -2703,6 +2728,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-write", action="store_true",
                     help="do not stamp `pr:` back into the ledger (CI checkout)")
     sp.add_argument("--project", type=int, help="board number (default: PROJECT_NUMBER)")
+    sp.add_argument("--no-project", action="store_true",
+                    help="labels/milestone/assignee only — leave the board to a later step")
     sp.add_argument("--milestone",
                     help="override the default (earliest open milestone when the task has none)")
 
