@@ -1141,7 +1141,7 @@ tasks:
   session_count: 1
 - id: "T-046"
   title: "Task workflow enforcement: readiness gate (start only from triaged, ready verb, validate fails on an unready row) and correct PR attachment on stop (pr_for_session + attach-pr)"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "other"
   tier: null
