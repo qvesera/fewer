@@ -641,5 +641,11 @@ tasks:
     note: "diagnostics: real gh stderr on project failure + --no-project split between the two CI steps"
     proof: ["a1330f9", "#200"]
     effort: {commits: 1, files: 2, insertions: 44, deletions: 16}
+  - start: "2026-09-25T07:57:42Z"
+    end: "2026-09-25T07:57:42Z"
+    measured: true
+    note: "@me fallback for unknown owner type (CI with PAT)"
+    proof: ["484dfa3", "#200"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 1}
   spent_min: 505
-  session_count: 6
+  session_count: 7
