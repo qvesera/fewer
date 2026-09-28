@@ -1918,6 +1918,9 @@ def cmd_intake(args: argparse.Namespace) -> int:
             applied.append(f"category:{payload['category']}")
         if STATUS_LABEL[target_status]:
             applied.append(STATUS_LABEL[target_status])
+        # Same type derivation as adopt_issue so the size label matches the
+        # estimate the adopted row actually gets (bug -> fix, etc.).
+        rtype = "fix" if "bug" in labels else ("feat" if "enhancement" in labels else "task")
         applied.append(size_label(ESTIMATE_DEFAULT.get(rtype, 120)))
         if args.dry_run:
             adopted.append(f"#{issue['number']}({target_status})")

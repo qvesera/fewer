@@ -1279,3 +1279,32 @@ tasks:
     effort: {commits: 3, files: 15, insertions: 444, deletions: 112}
   spent_min: 45
   session_count: 4
+- id: "T-053"
+  title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
+  status: "in-progress"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 15
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:22:06Z"
+  notes: ["2026-09-28T16:22:12Z · internal fix, no issue needed"]
+  sessions:
+  - start: "2026-09-28T16:23:05Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
