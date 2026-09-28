@@ -1286,32 +1286,32 @@ tasks:
   session_count: 1
 - id: "T-051"
   title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "import"
   tier: null
   estimate_min: 420
   estimate_basis: "cli"
   issue: 237
-  pr: null
+  pr: 249
   internal: false
   milestone: null
   blocked_by: ["T-050"]
   parent: "T-049"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T10:53:55Z"
   notes: ["2026-09-28T16:58:53Z · SPIKE RESULT (bun, libarchive.js@2.0.2 node build): the wasm engine lists .tar.xz and .tar.bz2 correctly, plus zip/tar/gzip — so xz and bzip2 are native to this build. No need for the xz-decompress or fzstd fallbacks. 7z and RAR are libarchive-native (no local CLI to fixture them; trust libarchive's declared support). zstd is the only format the engine's declared compression list (GZIP/DEFLATE/BZIP2/LZMA) does not obviously cover — it will be tried and reported honestly if unsupported. Engine lists via getFilesArray() without decompressing member data."]
   sessions:
   - start: "2026-09-28T17:11:35Z"
-    end: null
+    end: "2026-09-28T17:14:01Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "WASM archive engine shipped (PR #249). Spike first: the libarchive.js@2.0.2 wasm build natively covers xz and bzip2 (verified against real .tar.xz/.tar.bz2), so the planned xz-decompress/fzstd fallbacks were NOT needed; 7z/RAR are libarchive-native. New src/lib/fewer/archiveEngine.ts lazily imports libarchive.js only for 7z/rar/xz/bz2/zst magic bytes, lists via getFilesObject() in a worker, shares toListing with the fast path, and tears the worker down after. A probe caught a real bug: getFilesArray() puts the CONTAINING FOLDER in .path (folder-only trees); getFilesObject() is correct. scripts/vendor-libarchive.ts copies worker+wasm to public/libarchive/ (wired into dev/build/build:netlify, gitignored). e2e against a real .tar.xz shows the full tree with real sizes. 1396+177 tests, tsc/lint/build/migration-verify clean. PR #249."
+    proof: ["b4925a5", "#249"]
+    effort: {commits: 1, files: 14, insertions: 2704, deletions: 45}
+  spent_min: 2
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
