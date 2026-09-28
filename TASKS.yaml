@@ -1176,30 +1176,30 @@ tasks:
   session_count: 2
 - id: "T-047"
   title: "Triage the queue: the triaged set becomes the current + next release train, everything further out moves to backlog (and ready reports triaged rows only)"
-  status: "in-progress"
+  status: "review"
   type: "refactor"
   area: "other"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 230
-  pr: null
+  pr: 231
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T07:53:59Z"
   notes: ["2026-09-28T07:53:59Z · 27 triaged rows across 6 trains read as one queue; the triaged set should mean 'startable now'"]
   sessions:
   - start: "2026-09-28T07:55:17Z"
-    end: null
+    end: "2026-09-28T08:01:00Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "16 rows moved triaged -> backlog (v0.8.0 studio Tier 0/1, v0.9.0 Tier 2, v1.0.0 platform, Growth commercial). Triaged queue is now the current + next train: 11 rows. ready now scans triaged only (--all widens), extracted unready_rows() for that and added 3 selftest checks."
+    proof: ["a3c2f0d"]
+    effort: {commits: 1, files: 4, insertions: 105, deletions: 34}
+  spent_min: 6
   session_count: 1
