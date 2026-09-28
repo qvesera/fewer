@@ -1257,7 +1257,7 @@ tasks:
   session_count: 0
 - id: "T-050"
   title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -1286,7 +1286,7 @@ tasks:
   session_count: 1
 - id: "T-051"
   title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
-  status: "blocked"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: null
@@ -1356,7 +1356,7 @@ tasks:
   session_count: 4
 - id: "T-053"
   title: "Shift+H throws after selecting a card: shortcut rules read a store field that no longer exists (showFilesByLeaf)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "keyboard"
   tier: 0
@@ -1385,7 +1385,7 @@ tasks:
   session_count: 1
 - id: "T-054"
   title: "Shift+H claims it revealed cards the auto-hide filter re-hides in the same press"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "keyboard"
   tier: 0
