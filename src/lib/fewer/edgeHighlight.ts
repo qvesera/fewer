@@ -100,29 +100,64 @@ export function ancestorPathHighlight(
 }
 
 /**
- * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
- * from a selected node up to its root parent (child edges are NOT highlighted).
- * Each path edge is colored by its target node type (folder vs file) so
- * multi-selection shows every selected node's path, not just the last-picked
- * one. Empty selection → all edges reset to default stroke.
- * Highlighted edges get zIndex 1 (above other edges but below every node,
- * which is locked at zIndex 1000 in GraphCanvas's visibleNodes).
+ * The unhighlighted edge array: every edge carrying the default stroke, the base
+ * dash pattern and the global motion setting.
  *
- * Animation semantics:
- *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
- *     and non-selected edges animate only when `animated` (sidebar motion).
- *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
+ * Split out from the highlight so a SELECTION change doesn't renormalise 30k
+ * edges to change the stroke on a handful: the base depends only on the edges,
+ * the theme, the width and the animation options, and the canvas memoises it on
+ * exactly those. `buildSelectedEdgeHighlight` below is the composition of the
+ * two, kept for callers that want the whole thing in one call.
  */
-export function buildSelectedEdgeHighlight(
-  selectedIds: string[],
-  hoverIds: string[],
+export function buildEdgeBase(
   edges: FewerEdge[],
-  nodes: FewerNode[],
   themeColors: EdgeThemeColors,
   edgeWidth: number,
   edgeAnimation: EdgeAnimationOptions,
 ): FewerEdge[] {
-  const { typeByNodeId, parentEdgeOf } = buildTreeLookups(nodes, edges);
+  const defaultStroke = themeColors.edge;
+  const anim = edgeAnimation.animated;
+  // The base dash is the BASE stroke style whether or not motion is on — with
+  // motion off the old one-shot builder still dashed the edges per that style,
+  // and a "dashed"/"dotted" base must keep looking dashed when still.
+  const dash = edgeDashPattern(edgeAnimation.baseStrokeStyle);
+  return edges.map((e) => ({
+    ...e,
+    animated: anim,
+    style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+  }));
+}
+
+/** The two lookups `applyEdgeHighlights` walks. Built once per graph change. */
+export interface TreeLookups {
+  typeByNodeId: NodeTypeLookup;
+  parentEdgeOf: ParentEdgeMap;
+}
+
+/**
+ * Style the ancestor-path edges of the selected and hovered cards over an
+ * already-normalised `base` array.
+ *
+ * Copy-on-write: an edge that is not on a path is returned BY IDENTITY, so a
+ * selection change allocates a handful of objects instead of one per edge, and
+ * React Flow can skip the untouched ones. The highlighted edges are moved to the
+ * end with an O(E) partition — the same result as the stable "non-highlighted
+ * first, then highlighted" sort this replaced, without the O(E log E).
+ *
+ * Returns `base` unchanged when nothing is highlighted, which is the common
+ * case (an empty selection, or ids that aren't in the graph).
+ */
+export function applyEdgeHighlights(
+  base: FewerEdge[],
+  selectedIds: string[],
+  hoverIds: string[],
+  lookups: TreeLookups,
+  themeColors: EdgeThemeColors,
+  edgeWidth: number,
+  edgeAnimation: EdgeAnimationOptions,
+): FewerEdge[] {
+  if (selectedIds.length === 0 && hoverIds.length === 0) return base;
+  const { typeByNodeId, parentEdgeOf } = lookups;
 
   // Selection path uses the themed folder/file stroke.
   const selectedHighlight = ancestorPathHighlight(
@@ -144,38 +179,72 @@ export function buildSelectedEdgeHighlight(
   );
 
   const highlightedIds = new Set([...selectedHighlight.keys(), ...hoverHighlight.keys()]);
-  const defaultStroke = themeColors.edge;
-  return edges
-    .map((e) => {
-      const sel = selectedHighlight.get(e.id);
-      const hov = hoverHighlight.get(e.id);
-      // Hover wins on overlap — it's the user's current focus; selection styling
-      // returns on mouse-leave once the hover recompute drops these edges.
-      const h = hov ?? sel;
-      // Per-edge animation: selected-path edges always animate when selectedOnly
-      // is on; non-selected edges animate only when the global motion toggle is on.
-      const selectedPath = edgeAnimation.selectedOnly && !!sel;
-      const anim = selectedPath || edgeAnimation.animated;
-      // Selected-path edges use the dialog-chosen pattern; everything else uses
-      // the sidebar base pattern (so unselected edges stay solid/static when
-      // motion is off).
-      const dash = anim
-        ? edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle)
-        : edgeDashPattern(edgeAnimation.baseStrokeStyle);
-      return h
-        ? {
-            ...e,
-            zIndex: 1,
-            animated: anim,
-            style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          }
-        : {
-            ...e,
-            animated: anim,
-            style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-          };
-    })
-    .sort((a, b) => (highlightedIds.has(a.id) ? 1 : 0) - (highlightedIds.has(b.id) ? 1 : 0));
+  if (highlightedIds.size === 0) return base;
+
+  const out = base.map((e) => {
+    const sel = selectedHighlight.get(e.id);
+    // Hover wins on overlap — it's the user's current focus; selection styling
+    // returns on mouse-leave once the hover recompute drops these edges.
+    const h = hoverHighlight.get(e.id) ?? sel;
+    if (!h) return e;
+    // Per-edge animation: selected-path edges always animate when selectedOnly
+    // is on; non-selected edges animate only when the global motion toggle is on.
+    const selectedPath = edgeAnimation.selectedOnly && !!sel;
+    const anim = selectedPath || edgeAnimation.animated;
+    // Selected-path edges use the dialog-chosen pattern; everything else uses
+    // the sidebar base pattern (so unselected edges stay solid/static when
+    // motion is off).
+    const dash = edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle);
+    return {
+      ...e,
+      zIndex: 1,
+      animated: anim,
+      style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
+    };
+  });
+
+  // Highlighted last, so a highlighted edge is never covered by a grey one.
+  const head: FewerEdge[] = [];
+  const tail: FewerEdge[] = [];
+  for (const e of out) (highlightedIds.has(e.id) ? tail : head).push(e);
+  return head.concat(tail);
+}
+
+/**
+ * Style the edges on the ancestor path of EVERY selected node — i.e. each edge
+ * from a selected node up to its root parent (child edges are NOT highlighted).
+ * Each path edge is colored by its target node type (folder vs file) so
+ * multi-selection shows every selected node's path, not just the last-picked
+ * one. Empty selection → all edges reset to default stroke.
+ * Highlighted edges get zIndex 1 (above other edges but below every node,
+ * which is locked at zIndex 1000 in GraphCanvas's visibleNodes).
+ *
+ * Animation semantics:
+ *   - selectedOnly on → selected-path edges ALWAYS animate (dialog pattern)
+ *     and non-selected edges animate only when `animated` (sidebar motion).
+ *   - selectedOnly off → `animated` drives all edges (sidebar pattern).
+ *
+ * The canvas calls `buildEdgeBase` + `applyEdgeHighlights` separately (both
+ * memoised on their own inputs); this is the two in one call.
+ */
+export function buildSelectedEdgeHighlight(
+  selectedIds: string[],
+  hoverIds: string[],
+  edges: FewerEdge[],
+  nodes: FewerNode[],
+  themeColors: EdgeThemeColors,
+  edgeWidth: number,
+  edgeAnimation: EdgeAnimationOptions,
+): FewerEdge[] {
+  return applyEdgeHighlights(
+    buildEdgeBase(edges, themeColors, edgeWidth, edgeAnimation),
+    selectedIds,
+    hoverIds,
+    buildTreeLookups(nodes, edges),
+    themeColors,
+    edgeWidth,
+    edgeAnimation,
+  );
 }
 
 /**

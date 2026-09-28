@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { FewerEdge, FewerNode } from "./types";
-import { applyEdgeSelection, buildSelectedEdgeHighlight, edgeTypeFor, staticEdgeDashArray } from "./edgeHighlight";
+import {
+  applyEdgeHighlights,
+  applyEdgeSelection,
+  buildEdgeBase,
+  buildSelectedEdgeHighlight,
+  buildTreeLookups,
+  edgeTypeFor,
+  staticEdgeDashArray,
+} from "./edgeHighlight";
 
 function makeNode(id: string, type: "folder" | "file" = "folder"): FewerNode {
   return { id, type, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type } };
@@ -128,6 +136,69 @@ describe("buildSelectedEdgeHighlight", () => {
     const result = byId(buildSelectedEdgeHighlight(["c"], [], edges, nodes, THEME, 2, baseOpts({ baseStrokeStyle: "dashed" })));
     expect(result.get("e-ab")?.style?.strokeDasharray).toBe("8 4");
     expect(result.get("e-xy")?.style?.strokeDasharray).toBe("8 4");
+  });
+});
+
+// A selection change must not renormali[z]e or re-clone the whole edge list: the
+// canvas memoises the base on the graph and re-applies only the path edges.
+describe("buildEdgeBase + applyEdgeHighlights", () => {
+  const lookups = buildTreeLookups(nodes, edges);
+  const base = () => buildEdgeBase(edges, THEME, 2, baseOpts());
+
+  test("an empty selection returns the base array by identity", () => {
+    const b = base();
+    expect(applyEdgeHighlights(b, [], [], lookups, THEME, 2, baseOpts())).toBe(b);
+  });
+
+  test("ids that are not in the graph also return the base by identity", () => {
+    const b = base();
+    expect(applyEdgeHighlights(b, ["nope"], ["nope"], lookups, THEME, 2, baseOpts())).toBe(b);
+  });
+
+  test("edges off the path are returned by identity, so RF can skip them", () => {
+    const b = base();
+    const out = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    const kept = out.find((e) => e.id === "e-xy");
+    expect(kept).toBe(b.find((e) => e.id === "e-xy"));
+    // The path edges are new objects.
+    expect(out.find((e) => e.id === "e-ra")).not.toBe(b.find((e) => e.id === "e-ra"));
+  });
+
+  test("highlighted edges keep their object identity across a repeated call", () => {
+    const b = base();
+    const first = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    // A second pass over the same base (what a re-selection does) reproduces the
+    // same array contents — and, for untouched edges, the same objects.
+    const second = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    expect(second.map((e) => e.id)).toEqual(first.map((e) => e.id));
+    expect(second.find((e) => e.id === "e-xy")).toBe(b.find((e) => e.id === "e-xy"));
+  });
+
+  test("highlighted edges are moved to the end, preserving relative order", () => {
+    const out = applyEdgeHighlights(base(), ["c"], [], lookups, THEME, 2, baseOpts());
+    // Non-highlighted first (e-xy), then the c path in order e-ra, e-ab, e-bc.
+    expect(out.map((e) => e.id)).toEqual(["e-xy", "e-ra", "e-ab", "e-bc"]);
+  });
+
+  test("no edge is left in the base style when something is highlighted", () => {
+    const b = base();
+    const out = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    // Path edges are coloured by their TARGET's type (c is a file), everything
+    // else keeps the default stroke.
+    const expected: Record<string, string> = {
+      "e-ra": THEME.folderIcon,
+      "e-ab": THEME.folderIcon,
+      "e-bc": THEME.fileIcon,
+      "e-xy": THEME.edge,
+    };
+    for (const e of out) expect(e.style?.stroke).toBe(expected[e.id]);
+  });
+
+  test("composition matches the one-shot builder for the same inputs", () => {
+    const composed = applyEdgeHighlights(base(), ["c"], [], lookups, THEME, 2, baseOpts());
+    const oneShot = buildSelectedEdgeHighlight(["c"], [], edges, nodes, THEME, 2, baseOpts());
+    expect(composed.map((e) => ({ id: e.id, zIndex: e.zIndex, animated: e.animated, style: e.style })))
+      .toEqual(oneShot.map((e) => ({ id: e.id, zIndex: e.zIndex, animated: e.animated, style: e.style })));
   });
 });
 

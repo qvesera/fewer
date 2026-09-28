@@ -1234,7 +1234,7 @@ tasks:
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "review"
+  status: "in-progress"
   type: "perf"
   area: "performance"
   tier: 0
@@ -1271,5 +1271,11 @@ tasks:
     note: "Follow-up session: the three items PR #240 listed as not addressed. Bounded the hover ring + Set membership (b85e1f6), single-pass panel with lazy rows and a folded gate (dd42d5e), and split the derived layout from the position overlay (d767901). Drag frame in a deriving view 138ms -> 2.4ms at 30.4k nodes; panel build 27.6 -> 13.7ms (hide-files) and 28ms -> 0.09ms (Hide Children subtree); hover ring 5002 ids -> 3. Gates: bun test src 1351 pass, test:components 175 pass, lint 0, tsc 0, build 0."
     proof: ["d767901", "dd42d5e", "b85e1f6"]
     effort: {commits: 3, files: 13, insertions: 623, deletions: 151}
+  - start: "2026-09-28T13:36:25Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 29
-  session_count: 3
+  session_count: 4

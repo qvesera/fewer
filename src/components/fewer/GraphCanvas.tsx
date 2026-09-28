@@ -227,7 +227,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
+    onEdgesChange, setRfEdges, graphVersion, allNodes, allEdges, visibleEdges,
+    themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
   const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
