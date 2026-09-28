@@ -165,6 +165,40 @@ export function resolveViewNodes(
   },
   layout: LayoutOptions = {},
 ): FewerNode[] {
+  return applyViewPositions(
+    deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout) ?? visibleNodes,
+    resolved.positions,
+  );
+}
+
+/**
+ * The expensive half of a view's node set: decide whether this view derives its
+ * own layout, and if so run the layout engine.
+ *
+ * Its result is a function of the visible set, the direction, the derivation
+ * predicate and the layout options — and deliberately NOT of the per-view
+ * position overrides. Those are rewritten on every frame of a drag, so a canvas
+ * that derived both in one memo re-ran the whole layout per frame: 193ms on a
+ * 30k-node graph, in ANY view that diverges (hide layers, a collapsed folder, a
+ * direction override), which is what made dragging in those views crawl.
+ *
+ * The caller memoises this on the leaf's *fields* the predicate reads
+ * (hideLayers / direction / collapsedFolderIds) rather than on the settings
+ * object, which a drag replaces wholesale.
+ */
+export function deriveViewLayout(
+  visibleNodes: FewerNode[],
+  visibleEdges: FewerEdge[],
+  raw: ViewSettings | undefined,
+  resolved: ResolvedViewSettings,
+  global: {
+    direction: LayoutDirection;
+    hiddenIds: string[];
+    /** All file ids — needed by the derivation predicate (bulk files layer). */
+    fileIds: string[];
+  },
+  layout: LayoutOptions = {},
+): FewerNode[] | null {
   // 1. Direction override OR diverged visible set: derive this view's own
   //    layout. This runs BEFORE the per-view positions are applied, because a
   //    view's map only ever holds the cards the user dragged in that view — a
@@ -174,19 +208,23 @@ export function resolveViewNodes(
   //    instead put a new card at a coordinate from the *global* layout, which
   //    is how a card created in the primary view showed up in a dock pane in
   //    the wrong slot — and why Sort/Organize read as inert on that pane.
-  const derives = needsLayoutDerivation(raw, global, global.fileIds);
-  const laid = derives ? layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout) : null;
-  // 2. Explicit per-view positions (set by drag) override, card by card. With
-  //    no derived layout the shared positions are already this view's layout,
-  //    so only the overridden cards are cloned and the rest keep identity.
-  const positions = resolved.positions;
-  if (positions) {
-    return (laid ?? visibleNodes).map((n) =>
-      positions[n.id] ? { ...n, position: positions[n.id] } : n,
-    );
-  }
-  // 3. No override, shared visible set: use shared (store) positions.
-  return laid ?? visibleNodes;
+  if (!needsLayoutDerivation(raw, global, global.fileIds)) return null;
+  return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
+}
+
+/**
+ * The cheap half: explicit per-view card positions (set by drag) override, card
+ * by card. With no derived layout the shared positions are already this view's
+ * layout, so only the overridden cards are cloned and the rest keep identity.
+ */
+export function applyViewPositions(
+  base: FewerNode[],
+  positions: Record<string, { x: number; y: number }> | undefined,
+): FewerNode[] {
+  if (!positions) return base;
+  return base.map((n) =>
+    positions[n.id] ? { ...n, position: positions[n.id] } : n,
+  );
 }
 
 // ── Resolution ──

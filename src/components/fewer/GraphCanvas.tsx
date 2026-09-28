@@ -45,7 +45,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { resolveViewNodes, withCollapsedPillGeometry } from "@/lib/fewer/viewState";
+import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -163,21 +163,37 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [visibleNodes, vs.collapsedFolderIds],
   );
 
-  // ── Per-view positions: derive when direction overrides OR visible set diverges ──
+  // ── Per-view positions: derive the layout once, overlay positions per change ──
   // Same predicate the Organize action uses (viewState.needsLayoutDerivation, via
-  // resolveViewNodes) so a view never ends up half-organised — and the exporter
+  // deriveViewLayout) so a view never ends up half-organised — and the exporter
   // runs the identical resolution, so an image export mirrors the active view.
+  //
+  // The two halves are memoised apart on purpose. A drag rewrites this leaf's
+  // `positions` on every frame, so deriving the layout in the same memo re-ran
+  // the whole layout engine per frame in any view that diverges (hide layers, a
+  // collapsed folder, a direction override): 193ms per frame at 30k nodes. The
+  // layout memo therefore keys on the leaf's *fields* the derivation predicate
+  // reads — a position write replaces the settings object but keeps those
+  // references — and only the position overlay runs per frame.
+  const rawLeaf = leafId ? viewSettingsMap[leafId] : undefined;
+  const tagLookup = useMemo(() => makeTagLabelLookup(tags), [tags]);
+  const layoutOpts = useMemo(
+    () => ({ shynessScale, sortKey, sortDir, tagLabelById: tagLookup }),
+    [shynessScale, sortKey, sortDir, tagLookup],
+  );
+  const laidNodes = useMemo(
+    () => deriveViewLayout(
+      viewNodes, visibleEdges, rawLeaf, vs, { direction, hiddenIds, fileIds }, layoutOpts,
+    ),
+    [
+      viewNodes, visibleEdges,
+      rawLeaf?.hideLayers, rawLeaf?.direction, rawLeaf?.collapsedFolderIds,
+      vs.direction, direction, hiddenIds, fileIds, layoutOpts,
+    ],
+  );
   const positionedNodes = useMemo(
-    () =>
-      resolveViewNodes(
-        viewNodes,
-        visibleEdges,
-        leafId ? viewSettingsMap[leafId] : undefined,
-        vs,
-        { direction, hiddenIds, fileIds },
-        { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
-      ),
-    [viewNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
+    () => applyViewPositions(laidNodes ?? viewNodes, vs.positions),
+    [laidNodes, viewNodes, vs.positions],
   );
 
   const graphsExists = allNodes.length > 0;

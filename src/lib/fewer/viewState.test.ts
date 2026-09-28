@@ -5,6 +5,8 @@ import {
   mergeViewSettings,
   needsLayoutDerivation,
   parseViewSettings,
+  applyViewPositions,
+  deriveViewLayout,
   resolveViewNodes,
   resolveViewSettings,
   withCollapsedPillGeometry,
@@ -293,6 +295,65 @@ describe("resolveViewNodes", () => {
       shynessScale: 3,
     });
     expect(span(loose)).toBeGreaterThan(span(tight));
+  });
+});
+
+// The canvas memoise deriveViewLayout and applyViewPositions apart because a drag
+// rewrites the leaf's `positions` every frame. These pin both halves of that
+// contract: the composition is unchanged, and the derived layout is a function of
+// everything EXCEPT the positions.
+describe("deriveViewLayout / applyViewPositions split", () => {
+  const global = { direction: "TB" as const, hiddenIds: [] as string[], fileIds: [] as string[] };
+  const node = (id: string, x: number, y: number): FewerNode =>
+    ({ id, position: { x, y }, data: { label: id, path: `/${id}`, type: "folder" } }) as unknown as FewerNode;
+  const chain = (ids: string[]): FewerEdge[] =>
+    ids.slice(1).map((id, i) => ({ id: `e${i}`, source: ids[i], target: id })) as FewerEdge[];
+  const resolved = (extra: Partial<ResolvedViewSettings> = {}): ResolvedViewSettings =>
+    ({ ...GLOBAL, ...extra });
+
+  const cases: { name: string; raw?: ViewSettings; resolvedExtra?: Partial<ResolvedViewSettings> }[] = [
+    { name: "no overrides" },
+    { name: "direction override", raw: { direction: "LR" }, resolvedExtra: { direction: "LR" } },
+    { name: "collapsed folder", raw: { collapsedFolderIds: ["a"] }, resolvedExtra: { collapsedFolderIds: ["a"] } },
+    { name: "hide layers", raw: { hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, resolvedExtra: { hiddenIds: ["a"] } },
+    { name: "positions only", raw: { positions: { b: { x: 7, y: 8 } } }, resolvedExtra: { positions: { b: { x: 7, y: 8 } } } },
+    { name: "direction + positions", raw: { direction: "LR", positions: { b: { x: 7, y: 8 } } }, resolvedExtra: { direction: "LR", positions: { b: { x: 7, y: 8 } } } },
+  ];
+
+  for (const { name, raw, resolvedExtra } of cases) {
+    test(`the composition matches resolveViewNodes (${name})`, () => {
+      const nodes = [node("a", 0, 0), node("b", 10, 10), node("c", 20, 20)];
+      const edges = chain(["a", "b", "c"]);
+      const r = resolved(resolvedExtra);
+      const split = applyViewPositions(
+        deriveViewLayout(nodes, edges, raw, r, global) ?? nodes,
+        r.positions,
+      );
+      expect(split).toEqual(resolveViewNodes(nodes, edges, raw, r, global));
+    });
+  }
+
+  test("the derived layout ignores the per-view positions", () => {
+    const nodes = [node("a", 0, 0), node("b", 0, 0)];
+    const edges = chain(["a", "b"]);
+    const raw = { collapsedFolderIds: ["a"], positions: { b: { x: 7, y: 8 } } };
+    const withPos = deriveViewLayout(nodes, edges, raw, resolved({ positions: raw.positions }), global)!;
+    const withoutPos = deriveViewLayout(
+      nodes, edges, { collapsedFolderIds: ["a"] }, resolved({ collapsedFolderIds: ["a"] }), global,
+    )!;
+    expect(withPos).toEqual(withoutPos);
+  });
+
+  test("applyViewPositions is a no-op by identity when there are no overrides", () => {
+    const nodes = [node("a", 1, 2)];
+    expect(applyViewPositions(nodes, undefined)).toBe(nodes);
+  });
+
+  test("applyViewPositions only clones the cards it overrides", () => {
+    const nodes = [node("a", 1, 2), node("b", 3, 4)];
+    const out = applyViewPositions(nodes, { b: { x: 9, y: 9 } });
+    expect(out[0]).toBe(nodes[0]);
+    expect(out[1]!.position).toEqual({ x: 9, y: 9 });
   });
 });
 
