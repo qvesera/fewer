@@ -1232,3 +1232,38 @@ tasks:
     effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
   spent_min: 20
   session_count: 1
+- id: "T-052"
+  title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
+  status: "triaged"
+  type: "perf"
+  area: "performance"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 239
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T12:03:06Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T12:08:29Z"
+    end: "2026-09-28T12:21:41Z"
+    measured: true
+    note: "Indexed the graph (graphIndex.ts) so getDescendants, the reveal walk and per-card child lists stop re-scanning the edge list; content-stable hidden-id identity so drags in a view with hidden children don't re-filter the graph per frame. getDescendants 1677ms -> 7.8ms on 18.3k edges; one frame over 30 cards 50.7ms -> 9.7ms on 30.4k nodes."
+    proof: ["a0061aa"]
+    effort: {commits: 1, files: 11, insertions: 410, deletions: 50}
+  - start: "2026-09-28T12:25:19Z"
+    end: "2026-09-28T12:26:08Z"
+    measured: true
+    note: "Re-ran on a branch off dev (perf/index-graph-walks) so the PR is one unit of work; same change, gates re-verified on the dev base: bun test src 1334 pass, test:components 170 pass, lint 0, tsc 0, build 0."
+    proof: ["7e0d559"]
+    effort: {commits: 1, files: 11, insertions: 410, deletions: 50}
+  spent_min: 14
+  session_count: 2
