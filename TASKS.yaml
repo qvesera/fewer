@@ -1423,3 +1423,72 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-059"
+  title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
+  status: "triaged"
+  type: "feat"
+  area: "theme"
+  tier: 1
+  estimate_min: 1080
+  estimate_basis: "cli"
+  issue: 244
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-061"]
+  parent: "T-006"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:21Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-060"
+  title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 245
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-059"]
+  parent: "T-006"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:21Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-061"
+  title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 246
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-006"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:28Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
