@@ -73,6 +73,25 @@ test("buildSnapshot contains graph data only — no settings", () => {
   expect("cornerRadius" in snap).toBe(false);
 });
 
+test("symlink metadata rides along with node data through buildSnapshot/applySnapshot", () => {
+  resetStore();
+  const linkNode = {
+    ...folder("latest", "latest"),
+    data: {
+      label: "latest", path: "/latest", type: "folder",
+      symlink: { target: "v012", resolvedPath: "/tmp/root/v012", insideTree: true, followed: false },
+    },
+  } as FewerNode;
+  useGraphStore.setState({ nodes: [folder("r", "R"), linkNode], edges: [edge("r", "latest")] });
+  const snap = buildSnapshot();
+  expect(JSON.parse(JSON.stringify(snap)).nodes[1].data.symlink).toMatchObject({ target: "v012" });
+
+  resetStore();
+  applySnapshot(snap);
+  const restored = useGraphStore.getState().nodes.find((n) => n.id === "latest")!;
+  expect(restored.data.symlink).toMatchObject({ target: "v012", insideTree: true, followed: false });
+});
+
 // ─── applySnapshot ────────────────────────────────────────────
 test("applySnapshot loads nodes/edges but never touches the viewer's settings", () => {
   resetStore();

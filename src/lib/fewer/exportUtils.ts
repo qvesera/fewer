@@ -170,6 +170,7 @@ export function buildJsonExport(
       category: n.data.category ?? null,
       size: n.data.size ?? 0,
       position: n.position,
+      ...(n.data.symlink ? { symlink: n.data.symlink } : {}),
     })),
     edges: edges.map((e) => ({
       id: e.id,
@@ -202,7 +203,7 @@ export function exportCSV(
   includeBranding = true,
 ) {
   const lines: string[] = [];
-  lines.push("id,label,path,type,extension,category,size_bytes");
+  lines.push("id,label,path,type,extension,category,size_bytes,symlink_target");
   for (const n of nodes) {
     const row = [
       n.id,
@@ -212,6 +213,7 @@ export function exportCSV(
       n.data.extension ?? "",
       n.data.category ?? "",
       String(n.data.size ?? 0),
+      csvEscape(n.data.symlink?.target ?? ""),
     ];
     lines.push(row.join(","));
   }
@@ -249,13 +251,23 @@ export function exportDOT(
   );
   for (const n of nodes) {
     const fill = n.data.type === "folder" ? "#f97316" : "#a855f7";
-    const label = `${n.data.label}\\n${n.data.extension ? "." + n.data.extension : n.data.type}`;
-    lines.push(
-      `  "${n.id}" [label="${label}", fillcolor="${fill}", fontcolor="white"];`,
-    );
+    const label = `${n.data.label}\\n${n.data.extension ? "." + n.data.extension : n.data.type}${
+      n.data.symlink ? `\\n↷ ${n.data.symlink.target}` : ""
+    }`;
+    // Symlink nodes: dashed border + the target in the label, so the exported
+    // graph carries the same link signal the canvas does.
+    const attrs = [`label="${label}"`, `fillcolor="${fill}"`, `fontcolor="white"`];
+    if (n.data.symlink) {
+      attrs.push(`symlink="${n.data.symlink.target}"`, 'style="rounded,filled,dashed"');
+    }
+    lines.push(`  "${n.id}" [${attrs.join(", ")}];`);
   }
   for (const e of edges) {
-    lines.push(`  "${e.source}" -> "${e.target}";`);
+    // A link edge reads as "points at", not containment: dashed.
+    const style = nodes.find((n) => n.id === e.target)?.data.symlink
+      ? ' [style=dashed]'
+      : "";
+    lines.push(`  "${e.source}" -> "${e.target}"${style};`);
   }
   if (includeBranding) lines.push(`  // ${FEWER_CREDIT}`);
   lines.push("}");

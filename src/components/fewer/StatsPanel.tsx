@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { computeStats, formatBytes } from "@/lib/fewer/stats";
-import { Folder, HardDrive, File as FileIcon } from "lucide-react";
+import { Folder, HardDrive, File as FileIcon, Link2 } from "lucide-react";
 import { CATEGORY_META } from "@/lib/fewer/categoryMeta";
 import type { FileCategory } from "@/lib/fewer/types";
 import type { Tag } from "@/lib/fewer/tags";
@@ -66,6 +66,17 @@ export function StatsPanel() {
           </div>
         </div>
       </div>
+
+      {stats.totalSymlinks > 0 && (
+        <div className="rounded-xl border border-border/40 bg-card/40 p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <Link2 className="h-3 w-3" /> Symlinks
+          </div>
+          <div className="mt-0.5 text-lg font-bold tabular-nums">
+            {stats.totalSymlinks}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-border/40 bg-card/40 p-3">
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">

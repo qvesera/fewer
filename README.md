@@ -168,7 +168,8 @@ docker run -p 3000:3000 fewer
 <summary><b>Import</b></summary>
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
-- **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
+- **Symlink support**: on local-path imports, symbolic links import as link nodes (link icon, `↷ target` badge, contrast edge with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
+- **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Brave browser** detection with flag workaround instructions
