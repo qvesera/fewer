@@ -195,7 +195,7 @@ function isEditableTarget(el: HTMLElement): boolean {
         dialogTitle="Import"
         minimizable
         onKeyDown={handleStepKeyDown}
-        className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md"
+        className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-xl"
       >
         <DialogHeader className="border-b border-border/20 pb-3">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">

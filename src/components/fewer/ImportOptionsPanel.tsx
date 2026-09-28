@@ -156,8 +156,8 @@ export function ImportOptionsPanel({
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <Link2 className="h-4 w-4 text-muted-foreground/80 shrink-0" />
               <div className="space-y-0.5">
                 <Label className="text-xs font-medium">Symlinks</Label>
@@ -169,7 +169,7 @@ export function ImportOptionsPanel({
             <div
               role="radiogroup"
               aria-label="Symlink handling"
-              className="flex overflow-hidden rounded-lg border border-border/50"
+              className="flex shrink-0 overflow-hidden rounded-lg border border-border/50"
             >
               {(
                 [
