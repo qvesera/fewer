@@ -11,6 +11,24 @@ export interface Tag {
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
 
+/**
+ * Symlink metadata captured at walk time. A link node keeps its honest
+ * `type` (a link to a dir is a folder everywhere: counts, layout, sorting);
+ * `data.symlink` carries everything that makes it a link.
+ */
+export interface SymlinkInfo {
+  /** Raw readlink() value — may be relative ("../v012") or absolute. */
+  target: string;
+  /** Resolved absolute path of the target, when computable at walk time. */
+  resolvedPath?: string;
+  /** True when the resolved target lies inside the imported root — enables "Go to target". */
+  insideTree?: boolean;
+  /** Dangling link: the target does not exist on disk. */
+  broken?: boolean;
+  /** True when the walk recursed into the target's content ("follow" mode). */
+  followed?: boolean;
+}
+
 /** Result status returned by `refreshFolderFromDisk`. */
 export type RefreshStatus = "ok" | "no-handle" | "not-found" | "error";
 
@@ -51,6 +69,8 @@ export interface FewerNodeData {
   isRoot?: boolean;
   /** Provider web URL for cloud-imported entries (open in a new tab) */
   webUrl?: string;
+  /** Symlink metadata when this node is a symlink (see SymlinkInfo). */
+  symlink?: SymlinkInfo;
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
@@ -136,6 +156,8 @@ export interface TreeEntry {
   fsHandle?: FileSystemHandle | null;
   /** Provider web URL for cloud-imported entries (open in a new tab) */
   webUrl?: string;
+  /** Symlink metadata when this entry is a symlink (server-side walk only). */
+  symlink?: SymlinkInfo;
 }
 
 /** Optional File System Access handle stored on each node/item */

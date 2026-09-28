@@ -1471,7 +1471,7 @@ tasks:
   session_count: 0
 - id: "T-061"
   title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "import"
   tier: 1
@@ -1489,6 +1489,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-28T16:24:28Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-09-28T16:27:13Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
