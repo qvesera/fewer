@@ -68,7 +68,7 @@ tasks:
   session_count: 0
 - id: "T-003"
   title: "DCC extension taxonomy"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "other"
   tier: 0
@@ -91,7 +91,7 @@ tasks:
   session_count: 0
 - id: "T-004"
   title: "Frame-sequence collapsing + naming parse"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "other"
   tier: 0
@@ -114,7 +114,7 @@ tasks:
   session_count: 0
 - id: "T-005"
   title: "Studio-aware import profiles"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: 0
@@ -137,7 +137,7 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: 1
@@ -160,7 +160,7 @@ tasks:
   session_count: 0
 - id: "T-007"
   title: "Diff v2 with change detection"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: 1
@@ -183,7 +183,7 @@ tasks:
   session_count: 0
 - id: "T-008"
   title: "Raise depth cap + add node budget"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: 1
@@ -206,7 +206,7 @@ tasks:
   session_count: 0
 - id: "T-009"
   title: "Portable snapshot files"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: 1
@@ -229,7 +229,7 @@ tasks:
   session_count: 0
 - id: "T-010"
   title: "Multi-root / compare two trees"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "layout"
   tier: 1
@@ -321,7 +321,7 @@ tasks:
   session_count: 0
 - id: "T-014"
   title: "Plugin system"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "other"
   tier: 2
@@ -859,7 +859,7 @@ tasks:
   session_count: 0
 - id: "T-034"
   title: "Cold-outreach email draft for prospective users"
-  status: "triaged"
+  status: "backlog"
   type: "task"
   area: "growth"
   tier: null
@@ -882,7 +882,7 @@ tasks:
   session_count: 0
 - id: "T-035"
   title: "User research: recruit + run live Zoom walkthroughs while people explore"
-  status: "triaged"
+  status: "backlog"
   type: "research"
   area: "growth"
   tier: null
@@ -905,7 +905,7 @@ tasks:
   session_count: 0
 - id: "T-036"
   title: "Pricing"
-  status: "triaged"
+  status: "backlog"
   type: "task"
   area: "business"
   tier: null
@@ -974,7 +974,7 @@ tasks:
   session_count: 0
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
-  status: "triaged"
+  status: "backlog"
   type: "research"
   area: "infra"
   tier: null
@@ -997,7 +997,7 @@ tasks:
   session_count: 0
 - id: "T-040"
   title: "Collaborative editing with live WebSocket sync"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "other"
   tier: null
@@ -1043,7 +1043,7 @@ tasks:
   session_count: 0
 - id: "T-042"
   title: "GitHub PR review visualization mode"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "other"
   tier: null
@@ -1066,7 +1066,7 @@ tasks:
   session_count: 0
 - id: "T-043"
   title: "VS Code extension for in-editor preview"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "devtools"
   tier: null
@@ -1174,3 +1174,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 44, deletions: 16}
   spent_min: 15
   session_count: 2
+- id: "T-047"
+  title: "Triage the queue: the triaged set becomes the current + next release train, everything further out moves to backlog (and ready reports triaged rows only)"
+  status: "in-progress"
+  type: "refactor"
+  area: "other"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 230
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T07:53:59Z"
+  notes: ["2026-09-28T07:53:59Z · 27 triaged rows across 6 trains read as one queue; the triaged set should mean 'startable now'"]
+  sessions:
+  - start: "2026-09-28T07:55:17Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

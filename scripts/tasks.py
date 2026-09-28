@@ -629,8 +629,29 @@ def is_demotable(status: str, reasons: list[str]) -> bool:
         r.startswith(MILESTONE_REASON) for r in reasons)
 
 
+def unready_rows(ledger: dict[str, Any], states: tuple[str, ...],
+                 check_milestone: bool = True) -> list[tuple[dict[str, Any], list[str]]]:
+    """Rows in `states` that are not startable, with their reasons, in ledger order.
+
+    The default scan is `("triaged",)`: a backlog row is ungroomed by design, so
+    counting it as "not ready" is noise. `ready --all` widens it.
+    """
+    out: list[tuple[dict[str, Any], list[str]]] = []
+    for row in ledger["tasks"]:
+        if row.get("status") not in states:
+            continue
+        reasons = readiness_issues(row, ledger, check_milestone=check_milestone)
+        if reasons:
+            out.append((row, reasons))
+    return out
+
+
 def cmd_ready(args: argparse.Namespace) -> int:
     """Report rows that are not startable, with the reason for each.
+
+    `--all` widens the scan to `backlog` rows too. By default it answers one
+    question — "which triaged rows can I not start?" — because a `backlog` row
+    is *expected* to be ungroomed; listing it as unready is noise, not signal.
 
     `--demote` writes: a triaged row whose ONLY problem is a missing milestone
     goes back to backlog, because picking a release train is part of what triage
@@ -640,22 +661,17 @@ def cmd_ready(args: argparse.Namespace) -> int:
     """
     ledger = load()
     check_ms = not args.no_milestone
-    unready: list[tuple[dict[str, Any], list[str]]] = []
+    states = ("triaged", "backlog") if args.all else ("triaged",)
+    unready = unready_rows(ledger, states, check_milestone=check_ms)
     moved: list[str] = []
-    for row in ledger["tasks"]:
-        if row.get("status") not in ("triaged", "backlog"):
-            continue
-        reasons = readiness_issues(row, ledger, check_milestone=check_ms)
-        if not reasons:
-            continue
-        unready.append((row, reasons))
+    for row, reasons in unready:
         if (args.demote and is_demotable(row.get("status", ""), reasons)):
             row["status"] = "backlog"
             moved.append(row["id"])
     if moved:
         save(ledger)
     if not unready:
-        print("ready: every triaged/backlog row is startable")
+        print(f"ready: every {'/'.join(states)} row is startable")
         return 0
     for row, reasons in unready:
         ref = f"#{row['issue']}" if row.get("issue") else "internal"
@@ -732,14 +748,13 @@ def cmd_status(args: argparse.Namespace) -> int:
     else:
         lines.append("OPEN SESSION  none")
 
-    # Definition of ready: the count the start gate enforces, on the default view.
-    unready = [r for r in ledger["tasks"]
-               if r.get("status") in ("triaged", "backlog")
-               and readiness_issues(r, ledger)]
+    # Definition of ready: the count the start gate enforces, on the default
+    # view. Backlog rows are excluded — they are ungroomed by design.
+    triaged = [r for r in ledger["tasks"] if r.get("status") == "triaged"]
+    unready = [r for r in triaged if readiness_issues(r, ledger)]
     if unready:
-        lines.append(f"UNREADY  {len(unready)} of "
-                     f"{sum(1 for r in ledger['tasks'] if r.get('status') == 'triaged')} "
-                     f"triaged rows are not startable")
+        lines.append(f"UNREADY  {len(unready)} of {len(triaged)} triaged rows "
+                     f"are not startable")
         lines.append("  run: python3 scripts/tasks.py ready")
 
     if have_gh():
@@ -2935,6 +2950,19 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
           not is_demotable("backlog", ms_only))
     check("demote: a ready row is not demotable", not is_demotable("triaged", []))
 
+    # `ready` scans the triaged queue by default: a backlog row is ungroomed by
+    # design, so reporting it would bury the real signal. `--all` widens it.
+    backlog_fixture = json.loads(json.dumps(ready_row))
+    backlog_fixture["id"] = "T-103"
+    backlog_fixture["status"] = "backlog"
+    led_scan = {"version": 1, "tasks": [ready_row, backlog_fixture]}
+    check("ready: the default scan ignores backlog rows",
+          [r["id"] for r, _ in unready_rows(led_scan, ("triaged",), False)] == [])
+    check("ready: --all reports backlog rows",
+          [r["id"] for r, _ in unready_rows(led_scan, ("triaged", "backlog"), False)] == ["T-103"])
+    check("ready: --all reports the reason",
+          unready_rows(led_scan, ("triaged", "backlog"), False)[0][1][0].startswith("status is"))
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -2962,6 +2990,8 @@ def build_parser() -> argparse.ArgumentParser:
                     help="skip the GitHub milestone check (offline / faster)")
     sp.add_argument("--demote", action="store_true",
                     help="move triaged rows whose only problem is a missing milestone to backlog")
+    sp.add_argument("--all", action="store_true",
+                    help="also report backlog rows (they are ungroomed by design)")
 
     sp = add("attach-pr", cmd_attach_pr,
              "attach an existing PR to a row (status → review when it is open)")

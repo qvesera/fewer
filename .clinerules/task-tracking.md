@@ -23,13 +23,17 @@ the gate, and no task may start until these steps have run.**
    bun run task:triage <T-###> --estimate-min <n> [--tier 0|1|2] --area <category> \
        [--blocked-by T-00x] [--issue <N>]
    ```
-4. `bun run task:ready` — **the start gate.** A row is startable only when it is
+4. `bun run task:ready` — **the start gate**, and the shape of the queue. It
+   scans the **triaged** set by default, because that is the "can I start this
+   now" set: a `backlog` row is ungroomed by design, so listing it would bury
+   the signal (`--all` widens the scan). A row is startable only when it is
    `triaged` (or already in `review`, for a follow-up session), estimated,
    classified (`--area`), linked to an issue (or `internal`), unblocked, and its
    issue carries a **milestone**:
    ```bash
-   bun run task:ready              # list what is not startable, and why
+   bun run task:ready              # triaged rows I cannot start, and why
    bun run task:ready --strict     # same, non-zero exit (CI)
+   bun run task:ready --all        # also list backlog rows (ungroomed by design)
    bun run task:ready --demote     # move milestone-less triaged rows to backlog
    ```
    `start` refuses an unready row and prints the reasons (`--force` overrides).
