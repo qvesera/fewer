@@ -1598,3 +1598,32 @@ tasks:
     effort: {commits: 2, files: 20, insertions: 3436, deletions: 32}
   spent_min: 28
   session_count: 1
+- id: "T-065"
+  title: "Import dialog too narrow — Symlinks option row clips"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 253
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T20:45:38Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T20:49:32Z"
+    end: "2026-09-28T21:16:02Z"
+    measured: true
+    note: "Import dialog sm:max-w-md -> sm:max-w-xl; Symlinks row: min-w-0 flex-1 text column, flex-wrap on the row, shrink-0 on the radio group. Verified with Playwright at 1280/700/480px viewports: card scrollWidth == clientWidth (no clip) and the Skip / Show as links / Follow control stays on one row. The 5 userSettings/panelLayout test failures are pre-existing test-isolation (globalThis.window set by historyStorage.test.ts) and reproduce at HEAD with these changes stashed."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 26
+  session_count: 1
