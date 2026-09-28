@@ -1205,30 +1205,30 @@ tasks:
   session_count: 1
 - id: "T-048"
   title: "Mirror the ledger's task details onto GitHub: project board Status/Size/Estimate for issues, and the row's details + triage notes in the issue body (labels alone are not tracking)"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "other"
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
   issue: 232
-  pr: null
+  pr: 233
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T08:09:50Z"
   notes: ["2026-09-28T08:09:50Z · board #1 has 57 items and every issue item has Status/Size/Estimate empty; issue bodies are a one-line stub, so the ledger's notes never reach GitHub"]
   sessions:
   - start: "2026-09-28T08:11:02Z"
-    end: null
+    end: "2026-09-28T08:31:17Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "sync-details verb: 45 issue bodies now carry the row's facts + triage notes, and 135 board field writes landed (58/58 items have a Status, 57 a Size, 45 an Estimate). Also: selftest wired into the CI tasks job, and doctor now gives a working remedy for a closed issue on a triaged/backlog row (reconcile cannot decide it). Verification trap documented: item-list returns custom fields lowercase."
+    proof: ["7beac84", "c029a5a"]
+    effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
+  spent_min: 20
   session_count: 1
