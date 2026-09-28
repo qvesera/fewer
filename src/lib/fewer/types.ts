@@ -113,6 +113,17 @@ export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
 }
 
 /**
+ * The stroke style that stays readable against a view whose global edge style
+ * is `style` — used for symlink edges so they never match their siblings.
+ * Two dot-family styles (dashed vs dotted) are near-indistinguishable at
+ * canvas zoom levels, so the mapping collapses to the solid↔dashed axis:
+ * solid → dashed, dashed → solid, dotted → solid.
+ */
+export function contrastStroke(style: EdgeStrokeStyle): EdgeStrokeStyle {
+  return style === "solid" ? "dashed" : "solid";
+}
+
+/**
  * React Flow edge renderer type for a Settings edge style. Single source of
  * truth shared by the graph and layout slices (curved → built-in "default"
  * renderer, angled → "smoothstep", straight → "straight").
