@@ -12,8 +12,9 @@
  *  - .tar.gz / .tgz / .gz is the same tar walk behind the browser's native
  *    DecompressionStream("gzip").
  *
- * Formats needing a full decompressor (7z, rar, xz, bz2, zstd) are rejected
- * with a clear message; the wasm archive engine (T-051) picks them up.
+ * Formats needing a full decompressor (7z, RAR, xz, bzip2, Zstandard) are
+ * routed to the lazily-loaded wasm engine in archiveEngine.ts, which is only
+ * fetched when one of those is actually opened.
  */
 import type { TreeEntry } from "./types";
 import { sortFoldersFirst } from "./treeSort";
@@ -21,7 +22,7 @@ import { sortFoldersFirst } from "./treeSort";
 /** Hard cap on members materialized into nodes. */
 export const MAX_ARCHIVE_ENTRIES = 20000;
 
-export type ArchiveFormat = "zip" | "tar" | "tar.gz" | "gzip";
+export type ArchiveFormat = "zip" | "tar" | "tar.gz" | "gzip" | "engine";
 
 export interface ArchiveListing {
   /** Root node is the archive file itself; children are its members. */
@@ -33,16 +34,27 @@ export interface ArchiveListing {
   format: ArchiveFormat;
 }
 
-interface Member {
+/** One archive member: a slash-separated path, whether it is a directory, and its size. */
+export interface Member {
   path: string;
   isDir: boolean;
   size: number;
 }
 
+/** A listing before the format tag is attached. Shared with the wasm engine. */
+export interface BaseListing {
+  tree: TreeEntry;
+  entries: number;
+  truncated: boolean;
+}
+
 const utf8 = new TextDecoder("utf-8");
 
-/** Formats the wasm engine handles, recognized only to fail with a good message. */
-const WASM_FORMATS: { magic: number[]; label: string }[] = [
+/**
+ * Formats only the wasm engine can read. Recognized by magic bytes so the
+ * router sends them to archiveEngine instead of failing.
+ */
+const ENGINE_FORMATS: { magic: number[]; label: string }[] = [
   { magic: [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c], label: "7-Zip (.7z)" },
   { magic: [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07], label: "RAR" },
   { magic: [0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00], label: "xz (.tar.xz)" },
@@ -75,14 +87,15 @@ export async function listArchive(file: Blob): Promise<ArchiveListing> {
     return { ...(await fromTar(blobSource(file), rootName)), format: "tar" };
   }
 
-  for (const { magic, label } of WASM_FORMATS) {
+  // 7z / RAR / xz / bzip2 / zstd need a full decompressor, which the browser
+  // does not provide — hand those to the lazily-loaded wasm engine.
+  for (const { magic } of ENGINE_FORMATS) {
     if (startsWith(head, magic)) {
-      throw new Error(
-        `${label} archives are not supported yet. Zip, tar, and .tar.gz work today.`,
-      );
+      const { listWithEngine } = await import("./archiveEngine");
+      return { ...(await listWithEngine(file, rootName)), format: "engine" };
     }
   }
-  throw new Error("Not a zip, tar, or .tar.gz archive.");
+  throw new Error("Not a zip, tar, .tar.gz, 7z, RAR, xz, bzip2, or Zstandard archive.");
 }
 
 async function listGzip(file: Blob, rootName: string): Promise<ArchiveListing> {
@@ -341,19 +354,15 @@ async function fromTar(source: ByteSource, rootName: string): Promise<BaseListin
 
 /* ────────────────────────── members → tree ───────────────────────── */
 
-/** A listing before the format tag is attached. */
-interface BaseListing {
-  tree: TreeEntry;
-  entries: number;
-  truncated: boolean;
-}
-
 /**
  * Build a TreeEntry from slash-separated member paths. Parent directories that
  * the archive never declared are created as the walk goes, so archives without
  * directory entries still render their full shape.
+ *
+ * Exported so the wasm engine (T-051) produces an identical tree shape from
+ * libarchive's member list.
  */
-function toListing(rootName: string, members: Member[]): Omit<BaseListing, "truncated"> {
+export function toListing(rootName: string, members: Member[]): Omit<BaseListing, "truncated"> {
   const root: TreeEntry = { name: rootName, type: "folder", children: [] };
 
   for (const member of members) {

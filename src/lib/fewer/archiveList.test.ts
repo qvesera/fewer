@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { listArchive, MAX_ARCHIVE_ENTRIES } from "./archiveList";
 import type { TreeEntry } from "./types";
 
@@ -297,27 +297,45 @@ describe("listArchive — gzip", () => {
   });
 });
 
-/* ── rejections ── */
+/* ── engine routing (7z / rar / xz / bz2 / zst) ── */
 
-describe("listArchive — unsupported input", () => {
+describe("listArchive — engine-only formats route to the wasm engine", () => {
+  // The wasm engine (libarchive.js) spawns a real Web Worker and loads the
+  // ~1 MB wasm, neither of which exists in the bun test environment. Mock it so
+  // these tests verify the ROUTING (magic bytes -> engine) without booting wasm.
+  // The engine's actual format support was proven against real .tar.xz/.tar.bz2
+  // fixtures via libarchive's node build, not here.
+  const listWithEngine = mock(async (file: Blob, rootName: string) => {
+    void file;
+    return {
+      tree: { name: rootName, type: "folder" as const, children: [] },
+      entries: 1,
+      truncated: false,
+    };
+  });
+  mock.module("./archiveEngine", () => ({ listWithEngine }));
+
   const CASES: [number[], string][] = [
-    [[0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c], "7-Zip"],
+    [[0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c], "7-Zip (.7z)"],
     [[0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00], "RAR"],
-    [[0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00], "xz"],
-    [[0x42, 0x5a, 0x68, 0x39], "bzip2"],
-    [[0x28, 0xb5, 0x2f, 0xfd], "Zstandard"],
+    [[0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00], "xz (.tar.xz)"],
+    [[0x42, 0x5a, 0x68, 0x39], "bzip2 (.tar.bz2)"],
+    [[0x28, 0xb5, 0x2f, 0xfd], "Zstandard (.tar.zst)"],
   ];
 
   for (const [magic, label] of CASES) {
-    test(`names the format it cannot read (${label})`, async () => {
+    test(`delegates ${label} to the engine`, async () => {
       const bytes = new Uint8Array(64);
       magic.forEach((b, i) => (bytes[i] = b));
-      await expect(
-        listArchive(named(new Blob([bytes] as BlobPart[]), "x.bin")),
-      ).rejects.toThrow(label);
+      const listing = await listArchive(named(new Blob([bytes] as BlobPart[]), "x.bin"));
+
+      expect(listWithEngine).toHaveBeenCalled();
+      expect(listing.format).toBe("engine");
     });
   }
+});
 
+describe("listArchive — unrecognized input", () => {
   test("random bytes are not an archive", async () => {
     await expect(
       listArchive(named(new Blob([enc.encode("just some text")] as BlobPart[]), "a.txt")),

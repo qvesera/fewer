@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules
+# libarchive worker + wasm are copied from node_modules by scripts/vendor-libarchive.ts
+public/libarchive/
 /.pnp
 .pnp.*
 .yarn/*
@@ -82,6 +84,8 @@ lighthouse/*
 # repowise local index
 .repowise/
 scripts/*
+# the archive worker vendoring script is a real build input (see package.json)
+!scripts/vendor-libarchive.ts
 lighthouse/*
 .clinerules/*
 

@@ -464,9 +464,11 @@ function FileSource({
   );
 }
 
-/** Extensions the picker offers. Only the listing is read, so these all work
- *  without unpacking anything; 7z/rar/xz/bz2/zstd need the wasm engine (T-051)
- *  and are listed in the hint so the gap is not a surprise at import time. */
+/**
+ * Extensions the picker offers. Every one of these is readable: zip/tar/gz
+ * through the zero-dependency fast path, 7z/rar/xz/bz2/zstd through the
+ * lazily-loaded wasm engine (T-051). Only the listing is ever read.
+ */
 const ARCHIVE_ACCEPT = ".zip,.tar,.gz,.tgz,.tar.gz,.tar.xz,.tar.bz2,.tar.zst,.7z,.rar,.xz,.bz2,.zst";
 
 function ArchiveSource({
