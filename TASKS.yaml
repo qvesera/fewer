@@ -1309,7 +1309,7 @@ tasks:
   session_count: 0
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: 0
@@ -1354,3 +1354,61 @@ tasks:
     effort: {commits: 3, files: 15, insertions: 444, deletions: 112}
   spent_min: 45
   session_count: 4
+- id: "T-053"
+  title: "Shift+H throws after selecting a card: shortcut rules read a store field that no longer exists (showFilesByLeaf)"
+  status: "review"
+  type: "fix"
+  area: "keyboard"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: 241
+  pr: 242
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T15:43:52Z"
+  notes: ["2026-09-28T15:44:00Z · Regression from 431ec99 (leaf-aware H/Shift+H, shipped 2026-09-06): the H handler reads st.showFilesByLeaf, a name only the test-only toStoreReader adapter defines; the real store field is viewSettings, so Shift+H throws TypeError whenever activeLeafId is set (any canvas selection sets it)."]
+  sessions:
+  - start: "2026-09-28T15:46:06Z"
+    end: "2026-09-28T15:50:47Z"
+    measured: true
+    note: "Fixed the Shift+H crash (keyboardShortcuts read st.showFilesByLeaf, a name only the test-only toStoreReader adapter defined; the store field is viewSettings). Renamed the reader field and typed it with the real ViewSettings, which also fixed the restored-card count ignoring filesBulkExempt. Added the raw-store regression tests plus two shape guards. Gates: bun test src 1371, test:components 175, lint/tsc/build 0."
+    proof: ["12b98cf"]
+    effort: {commits: 1, files: 3, insertions: 118, deletions: 9}
+  spent_min: 5
+  session_count: 1
+- id: "T-054"
+  title: "Shift+H claims it revealed cards the auto-hide filter re-hides in the same press"
+  status: "review"
+  type: "fix"
+  area: "keyboard"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: 243
+  pr: 242
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T15:56:44Z"
+  notes: ["2026-09-28T15:56:44Z · The toast counts hiddenIds + the active leaf's layers BEFORE showAll() clears revealedRootIds and setShowFiles(true) re-runs reconcileAutoHide, so the large-folder/depth filters re-hide those cards in the same keypress. Also double-counts a card hidden globally AND by the leaf layer (sum instead of union)."]
+  sessions:
+  - start: "2026-09-28T15:58:12Z"
+    end: "2026-09-28T16:05:54Z"
+    measured: true
+    note: "Shift+H toast now counts only what the press achieves: union of the global + per-view hidden sets (was a sum, so a card hidden by both counted twice) minus the cards the auto-hide/depth filters re-apply via setShowFiles(true). Toast names the remainder. 8 new tests (4 pure shiftHOutcome, 4 handler cases on the raw store). Gates: bun test src 1378, test:components 175, lint/tsc/build 0."
+    proof: ["3e98b8e"]
+    effort: {commits: 1, files: 3, insertions: 253, deletions: 38}
+  spent_min: 8
+  session_count: 1
