@@ -19,7 +19,6 @@ export interface CanvasSelectionHandlers {
 
 export interface CanvasSelectionDeps {
   setSelectedNodeIds: (ids: string[]) => void;
-  setRfNodes: Dispatch<SetStateAction<FewerNode[]>>;
   /** Set while an additive Shift+drag box select is in flight. */
   boxSelectBaseRef: { current: Set<string> | null };
   /** Live RF edge-selection ref (owned by useCanvasEdges). */
@@ -38,7 +37,7 @@ export interface CanvasSelectionDeps {
  * loop. That effect handles both RF-edge highlighting and store-edge sync on
  * every selection / graphVersion / theme change instead.
  */
-export function useCanvasSelection({ setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId }: CanvasSelectionDeps): CanvasSelectionHandlers {
+export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId }: CanvasSelectionDeps): CanvasSelectionHandlers {
   // Protect double-click selection from being cleared by the subsequent onSelectionChange.
   const doubleClickedIdRef = useRef<string | null>(null);
 
@@ -84,10 +83,11 @@ export function useCanvasSelection({ setSelectedNodeIds, setRfNodes, boxSelectBa
   }, [fitView]);
 
   const selectAll = useCallback(() => {
+    // The canvas stamps the `selected` flags from the id list, so selecting
+    // everything is just the id list — no node array rewrite.
     const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n: FewerNode) => ({ ...n, selected: true })), selectedNodeIds: ids }));
-    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
-  }, [setRfNodes]);
+    useGraphStore.setState({ selectedNodeIds: ids });
+  }, []);
 
   return { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll };
 }

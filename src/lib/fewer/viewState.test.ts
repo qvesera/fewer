@@ -7,6 +7,7 @@ import {
   parseViewSettings,
   applyViewPositions,
   deriveViewLayout,
+  stampSelection,
   resolveViewNodes,
   resolveViewSettings,
   withCollapsedPillGeometry,
@@ -354,6 +355,53 @@ describe("deriveViewLayout / applyViewPositions split", () => {
     const out = applyViewPositions(nodes, { b: { x: 9, y: 9 } });
     expect(out[0]).toBe(nodes[0]);
     expect(out[1]!.position).toEqual({ x: 9, y: 9 });
+  });
+});
+
+describe("stampSelection", () => {
+  const node = (id: string, selected?: boolean): FewerNode =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "folder" }, ...(selected === undefined ? {} : { selected }) }) as unknown as FewerNode;
+
+  test("marks the selected cards and clears the rest", () => {
+    const out = stampSelection([node("a"), node("b"), node("c")], new Set(["b"]));
+    // Absent and `false` are the same to React Flow, and an untouched card is
+    // left byte-identical rather than given an explicit `selected: false`.
+    expect(out.map((n) => !!n.selected)).toEqual([false, true, false]);
+    expect(out[1].selected).toBe(true);
+  });
+
+  test("only the cards whose flag flips are cloned", () => {
+    // This is the property that keeps a click cheap: React Flow skips the
+    // untouched nodes, and nothing downstream has to re-derive.
+    const nodes = [node("a"), node("b", true), node("c")];
+    const out = stampSelection(nodes, new Set(["b"]));
+    expect(out[0]).toBe(nodes[0]);
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).toBe(nodes[2]);
+  });
+
+  test("clearing a selection clones only the cards that were selected", () => {
+    const nodes = [node("a", true), node("b"), node("c", true)];
+    const out = stampSelection(nodes, new Set());
+    expect(out.map((n) => !!n.selected)).toEqual([false, false, false]);
+    expect(out[0]).not.toBe(nodes[0]);
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).not.toBe(nodes[2]);
+  });
+
+  test("a stale flag cannot survive a rebuild — the stamp is the source", () => {
+    // The bug this replaces: a node rebuilt for another reason (hide, cut/paste,
+    // undo) kept a stale `selected: true` and resurrected the selection. The
+    // canvas re-stamps from the canonical list on every rebuild, so a flag that
+    // disagrees with the ids is always corrected.
+    const stale = [node("a", true), node("b", false)];
+    const out = stampSelection(stale, new Set());
+    expect(out.map((n) => n.selected)).toEqual([false, false]);
+  });
+
+  test("an id that isn't in the array is ignored", () => {
+    const nodes = [node("a")];
+    expect(stampSelection(nodes, new Set(["nope"]))[0]).toBe(nodes[0]);
   });
 });
 

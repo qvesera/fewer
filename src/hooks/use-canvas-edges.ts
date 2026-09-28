@@ -43,6 +43,9 @@ export interface CanvasEdgesDeps {
   onEdgesChange: (changes: EdgeChange<FewerEdge>[]) => void;
   setRfEdges: Dispatch<SetStateAction<FewerEdge[]>>;
   graphVersion: number;
+  /** Bumped by selection changes only — the highlight must follow the selection
+   *  without a graph rebuild. */
+  selectionVersion: number;
   allNodes: FewerNode[];
   allEdges: FewerEdge[];
   /** The view's visible edges (hidden already filtered) — the base style array
@@ -67,7 +70,7 @@ export interface CanvasEdgesDeps {
  * `selectedEdgeIdsRef` is owned here and shared with `useCanvasSelection`
  * (which writes it from RF's authoritative edge-snapshot on selection change).
  */
-export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNodes, allEdges, visibleEdges, themeColors, vs, hiddenIds, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
+export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges, themeColors, vs, hiddenIds, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
   // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
   const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
 
@@ -105,7 +108,7 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNod
       applyEdgeHighlights(baseEdges, selectedForHighlight, hoverForHighlight, lookups, themeColors, vs.edgeWidth, animation),
       selectedEdgeIdsRef.current,
     ));
-  }, [graphVersion, allNodes, allEdges, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, hiddenIds, baseEdges, lookups, leafId, isActive]);
+  }, [graphVersion, selectionVersion, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, baseEdges, lookups, leafId, isActive]);
 
   const dashArray = useMemo(() => staticEdgeDashArray(vs.edgeStrokeStyle), [vs.edgeStrokeStyle]);
 

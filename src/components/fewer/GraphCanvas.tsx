@@ -45,7 +45,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout } from "@/lib/fewer/viewState";
+import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -105,6 +105,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { themeMode: themeModeGlobal, customTheme } = useThemeConfig();
   const { selectedNodeIds, loading, showFiles: showFilesGlobal } = useUiState();
   const { activeLeafId, viewSettings: viewSettingsMap, zoomToNode, zoomToNodeIds } = useViewState();
+  const leafSelections = useGraphStore((s) => s.leafSelections);
+  const selectionVersion = useGraphStore((s) => s.selectionVersion);
   const { setSelectedNodeIds, deleteNodes, recordDragMoves, recordResize, connectNodes, addStandaloneNode, setRenamingId, setCanvasSize, setNodePositionForLeaf, setZoomToNodeIds } = useStoreActions();
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
@@ -196,12 +198,27 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [laidNodes, viewNodes, vs.positions],
   );
 
+  // ── Selection: derived, never stored on the store's nodes ──
+  // The leaf's own ids when it has any, else the global list (same precedence
+  // the graph sync and the edge highlight use). Stamped AFTER the layout on
+  // purpose: doing it before would make the layout memo depend on the selection
+  // and re-derive the whole tree on every click.
+  const leafSelection = leafId ? leafSelections[leafId] ?? selectedNodeIds : selectedNodeIds;
+  const selectionSet = useMemo(() => new Set<string>(leafSelection), [leafSelection]);
+  const stampedNodes = useMemo(
+    () => stampSelection(positionedNodes, selectionSet),
+    [positionedNodes, selectionSet],
+  );
+
   const graphsExists = allNodes.length > 0;
 
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(viewNodes);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(stampedNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
 
-  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
+  useCanvasGraphSync(graphVersion, stampedNodes, visibleEdges, setRfNodes, setRfEdges);
+  // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
+  // It is deliberately NOT a graphVersion change: that would rebuild everything.
+  useEffect(() => { setRfNodes(stampedNodes); }, [stampedNodes, setRfNodes]);
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
@@ -227,12 +244,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, allNodes, allEdges, visibleEdges,
+    onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges,
     themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
   const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
-    setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
+    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
   });
 
   const { onConnect, onConnectEnd } = useCanvasConnect({

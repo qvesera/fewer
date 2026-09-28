@@ -141,6 +141,26 @@ export function withCollapsedPillGeometry(
 // ── View node resolution ──
 
 /**
+ * Stamp the canonical selection onto a node array, copy-on-write: only the cards
+ * whose flag actually flips are cloned, so React Flow skips the rest.
+ *
+ * This is the ONLY place the selection reaches the canvas. It used to be written
+ * back into the store's node array, which meant a click replaced every node
+ * object — invalidating the identity-cached tree index, every mounted card's
+ * child-list memo and the Hidden panel build. The id list stays canonical and the
+ * canvas derives the flags from it, so a rebuild for any other reason (hide,
+ * cut/paste, undo) can't resurrect a stale selection: the stamp runs on every
+ * rebuild path, after the layout.
+ */
+export function stampSelection(nodes: FewerNode[], selectedIds: ReadonlySet<string>): FewerNode[] {
+  return nodes.map((n) => {
+    const shouldSelect = selectedIds.has(n.id);
+    if (!!n.selected === shouldSelect) return n;
+    return { ...n, selected: shouldSelect };
+  });
+}
+
+/**
  * The node set + positions a leaf actually paints: explicit per-view card
  * positions win, otherwise the layout engine re-derives when the view diverges
  * (`needsLayoutDerivation`), otherwise the shared store positions pass through.
