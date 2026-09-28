@@ -16,6 +16,12 @@ export interface GraphViewScope {
   resolved: ResolvedViewSettings;
   /** The set of node ids actually rendered on this canvas (lens output). */
   visibleIds: Set<string>;
+  /** Transient hover ring from the sidebar's Hidden Cards panel, as a Set.
+   *  Was an array scanned with `includes` by every mounted card AND every
+   *  rendered child row, so one hover cost O(rendered × ring size) — and a
+   *  Hidden Children subtree can ring thousands of ids. One Set per canvas
+   *  makes it O(1) per node and keeps the ring out of the store selectors. */
+  hoverIds: Set<string>;
 }
 
 const GraphViewContext = createContext<GraphViewScope | null>(null);

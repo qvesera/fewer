@@ -16,12 +16,13 @@ export const CATEGORY_ICON: Record<FileCategory, ComponentType<{ className?: str
 
 /** Child badges count edges, not just existing/visible nodes. */
 export function folderChildCount(id: string, isFolder: boolean, edges: FewerEdge[]): number {
-  return isFolder ? edges.filter((edge) => edge.source === id).length : 0;
+  return isFolder ? (childrenIndexOf(edges).get(id)?.length ?? 0) : 0;
 }
 
 
 import { Position } from "@xyflow/react";
 import type { FewerNode, FewerEdge } from "./types";
+import { childrenIndexOf, nodeIndexOf } from "./graphIndex";
 
 export function getHandlePositions(layoutDirection?: string): {
   source: Position;
@@ -82,9 +83,21 @@ export function sortedChildRows(
   nodes: FewerNode[],
   edges: FewerEdge[],
 ): FewerNode[] {
-  const childIds = edges.filter((e) => e.source === parentId).map((e) => e.target);
-  const ids = new Set(childIds);
-  const children = nodes.filter((n) => ids.has(n.id));
+  const childIds = childrenIndexOf(edges).get(parentId);
+  if (!childIds || childIds.length === 0) return [];
+  const nodeMap = nodeIndexOf(nodes);
+  const seen = new Set<string>();
+  const children: FewerNode[] = [];
+  // Edge order, then the app-wide sort below. Equal labels can't tie: the
+  // connect/rename rules keep sibling names unique, so the sort is a total
+  // order over the rows and the pre-sort order is unobservable.
+  for (const id of childIds) {
+    if (seen.has(id)) continue;
+    const node = nodeMap.get(id);
+    if (!node) continue;
+    seen.add(id);
+    children.push(node);
+  }
   children.sort((a, b) => {
     if (a.data.type !== b.data.type) return a.data.type === "folder" ? -1 : 1;
     return a.data.label.localeCompare(b.data.label);
@@ -100,11 +113,12 @@ export function nodeChildren(
   visibleIds: ReadonlySet<string>,
 ): { children: FewerNode[]; childCount: number; hiddenChildCount: number } {
   if (!isFolder) return { children: [], childCount: 0, hiddenChildCount: 0 };
-  const children = sortedChildRows(id, nodes, edges);
-  const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
+  const childIds = childrenIndexOf(edges).get(id) ?? [];
+  let hiddenChildCount = 0;
+  for (const cid of childIds) if (!visibleIds.has(cid)) hiddenChildCount++;
   return {
-    children,
+    children: sortedChildRows(id, nodes, edges),
     childCount: childIds.length,
-    hiddenChildCount: childIds.filter((cid) => !visibleIds.has(cid)).length,
+    hiddenChildCount,
   };
 }

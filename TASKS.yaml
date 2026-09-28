@@ -1232,3 +1232,50 @@ tasks:
     effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
   spent_min: 20
   session_count: 1
+- id: "T-052"
+  title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 239
+  pr: 240
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T12:03:06Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T12:08:29Z"
+    end: "2026-09-28T12:21:41Z"
+    measured: true
+    note: "Indexed the graph (graphIndex.ts) so getDescendants, the reveal walk and per-card child lists stop re-scanning the edge list; content-stable hidden-id identity so drags in a view with hidden children don't re-filter the graph per frame. getDescendants 1677ms -> 7.8ms on 18.3k edges; one frame over 30 cards 50.7ms -> 9.7ms on 30.4k nodes."
+    proof: ["a0061aa"]
+    effort: {commits: 1, files: 11, insertions: 410, deletions: 50}
+  - start: "2026-09-28T12:25:19Z"
+    end: "2026-09-28T12:26:08Z"
+    measured: true
+    note: "Re-ran on a branch off dev (perf/index-graph-walks) so the PR is one unit of work; same change, gates re-verified on the dev base: bun test src 1334 pass, test:components 170 pass, lint 0, tsc 0, build 0."
+    proof: ["7e0d559"]
+    effort: {commits: 1, files: 11, insertions: 410, deletions: 50}
+  - start: "2026-09-28T13:06:09Z"
+    end: "2026-09-28T13:21:09Z"
+    measured: true
+    note: "Follow-up session: the three items PR #240 listed as not addressed. Bounded the hover ring + Set membership (b85e1f6), single-pass panel with lazy rows and a folded gate (dd42d5e), and split the derived layout from the position overlay (d767901). Drag frame in a deriving view 138ms -> 2.4ms at 30.4k nodes; panel build 27.6 -> 13.7ms (hide-files) and 28ms -> 0.09ms (Hide Children subtree); hover ring 5002 ids -> 3. Gates: bun test src 1351 pass, test:components 175 pass, lint 0, tsc 0, build 0."
+    proof: ["d767901", "dd42d5e", "b85e1f6"]
+    effort: {commits: 3, files: 13, insertions: 623, deletions: 151}
+  - start: "2026-09-28T13:36:25Z"
+    end: "2026-09-28T13:52:45Z"
+    measured: true
+    note: "Selection lag: the edge highlight now rebuilds by delta over a memoised base (1343e4d), mergeSelection is no longer quadratic in the previous selection (8f57118), and selection is a lens over a canonical id list instead of a node-array rewrite + graphVersion bump (3c8e9ec). One click on 30.4k nodes/edges: ~32ms -> 5.7ms, deselect -> 0.96ms. Gates: bun test src 1367 pass, test:components 175 pass, lint 0, tsc 0, build 0."
+    proof: ["3c8e9ec", "8f57118", "1343e4d"]
+    effort: {commits: 3, files: 15, insertions: 444, deletions: 112}
+  spent_min: 45
+  session_count: 4

@@ -36,6 +36,7 @@ const DEFAULT_SCOPE: GraphViewScope = {
     collapsedFolderIds: [] as string[],
   },
   visibleIds: new Set<string>(["f1", "f2", "f3"]),
+  hoverIds: new Set<string>(),
 };
 
 const FOLDER_DATA = {

@@ -253,11 +253,32 @@ describe("collapseSlice", () => {
 });
 
 describe("selectionSlice", () => {
-  it("setSelectedNodeIds mirrors per-node selected flags", () => {
+  it("keeps the id list canonical and leaves the store's nodes untouched", () => {
+    // The canvas stamps `selected` onto the RF node array from this list
+    // (viewState.stampSelection), so a selection write must not rewrite every
+    // node in the store: that replaced 30k node objects per click, which
+    // invalidated the identity-cached tree index and every card's child memo.
+    const nodesBefore = s().nodes;
+    const versionBefore = s().selectionVersion;
     s().setSelectedNodeIds(["outer", "sibling"]);
     expect(s().selectedNodeIds).toEqual(["outer", "sibling"]);
-    expect(s().nodes.find((n) => n.id === "outer")?.selected).toBe(true);
-    expect(s().nodes.find((n) => n.id === "root")?.selected).toBe(false);
+    expect(s().nodes).toBe(nodesBefore);
+    expect(s().selectionVersion).toBe(versionBefore + 1);
+  });
+
+  it("a selection change is not a graphVersion change", () => {
+    // graphVersion means "the graph's contents changed" and makes the canvas
+    // rebuild its whole node/edge arrays — a selection must never trigger that.
+    const graphVersionBefore = s().graphVersion;
+    s().setSelectedNodeIds(["outer"]);
+    expect(s().graphVersion).toBe(graphVersionBefore);
+  });
+
+  it("a selection write that changes nothing is a no-op", () => {
+    s().setSelectedNodeIds(["outer"]);
+    const { selectionVersion } = s();
+    s().setSelectedNodeIds(["outer"]);
+    expect(s().selectionVersion).toBe(selectionVersion);
   });
 
   it("setSelectionForLeaf / setActiveLeaf round-trip per-leaf selection", () => {
@@ -266,6 +287,15 @@ describe("selectionSlice", () => {
     s().setSelectionForLeaf("leaf2", ["sibling"]);
     s().setActiveLeaf("leaf1");
     expect(s().selectedNodeIds).toEqual(["outer"]);
+  });
+
+  it("switching leaves bumps the selection version, not the graph version", () => {
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    const graphVersionBefore = s().graphVersion;
+    const selectionVersionBefore = s().selectionVersion;
+    s().setActiveLeaf("leaf2");
+    expect(s().selectionVersion).toBe(selectionVersionBefore + 1);
+    expect(s().graphVersion).toBe(graphVersionBefore);
   });
 });
 

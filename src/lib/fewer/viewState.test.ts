@@ -5,6 +5,9 @@ import {
   mergeViewSettings,
   needsLayoutDerivation,
   parseViewSettings,
+  applyViewPositions,
+  deriveViewLayout,
+  stampSelection,
   resolveViewNodes,
   resolveViewSettings,
   withCollapsedPillGeometry,
@@ -293,6 +296,112 @@ describe("resolveViewNodes", () => {
       shynessScale: 3,
     });
     expect(span(loose)).toBeGreaterThan(span(tight));
+  });
+});
+
+// The canvas memoise deriveViewLayout and applyViewPositions apart because a drag
+// rewrites the leaf's `positions` every frame. These pin both halves of that
+// contract: the composition is unchanged, and the derived layout is a function of
+// everything EXCEPT the positions.
+describe("deriveViewLayout / applyViewPositions split", () => {
+  const global = { direction: "TB" as const, hiddenIds: [] as string[], fileIds: [] as string[] };
+  const node = (id: string, x: number, y: number): FewerNode =>
+    ({ id, position: { x, y }, data: { label: id, path: `/${id}`, type: "folder" } }) as unknown as FewerNode;
+  const chain = (ids: string[]): FewerEdge[] =>
+    ids.slice(1).map((id, i) => ({ id: `e${i}`, source: ids[i], target: id })) as FewerEdge[];
+  const resolved = (extra: Partial<ResolvedViewSettings> = {}): ResolvedViewSettings =>
+    ({ ...GLOBAL, ...extra });
+
+  const cases: { name: string; raw?: ViewSettings; resolvedExtra?: Partial<ResolvedViewSettings> }[] = [
+    { name: "no overrides" },
+    { name: "direction override", raw: { direction: "LR" }, resolvedExtra: { direction: "LR" } },
+    { name: "collapsed folder", raw: { collapsedFolderIds: ["a"] }, resolvedExtra: { collapsedFolderIds: ["a"] } },
+    { name: "hide layers", raw: { hideLayers: { ...emptyHideLayers(), individual: ["a"] } }, resolvedExtra: { hiddenIds: ["a"] } },
+    { name: "positions only", raw: { positions: { b: { x: 7, y: 8 } } }, resolvedExtra: { positions: { b: { x: 7, y: 8 } } } },
+    { name: "direction + positions", raw: { direction: "LR", positions: { b: { x: 7, y: 8 } } }, resolvedExtra: { direction: "LR", positions: { b: { x: 7, y: 8 } } } },
+  ];
+
+  for (const { name, raw, resolvedExtra } of cases) {
+    test(`the composition matches resolveViewNodes (${name})`, () => {
+      const nodes = [node("a", 0, 0), node("b", 10, 10), node("c", 20, 20)];
+      const edges = chain(["a", "b", "c"]);
+      const r = resolved(resolvedExtra);
+      const split = applyViewPositions(
+        deriveViewLayout(nodes, edges, raw, r, global) ?? nodes,
+        r.positions,
+      );
+      expect(split).toEqual(resolveViewNodes(nodes, edges, raw, r, global));
+    });
+  }
+
+  test("the derived layout ignores the per-view positions", () => {
+    const nodes = [node("a", 0, 0), node("b", 0, 0)];
+    const edges = chain(["a", "b"]);
+    const raw = { collapsedFolderIds: ["a"], positions: { b: { x: 7, y: 8 } } };
+    const withPos = deriveViewLayout(nodes, edges, raw, resolved({ positions: raw.positions }), global)!;
+    const withoutPos = deriveViewLayout(
+      nodes, edges, { collapsedFolderIds: ["a"] }, resolved({ collapsedFolderIds: ["a"] }), global,
+    )!;
+    expect(withPos).toEqual(withoutPos);
+  });
+
+  test("applyViewPositions is a no-op by identity when there are no overrides", () => {
+    const nodes = [node("a", 1, 2)];
+    expect(applyViewPositions(nodes, undefined)).toBe(nodes);
+  });
+
+  test("applyViewPositions only clones the cards it overrides", () => {
+    const nodes = [node("a", 1, 2), node("b", 3, 4)];
+    const out = applyViewPositions(nodes, { b: { x: 9, y: 9 } });
+    expect(out[0]).toBe(nodes[0]);
+    expect(out[1]!.position).toEqual({ x: 9, y: 9 });
+  });
+});
+
+describe("stampSelection", () => {
+  const node = (id: string, selected?: boolean): FewerNode =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "folder" }, ...(selected === undefined ? {} : { selected }) }) as unknown as FewerNode;
+
+  test("marks the selected cards and clears the rest", () => {
+    const out = stampSelection([node("a"), node("b"), node("c")], new Set(["b"]));
+    // Absent and `false` are the same to React Flow, and an untouched card is
+    // left byte-identical rather than given an explicit `selected: false`.
+    expect(out.map((n) => !!n.selected)).toEqual([false, true, false]);
+    expect(out[1].selected).toBe(true);
+  });
+
+  test("only the cards whose flag flips are cloned", () => {
+    // This is the property that keeps a click cheap: React Flow skips the
+    // untouched nodes, and nothing downstream has to re-derive.
+    const nodes = [node("a"), node("b", true), node("c")];
+    const out = stampSelection(nodes, new Set(["b"]));
+    expect(out[0]).toBe(nodes[0]);
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).toBe(nodes[2]);
+  });
+
+  test("clearing a selection clones only the cards that were selected", () => {
+    const nodes = [node("a", true), node("b"), node("c", true)];
+    const out = stampSelection(nodes, new Set());
+    expect(out.map((n) => !!n.selected)).toEqual([false, false, false]);
+    expect(out[0]).not.toBe(nodes[0]);
+    expect(out[1]).toBe(nodes[1]);
+    expect(out[2]).not.toBe(nodes[2]);
+  });
+
+  test("a stale flag cannot survive a rebuild — the stamp is the source", () => {
+    // The bug this replaces: a node rebuilt for another reason (hide, cut/paste,
+    // undo) kept a stale `selected: true` and resurrected the selection. The
+    // canvas re-stamps from the canonical list on every rebuild, so a flag that
+    // disagrees with the ids is always corrected.
+    const stale = [node("a", true), node("b", false)];
+    const out = stampSelection(stale, new Set());
+    expect(out.map((n) => n.selected)).toEqual([false, false]);
+  });
+
+  test("an id that isn't in the array is ignored", () => {
+    const nodes = [node("a")];
+    expect(stampSelection(nodes, new Set(["nope"]))[0]).toBe(nodes[0]);
   });
 });
 

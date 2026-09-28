@@ -2,6 +2,7 @@ import { useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { PointerEvent } from "react";
 import type { FewerNode } from "@/lib/fewer/types";
+import { stampSelection } from "@/lib/fewer/viewState";
 import { useGraphStore } from "@/store/graphStore";
 
 export interface BoxSelectHandlers {
@@ -39,9 +40,12 @@ export function useCanvasBoxSelect({ selectedNodeIds, setRfNodes }: BoxSelectDep
     if (!boxSelectBaseRef.current) return;
     boxSelectBaseRef.current = null;
     // Re-assert the merged selection into React Flow's controlled nodes so
-    // its internal lookup agrees with the store after the gesture.
-    const ids = new Set(useGraphStore.getState().selectedNodeIds);
-    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: ids.has(n.id) })));
+    // its internal lookup agrees with the store after the gesture. Copy-on-write
+    // over the CURRENT canvas nodes (visible only) — mapping the full store node
+    // list would resurrect hidden nodes. The store's selection is canonical; the
+    // canvas lens paints the same flags, this just closes RF's internal gap.
+    const ids = new Set<string>(useGraphStore.getState().selectedNodeIds);
+    setRfNodes((prev) => stampSelection(prev, ids));
   };
     const onPointerCancel = () => { boxSelectBaseRef.current = null; };
 

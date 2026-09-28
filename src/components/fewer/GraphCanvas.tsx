@@ -45,7 +45,7 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { resolveViewNodes, withCollapsedPillGeometry } from "@/lib/fewer/viewState";
+import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -70,6 +70,7 @@ import { useCanvasInteractionHandlers } from "@/hooks/use-canvas-interaction-han
 import { useCanvasDragRecording } from "@/hooks/use-canvas-drag-recording";
 import { useCanvasCollapsedInternals } from "@/hooks/use-canvas-collapsed-internals";
 import { useCanvasHiddenChip } from "@/hooks/use-canvas-hidden-chip";
+import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -104,6 +105,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { themeMode: themeModeGlobal, customTheme } = useThemeConfig();
   const { selectedNodeIds, loading, showFiles: showFilesGlobal } = useUiState();
   const { activeLeafId, viewSettings: viewSettingsMap, zoomToNode, zoomToNodeIds } = useViewState();
+  const leafSelections = useGraphStore((s) => s.leafSelections);
+  const selectionVersion = useGraphStore((s) => s.selectionVersion);
   const { setSelectedNodeIds, deleteNodes, recordDragMoves, recordResize, connectNodes, addStandaloneNode, setRenamingId, setCanvasSize, setNodePositionForLeaf, setZoomToNodeIds } = useStoreActions();
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
@@ -112,6 +115,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const tier = useGraphStore((s) => s.tier);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
 
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -145,7 +149,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   // Effective hiddenIds come from resolveViewSettings (which already computed
   // layers + bulk files from allFileIds). No showFiles special-case needed.
-  const effectiveHiddenIds = vs.hiddenIds;
+  // Content-stable: a drag writes view settings every frame, and a fresh array
+  // identity here would re-filter the node set and re-run every card's
+  // child-list memo on each of those frames.
+  const effectiveHiddenIds = useStableHiddenIds(vs.hiddenIds);
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
@@ -158,29 +165,60 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [visibleNodes, vs.collapsedFolderIds],
   );
 
-  // ── Per-view positions: derive when direction overrides OR visible set diverges ──
+  // ── Per-view positions: derive the layout once, overlay positions per change ──
   // Same predicate the Organize action uses (viewState.needsLayoutDerivation, via
-  // resolveViewNodes) so a view never ends up half-organised — and the exporter
+  // deriveViewLayout) so a view never ends up half-organised — and the exporter
   // runs the identical resolution, so an image export mirrors the active view.
+  //
+  // The two halves are memoised apart on purpose. A drag rewrites this leaf's
+  // `positions` on every frame, so deriving the layout in the same memo re-ran
+  // the whole layout engine per frame in any view that diverges (hide layers, a
+  // collapsed folder, a direction override): 193ms per frame at 30k nodes. The
+  // layout memo therefore keys on the leaf's *fields* the derivation predicate
+  // reads — a position write replaces the settings object but keeps those
+  // references — and only the position overlay runs per frame.
+  const rawLeaf = leafId ? viewSettingsMap[leafId] : undefined;
+  const tagLookup = useMemo(() => makeTagLabelLookup(tags), [tags]);
+  const layoutOpts = useMemo(
+    () => ({ shynessScale, sortKey, sortDir, tagLabelById: tagLookup }),
+    [shynessScale, sortKey, sortDir, tagLookup],
+  );
+  const laidNodes = useMemo(
+    () => deriveViewLayout(
+      viewNodes, visibleEdges, rawLeaf, vs, { direction, hiddenIds, fileIds }, layoutOpts,
+    ),
+    [
+      viewNodes, visibleEdges,
+      rawLeaf?.hideLayers, rawLeaf?.direction, rawLeaf?.collapsedFolderIds,
+      vs.direction, direction, hiddenIds, fileIds, layoutOpts,
+    ],
+  );
   const positionedNodes = useMemo(
-    () =>
-      resolveViewNodes(
-        viewNodes,
-        visibleEdges,
-        leafId ? viewSettingsMap[leafId] : undefined,
-        vs,
-        { direction, hiddenIds, fileIds },
-        { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
-      ),
-    [viewNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
+    () => applyViewPositions(laidNodes ?? viewNodes, vs.positions),
+    [laidNodes, viewNodes, vs.positions],
+  );
+
+  // ── Selection: derived, never stored on the store's nodes ──
+  // The leaf's own ids when it has any, else the global list (same precedence
+  // the graph sync and the edge highlight use). Stamped AFTER the layout on
+  // purpose: doing it before would make the layout memo depend on the selection
+  // and re-derive the whole tree on every click.
+  const leafSelection = leafId ? leafSelections[leafId] ?? selectedNodeIds : selectedNodeIds;
+  const selectionSet = useMemo(() => new Set<string>(leafSelection), [leafSelection]);
+  const stampedNodes = useMemo(
+    () => stampSelection(positionedNodes, selectionSet),
+    [positionedNodes, selectionSet],
   );
 
   const graphsExists = allNodes.length > 0;
 
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(viewNodes);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(stampedNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
 
-  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
+  useCanvasGraphSync(graphVersion, stampedNodes, visibleEdges, setRfNodes, setRfEdges);
+  // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
+  // It is deliberately NOT a graphVersion change: that would rebuild everything.
+  useEffect(() => { setRfNodes(stampedNodes); }, [stampedNodes, setRfNodes]);
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
@@ -206,11 +244,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive,
+    onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges,
+    themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
   const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
-    setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
+    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
   });
 
   const { onConnect, onConnectEnd } = useCanvasConnect({
@@ -232,8 +271,22 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const hiddenChipStyle = useCanvasHiddenChip();
 
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+  // Hover ring as a Set, built once per ring change instead of scanned by every
+  // card and child row (see GraphViewScope.hoverIds).
+  const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
+  const scope = useMemo(
+    () => ({
+      leafId: leafId ?? "primary",
+      isActive: leafId ? leafId === activeLeafId : true,
+      direction: vs.direction,
+      resolved: vs,
+      visibleIds,
+      hoverIds,
+    }),
+    [leafId, activeLeafId, vs, visibleIds, hoverIds],
+  );
   return (
-    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs, visibleIds }}>
+    <GraphViewProvider value={scope}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}
