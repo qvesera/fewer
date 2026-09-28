@@ -1,5 +1,6 @@
 import type { FewerNode, FewerEdge } from "./types";
-import { ancestorChainOf, childrenMapOf, parentMapOf } from "./validation";
+import { ancestorChainOf, parentMapOf } from "./validation";
+import { childrenIndexOf, nodeIndexOf, parentIndexOf } from "./graphIndex";
 
 export interface HiddenTreeNode {
   node: FewerNode;
@@ -22,114 +23,150 @@ function hiddenTreeSort(a: HiddenTreeNode, b: HiddenTreeNode): number {
   return a.node.data.label.localeCompare(b.node.data.label);
 }
 
-/** Sum of a hidden subtree's node count (self + all descendants). */
-function countHidden(node: HiddenTreeNode): number {
-  let count = 1;
-  for (const child of node.children) count += countHidden(child);
-  return count;
-}
-
-/** Map-shape shared by buildHiddenTrees / groupByVisibleAncestor. */
-interface GraphMaps {
-  nodeMap: Map<string, FewerNode>;
-  parentMap: Map<string, string>;
-  childrenMap: Map<string, string[]>;
-}
-
-/** Root hidden nodes into nested trees: a hidden parent keeps its hidden
- *  children under it. Stale ids were filtered out by the caller (liveHiddenIds),
- *  so nodeMap.get can never miss and hiddenTreeSort can never throw. */
-function buildHiddenTrees(
-  liveHiddenIds: string[],
-  hiddenSet: Set<string>,
-  maps: Pick<GraphMaps, "nodeMap" | "parentMap" | "childrenMap">,
-): HiddenTreeNode[] {
-  const roots: HiddenTreeNode[] = [];
-  const processed = new Set<string>();
-
-  function build(id: string): HiddenTreeNode {
-    processed.add(id);
-    const node = maps.nodeMap.get(id)!;
-    const children = (maps.childrenMap.get(id) ?? [])
-      .filter((cid) => hiddenSet.has(cid))
-      .map((cid) => build(cid))
-      .sort(hiddenTreeSort);
-    return { node, children };
-  }
-
-  for (const id of liveHiddenIds) {
-    if (processed.has(id)) continue;
-    const parentId = maps.parentMap.get(id);
-    if (parentId && hiddenSet.has(parentId)) continue;
-    roots.push(build(id));
-  }
-
-  return roots;
-}
-
 /** Nearest node id that is NOT in the hidden set, walking up from `id`. Null if it
- *  is its own top-of-tree. Used to find the visible folder a hidden node sits in. */
-function nearestVisibleId(id: string, parentMap: Map<string, string>, hiddenSet: Set<string>): string | null {
-  for (const ancestorId of ancestorChainOf(id, parentMap)) {
-    if (!hiddenSet.has(ancestorId)) return ancestorId;
+ *  is its own top-of-tree. Used to find the visible folder a hidden node sits in.
+ *
+ *  Stops at the FIRST visible ancestor — this runs once per hidden card, and the
+ *  ancestorChainOf it replaced built the whole chain (past the answer) and
+ *  allocated an array for each one. The walk is bounded by the hidden set's size
+ *  rather than a `seen` set, so an imported cycle still terminates with no
+ *  per-call allocation. */
+function nearestVisibleId(id: string, parentMap: Map<string, string>, hiddenSet: ReadonlySet<string>): string | null {
+  let cur = parentMap.get(id);
+  for (let hops = 0; cur !== undefined && hops <= hiddenSet.size; hops++) {
+    if (!hiddenSet.has(cur)) return cur;
+    cur = parentMap.get(cur);
   }
   return null;
 }
 
-/** Group the top-level hidden roots by their nearest *visible* ancestor folder. */
-function groupByVisibleAncestor(
-  roots: HiddenTreeNode[],
-  maps: Pick<GraphMaps, "nodeMap" | "parentMap">,
-  hiddenSet: Set<string>,
-): HiddenGroup[] {
-  const grouped = new Map<string | null, HiddenTreeNode[]>();
-  for (const root of roots) {
-    const pid = nearestVisibleId(root.node.id, maps.parentMap, hiddenSet);
-    if (!grouped.has(pid)) grouped.set(pid, []);
-    grouped.get(pid)!.push(root);
-  }
+/**
+ * How much of each hidden subtree to materialise.
+ *
+ * `roots` — only the top-most hidden node of each branch (the panel renders
+ * exactly these by default; a row loads its own children when expanded).
+ * `all` — the full nested tree, which the search box needs so a deep match can
+ * keep its ancestor path.
+ */
+export type HiddenExpand = "roots" | "all";
 
-  const groups: HiddenGroup[] = [];
-  for (const [pid, rs] of grouped) {
-    const parentNode = pid ? maps.nodeMap.get(pid) ?? null : null;
-    groups.push({
-      parentNode,
-      parentPath: parentNode?.data.path ?? "",
-      hiddenCount: rs.reduce((sum, r) => sum + countHidden(r), 0),
-      roots: rs.sort(hiddenTreeSort),
-    });
+const NO_CHILDREN: HiddenTreeNode[] = [];
+
+/**
+ * One level of a node's hidden children, folders first then A→Z. Reads the
+ * identity-cached indexes, so repeated calls over an unchanged graph are map
+ * reads. Used by the panel to expand a row on demand.
+ */
+export function hiddenChildrenOf(
+  nodeId: string,
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  hiddenSet: ReadonlySet<string>,
+): HiddenTreeNode[] {
+  const childIds = childrenIndexOf(edges).get(nodeId);
+  if (!childIds || childIds.length === 0) return NO_CHILDREN;
+  const nodeMap = nodeIndexOf(nodes);
+  const out: HiddenTreeNode[] = [];
+  const seen = new Set<string>();
+  for (const cid of childIds) {
+    if (seen.has(cid) || !hiddenSet.has(cid)) continue;
+    const node = nodeMap.get(cid);
+    if (!node) continue;
+    seen.add(cid);
+    out.push({ node, children: NO_CHILDREN });
   }
-  // A→Z by folder label keeps the list scannable and predictable for new users.
-  groups.sort((a, b) =>
-    (a.parentNode?.data.label ?? "").localeCompare(b.parentNode?.data.label ?? ""),
-  );
-  return groups;
+  out.sort(hiddenTreeSort);
+  return out;
 }
 
 /**
- * Builds the Hidden-panel list from the live graph. Hidden nodes are rooted into a
- * nested tree (a hidden parent keeps its hidden children under it), then the
- * top-level hidden roots are grouped by their nearest *visible* ancestor folder —
- * so individually hidden files (auto-hide / category filter) are recoverable with
- * folder context instead of one flat alphabetized list.
+ * Builds the Hidden-panel list from the live graph in ONE pass over the hidden
+ * ids: each id is attributed to the visible folder above it (its nearest
+ * non-hidden ancestor), counted there, and kept as a group root when its own
+ * parent is hidden. That replaces building a nested tree over every hidden node
+ * and then re-walking it to count — the tree held 15k nodes at ~28ms on a 30k
+ * graph, and the panel renders only the roots until a row is expanded.
+ *
+ * `expand: "all"` materialises the full nested tree (search), `"roots"` only the
+ * top level (default; the panel expands rows via `hiddenChildrenOf`).
+ *
+ * Count semantics are unchanged — a group's `hiddenCount` is every hidden id
+ * beneath that visible folder — except that a node with two parents (an
+ * imported fan-in) is now counted once instead of once per path, which the
+ * recursive version over-counted.
  */
 export function getHiddenLayerGroups(
   nodes: FewerNode[],
   edges: FewerEdge[],
   hiddenIds: string[],
+  expand: HiddenExpand = "all",
 ): HiddenGroup[] {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const parentMap = parentMapOf(edges);
-  const childrenMap = childrenMapOf(edges);
+  const nodeMap = nodeIndexOf(nodes);
+  const parentMap = parentIndexOf(edges);
+  const childrenMap = childrenIndexOf(edges);
 
   // Only consider hidden ids that still map to a live node. A stale id (e.g. a
   // node deleted while hidden) must never be dereferenced below — nodeMap.get
   // would return undefined and hiddenTreeSort would throw on `.node.data`.
   const liveHiddenIds = hiddenIds.filter((id) => nodeMap.has(id));
-  const idSet = new Set(liveHiddenIds);
+  const hiddenSet = new Set(liveHiddenIds);
 
-  const roots = buildHiddenTrees(liveHiddenIds, idSet, { nodeMap, parentMap, childrenMap });
-  return groupByVisibleAncestor(roots, { nodeMap, parentMap }, idSet);
+  // Nested tree for the "all" (search) path; the "roots" path never fills it.
+  const buildAll = (id: string): HiddenTreeNode => ({
+    node: nodeMap.get(id)!,
+    children: (childrenMap.get(id) ?? [])
+      .filter((cid) => hiddenSet.has(cid))
+      .map((cid) => buildAll(cid))
+      .sort(hiddenTreeSort),
+  });
+  const build = expand === "all" ? buildAll : null;
+
+  const grouped = new Map<string | null, HiddenGroup>();
+  for (const id of liveHiddenIds) {
+    const key = nearestVisibleId(id, parentMap, hiddenSet);
+    let group = grouped.get(key);
+    if (!group) {
+      const parentNode = key ? nodeMap.get(key) ?? null : null;
+      group = { parentNode, parentPath: parentNode?.data.path ?? "", hiddenCount: 0, roots: [] };
+      grouped.set(key, group);
+    }
+    group.hiddenCount += 1;
+    // Root of its branch: its parent is visible, or it has no parent at all.
+    const parentId = parentMap.get(id);
+    if (parentId && hiddenSet.has(parentId)) continue;
+    group.roots.push(build ? build(id) : { node: nodeMap.get(id)!, children: NO_CHILDREN });
+  }
+
+  const groups = [...grouped.values()];
+  // A group with no roots can only come from a cycle of hidden nodes (every
+  // hidden id's parent is itself hidden, so none of them starts a branch). It
+  // has no revealable row, and the recursive builder dropped it too — keep that.
+  const revealable = groups.filter((g) => g.roots.length > 0);
+  for (const g of revealable) g.roots.sort(hiddenTreeSort);
+  // A→Z by folder label keeps the list scannable and predictable for new users.
+  revealable.sort((a, b) =>
+    (a.parentNode?.data.label ?? "").localeCompare(b.parentNode?.data.label ?? ""),
+  );
+  return revealable;
+}
+
+/**
+ * Index a built tree's children by the CHILD-holding node's id, so a row can
+ * expand from the (possibly search-pruned) tree in O(1) instead of scanning it.
+ * Note a group's visible context folder is not itself a node in the tree — it
+ * has no row and needs no entry.
+ */
+export function indexHiddenTreeChildren(groups: HiddenGroup[]): Map<string, HiddenTreeNode[]> {
+  const byParent = new Map<string, HiddenTreeNode[]>();
+  const walk = (list: HiddenTreeNode[]) => {
+    for (const t of list) {
+      if (t.children.length === 0) continue;
+      byParent.set(t.node.id, t.children);
+      walk(t.children);
+    }
+  };
+  for (const g of groups) walk(g.roots);
+  return byParent;
 }
 
 export function filterHiddenTree(tree: HiddenTreeNode[], query: string): HiddenTreeNode[] {

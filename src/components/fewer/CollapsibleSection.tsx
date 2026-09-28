@@ -1,9 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/**
+ * Open state of the enclosing CollapsibleSection, for a body that would rather
+ * not do expensive work while nobody can see it. Defaults to true so a panel
+ * rendered without the shell (a dock area) behaves normally.
+ *
+ * The shell keeps its children MOUNTED while folded (the collapse is a
+ * grid-rows transition), so "closed" has to be told to a body — it can't be
+ * inferred from the absence of children.
+ */
+const SectionOpenContext = createContext(true);
+
+export function useSectionOpen(): boolean {
+  return useContext(SectionOpenContext);
+}
 
 /**
  * Collapsible sidebar panel shell: ghost-button header (chevron + icon + title + optional badge) over a grid-rows animated body. Shared by Sidebar and any other panel that needs the same disclosure affordance.
@@ -77,7 +92,9 @@ export function CollapsibleSection({
         )}
       >
         <div className="w-full min-w-0 min-h-0 overflow-hidden px-3">
-          <div className="flex flex-col gap-3 pt-1 w-full min-w-0">{children}</div>
+          <SectionOpenContext.Provider value={open}>
+            <div className="flex flex-col gap-3 pt-1 w-full min-w-0">{children}</div>
+          </SectionOpenContext.Provider>
         </div>
       </div>
     </section>

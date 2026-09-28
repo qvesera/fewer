@@ -4,6 +4,8 @@ import {
   filterHiddenGroups,
   ancestorChain,
   buildRingIds,
+  hiddenChildrenOf,
+  indexHiddenTreeChildren,
   type HiddenTreeNode,
 } from "./hiddenGroups";
 import type { FewerNode, FewerEdge } from "./types";
@@ -124,6 +126,109 @@ describe("filterHiddenGroups", () => {
     const filtered = filterHiddenGroups(groups, "alpha");
     expect(filtered).toHaveLength(1);
     expect(filtered[0].roots.map((r) => r.node.id)).toEqual(["a"]);
+  });
+});
+
+describe("getHiddenLayerGroups — roots vs all", () => {
+  // root -> docs -> [sub -> [deep], a.md, b.md] ; root -> src -> c.ts
+  const nodes: FewerNode[] = [
+    makeNode("root", "root", null, { isRoot: true }),
+    makeNode("docs", "docs", "root"),
+    makeNode("sub", "sub", "docs"),
+    makeFile("deep", "deep.md", "sub"),
+    makeFile("a", "a.md", "docs"),
+    makeFile("b", "b.md", "docs"),
+    makeNode("src", "src", "root"),
+    makeFile("c", "c.ts", "src"),
+  ];
+  const edges: FewerEdge[] = [
+    makeEdge("e1", "root", "docs"),
+    makeEdge("e2", "docs", "sub"),
+    makeEdge("e3", "sub", "deep"),
+    makeEdge("e4", "docs", "a"),
+    makeEdge("e5", "docs", "b"),
+    makeEdge("e6", "root", "src"),
+    makeEdge("e7", "src", "c"),
+  ];
+  // Everything under docs is hidden, plus c.ts.
+  const hidden = ["sub", "deep", "a", "b", "c"];
+
+  const ids = (list: HiddenTreeNode[]): string[] => list.map((t) => t.node.id);
+  const flatten = (list: HiddenTreeNode[]): string[] =>
+    list.flatMap((t) => [t.node.id, ...flatten(t.children)]);
+
+  test("groups, counts and roots are identical in both modes", () => {
+    const rootsMode = getHiddenLayerGroups(nodes, edges, hidden, "roots");
+    const allMode = getHiddenLayerGroups(nodes, edges, hidden, "all");
+    expect(rootsMode.map((g) => g.parentNode?.id)).toEqual(allMode.map((g) => g.parentNode?.id));
+    expect(rootsMode.map((g) => g.hiddenCount)).toEqual(allMode.map((g) => g.hiddenCount));
+    expect(rootsMode.map((g) => ids(g.roots))).toEqual(allMode.map((g) => ids(g.roots)));
+    // docs holds sub -> deep, a, b = 4; src holds c = 1.
+    expect(rootsMode.map((g) => g.hiddenCount)).toEqual([4, 1]);
+    expect(ids(rootsMode[0].roots)).toEqual(["sub", "a", "b"]);
+  });
+
+  test("roots mode materialises only the top level", () => {
+    const groups = getHiddenLayerGroups(nodes, edges, hidden, "roots");
+    expect(groups[0].roots.every((r) => r.children.length === 0)).toBe(true);
+    expect(flatten(groups[0].roots)).not.toContain("deep");
+  });
+
+  test("all mode still nests the whole subtree (the search path)", () => {
+    const groups = getHiddenLayerGroups(nodes, edges, hidden, "all");
+    expect(flatten(groups[0].roots)).toContain("deep");
+  });
+
+  test("hiddenChildrenOf walks one level at a time, like the panel's rows", () => {
+    const hiddenSet = new Set(hidden);
+    const kids = hiddenChildrenOf("sub", nodes, edges, hiddenSet);
+    expect(ids(kids)).toEqual(["deep"]);
+    expect(kids[0].children).toEqual([]);
+    // …and repeating it reaches the next level (rows expand independently).
+    expect(ids(hiddenChildrenOf("docs", nodes, edges, hiddenSet))).toEqual(["sub", "a", "b"]);
+    // A visible node has no hidden children of its own.
+    expect(hiddenChildrenOf("root", nodes, edges, hiddenSet)).toEqual([]);
+  });
+
+  test("lazy expansion of the whole tree matches the built one", () => {
+    const groups = getHiddenLayerGroups(nodes, edges, hidden, "all");
+    const built = groups.map((g) => flatten(g.roots));
+    const hiddenSet = new Set(hidden);
+    // Walk from the roots, expanding each level the way a user clicking through
+    // would, and compare with the pre-built tree.
+    const walked: string[][] = [];
+    const visit = (list: HiddenTreeNode[]) => {
+      for (const t of list) {
+        const kids = hiddenChildrenOf(t.node.id, nodes, edges, hiddenSet);
+        if (kids.length === 0) continue;
+        walked.push(ids(kids));
+        visit(kids);
+      }
+    };
+    visit(getHiddenLayerGroups(nodes, edges, hidden, "roots")[0].roots);
+    expect(walked).toEqual([["deep"]]);
+    expect(built[0]).toEqual(expect.arrayContaining(["sub", "deep", "a", "b"]));
+  });
+
+  test("indexHiddenTreeChildren indexes a built tree by its own node ids", () => {
+    const groups = getHiddenLayerGroups(nodes, edges, hidden, "all");
+    const byParent = indexHiddenTreeChildren(groups);
+    // "sub" is a row, so it has children; "docs" is the group's visible context
+    // folder — it has no row and therefore no entry.
+    expect(ids(byParent.get("sub")!)).toEqual(["deep"]);
+    expect(byParent.has("docs")).toBe(false);
+    expect(byParent.has("deep")).toBe(false);
+  });
+
+  test("a cycle of hidden nodes yields no group, as before", () => {
+    // parentMapOf is last-edge-wins, so here a's parent is b: every hidden id's
+    // parent is hidden, no branch starts, and there is nothing revealable. The
+    // recursive builder returned [] for the same input; a roots-less group would
+    // render an empty header.
+    const cycNodes = [makeNode("root", "root", null, { isRoot: true }), makeNode("a", "a", "root"), makeFile("b", "b.md", "a")];
+    const cycEdges = [makeEdge("c1", "root", "a"), makeEdge("c2", "a", "b"), makeEdge("c3", "b", "a")];
+    expect(getHiddenLayerGroups(cycNodes, cycEdges, ["a", "b"], "roots")).toEqual([]);
+    expect(getHiddenLayerGroups(cycNodes, cycEdges, ["a", "b"], "all")).toEqual([]);
   });
 });
 

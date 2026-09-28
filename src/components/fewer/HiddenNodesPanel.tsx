@@ -13,6 +13,8 @@ import {
   getHiddenLayerGroups,
   filterHiddenGroups,
   buildRingIds,
+  hiddenChildrenOf,
+  indexHiddenTreeChildren,
   type HiddenTreeNode,
   type HiddenGroup,
 } from "@/lib/fewer/hiddenGroups";
@@ -23,8 +25,21 @@ import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { plural } from "@/lib/fewer/plural";
+import { useSectionOpen } from "./CollapsibleSection";
 
-function HiddenGroupRow({ group }: { group: HiddenGroup }) {
+/**
+ * A row's children, loaded on demand. The panel only renders a hidden tree's
+ * roots by default, so materialising every hidden node up front (15k on a 30k
+ * graph) built rows nobody could see. Search overrides this with the
+ * (pruned) built tree, because a deep match has to show its ancestor path.
+ */
+type GetChildren = (nodeId: string) => HiddenTreeNode[];
+
+const NO_CHILDREN: HiddenTreeNode[] = [];
+const EMPTY_IDS: string[] = [];
+const EMPTY_GROUPS: HiddenGroup[] = [];
+
+function HiddenGroupRow({ group, getChildren }: { group: HiddenGroup; getChildren: GetChildren }) {
   const edges = useGraphStore((s) => s.edges);
   const setHoverHighlight = useGraphStore((s) => s.setHoverHighlight);
   const [open, setOpen] = useState(true);
@@ -42,7 +57,7 @@ function HiddenGroupRow({ group }: { group: HiddenGroup }) {
     return (
       <>
         {group.roots.map((root) => (
-          <HiddenNodeRow key={root.node.id} tree={root} depth={0} />
+          <HiddenNodeRow key={root.node.id} tree={root} depth={0} getChildren={getChildren} />
         ))}
       </>
     );
@@ -73,14 +88,14 @@ function HiddenGroupRow({ group }: { group: HiddenGroup }) {
       {open && (
         <div className="space-y-0.5 w-full min-w-0 pl-3">
           {group.roots.map((root) => (
-            <HiddenNodeRow key={root.node.id} tree={root} depth={1} />
+            <HiddenNodeRow key={root.node.id} tree={root} depth={1} getChildren={getChildren} />
           ))}
         </div>
       )}
     </div>
   );
 }
-function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: number }) {
+function HiddenNodeRow({ tree, depth = 0, getChildren }: { tree: HiddenTreeNode; depth?: number; getChildren: GetChildren }) {
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameNode = useGraphStore((s) => s.renameNode);
   const showAncestors = useGraphStore((s) => s.showAncestors);
@@ -91,6 +106,14 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   const { toast } = useToast();
   const [open, setOpen] = useState(depth === 0);
   const isFolder = tree.node.data.type === "folder";
+
+  // Children arrive on expand. A closed row still needs to know whether to draw
+  // the disclosure chevron, which is one map read over that folder's own edges.
+  const hasChildren = useMemo(() => getChildren(tree.node.id).length > 0, [getChildren, tree.node.id]);
+  const children = useMemo(
+    () => (open ? getChildren(tree.node.id) : NO_CHILDREN),
+    [open, getChildren, tree.node.id],
+  );
 
   const ringIds = useMemo(() => buildRingIds(tree.node.id, edges), [tree.node.id, edges]);
 
@@ -121,7 +144,6 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
   };
   
   const node = tree.node;
-  const hasChildren = tree.children.length > 0;
 
   const handleRename = (v: string) => {
     const ok = renameNode(node.id, v);
@@ -189,8 +211,8 @@ function HiddenNodeRow({ tree, depth = 0 }: { tree: HiddenTreeNode; depth?: numb
       {/* ── 3. CHILDREN WRAPPER (NO PADDING HERE) ── */}
       {open && hasChildren && (
         <div className="space-y-0.5 w-full min-w-0">
-          {tree.children.map((child) => (
-            <HiddenNodeRow key={child.node.id} tree={child} depth={depth + 1} />
+          {children.map((child) => (
+            <HiddenNodeRow key={child.node.id} tree={child} depth={depth + 1} getChildren={getChildren} />
           ))}
         </div>
       )}
@@ -212,24 +234,47 @@ export function HiddenNodesPanel() {
 
   const [hiddenSearch, setHiddenSearch] = useState("");
 
+  // Folded sections keep their children mounted (the collapse is a CSS
+  // grid-rows transition), so without this the panel would rebuild its whole
+  // hidden list on every graph edit while nobody could see it.
+  const sectionOpen = useSectionOpen();
+
   // Effective hidden list for the active view: resolved from the leaf's
   // hide layers (individual + subtrees + bulk files) merged with global hiddenIds.
   const effectiveHidden = useMemo(
-    () => activeLeaf?.resolved.hiddenIds ?? [],
+    () => activeLeaf?.resolved.hiddenIds ?? EMPTY_IDS,
     [activeLeaf],
   );
   const viewFiltersFiles = activeLeaf ? !activeLeaf.resolved.showFiles : false;
   const activeLeafId = activeLeaf?.leafId ?? null;
 
+  // Search needs the full nested tree (a deep match must keep its ancestor
+  // path); with no query the panel renders roots only and rows expand lazily.
+  const searching = hiddenSearch.trim().length > 0;
+
   const hiddenGroups = useMemo(
-    () => getHiddenLayerGroups(nodes, edges, effectiveHidden),
-    [nodes, edges, effectiveHidden],
+    () => (sectionOpen
+      ? getHiddenLayerGroups(nodes, edges, effectiveHidden, searching ? "all" : "roots")
+      : EMPTY_GROUPS),
+    [sectionOpen, nodes, edges, effectiveHidden, searching],
   );
 
   const filteredHiddenGroups = useMemo(
     () => filterHiddenGroups(hiddenGroups, hiddenSearch),
     [hiddenGroups, hiddenSearch],
   );
+
+  const hiddenSet = useMemo(() => new Set(effectiveHidden), [effectiveHidden]);
+
+  const getChildren = useMemo<GetChildren>(() => {
+    if (searching) {
+      // From the built (and pruned) tree, so a search only ever expands into
+      // rows that actually match.
+      const byParent = indexHiddenTreeChildren(filteredHiddenGroups);
+      return (nodeId) => byParent.get(nodeId) ?? NO_CHILDREN;
+    }
+    return (nodeId) => hiddenChildrenOf(nodeId, nodes, edges, hiddenSet);
+  }, [searching, filteredHiddenGroups, nodes, edges, hiddenSet]);
 
   if (effectiveHidden.length === 0) return null;
 
@@ -268,7 +313,7 @@ export function HiddenNodesPanel() {
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
         {filteredHiddenGroups.length > 0 ? (
           filteredHiddenGroups.map((group, i) => (
-            <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} />
+            <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} getChildren={getChildren} />
           ))
         ) : (
           <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
