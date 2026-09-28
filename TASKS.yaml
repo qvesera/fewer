@@ -1425,7 +1425,7 @@ tasks:
   session_count: 0
 - id: "T-059"
   title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "theme"
   tier: 1
@@ -1438,19 +1438,19 @@ tasks:
   blocked_by: ["T-061"]
   parent: "T-006"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T16:24:21Z"
   notes: []
   sessions:
   - start: "2026-09-28T16:33:03Z"
-    end: null
+    end: "2026-09-28T16:44:18Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Phase 2 display landed: NodeIcon swaps to FolderSymlink/FileSymlink; SymlinkBadge chip (target basename, external suffix, amber broken warning, full tooltip + aria) on expanded headers, collapsed pills, child rows and file cards; contrastStroke helper (solid<->dashed axis, dotted->solid confirmed) applied to link edges in buildEdgeBase + applyEdgeHighlights with target-end markerEnd arrowhead following highlight color; graphRenderer export parity (lucide path data, badge text, contrast dash, SVG arrowhead triangle, amber broken ring). 46 tests across symlinkDisplay/edgeHighlight/graphRenderer. PR to be attached once opened."
+    proof: ["3e0cca1"]
+    effort: {commits: 1, files: 12, insertions: 357, deletions: 35}
+  spent_min: 11
   session_count: 1
 - id: "T-060"
   title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
