@@ -991,7 +991,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:16Z"
-  notes: ["2026-09-25T12:38:21Z · disk import uses the browser File System Access API today; evaluate Tauri (Rust) vs a Swift native shell for the compute-heavy paths"]
+  notes: ["2026-09-25T12:38:21Z · disk import uses the browser File System Access API today; evaluate Tauri (Rust) vs a Swift native shell for the compute-heavy paths", "2026-09-28T17:45:49Z · RAM evidence gathered 2026-09-28 while designing T-055 (look-inside-archives), answering 'would a Rust core use less RAM for unarchiving?'. Per-path findings on the shipped code: zip = O(central directory) via Blob.slice (only reads 512B head, <=66KB tail, then the CD) - a Blob is disk-backed and already seekable, so a native pread/mmap is NO real win. tar = O(names+sizes) via 512B header walk with arithmetic skip (pos += n, zero bytes read) - already optimal. tar.gz/gz = O(1) RAM (bounded buffer, reads+discards in 64KB chunks) but must inflate EVERY byte (gzip not seekable) and runs on the main thread - Rust gives threads, not less RAM. 7z/rar/xz/bz2/zst via libarchive.js WASM = O(FILE): Archive.open copies the entire archive into the Emscripten MEMFS heap, under a wasm32 ceiling (2-4GB) - the ONE unbounded case, and the one Rust genuinely fixes. THE BIGGEST CONSUMER IS NOT THE ARCHIVE: the graph (per-node path string + edges + derived index from #240) lives in the webview JS heap regardless of core language, and Tauri IPC is JSON by default so a 100k-node tree briefly exists 3x (Rust struct -> JSON -> JS objects). Conclusion for the spike: do NOT port for RAM alone. Port for what ROADMAP already lists (native file watching, tray, global hotkeys) and take bounded-memory archive reads as a bonus. Any real RAM win on the graph side is architectural (compact/paged tree), not a language change, and it helps web + desktop alike. Cannot be benchmarked here: no cargo/rustc/tauri, no pkg-config/gtk3. feats.ts + ROADMAP 'Tauri desktop app: better compute' are already in place; migrate via LOCAL_FS_FEATURES flip and TreeEntry as the unchanged contract."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -1234,7 +1234,7 @@ tasks:
   session_count: 1
 - id: "T-049"
   title: "Compressed archive import: visualize .zip/.tar/.7z/.rar/... folder trees"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "import"
   tier: 1
@@ -1247,14 +1247,20 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "none"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T10:53:51Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-09-28T17:30:00Z"
+    end: "2026-09-28T17:31:00Z"
+    measured: true
+    note: "Umbrella closure: no direct work on the umbrella; all effort was on the children (T-050 16m, T-051 3m = 19m rollup). T-050 shipped the zero-dep zip/tar/tar.gz origin in #238; T-051 added the lazy wasm libarchive engine for 7z/RAR/xz/bz2/zst in #249. Both children are done, so the umbrella closes. Continues as a new sibling task for folder-import expansion (archives inside a folder)."
+    proof: ["#238", "#249"]
+    effort: null
+  spent_min: 1
+  session_count: 1
 - id: "T-050"
   title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
   status: "done"
@@ -1286,7 +1292,7 @@ tasks:
   session_count: 1
 - id: "T-051"
   title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -1539,4 +1545,56 @@ tasks:
     proof: ["c9788b0"]
     effort: {commits: 1, files: 2, insertions: 32, deletions: 0}
   spent_min: 0
+  session_count: 1
+- id: "T-063"
+  title: "Rust core + Tauri shell: native archive/metadata layer and local FS integration"
+  status: "blocked"
+  type: "infra"
+  area: "infra"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 250
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-039"]
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T17:43:34Z"
+  notes: ["2026-09-28T17:45:35Z · Documents the SEAM CONSUMER for the archive layer. RAM analysis (2026-09-28, from the T-055 design session): Rust is NOT a blanket win - it fixes one specific unbounded case. Today: zip and tar are already O(entries) not O(file) (zip central directory via Blob.slice; tar header walk with arithmetic skip), and tar.gz is O(1) RAM (bounded buffer, reads+discards 64KB chunks) though it must inflate every byte on the main thread. The one unbounded path is the wasm engine (T-051): Archive.open copies the WHOLE archive into the Emscripten MEMFS heap, O(file) plus a wasm32 ceiling (2-4GB). Rust fixes that via seek + memmap2 (archive_read_open_filename reads through an FD), native libarchive (including zstd, which the wasm build did not declare), rayon for many-archive folders (the T-055 case), and no per-archive worker spawn. What Rust does NOT fix: the graph is the dominant consumer (per-node path strings + edges + the derived index from #240) and it lives in the webview JS heap regardless of core language; Tauri IPC is JSON by default so a 100k-node tree briefly exists 3x (Rust struct -> JSON -> JS objects). The migration's real design constraint is keeping the tree in Rust and paging only what the view draws. SEAM: T-055 defines ArchiveReader = (entry) => Promise<Blob | null> injected per origin; expandArchives never learns where bytes came from, so a native implementation is a drop-in reader and the 64MB engine-format cap T-055 ships can relax in one place. Blocker T-039 decides Rust vs Swift first. HONEST CAVEAT: no cargo/rustc/tauri and no pkg-config/gtk3 on the dev box, so none of this is benchmarked - first step is instrumenting node-count vs bytes-read on the worst real archive."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-064"
+  title: "Look Inside Archives: expand archives found inside an imported folder"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 450
+  estimate_basis: "cli"
+  issue: 251
+  pr: 252
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T17:45:57Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T17:48:32Z"
+    end: "2026-09-28T18:16:52Z"
+    measured: true
+    note: "Look Inside Archives shipped (PR #252). Advanced opt-in switch (default off, clamped off in basic mode) expands archives found during a folder import. Built on the injected ArchiveReader seam: (entry, fullPath) => Promise<Blob|null>, with one reader per channel - webkitdirectory and legacy entries now KEEP the disk-backed Blob the API already handed them (transient archiveBlob), FSA re-reads via getFile(), the server walk reads from disk - so a native core (T-063) drops in as another reader and every cap lives in one place. Archive nodes become folder-typed with an isArchive flag: that flag is what gates Open in File Explorer / Refresh from Disk / Open File, which would otherwise target a directory that does not exist. Expansion runs before the empty-folder prune. One level deep; maxDepth also bounds archive internals; archives survive the extension filter so it applies to their contents; caps of 200 archives, 20k entries each, 64MB for whole-read formats, every skip reported once with its reason. 25 new lib tests + 3 component tests; e2e against a real zip shows real.zip expanding to proj/README.md and proj/src/main.c. 1436+180 pass, tsc/lint/build/migration-verify clean. NOTE: 5 pre-existing test failures on dev (userSettings panelLayout / saveLayoutToStorage, a bun cross-file localStorage leak from the panelTree work) reproduced with this branch stashed - not mine, left alone to avoid colliding with the in-flight symlink tasks."
+    proof: ["afb0d15", "8d2390f", "#252"]
+    effort: {commits: 2, files: 20, insertions: 3436, deletions: 32}
+  spent_min: 28
   session_count: 1

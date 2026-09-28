@@ -3,6 +3,7 @@
 import type { TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
 import { shouldKeepEmpty, isExtAllowed, isSkipped } from "./fsFilters";
+import { isArchiveName } from "./archiveExpand";
 import { sortFoldersFirst } from "./treeSort";
 
 // Cast shim — .values() exists at runtime but isn't in older TS lib defs
@@ -86,14 +87,40 @@ export async function buildTreeFromHandle(
         if (!keepDirChild(childTree, childCount, options, hasDiskEntries)) continue;
         children.push(childTree);
       } else {
-        if (!isExtAllowed(entry.name, options)) continue;
+        // An archive passes the extension filter when expansion is on, so the
+        // filter applies to the files inside it instead of dropping it.
+        if (!isExtAllowed(entry.name, options)) {
+          if (!(options.expandArchives && isArchiveName(entry.name))) continue;
+        }
         children.push(await buildFileLeaf(entry));
       }
     }
   }
 
   sortFoldersFirst(children);
-  return { name: handle.name, type: "folder", children, fsHandle: handle };
+  const tree: TreeEntry = { name: handle.name, type: "folder", children, fsHandle: handle };
+
+  // Expand archives AFTER the walk (so we see the finished tree) but BEFORE
+  // the caller's empty-folder prune. The reader re-reads bytes through each
+  // leaf's File System Access handle, which is exactly what the seam is for.
+  if (options.expandArchives) {
+    const { expandArchives } = await import("./archiveExpand");
+    await expandArchives(
+      tree,
+      async (entry) => {
+        const h = entry.fsHandle;
+        if (!h || h.kind !== "file") return null;
+        try {
+          return await (h as FileSystemFileHandle).getFile();
+        } catch {
+          return null;
+        }
+      },
+      options,
+    );
+  }
+
+  return tree;
 }
 
 /**

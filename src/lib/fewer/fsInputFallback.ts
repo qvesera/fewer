@@ -5,6 +5,7 @@ import type { ImportOptions } from "./importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
 import { isExtAllowed } from "./fsFilters";
+import { isArchiveName } from "./archiveExpand";
 import { sortTreeFoldersFirst } from "./treeSort";
 
 function filterInputFiles(
@@ -19,8 +20,16 @@ function filterInputFiles(
     if (!options.includeVendored && parts.some((p) => VENDORED_DIRS.has(p))) return false;
     // Check depth (parts.length - 1 = depth from root)
     if (options.maxDepth > 0 && parts.length - 1 > options.maxDepth) return false;
-    // Check extension (only when includeFiles is true)
-    if (options.includeFiles && !isExtAllowed(file.name, options)) return false;
+    // Check extension (only when includeFiles is true). An archive passes even
+    // when its extension is not whitelisted, because expanding it is the whole
+    // point of the option — the filter then applies to the files INSIDE it.
+    if (
+      options.includeFiles &&
+      !isExtAllowed(file.name, options) &&
+      !(options.expandArchives && isArchiveName(file.name))
+    ) {
+      return false;
+    }
     return true;
   });
 }
@@ -36,6 +45,9 @@ function insertInputPath(tree: TreeEntry, parts: string[], file: File) {
         name: part,
         type: "file",
         size: file.size,
+        // The picker already handed us a disk-backed Blob for every file;
+        // keep it so the archive reader never has to re-acquire the bytes.
+        archiveBlob: file,
       });
     } else {
       current.children = current.children ?? [];
@@ -51,7 +63,10 @@ function insertInputPath(tree: TreeEntry, parts: string[], file: File) {
   }
 }
 
-function buildTreeFromFileList(allFiles: File[], filteredFiles: File[]): TreeEntry {
+function buildTreeFromFileList(
+  allFiles: File[],
+  filteredFiles: File[],
+): TreeEntry {
   const rootName = allFiles[0].webkitRelativePath.split("/")[0] || "root";
   const tree: TreeEntry = { name: rootName, type: "folder", children: [] };
 
@@ -115,6 +130,14 @@ export async function pickDirectoryViaInput(
 
   const filteredFiles = filterInputFiles(allFiles, options);
   const tree = buildTreeFromFileList(allFiles, filteredFiles);
+
+  // Expand archives BEFORE pruning empty folders: an expanded archive holds
+  // real children, and pruning first would treat it as an empty directory and
+  // delete it. Only runs when the option is on (it is off by default).
+  if (options.expandArchives) {
+    const { expandArchives } = await import("./archiveExpand");
+    await expandArchives(tree, async (leaf) => leaf.archiveBlob ?? null, options);
+  }
 
   // When includeFiles is false, we can't tell if a folder had files
   // (webkitdirectory only gives us file paths), so skip this check

@@ -10,6 +10,7 @@ import {
   Filter,
   Eye,
   EyeOff,
+  FileArchive,
   Package,
   FolderX,
   FileIcon,
@@ -231,6 +232,29 @@ export function ImportOptionsPanel({
               id="ip-show-files"
               checked={options.includeFiles}
               onCheckedChange={(v) => update({ includeFiles: v })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
+            <div className="flex items-center gap-3">
+              <FileArchive className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+              <div className="space-y-0.5">
+                <Label htmlFor="ip-expand-archives" className="text-xs font-medium cursor-pointer">
+                  Look Inside Archives
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Show what&apos;s inside{" "}
+                  <code className="font-mono text-[10px] bg-muted px-1 rounded">.zip</code>,{" "}
+                  <code className="font-mono text-[10px] bg-muted px-1 rounded">.tar</code>,{" "}
+                  <code className="font-mono text-[10px] bg-muted px-1 rounded">.7z</code>{" "}
+                  and friends found in the folder, without extracting them.
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="ip-expand-archives"
+              checked={options.expandArchives}
+              onCheckedChange={(v) => update({ expandArchives: v })}
             />
           </div>
 

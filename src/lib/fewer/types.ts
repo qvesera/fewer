@@ -71,6 +71,8 @@ export interface FewerNodeData {
   webUrl?: string;
   /** Symlink metadata when this node is a symlink (see SymlinkInfo). */
   symlink?: SymlinkInfo;
+  /** True when this node is an expanded archive (see TreeEntry.isArchive). */
+  isArchive?: boolean;
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
@@ -171,6 +173,18 @@ export interface TreeEntry {
   webUrl?: string;
   /** Symlink metadata when this entry is a symlink (server-side walk only). */
   symlink?: SymlinkInfo;
+  /**
+   * True when this node is an archive whose listing was expanded into its
+   * children (the "Look Inside Archives" import option). It renders as a
+   * container but is NOT a directory on disk, so disk actions must be skipped.
+   */
+  isArchive?: boolean;
+  /**
+   * Bytes already in hand for this file (browser walkers only), so the
+   * archive-expansion reader never has to re-acquire them. Transient: never
+   * copied into graph nodes or serialized.
+   */
+  archiveBlob?: Blob;
 }
 
 /** Optional File System Access handle stored on each node/item */

@@ -62,6 +62,7 @@ How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 | Include dependency &amp; build folders | Off     | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
 | Skip Empty Folders                     | On      | Hide folders with no files inside                  |
 | Show Files on Canvas                   | On      | Show file nodes. Off = directories only            |
+| Look Inside Archives                   | Off     | Show what's inside archives found in the folder    |
 | File Extensions                        | None    | Comma-separated whitelist (e.g. `ts, tsx, js`)     |
 | Case-Sensitive Match                   | Off     | Match extensions case-sensitively                  |
 | Symlinks                               | Show as links | How the walk treats symbolic links (see below) |
@@ -96,6 +97,29 @@ CSV gains a `symlink_target` column and DOT marks link nodes and edges.
 > picks and drag-and-drop inside the browser) cannot see symlinks — the API
 > resolves them transparently, so linked folders are walked like normal
 > folders there. The option applies to local-path imports.
+
+### Look Inside Archives
+
+Turn on **Advanced Options → Look Inside Archives** and a folder import also
+expands the archives it finds, so `imports/` shows what's inside a
+`release.zip` instead of a single file card.
+
+- **Off by default**, because it multiplies node count. The setting is
+  remembered with your other import preferences, and is clamped off whenever
+  advanced options are hidden.
+- **All the same formats** as the Archive origin: `.zip`, `.tar`, `.tar.gz`,
+  and the 7z/RAR/xz/bzip2/Zstandard family.
+- **Nothing is extracted** — the archive's listing is read in place, exactly
+  like the Archive origin, and the archive card is marked so it is not mistaken
+  for a real folder. Disk actions (Open in File Explorer, Refresh from Disk)
+  are correctly unavailable on it.
+- **One level deep.** An archive found *inside* an archive stays a file card.
+- **Depth limits still apply**, so the Max Scan Depth slider governs how far
+  inside an archive the graph goes.
+- **Ceilings**, so a folder of archives cannot swamp the canvas: at most 200
+  archives per import, and 20,000 entries inside any one of them. Formats that
+  must be read end-to-end rather than seeked (gzip, and the wasm-engine
+  formats) are skipped above 64 MB; the reason is reported in a single toast.
 
 ## Import from URL
 
