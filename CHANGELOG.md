@@ -131,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gallery graph cards now show category chips (derived from file types), a monospace preview block (root + first children), and author attribution (name and username)
 - Gallery graph tab has category filter chips (All, Code, Config, Docs, Data, Media, Images) that filter the listing server-side
 - Advanced settings gain an Auto-relayout switch (Settings, Advanced, Layout Policy). Off, showing, revealing or bulk-revealing cards no longer re-flows the tree, so a long editing session keeps the arrangement you set; Organize and Sort still re-flow, and hiding a card never moved anything on its own. The setting is persisted and synced with the rest of your preferences.
+- Symlink support (phase 1: capture): the local-path directory walk now detects symbolic links instead of silently dropping them. New import option Symlinks (Skip / Show as links / Follow, default Show as links) — links import as nodes carrying target, resolved-path, inside-tree and broken-target metadata, with a cycle guard so self-referencing link loops terminate. Browser folder picks still cannot detect links (platform limitation; the option applies to local-path imports).
 
 ### Performance
 

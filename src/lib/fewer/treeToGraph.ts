@@ -56,6 +56,7 @@ export function treeToGraph(
         depth,
         isRoot: parentId === null,
         webUrl: entry.webUrl,
+        symlink: entry.symlink,
       },
     });
 
@@ -165,7 +166,7 @@ export async function chunkTreeToGraph(
       id,
       type: entry.type,
       position: { x: 0, y: 0 },
-      data: { label, path: fullPath, type: entry.type, extension, category, size: entry.size ?? 0, depth, isRoot: parentId === null, webUrl: entry.webUrl },
+      data: { label, path: fullPath, type: entry.type, extension, category, size: entry.size ?? 0, depth, isRoot: parentId === null, webUrl: entry.webUrl, symlink: entry.symlink },
     });
 
     if (parentId) {
