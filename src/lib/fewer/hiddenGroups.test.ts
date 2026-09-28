@@ -4,6 +4,7 @@ import {
   filterHiddenGroups,
   ancestorChain,
   buildRingIds,
+  type HiddenTreeNode,
 } from "./hiddenGroups";
 import type { FewerNode, FewerEdge } from "./types";
 
@@ -155,7 +156,7 @@ describe("buildRingIds", () => {
     expect(buildRingIds(undefined, edges)).toEqual([]);
   });
 
-  test("subtree roots flatten every descendant into the ring set", () => {
+  test("group hover rings the context folder, its ancestors and the group's hidden roots", () => {
     // Hidden folder subtree: outer -> [f1, f2 -> deep]
     const nodes: FewerNode[] = [
       makeNode("outer", "outer", "root"),
@@ -170,12 +171,26 @@ describe("buildRingIds", () => {
       ],
     };
     const ids = buildRingIds("docs", edges, [tree]);
-    expect(ids).toContain("docs");
-    expect(ids).toContain("root");
-    expect(ids).toContain("outer");
-    expect(ids).toContain("f1");
-    expect(ids).toContain("f2");
-    expect(ids).toContain("deep");
+    expect(ids).toEqual(["docs", "root", "outer"]);
+    // "deep" is NOT in the ring, and that is the point: its parent ("f2") is
+    // hidden, so no visible folder card renders a row for it — the descent this
+    // replaced pushed thousands of ids through the store to colour nothing.
+    expect(ids).not.toContain("deep");
+    expect(ids).not.toContain("f1");
+  });
+
+  test("ring size is bounded by depth, not by subtree size", () => {
+    // One hidden root with 1,003 hidden descendants: the descent this replaced
+    // emitted all of them; the ring is the context folder plus the single root.
+    const root = {
+      node: makeNode("big", "big", "docs"),
+      children: Array.from({ length: 1000 }, (_, i) => ({
+        node: makeFile(`d${i}`, `d${i}.txt`, "big"),
+        children: [] as HiddenTreeNode[],
+      })),
+    };
+    const ids = buildRingIds("docs", edges, [root]);
+    expect(ids).toEqual(["docs", "root", "big"]);
   });
 
   test("no subtree roots → just node + ancestors", () => {

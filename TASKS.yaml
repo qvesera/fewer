@@ -1234,7 +1234,7 @@ tasks:
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "review"
+  status: "in-progress"
   type: "perf"
   area: "performance"
   tier: 0
@@ -1265,5 +1265,11 @@ tasks:
     note: "Re-ran on a branch off dev (perf/index-graph-walks) so the PR is one unit of work; same change, gates re-verified on the dev base: bun test src 1334 pass, test:components 170 pass, lint 0, tsc 0, build 0."
     proof: ["7e0d559"]
     effort: {commits: 1, files: 11, insertions: 410, deletions: 50}
+  - start: "2026-09-28T13:06:09Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 14
-  session_count: 2
+  session_count: 3

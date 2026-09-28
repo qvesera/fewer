@@ -113,6 +113,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const tier = useGraphStore((s) => s.tier);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
 
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -236,8 +237,22 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const hiddenChipStyle = useCanvasHiddenChip();
 
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+  // Hover ring as a Set, built once per ring change instead of scanned by every
+  // card and child row (see GraphViewScope.hoverIds).
+  const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
+  const scope = useMemo(
+    () => ({
+      leafId: leafId ?? "primary",
+      isActive: leafId ? leafId === activeLeafId : true,
+      direction: vs.direction,
+      resolved: vs,
+      visibleIds,
+      hoverIds,
+    }),
+    [leafId, activeLeafId, vs, visibleIds, hoverIds],
+  );
   return (
-    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs, visibleIds }}>
+    <GraphViewProvider value={scope}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}

@@ -170,9 +170,17 @@ export function ancestorChain(id: string, edges: FewerEdge[]): string[] {
 
 /**
  * Node ids to ring on canvas when a Hidden-panel row is hovered: the row's node
- * itself, its full ancestor chain (so the visible folder cards up to the root
- * glow), plus — for a folder group hover — every node in the hidden subtrees,
- * so hidden child rows light up inside their parent card on canvas.
+ * itself and its full ancestor chain (so the visible folder cards up to the root
+ * glow), plus — for a folder group hover — the group's hidden ROOTS.
+ *
+ * Roots only, no descent. A hidden card is painted in one of two places: as its
+ * own card (it can't — it's hidden) or as a dimmed child row inside its parent's
+ * folder card. So the only hidden ids a hover can visibly colour are the ones
+ * whose parent is a VISIBLE folder — exactly the group roots. A deeper hidden
+ * descendant's parent is itself hidden, so no card renders a row for it. The
+ * descent it replaced therefore coloured nothing while pushing every id in the
+ * subtree through the store on each hover (5,002 ids for one Hide Children
+ * subtree) and making every card and child row scan that array.
  */
 export function buildRingIds(
   nodeId: string | null | undefined,
@@ -181,14 +189,7 @@ export function buildRingIds(
 ): string[] {
   if (!nodeId) return [];
   const ids = [nodeId, ...ancestorChain(nodeId, edges)];
-  if (subtreeRoots) {
-    const stack = [...subtreeRoots];
-    while (stack.length) {
-      const t = stack.pop()!;
-      ids.push(t.node.id);
-      stack.push(...t.children);
-    }
-  }
+  if (subtreeRoots) for (const root of subtreeRoots) ids.push(root.node.id);
   return ids;
 }
 

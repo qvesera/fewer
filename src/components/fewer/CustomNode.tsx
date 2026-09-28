@@ -911,9 +911,8 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const { toast } = useToast();
   const isDimmed = false; // search dimming disabled — canvas visibility is the sole driver
   const isHighlighted = child.data.highlighted;
-  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHidden = !scope.visibleIds.has(child.id);
-  const isHovered = hoverHighlightIds.includes(child.id);
+  const isHovered = scope.hoverIds.has(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -1033,8 +1032,7 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   );
   const { toast } = useToast();
 
-  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
-  const isHovered = hoverHighlightIds.includes(id);
+  const isHovered = scope.hoverIds.has(id);
   const tags = useGraphStore((s) => s.tags);
   const nodeTagIds = data.tagIds ?? [];
 
