@@ -1234,7 +1234,7 @@ tasks:
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: 0
@@ -1281,14 +1281,14 @@ tasks:
   session_count: 4
 - id: "T-053"
   title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "other"
   tier: null
   estimate_min: 15
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 247
   internal: true
   milestone: null
   blocked_by: []
