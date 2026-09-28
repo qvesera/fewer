@@ -1281,7 +1281,7 @@ tasks:
   session_count: 4
 - id: "T-053"
   title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "other"
   tier: null
@@ -1294,17 +1294,132 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T16:22:06Z"
   notes: ["2026-09-28T16:22:12Z · internal fix, no issue needed"]
   sessions:
   - start: "2026-09-28T16:23:05Z"
-    end: null
+    end: "2026-09-28T16:23:19Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
+    note: "rtype derived same as adopt_issue (bug→fix, enhancement→feat, else task) so the size label matches the adopted row's estimate; verified with intake --dry-run adopting all 5 untracked issues"
+    proof: ["c9788b0"]
+    effort: {commits: 1, files: 2, insertions: 32, deletions: 0}
   spent_min: 0
   session_count: 1
+- id: "T-054"
+  title: "Shift+H claims it revealed cards the auto-hide filter re-hides in the same press"
+  status: "triaged"
+  type: "fix"
+  area: "keyboard"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 243
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#243"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-28T15:56:55Z"
+  notes: ["2026-09-28T16:23:25Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-055"
+  title: "Shift+H throws after selecting a card: shortcut rules read a store field that no longer exists (showFilesByLeaf)"
+  status: "triaged"
+  type: "fix"
+  area: "keyboard"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 241
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#241"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-28T15:44:04Z"
+  notes: ["2026-09-28T16:23:27Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-056"
+  title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 237
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-058"
+  source: "gh#237"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:54:40Z"
+  notes: ["2026-09-28T16:23:30Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-057"
+  title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 236
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-058"
+  source: "gh#236"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:54:39Z"
+  notes: ["2026-09-28T16:23:31Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-058"
+  title: "Compressed archive import: visualize .zip/.tar/.7z/.rar/... folder trees"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 235
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#235"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:54:37Z"
+  notes: ["2026-09-28T16:23:33Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
