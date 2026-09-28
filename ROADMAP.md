@@ -18,7 +18,8 @@
 ## 📥 Import & Export
 
 - [x] **Compressed archive import**: visualize the folder tree inside `.zip` / `.tar` / `.tar.gz` by reading the archive's listing, without extracting it
-- [ ] **More archive formats**: 7z, RAR, xz, bzip2, Zstandard via a lazily-loaded wasm engine
+- [x] **More archive formats**: 7z, RAR, xz, bzip2, Zstandard via a lazily-loaded wasm engine
+- [ ] **Look inside archives during folder import**: expand archives found inside an imported folder (advanced option)
 - [ ] **Extract from archive**: open or download a single file from inside an imported archive
 - [ ] **CSV import**: import graph from CSV format (currently export-only)
 - [ ] **DOT import**: import graph from Graphviz DOT format (currently export-only)

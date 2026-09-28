@@ -1286,7 +1286,7 @@ tasks:
   session_count: 1
 - id: "T-051"
   title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "import"
   tier: null
@@ -1303,10 +1303,16 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T10:53:55Z"
-  notes: []
-  sessions: []
+  notes: ["2026-09-28T16:58:53Z · SPIKE RESULT (bun, libarchive.js@2.0.2 node build): the wasm engine lists .tar.xz and .tar.bz2 correctly, plus zip/tar/gzip — so xz and bzip2 are native to this build. No need for the xz-decompress or fzstd fallbacks. 7z and RAR are libarchive-native (no local CLI to fixture them; trust libarchive's declared support). zstd is the only format the engine's declared compression list (GZIP/DEFLATE/BZIP2/LZMA) does not obviously cover — it will be tried and reported honestly if unsupported. Engine lists via getFilesArray() without decompressing member data."]
+  sessions:
+  - start: "2026-09-28T17:11:35Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
   status: "done"
