@@ -1232,6 +1232,81 @@ tasks:
     effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
   spent_min: 20
   session_count: 1
+- id: "T-049"
+  title: "Compressed archive import: visualize .zip/.tar/.7z/.rar/... folder trees"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 660
+  estimate_basis: "cli"
+  issue: 235
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:51Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-050"
+  title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 236
+  pr: 238
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-049"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:55Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T10:57:30Z"
+    end: "2026-09-28T11:13:37Z"
+    measured: true
+    note: "Archive origin shipped: src/lib/fewer/archiveList.ts lists zip (central directory via Blob.slice, zip64 extra field), tar (512-byte headers, payload skipped by declared size, GNU long-name + pax headers) and gzip (native DecompressionStream) into a TreeEntry. New fifth origin wired through importFlow/ImportOriginStep/importAction + importActionArchive. 17 new lib tests, 2 new dialog tests; cross-checked against real zip/tar/xz/bzip2 output, not just fixtures. Zero new dependencies - the listing is uncompressed in zip/tar and gzip is native, which is why 7z/rar/xz/bz2/zstd are deferred to T-051's wasm engine. PR #238."
+    proof: ["5d299a8", "ebe3e24", "#238"]
+    effort: {commits: 2, files: 14, insertions: 3585, deletions: 10}
+  spent_min: 16
+  session_count: 1
+- id: "T-051"
+  title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
+  status: "blocked"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 420
+  estimate_basis: "cli"
+  issue: 237
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-050"]
+  parent: "T-049"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:55Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
   status: "review"
