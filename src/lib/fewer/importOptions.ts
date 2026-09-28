@@ -29,6 +29,12 @@ export interface ImportOptions {
    * so only the local-path walk honors this.
    */
   symlinks: SymlinkMode;
+  /**
+   * Expand archives (.zip/.tar/.tar.gz/...) found inside the imported folder
+   * so their listings appear in the graph. Off by default: it multiplies node
+   * count, so it is an explicit opt-in (advanced options only).
+   */
+  expandArchives: boolean;
 }
 
 export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
@@ -41,6 +47,7 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   caseSensitiveExtensions: false,
   displayMaxDepth: 6,
   symlinks: "leaf",
+  expandArchives: false,
 };
 
 /** Directories that are typically vendored/generated and skipped by default. */

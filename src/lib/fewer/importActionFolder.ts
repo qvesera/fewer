@@ -83,6 +83,21 @@ export async function runFolderImport(
 
     const notes = await collectAutoHideNotes();
 
+    // "Look Inside Archives": tell the user what was expanded, and why
+    // anything was not. The walkers own the bytes, so they report via
+    // takeLastExpansion().
+    if (options.expandArchives) {
+      const { takeLastExpansion, expandNotes } = await import("./archiveExpand");
+      const expansion = takeLastExpansion();
+      if (expansion && expansion.expanded > 0) {
+        notes.push({
+          title: `Expanded ${expansion.expanded} archive${expansion.expanded === 1 ? "" : "s"}`,
+          description: `${expansion.members.toLocaleString()} entries read from inside the folder.`,
+        });
+      }
+      if (expansion) notes.push(...expandNotes(expansion));
+    }
+
     return {
       ok: true,
       title: "Directory loaded",

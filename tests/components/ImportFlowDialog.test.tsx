@@ -25,6 +25,7 @@ mock.module("@/lib/fewer/importActionArchive", () => ({ runArchiveImport }));
 const { ImportFlowDialog } = await import("@/components/fewer/ImportFlowDialog");
 const { useGraphStore } = await import("@/store/graphStore");
 const { formatBytes } = await import("@/lib/fewer/stats");
+const { DEFAULT_IMPORT_OPTIONS } = await import("@/lib/fewer/importOptions");
 const initial = useGraphStore.getInitialState();
 
 function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "archive" | "url" | "cloud" }) {
@@ -238,6 +239,40 @@ describe("ImportFlowDialog state and step-3 import", () => {
     await waitFor(() =>
       expect(watchAdd).toHaveBeenCalledWith("https://example.com/list/"),
     );
+  });
+
+  test("Look Inside Archives is hidden in basic mode", async () => {
+    renderDialog();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.queryByLabelText(/Look Inside Archives/i)).toBeNull();
+  });
+
+  test("Look Inside Archives is present in advanced mode, off by default", async () => {
+    // advancedImportFormats is a tier capability (granted at "free").
+    useGraphStore.setState({ tier: "free" });
+    const interaction = userEvent.setup();
+    renderDialog();
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+
+    const toggle = await screen.findByLabelText(/Look Inside Archives/i);
+    expect(toggle.getAttribute("data-state")).toBe("unchecked");
+
+    await interaction.click(toggle);
+    expect(
+      screen.getByLabelText(/Look Inside Archives/i).getAttribute("data-state"),
+    ).toBe("checked");
+  });
+
+  test("basic mode clamps a saved expandArchives preference back off", async () => {
+    // A value synced from the cloud must not leak into an import whose switch
+    // the user cannot see or change.
+    useGraphStore.setState({
+      importOptions: { ...DEFAULT_IMPORT_OPTIONS, expandArchives: true },
+    });
+    renderDialog();
+    await userEvent.setup().click(screen.getByRole("button", { name: /Continue/ }));
+
+    expect(useGraphStore.getState().importOptions.expandArchives).toBe(false);
   });
 
   test("Enter on step 2 advances to step 3", async () => {

@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FolderSymlink,
   File as FileIcon,
+  FileArchive,
   FileSymlink,
   ChevronRight,
 } from "lucide-react";
@@ -53,18 +54,28 @@ function NodeIcon({
   category,
   isRoot,
   symlink,
+  isArchive,
   className,
 }: {
   type: "folder" | "file";
   category?: FileCategory;
   isRoot?: boolean;
   symlink?: SymlinkInfo;
+  isArchive?: boolean;
   className?: string;
 }) {
   if (type === "folder") {
     // A linked dir keeps its folder identity; the glyph swap is the always-on
-    // link signal (see graphRenderer for the export twin).
-    const FolderComp = symlink ? FolderSymlink : isRoot ? FolderOpen : Folder;
+    // link signal (see graphRenderer for the export twin). An expanded archive
+    // shows the archive glyph so it is not mistaken for a real directory —
+    // it holds a listing, not the bytes on disk.
+    const FolderComp = isArchive
+      ? FileArchive
+      : symlink
+        ? FolderSymlink
+        : isRoot
+          ? FolderOpen
+          : Folder;
     return <FolderComp className={className} />;
   }
   const IconComp = symlink ? FileSymlink : CATEGORY_ICON[category ?? "text"] ?? FileIcon;
@@ -216,6 +227,9 @@ function FolderContextMenu({
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
+  // An expanded archive renders as a folder but is not a directory on disk, so
+  // the disk-only actions below must not target it.
+  const isArchive = !!nodes.find((n) => n.id === nodeId)?.data.isArchive;
   // When the right-clicked node is part of a multi-node selection (shift-drag,
   // Select Children, …), the menu shows ONLY batch actions.
   const isBatchSelection = useGraphStore(
@@ -450,7 +464,14 @@ function FolderContextMenu({
                     Open in {providerLabel}
                   </ContextMenuItem>
                 )}
-                {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
+                {/*
+                 * Disk actions are skipped for an expanded archive: it renders
+                 * as a folder, but it is not a directory on disk, so "Open in
+                 * File Explorer" / "Refresh from Disk" would target a file.
+                 */}
+                {(dataSource === "directory" || localRootPath) &&
+                  !isArchive &&
+                  LOCAL_FS_FEATURES.openInOs && (
                   isLocalClient() ? (
                     <ContextMenuItem
                       onSelect={async () => {
@@ -491,7 +512,7 @@ function FolderContextMenu({
                 {nodes.find((n) => n.id === nodeId)?.data.symlink && (
                   <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
                 )}
-                {dataSource === "directory" && (
+                {dataSource === "directory" && !isArchive && (
                   <ContextMenuItem
                     onSelect={async () => {
                       const result = await refreshFolderFromDisk(nodeId);
@@ -967,6 +988,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
         category={child.data.category}
         isRoot={child.data.isRoot}
         symlink={child.data.symlink}
+        isArchive={child.data.isArchive}
         className={cn(
           "h-3.5 w-3.5 shrink-0",
           child.data.type === "folder"
@@ -985,6 +1007,14 @@ function ChildEntry({ child }: { child: FewerNode }) {
       )}
       {child.data.symlink && (
         <SymlinkBadge info={child.data.symlink} variant="inline" className="shrink-0" />
+      )}
+      {child.data.isArchive && (
+        <span
+          className="shrink-0 rounded bg-fewer-folder-icon/15 px-1 text-[9px] font-medium uppercase tracking-wide text-fewer-folder-icon"
+          title="Archive expanded: this is the archive's listing, not a folder on disk"
+        >
+          archive
+        </span>
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
@@ -1013,7 +1043,9 @@ function ChildEntry({ child }: { child: FewerNode }) {
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory" && isLocalClient()}
+      showOpenFile={
+        dataSource === "directory" && !child.data.isArchive && isLocalClient()
+      }
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -1111,6 +1143,7 @@ if (isCollapsed) {
                 category={data.category}
                 isRoot={data.isRoot}
                 symlink={data.symlink}
+                isArchive={data.isArchive}
                 className="h-5 w-5"
               />
             </div>
@@ -1229,6 +1262,7 @@ if (isCollapsed) {
                   category={data.category}
                   isRoot={data.isRoot}
                   symlink={data.symlink}
+                isArchive={data.isArchive}
                   className="h-4 w-4"
                 />
               </div>
@@ -1332,7 +1366,9 @@ if (isCollapsed) {
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory" && isLocalClient()}
+      showOpenFile={
+        dataSource === "directory" && !data.isArchive && isLocalClient()
+      }
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >
@@ -1371,6 +1407,7 @@ if (isCollapsed) {
             category={data.category}
             isRoot={data.isRoot}
             symlink={data.symlink}
+            isArchive={data.isArchive}
             className="h-5 w-5"
           />
         </div>

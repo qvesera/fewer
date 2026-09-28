@@ -3,6 +3,7 @@ import path from "path";
 import type { SymlinkInfo, TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
+import { isArchiveName } from "./archiveExpand";
 import { sortFoldersFirst } from "./treeSort";
 
 /**
@@ -19,9 +20,11 @@ import { sortFoldersFirst } from "./treeSort";
  */
 /** Extension filter for files, mirroring buildTreeFromHandle: files always pass
  *  the filter when includeFiles is off (they get marked hidden downstream) or
- *  when no extensions are configured. */
+ *  when no extensions are configured. An archive is exempt while expansion is
+ *  on, so the filter applies to the files inside it instead of dropping it. */
 function isAllowedFile(fileName: string, options: ImportOptions): boolean {
   if (!options.includeFiles || options.extensions.length === 0) return true;
+  if (options.expandArchives && isArchiveName(fileName)) return true;
   const ext = fileName.split(".").pop() ?? "";
   const extToCompare = options.caseSensitiveExtensions ? ext : ext.toLowerCase();
   const allowedExts = options.caseSensitiveExtensions
@@ -222,7 +225,29 @@ export async function buildTreeFromPath(
   // alphabetical — same as buildTreeFromHandle.
   sortFoldersFirst(children);
 
-  return { name: path.basename(dirPath) || dirPath, type: "folder", children };
+  const tree: TreeEntry = { name: path.basename(dirPath) || dirPath, type: "folder", children };
+
+  // Expand archives once, at the top of the walk (depth 0). Doing it deeper
+  // would re-expand the same subtree on every recursive call. The reader reads
+  // from disk against the real absolute path, which only this side knows.
+  if (options.expandArchives && depth === 0) {
+    const { expandArchives } = await import("./archiveExpand");
+    const base = rootDir ?? dirPath;
+    await expandArchives(
+      tree,
+      async (_entry, fullPath) => {
+        try {
+          const buf = await fs.readFile(path.join(base, fullPath));
+          return new Blob([buf]);
+        } catch {
+          return null;
+        }
+      },
+      options,
+    );
+  }
+
+  return tree;
 }
 
 /** Hard ceiling for `maxDepth: 0` (unlimited) on a real fs walk. */

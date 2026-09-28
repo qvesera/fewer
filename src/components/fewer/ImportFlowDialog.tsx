@@ -54,6 +54,10 @@ const BASIC_MODE_OPTION_DEFAULTS: Partial<ImportOptions> = {
   includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
   extensions: DEFAULT_IMPORT_OPTIONS.extensions,
   caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
+  symlinks: DEFAULT_IMPORT_OPTIONS.symlinks,
+  // Advanced-only: the switch is hidden in basic mode, so the value must not
+  // leak in from a saved/synced advanced preference.
+  expandArchives: DEFAULT_IMPORT_OPTIONS.expandArchives,
 };
 
 interface ImportFlowDialogProps {
