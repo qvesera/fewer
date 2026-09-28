@@ -13,12 +13,14 @@ export function parseJSONGraph(json: string): TreeEntry {
   }
 
   // Build a map of node IDs to node data
-  const nodeMap = new Map<string, { label: string; type: string; path: string }>();
+  const nodeMap = new Map<string, { label: string; type: string; path: string; symlink?: { target: string; resolvedPath?: string; insideTree?: boolean; broken?: boolean; followed?: boolean } }>();
   for (const node of data.nodes) {
     nodeMap.set(node.id, {
       label: node.label,
       type: node.type,
       path: node.path,
+      // Symlink round-trip: the exporter includes it only for links.
+      ...(typeof node.symlink === "object" && node.symlink?.target ? { symlink: node.symlink } : {}),
     });
   }
 
@@ -52,6 +54,7 @@ export function parseJSONGraph(json: string): TreeEntry {
       name: nodeData.label,
       type: nodeData.type === "folder" ? "folder" : "file",
       children: childEntries.length > 0 ? childEntries : undefined,
+      ...(nodeData.symlink ? { symlink: nodeData.symlink } : {}),
     };
   }
 
@@ -83,12 +86,13 @@ export function parseASCIITree(text: string): TreeEntry {
   const stack: { entry: TreeEntry; depth: number }[] = [{ entry: root, depth: 0 }];
 
   for (let i = 1; i < entries.length; i++) {
-    const { name, depth } = entries[i];
+    const { name, depth, symlinkTarget } = entries[i];
     const folder = isFolder[i];
     const entry: TreeEntry = {
       name,
       type: folder ? "folder" : "file",
       children: folder ? [] : undefined,
+      ...(symlinkTarget ? { symlink: { target: symlinkTarget, followed: false } } : {}),
     };
 
     // Walk up stack to find parent
@@ -111,11 +115,14 @@ export function parseASCIITree(text: string): TreeEntry {
   return root;
 }
 
-/** One raw ASCII-tree line: name, tree depth, and whether the name ends with "/". */
+/** One raw ASCII-tree line: name, tree depth, whether the name ends with "/",
+ *  and the target when the line is a `name -> target` symlink entry. */
 interface RawEntry {
   name: string;
   depth: number;
   hasSlash: boolean;
+  /** Raw link target ("v012") when the line used the `name -> target` convention. */
+  symlinkTarget?: string;
 }
 
 /** Filter blanks/comments/branding lines, then split each line into name + depth. */
@@ -155,6 +162,17 @@ function collectAsciiEntries(text: string): RawEntry[] {
       name = line.slice(prefix.length).trim();
     }
 
+    // Symlink convention (shell style): "name -> target" or "name → target".
+    // Extracted BEFORE slash/annotation handling so a folder link keeps its
+    // trailing "/" (and with it, its folder typing) after the arrow is split off.
+    let symlinkTarget: string | undefined;
+    const linkMatch = name.match(/^(.+?)\s*(?:->|→)\s*(.+)$/);
+    if (linkMatch) {
+      name = linkMatch[1]!.trim();
+      // The target may carry its own trailing annotation ("-> v012 ·1.2 KB").
+      symlinkTarget = linkMatch[2]!.trim().replace(/\s*[·(].*$/, "").trim();
+    }
+
     // Remove trailing slash for folders, trailing size annotations
     const hasSlash = name.endsWith("/");
     name = name.replace(/\/\s*$/, "").trim();
@@ -165,7 +183,7 @@ function collectAsciiEntries(text: string): RawEntry[] {
 
     if (!name) continue;
 
-    entries.push({ name, depth, hasSlash });
+    entries.push({ name, depth, hasSlash, symlinkTarget });
   }
 
   return entries;

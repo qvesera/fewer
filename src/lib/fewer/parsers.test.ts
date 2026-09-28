@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { parseASCIITree } from "./parsers";
+import { parseASCIITree, parseJSONGraph } from "./parsers";
 import { FEWER_CREDIT, TREE_HEADER } from "./branding";
 
 test("parses an exported directory tree, ignoring header + credit + summary", () => {
@@ -45,4 +45,47 @@ test("bare tree with no header still parses", () => {
   const tree = parseASCIITree("src/\n├── main.ts\n└── App.view");
   expect(tree.name).toBe("src");
   expect(tree.children?.length).toBe(2);
+});
+
+test("ASCII tree: 'name -> target' lines parse as symlinks (folder keeps its slash typing)", () => {
+  const tree = parseASCIITree(
+    ["show/", "├── v012/", "│   └── shot.exr", "├── latest/ -> v012", "├── readme.txt -> v012/shot.exr", "└── dangling -> nowhere"].join("\n"),
+  );
+  const byName = (n: string) => tree.children!.find((c) => c.name === n)!;
+  expect(tree.children!.length).toBe(4);
+
+  const latest = byName("latest");
+  expect(latest.type).toBe("folder"); // trailing "/" survived the arrow split
+  expect(latest.symlink).toMatchObject({ target: "v012", followed: false });
+
+  const readme = byName("readme.txt");
+  expect(readme.type).toBe("file"); // no children + no slash → file link
+  expect(readme.symlink?.target).toBe("v012/shot.exr");
+
+  const dangling = byName("dangling");
+  expect(dangling.symlink?.target).toBe("nowhere");
+
+  // Non-link entries carry no symlink field.
+  expect(byName("v012").symlink).toBeUndefined();
+});
+
+test("JSON round-trip: symlink metadata survives export → parse", () => {
+  const exported = {
+    nodes: [
+      { id: "r", label: "show", path: "show", type: "folder" },
+      { id: "a", label: "v012", path: "show/v012", type: "folder" },
+      {
+        id: "b", label: "latest", path: "show/latest", type: "folder",
+        symlink: { target: "v012", resolvedPath: "/show/v012", insideTree: true, followed: false },
+      },
+    ],
+    edges: [
+      { id: "e1", source: "r", target: "a" },
+      { id: "e2", source: "r", target: "b" },
+    ],
+  };
+  const tree = parseJSONGraph(JSON.stringify(exported));
+  const latest = tree.children!.find((c) => c.name === "latest")!;
+  expect(latest.symlink).toMatchObject({ target: "v012", insideTree: true });
+  expect(tree.children!.find((c) => c.name === "v012")!.symlink).toBeUndefined();
 });

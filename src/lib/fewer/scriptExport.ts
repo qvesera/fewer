@@ -133,7 +133,10 @@ function buildForest(nodes: FewerNode[], edges: FewerEdge[]): TreeNode[] {
 function renderTree(tree: TreeNode, prefix: string, isLast: boolean, lines: string[]) {
   const connector = isLast ? "└── " : "├── ";
   const suffix = tree.node.data.type === "folder" ? "/" : "";
-  lines.push(`${prefix}${connector}${tree.node.data.label}${suffix}`);
+  // Shell-standard link notation: `name -> target`. Folder links keep the "/"
+  // so the ASCII parser re-imports them as folders — export→import is lossless.
+  const link = tree.node.data.symlink ? ` -> ${tree.node.data.symlink.target}` : "";
+  lines.push(`${prefix}${connector}${tree.node.data.label}${suffix}${link}`);
   const childPrefix = prefix + (isLast ? "    " : "│   ");
   tree.children.forEach((child, i) => {
     renderTree(child, childPrefix, i === tree.children.length - 1, lines);
@@ -153,9 +156,10 @@ export function exportDirectoryTree(
   const lines: string[] = ["Directory Tree Structure", ""];
 
   forest.forEach((tree, i) => {
-    // Root node: no connector, just the name
+    // Root node: no connector, just the name (links append their target)
     const suffix = tree.node.data.type === "folder" ? "/" : "";
-    lines.push(`${tree.node.data.label}${suffix}`);
+    const link = tree.node.data.symlink ? ` -> ${tree.node.data.symlink.target}` : "";
+    lines.push(`${tree.node.data.label}${suffix}${link}`);
     tree.children.forEach((child, j) => {
       renderTree(child, "", j === tree.children.length - 1, lines);
     });

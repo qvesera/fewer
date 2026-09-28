@@ -40,6 +40,7 @@ import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShort
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { SymlinkBadge } from "./SymlinkBadge";
+import { SymlinkMenuItems } from "./SymlinkMenuItems";
 import { getDescendants } from "@/lib/fewer/validation";
 import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
 import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
@@ -487,6 +488,9 @@ function FolderContextMenu({
                 >
                   Copy Path
                 </ContextMenuItem>
+                {nodes.find((n) => n.id === nodeId)?.data.symlink && (
+                  <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+                )}
                 {dataSource === "directory" && (
                   <ContextMenuItem
                     onSelect={async () => {
@@ -858,6 +862,9 @@ function FileEntryContextMenu({
               >
                 Copy Name
               </ContextMenuItem>
+              {nodes.find((n) => n.id === nodeId)?.data.symlink && (
+                <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+              )}
             </ContextMenuSubContent>
           </ContextMenuSub>
         )}

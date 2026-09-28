@@ -146,6 +146,8 @@ export interface DirectoryStats {
   totalFiles: number;
   totalFolders: number;
   totalSize: number;
+  /** Nodes whose data.symlink is set (links to dirs count as folders, files as files). */
+  totalSymlinks: number;
   byCategory: Record<FileCategory, number>;
 }
 

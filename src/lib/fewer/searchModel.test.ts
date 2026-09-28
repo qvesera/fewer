@@ -92,6 +92,12 @@ describe("matchesQuery", () => {
   it("rejects a query found in none of the three", () => {
     expect(matchesQuery(node("a", { label: "index.ts", path: "index.ts", extension: "ts" }), "zzz")).toBe(false);
   });
+
+  it("matches a symlink's target, so searching the target finds the link", () => {
+    expect(matchesQuery(node("latest", { label: "latest", symlink: { target: "v012", insideTree: true } }), "v012")).toBe(true);
+    // Non-link nodes with a similar label still behave normally.
+    expect(matchesQuery(node("latest", { label: "latest" }), "v012")).toBe(false);
+  });
 });
 
 describe("searchNodes", () => {
