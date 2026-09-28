@@ -2,9 +2,13 @@
 
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
 import type { ViewSettings } from "./viewState";
+import { computeDisplayDepthHiddenIds, computeLargeFolderHiddenIds } from "./importMerge";
 import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
+
+/** The store's own default when a reader is built from a partial state. */
+const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
 // ─── Event-name constants ─────────────────────────────────────────
 export const FEWER_ADD_NODE = "fewer-add-node";
@@ -72,19 +76,72 @@ export interface StoreReader {
    *  adapter (`showFilesByLeaf`, a v1 leftover) threw a TypeError on Shift+H
    *  instead of failing to compile. */
   viewSettings: Record<string, ViewSettings>;
+  /** Hide *filters* (as opposed to hides) that the Shift+H action re-applies
+   *  after it clears the manual hides — see `shiftHOutcome`. */
+  autoHideThreshold: number;
+  maxDisplayDepth: number;
+  revealedRootIds: string[];
   tier: string;
 }
 
-/** Count nodes hidden by a leaf's hideLayers (individual + subtrees + bulk files). */
-function leafHiddenCount(vs: ViewSettings, fileCount: number): number {
+/**
+ * Ids the active leaf's own hide layers are hiding. Bulk "Hide Files" counts the
+ * files it hides — all of them except the eye-revealed ones, which is what
+ * `computeEffectiveHidden` does.
+ */
+function leafHiddenIds(vs: ViewSettings, allFileIds: string[]): Set<string> {
   const h = vs.hideLayers;
-  if (!h) return 0;
-  return h.individual.length
-    + Object.values(h.subtrees).reduce((a, v) => a + v.length, 0)
-    // Bulk-hidden files, minus the ones eye-revealed while the layer was on
-    // (computeEffectiveHidden skips them too). The old hand-written type of
-    // this parameter had no filesBulkExempt field, so it counted them as hidden.
-    + (h.filesBulkActive ? Math.max(0, fileCount - h.filesBulkExempt.length) : 0);
+  const ids = new Set<string>();
+  if (!h) return ids;
+  for (const id of h.individual) ids.add(id);
+  for (const list of Object.values(h.subtrees)) for (const id of list) ids.add(id);
+  if (h.filesBulkActive) {
+    const exempt = new Set(h.filesBulkExempt);
+    for (const id of allFileIds) if (!exempt.has(id)) ids.add(id);
+  }
+  return ids;
+}
+
+/**
+ * What Shift+H actually achieves, so the toast can say it.
+ *
+ * The action clears the manual hides (global `hiddenIds`, then the active leaf's
+ * layers) and then calls `setShowFiles(true)`, which RE-APPLIES the large-folder
+ * auto-hide and the display-depth limit. So the honest split is:
+ *
+ *   hiddenNow   — everything hidden before the press, as a UNION: a card hidden
+ *                 both globally and by the leaf layer counts once (the old
+ *                 count added the two sets together)
+ *   staysHidden — of those, the ones the auto-hide / depth filters put straight
+ *                 back, so the press does not reveal them
+ *   restored    — the rest, i.e. the only number the toast may claim
+ *
+ * The auto-hide is asked with the `revealedRootIds` it will actually see:
+ * `showAll` empties that exemption set, so when it runs the filter re-applies
+ * with no exemptions at all.
+ */
+export function shiftHOutcome(
+  st: Pick<StoreReader, "hiddenIds" | "nodes" | "edges" | "activeLeafId" | "viewSettings"
+    | "autoHideThreshold" | "maxDisplayDepth" | "revealedRootIds">,
+): { restored: number; stillHidden: number } {
+  const fileIds = st.nodes.filter((n) => n.data.type === "file").map((n) => n.id);
+  const hiddenNow = new Set<string>(st.hiddenIds);
+  if (st.activeLeafId) {
+    const leafVs = st.viewSettings[st.activeLeafId];
+    if (leafVs) for (const id of leafHiddenIds(leafVs, fileIds)) hiddenNow.add(id);
+  }
+
+  // `showAll` runs only when something was hidden globally, and it clears the
+  // revealed-root exemptions the auto-hide skips.
+  const exemptions = new Set(st.hiddenIds.length > 0 ? [] : st.revealedRootIds);
+  const reHidden = new Set<string>([
+    ...computeLargeFolderHiddenIds(st.nodes, st.edges, st.autoHideThreshold, exemptions),
+    ...computeDisplayDepthHiddenIds(st.nodes, st.maxDisplayDepth),
+  ]);
+
+  let stillHidden = 0;
+  for (const id of hiddenNow) if (reHidden.has(id)) stillHidden++;
+  return { restored: hiddenNow.size - stillHidden, stillHidden };
 }
 
 /**
@@ -111,6 +168,9 @@ export function readShortcutStateFields(): (keyof StoreReader)[] {
     "localRootPath",
     "activeLeafId",
     "viewSettings",
+    "autoHideThreshold",
+    "maxDisplayDepth",
+    "revealedRootIds",
     "tier",
   ];
 }
@@ -133,6 +193,9 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     localRootPath: s.localRootPath ?? null,
     activeLeafId: s.activeLeafId ?? null,
     viewSettings: s.viewSettings ?? {},
+    autoHideThreshold: s.autoHideThreshold ?? DEFAULT_AUTO_HIDE_THRESHOLD,
+    maxDisplayDepth: s.maxDisplayDepth ?? 0,
+    revealedRootIds: s.revealedRootIds ?? [],
     tier: s.tier ?? "guest",
   };
 }
@@ -284,20 +347,40 @@ export function buildKeyboardRules(): ShortcutRule[] {
         e.preventDefault();
         const st = ctx.getState();
         if (kc.shift) {
-          // Leaf-aware reveal: clear the active leaf's hide layers, then any global ones.
-          // The store field is `viewSettings` — reading `showFilesByLeaf` here (a
-          // name only the test adapter defines) threw a TypeError on every
+          // Leaf-aware reveal: clear the active leaf's hide layers, then any global
+          // ones. The store field is `viewSettings` — reading `showFilesByLeaf`
+          // here (a name only the test adapter defines) threw a TypeError on every
           // Shift+H, since any canvas selection sets activeLeafId.
           const leafVs = st.activeLeafId ? st.viewSettings[st.activeLeafId] : undefined;
-          const fileCount = st.nodes.filter((nd) => nd.data.type === "file").length;
-          let n = st.hiddenIds.length;
-          if (st.activeLeafId && leafVs?.hideLayers) {
-            n += leafHiddenCount(leafVs, fileCount);
-            ctx.revealAllForLeaf(st.activeLeafId);
-          }
-          if (n > 0) {
-            if (st.hiddenIds.length > 0) ctx.showAll();
-            ctx.toast({ title: "Unhid all cards", description: `${pluralizeCount(n, "card")} restored` });
+          if (st.activeLeafId && leafVs?.hideLayers) ctx.revealAllForLeaf(st.activeLeafId);
+
+          // The count has to be what the press actually achieves: it ends with
+          // setShowFiles(true), which re-applies the large-folder auto-hide and the
+          // display-depth limit, so those cards go straight back into hiding and
+          // must not be reported as restored.
+          const { restored, stillHidden } = shiftHOutcome({
+            hiddenIds: st.hiddenIds,
+            nodes: st.nodes,
+            edges: st.edges,
+            activeLeafId: st.activeLeafId,
+            viewSettings: st.viewSettings,
+            autoHideThreshold: st.autoHideThreshold,
+            maxDisplayDepth: st.maxDisplayDepth,
+            revealedRootIds: st.revealedRootIds,
+          });
+          if (st.hiddenIds.length > 0) ctx.showAll();
+          if (restored > 0) {
+            ctx.toast({
+              title: "Unhid all cards",
+              description: stillHidden > 0
+                ? `${pluralizeCount(restored, "card")} restored · ${pluralizeCount(stillHidden, "card")} kept hidden by the auto-hide filter`
+                : `${pluralizeCount(restored, "card")} restored`,
+            });
+          } else if (stillHidden > 0) {
+            ctx.toast({
+              title: "Nothing to unhide",
+              description: `${pluralizeCount(stillHidden, "card")} stayed hidden — the auto-hide filter still applies`,
+            });
           }
           ctx.setShowFiles(true);
         } else {
