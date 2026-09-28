@@ -1311,8 +1311,14 @@ tasks:
     note: "WASM archive engine shipped (PR #249). Spike first: the libarchive.js@2.0.2 wasm build natively covers xz and bzip2 (verified against real .tar.xz/.tar.bz2), so the planned xz-decompress/fzstd fallbacks were NOT needed; 7z/RAR are libarchive-native. New src/lib/fewer/archiveEngine.ts lazily imports libarchive.js only for 7z/rar/xz/bz2/zst magic bytes, lists via getFilesObject() in a worker, shares toListing with the fast path, and tears the worker down after. A probe caught a real bug: getFilesArray() puts the CONTAINING FOLDER in .path (folder-only trees); getFilesObject() is correct. scripts/vendor-libarchive.ts copies worker+wasm to public/libarchive/ (wired into dev/build/build:netlify, gitignored). e2e against a real .tar.xz shows the full tree with real sizes. 1396+177 tests, tsc/lint/build/migration-verify clean. PR #249."
     proof: ["b4925a5", "#249"]
     effort: {commits: 1, files: 14, insertions: 2704, deletions: 45}
-  spent_min: 2
-  session_count: 1
+  - start: "2026-09-28T17:17:35Z"
+    end: "2026-09-28T17:18:30Z"
+    measured: true
+    note: "Follow-up session: CI caught that scripts/vendor-libarchive.ts was never committed (scripts/* is gitignored repo-wide and the file post-dates that rule), so build and e2e both died with 'Module not found'. Added a .gitignore negation (mirroring .repowise/decisions.yaml) and verified the build regenerates public/libarchive/ from a clean state. PR #249 now fully green."
+    proof: ["519c252", "#249"]
+    effort: {commits: 1, files: 2, insertions: 28, deletions: 0}
+  spent_min: 3
+  session_count: 2
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
   status: "done"
