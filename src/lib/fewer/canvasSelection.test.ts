@@ -36,4 +36,18 @@ describe("mergeSelection", () => {
     const selected = [{ id: "b" }];
     expect(mergeSelection([], selected, new Set(["b"]), new Set(["a", "b"]))).toEqual(["a", "b"]);
   });
+
+  test("a large selection on both sides does not go quadratic", () => {
+    // 20k already selected and still selected, one new card clicked. The second
+    // pass used `prevIds.includes` per reported node — a Set lookup now.
+    const prev = Array.from({ length: 20_000 }, (_, i) => `n${i}`);
+    const selected = [{ id: "n0" }, { id: "fresh" }];
+    const selectedIds = new Set([...prev, "fresh"]);
+    const out = mergeSelection(prev, selected, selectedIds, null);
+    // Still-selected ids keep their previous order; the new one is appended.
+    expect(out).toHaveLength(20_001);
+    expect(out[0]).toBe("n0");
+    expect(out[19_999]).toBe("n19999");
+    expect(out[20_000]).toBe("fresh");
+  });
 });
