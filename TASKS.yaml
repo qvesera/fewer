@@ -790,7 +790,7 @@ tasks:
   session_count: 1
 - id: "T-031"
   title: "Remove the AI-vibe glow across all bundled designs"
-  status: "triaged"
+  status: "wontfix"
   type: "refactor"
   area: "theme"
   tier: null
@@ -807,7 +807,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:15Z"
-  notes: ["2026-09-25T12:38:20Z · nodes use backdrop-blur-xl plus preset shadows; strip the glow and rebalance contrast in every preset"]
+  notes: ["2026-09-25T12:38:20Z · nodes use backdrop-blur-xl plus preset shadows; strip the glow and rebalance contrast in every preset", "2026-09-28T08:28:25Z · issue #206 was closed from the GitHub UI on 2026-09-28 with no commit and no PR behind it, so the work was not done - recorded as wontfix rather than done. Flip to triaged if the close was a mistake."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -1176,7 +1176,7 @@ tasks:
   session_count: 2
 - id: "T-047"
   title: "Triage the queue: the triaged set becomes the current + next release train, everything further out moves to backlog (and ready reports triaged rows only)"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "other"
   tier: null
@@ -1202,4 +1202,33 @@ tasks:
     proof: ["a3c2f0d"]
     effort: {commits: 1, files: 4, insertions: 105, deletions: 34}
   spent_min: 6
+  session_count: 1
+- id: "T-048"
+  title: "Mirror the ledger's task details onto GitHub: project board Status/Size/Estimate for issues, and the row's details + triage notes in the issue body (labels alone are not tracking)"
+  status: "review"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 232
+  pr: 233
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T08:09:50Z"
+  notes: ["2026-09-28T08:09:50Z · board #1 has 57 items and every issue item has Status/Size/Estimate empty; issue bodies are a one-line stub, so the ledger's notes never reach GitHub"]
+  sessions:
+  - start: "2026-09-28T08:11:02Z"
+    end: "2026-09-28T08:31:17Z"
+    measured: true
+    note: "sync-details verb: 45 issue bodies now carry the row's facts + triage notes, and 135 board field writes landed (58/58 items have a Status, 57 a Size, 45 an Estimate). Also: selftest wired into the CI tasks job, and doctor now gives a working remedy for a closed issue on a triaged/backlog row (reconcile cannot decide it). Verification trap documented: item-list returns custom fields lowercase."
+    proof: ["7beac84", "c029a5a"]
+    effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
+  spent_min: 20
   session_count: 1

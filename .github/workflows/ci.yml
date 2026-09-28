@@ -40,6 +40,11 @@ jobs:
         run: python3 scripts/tasks.py validate
       - name: Every commit names a tracked task in review/done
         run: python3 scripts/tasks.py validate-commits --base origin/${{ github.base_ref }}
+      # The engine's own harness. It was a local-only obligation ("run selftest
+      # after changing this file"), which is why a regression in the readiness
+      # gate or the body splice could merge green. Pure python, no gh, ~1s.
+      - name: Ledger engine selftest
+        run: python3 scripts/tasks.py selftest
 
   typecheck:
     runs-on: ubuntu-latest
