@@ -169,6 +169,7 @@ docker run -p 3000:3000 fewer
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
 - **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
+- **Import from Archive**: `.zip`, `.tar`, and `.tar.gz`/`.tgz` (plus a lone `.gz`) — reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser, and no new dependency ships for it: the listing lives uncompressed inside zip and tar, and `.tar.gz` is inflated with the browser's own gzip support. Archives with more than 20,000 entries are truncated with a notice. 7z/RAR/xz/bzip2/Zstandard need a decompressor the browser does not have, so they are not read yet.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Brave browser** detection with flag workaround instructions

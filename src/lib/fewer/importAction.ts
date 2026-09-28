@@ -13,6 +13,7 @@ import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
 import type { UrlImportContext } from "@/lib/fewer/importActionUrl";
 import { runFolderImport } from "@/lib/fewer/importActionFolder";
 import { runFileImport } from "@/lib/fewer/importActionFile";
+import { runArchiveImport } from "@/lib/fewer/importActionArchive";
 import { runUrlImport } from "@/lib/fewer/importActionUrl";
 import { runCloudImport } from "@/lib/fewer/importActionCloud";
 
@@ -36,6 +37,8 @@ export async function runImport(
       return await runFolderImport(options);
     case "file":
       return await runFileImport(source, options);
+    case "archive":
+      return await runArchiveImport(source, options);
     case "cloud":
       return await runCloudImport(source, options);
     case "url": {

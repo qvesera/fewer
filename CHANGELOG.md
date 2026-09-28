@@ -131,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gallery graph cards now show category chips (derived from file types), a monospace preview block (root + first children), and author attribution (name and username)
 - Gallery graph tab has category filter chips (All, Code, Config, Docs, Data, Media, Images) that filter the listing server-side
 - Advanced settings gain an Auto-relayout switch (Settings, Advanced, Layout Policy). Off, showing, revealing or bulk-revealing cards no longer re-flows the tree, so a long editing session keeps the arrangement you set; Organize and Sort still re-flow, and hiding a card never moved anything on its own. The setting is persisted and synced with the rest of your preferences.
+- Archive import: visualize the folder tree inside a .zip, .tar, or .tar.gz/.tgz (and a lone .gz) straight from the import dialog, as a fifth origin alongside Folder, File, URL, and Cloud. Only the archive's listing is read - the central directory for zip, 512-byte headers for tar, and the browser's native gzip support for .tar.gz - so nothing is unpacked on disk, no file contents are loaded, and no new dependency ships. Real per-file sizes come from the archive metadata, the shared import options (depth, hidden, vendored, extension filter) apply as usual, and archives above 20,000 entries import the first 20,000 with a truncation notice. 7z, RAR, xz, bzip2, and Zstandard are recognized and rejected with a named reason, since browsers ship no decompressor for them.
 
 ### Performance
 
