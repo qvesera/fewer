@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect, describe } from "bun:test";
 import {
   pluralizeCount,
   countDescendants,
@@ -6,12 +6,14 @@ import {
   buildKeyContext,
   buildKeyboardRules,
   handleKeyboardShortcut,
+  readShortcutStateFields,
+  shiftHOutcome,
   toStoreReader,
   type ShortcutCtx,
   type StoreReader,
 } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
-import { isAnyDialogOpen } from "@/store/graphStore";
+import { isAnyDialogOpen, useGraphStore } from "@/store/graphStore";
 
 // Mock KeyboardEvent — bun test env lacks it.
 class MockKeyboardEvent {
@@ -87,17 +89,215 @@ test("toStoreReader extracts fields", () => {
     direction: "LR", selectedNodeIds: ["n1"], nodes: [{ id: "n1" }],
     edges: [], dataSource: "dir", clipboard: null, focusedNodeId: null,
     hiddenIds: [], mousePosition: { x: 1, y: 2 }, localRootPath: null,
-    activeLeafId: "leaf1", viewSettings: { leaf1: { showFiles: false } },
+    activeLeafId: "leaf1",
+    // A real ViewSettings: the per-view hide layers the H rules read.
+    viewSettings: { leaf1: { hideLayers: { individual: ["n1"], subtrees: {}, filesBulkActive: true, filesBulkExempt: [] } } },
   });
   expect(r.direction).toBe("LR"); expect(r.selectedNodeIds).toEqual(["n1"]);
   expect(r.activeLeafId).toBe("leaf1");
-  expect(r.showFilesByLeaf.leaf1?.showFiles).toBe(false);
+  expect(r.viewSettings.leaf1?.hideLayers?.individual).toEqual(["n1"]);
+  expect(r.viewSettings.leaf1?.hideLayers?.filesBulkActive).toBe(true);
 });
 test("toStoreReader defaults for missing fields", () => {
   const r = toStoreReader({});
   expect(r.nodes).toEqual([]); expect(r.hiddenIds).toEqual([]);
   expect(r.clipboard).toBeNull(); expect(r.localRootPath).toBeNull();
-  expect(r.activeLeafId).toBeNull(); expect(r.showFilesByLeaf).toEqual({});
+  expect(r.activeLeafId).toBeNull(); expect(r.viewSettings).toEqual({});
+});
+
+// The crash this guards: the H rules read RAW store state in production
+// (KeyboardShortcuts passes `getState: () => getStore()`), but the Shift+H
+// branch read `st.showFilesByLeaf` — a field only this test adapter invented
+// (`toStoreReader` aliased viewSettings to it), so the whole suite passed while
+// the app threw "Cannot read properties of undefined" on every Shift+H after
+// any canvas selection (which is what sets activeLeafId).
+test("every field the rules read exists on the RAW store state", () => {
+  const raw = useGraphStore.getInitialState() as unknown as Record<string, unknown>;
+  expect(readShortcutStateFields().filter((f) => !(f in raw))).toEqual([]);
+});
+
+test("toStoreReader projects only fields the store actually has", () => {
+  // A rename on either side of the adapter must not leave the reader reading a
+  // name the store does not have — that is what let this ship.
+  const raw = useGraphStore.getInitialState() as unknown as Record<string, unknown>;
+  expect(Object.keys(toStoreReader(raw)).filter((k) => !(k in raw))).toEqual([]);
+});
+
+test("Shift+H against the RAW store state reveals the active leaf's cards", () => {
+  // The production shape: ctx.getState() IS the store, not a reader projection.
+  const file = (id: string) =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "file" } } as any);
+  useGraphStore.setState({
+    nodes: [file("f1"), file("f2"), file("f3")],
+    hiddenIds: ["f2"],
+    activeLeafId: "leaf1",
+    viewSettings: {
+      leaf1: { hideLayers: { individual: ["f1"], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } },
+    },
+  } as any);
+  try {
+    const { ctx, a } = makeCtx({ getState: () => withActions(useGraphStore.getState() as any, a) as any });
+    // Would throw "Cannot read properties of undefined" before the fix.
+    expect(() => fire(buildKeyboardRules(), ctx, { key: "h", shiftKey: true })).not.toThrow();
+    expect(a.revealAllForLeaf).toBe("leaf1");
+    expect(a.showAll).toBe(true);
+    expect(a.setShowFiles).toBe(true);
+    // 1 hidden globally + 1 hidden by the leaf's layer.
+    expect(a.toast?.description).toBe("2 cards restored");
+  } finally {
+    useGraphStore.setState(useGraphStore.getInitialState(), true);
+  }
+});
+
+describe("shiftHOutcome", () => {
+  const folder = (id: string, depth = 1) =>
+    ({ id, data: { label: id, type: "folder", depth } }) as any;
+  const file = (id: string, depth = 2) =>
+    ({ id, data: { label: id, type: "file", depth } }) as any;
+  /** root -> target, the shape the helpers need. */
+  const edge = (target: string) => ({ id: `e-${target}`, source: "root", target, type: "default" }) as any;
+  const base = {
+    nodes: [] as any[],
+    edges: [] as any[],
+    activeLeafId: null as string | null,
+    viewSettings: {} as Record<string, any>,
+    autoHideThreshold: 10,
+    maxDisplayDepth: 0,
+    revealedRootIds: [] as string[],
+  };
+
+  test("nothing hidden → nothing restored, nothing still hidden", () => {
+    expect(shiftHOutcome({ ...base, hiddenIds: [] })).toEqual({ restored: 0, stillHidden: 0 });
+  });
+
+  test("manual hides are restored in full", () => {
+    const nodes = [folder("root"), file("a"), file("b")];
+    const edges = [edge("a"), edge("b")];
+    expect(shiftHOutcome({ ...base, nodes, edges, hiddenIds: ["a", "b"] }))
+      .toEqual({ restored: 2, stillHidden: 0 });
+  });
+
+  test("cards beyond the display-depth limit count as still hidden", () => {
+    const nodes = [folder("root", 0), folder("mid", 3), file("deep", 9)];
+    const edges = [edge("mid"), edge("deep")];
+    expect(shiftHOutcome({ ...base, nodes, edges, hiddenIds: ["deep"], maxDisplayDepth: 6 }))
+      .toEqual({ restored: 0, stillHidden: 1 });
+  });
+
+  test("a revealed-root exemption survives when the global set is already empty", () => {
+    // showAll (which empties revealedRootIds) only runs when something is hidden
+    // globally, so with an empty global set the exemptions still hold.
+    const kids = Array.from({ length: 12 }, (_, i) => file(`n${i}`));
+    const nodes = [folder("root"), folder("big"), ...kids];
+    const edges = [edge("big"), ...kids.map((k) => edge(k.id))];
+    expect(shiftHOutcome({ ...base, nodes, edges, hiddenIds: [], revealedRootIds: ["n0"] }))
+      // The auto-hide would cover all 12; n0 is exempt, but nothing was hidden to
+      // restore, so both numbers stay at zero.
+      .toEqual({ restored: 0, stillHidden: 0 });
+  });
+});
+
+// The second half of the Shift+H story: the press ends with setShowFiles(true),
+// which re-applies the large-folder auto-hide, so those cards are hidden again
+// in the same keypress. The toast used to count them as restored.
+describe("Shift+H with the auto-hide filter on", () => {
+  /** root -> big -> [12 files]  (big exceeds the threshold of 10) */
+  const folder = (id: string, label = id) =>
+    ({ id, position: { x: 0, y: 0 }, data: { label, path: `/${label}`, type: "folder", depth: 1 } } as any);
+  const file = (id: string) =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "file", depth: 2 } } as any);
+  const kids = Array.from({ length: 12 }, (_, i) => file(`big-n${i}`));
+  const graph = {
+    nodes: [folder("root", "root"), folder("big"), ...kids],
+    edges: [
+      { id: "e1", source: "root", target: "big" } as any,
+      ...kids.map((k, i) => ({ id: `e2-${i}`, source: "big", target: k.id } as any)),
+    ],
+  };
+  const withFilterOn = (extra: Record<string, unknown>) => {
+    useGraphStore.setState({
+      ...graph,
+      autoHideThreshold: 10,
+      autoHiddenIds: kids.map((k) => k.id),
+      revealedRootIds: [],
+      activeLeafId: null,
+      viewSettings: {},
+      ...extra,
+    } as any);
+  };
+  const run = () => {
+    const { ctx, a } = makeCtx({ getState: () => withActions(useGraphStore.getState() as any, a) as any });
+    fire(buildKeyboardRules(), ctx, { key: "h", shiftKey: true });
+    return a;
+  };
+
+  test("cards the filter re-hides are not reported as restored", () => {
+    withFilterOn({ hiddenIds: kids.map((k) => k.id) }); // all 12 hidden, by the filter
+    try {
+      const a = run();
+      // The action still runs (showAll + setShowFiles), but nothing is claimed.
+      expect(a.showAll).toBe(true);
+      expect(a.setShowFiles).toBe(true);
+      expect(a.toast?.title).toBe("Nothing to unhide");
+      expect(a.toast?.description).toBe("12 cards stayed hidden — the auto-hide filter still applies");
+    } finally {
+      useGraphStore.setState(useGraphStore.getInitialState(), true);
+    }
+  });
+  test("a manual hide next to filter-hidden cards is reported truthfully", () => {
+    const manual = file("manual");
+    withFilterOn({
+      nodes: [...graph.nodes, manual],
+      edges: [...graph.edges, { id: "e3", source: "root", target: "manual" } as any],
+      // 12 by the filter + 1 by hand.
+      hiddenIds: [...kids.map((k) => k.id), "manual"],
+    });
+    try {
+      const a = run();
+      expect(a.toast?.description).toBe("1 card restored · 12 cards kept hidden by the auto-hide filter");
+    } finally {
+      useGraphStore.setState(useGraphStore.getInitialState(), true);
+    }
+  });
+
+  test("a card hidden globally AND by the leaf layer is counted once", () => {
+    useGraphStore.setState({
+      nodes: [folder("root", "root"), file("f1")],
+      edges: [{ id: "e1", source: "root", target: "f1" } as any],
+      autoHideThreshold: 10,
+      revealedRootIds: [],
+      hiddenIds: ["f1"],
+      activeLeafId: "leaf1",
+      viewSettings: { leaf1: { hideLayers: { individual: ["f1"], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } } },
+    } as any);
+    try {
+      const a = run();
+      expect(a.revealAllForLeaf).toBe("leaf1");
+      // Union of the two sets → 1, not the old sum of 2.
+      expect(a.toast?.description).toBe("1 card restored");
+    } finally {
+      useGraphStore.setState(useGraphStore.getInitialState(), true);
+    }
+  });
+
+  test("bulk-hidden files are counted minus the eye-revealed ones", () => {
+    const files = ["f1", "f2", "f3", "f4"].map(file);
+    useGraphStore.setState({
+      nodes: [folder("root", "root"), ...files],
+      edges: files.map((f, i) => ({ id: `e${i}`, source: "root", target: f.id } as any)),
+      autoHideThreshold: 10,
+      revealedRootIds: [],
+      hiddenIds: [],
+      activeLeafId: "leaf1",
+      viewSettings: { leaf1: { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: ["f4"] } } },
+    } as any);
+    try {
+      const a = run();
+      expect(a.toast?.description).toBe("3 cards restored");
+    } finally {
+      useGraphStore.setState(useGraphStore.getInitialState(), true);
+    }
+  });
 });
 // ─── Test harness ─────────────────────────────────────────────────
 

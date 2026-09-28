@@ -1232,6 +1232,81 @@ tasks:
     effort: {commits: 2, files: 5, insertions: 269, deletions: 7}
   spent_min: 20
   session_count: 1
+- id: "T-049"
+  title: "Compressed archive import: visualize .zip/.tar/.7z/.rar/... folder trees"
+  status: "triaged"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 660
+  estimate_basis: "cli"
+  issue: 235
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:51Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-050"
+  title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 236
+  pr: 238
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-049"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:55Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T10:57:30Z"
+    end: "2026-09-28T11:13:37Z"
+    measured: true
+    note: "Archive origin shipped: src/lib/fewer/archiveList.ts lists zip (central directory via Blob.slice, zip64 extra field), tar (512-byte headers, payload skipped by declared size, GNU long-name + pax headers) and gzip (native DecompressionStream) into a TreeEntry. New fifth origin wired through importFlow/ImportOriginStep/importAction + importActionArchive. 17 new lib tests, 2 new dialog tests; cross-checked against real zip/tar/xz/bzip2 output, not just fixtures. Zero new dependencies - the listing is uncompressed in zip/tar and gzip is native, which is why 7z/rar/xz/bz2/zstd are deferred to T-051's wasm engine. PR #238."
+    proof: ["5d299a8", "ebe3e24", "#238"]
+    effort: {commits: 2, files: 14, insertions: 3585, deletions: 10}
+  spent_min: 16
+  session_count: 1
+- id: "T-051"
+  title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
+  status: "blocked"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 420
+  estimate_basis: "cli"
+  issue: 237
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-050"]
+  parent: "T-049"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T10:53:55Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
   status: "done"
@@ -1280,16 +1355,16 @@ tasks:
   spent_min: 45
   session_count: 4
 - id: "T-053"
-  title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
+  title: "Shift+H throws after selecting a card: shortcut rules read a store field that no longer exists (showFilesByLeaf)"
   status: "review"
   type: "fix"
-  area: "other"
-  tier: null
-  estimate_min: 15
+  area: "keyboard"
+  tier: 0
+  estimate_min: 45
   estimate_basis: "cli"
-  issue: null
-  pr: 248
-  internal: true
+  issue: 241
+  pr: 242
+  internal: false
   milestone: null
   blocked_by: []
   parent: null
@@ -1297,132 +1372,46 @@ tasks:
   time_source: "measured"
   reporter: null
   assignee: "qvesera"
-  created_at: "2026-09-28T16:22:06Z"
-  notes: ["2026-09-28T16:22:12Z · internal fix, no issue needed"]
+  created_at: "2026-09-28T15:43:52Z"
+  notes: ["2026-09-28T15:44:00Z · Regression from 431ec99 (leaf-aware H/Shift+H, shipped 2026-09-06): the H handler reads st.showFilesByLeaf, a name only the test-only toStoreReader adapter defines; the real store field is viewSettings, so Shift+H throws TypeError whenever activeLeafId is set (any canvas selection sets it)."]
   sessions:
-  - start: "2026-09-28T16:23:05Z"
-    end: "2026-09-28T16:23:19Z"
+  - start: "2026-09-28T15:46:06Z"
+    end: "2026-09-28T15:50:47Z"
     measured: true
-    note: "rtype derived same as adopt_issue (bug→fix, enhancement→feat, else task) so the size label matches the adopted row's estimate; verified with intake --dry-run adopting all 5 untracked issues"
-    proof: ["c9788b0"]
-    effort: {commits: 1, files: 2, insertions: 32, deletions: 0}
-  spent_min: 0
+    note: "Fixed the Shift+H crash (keyboardShortcuts read st.showFilesByLeaf, a name only the test-only toStoreReader adapter defined; the store field is viewSettings). Renamed the reader field and typed it with the real ViewSettings, which also fixed the restored-card count ignoring filesBulkExempt. Added the raw-store regression tests plus two shape guards. Gates: bun test src 1371, test:components 175, lint/tsc/build 0."
+    proof: ["12b98cf"]
+    effort: {commits: 1, files: 3, insertions: 118, deletions: 9}
+  spent_min: 5
   session_count: 1
 - id: "T-054"
   title: "Shift+H claims it revealed cards the auto-hide filter re-hides in the same press"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "keyboard"
-  tier: null
-  estimate_min: 120
-  estimate_basis: "type-default"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
   issue: 243
-  pr: null
+  pr: 242
   internal: false
   milestone: null
   blocked_by: []
   parent: null
-  source: "gh#243"
-  time_source: null
-  reporter: "qvesera"
+  source: null
+  time_source: "measured"
+  reporter: null
   assignee: "qvesera"
-  created_at: "2026-09-28T15:56:55Z"
-  notes: ["2026-09-28T16:23:25Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
-- id: "T-055"
-  title: "Shift+H throws after selecting a card: shortcut rules read a store field that no longer exists (showFilesByLeaf)"
-  status: "triaged"
-  type: "fix"
-  area: "keyboard"
-  tier: null
-  estimate_min: 120
-  estimate_basis: "type-default"
-  issue: 241
-  pr: null
-  internal: false
-  milestone: null
-  blocked_by: []
-  parent: null
-  source: "gh#241"
-  time_source: null
-  reporter: "qvesera"
-  assignee: "qvesera"
-  created_at: "2026-09-28T15:44:04Z"
-  notes: ["2026-09-28T16:23:27Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
-- id: "T-056"
-  title: "Archive engine: 7z/rar/xz/bz2/zstd via lazy wasm fallback"
-  status: "triaged"
-  type: "feat"
-  area: "import"
-  tier: null
-  estimate_min: 480
-  estimate_basis: "type-default"
-  issue: 237
-  pr: null
-  internal: false
-  milestone: null
-  blocked_by: []
-  parent: "T-058"
-  source: "gh#237"
-  time_source: null
-  reporter: "qvesera"
-  assignee: "qvesera"
-  created_at: "2026-09-28T10:54:40Z"
-  notes: ["2026-09-28T16:23:30Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
-- id: "T-057"
-  title: "Archive origin: zero-dep zip/tar/tar.gz listing + import flow"
-  status: "triaged"
-  type: "feat"
-  area: "import"
-  tier: null
-  estimate_min: 480
-  estimate_basis: "type-default"
-  issue: 236
-  pr: null
-  internal: false
-  milestone: null
-  blocked_by: []
-  parent: "T-058"
-  source: "gh#236"
-  time_source: null
-  reporter: "qvesera"
-  assignee: "qvesera"
-  created_at: "2026-09-28T10:54:39Z"
-  notes: ["2026-09-28T16:23:31Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
-- id: "T-058"
-  title: "Compressed archive import: visualize .zip/.tar/.7z/.rar/... folder trees"
-  status: "triaged"
-  type: "feat"
-  area: "import"
-  tier: null
-  estimate_min: 480
-  estimate_basis: "type-default"
-  issue: 235
-  pr: null
-  internal: false
-  milestone: null
-  blocked_by: []
-  parent: null
-  source: "gh#235"
-  time_source: null
-  reporter: "qvesera"
-  assignee: "qvesera"
-  created_at: "2026-09-28T10:54:37Z"
-  notes: ["2026-09-28T16:23:33Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  created_at: "2026-09-28T15:56:44Z"
+  notes: ["2026-09-28T15:56:44Z · The toast counts hiddenIds + the active leaf's layers BEFORE showAll() clears revealedRootIds and setShowFiles(true) re-runs reconcileAutoHide, so the large-folder/depth filters re-hide those cards in the same keypress. Also double-counts a card hidden globally AND by the leaf layer (sum instead of union)."]
+  sessions:
+  - start: "2026-09-28T15:58:12Z"
+    end: "2026-09-28T16:05:54Z"
+    measured: true
+    note: "Shift+H toast now counts only what the press achieves: union of the global + per-view hidden sets (was a sum, so a card hidden by both counted twice) minus the cards the auto-hide/depth filters re-apply via setShowFiles(true). Toast names the remainder. 8 new tests (4 pure shiftHOutcome, 4 handler cases on the raw store). Gates: bun test src 1378, test:components 175, lint/tsc/build 0."
+    proof: ["3e98b8e"]
+    effort: {commits: 1, files: 3, insertions: 253, deletions: 38}
+  spent_min: 8
+  session_count: 1
 - id: "T-059"
   title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
   status: "review"
@@ -1509,4 +1498,33 @@ tasks:
     proof: ["1c5f45d"]
     effort: {commits: 1, files: 9, insertions: 411, deletions: 24}
   spent_min: 6
+  session_count: 1
+- id: "T-062"
+  title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
+  status: "review"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 15
+  estimate_basis: "cli"
+  issue: null
+  pr: 248
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:22:06Z"
+  notes: ["2026-09-28T16:22:12Z · internal fix, no issue needed"]
+  sessions:
+  - start: "2026-09-28T16:23:05Z"
+    end: "2026-09-28T16:23:19Z"
+    measured: true
+    note: "rtype derived same as adopt_issue (bug→fix, enhancement→feat, else task) so the size label matches the adopted row's estimate; verified with intake --dry-run adopting all 5 untracked issues"
+    proof: ["c9788b0"]
+    effort: {commits: 1, files: 2, insertions: 32, deletions: 0}
+  spent_min: 0
   session_count: 1

@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Cloud,
   ExternalLink,
+  FileArchive,
   FileIcon,
   FileJson,
   FileTerminal,
@@ -66,13 +67,16 @@ export interface ImportOriginStepProps {
   onAdvance: () => void;
 }
 
-const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
+const ORIGINS: ImportOrigin[] = ["folder", "file", "archive", "url", "cloud"];
 
 // URL and cloud origins require a linked account — only available to
-// signed-in users. Signed-out users see folder + file only.
+// signed-in users. Signed-out users see the local-only origins: folder, file,
+// and archive.
 const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
   linkable: ORIGINS,
-  basic: ORIGINS.filter((o) => o === "folder" || o === "file"),
+  basic: ORIGINS.filter(
+    (o) => o === "folder" || o === "file" || o === "archive",
+  ),
 };
 
 /**
@@ -82,6 +86,7 @@ const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
 export const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
+  archive: FileArchive,
   url: Globe,
   cloud: Cloud,
 };
@@ -231,7 +236,10 @@ export function ImportOriginStep({
       </p>
 
       {/* ── Origin-specific source picking ── */}
-      {cloudImport || origin === "folder" || origin === "file" ? (
+      {cloudImport ||
+      origin === "folder" ||
+      origin === "file" ||
+      origin === "archive" ? (
         <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
@@ -239,6 +247,12 @@ export function ImportOriginStep({
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
               advancedFormats={advancedFormats}
+            />
+          )}
+          {origin === "archive" && (
+            <ArchiveSource
+              source={source as Extract<OriginSource, { origin: "archive" }>}
+              onSourceChange={onSourceChange}
             />
           )}
           {origin === "url" && (
@@ -446,6 +460,74 @@ function FileSource({
           className="gm-scroll min-h-[140px] max-h-[240px] bg-muted/20 p-3.5 font-mono text-xs font-medium leading-relaxed text-foreground"
         />
       </div>
+    </div>
+  );
+}
+
+/** Extensions the picker offers. Only the listing is read, so these all work
+ *  without unpacking anything; 7z/rar/xz/bz2/zstd need the wasm engine (T-051)
+ *  and are listed in the hint so the gap is not a surprise at import time. */
+const ARCHIVE_ACCEPT = ".zip,.tar,.gz,.tgz,.tar.gz,.tar.xz,.tar.bz2,.tar.zst,.7z,.rar,.xz,.bz2,.zst";
+
+function ArchiveSource({
+  source,
+  onSourceChange,
+}: {
+  source: Extract<OriginSource, { origin: "archive" }>;
+  onSourceChange: (source: OriginSource) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Allow re-selecting the same file.
+    e.target.value = "";
+    if (!file) return;
+    onSourceChange({ origin: "archive", file, name: file.name });
+  };
+
+  return (
+    <div className="space-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ARCHIVE_ACCEPT}
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <FileArchive className="h-4 w-4 text-muted-foreground" />
+        {source.file ? "Choose a different archive" : "Choose archive"}
+      </Button>
+
+      {source.file ? (
+        <div className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2">
+          <FileArchive className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
+            {source.name}
+          </p>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {formatBytes(source.file.size)}
+          </span>
+          <button
+            type="button"
+            onClick={() => onSourceChange({ origin: "archive", file: null, name: "" })}
+            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Reads the archive&apos;s file listing and draws it as a graph — the archive
+          is never unpacked on disk, and your files never leave the browser.
+        </p>
+      )}
     </div>
   );
 }
