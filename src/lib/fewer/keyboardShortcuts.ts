@@ -1,6 +1,7 @@
 "use client";
 
 import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
+import type { ViewSettings } from "./viewState";
 import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
@@ -66,17 +67,52 @@ export interface StoreReader {
   mousePosition: { x: number; y: number } | null;
   localRootPath: string | null;
   activeLeafId: string | null;
-  showFilesByLeaf: Record<string, { showFiles?: boolean; hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }>;
+  /** Per-view settings by leaf id. Named for the STORE field it projects — the
+   *  rules read raw state in production, so a name that only existed in this
+   *  adapter (`showFilesByLeaf`, a v1 leftover) threw a TypeError on Shift+H
+   *  instead of failing to compile. */
+  viewSettings: Record<string, ViewSettings>;
   tier: string;
 }
 
 /** Count nodes hidden by a leaf's hideLayers (individual + subtrees + bulk files). */
-function leafHiddenCount(vs: { hideLayers?: { individual: string[]; subtrees: Record<string, string[]>; filesBulkActive?: boolean } }, fileCount: number): number {
+function leafHiddenCount(vs: ViewSettings, fileCount: number): number {
   const h = vs.hideLayers;
   if (!h) return 0;
   return h.individual.length
     + Object.values(h.subtrees).reduce((a, v) => a + v.length, 0)
-    + (h.filesBulkActive ? fileCount : 0);
+    // Bulk-hidden files, minus the ones eye-revealed while the layer was on
+    // (computeEffectiveHidden skips them too). The old hand-written type of
+    // this parameter had no filesBulkExempt field, so it counted them as hidden.
+    + (h.filesBulkActive ? Math.max(0, fileCount - h.filesBulkExempt.length) : 0);
+}
+
+/**
+ * The store-state fields the shortcut rules read off `ctx.getState()`, in one
+ * list so a test can check every one of them against the REAL store shape.
+ *
+ * Production builds that state by handing the rules the raw store
+ * (`getState: () => getStore()`), so a rule may only read a field the store
+ * actually has. The Shift+H branch once read `showFilesByLeaf`, a name that
+ * existed only in the test adapter, and threw at runtime instead of failing to
+ * compile — the unit suite was green because the adapter aliased it.
+ */
+export function readShortcutStateFields(): (keyof StoreReader)[] {
+  return [
+    "direction",
+    "selectedNodeIds",
+    "nodes",
+    "edges",
+    "dataSource",
+    "clipboard",
+    "focusedNodeId",
+    "hiddenIds",
+    "mousePosition",
+    "localRootPath",
+    "activeLeafId",
+    "viewSettings",
+    "tier",
+  ];
 }
 
 /**
@@ -96,7 +132,7 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     mousePosition: s.mousePosition ?? null,
     localRootPath: s.localRootPath ?? null,
     activeLeafId: s.activeLeafId ?? null,
-    showFilesByLeaf: s.viewSettings ?? {},
+    viewSettings: s.viewSettings ?? {},
     tier: s.tier ?? "guest",
   };
 }
@@ -249,7 +285,10 @@ export function buildKeyboardRules(): ShortcutRule[] {
         const st = ctx.getState();
         if (kc.shift) {
           // Leaf-aware reveal: clear the active leaf's hide layers, then any global ones.
-          const leafVs = st.activeLeafId ? st.showFilesByLeaf[st.activeLeafId] : undefined;
+          // The store field is `viewSettings` — reading `showFilesByLeaf` here (a
+          // name only the test adapter defines) threw a TypeError on every
+          // Shift+H, since any canvas selection sets activeLeafId.
+          const leafVs = st.activeLeafId ? st.viewSettings[st.activeLeafId] : undefined;
           const fileCount = st.nodes.filter((nd) => nd.data.type === "file").length;
           let n = st.hiddenIds.length;
           if (st.activeLeafId && leafVs?.hideLayers) {

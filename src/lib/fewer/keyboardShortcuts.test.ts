@@ -6,12 +6,13 @@ import {
   buildKeyContext,
   buildKeyboardRules,
   handleKeyboardShortcut,
+  readShortcutStateFields,
   toStoreReader,
   type ShortcutCtx,
   type StoreReader,
 } from "./keyboardShortcuts";
 import type { FewerEdge } from "./types";
-import { isAnyDialogOpen } from "@/store/graphStore";
+import { isAnyDialogOpen, useGraphStore } from "@/store/graphStore";
 
 // Mock KeyboardEvent — bun test env lacks it.
 class MockKeyboardEvent {
@@ -87,17 +88,85 @@ test("toStoreReader extracts fields", () => {
     direction: "LR", selectedNodeIds: ["n1"], nodes: [{ id: "n1" }],
     edges: [], dataSource: "dir", clipboard: null, focusedNodeId: null,
     hiddenIds: [], mousePosition: { x: 1, y: 2 }, localRootPath: null,
-    activeLeafId: "leaf1", viewSettings: { leaf1: { showFiles: false } },
+    activeLeafId: "leaf1",
+    // A real ViewSettings: the per-view hide layers the H rules read.
+    viewSettings: { leaf1: { hideLayers: { individual: ["n1"], subtrees: {}, filesBulkActive: true, filesBulkExempt: [] } } },
   });
   expect(r.direction).toBe("LR"); expect(r.selectedNodeIds).toEqual(["n1"]);
   expect(r.activeLeafId).toBe("leaf1");
-  expect(r.showFilesByLeaf.leaf1?.showFiles).toBe(false);
+  expect(r.viewSettings.leaf1?.hideLayers?.individual).toEqual(["n1"]);
+  expect(r.viewSettings.leaf1?.hideLayers?.filesBulkActive).toBe(true);
 });
 test("toStoreReader defaults for missing fields", () => {
   const r = toStoreReader({});
   expect(r.nodes).toEqual([]); expect(r.hiddenIds).toEqual([]);
   expect(r.clipboard).toBeNull(); expect(r.localRootPath).toBeNull();
-  expect(r.activeLeafId).toBeNull(); expect(r.showFilesByLeaf).toEqual({});
+  expect(r.activeLeafId).toBeNull(); expect(r.viewSettings).toEqual({});
+});
+
+// The crash this guards: the H rules read RAW store state in production
+// (KeyboardShortcuts passes `getState: () => getStore()`), but the Shift+H
+// branch read `st.showFilesByLeaf` — a field only this test adapter invented
+// (`toStoreReader` aliased viewSettings to it), so the whole suite passed while
+// the app threw "Cannot read properties of undefined" on every Shift+H after
+// any canvas selection (which is what sets activeLeafId).
+test("every field the rules read exists on the RAW store state", () => {
+  const raw = useGraphStore.getInitialState() as unknown as Record<string, unknown>;
+  expect(readShortcutStateFields().filter((f) => !(f in raw))).toEqual([]);
+});
+
+test("toStoreReader projects only fields the store actually has", () => {
+  // A rename on either side of the adapter must not leave the reader reading a
+  // name the store does not have — that is what let this ship.
+  const raw = useGraphStore.getInitialState() as unknown as Record<string, unknown>;
+  expect(Object.keys(toStoreReader(raw)).filter((k) => !(k in raw))).toEqual([]);
+});
+
+test("Shift+H against the RAW store state reveals the active leaf's cards", () => {
+  // The production shape: ctx.getState() IS the store, not a reader projection.
+  const file = (id: string) =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "file" } } as any);
+  useGraphStore.setState({
+    nodes: [file("f1"), file("f2"), file("f3")],
+    hiddenIds: ["f2"],
+    activeLeafId: "leaf1",
+    viewSettings: {
+      leaf1: { hideLayers: { individual: ["f1"], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } },
+    },
+  } as any);
+  try {
+    const { ctx, a } = makeCtx({ getState: () => withActions(useGraphStore.getState() as any, a) as any });
+    // Would throw "Cannot read properties of undefined" before the fix.
+    expect(() => fire(buildKeyboardRules(), ctx, { key: "h", shiftKey: true })).not.toThrow();
+    expect(a.revealAllForLeaf).toBe("leaf1");
+    expect(a.showAll).toBe(true);
+    expect(a.setShowFiles).toBe(true);
+    // 1 hidden globally + 1 hidden by the leaf's layer.
+    expect(a.toast?.description).toBe("2 cards restored");
+  } finally {
+    useGraphStore.setState(useGraphStore.getInitialState(), true);
+  }
+});
+
+test("Shift+H counts bulk-hidden files minus the eye-revealed ones", () => {
+  const file = (id: string) =>
+    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "file" } } as any);
+  useGraphStore.setState({
+    nodes: [file("f1"), file("f2"), file("f3"), file("f4")],
+    hiddenIds: [],
+    activeLeafId: "leaf1",
+    viewSettings: {
+      // "Hide Files" hides all four, then f4 was eye-revealed → 3 really hidden.
+      leaf1: { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: ["f4"] } },
+    },
+  } as any);
+  try {
+    const { ctx, a } = makeCtx({ getState: () => withActions(useGraphStore.getState() as any, a) as any });
+    fire(buildKeyboardRules(), ctx, { key: "h", shiftKey: true });
+    expect(a.toast?.description).toBe("3 cards restored");
+  } finally {
+    useGraphStore.setState(useGraphStore.getInitialState(), true);
+  }
 });
 // ─── Test harness ─────────────────────────────────────────────────
 

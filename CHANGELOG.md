@@ -116,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cards created after a view was first dragged now land in that view's own layout slot instead of at their shared store coordinate: a per-view position map only holds the cards the user dragged, so a card missing from it falls through to the global layout while its siblings were placed by the view's contour layout
 - Organize (button, Alt+R, canvas context menu) now re-flows every view that holds manual card positions, not only the active one, so a card moved or created in one pane no longer sits stale in the others
 - Sort by Name/Size/Type now re-flows a per-view canvas that holds manual card positions (sort re-derives the view's own layout, with dragged cards still winning)
+- Shift+H (show all) no longer throws "Cannot read properties of undefined" once a card is selected. The shortcut reads the raw graph store, where the per-view settings live under viewSettings, but it was reading a leftover showFilesByLeaf name that only the test-only toStoreReader adapter defined, so the rule crashed on every press once a view was active (selecting a card activates one). The reader field is renamed to viewSettings and typed with the real ViewSettings, and the Shift+H count now excludes files that were eye-revealed while Hide Files was on (it was reporting them as restored)
 
 ### Added
 
