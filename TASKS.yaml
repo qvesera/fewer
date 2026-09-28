@@ -1625,5 +1625,11 @@ tasks:
     note: "Import dialog sm:max-w-md -> sm:max-w-xl; Symlinks row: min-w-0 flex-1 text column, flex-wrap on the row, shrink-0 on the radio group. Verified with Playwright at 1280/700/480px viewports: card scrollWidth == clientWidth (no clip) and the Skip / Show as links / Follow control stays on one row. The 5 userSettings/panelLayout test failures are pre-existing test-isolation (globalThis.window set by historyStorage.test.ts) and reproduce at HEAD with these changes stashed."
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-09-28T21:16:48Z"
+    end: "2026-09-28T21:16:54Z"
+    measured: true
+    note: "Committed 5ef52b8: dialog sm:max-w-md -> sm:max-w-xl, Symlinks row gets min-w-0 flex-1 text column + flex-wrap + shrink-0 radio group. Playwright-verified at 1280/700/480px: no clip, control on one row."
+    proof: ["5ef52b8"]
+    effort: {commits: 1, files: 4, insertions: 34, deletions: 4}
   spent_min: 26
-  session_count: 1
+  session_count: 2
