@@ -137,7 +137,7 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: 1
