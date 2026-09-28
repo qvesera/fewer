@@ -2327,8 +2327,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} #{issue['number']}: managed labels {sorted(have)} != "
                             f"{sorted(want)} (run: python3 scripts/tasks.py gh-sync)")
         if issue["state"] == "CLOSED" and row["status"] not in ("done", "wontfix"):
-            problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status={row['status']} "
-                            f"(run: python3 scripts/tasks.py reconcile --apply)")
+            remedy = ("run: python3 scripts/tasks.py reconcile --apply"
+                      if row["status"] in ("in-progress", "review")
+                      else "reconcile will not decide this one — a closed issue on a "
+                           f"`{row['status']}` row needs a human: set-status {row['id']} "
+                           "done (shipped) or wontfix (dropped)")
+            problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status="
+                            f"{row['status']} ({remedy})")
         # Sub-issue parity, both directions: GitHub must agree with the ledger.
         parent_id = row.get("parent")
         try:

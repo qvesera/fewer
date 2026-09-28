@@ -790,7 +790,7 @@ tasks:
   session_count: 1
 - id: "T-031"
   title: "Remove the AI-vibe glow across all bundled designs"
-  status: "triaged"
+  status: "wontfix"
   type: "refactor"
   area: "theme"
   tier: null
@@ -807,7 +807,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:15Z"
-  notes: ["2026-09-25T12:38:20Z · nodes use backdrop-blur-xl plus preset shadows; strip the glow and rebalance contrast in every preset"]
+  notes: ["2026-09-25T12:38:20Z · nodes use backdrop-blur-xl plus preset shadows; strip the glow and rebalance contrast in every preset", "2026-09-28T08:28:25Z · issue #206 was closed from the GitHub UI on 2026-09-28 with no commit and no PR behind it, so the work was not done - recorded as wontfix rather than done. Flip to triaged if the close was a mistake."]
   sessions: []
   spent_min: 0
   session_count: 0
@@ -1176,7 +1176,7 @@ tasks:
   session_count: 2
 - id: "T-047"
   title: "Triage the queue: the triaged set becomes the current + next release train, everything further out moves to backlog (and ready reports triaged rows only)"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "other"
   tier: null
