@@ -1,5 +1,5 @@
 import type { EdgeStrokeStyle, EdgeStyle, FewerEdge, FewerNode } from "./types";
-import { edgeDashPattern } from "./types";
+import { contrastStroke, edgeDashPattern } from "./types";
 
 /** React Flow edge subtype for a UI edge-style choice. */
 export function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
@@ -114,6 +114,13 @@ export function buildEdgeBase(
   themeColors: EdgeThemeColors,
   edgeWidth: number,
   edgeAnimation: EdgeAnimationOptions,
+  /**
+   * Ids of nodes that are symlinks (edges pointing INTO one get the contrast
+   * stroke + a target-end arrowhead). Derived per graph by the caller — the
+   * appearance is a pure function of node metadata + view settings, never
+   * stored on the edge.
+   */
+  symlinkTargetIds?: ReadonlySet<string>,
 ): FewerEdge[] {
   const defaultStroke = themeColors.edge;
   const anim = edgeAnimation.animated;
@@ -121,11 +128,27 @@ export function buildEdgeBase(
   // motion off the old one-shot builder still dashed the edges per that style,
   // and a "dashed"/"dotted" base must keep looking dashed when still.
   const dash = edgeDashPattern(edgeAnimation.baseStrokeStyle);
-  return edges.map((e) => ({
-    ...e,
-    animated: anim,
-    style: { ...e.style, stroke: defaultStroke, strokeWidth: edgeWidth, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-  }));
+  // Symlink edges contrast the base style (solid↔dashed axis) so they never
+  // match their siblings, whatever the global setting is.
+  const linkDash = edgeDashPattern(contrastStroke(edgeAnimation.baseStrokeStyle));
+  return edges.map((e) => {
+    const isLink = symlinkTargetIds?.has(e.target) ?? false;
+    return {
+      ...e,
+      animated: anim,
+      ...(isLink ? { markerEnd: { type: "arrowclosed", color: defaultStroke, width: 14, height: 14 } } : {}),
+      style: {
+        ...e.style,
+        stroke: defaultStroke,
+        strokeWidth: edgeWidth,
+        ...(isLink
+          ? { strokeDasharray: linkDash }
+          : dash
+            ? { strokeDasharray: dash }
+            : { strokeDasharray: undefined }),
+      },
+    };
+  });
 }
 
 /** The two lookups `applyEdgeHighlights` walks. Built once per graph change. */
@@ -155,6 +178,9 @@ export function applyEdgeHighlights(
   themeColors: EdgeThemeColors,
   edgeWidth: number,
   edgeAnimation: EdgeAnimationOptions,
+  /** See buildEdgeBase — keeps the contrast stroke + recolors the arrowhead
+   *  under highlight, so a symlink edge never loses its identity. */
+  symlinkTargetIds?: ReadonlySet<string>,
 ): FewerEdge[] {
   if (selectedIds.length === 0 && hoverIds.length === 0) return base;
   const { typeByNodeId, parentEdgeOf } = lookups;
@@ -191,16 +217,22 @@ export function applyEdgeHighlights(
     // is on; non-selected edges animate only when the global motion toggle is on.
     const selectedPath = edgeAnimation.selectedOnly && !!sel;
     const anim = selectedPath || edgeAnimation.animated;
+    const isLink = symlinkTargetIds?.has(e.target) ?? false;
     // Selected-path edges use the dialog-chosen pattern; everything else uses
     // the sidebar base pattern (so unselected edges stay solid/static when
-    // motion is off).
-    const dash = edgeDashPattern(selectedPath ? edgeAnimation.animatedStrokeStyle : edgeAnimation.baseStrokeStyle);
+    // motion is off). Symlink edges invert whichever pattern applies so the
+    // contrast survives highlight states.
+    const pattern = selectedPath
+      ? edgeAnimation.animatedStrokeStyle
+      : edgeAnimation.baseStrokeStyle;
+    const dash = edgeDashPattern(isLink ? contrastStroke(pattern) : pattern);
     return {
       ...e,
       zIndex: 1,
       animated: anim,
+      ...(isLink ? { markerEnd: { ...(e.markerEnd as object), color: h.stroke } } : {}),
       style: { ...e.style, stroke: h.stroke, strokeWidth: h.width, ...(dash ? { strokeDasharray: dash } : { strokeDasharray: undefined }) },
-    };
+    } as FewerEdge;
   });
 
   // Highlighted last, so a highlighted edge is never covered by a grey one.
@@ -235,15 +267,17 @@ export function buildSelectedEdgeHighlight(
   themeColors: EdgeThemeColors,
   edgeWidth: number,
   edgeAnimation: EdgeAnimationOptions,
+  symlinkTargetIds?: ReadonlySet<string>,
 ): FewerEdge[] {
   return applyEdgeHighlights(
-    buildEdgeBase(edges, themeColors, edgeWidth, edgeAnimation),
+    buildEdgeBase(edges, themeColors, edgeWidth, edgeAnimation, symlinkTargetIds),
     selectedIds,
     hoverIds,
     buildTreeLookups(nodes, edges),
     themeColors,
     edgeWidth,
     edgeAnimation,
+    symlinkTargetIds,
   );
 }
 

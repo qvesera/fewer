@@ -86,6 +86,16 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, select
   // One pass over the whole graph, memoised on the graph itself — it used to be
   // rebuilt on every selection change (30k nodes + 30k edges into two maps).
   const lookups = useMemo(() => buildTreeLookups(allNodes, allEdges), [allNodes, allEdges]);
+  // Ids of symlink nodes — derived, never stored: symlink edges get their
+  // contrast stroke + arrowhead from (node metadata, view settings) alone.
+  const symlinkTargetIds = useMemo(
+    () => {
+      const out = new Set<string>();
+      for (const n of allNodes) if (n.data?.symlink) out.add(n.id);
+      return out;
+    },
+    [allNodes],
+  );
   // The unhighlighted edge array: default stroke, global motion, edge type. It
   // depends on the edges and the styling, NOT on the selection, so a click
   // reuses it and only restyles the path edges.
@@ -96,8 +106,9 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, select
       themeColors,
       vs.edgeWidth,
       animation,
+      symlinkTargetIds,
     ).map((e: FewerEdge) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
-  }, [visibleEdges, hiddenIds, themeColors, vs.edgeWidth, animation, vs.edgeStyle]);
+  }, [visibleEdges, hiddenIds, themeColors, vs.edgeWidth, animation, vs.edgeStyle, symlinkTargetIds]);
 
   useEffect(() => {
     const state = useGraphStore.getState();
@@ -105,10 +116,10 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, select
     const selectedForHighlight = leafSel ?? state.selectedNodeIds;
     const hoverForHighlight = isActive ? state.hoverHighlightIds : [];
     setRfEdges(applyEdgeSelection(
-      applyEdgeHighlights(baseEdges, selectedForHighlight, hoverForHighlight, lookups, themeColors, vs.edgeWidth, animation),
+      applyEdgeHighlights(baseEdges, selectedForHighlight, hoverForHighlight, lookups, themeColors, vs.edgeWidth, animation, symlinkTargetIds),
       selectedEdgeIdsRef.current,
     ));
-  }, [graphVersion, selectionVersion, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, baseEdges, lookups, leafId, isActive]);
+  }, [graphVersion, selectionVersion, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, baseEdges, lookups, leafId, isActive, symlinkTargetIds]);
 
   const dashArray = useMemo(() => staticEdgeDashArray(vs.edgeStrokeStyle), [vs.edgeStrokeStyle]);
 

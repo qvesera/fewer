@@ -6,10 +6,12 @@ import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view
 import {
   Folder,
   FolderOpen,
+  FolderSymlink,
   File as FileIcon,
+  FileSymlink,
   ChevronRight,
 } from "lucide-react";
-import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import type { FewerNode, FileCategory, SymlinkInfo } from "@/lib/fewer/types";
 import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
 import { visibleRange, OVERSCAN } from "@/lib/fewer/visibleRange";
 import { useGraphStore } from "@/store/graphStore";
@@ -37,6 +39,7 @@ import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
+import { SymlinkBadge } from "./SymlinkBadge";
 import { getDescendants } from "@/lib/fewer/validation";
 import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
 import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
@@ -48,18 +51,22 @@ function NodeIcon({
   type,
   category,
   isRoot,
+  symlink,
   className,
 }: {
   type: "folder" | "file";
   category?: FileCategory;
   isRoot?: boolean;
+  symlink?: SymlinkInfo;
   className?: string;
 }) {
   if (type === "folder") {
-    const FolderComp = isRoot ? FolderOpen : Folder;
+    // A linked dir keeps its folder identity; the glyph swap is the always-on
+    // link signal (see graphRenderer for the export twin).
+    const FolderComp = symlink ? FolderSymlink : isRoot ? FolderOpen : Folder;
     return <FolderComp className={className} />;
   }
-  const IconComp = CATEGORY_ICON[category ?? "text"] ?? FileIcon;
+  const IconComp = symlink ? FileSymlink : CATEGORY_ICON[category ?? "text"] ?? FileIcon;
   return <IconComp className={className} />;
 }
 
@@ -952,6 +959,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
         type={child.data.type}
         category={child.data.category}
         isRoot={child.data.isRoot}
+        symlink={child.data.symlink}
         className={cn(
           "h-3.5 w-3.5 shrink-0",
           child.data.type === "folder"
@@ -967,6 +975,9 @@ function ChildEntry({ child }: { child: FewerNode }) {
         />
       ) : (
         <span className="truncate text-fewer-text">{child.data.label}</span>
+      )}
+      {child.data.symlink && (
+        <SymlinkBadge info={child.data.symlink} variant="inline" className="shrink-0" />
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
@@ -1070,6 +1081,7 @@ if (isCollapsed) {
               isHovered && "gm-highlight-ring",
               data.dimmed && "opacity-40 saturate-50",
               selected && "gm-selected-ring",
+              data.symlink?.broken && "ring-1 ring-amber-400/60",
             )}
             style={{ width: width ?? 240 }}
           >
@@ -1091,6 +1103,7 @@ if (isCollapsed) {
                 type={data.type}
                 category={data.category}
                 isRoot={data.isRoot}
+                symlink={data.symlink}
                 className="h-5 w-5"
               />
             </div>
@@ -1098,9 +1111,13 @@ if (isCollapsed) {
               <span className="truncate text-sm font-semibold text-fewer-folder-text" title={data.label}>
                 {data.label}
               </span>
-              <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
-                {plural(childCount, "item")}
-              </span>
+              {data.symlink ? (
+                <SymlinkBadge info={data.symlink} className="tracking-normal" />
+              ) : (
+                <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
+                  {plural(childCount, "item")}
+                </span>
+              )}
             </div>
             {nodeTagIds.length > 0 && (
               <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0" />
@@ -1143,6 +1160,7 @@ if (isCollapsed) {
           isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
+          data.symlink?.broken && "ring-1 ring-amber-400/60",
         )}
         style={{ height: manualHeight ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
@@ -1203,6 +1221,7 @@ if (isCollapsed) {
                   type={data.type}
                   category={data.category}
                   isRoot={data.isRoot}
+                  symlink={data.symlink}
                   className="h-4 w-4"
                 />
               </div>
@@ -1227,6 +1246,7 @@ if (isCollapsed) {
                 >
                   {data.path}
                 </span>
+                {data.symlink && <SymlinkBadge info={data.symlink} className="shrink-0" />}
               </div>
               {nodeTagIds.length > 0 && (
                 <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0 ml-1" />
@@ -1318,6 +1338,7 @@ if (isCollapsed) {
           isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
+          data.symlink?.broken && "ring-1 ring-amber-400/60",
         )}
         style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
@@ -1342,6 +1363,7 @@ if (isCollapsed) {
             type={data.type}
             category={data.category}
             isRoot={data.isRoot}
+            symlink={data.symlink}
             className="h-5 w-5"
           />
         </div>
@@ -1362,7 +1384,8 @@ if (isCollapsed) {
             </span>
           )}
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-file-subtle-text">
-            <span>{data.extension ? `.${data.extension}` : "file"}</span>
+            {data.symlink && <SymlinkBadge info={data.symlink} className="normal-case tracking-normal" />}
+            <span className="shrink-0">{data.extension ? `.${data.extension}` : "file"}</span>
             {data.size ? (
               <>
                 <span className="opacity-50">·</span>

@@ -1425,7 +1425,7 @@ tasks:
   session_count: 0
 - id: "T-059"
   title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "theme"
   tier: 1
@@ -1443,9 +1443,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-28T16:24:21Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-09-28T16:33:03Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-060"
   title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
   status: "triaged"

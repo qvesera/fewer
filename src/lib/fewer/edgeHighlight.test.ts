@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { FewerEdge, FewerNode } from "./types";
+import { edgeDashPattern } from "./types";
 import {
   applyEdgeHighlights,
   applyEdgeSelection,
@@ -245,6 +246,43 @@ describe("applyEdgeSelection", () => {
       expect(staticEdgeDashArray("dashed")).toBe("6 6");
       expect(staticEdgeDashArray("dotted")).toBe("2 6");
       expect(staticEdgeDashArray("solid")).toBeUndefined();
+    });
+  });
+
+  describe("symlink contrast edges", () => {
+    // a → link (a symlink node) is the link edge; a → b is a regular sibling.
+    const linkNode: FewerNode = {
+      ...makeNode("link", "folder"),
+      data: { label: "link", path: "/link", type: "folder", symlink: { target: "v012", insideTree: true } },
+    };
+    const lNodes = [makeNode("a"), makeNode("b"), linkNode];
+    const lEdges = [makeEdge("e-al", "a", "link"), makeEdge("e-ab", "a", "b")];
+    const linkIds = new Set(["link"]);
+
+    test("buildEdgeBase: solid view → link edge dashed with a target-end arrowhead", () => {
+      const out = byId(buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds));
+      expect(out.get("e-ab")!.style?.strokeDasharray).toBeUndefined();
+      const link = out.get("e-al")!;
+      expect(link.style?.strokeDasharray).toBe("8 4");
+      expect((link.markerEnd as { type?: string })?.type).toBe("arrowclosed");
+    });
+
+    test("buildEdgeBase: dashed and dotted views → link edge solid (contrast axis, never dotted)", () => {
+      for (const style of ["dashed", "dotted"] as const) {
+        const out = byId(buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: style }), linkIds));
+        expect(out.get("e-al")!.style?.strokeDasharray).toBeUndefined();
+        expect(out.get("e-ab")!.style?.strokeDasharray).toBe(edgeDashPattern(style));
+      }
+    });
+
+    test("applyEdgeHighlights: the contrast (and arrowhead color) survives the ancestor-path highlight", () => {
+      const base = buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds);
+      // Selecting the link node highlights its parent edge e-al.
+      const out = byId(applyEdgeHighlights(base, ["link"], [], buildTreeLookups(lNodes, lEdges), THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds));
+      const link = out.get("e-al")!;
+      expect(link.style?.strokeDasharray).toBe("8 4"); // still contrasts the solid view
+      expect((link.markerEnd as { color?: string })?.color).toBe(THEME.folderIcon); // follows the highlight stroke
+      expect(link.style?.stroke).toBe(THEME.folderIcon);
     });
   });
 });

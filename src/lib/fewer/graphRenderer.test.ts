@@ -314,3 +314,28 @@ test("label truncation is width-aware so long names never spill past the card", 
     expect(estimateTextWidth(fclean, 14, 600)).toBeLessThanOrEqual(240 - 48);
   }
 });
+test("symlink export parity: link card draws badge + link icon, edge contrasts and carries an arrowhead", () => {
+  const root = makeNode("r", "root");
+  const latest = makeNode("latest", "latest", { x: 300 });
+  latest.data.symlink = { target: "v012", resolvedPath: "/show/v012", insideTree: true, followed: false };
+  const regular = makeNode("reg", "reg", { x: 600 });
+  const scene = buildGraphSVG([root, latest, regular], [makeEdge("e-1", "r", "latest"), makeEdge("e-2", "r", "regular")], opts());
+
+  // Folder header: badge text leads the path line (canvas twin).
+  expect(scene.svg).toContain("\u21b7 v012");
+  // Link edge contrasts the solid view (dashed) and carries the filled arrowhead
+  // triangle at the target anchor; the regular sibling edge stays solid.
+  expect(scene.svg).toContain('stroke-dasharray="8 4"');
+  expect(scene.svg).toMatch(/<path d="M -?[\d.]+ -?[\d.]+ L -?[\d.]+ -?[\d.]+ L -?[\d.]+ -?[\d.]+ Z" fill="[^"]+" stroke="none"\/>/);
+  // The symlink glyph is drawn (folder-symlink path data from lucide).
+  expect(scene.svg).toContain("m8 16 3-3-3-3");
+});
+
+test("symlink export parity: broken link renders the amber warning ring + badge", () => {
+  const root = makeNode("r", "root");
+  const dangling = makeNode("dangling", "dangling", { x: 300 });
+  dangling.data.symlink = { target: "nowhere", broken: true, insideTree: true };
+  const scene = buildGraphSVG([root, dangling], [makeEdge("e-1", "r", "dangling")], opts());
+  expect(scene.svg).toContain("\u26a0 broken \u2192 nowhere");
+  expect(scene.svg).toContain('stroke="#fbbf24"');
+});

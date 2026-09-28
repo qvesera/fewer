@@ -1,6 +1,7 @@
 import {
   COLLAPSED_PILL_HEIGHT,
   NODE_ITEM_HEIGHT,
+  edgeDashPattern,
   type FewerNode,
   type FewerEdge,
   type FileCategory,
@@ -9,6 +10,7 @@ import {
 import { sortedChildRows } from "./nodeDisplay";
 import { plural } from "./plural";
 import { maxVisibleRows } from "./visibleRange";
+import { symlinkBadgeText } from "./symlinkDisplay";
 import {
   getBezierPath,
   getSmoothStepPath,
@@ -184,8 +186,10 @@ function nodeSize(n: FewerNode, o: GraphRenderOptions): { w: number; h: number }
 type IconName =
   | "folder"
   | "folder-open"
+  | "folder-symlink"
   | "chevron-right"
   | "file"
+  | "file-symlink"
   | "file-code"
   | "file-json"
   | "file-image"
@@ -199,8 +203,10 @@ type IconName =
 const ICON_PATHS: Record<IconName, string[]> = {
   folder: ["M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"],
   "folder-open": ["m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"],
+  "folder-symlink": ["M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h7", "m8 16 3-3-3-3"],
   "chevron-right": ["m9 18 6-6-6-6"],
   file: ["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", "M14 2v4a2 2 0 0 0 2 2h4"],
+  "file-symlink": ["m10 18 3-3-3-3", "M14 2v4a2 2 0 0 0 2 2h4", "M4 11V4a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h7"],
   "file-code": ["M10 12.5 8 15l2 2.5", "m14 12.5 2 2.5-2 2.5", "M14 2v4a2 2 0 0 0 2 2h4", "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"],
   "file-json": ["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", "M14 2v4a2 2 0 0 0 2 2h4", "M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1", "M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"],
   "file-image": ["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", "M14 2v4a2 2 0 0 0 2 2h4", "M10 13h2", "m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22"],
@@ -313,14 +319,36 @@ function renderEdge(
   const stroke = highlight?.stroke ?? (typeof e.style?.stroke === "string" ? e.style.stroke : o.palette.edge);
   const strokeWidth = highlight?.width
     ?? (typeof e.style?.strokeWidth === "number" ? e.style.strokeWidth : o.defaultEdgeWidth ?? 2);
-  const dash = typeof e.style?.strokeDasharray === "string" ? e.style.strokeDasharray : undefined;
+  // Symlink edges CONTRAST the current stroke: patterned siblings → solid link
+  // edges, solid siblings → dashed ones (same contrastStroke rule as the
+  // canvas), and they carry a target-end arrowhead ("points AT the link", not
+  // containment). Derived here from node metadata — nothing extra is stored.
+  const isLink = !!dst.data?.symlink;
+  const siblingDash = typeof e.style?.strokeDasharray === "string" ? e.style.strokeDasharray : undefined;
+  const dash = isLink
+    ? (siblingDash ? undefined : edgeDashPattern("dashed"))
+    : siblingDash;
 
   const attrs = [`d="${path}"`, `stroke="${escapeXml(stroke)}"`, `stroke-width="${strokeWidth}"`, "fill=\"none\""];
   if (dash) {
     attrs.push(`stroke-dasharray="${dash}"`);
     if (o.dashOffset !== undefined) attrs.push(`stroke-dashoffset="${o.dashOffset}"`);
   }
-  return `<path ${attrs.join(" ")}/>`;
+  // Arrowhead: a filled triangle at the target anchor pointing INTO the link
+  // card, matching the canvas markerEnd orientation. Geometry-agnostic — the
+  // entry direction comes from the same handle position the path anchored at.
+  let arrow = "";
+  if (isLink) {
+    const t = 8; // triangle length; half-width 4 — legible at export scale
+    switch (target) {
+      case Position.Top:    arrow = `M ${txa - 4} ${tya - t} L ${txa + 4} ${tya - t} L ${txa} ${tya} Z`; break;
+      case Position.Bottom: arrow = `M ${txa - 4} ${tya + t} L ${txa + 4} ${tya + t} L ${txa} ${tya} Z`; break;
+      case Position.Left:   arrow = `M ${txa - t} ${tya - 4} L ${txa - t} ${tya + 4} L ${txa} ${tya} Z`; break;
+      case Position.Right:  arrow = `M ${txa + t} ${tya - 4} L ${txa + t} ${tya + 4} L ${txa} ${tya} Z`; break;
+    }
+    if (arrow) arrow = `<path d="${arrow}" fill="${escapeXml(stroke)}" stroke="none"/>`;
+  }
+  return `<path ${attrs.join(" ")}/>${arrow}`;
 }
 
 /* ------------------------------- nodes ------------------------------------ */
@@ -334,6 +362,11 @@ function childMetric(child: FewerNode, edges: FewerEdge[]): string {
 
 function childRowIcon(child: FewerNode, p: RenderPalette): { icon: IconName; color: string } {
   const isFolder = child.data.type === "folder";
+  // Link children swap their glyph — the row-level link signal (canvas twin
+  // passes data.symlink to NodeIcon).
+  if (child.data.symlink) {
+    return { icon: isFolder ? "folder-symlink" : "file-symlink", color: isFolder ? p.folderIcon : p.fileIcon };
+  }
   return {
     icon: isFolder ? (child.data.isRoot ? "folder-open" : "folder") : CATEGORY_ICON[child.data.category ?? "text"],
     color: isFolder ? p.folderIcon : p.fileIcon,
@@ -359,7 +392,12 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
   const { icon, color: iconColor } = childRowIcon(child, p);
   const labelColor = isFolder && !selected ? p.folderText : p.text;
   const label = truncateToWidth(child.data.label, w - 96, 12, 400);
-  const metric = childMetric(child, edges);
+  // Link children carry their target in the right-aligned metric slot (canvas
+  // twin: SymlinkBadge inline next to the label); broken links warn in amber.
+  const metric = child.data.symlink
+    ? symlinkBadgeText(child.data.symlink)
+    : childMetric(child, edges);
+  const metricColor = child.data.symlink?.broken ? "#fbbf24" : subtleColor;
   const chevronX = w - 18;
   // A hidden child is still listed (the canvas lists every child) but faded, the
   // same way CustomNode desaturates hidden entries.
@@ -367,7 +405,7 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
   return `<g${dim}>
       <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
       <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
-      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(metric)}</text>
+      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(metricColor)}">${escapeXml(metric)}</text>
       <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
     </g>`;
 }
@@ -549,9 +587,12 @@ function renderCollapsedFolderCard(
     ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
-    <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
+    ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FILE_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
+    <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.symlink ? "folder-symlink" : n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
     <text x="${x + 60}" y="${y + 16}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 96, 14, 600))}</text>
-    <text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(plural(childCount, "item"))}</text>
+    ${n.data.symlink
+      ? `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(n.data.symlink.broken ? "#fbbf24" : subtleColor)}">${escapeXml(truncateToWidth(symlinkBadgeText(n.data.symlink), w - 96, 10, 400))}</text>`
+      : `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(plural(childCount, "item"))}</text>`}
     ${renderTagDots(n, o, x + w - 34 - Math.min(n.data.tagIds?.length ?? 0, TAG_RING_CAP) * 14, y + h / 2)}
     <g transform="translate(${x + w - 30}, ${y + 11})">${iconSvg("chevron-right", 16, subtleColor)}</g>
   </g>`;
@@ -582,7 +623,11 @@ function renderFolderCard(
   const rowBase = listTop + 6;
   const textColor = selected ? p.text : p.folderText;
   const subtleColor = selected ? p.subtle : p.folderSubtle;
-  const rootIcon = n.data.isRoot ? "folder-open" : "folder";
+  const rootIcon = n.data.symlink ? "folder-symlink" : n.data.isRoot ? "folder-open" : "folder";
+  // Canvas twin: SymlinkBadge inline before the path line (amber when broken).
+  const badge = n.data.symlink ? symlinkBadgeText(n.data.symlink) : null;
+  const badgeColor = n.data.symlink?.broken ? "#fbbf24" : subtleColor;
+  const pathText = badge ? `${badge} · ${n.data.path}` : n.data.path;
 
   const listRowsHtml = rows
     .slice(0, visibleRows)
@@ -607,9 +652,10 @@ function renderFolderCard(
     ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FOLDER_RADIUS}" fill="${p.folderBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#filter-folder-shadow)"/>
+    ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FOLDER_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
     <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48 - dotsW, 14, 600))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(subtleColor)}">${escapeXml(truncateToWidth(n.data.path, w - 48 - dotsW, 10, 400))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(badgeColor)}">${escapeXml(truncateToWidth(pathText, w - 48 - dotsW, 10, 400))}</text>
     ${renderTagDots(n, o, dotsX, y + 26)}
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
@@ -626,11 +672,16 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const h = size.h;
   const selected = o.selectedIds?.has(n.id) ?? false;
   const filterId = "filter-file-shadow";
-  const icon = CATEGORY_ICON[n.data.category ?? "text"];
+  const icon = n.data.symlink ? "file-symlink" : CATEGORY_ICON[n.data.category ?? "text"];
   const textColor = selected ? p.text : p.fileText;
   const subtleColor = selected ? p.subtle : p.fileSubtle;
   const { stroke, width: strokeWidth } = cardStroke(n, p.fileBorder);
-  const meta = [n.data.extension ? `.${n.data.extension}` : "file", ...(n.data.size ? [formatSize(n.data.size)] : [])].join(" · ");
+  // Canvas twin: SymlinkBadge leads the meta line for links (amber when broken).
+  const meta = [
+    ...(n.data.symlink ? [symlinkBadgeText(n.data.symlink)] : []),
+    n.data.extension ? `.${n.data.extension}` : "file",
+    ...(n.data.size ? [formatSize(n.data.size)] : []),
+  ].join(" · ");
 
   // Mirror the canvas file card layout: no horizontal padding (icon box sits
   // flush against the border), gap-3, and the two text lines vertically
@@ -659,9 +710,10 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
     ${selRing}
     ${ring}
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${FILE_RADIUS}" fill="${p.fileBg}" stroke="${escapeXml(stroke)}" stroke-width="${strokeWidth}" filter="url(#${filterId})"/>
+    ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FILE_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
     <text x="${textX}" y="${labelBaseline}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
-    <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(meta)}</text>
+    <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(n.data.symlink?.broken ? "#fbbf24" : subtleColor)}"${n.data.symlink ? "" : ' style="text-transform:uppercase;letter-spacing:0.5px"'}>${escapeXml(meta)}</text>
     ${renderTagDots(n, o, x + w - 8 - dotsW, y + h / 2)}
   </g>`;
 }
