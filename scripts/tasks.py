@@ -36,6 +36,7 @@ PROJECT_OWNER = "qvesera"
 # --project <n>` overrides it per call.
 # PROJECT_NUMBER: set once the board is known (board `#1 · fewer - file viz`,
 # owner qvesera) — `pr-metadata --project <n>` still overrides per call.
+PROJECT_NUMBER_DEFAULT = 1
 PROJECT_NUMBER: int | None = 1
 
 # ── vocabulary ──────────────────────────────────────────────────────────
@@ -1317,6 +1318,173 @@ def _apply_project(number: int, info: dict[str, Any], status: str, estimate: int
                 print("project: Size sync failed")
         else:
             print(f"project: Size option {want_size!r} not on this board")
+
+
+BODY_BEGIN = "<!-- task-details:begin -->"
+BODY_END = "<!-- task-details:end -->"
+
+
+def details_block(row: dict[str, Any], milestone: str | None = None) -> str:
+    """The row's task details as a markdown block for its issue body.
+
+    The issue is the shared surface: a bare label set (`category:*`, `size:*`,
+    `status:*`) says what kind of row it is but not what the row *is* — the
+    estimate, the tier, the blockers, and the triage notes that explain why the
+    work exists. Those live only in the ledger, so they are mirrored here.
+    """
+    rid = row.get("id", "?")
+    board = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
+    estimate = int(row.get("estimate_min") or 0)
+    head = f"**`{rid}`** · {board} ({row.get('status')})"
+    if estimate:
+        head += f" · {estimate}m · size {size_option_name(estimate)}"
+    lines = [BODY_BEGIN, head, "", f"- **Type / area**: `{row.get('type')}` · `{row.get('area')}`"]
+    if row.get("tier") is not None:
+        lines.append(f"- **Tier**: {row.get('tier')}")
+    if milestone:
+        lines.append(f"- **Milestone**: {milestone}")
+    blocked = row.get("blocked_by") or []
+    lines.append(f"- **Blocked by**: {', '.join(f'`{b}`' for b in blocked) if blocked else '—'}")
+    if row.get("parent"):
+        lines.append(f"- **Parent**: `{row['parent']}`")
+    if row.get("pr"):
+        lines.append(f"- **PR**: #{row['pr']}")
+    notes = row.get("notes") or []
+    if notes:
+        lines += ["", "**Triage notes**", ""]
+        lines += [f"- {n.split(' · ', 1)[-1] if ' · ' in n else n}" for n in notes]
+    lines.append(BODY_END)
+    return "\n".join(lines)
+
+
+def body_with_details(body: str, block: str) -> str:
+    """Splice `block` into `body`, idempotently, preserving any human prose.
+
+    Between the markers on a re-run; otherwise inserted after the `task:T-###`
+    marker line if present, else at the top. Text outside the markers is never
+    touched, so a description someone typed on the issue survives every sync.
+    """
+    if BODY_BEGIN in body and BODY_END in body:
+        head, _, rest = body.partition(BODY_BEGIN)
+        _, _, tail = rest.partition(BODY_END)
+        return f"{head}{block}{tail}"
+    marker = next((ln for ln in body.splitlines() if ln.strip().startswith("<!-- task:")), None)
+    if marker:
+        head, _, tail = body.partition(marker)
+        return f"{head}{marker}\n\n{block}\n\n{tail.lstrip()}"
+    return f"{block}\n\n{body}".rstrip() + "\n"
+
+
+def cmd_sync_details(args: argparse.Namespace) -> int:
+    """Ledger → GitHub, the *details* (not just labels).
+
+    Two mirrors per row: the issue body gets the row's details and triage notes,
+    and the project item gets Status/Size/Estimate. Both carry facts the labels
+    cannot, which is why a board of labelled-but-empty items says nothing about
+    the work. Priority/Iteration/dates are left alone: the ledger has no such
+    concepts, and inventing them would put data on the board that no row owns.
+    """
+    ledger = load()
+    rows = [r for r in ledger["tasks"] if r.get("issue")]
+    if args.issue:
+        rows = [r for r in rows if str(r["issue"]) == str(args.issue).lstrip("#")]
+    if not rows:
+        print("sync-details: no rows with an issue")
+        return 0
+    if not have_gh():
+        _die("sync-details needs an authenticated gh")
+
+    try:
+        proj = json.loads(gh("project", "view", str(args.project), "--owner", PROJECT_OWNER,
+                             "--format", "json", check=False))
+        fields = json.loads(gh("project", "field-list", str(args.project), "--owner", PROJECT_OWNER,
+                                "--format", "json", check=False))
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        proj, fields = {}, {}
+    project_id = proj.get("id")
+    by_name = {(f.get("name") or "").lower(): f for f in fields.get("fields", [])}
+    status_field = by_name.get("status")
+    size_field = by_name.get("size")
+    estimate_field = by_name.get("estimate")
+
+    # item-list once, then map issue number -> item id. Issues may already be on
+    # the board (its Auto-add workflow can catch them), and a second copy of the
+    # same issue is not harmless.
+    items: dict[int, str] = {}
+    try:
+        listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
+                               "--limit", "200", "--format", "json", check=False))
+        for item in listed.get("items", []):
+            number = (item.get("content") or {}).get("number")
+            if number and item.get("id"):
+                items[int(number)] = item["id"]
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        pass
+
+    bodies = field_writes = added = 0
+    for row in rows:
+        rid, number = row["id"], int(row["issue"])
+        if not args.no_body:
+            try:
+                current = gh("issue", "view", str(number), "--json", "body", "--jq", ".body",
+                             check=False)
+            except (SystemExit, FileNotFoundError):
+                current = ""
+            updated = body_with_details(current or "", details_block(row, _issue_milestone(number)))
+            if updated != (current or ""):
+                if args.dry_run:
+                    print(f"  {rid} #{number}: body would change")
+                else:
+                    gh("issue", "edit", str(number), "--body", updated, check=False)
+                    bodies += 1
+        if args.dry_run:
+            continue
+        item_id = items.get(number)
+        if not item_id:
+            code, out = _gh_project(["project", "item-add", str(args.project), "--owner",
+                                     PROJECT_OWNER, "--url",
+                                     f"https://github.com/{REPO_SLUG}/issues/{number}",
+                                     "--format", "json"])
+            if code != 0 and "unknown owner type" in str(out).lower():
+                code, out = _gh_project(["project", "item-add", str(args.project), "--owner", "@me",
+                                         "--url",
+                                         f"https://github.com/{REPO_SLUG}/issues/{number}",
+                                         "--format", "json"])
+            try:
+                item_id = json.loads(out).get("id")
+            except json.JSONDecodeError:
+                item_id = None
+            if not item_id:
+                print(f"  {rid} #{number}: project item-add failed — {out}")
+                continue
+            items[number] = item_id
+            added += 1
+        if not project_id:
+            continue
+        want_status = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
+        want_size = size_option_name(int(row.get("estimate_min") or 0))
+        for field, wanted, match in (
+            (status_field, want_status, lambda a, b: a.lower() == b.lower()),
+            (size_field, want_size, lambda a, b: a.upper() == b.upper()),
+        ):
+            if not field:
+                continue
+            option = next((o for o in field.get("options", [])
+                           if match(o.get("name") or "", wanted)), None)
+            if not option:
+                continue
+            gh("project", "item-edit", "--id", item_id, "--field-id", field["id"],
+               "--project-id", project_id, "--single-select-option-id", option["id"],
+               check=False)
+            field_writes += 1
+        if estimate_field and row.get("estimate_min"):
+            gh("project", "item-edit", "--id", item_id, "--field-id", estimate_field["id"],
+               "--project-id", project_id, "--number", str(row["estimate_min"]), check=False)
+            field_writes += 1
+    verb = "would sync" if args.dry_run else "synced"
+    print(f"sync-details: {verb} {len(rows)} row(s) · {bodies} body update(s) · "
+          f"{added} item(s) added · {field_writes} project field write(s)")
+    return 0
 
 
 def next_milestone() -> str | None:
@@ -2963,6 +3131,37 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("ready: --all reports the reason",
           unready_rows(led_scan, ("triaged", "backlog"), False)[0][1][0].startswith("status is"))
 
+    # The sync-details mirrors: the issue body must carry the row's facts and its
+    # triage notes, and the splice must be idempotent and prose-preserving —
+    # otherwise a re-run would eat whatever a human wrote on the issue.
+    detail_row = new_row(title="sort inert", rtype="fix", area="layout", issue=501,
+                         status="triaged", estimate_min=120, source="cli")
+    detail_row["id"] = "T-200"
+    detail_row["tier"] = 1
+    detail_row["blocked_by"] = ["T-101"]
+    detail_row["notes"] = ["2026-09-26T00:00:00Z · per-view positions outrank the engine"]
+    block = details_block(detail_row, "v0.7.3")
+    check("details: block carries the id, estimate and size band",
+          "T-200" in block and "120m" in block and "size S" in block)
+    check("details: block carries type/area, tier, milestone, blockers",
+          all(s in block for s in ("fix", "layout", "Tier", "v0.7.3", "T-101")))
+    check("details: block carries the triage note",
+          "per-view positions outrank the engine" in block)
+    check("details: block is wrapped in the markers",
+          block.startswith(BODY_BEGIN) and block.rstrip().endswith(BODY_END))
+    prose = "<!-- task:T-200 -->\n\nA human wrote this paragraph.\n"
+    once = body_with_details(prose, block)
+    twice = body_with_details(once, block)
+    check("details: splice is idempotent", once == twice)
+    check("details: splice preserves prose outside the markers",
+          "A human wrote this paragraph." in once)
+    check("details: splice lands after the task marker",
+          once.index("<!-- task:T-200 -->") < once.index(BODY_BEGIN))
+    check("details: re-splice replaces the old block, not appends",
+          once.count(BODY_BEGIN) == 1 and twice.count(BODY_END) == 1)
+    check("details: a body with no marker still gets the block",
+          BODY_BEGIN in body_with_details("just prose\n", block))
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -3072,6 +3271,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("ref")
     sp.add_argument("--no-start", dest="start", action="store_false")
     sp.add_argument("--parent", help="T-id to set as parent while attaching")
+
+    sp = add("sync-details", cmd_sync_details,
+             "mirror the ledger's task details onto GitHub: issue body + project Status/Size/Estimate")
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--issue", help="only this issue number")
+    sp.add_argument("--project", type=int, default=PROJECT_NUMBER_DEFAULT)
+    sp.add_argument("--no-body", action="store_true", help="project fields only")
 
     sp = add("pr-metadata", cmd_pr_metadata,
              "labels + milestone + assignee + project item for a PR, from its task rows")

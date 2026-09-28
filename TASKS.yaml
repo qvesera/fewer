@@ -1203,3 +1203,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 105, deletions: 34}
   spent_min: 6
   session_count: 1
+- id: "T-048"
+  title: "Mirror the ledger's task details onto GitHub: project board Status/Size/Estimate for issues, and the row's details + triage notes in the issue body (labels alone are not tracking)"
+  status: "in-progress"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 232
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T08:09:50Z"
+  notes: ["2026-09-28T08:09:50Z · board #1 has 57 items and every issue item has Status/Size/Estimate empty; issue bodies are a one-line stub, so the ledger's notes never reach GitHub"]
+  sessions:
+  - start: "2026-09-28T08:11:02Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

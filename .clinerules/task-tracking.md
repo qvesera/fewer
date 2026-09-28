@@ -92,6 +92,12 @@ the `DECISION` line and why (candidate, score, state) before continuing.
   without proof.
 - `python3 scripts/tasks.py doctor` must report no drift (ledger ↔ issues, both
   directions), and `bun run task:validate` must pass before every push.
+- **Labels are not the record** — they say what *kind* of row it is, not what
+  the row is. `python3 scripts/tasks.py sync-details` mirrors the row's details
+  (estimate, tier, blockers, triage notes) into the issue body between
+  `<!-- task-details:begin/end -->`, and fills the board item's Status/Size/
+  Estimate. Hand-written prose outside the markers is never touched. Run it
+  after triage and after any status change that should show on the board.
 
 ## Before a PR
 
@@ -141,6 +147,6 @@ blocked_by = dependency; both are kept acyclic by `validate`.
 
 `status · find · add · triage · ready · start · stop · attach-pr ·
 record-session · set-status · note · track · attach · intake · import-todo ·
-gh-sync · reconcile · doctor · report · validate · validate-commits · fmt ·
+gh-sync · sync-details · reconcile · doctor · report · validate · validate-commits · fmt ·
 install-hooks · selftest`
 — `python3 scripts/tasks.py <verb> -h` for flags.

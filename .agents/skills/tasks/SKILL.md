@@ -22,7 +22,17 @@ is owned by `scripts/tasks.py` — never edit it by hand.
    `doctor` proves 1:1 coverage against GitHub.
 4. **Dedupe before creating.** `track` scores the ledger + all GitHub issues;
    ambiguity means asking, never a guess. `--dry-run` shows the decision first.
-5. **Structural integrity over prose.** `validate` (and CI) enforce canonical
+5. **Labels are not the record.** They say *what kind* of row it is; the
+   estimate, tier, blockers and triage notes live in the ledger. `sync-details`
+   mirrors both onto GitHub: a details block into the issue body (idempotent,
+   between `<!-- task-details:begin/end -->`, so hand-written prose survives)
+   and the board item's Status/Size/Estimate. Run it after triage and after a
+   status change that should be visible on the board. Two mappings worth
+   knowing: `blocked` renders as **Backlog** (the board has no Blocked option and
+   `gh` has no command to add one), and `item-list --format json` returns the
+   custom fields **lowercase** (`status`/`size`/`estimate`) while `field-list`
+   uses the canonical names — a mismatch that reads as "the write did nothing".
+6. **Structural integrity over prose.** `validate` (and CI) enforce canonical
    form, status legality, session arithmetic, blockers and WIP.
 
 ## Status machine
@@ -83,6 +93,7 @@ merges are authoritative for `done` (`reconcile`).
 | Bulk-import TO-DO.md (all `triaged`) | `python3 scripts/tasks.py import-todo [--dry-run]` |
 | Attach a PR to a row (opens it later / verify-only session) | `python3 scripts/tasks.py attach-pr <T-###> <PR#>` |
 | Ledger → GitHub (create missing issues, mirror labels) | `python3 scripts/tasks.py gh-sync [--dry-run] [--status-only]` |
+| Ledger → GitHub (issue **body** + project Status/Size/Estimate) | `python3 scripts/tasks.py sync-details [--dry-run] [--issue N] [--no-body]` |
 | GitHub state → status | `python3 scripts/tasks.py reconcile [--apply]` |
 | Ledger ↔ GitHub drift proof | `python3 scripts/tasks.py doctor [--json]` |
 | Time / estimate rollup | `python3 scripts/tasks.py report [--since 2026-09-01] [--json]` |
