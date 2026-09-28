@@ -59,6 +59,14 @@ it, `validate` fails on it. A row is startable when it is:
 `backlog` when a missing milestone is its *only* problem — triage picks the
 train — and reports (never moves) any row with other gaps.
 
+`ready` scans the **triaged** set by default: the triaged queue is the
+"startable now" set, and a `backlog` row is ungroomed *by design*, so reporting
+it would be noise. `ready --all` widens the scan. The queue is kept honest by
+triage: a row is triaged while its train is current or next, and moves to
+`backlog` when its train is further out (a later release, or Tier-2 studio work
+that waits on the licensing decision). Milestones stay on the issues either way,
+so the ordering is still visible on the board.
+
 `status:*` labels mirror state on GitHub (`gh-sync`); GitHub open/closed and PR
 merges are authoritative for `done` (`reconcile`).
 
