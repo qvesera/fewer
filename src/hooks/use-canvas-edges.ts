@@ -44,6 +44,10 @@ export interface CanvasEdgesDeps {
   allNodes: FewerNode[];
   themeColors: EdgeThemeColors;
   vs: ResolvedViewSettings;
+  /** Content-stable effective hidden ids (see useStableHiddenIds) — the
+   *  highlight effect rebuilds every edge, so it must not key on a per-frame
+   *  array identity. */
+  hiddenIds: string[];
   animation: EdgeAnimationOptions;
   leafId?: string | null;
   isActive: boolean;
@@ -57,7 +61,7 @@ export interface CanvasEdgesDeps {
  * `selectedEdgeIdsRef` is owned here and shared with `useCanvasSelection`
  * (which writes it from RF's authoritative edge-snapshot on selection change).
  */
-export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
+export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, hiddenIds, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
   // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
   const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
 
@@ -80,10 +84,10 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNod
     const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
     setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
       // Filter by the view's EFFECTIVE hidden set (layers + global), not just global.
-      const hidden = new Set(vs.hiddenIds);
+      const hidden = new Set(hiddenIds);
       return !hidden.has(e.source) && !hidden.has(e.target);
     }));
-  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, vs.hiddenIds, leafId, isActive]);
+  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, hiddenIds, leafId, isActive]);
 
   const dashArray = useMemo(() => staticEdgeDashArray(vs.edgeStrokeStyle), [vs.edgeStrokeStyle]);
 

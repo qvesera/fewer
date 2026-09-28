@@ -136,6 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Connecting two cards no longer rescans the whole edge list at every node it walks: isAncestor re-filtered all edges per visited node (O(nodes x edges) per connect attempt) and now indexes the parents once. It also still considers every parent of a node, so the cycle check stays as strict as before on an imported multi-parent graph.
 - Crawling a public file index no longer stalls behind its slowest page: the crawler fetched listings in fixed batches of four and waited for the whole batch before claiming the next, so one slow index page (up to the 8s timeout) idled the other three slots every round. The crawler is now a rolling pool — a worker takes the next queued page the moment it finishes its current one — keeping four requests in flight continuously. Same page budget, depth cap and result; speeds up /api/crawl and the nightly watch-digest crawl alike.
+- Hiding a folder's children no longer slows the canvas down as the hidden set grows: subtree walks (getDescendants, the reveal walk) and the per-card child lists now read an identity-cached parent→children index instead of re-scanning the whole edge list per node. Hiding a large folder dropped from ~1.7s to ~8ms on an 18k-edge graph, and revealing a wide hidden subtree from ~65ms to under 1ms
+- A view's effective hidden-card list now keeps its identity while its contents are unchanged, so dragging a card in a view with hidden children no longer re-filters the whole graph, rebuilds every edge highlight and re-runs every visible card's child list on each frame (measured ~50ms per frame for 30 cards on a 30k-node graph)
 
 ## [0.7.1] - 2026-09-12
 

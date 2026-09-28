@@ -8,11 +8,14 @@ import { useMemo } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { resolveViewSettings, type ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { getPrimary, type PanelNode } from "@/lib/fewer/panelTree";
+import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
 export interface ActiveLeafResult {
   leafId: string;
   resolved: ResolvedViewSettings;
 }
+
+const NO_IDS: string[] = [];
 
 export function useActiveLeaf(): ActiveLeafResult | null {
   const activeLeafId = useGraphStore((s) => s.activeLeafId);
@@ -28,13 +31,17 @@ export function useActiveLeaf(): ActiveLeafResult | null {
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const nodes = useGraphStore((s) => s.nodes);
 
-  return useMemo(() => {
-    const primary = getPrimary(panelTree);
-    const id = activeLeafId ?? primary?.area.id;
-    if (!id) return null;
+  // Its own memo: this id list feeds the hide-layer union, and a fresh array
+  // here would defeat the hidden-set identity the consumers rely on.
+  const fileIds = useMemo(
+    () => nodes.filter((n) => n.data.type === "file").map((n) => n.id),
+    [nodes],
+  );
+  const leafId = activeLeafId ?? getPrimary(panelTree)?.area.id ?? null;
 
-    const fileIds = nodes.filter((n) => n.data.type === "file").map((n) => n.id);
-    const resolved = resolveViewSettings(viewSettingsMap, id, {
+  const resolved = useMemo(() => {
+    if (!leafId) return null;
+    return resolveViewSettings(viewSettingsMap, leafId, {
       showFiles: showFilesGlobal,
       minimapHidden: false,
       edgeStyle: edgeStyleGlobal,
@@ -46,12 +53,21 @@ export function useActiveLeaf(): ActiveLeafResult | null {
       hiddenIds,
       collapsedFolderIds: [],
     }, hiddenIds, fileIds);
-
-    return { leafId: id, resolved };
   }, [
-    activeLeafId, panelTree, viewSettingsMap,
+    leafId, viewSettingsMap,
     showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal,
     edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal,
-    directionGlobal, hiddenIds, nodes,
+    directionGlobal, hiddenIds, fileIds,
   ]);
+
+  // Content-stable, so consumers (the Hidden Cards panel) don't rebuild their
+  // whole hidden tree when an unrelated store write — a drag's per-frame view
+  // positions — replaces the resolved object.
+  const stableHiddenIds = useStableHiddenIds(resolved?.hiddenIds ?? NO_IDS);
+
+  return useMemo(() => {
+    if (!leafId || !resolved) return null;
+    if (stableHiddenIds === resolved.hiddenIds) return { leafId, resolved };
+    return { leafId, resolved: { ...resolved, hiddenIds: stableHiddenIds } };
+  }, [leafId, resolved, stableHiddenIds]);
 }

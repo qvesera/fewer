@@ -1,13 +1,17 @@
 "use client";
 // Reveal + auto-hide helpers, verbatim from graphSlice.ts. No behavior change.
 import type { FewerNode, FewerEdge } from "@/lib/fewer/types";
+import { childrenIndexOf } from "@/lib/fewer/graphIndex";
 import { computeLargeFolderHiddenIds } from "@/lib/fewer/importMerge";
 
 /**
  * The single reveal walk behind both show-subtree actions: seed `roots` into
- * the reveal set, then breadth-first over `edges` revealing hidden descendants —
- * never walking past a visible card, and stopping at cards the user hid
- * directly (independentlyHiddenIds) together with their whole subtree.
+ * the reveal set, then breadth-first over the children index revealing hidden
+ * descendants — never walking past a visible card, and stopping at cards the
+ * user hid directly (independentlyHiddenIds) together with their whole subtree.
+ *
+ * ponytail: the index replaces a per-dequeue scan of the whole edge list, so
+ * this is O(edges + nodes) instead of O(revealed × edges).
  */
 export function walkSubtreeReveal(
   edges: FewerEdge[],
@@ -16,20 +20,20 @@ export function walkSubtreeReveal(
   roots: Iterable<string>,
 ): Set<string> {
   const toShow = new Set<string>();
+  const children = childrenIndexOf(edges);
   const queue: string[] = [];
   for (const id of roots) {
     if (toShow.has(id)) continue;
     toShow.add(id);
     queue.push(id);
   }
-  while (queue.length) {
-    const nid = queue.shift()!;
-    for (const e of edges) {
-      if (e.source !== nid || !hiddenSet.has(e.target)) continue;
-      if (indieSet.has(e.target)) continue;
-      if (!toShow.has(e.target)) {
-        toShow.add(e.target);
-        queue.push(e.target);
+  for (let i = 0; i < queue.length; i++) {
+    for (const target of children.get(queue[i]) ?? []) {
+      if (!hiddenSet.has(target)) continue;
+      if (indieSet.has(target)) continue;
+      if (!toShow.has(target)) {
+        toShow.add(target);
+        queue.push(target);
       }
     }
   }

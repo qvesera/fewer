@@ -70,6 +70,7 @@ import { useCanvasInteractionHandlers } from "@/hooks/use-canvas-interaction-han
 import { useCanvasDragRecording } from "@/hooks/use-canvas-drag-recording";
 import { useCanvasCollapsedInternals } from "@/hooks/use-canvas-collapsed-internals";
 import { useCanvasHiddenChip } from "@/hooks/use-canvas-hidden-chip";
+import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
@@ -145,7 +146,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   // Effective hiddenIds come from resolveViewSettings (which already computed
   // layers + bulk files from allFileIds). No showFiles special-case needed.
-  const effectiveHiddenIds = vs.hiddenIds;
+  // Content-stable: a drag writes view settings every frame, and a fresh array
+  // identity here would re-filter the node set and re-run every card's
+  // child-list memo on each of those frames.
+  const effectiveHiddenIds = useStableHiddenIds(vs.hiddenIds);
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
@@ -206,7 +210,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive,
+    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
   const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
