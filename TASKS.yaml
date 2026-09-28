@@ -1234,14 +1234,14 @@ tasks:
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "triaged"
+  status: "review"
   type: "perf"
   area: "performance"
   tier: 0
   estimate_min: 180
   estimate_basis: "cli"
   issue: 239
-  pr: null
+  pr: 240
   internal: false
   milestone: null
   blocked_by: []
