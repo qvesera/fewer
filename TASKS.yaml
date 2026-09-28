@@ -1600,14 +1600,14 @@ tasks:
   session_count: 1
 - id: "T-065"
   title: "Import dialog too narrow — Symlinks option row clips"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ux"
   tier: 0
   estimate_min: 30
   estimate_basis: "cli"
   issue: 253
-  pr: null
+  pr: 254
   internal: false
   milestone: null
   blocked_by: []
