@@ -26,10 +26,17 @@ const runCloudImport = mock<
     options: ImportOptions,
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Imported from cloud" }));
+const runArchiveImport = mock<
+  (
+    source: Extract<OriginSource, { origin: "archive" }>,
+    options: ImportOptions,
+  ) => Promise<ImportActionResult>
+>(async () => ({ ok: true, title: "Graph built from archive" }));
 
 mock.module("@/lib/fewer/importActionFolder", () => ({ runFolderImport }));
 mock.module("@/lib/fewer/importActionFile", () => ({ runFileImport }));
 mock.module("@/lib/fewer/importActionCloud", () => ({ runCloudImport }));
+mock.module("@/lib/fewer/importActionArchive", () => ({ runArchiveImport }));
 
 const { runImport } = await import("./importAction");
 
@@ -108,6 +115,16 @@ describe("runImport dispatch", () => {
     const o = opts();
     await runImport(source, o, ctx());
     expect(runFileImport).toHaveBeenCalledWith(source, o);
+    expect(runFolderImport).not.toHaveBeenCalled();
+  });
+
+  test("archive → runArchiveImport with the source and options", async () => {
+    const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], "backup.zip");
+    const source = { origin: "archive", file, name: "backup.zip" } as const;
+    const o = opts();
+    await runImport(source, o, ctx());
+    expect(runArchiveImport).toHaveBeenCalledWith(source, o);
+    expect(runFileImport).not.toHaveBeenCalled();
     expect(runFolderImport).not.toHaveBeenCalled();
   });
 

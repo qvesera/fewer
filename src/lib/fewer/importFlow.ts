@@ -5,9 +5,10 @@
  * only the import action changes per origin.
  */
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
+import { formatBytes } from "@/lib/fewer/stats";
 import { useGraphStore } from "@/store/graphStore";
 
-export type ImportOrigin = "folder" | "file" | "url" | "cloud";
+export type ImportOrigin = "folder" | "file" | "archive" | "url" | "cloud";
 
 export type FileImportFormat = "json" | "tree" | "script";
 
@@ -15,6 +16,7 @@ export type FileImportFormat = "json" | "tree" | "script";
 export type OriginSource =
   | { origin: "folder" }
   | { origin: "file"; content: string; format: FileImportFormat }
+  | { origin: "archive"; file: File | null; name: string }
   | { origin: "url"; url: string; watch: boolean }
   | {
       origin: "cloud";
@@ -42,6 +44,7 @@ export const ORIGIN_META: Record<
 > = {
   folder: { label: "Folder", blurb: "Scan a directory on this device" },
   file: { label: "File", blurb: "ASCII tree, JSON graph, or shell script" },
+  archive: { label: "Archive", blurb: "Zip or tar of a folder tree" },
   url: { label: "URL", blurb: "GitHub repo or public file index" },
   cloud: { label: "Cloud", blurb: "Linked cloud account (read-only)" },
 };
@@ -52,6 +55,8 @@ export function defaultSourceFor(origin: ImportOrigin): OriginSource {
       return { origin: "folder" };
     case "file":
       return { origin: "file", content: "", format: "tree" };
+    case "archive":
+      return { origin: "archive", file: null, name: "" };
     case "url":
       return { origin: "url", url: "", watch: false };
     case "cloud":
@@ -66,6 +71,8 @@ export function isSourceReady(source: OriginSource): boolean {
       return true;
     case "file":
       return source.content.trim().length > 0;
+    case "archive":
+      return source.file !== null;
     case "url":
       return isValidHttpUrl(source.url);
     case "cloud":
@@ -117,6 +124,10 @@ export function sourceLabel(source: OriginSource): string {
       const n = source.content.trim().split("\n").length;
       return `${source.format.toUpperCase()} payload, ${n} line${n === 1 ? "" : "s"}`;
     }
+    case "archive":
+      return source.file
+        ? `${source.name} (${formatBytes(source.file.size)})`
+        : "No archive selected";
     case "url":
       return source.url.trim();
     case "cloud":

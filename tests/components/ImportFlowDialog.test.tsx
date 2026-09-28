@@ -16,15 +16,18 @@ mock.module("@/hooks/use-watch", () => ({ useWatch: () => ({ add: watchAdd }) })
 const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
 const runFileImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from file", description: "root: 1 entries" }));
 const runCloudImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Imported from cloud", description: "cloud: 1 entries" }));
+const runArchiveImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from archive", description: "backup.zip: 1 entries" }));
 mock.module("@/lib/fewer/importActionFolder", () => ({ runFolderImport }));
 mock.module("@/lib/fewer/importActionFile", () => ({ runFileImport }));
 mock.module("@/lib/fewer/importActionCloud", () => ({ runCloudImport }));
+mock.module("@/lib/fewer/importActionArchive", () => ({ runArchiveImport }));
 
 const { ImportFlowDialog } = await import("@/components/fewer/ImportFlowDialog");
 const { useGraphStore } = await import("@/store/graphStore");
+const { formatBytes } = await import("@/lib/fewer/stats");
 const initial = useGraphStore.getInitialState();
 
-function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "url" | "cloud" }) {
+function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "archive" | "url" | "cloud" }) {
   const onOpenChange = mock(() => {});
   render(
     <ImportFlowDialog open={props?.open ?? true} onOpenChange={onOpenChange} initialOrigin={props?.initialOrigin ?? "folder"} />,
@@ -49,19 +52,21 @@ afterEach(() => {
   useGraphStore.setState(initial, true);
 });
 describe("ImportFlowDialog 3-step flow", () => {
-  test("signed-out grid shows Folder and File only", () => {
+  test("signed-out grid shows the local-only origins", () => {
     renderDialog();
     expect(screen.getByRole("radio", { name: /^folder/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^file/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /^archive/i })).toBeTruthy();
     expect(screen.queryByRole("radio", { name: /^url/i })).toBeNull();
     expect(screen.queryByRole("radio", { name: /^cloud/i })).toBeNull();
   });
 
-  test("signed-in grid shows all four origins", () => {
+  test("signed-in grid shows all five origins", () => {
     useGraphStore.setState({ tier: "free" });
     renderDialog();
     expect(screen.getByRole("radio", { name: /^folder/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^file/i })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /^archive/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^url/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^cloud/i })).toBeTruthy();
   });
@@ -159,6 +164,59 @@ describe("ImportFlowDialog state and step-3 import", () => {
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
     await waitFor(() => expect(screen.getByText("Bad script")).toBeTruthy());
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  test("archive origin gates step 1 on a chosen file and imports it", async () => {
+    const interaction = userEvent.setup();
+    const onOpenChange = renderDialog({ initialOrigin: "archive" });
+    // No file yet: Continue stays disabled on the source step.
+    expect(
+      (screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    const bytes = new Uint8Array([0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, {
+        target: { files: [new File([bytes], "backup.zip")] },
+      });
+    });
+    expect(screen.getByText("backup.zip")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    // Step 3's summary names the archive and its size as the source.
+    expect(screen.getByText(`backup.zip (${formatBytes(22)})`)).toBeTruthy();
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+    await waitFor(() => expect(runArchiveImport).toHaveBeenCalled());
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  test("a failed archive import shows the inline error and stays open", async () => {
+    const interaction = userEvent.setup();
+    const onOpenChange = renderDialog({ initialOrigin: "archive" });
+    runArchiveImport.mockResolvedValueOnce({
+      ok: false,
+      title: "Archive import failed",
+      error: "Not a zip, tar, or .tar.gz archive.",
+    });
+    const bytes = new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, {
+        target: { files: [new File([bytes], "bundle.7z")] },
+      });
+    });
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Not a zip, tar, or .tar.gz archive.")).toBeTruthy(),
+    );
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 

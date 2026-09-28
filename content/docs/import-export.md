@@ -7,7 +7,7 @@ Fewer lets you import file trees in multiple formats, whether it is directly fro
 
 Every source goes through one **3-step import dialog**:
 
-1. **Origin** — pick where the tree comes from: folder, file, URL, or a linked cloud account
+1. **Origin** — pick where the tree comes from: folder, file, archive, URL, or a linked cloud account
 2. **Options** — the same configuration panel for every origin (depth, hidden files, filters, …)
 3. **Import** — a summary of what will be imported, then **Import**
 
@@ -109,6 +109,27 @@ Supported formats:
 - **Shell/batch script**: `mkdir -p` output
 
 Click **Import from File** and select your file. You can also paste content directly into the dialog.
+
+## Import from Archive
+
+Visualize a compressed folder without extracting it. Pick **Archive** as the origin, choose the file, and the same options panel and graph builder as every other origin apply.
+
+Supported today:
+
+| Format                | How it is read                                              |
+| --------------------- | ----------------------------------------------------------- |
+| `.zip`                | The central directory, which stores the full listing uncompressed — the archive body is never read |
+| `.tar`                | 512-byte headers, skipping each entry's payload by its declared size |
+| `.tar.gz` / `.tgz`    | The same tar walk, inflated with the browser's native gzip support |
+| `.gz` (single file)   | One member, named after the file minus `.gz`                 |
+
+Notes:
+
+- **Nothing is unpacked.** The listing is read in place and the graph is built from it, so a multi-gigabyte archive costs only the size of its directory table. Your files never leave the browser.
+- **Sizes are real**, read from the archive metadata, and feed the same sorting and stats panels as a disk import.
+- **Import options apply as usual** — depth limits, hidden files, dependency/build folders, and the extension filter all work on the archive's contents.
+- **The entry cap is 20,000.** Larger archives import their first 20,000 entries and show a truncation notice.
+- **Not yet readable:** 7z, RAR, xz, bzip2, and Zstandard. These need a full decompressor, which browsers do not provide natively; the error message says so by name rather than failing vaguely.
 
 ## Export Formats
 
