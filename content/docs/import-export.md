@@ -146,8 +146,6 @@ Click **Import from File** and select your file. You can also paste content dire
 
 Visualize a compressed folder without extracting it. Pick **Archive** as the origin, choose the file, and the same options panel and graph builder as every other origin apply.
 
-Supported today:
-
 | Format                | How it is read                                              |
 | --------------------- | ----------------------------------------------------------- |
 | `.zip`                | The central directory, which stores the full listing uncompressed — the archive body is never read |
