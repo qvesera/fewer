@@ -1483,14 +1483,14 @@ tasks:
   session_count: 1
 - id: "T-061"
   title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: 1
   estimate_min: 960
   estimate_basis: "cli"
   issue: 246
-  pr: null
+  pr: 247
   internal: false
   milestone: null
   blocked_by: []
