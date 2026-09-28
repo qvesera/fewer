@@ -137,12 +137,12 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "backlog"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: 1
-  estimate_min: 2400
-  estimate_basis: "todo-tier"
+  estimate_min: 2520
+  estimate_basis: "cli"
   issue: 186
   pr: null
   internal: false
@@ -1425,14 +1425,14 @@ tasks:
   session_count: 0
 - id: "T-059"
   title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "theme"
   tier: 1
   estimate_min: 1080
   estimate_basis: "cli"
   issue: 244
-  pr: null
+  pr: 247
   internal: false
   milestone: null
   blocked_by: ["T-061"]
@@ -1454,14 +1454,14 @@ tasks:
   session_count: 1
 - id: "T-060"
   title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: 245
-  pr: null
+  pr: 247
   internal: false
   milestone: null
   blocked_by: ["T-059"]
