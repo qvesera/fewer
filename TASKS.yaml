@@ -1205,7 +1205,7 @@ tasks:
   session_count: 1
 - id: "T-048"
   title: "Mirror the ledger's task details onto GitHub: project board Status/Size/Estimate for issues, and the row's details + triage notes in the issue body (labels alone are not tracking)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "other"
   tier: null
