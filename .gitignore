@@ -84,6 +84,8 @@ lighthouse/*
 # repowise local index
 .repowise/
 scripts/*
+# the archive worker vendoring script is a real build input (see package.json)
+!scripts/vendor-libarchive.ts
 lighthouse/*
 .clinerules/*
 
