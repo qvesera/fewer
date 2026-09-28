@@ -57,7 +57,8 @@ export function matchesCategoryFilter(node: FewerNode, categoryFilter: string[])
 
 /**
  * Query predicate: an empty query matches everything; otherwise the query must
- * fuzzily match the label or the path, or appear in the extension.
+ * fuzzily match the label or the path, appear in the extension, or match a
+ * symlink's target (so searching "v012" finds the `latest → v012` link).
  */
 export function matchesQuery(node: FewerNode, query: string): boolean {
   if (!query) return true;
@@ -65,7 +66,8 @@ export function matchesQuery(node: FewerNode, query: string): boolean {
   return (
     fuzzyMatch(query, node.data.label) ||
     fuzzyMatch(query, node.data.path) ||
-    (node.data.extension ?? "").toLowerCase().includes(q)
+    (node.data.extension ?? "").toLowerCase().includes(q) ||
+    fuzzyMatch(query, node.data.symlink?.target ?? "")
   );
 }
 

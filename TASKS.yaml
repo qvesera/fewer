@@ -137,14 +137,14 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "backlog"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: 1
-  estimate_min: 2400
-  estimate_basis: "todo-tier"
+  estimate_min: 2520
+  estimate_basis: "cli"
   issue: 186
-  pr: null
+  pr: 248
   internal: false
   milestone: null
   blocked_by: []
@@ -1423,4 +1423,120 @@ tasks:
     proof: ["3e98b8e"]
     effort: {commits: 1, files: 3, insertions: 253, deletions: 38}
   spent_min: 8
+  session_count: 1
+- id: "T-059"
+  title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
+  status: "review"
+  type: "feat"
+  area: "theme"
+  tier: 1
+  estimate_min: 1080
+  estimate_basis: "cli"
+  issue: 244
+  pr: 248
+  internal: false
+  milestone: null
+  blocked_by: ["T-061"]
+  parent: "T-006"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:21Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T16:33:03Z"
+    end: "2026-09-28T16:44:18Z"
+    measured: true
+    note: "Phase 2 display landed: NodeIcon swaps to FolderSymlink/FileSymlink; SymlinkBadge chip (target basename, external suffix, amber broken warning, full tooltip + aria) on expanded headers, collapsed pills, child rows and file cards; contrastStroke helper (solid<->dashed axis, dotted->solid confirmed) applied to link edges in buildEdgeBase + applyEdgeHighlights with target-end markerEnd arrowhead following highlight color; graphRenderer export parity (lucide path data, badge text, contrast dash, SVG arrowhead triangle, amber broken ring). 46 tests across symlinkDisplay/edgeHighlight/graphRenderer. PR to be attached once opened."
+    proof: ["3e0cca1"]
+    effort: {commits: 1, files: 12, insertions: 357, deletions: 35}
+  spent_min: 11
+  session_count: 1
+- id: "T-060"
+  title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 245
+  pr: 248
+  internal: false
+  milestone: null
+  blocked_by: ["T-059"]
+  parent: "T-006"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:21Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T16:44:25Z"
+    end: "2026-09-28T16:56:05Z"
+    measured: true
+    note: "Phase 3 landed: SymlinkMenuItems (Copy Target Path / Go to Target with hidden-node reveal via nodeAbsolutePath reverse mapping / Open Target in File Explorer) in both context menus' Info sections; search matches symlink targets; Stats panel symlink count (totalSymlinks on DirectoryStats); ASCII parser understands 'name -> target' (arrow split before slash typing) and tree export emits it (lossless round-trip); JSON export/parse round-trips symlink; CSV gains symlink_target column; DOT marks link nodes+edges; snapshot round-trip pinned by test. Gates: lint 0, tsc 0, build ok, tests 1387 (10 pre-existing registry fails also on clean base)."
+    proof: ["2f714f5"]
+    effort: {commits: 1, files: 17, insertions: 292, deletions: 21}
+  spent_min: 12
+  session_count: 1
+- id: "T-061"
+  title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: 1
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 246
+  pr: 248
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-006"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:24:28Z"
+  notes: []
+  sessions:
+  - start: "2026-09-28T16:27:13Z"
+    end: "2026-09-28T16:32:52Z"
+    measured: true
+    note: "Phase 1 capture landed: SymlinkInfo (target/resolvedPath/insideTree/broken/followed) on TreeEntry+FewerNodeData; localTree walk detects links (lstat/readlink/stat, broken detection, external follow-only-with-queue-time inode cycle guard); symlinks import option skip/leaf/follow (default leaf) in ImportOptionsPanel; both treeToGraph builders propagate metadata; 11 new tests (9 walker + 2 propagation). PR to be attached once opened."
+    proof: ["1c5f45d"]
+    effort: {commits: 1, files: 9, insertions: 411, deletions: 24}
+  spent_min: 6
+  session_count: 1
+- id: "T-062"
+  title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
+  status: "review"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 15
+  estimate_basis: "cli"
+  issue: null
+  pr: 248
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T16:22:06Z"
+  notes: ["2026-09-28T16:22:12Z · internal fix, no issue needed"]
+  sessions:
+  - start: "2026-09-28T16:23:05Z"
+    end: "2026-09-28T16:23:19Z"
+    measured: true
+    note: "rtype derived same as adopt_issue (bug→fix, enhancement→feat, else task) so the size label matches the adopted row's estimate; verified with intake --dry-run adopting all 5 untracked issues"
+    proof: ["c9788b0"]
+    effort: {commits: 1, files: 2, insertions: 32, deletions: 0}
+  spent_min: 0
   session_count: 1

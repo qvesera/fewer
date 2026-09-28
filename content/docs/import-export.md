@@ -64,6 +64,38 @@ How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 | Show Files on Canvas                   | On      | Show file nodes. Off = directories only            |
 | File Extensions                        | None    | Comma-separated whitelist (e.g. `ts, tsx, js`)     |
 | Case-Sensitive Match                   | Off     | Match extensions case-sensitively                  |
+| Symlinks                               | Show as links | How the walk treats symbolic links (see below) |
+
+### Symlinks
+
+Symbolic links are detected on **local-path imports** (when the dropped folder
+reaches the dev server as a disk path). Three modes:
+
+- **Show as links** (default) — each link imports as a node carrying its target
+  (`latest ↷ v012`), with a link icon, a target badge on the card, a dashed
+  edge and an arrowhead pointing at it. Links are never dropped as "empty
+  folders"; broken links (missing target) stay visible with a warning ring.
+- **Follow** — additionally imports the *content* of links whose target lies
+  **outside** the imported root (e.g. a link to `/mnt/raid/...`). Internal
+  links always render as links — their content already lives at its real
+  location in the graph — and cycles (self-referencing link loops) terminate
+  safely.
+- **Skip** — drops links entirely (the pre-v0.8 behavior).
+
+On the canvas, right-click a link card → **Info** for **Copy Target Path**,
+**Go to Target** (jumps to the target node when it's inside the graph) and
+**Open Target in File Explorer**. Search matches link targets too, and the
+Stats panel counts symlinks.
+
+Exports carry the link signal: SVG/PNG draw the icon, badge, contrast edge and
+arrowhead; JSON round-trips the metadata; the tree export writes shell-style
+`name -> target` lines (and the ASCII tree parser understands them back);
+CSV gains a `symlink_target` column and DOT marks link nodes and edges.
+
+> **Browser limitation:** the File System Access picker (Chrome/Edge directory
+> picks and drag-and-drop inside the browser) cannot see symlinks — the API
+> resolves them transparently, so linked folders are walked like normal
+> folders there. The option applies to local-path imports.
 
 ## Import from URL
 

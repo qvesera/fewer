@@ -1,3 +1,6 @@
+/** How the walk treats symbolic links. Only the local-path walk can detect them. */
+export type SymlinkMode = "skip" | "leaf" | "follow";
+
 /**
  * Options for importing a directory from the file system.
  * These control how deep to scan, what to include, and how to filter.
@@ -19,6 +22,13 @@ export interface ImportOptions {
   caseSensitiveExtensions: boolean;
   /** Display depth: hide nodes deeper than this on the canvas (0 = unlimited). */
   displayMaxDepth: number;
+  /**
+   * Symlink handling: "skip" drops them (pre-change behavior), "leaf" imports
+   * the link itself with target metadata but no content, "follow" recurses into
+   * the target with a cycle guard. Browser folder picks cannot detect symlinks,
+   * so only the local-path walk honors this.
+   */
+  symlinks: SymlinkMode;
 }
 
 export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
@@ -30,6 +40,7 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
   extensions: [],
   caseSensitiveExtensions: false,
   displayMaxDepth: 6,
+  symlinks: "leaf",
 };
 
 /** Directories that are typically vendored/generated and skipped by default. */

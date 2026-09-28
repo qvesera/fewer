@@ -168,7 +168,8 @@ docker run -p 3000:3000 fewer
 <summary><b>Import</b></summary>
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
-- **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
+- **Symlink support**: on local-path imports, symbolic links import as link nodes (link icon, `↷ target` badge, contrast edge with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
+- **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts
 - **Import from Archive**: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and — via an on-demand WebAssembly libarchive — `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)

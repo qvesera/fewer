@@ -13,8 +13,10 @@ import {
   Package,
   FolderX,
   FileIcon,
+  Link2,
 } from "lucide-react";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
+import { cn } from "@/lib/utils";
 
 interface ImportOptionsPanelProps {
   options: ImportOptions;
@@ -151,6 +153,47 @@ export function ImportOptionsPanel({
               checked={options.includeVendored}
               onCheckedChange={(v) => update({ includeVendored: v })}
             />
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
+            <div className="flex items-center gap-3">
+              <Link2 className="h-4 w-4 text-muted-foreground/80 shrink-0" />
+              <div className="space-y-0.5">
+                <Label className="text-xs font-medium">Symlinks</Label>
+                <p className="text-xs text-muted-foreground">
+                  Local-path imports only — browser folder picks can&apos;t detect links.
+                </p>
+              </div>
+            </div>
+            <div
+              role="radiogroup"
+              aria-label="Symlink handling"
+              className="flex overflow-hidden rounded-lg border border-border/50"
+            >
+              {(
+                [
+                  ["skip", "Skip"],
+                  ["leaf", "Show as links"],
+                  ["follow", "Follow"],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={options.symlinks === mode}
+                  onClick={() => update({ symlinks: mode })}
+                  className={cn(
+                    "px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                    options.symlinks === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-transparent text-muted-foreground hover:bg-foreground/10",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl border border-border/40 p-3.5 hover:border-border/80 bg-card/10 transition-colors">
