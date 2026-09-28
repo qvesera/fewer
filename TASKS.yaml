@@ -1454,7 +1454,7 @@ tasks:
   session_count: 1
 - id: "T-060"
   title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: 1
@@ -1467,19 +1467,19 @@ tasks:
   blocked_by: ["T-059"]
   parent: "T-006"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-28T16:24:21Z"
   notes: []
   sessions:
   - start: "2026-09-28T16:44:25Z"
-    end: null
+    end: "2026-09-28T16:56:05Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Phase 3 landed: SymlinkMenuItems (Copy Target Path / Go to Target with hidden-node reveal via nodeAbsolutePath reverse mapping / Open Target in File Explorer) in both context menus' Info sections; search matches symlink targets; Stats panel symlink count (totalSymlinks on DirectoryStats); ASCII parser understands 'name -> target' (arrow split before slash typing) and tree export emits it (lossless round-trip); JSON export/parse round-trips symlink; CSV gains symlink_target column; DOT marks link nodes+edges; snapshot round-trip pinned by test. Gates: lint 0, tsc 0, build ok, tests 1387 (10 pre-existing registry fails also on clean base)."
+    proof: ["2f714f5"]
+    effort: {commits: 1, files: 17, insertions: 292, deletions: 21}
+  spent_min: 12
   session_count: 1
 - id: "T-061"
   title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
