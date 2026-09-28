@@ -1234,7 +1234,7 @@ tasks:
   session_count: 1
 - id: "T-052"
   title: "Canvas lags as hidden children grow: unindexed graph scans + unstable hiddenIds identity"
-  status: "in-progress"
+  status: "review"
   type: "perf"
   area: "performance"
   tier: 0
@@ -1272,10 +1272,10 @@ tasks:
     proof: ["d767901", "dd42d5e", "b85e1f6"]
     effort: {commits: 3, files: 13, insertions: 623, deletions: 151}
   - start: "2026-09-28T13:36:25Z"
-    end: null
+    end: "2026-09-28T13:52:45Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 29
+    note: "Selection lag: the edge highlight now rebuilds by delta over a memoised base (1343e4d), mergeSelection is no longer quadratic in the previous selection (8f57118), and selection is a lens over a canonical id list instead of a node-array rewrite + graphVersion bump (3c8e9ec). One click on 30.4k nodes/edges: ~32ms -> 5.7ms, deselect -> 0.96ms. Gates: bun test src 1367 pass, test:components 175 pass, lint 0, tsc 0, build 0."
+    proof: ["3c8e9ec", "8f57118", "1343e4d"]
+    effort: {commits: 3, files: 15, insertions: 444, deletions: 112}
+  spent_min: 45
   session_count: 4
