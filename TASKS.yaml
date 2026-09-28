@@ -137,14 +137,14 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: 1
   estimate_min: 2520
   estimate_basis: "cli"
   issue: 186
-  pr: null
+  pr: 248
   internal: false
   milestone: null
   blocked_by: []
