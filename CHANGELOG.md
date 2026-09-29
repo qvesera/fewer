@@ -120,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shift+H (show all) no longer over-claims what it revealed. The count was taken before the press finished: it ends with Show Files, which re-applies the large-folder auto-hide and the display-depth limit, so those cards went straight back into hiding while the toast said they were restored. The count is now what the press actually achieves — the hidden set as a union of the global and per-view sets (a card hidden by both counted once, not twice), minus the cards the filters put back — and the toast names the remainder ("1 card restored · 12 cards kept hidden by the auto-hide filter", or "Nothing to unhide" when a filter hides everything)
 - Import dialog is wider (sm:max-w-xl), so the Symlinks option (Skip / Show as links / Follow) fits on one row instead of being cut off.
 - Dismissing the folder picker during an import no longer wedges the app: the picker fallback now settles on the picker's cancel event (it used to hang forever, leaving the import dialog unable to close), and closing the import dialog mid-import is allowed again — the orphaned run can no longer toast or close a freshly reopened dialog.
+- The import progress bar no longer looks stuck at roughly 30% when the total is unknown: the indeterminate state is a full-track animated hatch instead of a fixed-width segment, so it reads as "unknown" even with animations disabled (reduced motion) or a stylesheet served without the keyframe.
 
 ### Added
 

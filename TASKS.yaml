@@ -1635,7 +1635,7 @@ tasks:
   session_count: 2
 - id: "T-066"
   title: "Closing the folder picker leaves the import dialog wedged; add import progress feedback"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "import"
   tier: 1
@@ -1660,5 +1660,11 @@ tasks:
     note: "Fixed the picker-cancel wedge (cancel event on the webkitdirectory input + run-token close instead of a permanent close-block) and added import progress: determinate for folder read/graph build, phase label otherwise. chunkTreeToGraph now really yields; ui/progress forwards value to Radix."
     proof: ["9ed78d8", "#256"]
     effort: {commits: 1, files: 21, insertions: 549, deletions: 67}
+  - start: "2026-09-29T06:44:37Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 247
-  session_count: 1
+  session_count: 2

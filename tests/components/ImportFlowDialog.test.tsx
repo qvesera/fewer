@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ImportActionResult } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
+import type { ImportOptions } from "@/lib/fewer/importOptions";
 
 // Mock boundaries, not the dialog steps or the Zustand store.
 const toast = mock(() => {});
@@ -13,7 +14,14 @@ mock.module("@/hooks/use-github-import", () => ({
 }));
 const watchAdd = mock(async () => true);
 mock.module("@/hooks/use-watch", () => ({ useWatch: () => ({ add: watchAdd }) }));
-const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
+// Matches runFolderImport's real signature: (options, dropped?, onProgress?).
+const runFolderImport = mock<
+  (
+    _options: ImportOptions,
+    _dropped?: unknown,
+    _onProgress?: ImportProgressFn,
+  ) => Promise<ImportActionResult>
+>(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
 const runFileImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from file", description: "root: 1 entries" }));
 const runCloudImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Imported from cloud", description: "cloud: 1 entries" }));
 const runArchiveImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from archive", description: "backup.zip: 1 entries" }));
@@ -323,9 +331,11 @@ describe("ImportFlowDialog import progress", () => {
     );
     expect(screen.getByText("Reading folder")).toBeTruthy();
     expect(screen.getByText("25%")).toBeTruthy();
-    expect(
-      screen.getByRole("progressbar", { name: /import progress/i }).getAttribute("aria-valuenow"),
-    ).toBe("25");
+    const bar = screen.getByRole("progressbar", { name: /import progress/i });
+    expect(bar.getAttribute("aria-valuenow")).toBe("25");
+    // Determinate = the real fill, never the indeterminate hatch (a hatch on a
+    // determinate bar is what made the bar look ~30% done when it wasn't).
+    expect(bar.querySelector(".gm-progress-indeterminate")).toBeNull();
   });
 
   test("a phase without a total stays indeterminate (no percentage)", async () => {
@@ -346,6 +356,13 @@ describe("ImportFlowDialog import progress", () => {
     // contract for an indeterminate progressbar.
     expect(bar.getAttribute("aria-valuenow")).toBeNull();
     expect(screen.queryByText(/%$/)).toBeNull();
+    // The hatch spans the WHOLE track and is styled in CSS, so its resting state
+    // (animation disabled, or missing) still reads as "unknown", not as a
+    // percentage. A fixed-width segment parked at 0px looked like ~30% done.
+    const hatch = bar.querySelector(".gm-progress-indeterminate");
+    expect(hatch).toBeTruthy();
+    expect(hatch!.className).toContain("inset-0");
+    expect(hatch!.className).not.toMatch(/\bw-\d/);
   });
 
   test("the bar and phase disappear once the import finishes", async () => {

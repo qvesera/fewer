@@ -11,8 +11,6 @@ function Progress({
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root>) {
   // No value = indeterminate (Radix omits aria-valuenow, which is correct ARIA).
-  // The sliding segment is a local keyframe so the shared indicator keeps its
-  // existing determinate transform.
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -27,9 +25,14 @@ function Progress({
       {...props}
     >
       {value == null ? (
+        // Indeterminate: a full-track hatch, NOT a fixed-width segment. A
+        // parked 33%-wide block reads as "30% done" the instant the animation
+        // stops running (reduced motion, or a stylesheet without the keyframe),
+        // which is worse than no bar at all. The hatch says "unknown" with or
+        // without motion. See .gm-progress-indeterminate in globals.css.
         <div
           data-slot="progress-indicator"
-          className="bg-primary absolute inset-y-0 w-1/3 rounded-full motion-safe:animate-[progress-slide_1.4s_ease-in-out_infinite]"
+          className="gm-progress-indeterminate absolute inset-0"
         />
       ) : (
         <ProgressPrimitive.Indicator

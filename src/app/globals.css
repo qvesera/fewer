@@ -246,13 +246,28 @@
   }
 }
 
-/* ── Progress bar (indeterminate: <Progress /> without a value) ────────────── */
-@keyframes progress-slide {
+/* ── Progress bar (indeterminate) ────────────────────────────────────────────
+   A full-track hatch, not a fixed-width block: when the animation is disabled
+   (prefers-reduced-motion, or a stylesheet served without the keyframe) a
+   parked partial block reads as "30% complete", which is a lie. The static
+   resting state is a hatch across the whole track = "unknown amount". */
+.gm-progress-indeterminate {
+  background-image: repeating-linear-gradient(
+    115deg,
+    var(--primary) 0 7px,
+    transparent 7px 14px
+  );
+  opacity: 0.45;
+  animation: gm-progress-stripes 0.9s linear infinite;
+}
+
+@keyframes gm-progress-stripes {
   from {
-    transform: translateX(-100%);
+    background-position: 0 0;
   }
   to {
-    transform: translateX(300%);
+    /* One 14px period per step — the hatch advances seamlessly. */
+    background-position: 28px 0;
   }
 }
 
@@ -568,7 +583,8 @@ aside::-webkit-scrollbar-thumb:hover {
     scroll-behavior: auto !important;
   }
   .gm-edge-flow,
-  .gm-node-fade-in {
+  .gm-node-fade-in,
+  .gm-progress-indeterminate {
     animation: none !important;
   }
 }
