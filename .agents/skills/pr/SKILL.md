@@ -1,6 +1,6 @@
 ---
 name: pr
-description: 'Raising a PR in fewer: task trailer + close-out, the template body, labels/milestone/assignee/project via pr-metadata, changelog and docs gates, stacked PRs. Triggers: "raise a PR", "open a PR", "PR checklist", "PR metadata", "label the PR", "add to project", "milestone the PR", "who owns this PR".'
+description: 'Raising a PR in fewer: task trailer + close-out, the template body, labels/milestone/assignee/project/issue-link via pr-metadata, changelog and docs gates, stacked PRs. Triggers: "raise a PR", "open a PR", "PR checklist", "PR metadata", "label the PR", "add to project", "milestone the PR", "link the issue to the PR", "who owns this PR".'
 ---
 
 # PR Procedure (fewer)
@@ -28,16 +28,17 @@ not `review`/`done` **at HEAD**.
   `gh issue develop <N> --base dev … --checkout` when it closes an issue.
 - Body: `.github/PULL_REQUEST_TEMPLATE.md`, always. Title: Conventional
   (`feat|fix|refactor|perf|chore|docs:`), subject explains the change.
-- Body must contain `Fixes #<N>` (closes on merge), the root cause with
+- Body must contain `Fixes #<N>` **alone on its line** (see §3.1), the root cause with
   `path:line`, the exact commands you ran and their result, and the
   `Task: T-###` id.
 - Paste `python3 scripts/tasks.py report` totals for non-trivial PRs.
 
-## 3. Metadata — labels, milestone, assignee, project
+## 3. Metadata — labels, milestone, assignee, project, issue link
 
 ```bash
 python3 scripts/tasks.py pr-metadata <PR#> --dry-run   # show the plan first
 python3 scripts/tasks.py pr-metadata <PR#>             # apply (idempotent)
+python3 scripts/tasks.py pr-metadata <PR#> --require-link   # also fail if unlinked (CI uses this)
 ```
 
 `pr-metadata` resolves the PR's task rows from `Task: T-###` trailers (plus rows
@@ -50,6 +51,38 @@ already stamped `pr:`) and derives:
 | milestone | row `milestone` → its issue's milestone → the **earliest open release train** (`next_milestone()`) → else none |
 | assignee | row `assignee` (default `qvesera`) |
 | project | board `#1 · fewer - file viz` (owner `qvesera`, `PROJECT_NUMBER = 1`): adds the item, mirrors **Status** from the ledger (`triaged→Ready`, `review→In review`, `blocked/parked→Backlog`, `done→Done`, … the board's own option names live in `STATUS_TO_PROJECT`) and **Size** from the same band (`size:m → M`) |
+| issue link | every task row's `issue` is linked to the PR (GitHub's Development sidebar): a bare `Fixes #<N>` line is written into the body if one is missing |
+
+### 3.1 The issue ↔ PR link (automated, with a merge gate)
+
+`pr-metadata` links the PR to the issue of every task row, then judges the result:
+
+- **Why the body, not an API:** GitHub has no public REST/GraphQL endpoint for the
+  sidebar's "Linked issue" relation (`cli/cli#11405` is blocked on it). The link has
+  to come from a closing keyword in the PR body.
+- **The keyword must be ALONE on its line.** `Fixes #257` links; `Closes #186
+  (parent umbrella)` is only a mention. This repo's history shows the cost — #248
+  linked #244/#245/#246 and skipped #186 for exactly that reason, so pr-metadata
+  writes a bare `Fixes #<issue>` line for every task row that lacks one.
+- **The default branch is the hard limit.** GitHub turns that keyword into a real
+  Development link only when the PR targets the repository's default branch
+  (`main`). Our PRs target `dev`, so there it is a cross-reference
+  (`willCloseTarget: false`) and the sidebar link is **one human click** — verified
+  live on #258. Nothing can automate that step.
+- **The gate is therefore layered** (`link_gate`), because a gate that can never go
+  green blocks every merge:
+
+  | state | `dev`-based PR | default-branch PR |
+  | --- | --- | --- |
+  | no bare `Fixes #N` line | **fail** (the automation's own job) | **fail** |
+  | line present, not in `closingIssuesReferences` | passes, prints a `link: NOTE` telling you where to click | **fail** (the automation must succeed there) |
+  | in `closingIssuesReferences` | pass | pass |
+
+- **Enforcement:** the `Link issue + metadata` job in
+  `.github/workflows/pr-metadata.yml` runs with `--require-link` and is a **required
+  check on the `dev` and `main` rulesets**. A PR cannot merge without its task's
+  issue referenced; on `dev` the one remaining click is reported, not blocked.
+- Verify on your own PR: `gh pr view <N> --json closingIssuesReferences`.
 
 - **No tracked task → it derives nothing and guesses nothing.** Fix the missing
   `Task:` trailer instead (the `tasks` CI job fails such a PR anyway).
@@ -103,6 +136,10 @@ gh pr checks <N>
 | symptom | cause | fix |
 | --- | --- | --- |
 | `pr-metadata: … carries no tracked task` | commit lacks a `Task:` trailer | `task:start`, amend trailers |
+| `pr-metadata: PR #N does not reference #M` | the body has no bare `Fixes #M` line (a closing keyword with prose on the same line is just a mention), and the automated write failed | re-run `pr-metadata <PR#>`; the gate fails on this, so it cannot merge |
+| `pr-metadata: PR #N targets the default branch but #M never linked` | on `main` GitHub links the keyword automatically, so a miss is a real defect | re-run `pr-metadata <PR#> --require-link` and check the body |
+| `link: NOTE #M is cross-referenced but not in the PR's Development sidebar` | expected on `dev`/`release/*`: GitHub only auto-links keywords on default-branch PRs, and the sidebar link has no API | one click: PR → right sidebar → Development → link #M |
+| an old PR shows no link even with the keyword | keyword shared a line with prose (`Closes #251 (child of…)`) | `pr-metadata <PR#>` appends a bare `Fixes #N` line |
 | `project: skipped` | no board configured / no scope | path 1 above, or `gh auth refresh -s project` |
 | `project: Status option … not on this board` | board's Status options differ | set `STATUS_TO_PROJECT` in `scripts/tasks.py` |
 | CI job not running | PR base isn't `dev`/`main` | stacked PR — see §5 |
