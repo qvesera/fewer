@@ -934,7 +934,7 @@ tasks:
   session_count: 0
 - id: "T-037"
   title: "README refresh"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: null
