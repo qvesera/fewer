@@ -842,7 +842,7 @@ tasks:
   session_count: 0
 - id: "T-033"
   title: "Layout research: radial vs tree vs grid - when to use which"
-  status: "in-progress"
+  status: "review"
   type: "research"
   area: "layout"
   tier: null
@@ -855,19 +855,19 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:15Z"
   notes: ["2026-09-25T12:38:20Z · open question: radial vs tree graph, what each is good at, whether to ship a third layout mode"]
   sessions:
   - start: "2026-09-29T19:39:10Z"
-    end: null
+    end: "2026-09-29T19:42:04Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "research delivered on #208 (radial vs tree vs grid, grounded in layout.ts: single contour RT tree; no radial/grid/force/dagre/elk in src; data is a forest, so graph algorithms solve nothing; recommendation: keep tree, do not ship a third first-class mode, cheap win is grouped-by-type). Side finding fixed in #267: stale 'Dagre auto-layout' in two page descriptions + a keyword, dropped in v0.3.1."
+    proof: ["9ed48a9", "9a67c0b", "#267"]
+    effort: {commits: 2, files: 4, insertions: 14, deletions: 7}
+  spent_min: 3
   session_count: 1
 - id: "T-034"
   title: "Cold-outreach email draft for prospective users"
