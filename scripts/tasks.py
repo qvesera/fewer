@@ -2575,7 +2575,7 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
 
 
 # ── doctor: bidirectional drift check (needs gh) ────────────────────────
-def board_problems(ledger: dict[str, Any]) -> list[str]:
+def board_problems(ledger: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Ledger → board drift: an item's Status must equal the row's mapping.
 
     The board is a projection, so a disagreement is a stale projection, not a
@@ -2585,12 +2585,15 @@ def board_problems(ledger: dict[str, Any]) -> list[str]:
     """
     rows = [r for r in ledger["tasks"] if r.get("issue")]
     if not rows or PROJECT_NUMBER is None:
-        return []
+        return [], []
     try:
         listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
                                "--limit", "100", "--format", "json", check=False))
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
-        return ["board check skipped: could not read the project (needs read:project)"]
+        # A note, NOT drift: a token without the project scope, or a flaky read,
+        # must not report the board as wrong — and must not fail the nightly job
+        # for a check it could not run.
+        return [], ["board check skipped: could not read the project (needs read:project)"]
     shown: dict[int, dict[str, Any]] = {}
     for item in listed.get("items", []):
         content = item.get("content") or {}
@@ -2607,7 +2610,7 @@ def board_problems(ledger: dict[str, Any]) -> list[str]:
         elif (item.get("status") or "") != want:
             problems.append(f"#{number} ({row['id']}) board Status {item.get('status')!r} != {want!r} "
                             f"(run: python3 scripts/tasks.py sync-details)")
-    return problems
+    return problems, []
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -2640,12 +2643,23 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status="
                             f"{row['status']} ({remedy})")
         # Sub-issue parity, both directions: GitHub must agree with the ledger.
+        # An empty read is NOT "no parent": a rate-limited or failed call returns
+        # nothing, and reporting that as drift invents five broken links out of one
+        # throttled request. Unknown is reported as a note instead.
         parent_id = row.get("parent")
         try:
-            gh_parent = gh("issue", "view", str(issue["number"]), "--json", "parent",
-                           "--jq", ".parent.number // 0", check=False).strip() or "0"
+            out = gh("issue", "view", str(issue["number"]), "--json", "parent",
+                     "--jq", ".parent.number // 0", check=False)
         except (SystemExit, FileNotFoundError):
+            out = ""
+        gh_parent = out.strip()
+        if not gh_parent:
+            if parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
+                notes.append(f"{row['id']} #{issue['number']}: parent unreadable "
+                             f"(rate limit?) — link parity unverified")
             gh_parent = None
+        elif gh_parent == "0":
+            gh_parent = "0"
         if gh_parent is None:
             pass
         elif parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
@@ -2666,10 +2680,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
         if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
+    notes: list[str] = []
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer.
-        problems.extend(board_problems(ledger))
+        board_drift, notes = board_problems(ledger)
+        problems.extend(board_drift)
+    for note in notes:
+        print(f"NOTE   {note}")
     payload = {"problems": problems, "count": len(problems)}
     if args.json:
         print(json.dumps(payload, indent=2))
