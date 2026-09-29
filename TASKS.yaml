@@ -963,7 +963,7 @@ tasks:
   session_count: 1
 - id: "T-038"
   title: "Docs update sweep (content/docs/*)"
-  status: "review"
+  status: "in-progress"
   type: "docs"
   area: "docs"
   tier: null
@@ -988,8 +988,14 @@ tasks:
     note: "audited content/docs against shipped UI strings; shipped 6 verified doc->UI label fixes + reseed 0050 (session restored by hand after a bad git reset --hard discarded the ledger write)"
     proof: []
     effort: null
+  - start: "2026-09-29T19:31:01Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 6
-  session_count: 1
+  session_count: 2
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
   status: "backlog"

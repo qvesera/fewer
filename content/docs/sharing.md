@@ -14,12 +14,12 @@ Fewer lets you share graphs with anyone via a link. Two ways to share:
 2. Click **Generate Share Link**
 3. Click **Copy** to copy the link to your clipboard
 
-The link contains all nodes and connections with their positions. Your own app settings (layout direction, connection style, theme, corner radius, node dimensions) are never taken from the graph — the graph always renders with the settings of whoever opens the link.
+The link contains all cards and connections with their positions. Your own app settings (layout direction, connection style, theme, corner radius, card dimensions) are never taken from the graph — the graph always renders with the settings of whoever opens the link.
 
 ### How it works
 
 - **Small graphs** are compressed into the URL hash using LZ-string (e.g. `https://app.fewer.directory/#N4IgDgTgpghgLmAXGB...`). Nothing is uploaded; the link is self-contained.
-- **Large graphs** (encoded hash over ~2000 characters, roughly a few hundred nodes) are stored on the server and shared via a short link like `https://app.fewer.directory/#s:abc123`. This keeps URLs shareable where long links get truncated. If the server store is unavailable, Fewer falls back to the long hash URL.
+- **Large graphs** (encoded hash over ~2000 characters, roughly a few hundred cards) are stored on the server and shared via a short link like `https://app.fewer.directory/#s:abc123`. This keeps URLs shareable where long links get truncated. If the server store is unavailable, Fewer falls back to the long hash URL.
 
 ## Open a Shared Graph
 
@@ -27,7 +27,7 @@ Anyone with the link can open it in their browser:
 
 1. Paste the link into the address bar
 2. The graph loads automatically from the URL hash
-3. A toast confirms how many nodes were loaded
+3. A toast confirms how many cards were loaded
 
 ## Share a Saved Graph
 
@@ -67,7 +67,7 @@ generate the link again to unlist it.
 ## Limitations
 
 - **File handles**: disk file handles are not encoded. Shared graphs are read-only snapshots; "Open File" and "Refresh from Disk" actions are unavailable.
-- **Hidden nodes**: hidden node state is not preserved in the share link.
+- **Hidden cards**: hidden card state is not preserved in the share link.
 - **Server-backed links expire**: large-graph and saved-graph share links are stored with a 30-day expiry and are cleaned up when read.
 
 ## Next Steps
