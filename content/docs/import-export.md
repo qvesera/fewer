@@ -23,6 +23,13 @@ listing a cloud folder, reading an archive). You can close the dialog while an
 import is running — the run stops reporting back, so it will not pop a toast or
 close a dialog you reopened in the meantime.
 
+An import **replaces the graph**, so it also replaces everything that described
+the old one: hidden cards, collapsed folders and dragged card positions are
+dropped (a new import mints fresh cards, so the old references were meaningless),
+and the Hidden Cards badge starts counting the new graph. View *preferences* —
+direction, edge style, theme, minimap, Hide Files — are kept, and reloading the
+same graph from the session cache restores its view state untouched.
+
 ## Import from Disk
 
 1. Click **Import from disk** (or press **Alt+I**)

@@ -1726,3 +1726,32 @@ tasks:
     effort: {commits: 1, files: 12, insertions: 509, deletions: 40}
   spent_min: 10
   session_count: 1
+- id: "T-069"
+  title: "Hidden Cards state survives an import: the badge/count keeps the previous graph hide layers"
+  status: "review"
+  type: "fix"
+  area: "visibility"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: 260
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T17:06:17Z"
+  notes: ["2026-09-29T17:06:17Z · setGraph resets global hide sets but not per-leaf viewSettings hideLayers (seeded with the whole global hidden list by seedLayers), independentlyHiddenIds, revealedFromHidden, collapsedFolderIds or positions. Node ids are fresh per import, so all of those are dead ids that still feed resolved.hiddenIds.length (Sidebar badge, dock section meta, canvas chip, panel render) while getHiddenLayerGroups filters rows to live nodes. Reveal All masks it because it is the only action clearing both ledgers. Stale layers also trip needsLayoutDerivation and force per-view layout."]
+  sessions:
+  - start: "2026-09-29T17:06:33Z"
+    end: "2026-09-29T17:15:27Z"
+    measured: true
+    note: "pruneViewSettingsForGraph + setGraph prune of per-view hide layers, collapsed folders, positions, independentlyHiddenIds and revealedFromHidden; 8 new tests"
+    proof: ["50a9645", "#260"]
+    effort: {commits: 1, files: 6, insertions: 321, deletions: 2}
+  spent_min: 9
+  session_count: 1
