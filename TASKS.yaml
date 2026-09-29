@@ -1670,30 +1670,30 @@ tasks:
   session_count: 2
 - id: "T-067"
   title: "pr-metadata auto-links a task's GitHub issue to the PR and blocks merge until linked"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: 257
-  pr: null
+  pr: 258
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#257"
-  time_source: null
+  time_source: "measured"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-09-29T09:04:36Z"
   notes: ["2026-09-29T09:36:40Z · adopted at intake from GitHub (open)"]
   sessions:
   - start: "2026-09-29T09:36:42Z"
-    end: null
+    end: "2026-09-29T09:47:31Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Automates the PR↔issue link: pr-metadata writes a bare 'Fixes #<issue>' line per task row, judges the result in link_gate(), and CI's renamed 'Link issue + metadata' job is now a required check on the dev and main rulesets. Established the hard limit by experiment: GitHub only builds the Development link on default-branch PRs, so on dev the last step is one manual click and the check reports it rather than blocking. Also fixes track/attach crashing on auto-start (missing force attr). Applied live to #252 (added its missing Fixes #251 line)."
+    proof: ["a24a76b", "3308c88", "#258"]
+    effort: {commits: 2, files: 8, insertions: 329, deletions: 60}
+  spent_min: 11
   session_count: 1
