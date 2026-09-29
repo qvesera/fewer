@@ -1833,7 +1833,7 @@ tasks:
   session_count: 0
 - id: "T-072"
   title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending migrations drift and tells you to repair them as applied, which skips their DDL forever"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "infra"
   tier: 0
@@ -1846,23 +1846,23 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#269"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-29T21:29:34Z"
   notes: []
   sessions:
   - start: "2026-09-29T21:30:20Z"
-    end: null
+    end: "2026-09-29T21:30:47Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
+    note: "re-delivered the migration-baseline fix (lost with #270) onto a fresh dev branch; fixtures re-verified."
+    proof: ["14811e6"]
+    effort: {commits: 1, files: 4, insertions: 183, deletions: 10}
   spent_min: 0
   session_count: 1
 - id: "T-073"
   title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks), and concurrent writers can clobber TASKS.yaml"
-  status: "triaged"
+  status: "in-progress"
   type: "fix"
   area: "infra"
   tier: 0
@@ -1880,6 +1880,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-29T21:29:34Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-09-29T21:30:49Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
