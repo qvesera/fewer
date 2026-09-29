@@ -1862,14 +1862,14 @@ tasks:
   session_count: 1
 - id: "T-073"
   title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks),…"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "infra"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 272
-  pr: null
+  pr: 275
   internal: false
   milestone: null
   blocked_by: []
