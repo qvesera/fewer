@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified email shell for all outbound emails (auth, digest, invite) — shared dark design, fewer.directory wordmark, orange CTA, table-based Outlook-compatible layout. Supabase auth templates generated from the same source to prevent drift. New emailTemplate.ts + gen-email-templates.ts + tests.
 - Gallery publishing no longer requires a profile name/username to toggle on — entries without a profile show as Anonymous with a non-blocking hint in the share dialog
 - Docs, blog, 404 and password-reset pages now share the site header and footer from the main page (Features / Gallery / Privacy / Docs / Blog + Launch the app) — DocsLayout dropped its own minimal navbar so every non-app page has the same navigation; the app at /app keeps its own GlobalNavbar
-- PRs are now automatically linked to their task's GitHub issue: pr-metadata writes a bare `Fixes #N` line (GitHub only links a closing keyword that is alone on its line) and the new required `Link issue + metadata` check fails until the link exists, so a PR cannot merge unlinked
+- PRs now reference their task's GitHub issue automatically: `pr-metadata` writes a bare `Fixes #<issue>` line for every task row (a closing keyword sharing a line with prose is only a mention), and the new required `Link issue + metadata` check fails a PR that does not — so a PR cannot merge with its task's issue unreferenced. GitHub only turns the keyword into a real Development-sidebar link on PRs targeting the default branch, so on `dev` the last step stays a one-click manual link and the check reports it instead of blocking.
 
 ### Fixed
 

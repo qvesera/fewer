@@ -1235,6 +1235,7 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
 CLOSING_LINE = re.compile(
     r"^\s*(?:[-*]\s*)?(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s*:?\s*#(\d+)\s*$", re.I)
 RELATED_HEADING = re.compile(r"^\s*#{1,6}\s*related issues\b", re.I)
+_DEFAULT_BRANCH: str | None = None
 
 
 def link_lines(body: str, issues: list[int]) -> tuple[str, list[int]]:
@@ -1269,6 +1270,42 @@ def linked_issue_numbers(pr: int) -> set[int]:
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         return set()
     return {int(i["number"]) for i in (info.get("closingIssuesReferences") or [])}
+
+
+def default_branch() -> str:
+    global _DEFAULT_BRANCH
+    if _DEFAULT_BRANCH is None:
+        try:
+            _DEFAULT_BRANCH = gh("repo", "view", "--json", "defaultBranchRef",
+                                 "--jq", ".defaultBranchRef.name", check=False).strip()
+        except (FileNotFoundError, SystemExit):
+            _DEFAULT_BRANCH = ""
+    return _DEFAULT_BRANCH or ""
+
+
+def link_gate(issues: list[int], linked: set[int], referenced: set[int],
+              base_is_default: bool) -> tuple[list[int], list[int]]:
+    """Split the task issues into (must fail, worth warning about).
+
+    GitHub only builds the Development link itself when the PR targets the
+    repository's default branch — on `dev` a bare `Fixes #N` yields a
+    cross-reference and one human click in the sidebar is still needed (there is
+    no API for it; cli/cli#11405 is blocked upstream). Verified live on PR #258,
+    whose body carried a bare `Fixes #257` and still produced
+    `willCloseTarget: false`.
+
+    So the gate is layered, because a gate that can never go green blocks every
+    merge:
+
+    - no bare `Fixes #N` line → **fail** on any base (the automation's own job)
+    - line present, no sidebar link, PR targets the default branch → **fail**
+      (there the automation can and must succeed, no human involved)
+    - line present, no sidebar link, any other base → **warn** only: the
+      reference is in place, the sidebar link is one click away
+    """
+    unref = [n for n in issues if n not in referenced]
+    unlinked = [n for n in issues if n in referenced and n not in linked]
+    return unref + (unlinked if base_is_default else []), unlinked
 
 
 def size_option_name(estimate_min: int) -> str:
@@ -1556,7 +1593,7 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         _die("pr-metadata needs an authenticated gh")
     ledger = load()
     info = gh_json("pr", "view", str(pr), "--json",
-                   "number,title,url,state,labels,milestone,assignees,commits,body")
+                   "number,title,url,state,baseRefName,labels,milestone,assignees,commits,body")
     rows = pr_task_rows(ledger, info, pr)
     if not rows:
         print(f"pr-metadata: PR #{pr} carries no tracked task (no `Task: T-###` trailer "
@@ -1607,9 +1644,11 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     issues = sorted({int(r["issue"]) for r in rows if r.get("issue")})
     linked = linked_issue_numbers(pr)
     body, added = link_lines(info.get("body") or "", issues)
-    unlinked = [n for n in issues if n not in linked]
+    referenced = set(issues) - set(added)      # a bare `Fixes #N` line cross-references
+    base = info.get("baseRefName") or ""
+    base_is_default = bool(base) and base == default_branch()
     if issues:
-        print(f"  link      issues={[f'#{n}' for n in issues]} "
+        print(f"  link      issues={[f'#{n}' for n in issues]} base={base} "
               f"linked={[f'#{n}' for n in issues if n in linked] or '-'}"
               f"{'  +' + ', '.join(f'Fixes #{n}' for n in added) if added else ''}")
 
@@ -1635,20 +1674,29 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
             fh.write(body)
             path = fh.name
         try:
-            gh("pr", "edit", str(pr), "--body-file", path, check=False)
+            # check=True on purpose: if the write fails (permissions, network)
+            # the line is NOT there, so the gate must still see it as missing.
+            try:
+                gh("pr", "edit", str(pr), "--body-file", path)
+            except SystemExit:
+                print(f"  link      ! could not write {' '.join(f'Fixes #{n}' for n in added)} "
+                      f"to PR #{pr} — the body edit failed, the issues stay unreferenced")
+            else:
+                # The keyword cross-references on write; the Development link,
+                # when the base allows one at all, lands a beat later — poll
+                # before judging.
+                for _ in range(3):
+                    linked = linked_issue_numbers(pr)
+                    if not [n for n in issues if n not in linked]:
+                        break
+                    time.sleep(2)
+                referenced |= set(added)
+                print(f"  link      wrote {' '.join(f'Fixes #{n}' for n in added)} → "
+                      f"cross-referenced (Development link: "
+                      f"{'yes' if not [n for n in issues if n not in linked] else 'needs the sidebar click'})")
         finally:
             with contextlib.suppress(OSError):
                 os.unlink(path)
-        # GitHub re-parses the body on edit; the link lands a beat later, so
-        # poll briefly rather than reporting a false negative to --require-link.
-        for _ in range(3):
-            linked = linked_issue_numbers(pr)
-            if not [n for n in issues if n not in linked]:
-                break
-            time.sleep(2)
-        unlinked = [n for n in issues if n not in linked]
-        print(f"  link      wrote {' '.join(f'Fixes #{n}' for n in added)} → "
-              f"{'all linked' if not unlinked else f'unlinked {unlinked}'}")
 
     stamped = False
     for row in rows:
@@ -1669,11 +1717,22 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
-    if args.require_link and unlinked:
-        _die(f"pr-metadata: PR #{pr} is not linked to {', '.join(f'#{n}' for n in unlinked)} "
-             f"— GitHub only links a closing keyword that is ALONE on its line, so the "
-             f"body must carry a bare `Fixes #{unlinked[0]}` line; re-run pr-metadata, or "
-             f"link the issue from the PR's Development sidebar (this check gates merges)")
+    if args.require_link and issues:
+        must_fail, worth_warning = link_gate(issues, linked, referenced, base_is_default)
+        for n in worth_warning:
+            print(f"link: NOTE {f'#{n}'} is cross-referenced but not in the PR's Development "
+                  f"sidebar — GitHub auto-links a closing keyword only on PRs targeting the "
+                  f"default branch ({default_branch()}); this one targets {base}, so the link "
+                  f"is one manual click away (PR → right sidebar → Development)")
+        if must_fail:
+            unreferenced = [n for n in must_fail if n not in referenced]
+            if unreferenced:
+                _die(f"pr-metadata: PR #{pr} does not reference {', '.join(f'#{n}' for n in unreferenced)} "
+                     f"— the body must carry a bare `Fixes #{unreferenced[0]}` line (a closing "
+                     f"keyword with prose on the same line is only a mention)")
+            _die(f"pr-metadata: PR #{pr} targets the default branch but "
+                 f"{', '.join(f'#{n}' for n in must_fail)} never linked — GitHub links the "
+                 f"keyword automatically there, so re-run pr-metadata or check the PR body")
     return 0
 
 
@@ -3057,6 +3116,16 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("link: a task with no issue changes nothing", body5 == prose)
     check("link: a keyword line with trailing whitespace still counts",
           link_lines("Fixes #7   \n", [7])[1] == [])
+    check("gate: a linked issue passes on any base",
+          link_gate([255], linked={255}, referenced={255}, base_is_default=False) == ([], []))
+    check("gate: no keyword line fails on any base (the automation's own job)",
+          link_gate([257], linked=set(), referenced=set(), base_is_default=False) == ([257], []))
+    check("gate: cross-referenced but unlinked passes with a note on a non-default base",
+          link_gate([257], linked=set(), referenced={257}, base_is_default=False) == ([], [257]))
+    check("gate: cross-referenced but unlinked FAILS on the default branch",
+          link_gate([257], linked=set(), referenced={257}, base_is_default=True) == ([257], [257]))
+    check("gate: mixed issues are judged independently",
+          link_gate([1, 2], linked={1}, referenced={1}, base_is_default=True) == ([2], []))
 
     # hierarchy: links, rollups, and the parent/child coherence rules
     p_row = new_row(title="umbrella", rtype="task", area="other", issue=500,
@@ -3404,8 +3473,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--milestone",
                     help="override the default (earliest open milestone when the task has none)")
     sp.add_argument("--require-link", action="store_true",
-                    help="fail unless every task row's issue is linked to the PR "
-                         "(GitHub Development sidebar) — the merge gate")
+                    help="gate the PR on its task issue: fail when the body carries no bare "
+                         "`Fixes #N` line, or when a default-branch PR fails to link; warn when "
+                         "only the manual Development link is missing")
 
     sp = add("intake", cmd_intake, "adopt GitHub issues that have no ledger row")
     sp.add_argument("--state", choices=("open", "all", "closed"), default="open")

@@ -53,25 +53,35 @@ already stamped `pr:`) and derives:
 | project | board `#1 · fewer - file viz` (owner `qvesera`, `PROJECT_NUMBER = 1`): adds the item, mirrors **Status** from the ledger (`triaged→Ready`, `review→In review`, `blocked/parked→Backlog`, `done→Done`, … the board's own option names live in `STATUS_TO_PROJECT`) and **Size** from the same band (`size:m → M`) |
 | issue link | every task row's `issue` is linked to the PR (GitHub's Development sidebar): a bare `Fixes #<N>` line is written into the body if one is missing |
 
-### 3.1 The issue ↔ PR link (automated, and a merge gate)
+### 3.1 The issue ↔ PR link (automated, with a merge gate)
 
-`pr-metadata` links the PR to the issue of every task row, then verifies it:
+`pr-metadata` links the PR to the issue of every task row, then judges the result:
 
 - **Why the body, not an API:** GitHub has no public REST/GraphQL endpoint for the
-  sidebar's "Linked issue" relation (`cli/cli#11405` is blocked on it), so the link
-  comes from a closing keyword in the PR body.
+  sidebar's "Linked issue" relation (`cli/cli#11405` is blocked on it). The link has
+  to come from a closing keyword in the PR body.
 - **The keyword must be ALONE on its line.** `Fixes #257` links; `Closes #186
-  (parent umbrella)` only cross-references. This repo's own history proves it —
-  #248 linked #244/#245/#246 and silently skipped #186 for exactly that reason,
-  and #251/#237/#241 are still unlinked today.
-- **Verification:** `closingIssuesReferences` lists the issue when linked, whether
-  the link came from the keyword or from a manual sidebar click. After writing the
-  line the script polls briefly (GitHub re-parses the body asynchronously) and,
-  under `--require-link`, exits non-zero when the link is still missing.
-- **Enforcement:** the `Link issue + metadata` job in `.github/workflows/pr-metadata.yml`
-  is a **required check on the `dev` and `main` rulesets**, so a PR cannot merge
-  with its task's issue unlinked. Escape hatch if GitHub ever refuses the keyword:
-  link the issue once from the PR's Development sidebar — the check goes green.
+  (parent umbrella)` is only a mention. This repo's history shows the cost — #248
+  linked #244/#245/#246 and skipped #186 for exactly that reason, so pr-metadata
+  writes a bare `Fixes #<issue>` line for every task row that lacks one.
+- **The default branch is the hard limit.** GitHub turns that keyword into a real
+  Development link only when the PR targets the repository's default branch
+  (`main`). Our PRs target `dev`, so there it is a cross-reference
+  (`willCloseTarget: false`) and the sidebar link is **one human click** — verified
+  live on #258. Nothing can automate that step.
+- **The gate is therefore layered** (`link_gate`), because a gate that can never go
+  green blocks every merge:
+
+  | state | `dev`-based PR | default-branch PR |
+  | --- | --- | --- |
+  | no bare `Fixes #N` line | **fail** (the automation's own job) | **fail** |
+  | line present, not in `closingIssuesReferences` | passes, prints a `link: NOTE` telling you where to click | **fail** (the automation must succeed there) |
+  | in `closingIssuesReferences` | pass | pass |
+
+- **Enforcement:** the `Link issue + metadata` job in
+  `.github/workflows/pr-metadata.yml` runs with `--require-link` and is a **required
+  check on the `dev` and `main` rulesets**. A PR cannot merge without its task's
+  issue referenced; on `dev` the one remaining click is reported, not blocked.
 - Verify on your own PR: `gh pr view <N> --json closingIssuesReferences`.
 
 - **No tracked task → it derives nothing and guesses nothing.** Fix the missing
@@ -126,8 +136,10 @@ gh pr checks <N>
 | symptom | cause | fix |
 | --- | --- | --- |
 | `pr-metadata: … carries no tracked task` | commit lacks a `Task:` trailer | `task:start`, amend trailers |
-| `pr-metadata: PR #N is not linked to #M` | the body has no bare `Fixes #M` line, or GitHub has not re-parsed it yet | re-run `pr-metadata <PR#> --require-link`; if it persists, link #M once from the PR's Development sidebar |
-| an old PR shows no link even with the keyword | the keyword shared a line with prose (`Closes #251 (child of…)`) | add a bare `Fixes #N` line and re-run `pr-metadata` |
+| `pr-metadata: PR #N does not reference #M` | the body has no bare `Fixes #M` line (a closing keyword with prose on the same line is just a mention), and the automated write failed | re-run `pr-metadata <PR#>`; the gate fails on this, so it cannot merge |
+| `pr-metadata: PR #N targets the default branch but #M never linked` | on `main` GitHub links the keyword automatically, so a miss is a real defect | re-run `pr-metadata <PR#> --require-link` and check the body |
+| `link: NOTE #M is cross-referenced but not in the PR's Development sidebar` | expected on `dev`/`release/*`: GitHub only auto-links keywords on default-branch PRs, and the sidebar link has no API | one click: PR → right sidebar → Development → link #M |
+| an old PR shows no link even with the keyword | keyword shared a line with prose (`Closes #251 (child of…)`) | `pr-metadata <PR#>` appends a bare `Fixes #N` line |
 | `project: skipped` | no board configured / no scope | path 1 above, or `gh auth refresh -s project` |
 | `project: Status option … not on this board` | board's Status options differ | set `STATUS_TO_PROJECT` in `scripts/tasks.py` |
 | CI job not running | PR base isn't `dev`/`main` | stacked PR — see §5 |
