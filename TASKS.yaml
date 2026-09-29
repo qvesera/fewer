@@ -1757,30 +1757,30 @@ tasks:
   session_count: 1
 - id: "T-070"
   title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow, which writes the store again"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "other"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 264
-  pr: null
+  pr: 271
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#264"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-29T19:20:04Z"
   notes: []
   sessions:
   - start: "2026-09-29T19:20:23Z"
-    end: null
+    end: "2026-09-29T20:28:47Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Canvas 'Maximum update depth exceeded': removed the no-op store writes that re-push React Flow (dimension batch, selection re-report, canvas-size tick); extracted applyDimensionChanges (6 tests) + selection-version contract (3 tests); documented that the CanvasInner node push must stay unguarded (guarding it reproduced the crash in one click). Gates: bun test src 1470, test:components 187, lint 0, tsc 0, build OK, e2e 12/12, Chromium driver clean."
+    proof: ["36e1368", "#271"]
+    effort: {commits: 1, files: 10, insertions: 239, deletions: 25}
+  spent_min: 68
   session_count: 1
