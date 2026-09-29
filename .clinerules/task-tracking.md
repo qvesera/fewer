@@ -70,6 +70,35 @@ the `DECISION` line and why (candidate, score, state) before continuing.
   `record-session`. `validate` rejects a file that is not canonical.
 - Scope grew → `task:note <id> "…"`; genuinely new scope → a new task.
 
+### One writer per surface
+
+The ledger is the source of truth; GitHub and the board are **projections**, each
+with exactly one writer. Two writers on one field is what makes a status "jump":
+
+| Surface | Writer | Scope it may touch |
+| --- | --- | --- |
+| issue `status:*` labels | `gh-sync` | the row's own issue |
+| issue body details block | `sync-details` | between the `task-details` markers |
+| board item `Status`/`Size`/`Estimate` | `sync-details` | that row's **issue** item |
+| board item creation | `gh-sync` / `sync-details` | issue items only — never a PR item |
+
+So: `sync-details` only writes a field that actually differs (a no-op pass writes
+nothing and leaves `updated` alone), `pr-metadata` delegates its board step to
+`sync-details --pr <N>`, and `doctor --board` reports any disagreement. The
+project's **Auto-add** workflow must stay off: an item it adds lands on the board
+default (`To triage`) with nothing behind it, and the next pass flips it. A nightly
+`board-reconcile` workflow heals labels and the board from the ledger; `reconcile`
+stays manual, because moving a row is a change that wants review.
+
+After any `start` / `stop` / `set-status`, project just that row before pushing:
+
+```bash
+python3 scripts/tasks.py sync-details --issue <N>   # or --pr <PR#>
+```
+
+and never run two sync verbs from two sessions at once — the second pass sees the
+first one's half-finished state and the two fight.
+
 ## Closing
 
 - `bun run task:stop <T-###> --note "…"` closes the session and harvests proof

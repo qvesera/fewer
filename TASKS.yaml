@@ -1918,3 +1918,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-075"
+  title: "Project board Status keeps being rewritten: sync-details re-writes every field on every run (189 writes for 0 changes), pr-metadata re-adds a PR item with its own Status, and a 'triage --area' edit on a review row silently drops it back to triaged"
+  status: "in-progress"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 276
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#276"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T21:49:13Z"
+  notes: []
+  sessions:
+  - start: "2026-09-29T21:49:24Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

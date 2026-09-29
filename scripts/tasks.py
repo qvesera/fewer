@@ -852,7 +852,12 @@ def cmd_triage(args: argparse.Namespace) -> int:
     row = find_row(ledger, args.ref)
     if row is None:
         _die(f"no task {args.ref}")
-    if row["status"] in ("in-progress", "done", "wontfix"):
+    # A field edit (--area/--estimate/--parent) is not a status change. It used
+    # to reset a `review` row to `triaged` on the way through, so classifying a
+    # row whose PR is open silently reopened it: the label and the board Status
+    # followed, and the task looked un-started. `set-status` stays the way to
+    # move a row (review → triaged is a legal transition).
+    if row["status"] in ("in-progress", "review", "done", "wontfix"):
         _die(f"{row['id']} is {row['status']} — set-status first if you really mean to triage it again")
     if args.estimate_min is not None:
         row["estimate_min"] = int(args.estimate_min)
@@ -1454,6 +1459,11 @@ BODY_BEGIN = "<!-- task-details:begin -->"
 BODY_END = "<!-- task-details:end -->"
 
 
+def field_key(field: dict[str, Any]) -> str:
+    """The `gh project item-list` key a field's value appears under."""
+    return (field.get("name") or "").strip().lower()
+
+
 def details_block(row: dict[str, Any], milestone: str | None = None) -> str:
     """The row's task details as a markdown block for its issue body.
 
@@ -1516,6 +1526,12 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     """
     ledger = load()
     rows = [r for r in ledger["tasks"] if r.get("issue")]
+    if getattr(args, "pr", None):
+        # A PR's board projection lives on its task rows' ISSUES, not on a
+        # second item for the PR: one work unit, one item, one writer.
+        pr_info = gh_json("pr", "view", str(args.pr),
+                          "--json", "number,title,body,commits,url") or {}
+        rows = [r for r in pr_task_rows(ledger, pr_info, int(args.pr)) if r.get("issue")]
     if args.issue:
         rows = [r for r in rows if str(r["issue"]) == str(args.issue).lstrip("#")]
     if not rows:
@@ -1540,18 +1556,28 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     # item-list once, then map issue number -> item id. Issues may already be on
     # the board (its Auto-add workflow can catch them), and a second copy of the
     # same issue is not harmless.
-    items: dict[int, str] = {}
+    # number -> the whole item record, so the field writes below can compare
+    # against what the board already shows. Writing an unchanged value still
+    # counts as an edit to the item (its `updated` moves, board views reshuffle),
+    # which is how a no-op sync looked like the board "keeps updating".
+    items: dict[int, dict[str, Any]] = {}
     try:
         listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
                                "--limit", "200", "--format", "json", check=False))
         for item in listed.get("items", []):
             number = (item.get("content") or {}).get("number")
             if number and item.get("id"):
-                items[int(number)] = item["id"]
+                items[int(number)] = item
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         pass
 
-    bodies = field_writes = added = 0
+    def shown(number: int) -> dict[str, Any]:
+        return items.get(number, {})
+
+    def item_id(number: int) -> str | None:
+        return (items.get(number) or {}).get("id")
+
+    bodies = field_writes = added = unchanged = 0
     for row in rows:
         rid, number = row["id"], int(row["issue"])
         if not args.no_body:
@@ -1569,8 +1595,8 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
                     bodies += 1
         if args.dry_run:
             continue
-        item_id = items.get(number)
-        if not item_id:
+        rid_item = item_id(number)
+        if not rid_item:
             code, out = _gh_project(["project", "item-add", str(args.project), "--owner",
                                      PROJECT_OWNER, "--url",
                                      f"https://github.com/{REPO_SLUG}/issues/{number}",
@@ -1587,15 +1613,16 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
             if not item_id:
                 print(f"  {rid} #{number}: project item-add failed — {out}")
                 continue
-            items[number] = item_id
+            items[number] = {"id": item_id}
+            rid_item = item_id
             added += 1
         if not project_id:
             continue
         want_status = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
         want_size = size_option_name(int(row.get("estimate_min") or 0))
         for field, wanted, match in (
-            (status_field, want_status, lambda a, b: a.lower() == b.lower()),
-            (size_field, want_size, lambda a, b: a.upper() == b.upper()),
+            (status_field, want_status, lambda a, b: (a or "").lower() == (b or "").lower()),
+            (size_field, want_size, lambda a, b: (a or "").upper() == (b or "").upper()),
         ):
             if not field:
                 continue
@@ -1603,17 +1630,26 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
                            if match(o.get("name") or "", wanted)), None)
             if not option:
                 continue
-            gh("project", "item-edit", "--id", item_id, "--field-id", field["id"],
+            current = shown(number).get(field_key(field))
+            if current and match(current, wanted):
+                unchanged += 1
+                continue
+            gh("project", "item-edit", "--id", rid_item, "--field-id", field["id"],
                "--project-id", project_id, "--single-select-option-id", option["id"],
                check=False)
             field_writes += 1
         if estimate_field and row.get("estimate_min"):
-            gh("project", "item-edit", "--id", item_id, "--field-id", estimate_field["id"],
-               "--project-id", project_id, "--number", str(row["estimate_min"]), check=False)
-            field_writes += 1
+            want_estimate = int(row["estimate_min"])
+            if shown(number).get("estimate") == want_estimate:
+                unchanged += 1
+            else:
+                gh("project", "item-edit", "--id", rid_item, "--field-id", estimate_field["id"],
+                   "--project-id", project_id, "--number", str(want_estimate), check=False)
+                field_writes += 1
     verb = "would sync" if args.dry_run else "synced"
     print(f"sync-details: {verb} {len(rows)} row(s) · {bodies} body update(s) · "
-          f"{added} item(s) added · {field_writes} project field write(s)")
+          f"{added} item(s) added · {field_writes} project field write(s) · "
+          f"{unchanged} already correct")
     return 0
 
 
@@ -1753,13 +1789,22 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     elif stamped:
         print("  (--no-write: ledger pr: stamp skipped — CI checkout)")
 
-    status = rows[0].get("status") or "review"
     if args.no_project:
         print("project: skipped (--no-project: labels/milestone/assignee only)")
     elif project is None:
         print("project: skipped — no board configured")
     else:
-        _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
+        # One item per work unit: the ISSUE carries the board Status, written by
+        # sync-details. This verb used to add a separate PR item and give it a
+        # Status of its own, which CI re-stamped on every push and nothing ever
+        # closed — so a merged PR sat at "In review" next to a "Done" issue, and
+        # the two statuses flipped on different triggers.
+        ns = argparse.Namespace(issue=None, pr=pr, project=project, no_body=True,
+                                dry_run=getattr(args, "dry_run", False))
+        try:
+            cmd_sync_details(ns)
+        except SystemExit:
+            print("project: sync-details exited non-zero — see above")
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
     if args.require_link and issues:
@@ -2530,6 +2575,41 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
 
 
 # ── doctor: bidirectional drift check (needs gh) ────────────────────────
+def board_problems(ledger: dict[str, Any]) -> list[str]:
+    """Ledger → board drift: an item's Status must equal the row's mapping.
+
+    The board is a projection, so a disagreement is a stale projection, not a
+    second opinion: `sync-details` fixes it. Kept separate from the label check
+    because it needs the project scope (a PAT / PROJECTS_TOKEN), which the
+    default GITHUB_TOKEN does not have.
+    """
+    rows = [r for r in ledger["tasks"] if r.get("issue")]
+    if not rows or PROJECT_NUMBER is None:
+        return []
+    try:
+        listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
+                               "--limit", "100", "--format", "json", check=False))
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        return ["board check skipped: could not read the project (needs read:project)"]
+    shown: dict[int, dict[str, Any]] = {}
+    for item in listed.get("items", []):
+        content = item.get("content") or {}
+        if content.get("type") == "Issue" and content.get("number"):
+            shown[int(content["number"])] = item
+    problems: list[str] = []
+    for row in rows:
+        number = int(row["issue"])
+        want = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
+        item = shown.get(number)
+        if item is None:
+            problems.append(f"#{number} ({row['id']}) has no board item "
+                            f"(run: python3 scripts/tasks.py sync-details)")
+        elif (item.get("status") or "") != want:
+            problems.append(f"#{number} ({row['id']}) board Status {item.get('status')!r} != {want!r} "
+                            f"(run: python3 scripts/tasks.py sync-details)")
+    return problems
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     ledger = load()
     problems: list[str] = []
@@ -2586,6 +2666,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
         if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
+    if getattr(args, "board", False):
+        # Board drift is the same class of drift, one surface over: the item is a
+        # projection of the row, and `sync-details` is its only writer.
+        problems.extend(board_problems(ledger))
     payload = {"problems": problems, "count": len(problems)}
     if args.json:
         print(json.dumps(payload, indent=2))
@@ -2593,7 +2677,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print("\n".join(f"DRIFT  {p}" for p in problems))
         print(f"{len(problems)} problem(s)")
     else:
-        print("doctor: ledger and GitHub agree (1:1, labels, states)")
+        print("doctor: ledger and GitHub agree (1:1, labels, states"
+              + (", board" if getattr(args, "board", False) else "") + ")")
     return 1 if problems else 0
 
 
@@ -3551,6 +3636,7 @@ def build_parser() -> argparse.ArgumentParser:
              "mirror the ledger's task details onto GitHub: issue body + project Status/Size/Estimate")
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--issue", help="only this issue number")
+    sp.add_argument("--pr", type=int, help="only a PR's task rows (projected onto their ISSUES)")
     sp.add_argument("--project", type=int, default=PROJECT_NUMBER_DEFAULT)
     sp.add_argument("--no-body", action="store_true", help="project fields only")
 
@@ -3592,6 +3678,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("doctor", cmd_doctor, "bidirectional drift check (needs gh)")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--board", action="store_true",
+                    help="also compare each row with its project item's Status "
+                         "(needs read:project)")
 
     sp = add("report", cmd_report, "time and estimate rollup")
     sp.add_argument("--since", help="ISO date, e.g. 2026-09-01")
