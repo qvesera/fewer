@@ -9,11 +9,19 @@ Every source goes through one **3-step import dialog**:
 
 1. **Origin** — pick where the tree comes from: folder, file, archive, URL, or a linked cloud account
 2. **Options** — the same configuration panel for every origin (depth, hidden files, filters, …)
-3. **Import** — a summary of what will be imported, then **Import**
+3. **Import** — a summary of what will be imported, then **Import** (labelled
+   **Browse** for folders, because pressing it opens your device's folder picker)
 
 Press **Enter** to move through the steps. The same dialog is reachable from
 **Import from disk**, **Import from file**, **Import from URL**, and the cloud
 sources in the sidebar.
+
+While an import runs, the step-3 panel shows a **progress bar** and the current
+phase: a real percentage where the total is known (reading the picked folder,
+building the graph) and an animated bar for network-bound steps (fetching a URL,
+listing a cloud folder, reading an archive). You can close the dialog while an
+import is running — the run stops reporting back, so it will not pop a toast or
+close a dialog you reopened in the meantime.
 
 ## Import from Disk
 
@@ -27,7 +35,10 @@ sources in the sidebar.
    - Extension filter
 4. Click **Import**
 
-The graph builds instantly with auto-layout. Large imports show a progress indicator.
+The graph builds instantly with auto-layout. Large imports show a progress bar
+with the current phase and, once the file count is known, a percentage.
+Dismissing the folder picker simply cancels the import and returns you to the
+summary — nothing is loaded.
 
 ### Drag & Drop (empty canvas)
 

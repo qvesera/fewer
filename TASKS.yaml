@@ -1633,3 +1633,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 34, deletions: 4}
   spent_min: 26
   session_count: 2
+- id: "T-066"
+  title: "Closing the folder picker leaves the import dialog wedged; add import progress feedback"
+  status: "in-progress"
+  type: "fix"
+  area: "import"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 255
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T22:55:18Z"
+  notes: ["2026-09-28T22:55:30Z · Picker cancel never settles (no 'cancel' listener on the webkitdirectory input), so importing stays true and the dialog refuses to close (soft block). Plus import progress bar."]
+  sessions:
+  - start: "2026-09-28T23:01:40Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

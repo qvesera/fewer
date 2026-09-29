@@ -7,6 +7,11 @@ import { VENDORED_DIRS } from "./importOptions";
 import { isExtAllowed } from "./fsFilters";
 import { isArchiveName } from "./archiveExpand";
 import { sortTreeFoldersFirst } from "./treeSort";
+import type { ImportProgressFn } from "./importFlow";
+import { yieldToUI } from "./asyncYield";
+
+/** Files filtered per main-thread slice while reading a picked folder. */
+const READ_CHUNK = 2000;
 
 function filterInputFiles(
   allFiles: File[],
@@ -101,15 +106,23 @@ function showInputPicker(): Promise<FileList | null> {
     input.style.position = "fixed";
     input.style.left = "-9999px";
 
-    input.onchange = () => {
+    const settle = (value: FileList | null) => {
       input.remove();
-      resolve(input.files);
+      resolve(value);
     };
+
+    input.onchange = () => settle(input.files);
 
     input.onerror = () => {
       input.remove();
       reject(new Error("Directory selection failed."));
     };
+
+    // Dismissing the OS picker fires `cancel` and nothing else. Without this the
+    // promise never settles: the import stays "in flight" forever and the dialog
+    // — which refuses to close mid-import — wedges the whole app. Standard since
+    // Chrome 113 / Safari 16.4 / Firefox.
+    input.addEventListener("cancel", () => settle(null));
 
     document.body.appendChild(input);
     input.click();
@@ -122,19 +135,32 @@ function showInputPicker(): Promise<FileList | null> {
  * from webkitRelativePath. Applies the same ImportOptions filtering.
  */
 export async function pickDirectoryViaInput(
-  options: ImportOptions = DEFAULT_IMPORT_OPTIONS
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
+  onProgress?: ImportProgressFn,
 ): Promise<TreeEntry | null> {
   const files = await showInputPicker();
   const allFiles = Array.from(files ?? []);
   if (allFiles.length === 0) return null;
 
-  const filteredFiles = filterInputFiles(allFiles, options);
+  // Filter in chunks: one synchronous pass over 100k+ File objects blocks the
+  // main thread for long enough that the dialog's progress bar would freeze at
+  // 0%. filterInputFiles is per-file, so chunking changes nothing but the yields.
+  const filteredFiles: File[] = [];
+  const total = allFiles.length;
+  for (let i = 0; i < total; i += READ_CHUNK) {
+    const end = Math.min(i + READ_CHUNK, total);
+    filteredFiles.push(...filterInputFiles(allFiles.slice(i, end), options));
+    onProgress?.({ phase: "Reading folder", processed: end, total });
+    await yieldToUI();
+  }
+
   const tree = buildTreeFromFileList(allFiles, filteredFiles);
 
   // Expand archives BEFORE pruning empty folders: an expanded archive holds
   // real children, and pruning first would treat it as an empty directory and
   // delete it. Only runs when the option is on (it is off by default).
   if (options.expandArchives) {
+    onProgress?.({ phase: "Expanding archives" });
     const { expandArchives } = await import("./archiveExpand");
     await expandArchives(tree, async (leaf) => leaf.archiveBlob ?? null, options);
   }

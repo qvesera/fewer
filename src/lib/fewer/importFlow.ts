@@ -38,6 +38,27 @@ export interface ImportActionResult {
   notes?: { title: string; description: string }[];
 }
 
+/** One progress report from a step-3 import. Omit `total` when it is unknown. */
+export interface ImportProgress {
+  /** Human-readable step, e.g. "Reading folder" / "Building graph". */
+  phase: string;
+  processed?: number;
+  total?: number;
+}
+
+export type ImportProgressFn = (progress: ImportProgress) => void;
+
+// Re-exported so the whole progress contract is importable from one place.
+export { yieldToUI } from "./asyncYield";
+
+/** Adapt chunkTreeToGraph's raw (processed, total, phase) callback to the
+ *  ImportProgress contract, or undefined when nobody is listening. */
+export function buildProgress(onProgress?: ImportProgressFn) {
+  if (!onProgress) return undefined;
+  return (p: { processed: number; total: number }) =>
+    onProgress({ phase: "Building graph", processed: p.processed, total: p.total });
+}
+
 export const ORIGIN_META: Record<
   ImportOrigin,
   { label: string; blurb: string }
