@@ -1635,7 +1635,7 @@ tasks:
   session_count: 2
 - id: "T-066"
   title: "Closing the folder picker leaves the import dialog wedged; add import progress feedback"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "import"
   tier: 1
@@ -1661,10 +1661,10 @@ tasks:
     proof: ["9ed78d8", "#256"]
     effort: {commits: 1, files: 21, insertions: 549, deletions: 67}
   - start: "2026-09-29T06:44:37Z"
-    end: null
+    end: "2026-09-29T06:49:34Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 247
+    note: "Follow-up: indeterminate progress was a parked 33% segment (read as ~30% done). Replaced with a full-track animated hatch + explicit reduced-motion opt-out; verified class + keyframe land in dev AND prod compiled CSS."
+    proof: ["c6dcb61", "#256"]
+    effort: {commits: 1, files: 5, insertions: 58, deletions: 15}
+  spent_min: 252
   session_count: 2
