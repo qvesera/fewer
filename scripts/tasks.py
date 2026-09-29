@@ -320,19 +320,64 @@ def emit_ledger(ledger: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+_LEDGER_STAMP: tuple[int, int] | None = None  # (mtime_ns, size) recorded by load()
+
+
+def _ledger_stamp() -> tuple[int, int] | None:
+    try:
+        st = os.stat(LEDGER)
+        return (st.st_mtime_ns, st.st_size)
+    except FileNotFoundError:
+        return None
+
+
 def load() -> dict[str, Any]:
+    global _LEDGER_STAMP
     if not os.path.isfile(LEDGER):
+        _LEDGER_STAMP = None
         return {"version": 1, "tasks": []}
     with open(LEDGER, encoding="utf-8") as fh:
-        return parse_ledger(fh.read())
+        text = fh.read()
+    _LEDGER_STAMP = _ledger_stamp()
+    return parse_ledger(text)
 
 
 def save(ledger: dict[str, Any]) -> None:
+    """Write the ledger atomically, refusing to clobber a concurrent write.
+
+    The file is replaced in one move, so a crash cannot leave TASKS.yaml
+    truncated.  And before writing, a stale-read guard compares the stamp
+    recorded at load() with the file's current stamp: if another writer has
+    touched the ledger since we read it, saving is refused instead of
+    silently discarding their change.  (Two such silent reversions - a
+    status flip and a lost session - were observed when verbs that walk
+    GitHub ran concurrently with edits.)
+    """
+    global _LEDGER_STAMP
     for row in ledger["tasks"]:
         backfill(row)
         refresh(row)
-    with open(LEDGER, "w", encoding="utf-8") as fh:
-        fh.write(emit_ledger(ledger))
+    if _LEDGER_STAMP is not None:
+        current = _ledger_stamp()
+        if current is not None and current != _LEDGER_STAMP:
+            _die(
+                "TASKS.yaml changed since it was read - another writer touched it. "
+                "Concurrent edits lose work, so this write is refused rather than "
+                "clobbering theirs. Re-run the command."
+            )
+    directory = os.path.dirname(LEDGER) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".TASKS-", suffix=".yaml")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(emit_ledger(ledger))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, LEDGER)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp)
+        raise
+    _LEDGER_STAMP = _ledger_stamp()
 
 
 def backfill(row: dict[str, Any]) -> None:
@@ -2386,14 +2431,47 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
 
 
 # ── reconcile: GitHub state → ledger status ─────────────────────────────
+CLOSING_KEYWORDS = ("fix", "fixes", "fixed", "close", "closes", "closed",
+                    "resolve", "resolves", "resolved")
+
+
+def closes_issue(text: str, number: int) -> bool:
+    """True when `text` closes issue #number with a keyword alone on its line.
+
+    Mirrors the repo's linking rule (see .agents/skills/pr/SKILL.md): the
+    keyword only links when it stands on its own line next to the reference -
+    "Closes #186 (parent umbrella)" is a mention, never a fix.  The match is
+    deliberately strict: an optional leading bullet is allowed, prose on
+    either side of the reference is not.
+    """
+    for line in (text or "").splitlines():
+        m = re.match(
+            r"^\s*(?:[-*+]|\d+[.)])?\s*(fix(?:es|ed)?|close[sd]?|resolve[sd]?)"
+            r"\s*:?\s*#(\d+)\s*\.?\s*$",
+            line, re.IGNORECASE,
+        )
+        if m and m.group(1).lower() in CLOSING_KEYWORDS and int(m.group(2)) == number:
+            return True
+    return False
+
+
 def _linked_prs(number: int) -> list[dict[str, Any]]:
+    """PRs that CLOSE issue #number - not ones that merely mention it.
+
+    The search is only a candidate filter: `{number} in:body` matches any PR
+    whose body contains the digits (cross-references, parent links, "Fixes"
+    of a *different* issue), so every candidate is then checked against the
+    closing-keyword rule before it can count.  Previously the mere presence
+    of a merged candidate was treated as a fix, which silently completed
+    tasks that were still open with an open PR of their own.
+    """
     try:
-        prs = gh_json("pr", "list", "--state", "all", "--limit", "20",
-                      "--search", f"{number} in:body", "--json", "number,state,mergedAt,title")
+        prs = gh_json("pr", "list", "--state", "all", "--limit", "30",
+                      "--search", f"{number} in:body",
+                      "--json", "number,state,mergedAt,title,body")
     except (SystemExit, FileNotFoundError):
         return []
-    return [p for p in prs if f"#{number}" in p.get("title", "") or p.get("mergedAt")
-            or "Fixes" in p.get("title", "")]
+    return [p for p in prs if closes_issue(p.get("body"), number)]
 
 
 def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
@@ -3342,6 +3420,22 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
           once.count(BODY_BEGIN) == 1 and twice.count(BODY_END) == 1)
     check("details: a body with no marker still gets the block",
           BODY_BEGIN in body_with_details("just prose\n", block))
+
+    # Ledger integrity: reconcile must never treat a mere mention as a fix.
+    check("closes: a bare Fixes line closes the issue", closes_issue("Fixes #213", 213))
+    check("closes: a bullet is fine", closes_issue("- Closes #213", 213))
+    check("closes: trailing period is fine", closes_issue("fix #213.", 213))
+    check("closes: a different issue does not close", not closes_issue("Fixes #212", 213))
+    check("closes: prose on the line is only a mention",
+          not closes_issue("Closes #213 (parent umbrella)", 213))
+    check("closes: prose before is only a mention",
+          not closes_issue("This fixes #213", 213))
+    check("closes: a cross-reference is not a fix", not closes_issue("Related to #213", 213))
+    check("closes: no keyword is not a fix", not closes_issue("#213 merged", 213))
+    check("closes: works across a multi-line body",
+          closes_issue("See #212 and #220\n\nFixes #213", 213))
+    check("closes: another issue's Fixes does not close this one",
+          not closes_issue("Fixes #220\n\nsee #213", 213))
 
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
