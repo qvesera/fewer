@@ -39,6 +39,7 @@
 <!-- Filled by `python3 scripts/tasks.py pr-metadata <PR#>` (CI re-applies it). -->
 
 - [ ] `pr-metadata` applied: labels (`status:*` + type + `category:*` + `size:*`), milestone, assignee, project item
+- [ ] Task's issue linked to this PR (Development sidebar) — a bare `Fixes #N` line, alone on its line; `pr-metadata` adds it and CI fails until it is linked
 - Task: <!-- T-### -->
 
 ## Screenshots (if applicable)
@@ -47,4 +48,7 @@
 
 ## Related Issues
 
-<!-- Link to any related issues: Fixes #123, Closes #456 -->
+<!-- One `Fixes #<issue>` per line, ALONE on that line — GitHub only builds the
+     link from a bare closing keyword; prose on the same line is just a mention.
+     `pr-metadata` adds the line if it is missing and CI blocks the merge until
+     the issue is linked. -->

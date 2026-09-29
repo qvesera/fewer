@@ -19,19 +19,27 @@ permissions:
   issues: write
 
 jobs:
-  apply:
+  # Job name doubles as the required check context on the dev/main rulesets —
+  # it is the "this PR is linked to its task's issue" gate. Renaming it means
+  # updating those rulesets (gh api …/rulesets/<id>).
+  pr-metadata:
+    name: Link issue + metadata
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Labels, milestone and assignee from the task rows
+      - name: Labels, milestone, assignee and the issue link, from the task rows
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # --no-write: a CI checkout is throwaway, so the `pr:` stamp is skipped.
         # --no-project: this token cannot reach Projects v2; the next step owns the board.
-        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --no-project
+        # --require-link: the merge gate. GitHub only builds the Development link
+        # from a closing keyword that is alone on its line, so pr-metadata writes
+        # the `Fixes #N` line itself and then refuses to pass if the link did not
+        # appear (the manual sidebar link satisfies the check too).
+        run: python3 scripts/tasks.py pr-metadata ${{ github.event.pull_request.number }} --no-write --no-project --require-link
 
       # Project board: needs a PAT with the `project` scope (PROJECTS_TOKEN).
       # `GITHUB_TOKEN` above cannot reach Projects v2 — hence a second step with

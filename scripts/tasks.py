@@ -24,6 +24,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1223,6 +1224,53 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
     return rows
 
 
+# GitHub builds the Development-sidebar link from a closing keyword that is
+# ALONE on its line. `Closes #186 (parent umbrella)` parses as a plain mention
+# and never links; a bare `Closes #186` does — verified across this repo's own
+# PRs (#248 linked 244/245/246, skipped 186 for exactly that reason). The
+# default-branch rule in the docs governs auto-*closing*, not the link: every
+# link here sits on a `dev`-based PR. There is no public API for the manual
+# "Linked issue" button (cli/cli#11405 is blocked on it), so the body is the
+# whole automation surface.
+CLOSING_LINE = re.compile(
+    r"^\s*(?:[-*]\s*)?(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s*:?\s*#(\d+)\s*$", re.I)
+RELATED_HEADING = re.compile(r"^\s*#{1,6}\s*related issues\b", re.I)
+
+
+def link_lines(body: str, issues: list[int]) -> tuple[str, list[int]]:
+    """`body` with a standalone `Fixes #N` line per issue that lacks one.
+
+    Returns (body, added). A no-op returns the input unchanged, so the CI job
+    that runs on every `edited` event never rewrites the PR in a loop.
+    """
+    lines = body.splitlines()
+    present = {int(m.group(1)) for m in map(CLOSING_LINE.match, lines) if m}
+    missing = [n for n in issues if n and n not in present]
+    if not missing:
+        return body, []
+    add = [f"Fixes #{n}" for n in missing]
+    head = next((i for i, ln in enumerate(lines) if RELATED_HEADING.match(ln)), None)
+    if head is None:
+        return "\n".join(lines + ["", "## Related Issues", ""] + add).strip() + "\n", missing
+    at = head + 1
+    if at < len(lines) and not lines[at].strip():
+        at += 1
+        lines[at:at] = add
+    else:
+        lines[at:at] = [""] + add
+    return "\n".join(lines).strip() + "\n", missing
+
+
+def linked_issue_numbers(pr: int) -> set[int]:
+    """Issues GitHub already links to this PR. Both a bare closing keyword and
+    the manual "Linked issue" click surface in `closingIssuesReferences`."""
+    try:
+        info = gh_json("pr", "view", str(pr), "--json", "closingIssuesReferences")
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        return set()
+    return {int(i["number"]) for i in (info.get("closingIssuesReferences") or [])}
+
+
 def size_option_name(estimate_min: int) -> str:
     """Board Size option for a task: `size:m` → `M` (the board's XS/S/M/L/XL)."""
     return size_label(estimate_min).split(":", 1)[1].upper()
@@ -1556,6 +1604,15 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         print(f"  project   {project or 'not configured'}" +
               ("" if project else " (needs read:project, or flip the board's Auto-add filter to include PRs)"))
 
+    issues = sorted({int(r["issue"]) for r in rows if r.get("issue")})
+    linked = linked_issue_numbers(pr)
+    body, added = link_lines(info.get("body") or "", issues)
+    unlinked = [n for n in issues if n not in linked]
+    if issues:
+        print(f"  link      issues={[f'#{n}' for n in issues]} "
+              f"linked={[f'#{n}' for n in issues if n in linked] or '-'}"
+              f"{'  +' + ', '.join(f'Fixes #{n}' for n in added) if added else ''}")
+
     if args.dry_run:
         print("  (dry-run: nothing written)")
         return 0
@@ -1572,6 +1629,26 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         cmd += ["--add-assignee", assignee]
     if len(cmd) > 3:
         gh(*cmd, check=False)
+
+    if added:
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+            fh.write(body)
+            path = fh.name
+        try:
+            gh("pr", "edit", str(pr), "--body-file", path, check=False)
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(path)
+        # GitHub re-parses the body on edit; the link lands a beat later, so
+        # poll briefly rather than reporting a false negative to --require-link.
+        for _ in range(3):
+            linked = linked_issue_numbers(pr)
+            if not [n for n in issues if n not in linked]:
+                break
+            time.sleep(2)
+        unlinked = [n for n in issues if n not in linked]
+        print(f"  link      wrote {' '.join(f'Fixes #{n}' for n in added)} → "
+              f"{'all linked' if not unlinked else f'unlinked {unlinked}'}")
 
     stamped = False
     for row in rows:
@@ -1592,6 +1669,11 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
         _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
+    if args.require_link and unlinked:
+        _die(f"pr-metadata: PR #{pr} is not linked to {', '.join(f'#{n}' for n in unlinked)} "
+             f"— GitHub only links a closing keyword that is ALONE on its line, so the "
+             f"body must carry a bare `Fixes #{unlinked[0]}` line; re-run pr-metadata, or "
+             f"link the issue from the PR's Development sidebar (this check gates merges)")
     return 0
 
 
@@ -1858,7 +1940,10 @@ def cmd_track(args: argparse.Namespace) -> int:
 
 
 def _start_row(ledger: dict[str, Any], row: dict[str, Any]) -> int:
-    ns = argparse.Namespace(ref=row["id"])
+    # `force` is part of cmd_start's contract: a row that cannot start refuses
+    # (and reports why) unless the caller overrides. track/attach have no such
+    # flag, so they pass the strict default rather than crashing on the attr.
+    ns = argparse.Namespace(ref=row["id"], force=False)
     return cmd_start(ns)
 
 
@@ -2954,6 +3039,25 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
           [r["id"] for r in pr_task_rows({"tasks": [stamped]},
                                          {"commits": [], "body": ""}, 9)] == ["T-001"])
 
+    # PR ↔ issue link. The whole point is that GitHub only links a keyword that
+    # is alone on its line, so pin the exact shapes seen in this repo's PRs.
+    prose = "## Related Issues\n\nCloses #186 (parent umbrella — all phases landed)\n"
+    body, added = link_lines(prose, [186])
+    check("link: trailing prose is not a keyword, so the line is added",
+          added == [186] and "## Related Issues\n\nFixes #186\n" in body, body)
+    body2, added2 = link_lines(body, [186])
+    check("link: idempotent — a second run rewrites nothing",
+          added2 == [] and body2 == body)
+    body3, added3 = link_lines("## Related Issues\n\nFixes #255\n", [255])
+    check("link: an already bare `Fixes #N` line is left alone", added3 == [] and body3.endswith("Fixes #255\n"))
+    body4, added4 = link_lines("# Title\n\nprose\n", [12, 13])
+    check("link: no Related Issues section → one is appended with every issue",
+          added4 == [12, 13] and "## Related Issues\n\nFixes #12\nFixes #13\n" in body4, body4)
+    body5, _ = link_lines(prose, [])
+    check("link: a task with no issue changes nothing", body5 == prose)
+    check("link: a keyword line with trailing whitespace still counts",
+          link_lines("Fixes #7   \n", [7])[1] == [])
+
     # hierarchy: links, rollups, and the parent/child coherence rules
     p_row = new_row(title="umbrella", rtype="task", area="other", issue=500,
                     estimate_min=600, source="gh#500")
@@ -3299,6 +3403,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="labels/milestone/assignee only — leave the board to a later step")
     sp.add_argument("--milestone",
                     help="override the default (earliest open milestone when the task has none)")
+    sp.add_argument("--require-link", action="store_true",
+                    help="fail unless every task row's issue is linked to the PR "
+                         "(GitHub Development sidebar) — the merge gate")
 
     sp = add("intake", cmd_intake, "adopt GitHub issues that have no ledger row")
     sp.add_argument("--state", choices=("open", "all", "closed"), default="open")

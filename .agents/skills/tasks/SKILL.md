@@ -175,5 +175,6 @@ acyclic and `gh-sync` mirrors the link as a native GitHub sub-issue
 | `parent done while child(ren) still open` | parent closed too early | finish the children, or `set-status` the parent back to `triaged` |
 | ambiguous `track` (exit 3) | candidate in the 0.45–0.75 band | show candidates, ask, or rerun `--new` |
 | `pr-metadata: … carries no tracked task` | commit lacks a `Task:` trailer | `task:start`, amend trailers, rerun |
+| `pr-metadata: PR #N is not linked to #M` | the PR body has no bare `Fixes #M` line (GitHub links only a keyword alone on its line) | rerun `pr-metadata <PR#> --require-link`; if it persists, link #M from the PR's Development sidebar. The CI check `Link issue + metadata` is required on `dev`/`main` |
 | `project: skipped — no board configured` | no board number / no `read:project` | set `PROJECT_NUMBER`, or flip the board's Auto-add filter to include PRs |
 | PR labels drifted after re-triage | row changed post-PR | `pr-metadata <N>` again (idempotent) |

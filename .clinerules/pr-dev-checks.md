@@ -18,6 +18,13 @@ It resolves the task from the `Task: T-###` trailers and sets:
   xl >2400m), replacing stale `size:*`/`status:*` only;
 - **milestone** — the task's → its issue's → the earliest open release train;
 - **assignee** — the task's `assignee` (default `qvesera`);
+- **issue ↔ PR link** — every task row's issue is linked to the PR in GitHub's
+  Development sidebar. `pr-metadata` writes the missing bare `Fixes #<N>` line
+  (GitHub only links a closing keyword that is alone on its line) and CI runs it
+  with `--require-link`, so the `Link issue + metadata` check **fails the PR**
+  while the issue is unlinked — and that check is required on `dev`/`main`, so
+  the PR cannot merge unlinked. Link it by hand once if GitHub refuses the
+  keyword; the check then passes;
 - **project** — `--project <N>` adds the item and mirrors Status; without the
   `read:project` scope it prints `project: skipped …` (the board's Auto-add
   workflow can cover PRs instead — both paths are in `.agents/skills/pr/SKILL.md`).

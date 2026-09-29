@@ -1668,3 +1668,32 @@ tasks:
     effort: {commits: 1, files: 5, insertions: 58, deletions: 15}
   spent_min: 252
   session_count: 2
+- id: "T-067"
+  title: "pr-metadata auto-links a task's GitHub issue to the PR and blocks merge until linked"
+  status: "in-progress"
+  type: "feat"
+  area: "infra"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 257
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#257"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-29T09:04:36Z"
+  notes: ["2026-09-29T09:36:40Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-29T09:36:42Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

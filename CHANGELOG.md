@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified email shell for all outbound emails (auth, digest, invite) — shared dark design, fewer.directory wordmark, orange CTA, table-based Outlook-compatible layout. Supabase auth templates generated from the same source to prevent drift. New emailTemplate.ts + gen-email-templates.ts + tests.
 - Gallery publishing no longer requires a profile name/username to toggle on — entries without a profile show as Anonymous with a non-blocking hint in the share dialog
 - Docs, blog, 404 and password-reset pages now share the site header and footer from the main page (Features / Gallery / Privacy / Docs / Blog + Launch the app) — DocsLayout dropped its own minimal navbar so every non-app page has the same navigation; the app at /app keeps its own GlobalNavbar
+- PRs are now automatically linked to their task's GitHub issue: pr-metadata writes a bare `Fixes #N` line (GitHub only links a closing keyword that is alone on its line) and the new required `Link issue + metadata` check fails until the link exists, so a PR cannot merge unlinked
 
 ### Fixed
 
@@ -121,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import dialog is wider (sm:max-w-xl), so the Symlinks option (Skip / Show as links / Follow) fits on one row instead of being cut off.
 - Dismissing the folder picker during an import no longer wedges the app: the picker fallback now settles on the picker's cancel event (it used to hang forever, leaving the import dialog unable to close), and closing the import dialog mid-import is allowed again — the orphaned run can no longer toast or close a freshly reopened dialog.
 - The import progress bar no longer looks stuck at roughly 30% when the total is unknown: the indeterminate state is a full-track animated hatch instead of a fixed-width segment, so it reads as "unknown" even with animations disabled (reduced motion) or a stylesheet served without the keyframe.
+- tasks.py track no longer crashes with AttributeError when it auto-starts a newly created row
 
 ### Added
 
