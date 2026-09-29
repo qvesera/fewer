@@ -1432,7 +1432,7 @@ tasks:
   session_count: 1
 - id: "T-059"
   title: "Symlink display: link icons + target badge, collapsed pill and child-row glyphs, contrast edges + arrowhead (canvas and export), broken-link state"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "theme"
   tier: 1
@@ -1461,7 +1461,7 @@ tasks:
   session_count: 1
 - id: "T-060"
   title: "Symlink interaction and round-trip: context menu (Go to target / copy target / open location), search index + stats, ASCII/JSON parser and CSV/DOT/tree export parity, docs"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: 1
@@ -1490,7 +1490,7 @@ tasks:
   session_count: 1
 - id: "T-061"
   title: "Symlink capture: detect links in localTree walk (SymlinkInfo on TreeEntry/FewerNodeData, treeToGraph propagation, symlinks import option skip/leaf/follow, cycle guard)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: 1
@@ -1519,7 +1519,7 @@ tasks:
   session_count: 1
 - id: "T-062"
   title: "intake crashes with NameError: rtype undefined in cmd_intake (size label derived from nothing)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "other"
   tier: null
@@ -1571,7 +1571,7 @@ tasks:
   session_count: 0
 - id: "T-064"
   title: "Look Inside Archives: expand archives found inside an imported folder"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -1600,7 +1600,7 @@ tasks:
   session_count: 1
 - id: "T-065"
   title: "Import dialog too narrow — Symlinks option row clips"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -1635,7 +1635,7 @@ tasks:
   session_count: 2
 - id: "T-066"
   title: "Closing the folder picker leaves the import dialog wedged; add import progress feedback"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "import"
   tier: 1
