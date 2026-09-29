@@ -43,7 +43,7 @@
 - [x] **Client-side virtualization**: only render visible nodes for large graphs (1000+ nodes)
 - [x] **SOLID principles refactor**: clean up store and component architecture
 - [ ] **Tauri desktop app**: port to Tauri for native file watching, system tray, global hotkeys, better compute
-- [ ] **Symlink handling**: detect and display symlink nodes without infinite recursion
+- [x] **Symlink handling**: detect and display symlink nodes without infinite recursion
 - [x] **Link compression**: shorten share URLs (e.g., compressed graph state)
 
 ## 🖥️ UX
