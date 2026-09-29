@@ -1837,3 +1837,84 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-072"
+  title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending migrations drift and tells you to repair them as applied, which skips their DDL forever"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 269
+  pr: 274
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#269"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T21:29:34Z"
+  notes: []
+  sessions:
+  - start: "2026-09-29T21:30:20Z"
+    end: "2026-09-29T21:30:47Z"
+    measured: true
+    note: "re-delivered the migration-baseline fix (lost with #270) onto a fresh dev branch; fixtures re-verified."
+    proof: ["14811e6"]
+    effort: {commits: 1, files: 4, insertions: 183, deletions: 10}
+  spent_min: 0
+  session_count: 1
+- id: "T-073"
+  title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks), and concurrent writers can clobber TASKS.yaml"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 272
+  pr: 274
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#272"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T21:29:34Z"
+  notes: []
+  sessions:
+  - start: "2026-09-29T21:30:49Z"
+    end: "2026-09-29T21:31:19Z"
+    measured: true
+    note: "re-delivered the ledger-integrity fix onto a fresh dev branch; closes_issue selftest (10 checks) + stale-read guard verified."
+    proof: ["524122a"]
+    effort: {commits: 1, files: 2, insertions: 16, deletions: 9}
+  spent_min: 0
+  session_count: 1
+- id: "T-074"
+  title: "gen-seed-content.py hardcodes a stale 'Crown Shyness drift' rationale into every reseed header (scripts/gen-seed-content.py:91) — 0048/0049/0050 all carry a reason describing an older change; make the header reason generic or a CLI arg"
+  status: "triaged"
+  type: "refactor"
+  area: "infra"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T21:34:15Z"
+  notes: ["2026-09-29T21:34:15Z · cosmetic: the generated SQL content is always correct (regenerated from the markdown); only the header comment carries a stale reason. Fix: drop the hardcoded parenthetical from the generator's docstring header, or accept a --reason flag. Low priority."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
