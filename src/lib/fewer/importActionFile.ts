@@ -7,14 +7,15 @@
  * panel behaves identically for every origin.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes } from "@/lib/fewer/importFlow";
-import { filterTree, treeToGraph } from "@/lib/fewer/treeToGraph";
+import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
+import { buildProgress, collectAutoHideNotes } from "@/lib/fewer/importFlow";
+import { chunkTreeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runFileImport(
   source: Extract<OriginSource, { origin: "file" }>,
   options: ImportOptions,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
     if (!source.content.trim()) {
@@ -24,6 +25,8 @@ export async function runFileImport(
         error: "Provide structural script commands or load a file first.",
       };
     }
+
+    onProgress?.({ phase: "Parsing file" });
 
     // Dynamic import keeps parsers out of the startup bundle (same as old dialog).
     const { parseImportFile } = await import("@/lib/fewer/parsers");
@@ -38,10 +41,14 @@ export async function runFileImport(
       };
     }
 
-    const { nodes, edges, hiddenFileIds } = treeToGraph(tree, {
-      idPrefix: "file-import",
-      includeFiles: options.includeFiles,
-    });
+    const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
+      tree,
+      {
+        idPrefix: "file-import",
+        includeFiles: options.includeFiles,
+      },
+      buildProgress(onProgress),
+    );
 
     useGraphStore.setState({
       dataSource: "file",

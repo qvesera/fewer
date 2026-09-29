@@ -6,15 +6,16 @@
  * exactly like the file import does.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
+import { buildProgress, collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
 import { formatBytes } from "@/lib/fewer/stats";
-import { filterTree, treeToGraph } from "@/lib/fewer/treeToGraph";
+import { chunkTreeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runArchiveImport(
   source: Extract<OriginSource, { origin: "archive" }>,
   options: ImportOptions,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   if (!source.file) {
     return {
@@ -25,6 +26,8 @@ export async function runArchiveImport(
   }
 
   try {
+    onProgress?.({ phase: "Reading archive" });
+
     // Dynamic import keeps the parser out of the startup bundle (same as
     // runFileImport's parsers import).
     const { listArchive, MAX_ARCHIVE_ENTRIES } = await import(
@@ -41,10 +44,14 @@ export async function runArchiveImport(
       };
     }
 
-    const { nodes, edges, hiddenFileIds } = treeToGraph(tree, {
-      idPrefix: "archive-import",
-      includeFiles: options.includeFiles,
-    });
+    const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
+      tree,
+      {
+        idPrefix: "archive-import",
+        includeFiles: options.includeFiles,
+      },
+      buildProgress(onProgress),
+    );
 
     useGraphStore.setState({
       dataSource: "file",

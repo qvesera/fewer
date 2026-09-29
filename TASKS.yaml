@@ -1633,3 +1633,38 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 34, deletions: 4}
   spent_min: 26
   session_count: 2
+- id: "T-066"
+  title: "Closing the folder picker leaves the import dialog wedged; add import progress feedback"
+  status: "review"
+  type: "fix"
+  area: "import"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 255
+  pr: 256
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-28T22:55:18Z"
+  notes: ["2026-09-28T22:55:30Z · Picker cancel never settles (no 'cancel' listener on the webkitdirectory input), so importing stays true and the dialog refuses to close (soft block). Plus import progress bar."]
+  sessions:
+  - start: "2026-09-28T23:01:40Z"
+    end: "2026-09-29T03:08:33Z"
+    measured: true
+    note: "Fixed the picker-cancel wedge (cancel event on the webkitdirectory input + run-token close instead of a permanent close-block) and added import progress: determinate for folder read/graph build, phase label otherwise. chunkTreeToGraph now really yields; ui/progress forwards value to Radix."
+    proof: ["9ed78d8", "#256"]
+    effort: {commits: 1, files: 21, insertions: 549, deletions: 67}
+  - start: "2026-09-29T06:44:37Z"
+    end: "2026-09-29T06:49:34Z"
+    measured: true
+    note: "Follow-up: indeterminate progress was a parked 33% segment (read as ~30% done). Replaced with a full-track animated hatch + explicit reduced-motion opt-out; verified class + keyframe land in dev AND prod compiled CSS."
+    proof: ["c6dcb61", "#256"]
+    effort: {commits: 1, files: 5, insertions: 58, deletions: 15}
+  spent_min: 252
+  session_count: 2

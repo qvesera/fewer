@@ -4,7 +4,7 @@
  * Ported from handleImport in ImportUrlDialog.tsx.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
 import { collectAutoHideNotes, importFailure, isGitHubUrl } from "@/lib/fewer/importFlow";
 import { useGraphStore } from "@/store/graphStore";
 
@@ -21,6 +21,7 @@ export async function runUrlImport(
   source: Extract<OriginSource, { origin: "url" }>,
   options: ImportOptions,
   ctx: UrlImportContext,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
     const url = source.url.trim();
@@ -28,6 +29,10 @@ export async function runUrlImport(
       return { ok: false, title: "Nothing to import", error: "Enter a URL first." };
     }
 
+    // The hook fetches, crawls, and builds the graph in one go, so there is no
+    // total to report here — an indeterminate bar plus this label is the honest
+    // answer until that pipeline grows a progress seam.
+    onProgress?.({ phase: "Fetching URL" });
     const ok = await ctx.importUrl(url, options);
     if (!ok) {
       return {
@@ -48,6 +53,7 @@ export async function runUrlImport(
       });
     }
 
+    onProgress?.({ phase: "Finishing up" });
     notes.push(...(await collectAutoHideNotes()));
 
     const watchNote = await collectWatchNote(url, source, ctx);

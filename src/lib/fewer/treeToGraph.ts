@@ -4,6 +4,7 @@ import { fsHandleStore } from "./types";
 import { categorizeByExtension, getFileExtension } from "./categorize";
 import type { ImportOptions } from "./importOptions";
 import { VENDORED_DIRS } from "./importOptions";
+import { yieldToUI } from "./asyncYield";
 
 interface BuildOptions {
   /** Bump this when you need to regenerate IDs without remounting. */
@@ -123,8 +124,12 @@ function matchesExtension(name: string, extensions: string[], caseSensitive: boo
  */
 /**
  * Chunked tree-to-graph conversion with progress callback.
- * Yields nodes in batches to keep the UI responsive during large imports.
- * For 10K+ node trees, this prevents blocking the main thread.
+ * Yields to the event loop every batch so a large import keeps the UI (and any
+ * progress bar) responsive. For 10K+ node trees, this prevents blocking the
+ * main thread.
+ *
+ * Output is identical to treeToGraph — same preorder, same ids shape — so this
+ * is a drop-in for the import actions that want progress.
  */
 export async function chunkTreeToGraph(
   root: TreeEntry,
@@ -148,7 +153,7 @@ export async function chunkTreeToGraph(
   const batchSize = 500;
   let processed = 0;
 
-  function walk(entry: TreeEntry, parentId: string | null, depth: number, pathPrefix: string) {
+  async function walk(entry: TreeEntry, parentId: string | null, depth: number, pathPrefix: string) {
     const id = `${prefix}-${uuid().slice(0, 8)}`;
     const fullPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
     const extension = entry.type === "file" ? getFileExtension(entry.name) : "";
@@ -177,17 +182,18 @@ export async function chunkTreeToGraph(
     processed++;
     if (processed % batchSize === 0) {
       onProgress?.({ processed, total, phase: "building-tree" });
+      await yieldToUI();
     }
 
     if (entry.children) {
       const sorted = [...entry.children].sort((a, b) => a.name.localeCompare(b.name));
       for (const child of sorted) {
-        walk(child, id, depth + 1, fullPath);
+        await walk(child, id, depth + 1, fullPath);
       }
     }
   }
 
-  walk(root, null, 0, "");
+  await walk(root, null, 0, "");
   onProgress?.({ processed: total, total, phase: "building-tree" });
   return { nodes, edges, hiddenFileIds };
 }

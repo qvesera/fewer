@@ -100,12 +100,14 @@ beforeEach(() => {
 });
 
 describe("runImport dispatch", () => {
+  // The last arg is the optional progress callback; runImport always forwards it
+  // so the actions have one stable signature.
   test("folder → runFolderImport with the options only", async () => {
     const o = opts({ includeHidden: true });
     const r = await runImport({ origin: "folder" }, o, ctx());
     expect(r.ok).toBe(true);
     expect(runFolderImport).toHaveBeenCalledTimes(1);
-    expect(runFolderImport).toHaveBeenCalledWith(o);
+    expect(runFolderImport).toHaveBeenCalledWith(o, undefined, undefined);
     expect(runFileImport).not.toHaveBeenCalled();
     expect(runCloudImport).not.toHaveBeenCalled();
   });
@@ -114,7 +116,7 @@ describe("runImport dispatch", () => {
     const source = { origin: "file", content: "root {{ child }}", format: "tree" } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runFileImport).toHaveBeenCalledWith(source, o);
+    expect(runFileImport).toHaveBeenCalledWith(source, o, undefined);
     expect(runFolderImport).not.toHaveBeenCalled();
   });
 
@@ -123,7 +125,7 @@ describe("runImport dispatch", () => {
     const source = { origin: "archive", file, name: "backup.zip" } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runArchiveImport).toHaveBeenCalledWith(source, o);
+    expect(runArchiveImport).toHaveBeenCalledWith(source, o, undefined);
     expect(runFileImport).not.toHaveBeenCalled();
     expect(runFolderImport).not.toHaveBeenCalled();
   });
@@ -138,7 +140,7 @@ describe("runImport dispatch", () => {
     } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runCloudImport).toHaveBeenCalledWith(source, o);
+    expect(runCloudImport).toHaveBeenCalledWith(source, o, undefined);
   });
 
   test("cancelled result from a runner is passed through untouched", async () => {

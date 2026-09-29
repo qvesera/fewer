@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ImportActionResult } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
+import type { ImportOptions } from "@/lib/fewer/importOptions";
 
 // Mock boundaries, not the dialog steps or the Zustand store.
 const toast = mock(() => {});
@@ -13,7 +14,14 @@ mock.module("@/hooks/use-github-import", () => ({
 }));
 const watchAdd = mock(async () => true);
 mock.module("@/hooks/use-watch", () => ({ useWatch: () => ({ add: watchAdd }) }));
-const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
+// Matches runFolderImport's real signature: (options, dropped?, onProgress?).
+const runFolderImport = mock<
+  (
+    _options: ImportOptions,
+    _dropped?: unknown,
+    _onProgress?: ImportProgressFn,
+  ) => Promise<ImportActionResult>
+>(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
 const runFileImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from file", description: "root: 1 entries" }));
 const runCloudImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Imported from cloud", description: "cloud: 1 entries" }));
 const runArchiveImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from archive", description: "backup.zip: 1 entries" }));
@@ -288,5 +296,144 @@ describe("ImportFlowDialog state and step-3 import", () => {
     // Continue should be gone once step 3 renders.
     expect(screen.queryByRole("button", { name: /Continue/ })).toBeNull();
     expect(screen.getByRole("button", { name: /^(?:browse|import)$/i })).toBeTruthy();
+  });
+});
+
+/** Step 1 → 2 → 3, leaving the dialog on the summary with the import button. */
+async function gotoStep3(interaction: ReturnType<typeof userEvent.setup>) {
+  await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+  await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+}
+
+/** A promise whose settlement the test controls. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+describe("ImportFlowDialog import progress", () => {
+  test("a determinate phase shows the percentage and aria-valuenow", async () => {
+    const interaction = userEvent.setup();
+    // Report progress from inside the action, then stay pending.
+    runFolderImport.mockImplementationOnce(async (_options, _dropped, onProgress) => {
+      onProgress?.({ phase: "Reading folder", processed: 250, total: 1000 });
+      await new Promise(() => {});
+      return { ok: true, title: "never" };
+    });
+
+    renderDialog();
+    await gotoStep3(interaction);
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("progressbar", { name: /import progress/i })).toBeTruthy(),
+    );
+    expect(screen.getByText("Reading folder")).toBeTruthy();
+    expect(screen.getByText("25%")).toBeTruthy();
+    const bar = screen.getByRole("progressbar", { name: /import progress/i });
+    expect(bar.getAttribute("aria-valuenow")).toBe("25");
+    // Determinate = the real fill, never the indeterminate hatch (a hatch on a
+    // determinate bar is what made the bar look ~30% done when it wasn't).
+    expect(bar.querySelector(".gm-progress-indeterminate")).toBeNull();
+  });
+
+  test("a phase without a total stays indeterminate (no percentage)", async () => {
+    const interaction = userEvent.setup();
+    runFolderImport.mockImplementationOnce(async (_options, _dropped, onProgress) => {
+      onProgress?.({ phase: "Finishing up" });
+      await new Promise(() => {});
+      return { ok: true, title: "never" };
+    });
+
+    renderDialog();
+    await gotoStep3(interaction);
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+
+    await waitFor(() => expect(screen.getByText("Finishing up")).toBeTruthy());
+    const bar = screen.getByRole("progressbar", { name: /import progress/i });
+    // Radix omits aria-valuenow when value is undefined — that IS the ARIA
+    // contract for an indeterminate progressbar.
+    expect(bar.getAttribute("aria-valuenow")).toBeNull();
+    expect(screen.queryByText(/%$/)).toBeNull();
+    // The hatch spans the WHOLE track and is styled in CSS, so its resting state
+    // (animation disabled, or missing) still reads as "unknown", not as a
+    // percentage. A fixed-width segment parked at 0px looked like ~30% done.
+    const hatch = bar.querySelector(".gm-progress-indeterminate");
+    expect(hatch).toBeTruthy();
+    expect(hatch!.className).toContain("inset-0");
+    expect(hatch!.className).not.toMatch(/\bw-\d/);
+  });
+
+  test("the bar and phase disappear once the import finishes", async () => {
+    const interaction = userEvent.setup();
+    runFolderImport.mockImplementationOnce(async (_options, _dropped, onProgress) => {
+      onProgress?.({ phase: "Reading folder", processed: 5, total: 10 });
+      return { ok: true, title: "Directory loaded", description: "root: 1 entries" };
+    });
+
+    renderDialog();
+    await gotoStep3(interaction);
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("progressbar")).toBeNull(),
+    );
+  });
+});
+
+describe("ImportFlowDialog closing mid-import", () => {
+  test("the dialog closes while an import is in flight and drops the late result", async () => {
+    const interaction = userEvent.setup();
+    const run = deferred<ImportActionResult>();
+    runFolderImport.mockImplementationOnce(async () => run.promise);
+
+    const onOpenChange = renderDialog();
+    await gotoStep3(interaction);
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+    await waitFor(() => expect(screen.getByRole("progressbar")).toBeTruthy());
+
+    // Close mid-import: this used to be refused outright, which wedged the app
+    // whenever a picker cancelled and left the promise pending forever.
+    await interaction.click(screen.getByRole("button", { name: /^close$/i }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    // The orphaned run resolves after the close — it must stay inert.
+    await act(async () => {
+      run.resolve({ ok: true, title: "Directory loaded", description: "root: 1 entries" });
+      await run.promise;
+    });
+    expect(toast).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalledWith(true);
+  });
+
+  test("late progress from an orphaned run never reappears", async () => {
+    const interaction = userEvent.setup();
+    const run = deferred<ImportActionResult>();
+    runFolderImport.mockImplementationOnce(
+      async (_options, _dropped, onProgress) => {
+        const settled = await run.promise;
+        // Fires AFTER the dialog was closed: the run token must swallow it.
+        onProgress?.({ phase: "Building graph", processed: 1, total: 2 });
+        return settled;
+      },
+    );
+
+    renderDialog();
+    await gotoStep3(interaction);
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+    await waitFor(() => expect(screen.getByRole("progressbar")).toBeTruthy());
+
+    await interaction.click(screen.getByRole("button", { name: /^close$/i }));
+    // Closing clears the spinner and the bar immediately.
+    expect(screen.queryByRole("progressbar")).toBeNull();
+
+    await act(async () => {
+      run.resolve({ ok: true, title: "Directory loaded" });
+      await run.promise;
+    });
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText("Building graph")).toBeNull();
+    expect(toast).not.toHaveBeenCalled();
   });
 });

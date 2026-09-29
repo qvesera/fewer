@@ -29,13 +29,14 @@ import { ImportOptionsPanel } from "./ImportOptionsPanel";
 import { ImportOriginStep, ORIGIN_ICONS } from "./ImportOriginStep";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
+import { Progress } from "@/components/ui/progress";
 import {
   ORIGIN_META,
   defaultSourceFor,
   isSourceReady,
   sourceLabel,
 } from "@/lib/fewer/importFlow";
-import type { ImportOrigin, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportOrigin, ImportProgress, OriginSource } from "@/lib/fewer/importFlow";
 import { runImport } from "@/lib/fewer/importAction";
 import { can } from "@/lib/fewer/tiers";
 
@@ -99,6 +100,11 @@ export function ImportFlowDialog({
   }));
   const [importing, setImporting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  // Bumped on every start and on every close, so a run that settles after the
+  // dialog was closed (or reopened) is dropped instead of toasting, writing an
+  // error, or closing a dialog the user is looking at fresh.
+  const runIdRef = useRef(0);
 
   // Reset the flow on each genuine open transition (open false->true).
   // Re-seed options from the store (the source of truth): this dialog stays
@@ -121,6 +127,7 @@ export function ImportFlowDialog({
       );
       setActionError(null);
       setImporting(false);
+      setProgress(null);
     }
   }, [open, initialOrigin]);
 
@@ -139,16 +146,29 @@ export function ImportFlowDialog({
 
   const handleImport = async () => {
     if (importing) return;
+    const runId = ++runIdRef.current;
     setImporting(true);
     setActionError(null);
+    setProgress(null);
 
-    const result = await runImport(source, options, {
-      importUrl,
-      getUrlResult,
-      watchUrl: watchAdd,
-    });
+    const result = await runImport(
+      source,
+      options,
+      {
+        importUrl,
+        getUrlResult,
+        watchUrl: watchAdd,
+      },
+      (p) => {
+        if (runIdRef.current === runId) setProgress(p);
+      },
+    );
+
+    // The dialog was closed (or reopened) while this run was in flight.
+    if (runIdRef.current !== runId) return;
 
     setImporting(false);
+    setProgress(null);
 
     if (result.cancelled) return; // e.g. native picker dismissed → stay on step 3
     if (!result.ok) {
@@ -165,10 +185,25 @@ export function ImportFlowDialog({
 
   const OriginIcon = ORIGIN_ICONS[origin];
 
-  // Block closing while an import is in flight — otherwise the orphaned
-  // promise would toast and close a freshly reopened dialog.
+  // null = we don't know the total yet → indeterminate bar, no fake percentage.
+  const progressPercent =
+    progress?.total && progress.processed !== undefined
+      ? Math.min(100, Math.round((progress.processed / progress.total) * 100))
+      : null;
+
+  // Closing mid-import ends the *run*, not the work already in flight: bumping
+  // the run id makes the orphaned promise inert (it can no longer toast, show an
+  // error, or close a freshly reopened dialog) and clears the spinner, so a
+  // stuck import can never wedge the dialog again.
+  // ponytail: no AbortSignal plumbing into the walkers — an import that finishes
+  // after the close still applies its result to the store. The upgrade path is a
+  // signal threaded through runImport if that ever becomes a problem.
   const handleOpenChange = (next: boolean) => {
-    if (!next && importing) return;
+    if (!next) {
+      runIdRef.current++;
+      setImporting(false);
+      setProgress(null);
+    }
     onOpenChange(next);
   };
 
@@ -324,6 +359,26 @@ function isEditableTarget(el: HTMLElement): boolean {
                   </span>
                 </div>
               </div>
+
+              {importing && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                    <span aria-live="polite">
+                      {progress?.phase ?? "Starting import…"}
+                    </span>
+                    {progressPercent !== null && (
+                      <span className="font-mono tabular-nums">
+                        {progressPercent}%
+                      </span>
+                    )}
+                  </div>
+                  <Progress
+                    aria-label="Import progress"
+                    className="h-1.5"
+                    value={progressPercent ?? undefined}
+                  />
+                </div>
+              )}
 
               {actionError && (
                 <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-xs font-medium leading-normal text-red-400 dark:text-red-300">

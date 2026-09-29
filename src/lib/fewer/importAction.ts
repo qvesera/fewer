@@ -9,7 +9,7 @@
  * Plain async function: no React, no toasts. Caller surfaces the result.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportProgressFn, ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
 import type { UrlImportContext } from "@/lib/fewer/importActionUrl";
 import { runFolderImport } from "@/lib/fewer/importActionFolder";
 import { runFileImport } from "@/lib/fewer/importActionFile";
@@ -31,16 +31,17 @@ export async function runImport(
   source: OriginSource,
   options: ImportOptions,
   ctx: ImportActionContext,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   switch (source.origin) {
     case "folder":
-      return await runFolderImport(options);
+      return await runFolderImport(options, undefined, onProgress);
     case "file":
-      return await runFileImport(source, options);
+      return await runFileImport(source, options, onProgress);
     case "archive":
-      return await runArchiveImport(source, options);
+      return await runArchiveImport(source, options, onProgress);
     case "cloud":
-      return await runCloudImport(source, options);
+      return await runCloudImport(source, options, onProgress);
     case "url": {
       const result = await runUrlImport(source, options, {
         importUrl: ctx.importUrl,
@@ -48,7 +49,7 @@ export async function runImport(
         // Only register a watch when the user asked for one; the runner also
         // suppresses it for GitHub repos, which have their own change signal.
         watchUrl: source.watch ? ctx.watchUrl : undefined,
-      });
+      }, onProgress);
       if (result.ok) return result;
       // The hook knows why the fetch failed (e.g. "no public index at that
       // URL") and the runner only has a generic message — prefer the hook's.
