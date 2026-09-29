@@ -1862,7 +1862,7 @@ tasks:
   session_count: 1
 - id: "T-073"
   title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks),…"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "infra"
   tier: null
@@ -1875,19 +1875,19 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#272"
-  time_source: null
+  time_source: "measured"
   reporter: "app/cline-cloud"
   assignee: "qvesera"
   created_at: "2026-09-29T21:03:52Z"
   notes: ["2026-09-29T21:32:20Z · adopted at intake from GitHub (open)"]
   sessions:
   - start: "2026-09-29T21:44:25Z"
-    end: null
+    end: "2026-09-29T21:46:39Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Linked-PR filter + record-session --replace; 6 selftest cases"
+    proof: ["23b8580"]
+    effort: {commits: 1, files: 4, insertions: 85, deletions: 22}
+  spent_min: 2
   session_count: 1
 - id: "T-074"
   title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending…"
