@@ -1759,7 +1759,7 @@ tasks:
   title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow, which writes the store again"
   status: "review"
   type: "fix"
-  area: "other"
+  area: "ux"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
