@@ -1827,30 +1827,30 @@ tasks:
   session_count: 0
 - id: "T-072"
   title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending migrations 'drift' and tells you to repair them as applied, which skips their DDL forever"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "infra"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: 269
-  pr: null
+  pr: 270
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-29T19:55:53Z"
   notes: ["2026-09-29T19:56:26Z · Reproduced exactly: a fixture of dev's migration list (0001-0045 both sides, 0046-0050 local-only, plus remote-only 20260924085520) prints the same FAIL and the same advice as CI. Root cause: remote_head = max(remote) is the orphan timestamp version, so genuinely-pending 0046-0049 sort below it and get labelled drift. The printed remedy (repair --status applied) would record four never-applied migrations as applied and skip their DDL for good. Fix: compute the head from versions that exist on BOTH sides, and when a remote-only (orphan) version is above it, report the revert remedy (history-only, no DDL, nothing replayable since no local file can match a timestamp). Keep the repair-applied path only for true drift, with the verify-first caveat."]
   sessions:
   - start: "2026-09-29T19:57:33Z"
-    end: null
+    end: "2026-09-29T19:59:06Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "fixed the baseline gate that mislabelled pending migrations as drift: head now computed from versions present on both sides, orphan timestamp rows identified with the history-only revert remedy, real drift keeps the record-as-applied path plus a verify-the-DDL-first warning. Reproduced dev's exact CI failure from a fixture and proved three cases (orphan / true drift / healthy). PR #270."
+    proof: ["0bb922c", "#270"]
+    effort: {commits: 1, files: 3, insertions: 59, deletions: 3}
+  spent_min: 2
   session_count: 1
