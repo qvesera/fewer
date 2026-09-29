@@ -934,7 +934,7 @@ tasks:
   session_count: 0
 - id: "T-037"
   title: "README refresh"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: null
@@ -970,13 +970,13 @@ tasks:
   estimate_min: 240
   estimate_basis: "cli"
   issue: 213
-  pr: 262
+  pr: 265
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:16Z"
@@ -988,8 +988,14 @@ tasks:
     note: "audited content/docs against shipped UI strings; shipped 6 verified doc->UI label fixes + reseed 0050 (session restored by hand after a bad git reset --hard discarded the ledger write)"
     proof: []
     effort: null
+  - start: "2026-09-29T19:31:01Z"
+    end: "2026-09-29T19:31:27Z"
+    measured: true
+    note: "finish pass: cards/connections sweep across 12 docs pages (115 lines) with a verified protection list; headings renamed; settings Width/Height now quote the real Card Metrics labels; migration 0051 (0050 left untouched since it merged with #262); adopted #264 as T-070."
+    proof: ["f5d790b"]
+    effort: {commits: 1, files: 15, insertions: 2708, deletions: 117}
   spent_min: 6
-  session_count: 1
+  session_count: 2
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
   status: "backlog"
@@ -1773,3 +1779,49 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 321, deletions: 2}
   spent_min: 9
   session_count: 1
+- id: "T-070"
+  title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow,…"
+  status: "triaged"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 264
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#264"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-29T19:20:03Z"
+  notes: ["2026-09-29T19:31:17Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-071"
+  title: "Supabase migration history drift on dev: 0046-0049 are not recorded, so apply-dev refuses to push and no reseed (0050-0052) reaches the environment"
+  status: "blocked"
+  type: "infra"
+  area: "infra"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 268
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T19:44:22Z"
+  notes: ["2026-09-29T19:44:29Z · apply-dev push job fails on every merge: 'history drift: these local migrations are out of order and missing from the project's history: 0046, 0047, 0048, 0049. A supabase db push would silently skip them.' Consequence: 0050 (merged with #262) never applied, and 0051/0052 will not either, so no docs/blog copy reaches the served content_pages. Remedy per the runbook: supabase migration repair --status applied 0046 0047 0048 0049 - but ONLY after confirming each change exists in the dev database, because repair asserts applied and never runs the migration; repairing a genuinely missing one skips it permanently. Needs DB access/owner (0046-0049 effects unverified from this sandbox)."]
+  sessions: []
+  spent_min: 0
+  session_count: 0

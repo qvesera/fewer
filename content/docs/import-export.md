@@ -27,7 +27,7 @@ An import **replaces the graph**, so it also replaces everything that described
 the old one: hidden cards, collapsed folders and dragged card positions are
 dropped (a new import mints fresh cards, so the old references were meaningless),
 and the Hidden Cards badge starts counting the new graph. View *preferences* —
-direction, edge style, theme, minimap, Hide Files — are kept, and reloading the
+direction, connection style, theme, minimap, Hide Files — are kept, and reloading the
 same graph from the session cache restores its view state untouched.
 
 ## Import from Disk
@@ -38,7 +38,7 @@ same graph from the session cache restores its view state untouched.
    - Max scan depth
    - Max display depth
    - Include hidden files
-   - Include file nodes
+   - Include file cards
    - Extension filter
 4. Click **Import**
 
@@ -70,7 +70,7 @@ How deep to scan the directory tree. `0` = no limit.
 
 ### Max Display Depth
 
-How deep to display after import. Deeper nodes go to the Hidden Cards panel.
+How deep to display after import. Deeper cards go to the Hidden Cards panel.
 
 ### Advanced Options (Power User mode)
 
@@ -79,7 +79,7 @@ How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 | Include Hidden Files                   | Off     | Include dotfiles (`.gitignore`, `.env`, etc.)      |
 | Include dependency &amp; build folders | Off     | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
 | Skip Empty Folders                     | On      | Hide folders with no files inside                  |
-| Show Files on Canvas                   | On      | Show file nodes. Off = directories only            |
+| Show Files on Canvas                   | On      | Show file cards. Off = directories only            |
 | Look Inside Archives                   | Off     | Show what's inside archives found in the folder    |
 | File Extensions                        | None    | Comma-separated whitelist (e.g. `ts, tsx, js`)     |
 | Case-Sensitive Match                   | Off     | Match extensions case-sensitively                  |
@@ -90,9 +90,9 @@ How deep to display after import. Deeper nodes go to the Hidden Cards panel.
 Symbolic links are detected on **local-path imports** (when the dropped folder
 reaches the dev server as a disk path). Three modes:
 
-- **Show as links** (default) — each link imports as a node carrying its target
+- **Show as links** (default) — each link imports as a card carrying its target
   (`latest ↷ v012`), with a link icon, a target badge on the card, a dashed
-  edge and an arrowhead pointing at it. Links are never dropped as "empty
+  connection and an arrowhead pointing at it. Links are never dropped as "empty
   folders"; broken links (missing target) stay visible with a warning ring.
 - **Follow** — additionally imports the *content* of links whose target lies
   **outside** the imported root (e.g. a link to `/mnt/raid/...`). Internal
@@ -102,14 +102,14 @@ reaches the dev server as a disk path). Three modes:
 - **Skip** — drops links entirely (the pre-v0.8 behavior).
 
 On the canvas, right-click a link card → **Info** for **Copy Target Path**,
-**Go to Target** (jumps to the target node when it's inside the graph) and
+**Go to Target** (jumps to the target card when it's inside the graph) and
 **Open Target in File Explorer**. Search matches link targets too, and the
 Stats panel counts symlinks.
 
-Exports carry the link signal: SVG/PNG draw the icon, badge, contrast edge and
+Exports carry the link signal: SVG/PNG draw the icon, badge, contrast connection and
 arrowhead; JSON round-trips the metadata; the tree export writes shell-style
 `name -> target` lines (and the ASCII tree parser understands them back);
-CSV gains a `symlink_target` column and DOT marks link nodes and edges.
+CSV gains a `symlink_target` column and DOT marks link cards and connections.
 
 > **Browser limitation:** the File System Access picker (Chrome/Edge directory
 > picks and drag-and-drop inside the browser) cannot see symlinks — the API
@@ -122,7 +122,7 @@ Turn on **Advanced Options → Look Inside Archives** and a folder import also
 expands the archives it finds, so `imports/` shows what's inside a
 `release.zip` instead of a single file card.
 
-- **Off by default**, because it multiplies node count. The setting is
+- **Off by default**, because it multiplies card count. The setting is
   remembered with your other import preferences, and is clamped off whenever
   advanced options are hidden.
 - **All the same formats** as the Archive origin: `.zip`, `.tar`, `.tar.gz`,
@@ -227,8 +227,8 @@ SVG and PNG render exactly what the active graph view shows, not the raw graph s
 - per-view card positions and the view's own derived layout (Layout Direction override, Crown Shyness intensity, sibling sort) are used as-is
 - collapsed folders export as their one-line pill
 - tag rings and tag dots use the same colors as the canvas
-- the current selection carries over: each selected card gets the themed selection ring outside its border, and every edge on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses
-- the view's edge style, stroke pattern, and edge width win over the global ones, and edges anchor to the view's layout direction exactly as the canvas handles do
+- the current selection carries over: each selected card gets the themed selection ring outside its border, and every connection on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses
+- the view's connection style, stroke pattern, and connection width win over the global ones, and connections anchor to the view's layout direction exactly as the canvas handles do
 
 Click the graph view you want before exporting. Data formats (JSON, CSV, DOT, script, tree) always export the full graph and ignore view settings. The active-view marker shown in a split layout is a UI affordance and is never drawn into an export.
 

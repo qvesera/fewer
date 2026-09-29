@@ -22,7 +22,7 @@ Open `http://localhost:3000`.
 
 1. Click **Load sample project** in the welcome dialog
 2. Use **arrow keys** (↑↓←→) to navigate the tree
-3. **Right-click** (or **long-press** on touch) any node for context menu
+3. **Right-click** (or **long-press** on touch) any card for context menu
 4. Press **Ctrl+I** to see all keyboard shortcuts
 5. Click **Export** to save the graph
 
@@ -52,18 +52,18 @@ After import, you'll see:
 - **Purple cards** for files (name, extension, size)
 - **Connections** connecting parent → child with 3 style options
 - **Minimap** in bottom-right for navigation
-- **Breadcrumb bar** showing selected node's full path
+- **Breadcrumb bar** showing selected card's full path
 
 ## Reload Persistence
 
-The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph — including node positions and edits — without re-importing. No account needed. Clearing the canvas removes the cache.
+The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph — including card positions and edits — without re-importing. No account needed. Clearing the canvas removes the cache.
 
 ## Keyboard Navigation
 
 | Key                       | Action                                 |
 | ------------------------- | -------------------------------------- |
 | **↑↓←→**                  | Tree navigation (parent/child/sibling) |
-| **Alt+N**                 | New node                               |
+| **Alt+N**                 | New card                               |
 | **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
 | **Ctrl+E**                | Export panel                           |
 | **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
