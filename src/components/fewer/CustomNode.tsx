@@ -975,9 +975,10 @@ function ChildEntry({ child }: { child: FewerNode }) {
         // it); the visible children keep zooming into the node as before.
         e.stopPropagation();
         if (isHidden) {
-          const store = useGraphStore.getState();
-          if (scope.leafId !== null) store.eyeRevealForLeaf(scope.leafId, child.id);
-          if (store.hiddenIds.includes(child.id)) store.showNode(child.id);
+          // Same single-write gesture the sidebar's eye uses, so a reveal here
+          // and a reveal there cannot undo each other, and neither costs more
+          // than one version bump + one layout pass.
+          useGraphStore.getState().revealInView(scope.leafId, child.id);
         }
         useGraphStore.getState().setSelectedNodeIds([child.id]);
         setZoomToNode(child.id);

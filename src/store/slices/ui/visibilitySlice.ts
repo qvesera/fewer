@@ -48,6 +48,14 @@ export const createVisibilitySlice: VisibilitySliceCreator = (set, get) => ({
       hiddenIds: next,
       independentlyHiddenIds: nextIndie,
       autoHiddenIds: hiddenIds.includes(id) ? s.autoHiddenIds.filter((h) => h !== id) : s.autoHiddenIds,
+      // Hidden by hand ⇒ drop the auto-hide exemption the reveal had earned,
+      // otherwise a later reconcile would keep protecting a card the user hid.
+      ...(hiding
+        ? {
+            revealedRootIds: s.revealedRootIds.filter((r) => r !== id),
+            revealedFromHidden: s.revealedFromHidden.filter((r) => r !== id),
+          }
+        : {}),
     }));
   },
 
@@ -63,7 +71,16 @@ export const createVisibilitySlice: VisibilitySliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] as string[] };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [...s.hiddenIds, ...toHide], independentlyHiddenIds: [...new Set([...s.independentlyHiddenIds, ...selectedNodeIds])], autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)), selectedNodeIds: [], graphVersion: graphVersion + 1 }));
+    set((s) => ({
+      hiddenIds: [...s.hiddenIds, ...toHide],
+      independentlyHiddenIds: [...new Set([...s.independentlyHiddenIds, ...selectedNodeIds])],
+      autoHiddenIds: s.autoHiddenIds.filter((h) => !toHide.has(h)),
+      // See toggleHidden: a hand hide ends the auto-hide exemption.
+      revealedRootIds: s.revealedRootIds.filter((r) => !toHide.has(r)),
+      revealedFromHidden: s.revealedFromHidden.filter((r) => !toHide.has(r)),
+      selectedNodeIds: [],
+      graphVersion: graphVersion + 1,
+    }));
   },
 
   showAll: () => {

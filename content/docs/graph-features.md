@@ -194,7 +194,7 @@ Shows selected node's full path. Click any segment to navigate to that ancestor.
 
 Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Cards** section as a nested tree.
 
-**Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
+**Reveal a folder**: click the eye icon next to it. Its whole subtree becomes visible — a reveal is not undone by the auto-hide pass afterwards, whether it came from the sidebar, a double-click on a hidden child row inside a card, **Show Children**, or a search jump. Hiding a card again gives the auto-hide its exemption back, so a later folder refresh or threshold change may hide it as usual.
 
 ## Visibility: Hide Files / Show Children
 
@@ -207,8 +207,9 @@ Access via sidebar. Shows all hidden nodes grouped by their visible parent folde
 
 - **Folder group headers** — each visible parent folder with a `N hidden` count and a collapse toggle
 - **Nested expandable tree** (any depth) for fully-hidden subtrees
-- **Eye button** reveals an individual item (or a whole hidden subtree)
+- **Eye button** reveals an individual item (or a whole hidden subtree) in the active view — one action, so revealing here and revealing on the canvas never cancel each other out
 - **"Show All" button** reveals everything
+- One reveal is one undo step (it used to be two or three, one per internal action)
 - **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
 

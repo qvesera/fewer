@@ -1697,3 +1697,32 @@ tasks:
     effort: {commits: 2, files: 8, insertions: 329, deletions: 60}
   spent_min: 11
   session_count: 1
+- id: "T-068"
+  title: "Sidebar reveal no longer overrides canvas reveals, and reveal stops lagging"
+  status: "in-progress"
+  type: "fix"
+  area: "visibility"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T15:40:19Z"
+  notes: ["2026-09-29T15:40:24Z · Reveal asymmetry: canvas double-click registers no exemption, sidebar revealSubtree does and then re-runs reconcileAutoHide which re-hides every non-exempt child of an over-threshold folder. Also one sidebar click fans out into ~4 relayouts + 4 graphVersion bumps + localStorage persist + O(n*m) Set rebuild in reconcileAutoHide."]
+  sessions:
+  - start: "2026-09-29T15:40:37Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
