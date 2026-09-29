@@ -7,7 +7,7 @@ import { layoutGraphSync } from "@/lib/fewer/layout";
 import { getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
-import { needsLayoutDerivation } from "@/lib/fewer/viewState";
+import { needsLayoutDerivation, pruneViewSettingsForGraph } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
 import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets } from "@/lib/fewer/importMerge";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
@@ -82,7 +82,30 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     const sortedEdges = sortEdges(styledEdges, laidFinal);
     const baseHidden = new Set(hiddenFileIds ?? []);
     const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
-    set({ nodes: laidFinal, edges: sortedEdges, hiddenIds: idsToHide, categoryHiddenIds: catHiddenIds, graphVersion: state.graphVersion + 1, autoHideCount, revealedRootIds: [], autoHiddenIds: seedAutoHidden });
+    // Everything the incoming graph cannot contain is dead: the previous graph's
+    // hidden cards (per-view hide layers seeded with the whole global hidden
+    // list), its collapsed folders and its dragged positions. Left in place they
+    // kept counting in the Hidden Cards badge — with no rows to click, because
+    // the panel filters to live nodes — and tripped needsLayoutDerivation into a
+    // per-view layout pass for a graph that never asked for one.
+    const liveIds = new Set(laidFinal.map((n) => n.id));
+    const keepLive = (ids: string[] | undefined) => (ids ?? []).filter((id) => liveIds.has(id));
+    set({
+      nodes: laidFinal,
+      edges: sortedEdges,
+      hiddenIds: idsToHide,
+      categoryHiddenIds: catHiddenIds,
+      graphVersion: state.graphVersion + 1,
+      autoHideCount,
+      revealedRootIds: [],
+      autoHiddenIds: seedAutoHidden,
+      viewSettings: pruneViewSettingsForGraph(state.viewSettings, liveIds),
+      independentlyHiddenIds: keepLive(state.independentlyHiddenIds),
+      revealedFromHidden: keepLive(state.revealedFromHidden),
+    });
+    // View settings just changed; persist the pruned map (debounced) so storage
+    // cannot resurrect the dead ids on the next load.
+    get()._persistLayout();
   },
   relayout: () => {
     const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();

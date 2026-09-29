@@ -125,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - tasks.py track no longer crashes with AttributeError when it auto-starts a newly created row
 - Revealing from the sidebar no longer overrides what you revealed on the canvas. A canvas double-click reveal recorded no auto-hide exemption while a sidebar reveal recorded one and then re-ran the auto-hide pass, which re-hid every non-exempt child of a large folder — so the sidebar showed only its own reveal history. Every reveal path (canvas double-click, sidebar eye, Show Children, search jump, batch show) now records the same exemption, and a card you re-hide gives it back
 - Revealing a folder shows its whole subtree again: the auto-hide pass that ran right after the reveal re-collapsed the children the "Subtree shown" toast had just promised
+- Importing a graph no longer leaves the previous one hidden: the Hidden Cards badge, the panel and the canvas chip kept counting the old graph's hidden cards (a view that hid cards had the whole list copied into its per-view layer) while the panel itself showed no rows, because every import mints fresh card ids. Importing now prunes every per-view hidden id, collapsed folder and card position the new graph does not contain, along with the independently-hidden and revealed-from-hidden lists — preferences like direction, edge style and Hide Files still survive, and reloading the same graph keeps its view state
 
 ### Added
 
@@ -162,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selecting or deselecting cards is no longer treated as a graph edit. A selection used to write per-card selected flags back into the canvas node array (replacing every node object) and to bump the graph version, which made the canvas rebuild its whole node and edge arrays — invalidating the cached tree index, every card's child list and the Hidden panel build, on every click and every frame of a box-select drag. The selection is now a list of ids the canvas stamps onto its own node array, copy-on-write so only the cards that actually toggle are new objects, and it bumps its own version instead of the graph's. On a 30k-node graph a click went from ~32ms to ~5.7ms and a deselect to ~1ms
 - A reveal from the sidebar is one store write again: it used to chain four actions and fire four version bumps, four full layout passes, up to three undo steps and a whole-layout localStorage write per click — the same rebuild churn that made selecting cards lag. The auto-hide pass also stopped rebuilding a Set of the hidden ids once per node, which was quadratic on a 30k-card graph and ran on every reveal
 - Layout persistence is debounced (flushed on pagehide) instead of serialising the panel tree and every view's settings and positions to localStorage on each of a gesture's store writes
+- Stale per-view hide layers and collapsed folders no longer survive an import: they also forced every open view to run its own layout pass (needsLayoutDerivation) for a graph that never asked for one, and dead card positions no longer pile up in localStorage across imports
 
 ## [0.7.1] - 2026-09-12
 

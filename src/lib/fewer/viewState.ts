@@ -115,6 +115,74 @@ export function needsLayoutDerivation(
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
 }
 
+// ── Graph replacement ──
+
+/**
+ * One leaf's hide layers, minus every id the current graph does not contain.
+ * Returns `undefined` when nothing survives, so the caller can drop the key
+ * entirely — a leaf that has never hidden anything must not keep an empty
+ * `hideLayers` around: presence is what the Shift+H rules and the layout
+ * derivation read.
+ *
+ * `filesBulkActive` is a preference, not ids, so it survives.
+ */
+export function pruneHideLayers(layers: HideLayers, live: Set<string>): HideLayers | undefined {
+  const individual = layers.individual.filter((id) => live.has(id));
+  const filesBulkExempt = layers.filesBulkExempt.filter((id) => live.has(id));
+  const subtrees: Record<string, string[]> = {};
+  for (const [folderId, ids] of Object.entries(layers.subtrees)) {
+    if (!live.has(folderId)) continue; // the folder itself is gone
+    const kept = (ids as string[]).filter((id) => live.has(id));
+    if (kept.length > 0) subtrees[folderId] = kept;
+  }
+  if (!layers.filesBulkActive && individual.length === 0 && filesBulkExempt.length === 0 && Object.keys(subtrees).length === 0) {
+    return undefined;
+  }
+  return { individual, subtrees, filesBulkActive: layers.filesBulkActive, filesBulkExempt };
+}
+
+/**
+ * Drop every per-view id that the incoming graph does not contain.
+ *
+ * Import mints fresh node ids, so the previous graph's hidden cards, collapsed
+ * folders and dragged positions are all dead references. They still fed
+ * `computeEffectiveHidden` (the Hidden Cards badge counted them while the panel
+ * — which filters to live nodes — had no rows to show) and tripped
+ * `needsLayoutDerivation`, forcing every view into its own layout pass. View
+ * *preferences* (direction, edge style, theme, minimap) are untouched, and a
+ * reload of the same graph keeps everything: its ids are the same ids.
+ */
+export function pruneViewSettingsForGraph(
+  viewSettings: Record<string, ViewSettings>,
+  liveIds: Iterable<string>,
+): Record<string, ViewSettings> {
+  const live = liveIds instanceof Set ? liveIds : new Set(liveIds);
+  const out: Record<string, ViewSettings> = {};
+  for (const [leafId, vs] of Object.entries(viewSettings)) {
+    const next: ViewSettings = { ...vs };
+    if (vs.hideLayers) {
+      const pruned = pruneHideLayers(vs.hideLayers, live);
+      if (pruned) next.hideLayers = pruned;
+      else delete next.hideLayers;
+    }
+    if (vs.collapsedFolderIds) {
+      const kept = vs.collapsedFolderIds.filter((id) => live.has(id));
+      if (kept.length > 0) next.collapsedFolderIds = kept;
+      else delete next.collapsedFolderIds;
+    }
+    if (vs.positions) {
+      const positions: Record<string, { x: number; y: number }> = {};
+      for (const [id, pos] of Object.entries(vs.positions)) {
+        if (live.has(id)) positions[id] = pos;
+      }
+      if (Object.keys(positions).length > 0) next.positions = positions;
+      else delete next.positions;
+    }
+    if (Object.keys(next).length > 0) out[leafId] = next;
+  }
+  return out;
+}
+
 // ── Collapsed-folder pill geometry ──
 
 /**
