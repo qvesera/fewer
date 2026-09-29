@@ -45,27 +45,33 @@ tasks:
   session_count: 3
 - id: "T-002"
   title: "Back-export the three posts that exist only in the database (`v031-performance`, `v040-accounts`, `v050-remote-sources`) into `content/blog/`, so `scripts/gen-seed-content.py` covers every row in `content_pages`."
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "blog"
   tier: null
   estimate_min: 120
   estimate_basis: "todo-item"
   issue: 182
-  pr: null
+  pr: 273
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "TO-DO.md#back-export-the-three-posts-that-exist-only-in-the-database-v031-performance-v040-accounts-v050-remote-sources-into-content-blog-so-scripts-gen-seed-content-py-covers-every-row-in-content-pages"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-09-29T21:26:17Z"
+    end: "2026-09-29T21:26:45Z"
+    measured: true
+    note: "re-delivered the blog back-export (lost when #266 merged into the deleted stacked branch) on a fresh dev-based branch; 0052 regenerated on dev and unchanged since 0051 is now in dev."
+    proof: ["ed4166f"]
+    effort: {commits: 1, files: 5, insertions: 2907, deletions: 0}
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-003"
   title: "DCC extension taxonomy"
   status: "backlog"
