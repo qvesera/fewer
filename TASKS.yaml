@@ -1755,3 +1755,32 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 321, deletions: 2}
   spent_min: 9
   session_count: 1
+- id: "T-070"
+  title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow, which writes the store again"
+  status: "in-progress"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 264
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#264"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-29T19:20:04Z"
+  notes: []
+  sessions:
+  - start: "2026-09-29T19:20:23Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

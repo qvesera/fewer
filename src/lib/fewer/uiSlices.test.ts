@@ -297,6 +297,38 @@ describe("selectionSlice", () => {
     expect(s().selectionVersion).toBe(selectionVersionBefore + 1);
     expect(s().graphVersion).toBe(graphVersionBefore);
   });
+
+  it("a background leaf re-reporting the shared selection does not bump the version", () => {
+    // React Flow's selection listener re-fires whenever a view's nodes are
+    // re-pushed, so a background canvas reports the selection the store already
+    // painted on it. That is not a new selection: this leaf holds these ids AND
+    // the shared list agrees, so the canvas must not rebuild. The old
+    // unconditional bump rebuilt and re-pushed every edge of every mounted view
+    // (the round trip behind "Maximum update depth exceeded").
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    s().setSelectionForLeaf("leaf2", ["outer"]); // both views show the same card
+    const versionBefore = s().selectionVersion;
+    s().setSelectionForLeaf("leaf1", ["outer"]); // leaf1's canvas reports it back
+    expect(s().activeLeafId).toBe("leaf1"); // the gesture still activates the view
+    expect(s().selectionVersion).toBe(versionBefore);
+  });
+
+  it("a leaf re-reporting a DIFFERENT selection still bumps the version", () => {
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    s().setSelectionForLeaf("leaf2", ["outer"]);
+    const versionBefore = s().selectionVersion;
+    s().setSelectionForLeaf("leaf1", ["outer", "sibling"]);
+    expect(s().selectionVersion).toBe(versionBefore + 1);
+  });
+
+  it("a leaf reporting a selection the shared list disagrees with still bumps", () => {
+    useGraphStore.setState({ leafSelections: {}, activeLeafId: null });
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    s().setActiveLeaf("leaf2"); // shared list becomes leaf2's (empty)
+    const versionBefore = s().selectionVersion;
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    expect(s().selectionVersion).toBe(versionBefore + 1);
+  });
 });
 
 describe("nodeName shared helper", () => {

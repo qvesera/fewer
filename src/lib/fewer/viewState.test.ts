@@ -471,4 +471,14 @@ describe("withCollapsedPillGeometry", () => {
     const nodes = [node("c", "file", 58)];
     expect(withCollapsedPillGeometry(nodes, ["c"])[0]).toBe(nodes[0]);
   });
+
+  test("a collapsed folder keeps the shared node's measured height", () => {
+    // React Flow re-reports the collapsed card's size forever if the array we
+    // hand it disagrees with the DOM — the canvas swallows that no-op batch
+    // (applyDimensionChanges) instead of pinning the pill into the shared node.
+    const measured = { ...node("a", "folder", 240), measured: { width: 240, height: 240 } } as FewerNode;
+    const out = withCollapsedPillGeometry([measured], ["a"]);
+    expect(out[0]!.style?.height).toBe(COLLAPSED_PILL_HEIGHT);
+    expect(out[0]!.measured?.height).toBe(240);
+  });
 });

@@ -185,7 +185,13 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
   setScrollAction: (action) => set({ scrollAction: action }),
-  setCanvasSize: (size) => set({ canvasSize: size }),
+  setCanvasSize: (size) => set((s) => {
+    // A ResizeObserver tick fires whenever the element is observed, not only
+    // when it actually resized, and the write feeds the minimap sliders — a
+    // fresh object on every tick re-renders SettingsDialog for nothing.
+    if (s.canvasSize.width === size.width && s.canvasSize.height === size.height) return {};
+    return { canvasSize: size };
+  }),
 
   // ── Panel layout actions ──
 

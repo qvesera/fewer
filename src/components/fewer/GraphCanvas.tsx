@@ -218,7 +218,18 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasGraphSync(graphVersion, stampedNodes, visibleEdges, setRfNodes, setRfEdges);
   // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
   // It is deliberately NOT a graphVersion change: that would rebuild everything.
-  useEffect(() => { setRfNodes(stampedNodes); }, [stampedNodes, setRfNodes]);
+  //
+  // This push is deliberately UNGUARDED, and skipping it when "the flags already
+  // match" is NOT safe: the array is also how React Flow's internals get resynced
+  // after it reports its own changes (a re-measure carries a `measured` the store
+  // copy has already settled). Skipping it let React Flow re-report the same
+  // change forever — each report re-rendering the canvas, 50 nested updates,
+  // "Maximum update depth exceeded" on a single card click. The cheapness lives
+  // upstream instead: the store only hands out a new node array when a card
+  // actually changed size (see applyDimensionChanges).
+  useEffect(() => {
+    setRfNodes(stampedNodes);
+  }, [stampedNodes, setRfNodes]);
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
