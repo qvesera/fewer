@@ -96,12 +96,21 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   setSelectionForLeaf: (leafId, ids) => set((s) => {
     const prev = s.leafSelections[leafId];
     if (s.activeLeafId === leafId && prev !== undefined && sameIds(prev, ids)) return {};
+    // This leaf already holds exactly these ids, and the shared list already
+    // agrees: a React Flow selection report is re-emitting what we painted, not
+    // a new selection. Only the active leaf changed, so DON'T bump
+    // `selectionVersion` — every mounted canvas keys its edge-rebuild effect on
+    // it, so a re-report used to rebuild and re-push every edge of every view.
+    // That store → canvas → React Flow round trip is what could chain into
+    // React's "Maximum update depth exceeded" while clicking around a split view.
+    const selectionChanged =
+      prev === undefined || !sameIds(prev, ids) || !sameIds(s.selectedNodeIds, ids);
     return {
       ...swapLeafHistory(s, leafId),
       leafSelections: { ...s.leafSelections, [leafId]: ids },
       activeLeafId: leafId,
       selectedNodeIds: ids,
-      selectionVersion: s.selectionVersion + 1,
+      ...(selectionChanged ? { selectionVersion: s.selectionVersion + 1 } : {}),
     };
   }),
 

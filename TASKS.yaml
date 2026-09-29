@@ -1792,15 +1792,15 @@ tasks:
   spent_min: 9
   session_count: 1
 - id: "T-070"
-  title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow,…"
-  status: "triaged"
+  title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow, which writes the store again"
+  status: "review"
   type: "fix"
-  area: "other"
+  area: "ux"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 264
-  pr: null
+  pr: 271
   internal: false
   milestone: null
   blocked_by: []

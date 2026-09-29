@@ -191,6 +191,11 @@ export function pruneViewSettingsForGraph(
  * folder in one view can never squish the expanded card another view paints
  * (nor the slot a global relayout reserves for it).
  *
+ * A pill keeps the shared node's `measured` height, so React Flow does re-report
+ * the collapsed card's size; the canvas deliberately refuses to pin the pill
+ * height into the shared node, and `applyDimensionChanges` drops that no-op batch
+ * instead of handing every mounted canvas a new node array.
+ *
  * Returns `nodes` by identity when the leaf collapses nothing.
  */
 export function withCollapsedPillGeometry(

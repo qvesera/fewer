@@ -42,6 +42,61 @@ export function flipBoxSelectDeselects(
   );
 }
 
+export type DimensionChange = NodeChange<FewerNode> & {
+  id: string;
+  dimensions: { width: number; height: number };
+};
+
+/**
+ * Fold a batch of React Flow dimension reports into the store's nodes.
+ *
+ * Returns the SAME array (and `changed: false`) when the batch changes nothing —
+ * which is the common case: React Flow re-reports a card's size on every
+ * re-measure, and this handler deliberately refuses to pin a collapsed folder's
+ * pill height into the shared node. An unguarded `.map()` turned those no-op
+ * reports into a brand-new `nodes` array, and every mounted canvas then rebuilt
+ * its node lens and pushed a fresh array back into React Flow — the round trip
+ * that could chain into React's "Maximum update depth exceeded".
+ *
+ * `onFirstResize` fires once per node whose size actually moves, and only while
+ * a NodeResizer gesture is live (a re-measure must not become a history op).
+ */
+export function applyDimensionChanges(
+  nodes: FewerNode[],
+  changes: DimensionChange[],
+  collapsedIds: ReadonlySet<string>,
+  onFirstResize?: (node: FewerNode) => void,
+): { nodes: FewerNode[]; changed: boolean } {
+  if (changes.length === 0) return { nodes, changed: false };
+  let changed = false;
+  const next = nodes.map((n) => {
+    const change = changes.find((c) => c.id === n.id);
+    if (!change) return n;
+    // This leaf draws the folder as a compact pill (~38px). That is a
+    // rendering artifact of the pill, not a size the user picked, so keep it
+    // out of the shared node: pinning it would shrink the expanded card every
+    // other view draws (and the layout slot).
+    if (collapsedIds.has(n.id)) return n;
+    const { width, height } = change.dimensions;
+    if (
+      n.measured?.width === width &&
+      n.measured?.height === height &&
+      n.style?.width === width &&
+      (n.data.type !== "folder" || n.style?.height === height)
+    ) {
+      return n;
+    }
+    onFirstResize?.(n);
+    changed = true;
+    return {
+      ...n,
+      style: { ...n.style, width, height: n.data.type === "folder" ? height : n.style?.height },
+      measured: { width, height },
+    };
+  });
+  return { nodes: changed ? next : nodes, changed };
+}
+
 /**
  * Handle React Flow node position + dimension changes:
  *   - position changes → commit to the store immediately
@@ -104,30 +159,28 @@ export function useCanvasNodeChangeHandler({
       }
 
       if (dimensionChanges.length > 0) {
-        useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
-            const change = dimensionChanges.find((c) => c.id === n.id);
-            if (change) {
-              // This leaf draws the folder as a compact pill (~38px). That is a
-              // rendering artifact of the pill, not a size the user picked, so
-              // keep it out of the shared node: pinning it would shrink the
-              // expanded card every other view draws (and the layout slot).
-              if (collapsedSet.has(n.id)) return n;
-              // Record the pre-resize dimensions the first time we see this node
-              // resize — but only for a real gesture. A re-measure must not be
-              // captured, or the debounce below turns it into a phantom op.
+        // Rewrite `nodes` ONLY when a card's size actually changes (see
+        // applyDimensionChanges): a re-measure of an unchanged card must not
+        // hand every mounted canvas a new node array to re-push into React Flow.
+        let changed = false;
+        useGraphStore.setState((s) => {
+          const next = applyDimensionChanges(
+            s.nodes,
+            dimensionChanges,
+            collapsedSet,
+            // Record the pre-resize dimensions the first time we see this node
+            // resize — but only for a real gesture. A re-measure must not be
+            // captured, or the debounce below turns it into a phantom op.
+            (n) => {
               if (isResizeGestureFor(n.id) && !resizeStartDimensions.current.has(n.id)) {
                 resizeStartDimensions.current.set(n.id, nodeDims(n));
               }
-              return {
-                ...n,
-                style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
-                measured: { width: change.dimensions.width, height: change.dimensions.height },
-              };
-            }
-            return n;
-          }),
-        }));
+            },
+          );
+          changed = next.changed; // zustand runs the updater synchronously
+          return next.changed ? { nodes: next.nodes } : {};
+        });
+        if (!changed) return;
 
         // Commit a resize op once the gesture settles (debounced). Nothing
         // captured → no gesture → nothing to commit (skips the timer entirely
