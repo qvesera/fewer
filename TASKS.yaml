@@ -45,27 +45,33 @@ tasks:
   session_count: 3
 - id: "T-002"
   title: "Back-export the three posts that exist only in the database (`v031-performance`, `v040-accounts`, `v050-remote-sources`) into `content/blog/`, so `scripts/gen-seed-content.py` covers every row in `content_pages`."
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "blog"
   tier: null
   estimate_min: 120
   estimate_basis: "todo-item"
   issue: 182
-  pr: null
+  pr: 266
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "TO-DO.md#back-export-the-three-posts-that-exist-only-in-the-database-v031-performance-v040-accounts-v050-remote-sources-into-content-blog-so-scripts-gen-seed-content-py-covers-every-row-in-content-pages"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-09-29T19:33:43Z"
+    end: "2026-09-29T19:35:20Z"
+    measured: true
+    note: "back-exported the three database-only posts (v031-performance, v040-accounts, v050-remote-sources) into content/blog/ with metadata taken from each page rather than invented; titles left unquoted because gen-seed-content.py parses front matter with a regex; migration 0052 generated on top of the sweep branch so the full-upsert reseed carries both."
+    proof: ["278d7e2"]
+    effort: {commits: 1, files: 5, insertions: 2907, deletions: 0}
+  spent_min: 2
+  session_count: 1
 - id: "T-003"
   title: "DCC extension taxonomy"
   status: "backlog"
