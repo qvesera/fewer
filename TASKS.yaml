@@ -137,7 +137,7 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "import"
   tier: 1
@@ -150,14 +150,20 @@ tasks:
   blocked_by: []
   parent: null
   source: "TO-DO.md#symlink-support"
-  time_source: null
+  time_source: "none"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25 in a backlog review: still an open question - how symlink nodes are represented and how cycles/loops are bounded. No new row; this one owns it."]
-  sessions: []
+  sessions:
+  - start: "2026-09-28T17:28:11Z"
+    end: "2026-09-28T17:28:11Z"
+    measured: true
+    note: "umbrella row: symlink support shipped via PR #248 (T-059/T-060/T-061 carry the measured time); no own session time"
+    proof: ["#248"]
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-007"
   title: "Diff v2 with change detection"
   status: "backlog"
@@ -1670,7 +1676,7 @@ tasks:
   session_count: 2
 - id: "T-067"
   title: "pr-metadata auto-links a task's GitHub issue to the PR and blocks merge until linked"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: 1
@@ -1699,7 +1705,7 @@ tasks:
   session_count: 1
 - id: "T-068"
   title: "Sidebar reveal no longer overrides canvas reveals, and reveal stops lagging"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 1
@@ -1728,7 +1734,7 @@ tasks:
   session_count: 1
 - id: "T-069"
   title: "Hidden Cards state survives an import: the badge/count keeps the previous graph hide layers"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 1
