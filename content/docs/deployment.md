@@ -109,7 +109,7 @@ not environment variables** — nothing to add to `.env`.
 
 Folder import itself is never gated: it uses the legacy `webkitdirectory` picker,
 which works in every browser and webview. The same applies to file/URL/cloud
-imports and in-app node dragging.
+imports and in-app card dragging.
 
 ## PWA & Static Assets
 

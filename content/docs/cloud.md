@@ -32,9 +32,9 @@ The folder's structure is rendered as a graph using the provider's metadata. Few
 
 ## Open in provider
 
-Any node imported from a cloud account can be opened in the provider's web UI:
+Any card imported from a cloud account can be opened in the provider's web UI:
 
-- Right-click a folder or file node.
+- Right-click a folder or file card.
 - Choose **Open in {Provider}** (e.g. "Open in GitHub").
 
 This opens the folder or file at its exact location in the provider's site in a new browser tab.

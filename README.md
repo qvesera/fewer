@@ -15,7 +15,7 @@
 ---
 
 > [!IMPORTANT]
-> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project. The only network call is an optional GitHub repo import. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
+> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project, and your directory is never uploaded. Network calls happen only for features you opt into — a GitHub/URL/Internet Archive import, a linked cloud account, an optional account (saved graphs, share links, gallery), watch digests, or the on-demand archive engine for `.7z`/`.rar`/`.xz`/`.bz2`/`.zst`. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
 
 ---
 
@@ -40,7 +40,7 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 ![fewer demo](public/demo.png)
 
-Use arrow keys to navigate the tree. Right-click any node for actions. Press **Ctrl+I** for all shortcuts.
+Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
 ---
 
@@ -78,7 +78,7 @@ docker run -p 3000:3000 fewer
 | ----- | --------------------------------------------------------------------------- |
 | **1** | Click **Load sample project** in the welcome dialog                         |
 | **2** | Use **arrow keys** (↑↓←→) to navigate the tree                              |
-| **3** | **Right-click** any node for context menu                                   |
+| **3** | **Right-click** any card for context menu                                   |
 | **4** | Press **Ctrl+I** to see all keyboard shortcuts                              |
 | **5** | Click **Export** to save the graph (SVG, PNG, JSON, CSV, DOT, script, tree) |
 
@@ -94,12 +94,12 @@ docker run -p 3000:3000 fewer
 
 ### Edit the graph
 
-- **Rename** a node: **F2** or right-click
-- **Add** a node: **Alt+N**
-- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
+- **Rename** a card: **F2** or right-click
+- **Add** a card: **Alt+N**
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any card's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
-- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; node moves and tag assignments/deletes included)
+- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
 
 ---
 
@@ -117,7 +117,7 @@ docker run -p 3000:3000 fewer
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
 - **Tags** *(Pro)*: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
 - **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
-- **Breadcrumb bar**: selected node's full path
+- **Breadcrumb bar**: selected card's full path
 
 </details>
 
@@ -127,7 +127,7 @@ docker run -p 3000:3000 fewer
 | Key                       | Action                                 |
 | ------------------------- | -------------------------------------- |
 | **↑↓←→**                  | Tree navigation (parent/child/sibling) |
-| **Alt+N**                 | New node                               |
+| **Alt+N**                 | New card                               |
 | **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
 | **Ctrl+E**                | Export panel                           |
 | **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
@@ -145,9 +145,9 @@ docker run -p 3000:3000 fewer
 <summary><b>Search</b></summary>
 
 - **Fuzzy search** across filenames, paths, extensions
-- **Click result** → zoom to node
-- **Hidden nodes** appear with badge: clicking shows the node **and its whole hidden ancestor chain** up to root, then zooms
-- **Highlight/dim** matched/unmatched nodes
+- **Click result** → zoom to card
+- **Hidden cards** appear with badge: clicking shows the card **and its whole hidden ancestor chain** up to root, then zooms
+- **Highlight/dim** matched/unmatched cards
 - **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 
 </details>
@@ -159,7 +159,7 @@ docker run -p 3000:3000 fewer
 | ---------- | ---------------------------------------------------------------- |
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
 | **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
-| **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
+| **Canvas** | Fit View, Select All, Organize, Zoom In/Out, Show All                      |
 | **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
 
 </details>
@@ -168,12 +168,13 @@ docker run -p 3000:3000 fewer
 <summary><b>Import</b></summary>
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
-- **Symlink support**: on local-path imports, symbolic links import as link nodes (link icon, `↷ target` badge, contrast edge with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
+- **Symlink support**: on local-path imports, symbolic links import as link cards (link icon, `↷ target` badge, contrast connection with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
 - **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts
 - **Import from Archive**: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and — via an on-demand WebAssembly libarchive — `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice.
 - **Look Inside Archives** (advanced): folder imports can also expand the archives they find, showing each archive's contents as part of the tree — nothing is extracted, the listing is read in place. Off by default; one level deep; depth limits and per-import ceilings apply.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
+- **Progress feedback**: a long folder or archive import reports its current phase and a percentage on a progress bar, with a **Cancel** button while it runs
 - **Brave browser** detection with flag workaround instructions
 
 </details>
@@ -186,7 +187,7 @@ docker run -p 3000:3000 fewer
 - **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
 - **Community theme gallery**: publish your saved themes (attributed to your profile), search themes and authors, apply any theme instantly on the gallery page, and open `#t:` links that set it as your last-used theme
 - **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
-- Changes apply instantly to all nodes
+- Changes apply instantly to all cards
 
 </details>
 
@@ -203,7 +204,7 @@ docker run -p 3000:3000 fewer
 <summary><b>Accounts & Saved Graphs</b></summary>
 
 - **Optional accounts**: email/password sign-in, Google/GitHub sign-in, or passwordless email links (magic link) via Supabase Auth. Account deletion runs with a 7-day grace window (sign in again to cancel). The app works fully logged-out
-- **Save graphs**: save the current graph (nodes, layout, theme, settings) to your account
+- **Save graphs**: save the current graph (cards, layout, theme, settings) to your account
 - **Your Directories**: load, rename, share, and delete saved graphs from the sidebar
 - **Selective sharing**: share saved graphs as "anyone with the link" or invite-only
 - **Short share links**: large graphs use a short server-backed `#s:<id>` link instead of a long URL hash
@@ -215,7 +216,7 @@ docker run -p 3000:3000 fewer
 
 - **Link cloud accounts**: connect GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps, and Azure Blob via OAuth
 - **Browse & import**: lazily browse a linked account's folders and import one into the graph
-- **Open in provider**: open any imported node in its provider's web UI
+- **Open in provider**: open any imported card in its provider's web UI
 
 </details>
 
@@ -248,7 +249,7 @@ docker run -p 3000:3000 fewer
 | **SVG**    | Vector with theme background               | Documentation, presentations  |
 | **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
 | **JSON**   | Full graph state                           | Re-import, programmatic use   |
-| **CSV**    | Tabular nodes + connections                      | Spreadsheets, data analysis   |
+| **CSV**    | Tabular cards + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
@@ -272,7 +273,7 @@ To publish or edit:
 2. Insert a new row (or edit an existing one): `type` = `blog` or `docs`, `slug`, `title`, `description`, `content` (markdown body), plus `author`/`date`/`tags` for blog rows
 3. Set `published = true` → live within ~60 seconds
 
-Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is kept in-repo as a source-of-record backup and seeded into `content_pages` by `supabase/migrations/0021_content_pages.sql`.
+Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is the source of record, but it is **not** what readers see — the app renders `content_pages` only. The repo copy is seeded into the table by `scripts/gen-seed-content.py`, which emits an idempotent `NNNN_content_pages_reseed.sql` migration that upserts every row (latest: `0049_content_pages_reseed.sql`). A markdown-only edit therefore reaches users after that migration is applied; editing the row in Studio goes live in ~60 seconds without one.
 
 ## How It Works
 

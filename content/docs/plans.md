@@ -24,7 +24,7 @@ Some client-side features require sign-in or a Pro plan. These are cosmetic gate
 | Tags (tag panel, tag menus, tag filter) | ✗ | ✗ | ✓ |
 | Saved graphs sidebar | ✗ | ✓ | ✓ |
 | Graph Analytics | ✗ | ✓ | ✓ |
-| Edge motion (animated edges) | ✗ | ✓ | ✓ |
+| Connection motion (animated connections) | ✗ | ✓ | ✓ |
 | Custom theme editor | ✗ | ✓ | ✓ |
 | Advanced import formats (JSON, script) | ✗ | ✓ | ✓ |
 | Export without watermark | ✗ | ✓ | ✓ |
