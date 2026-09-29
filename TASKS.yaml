@@ -842,14 +842,14 @@ tasks:
   session_count: 0
 - id: "T-033"
   title: "Layout research: radial vs tree vs grid - when to use which"
-  status: "triaged"
+  status: "in-progress"
   type: "research"
   area: "layout"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 208
-  pr: null
+  pr: 267
   internal: false
   milestone: null
   blocked_by: []
@@ -860,9 +860,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:15Z"
   notes: ["2026-09-25T12:38:20Z · open question: radial vs tree graph, what each is good at, whether to ship a third layout mode"]
-  sessions: []
+  sessions:
+  - start: "2026-09-29T19:39:10Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-034"
   title: "Cold-outreach email draft for prospective users"
   status: "backlog"
