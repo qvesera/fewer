@@ -137,7 +137,7 @@ tasks:
   session_count: 0
 - id: "T-006"
   title: "Symlink support"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "import"
   tier: 1
@@ -150,14 +150,20 @@ tasks:
   blocked_by: []
   parent: null
   source: "TO-DO.md#symlink-support"
-  time_source: null
+  time_source: "none"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-24T20:47:11Z"
   notes: ["2026-09-25T12:39:00Z · re-confirmed 2026-09-25 in a backlog review: still an open question - how symlink nodes are represented and how cycles/loops are bounded. No new row; this one owns it."]
-  sessions: []
+  sessions:
+  - start: "2026-09-28T17:28:11Z"
+    end: "2026-09-28T17:28:11Z"
+    measured: true
+    note: "umbrella row: symlink support shipped via PR #248 (T-059/T-060/T-061 carry the measured time); no own session time"
+    proof: ["#248"]
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-007"
   title: "Diff v2 with change detection"
   status: "backlog"
@@ -928,14 +934,14 @@ tasks:
   session_count: 0
 - id: "T-037"
   title: "README refresh"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "docs"
   tier: null
   estimate_min: 120
   estimate_basis: "cli"
   issue: 212
-  pr: null
+  pr: 263
   internal: false
   milestone: null
   blocked_by: []
@@ -951,14 +957,14 @@ tasks:
   session_count: 0
 - id: "T-038"
   title: "Docs update sweep (content/docs/*)"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "docs"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 213
-  pr: null
+  pr: 262
   internal: false
   milestone: null
   blocked_by: []
@@ -969,9 +975,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:16Z"
   notes: ["2026-09-25T12:38:21Z · bring every docs page back in sync with shipped behavior"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-09-29T18:55:57Z"
+    end: "2026-09-29T19:01:45Z"
+    measured: true
+    note: "audited content/docs against shipped UI strings; shipped 6 verified doc->UI label fixes + reseed 0050 (session restored by hand after a bad git reset --hard discarded the ledger write)"
+    proof: []
+    effort: null
+  spent_min: 6
+  session_count: 1
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
   status: "backlog"
@@ -1670,7 +1682,7 @@ tasks:
   session_count: 2
 - id: "T-067"
   title: "pr-metadata auto-links a task's GitHub issue to the PR and blocks merge until linked"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: 1
@@ -1699,7 +1711,7 @@ tasks:
   session_count: 1
 - id: "T-068"
   title: "Sidebar reveal no longer overrides canvas reveals, and reveal stops lagging"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 1
@@ -1728,7 +1740,7 @@ tasks:
   session_count: 1
 - id: "T-069"
   title: "Hidden Cards state survives an import: the badge/count keeps the previous graph hide layers"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 1

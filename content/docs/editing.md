@@ -12,7 +12,7 @@ Fewer treats your graph like an editable outline. Every node supports the full s
 - New nodes are nested inside the currently selected folder when one is selected, otherwise they are added at the root
 - New nodes auto-enter rename mode and the canvas zooms to them
 
-To add a child directly from the canvas, right-click a folder → **Add Child Node** (available in Power User mode).
+To add a child directly from the canvas, right-click a folder → **Add Child Card** (available in Power User mode).
 
 ## Renaming
 
@@ -97,7 +97,7 @@ In Power User mode, right-click a folder for:
 | Unparent              | Make root-level        |
 | Delete                | Cascade                |
 | Show/Hide Children    | Power User mode        |
-| Add Child Node        | Power User mode        |
+| Add Child Card        | Power User mode        |
 | Open in File Explorer | Disabled in the web build |
 | Copy Path             | Power User mode        |
 | Refresh from Disk     | Directory imports only |
