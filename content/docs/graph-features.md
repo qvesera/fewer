@@ -26,8 +26,8 @@ Right-click empty canvas space to open quick actions:
 - **Organize**: re-run the tree layout to reflow the graph (every view, not just the active one)
 - **Zoom In / Zoom Out**
 - **Delete Connection**: removes the last-clicked edge
-- **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Cards**: reveal hidden nodes (Power User mode)
+- **Parent selected cards (Alt+P)**: with 2+ cards selected, makes the last-selected folder the parent of the rest
+- **Show All**: reveal hidden cards (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
 ## Node Types
@@ -73,7 +73,7 @@ Every node has an **input handle** (entry, on the left/top) and an **output hand
 
 - **Ctrl+A**: select all visible nodes
 - **Shift+Arrow keys**: add nodes to the selection while navigating
-- **Set as Parent**: batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
+- **Parent selected cards**: batch-parent multiple selected cards under the last-selected folder (**Alt+P**)
 - **Alt+Shift+P**: unparent all selected nodes — only the top-most selected cards detach (a selected descendant whose selected ancestor also detaches stays put); one undo step, and nothing is toasted when there was nothing to detach
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
@@ -166,7 +166,7 @@ Optional motion effects:
 
 Connection motion is a signed-in (Power User) feature: it's only available to
 authenticated users. A Settings → Appearance toggle, **Animate Selected
-Edges Only**, limits the
+Connections Only**, limits the
 animation to the connections along the selected nodes' path to the root (the same
 connections that get the selection highlight) instead of every connection on the canvas.
 It works standalone — no need to turn on the edge motion toggle first — and
