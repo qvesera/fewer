@@ -124,19 +124,16 @@ function HiddenNodeRow({ tree, depth = 0, getChildren }: { tree: HiddenTreeNode;
     // just-revealed nodes.
     setHoverHighlight([]);
     const store = useGraphStore.getState();
-    // Reveal in the active view's layers (removes from individual/subtrees/bulk-exempt)
-    if (store.activeLeafId) {
-      store.eyeRevealForLeaf(store.activeLeafId, id);
-    }
-    if (isFolder) {
-      // Also reveal subtree globally when it was globally hidden (existing behavior)
-      store.revealSubtree(id);
-      toast({ title: "Subtree shown", description: tree.node.data.label });
-    } else {
-      // Also reveal globally when globally hidden (existing behavior)
-      store.showAncestors(id);
-      toast({ title: "Card shown", description: tree.node.data.label });
-    }
+    // ONE store write for the whole gesture: the view's layers, the global hide
+    // sets and the auto-hide exemption. The old chain — eyeRevealForLeaf then
+    // revealSubtree (which re-ran the auto-hide reconcile) — cost four version
+    // bumps, four layout passes and a localStorage write per click, and the
+    // reconcile re-hid whatever the user had revealed on the canvas.
+    store.revealInView(store.activeLeafId, id, { subtree: isFolder });
+    toast({
+      title: isFolder ? "Subtree shown" : "Card shown",
+      description: tree.node.data.label,
+    });
     // Auto-select the just-revealed node so it's ringed on the canvas and
     // arrow-key navigation can act on it immediately.
     setSelectedNodeIds([id]);

@@ -27,6 +27,10 @@ function commitShow(
     hiddenIds: shown(get().hiddenIds),
     ...(clearIndie ? { independentlyHiddenIds: shown(get().independentlyHiddenIds) } : {}),
     autoHiddenIds: shown(get().autoHiddenIds),
+    // Register the exemption: the auto-hide reconciler re-hides every
+    // non-exempt child of an over-threshold folder, so a reveal that does NOT
+    // register here is undone by the next reconcile.
+    revealedRootIds: [...new Set([...get().revealedRootIds, ...toShow])],
     graphVersion: get().graphVersion + 1,
   });
   get().relayoutIfAuto();
@@ -54,7 +58,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
   revealedFromHidden: [],
   autoHideThreshold: 10,
   hideNode: (id) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, revealedFromHidden, autoHiddenIds } = get();
     if (hiddenIds.includes(id)) return;
     const toHide = new Set([id, ...getDescendants(id, edges)]);
     const before = captureViewState(get());
@@ -64,12 +68,15 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       hiddenIds: [...hiddenIds, ...toHide],
       autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
+      // Hidden again ⇒ no longer exempt from the auto-hide pass, and no longer
+      // "already revealed" for the depth slider.
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
+      revealedFromHidden: revealedFromHidden.filter((r) => !toHide.has(r)),
       graphVersion: get().graphVersion + 1,
     });
   },
   hideNodes: (ids) => {
-    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, autoHiddenIds } = get();
+    const { hiddenIds, edges, selectedNodeIds, revealedRootIds, revealedFromHidden, autoHiddenIds } = get();
     const toHide = new Set([...ids, ...ids.flatMap((id) => getDescendants(id, edges))]);
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: [...before.hiddenIds, ...toHide] };
@@ -79,6 +86,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       autoHiddenIds: autoHiddenIds.filter((h) => !toHide.has(h)),
       selectedNodeIds: selectedNodeIds.filter((sid) => !toHide.has(sid)),
       revealedRootIds: revealedRootIds.filter((r) => !toHide.has(r)),
+      revealedFromHidden: revealedFromHidden.filter((r) => !toHide.has(r)),
       graphVersion: get().graphVersion + 1,
     });
   },
@@ -87,7 +95,15 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     if (!before.hiddenIds.includes(id)) return;
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => h !== id) };
     get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: s.hiddenIds.filter((h) => h !== id), autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id), graphVersion: s.graphVersion + 1 }));
+    set((s) => ({
+      hiddenIds: s.hiddenIds.filter((h) => h !== id),
+      autoHiddenIds: s.autoHiddenIds.filter((h) => h !== id),
+      // Exempt the card: without this the next auto-hide reconcile re-hides it
+      // as a child of an over-threshold folder — the canvas double-click reveal
+      // that a sidebar reveal used to undo.
+      revealedRootIds: [...new Set([...s.revealedRootIds, id])],
+      graphVersion: s.graphVersion + 1,
+    }));
     get().relayoutIfAuto();
   },
   showAncestors: (id) => {
@@ -104,7 +120,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], graphVersion: get().graphVersion + 1 });
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], revealedRootIds: [...new Set([...get().revealedRootIds, ...toShow])], graphVersion: get().graphVersion + 1 });
     get().relayoutIfAuto();
   },
   showSubtree: (id) => {
@@ -127,12 +143,12 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     get().relayoutIfAuto();
   },
   revealSubtree: (id) => {
-    const { revealedRootIds } = get();
-    get().showAncestors(id);
-    get().showSubtree(id);
-    set({ revealedRootIds: [...new Set([...revealedRootIds, id])] });
-    get().autoHideLargeFolders();
-    get().relayoutIfAuto();
+    // The reveal gesture, as one write. No auto-hide reconcile: that pass
+    // re-hides every non-exempt child of an over-threshold folder, so running
+    // it here undid reveals made on the canvas while keeping this path's own
+    // history — and it was the whole cost of a sidebar click. Auto-hide still
+    // runs where it belongs: import, threshold change, folder refresh.
+    get().revealInView(null, id, { subtree: true });
   },
   setMaxDisplayDepth: (maxDepth) => {
     const { nodes, hiddenIds, direction, edges, searchQuery, graphVersion, maxDisplayDepth: oldMaxDepth, revealedFromHidden } = get();

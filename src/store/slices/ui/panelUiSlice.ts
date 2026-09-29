@@ -61,10 +61,35 @@ export type PanelUiSliceCreator = StateCreator<
     insertAreaAtEdge: (side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor) => void;
     setDividerRatio: (firstId: string, secondId: string, ratio: number) => void;
     resetPanelLayout: () => void;
-    /** @internal — writes layout to localStorage. Called by other panel actions. */
+    /** @internal — schedules the layout write (debounced). */
     _persistLayout: () => void;
+    /** @internal — writes the layout to localStorage now. */
+    _persistLayoutNow: () => void;
   }
 >;
+
+/**
+ * Debounce state for _persistLayout. Coalesces the burst of writes a single
+ * gesture produces; flushed on pagehide so the last edit survives a close.
+ */
+const PERSIST_DEBOUNCE_MS = 300;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let pagehideBound = false;
+
+/**
+ * A real browser, not just "window exists": bun's test env lets a suite stub a
+ * `window` + `localStorage` pair, and those suites assert the storage contents
+ * right after the action — a debounce there would swallow the write.
+ */
+const IS_BROWSER = typeof window !== "undefined" && typeof document !== "undefined";
+
+/** Cancel a pending debounced write and flush it now (pagehide / unmount). */
+function flushLayoutPersist(get: () => GraphState) {
+  if (persistTimer === null) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  get()._persistLayoutNow();
+}
 
 export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   showMiniMap: true,
@@ -165,6 +190,27 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   // ── Panel layout actions ──
 
   _persistLayout: () => {
+    // Debounced: a single reveal gesture persisted the whole snapshot (panel
+    // tree + every view's settings and per-view positions) synchronously on
+    // each of its store writes — megabytes of JSON into localStorage, several
+    // times per sidebar click. No window (tests, SSR) writes straight through.
+    if (!IS_BROWSER) {
+      get()._persistLayoutNow();
+      return;
+    }
+    // A pending debounce must not be lost when the tab goes away.
+    if (!pagehideBound) {
+      pagehideBound = true;
+      window.addEventListener("pagehide", () => flushLayoutPersist(get));
+    }
+    if (persistTimer !== null) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      get()._persistLayoutNow();
+    }, PERSIST_DEBOUNCE_MS);
+  },
+
+  _persistLayoutNow: () => {
     const s = get();
     saveLayoutToStorage(
       { sidebarSide: s.sidebarSide, panelTree: s.panelTree, viewSettings: s.viewSettings },
@@ -230,5 +276,10 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const d = defaultLayout();
     set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree });
     clearLayoutStorage();
+    // Drop any queued write, or it would restore the layout we just cleared.
+    if (persistTimer !== null) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
   },
 });
