@@ -67,7 +67,10 @@ the `DECISION` line and why (candidate, score, state) before continuing.
   (`git commit --no-verify` / `SKIP_TASK_HOOK=1` are the escape hatches — record
   the time manually if you use one).
 - Never edit `TASKS.yaml` by hand: use `start` / `stop` / `set-status` / `note` /
-  `record-session`. `validate` rejects a file that is not canonical.
+  `record-session`. `validate` rejects a file that is not canonical. A back-fill
+  recorded twice is corrected with `record-session … --replace` (it drops the
+  closed sessions the new window overlaps) — without it an overlap is a hard
+  `validate` failure with no way back.
 - Scope grew → `task:note <id> "…"`; genuinely new scope → a new task.
 
 ## Closing

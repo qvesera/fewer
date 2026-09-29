@@ -506,6 +506,24 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         proof = [p for p in args.pr or []]
     sess = {"start": args.start, "end": args.end, "measured": not args.reconstructed,
             "note": args.note or "", "proof": proof, "effort": effort_for_commits(proof)}
+    # `--replace` corrects a back-fill that was recorded twice (or whose window
+    # moved): a duplicate session is unrecoverable otherwise, because this verb
+    # only ever appended, and an overlap is a hard `validate` failure that blocks
+    # every commit. It removes the CLOSED sessions this window overlaps, so the
+    # correction stays a ledger edit through the sanctioned path.
+    dropped: list[str] = []
+    if getattr(args, "replace", False):
+        start, end = parse_iso(args.start), parse_iso(args.end)
+        keep = []
+        for old_sess in row["sessions"]:
+            if not old_sess.get("end"):
+                keep.append(old_sess)
+                continue
+            if parse_iso(old_sess["start"]) < end and start < parse_iso(old_sess["end"]):
+                dropped.append(f"{old_sess['start']}…{old_sess['end']}")
+                continue
+            keep.append(old_sess)
+        row["sessions"] = keep
     row["sessions"].append(sess)
     if args.time_source:
         row["time_source"] = args.time_source
@@ -513,6 +531,8 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         row["time_source"] = "reconstructed"
     refresh(row)
     save(ledger)
+    for window in dropped:
+        print(f"replaced overlapping session {window}")
     print(f"recorded {session_minutes(sess)}m on {row['id']} "
           f"({sess['start']} → {sess['end']}, measured={sess['measured']}, "
           f"proof={proof or '-'})")
@@ -2386,14 +2406,38 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
 
 
 # ── reconcile: GitHub state → ledger status ─────────────────────────────
+# A closing keyword on the same line as the reference, in either order:
+# "Fixes #264", "closes #264", "#264 (fixes the canvas loop)".
+_CLOSING_WORD = re.compile(r"\b(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\b", re.I)
+
+
+def pr_references_issue(pr: dict[str, Any], number: int) -> bool:
+    """Does this PR deliberately point at issue `number`?
+
+    True when the title names the issue, or a body line mentions it *next to a
+    closing keyword* — the two forms GitHub itself turns into a linked pull
+    request. It used to keep every MERGED PR the `N in:body` search returned, so
+    an unrelated merged PR that merely mentioned the number made `reconcile`
+    close a row whose own PR was still open: a search hit plus a merge timestamp
+    is not a link, and that turned status into a coin flip.
+    """
+    if f"#{number}" in (pr.get("title") or ""):
+        return True
+    num = re.escape(str(number))
+    for line in (pr.get("body") or "").splitlines():
+        if re.search(rf"#{num}\b", line) and _CLOSING_WORD.search(line):
+            return True
+    return False
+
+
 def _linked_prs(number: int) -> list[dict[str, Any]]:
     try:
         prs = gh_json("pr", "list", "--state", "all", "--limit", "20",
-                      "--search", f"{number} in:body", "--json", "number,state,mergedAt,title")
+                      "--search", f"{number} in:body",
+                      "--json", "number,state,mergedAt,title,body")
     except (SystemExit, FileNotFoundError):
         return []
-    return [p for p in prs if f"#{number}" in p.get("title", "") or p.get("mergedAt")
-            or "Fixes" in p.get("title", "")]
+    return [p for p in prs if pr_references_issue(p, number)]
 
 
 def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
@@ -3343,6 +3387,23 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("details: a body with no marker still gets the block",
           BODY_BEGIN in body_with_details("just prose\n", block))
 
+    # The linked-PR filter decides whether `reconcile` may close a row, so it
+    # must be a link and not "some merged PR that mentioned the number".
+    check("linked PR: a PR that closes the issue counts",
+          pr_references_issue({"title": "fix(canvas)", "body": "Fixes #264"}, 264))
+    check("linked PR: the issue in the title counts",
+          pr_references_issue({"title": "fix #264 canvas", "body": "no link here"}, 264))
+    check("linked PR: a closing keyword under a heading counts",
+          pr_references_issue({"title": "docs sweep",
+                               "body": "## Related Issues\n\nCloses #264\n"}, 264))
+    check("linked PR: an unrelated MERGED PR that merely mentions it does NOT",
+          not pr_references_issue({"title": "docs: finish the sweep", "mergedAt": "2026-09-29T20:27:52Z",
+                                   "body": "Task details mention #264 in passing"}, 264))
+    check("linked PR: a bare mention with no keyword does NOT",
+          not pr_references_issue({"title": "chore", "body": "see #264 for context"}, 264))
+    check("linked PR: a different issue number does NOT",
+          not pr_references_issue({"title": "fix(other)", "body": "Fixes #265"}, 264))
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -3426,6 +3487,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--note", default="")
     sp.add_argument("--proof", nargs="*")
     sp.add_argument("--pr", nargs="*", help="alias: PR refs like #181")
+    sp.add_argument("--replace", action="store_true",
+                    help="drop the closed sessions this window overlaps, then record "
+                         "(corrects a duplicate back-fill; without it an overlap is "
+                         "unrecoverable and fails validate)")
     sp.add_argument("--reconstructed", action="store_true",
                     help="time is inferred from evidence, not a live session")
     sp.add_argument("--time-source", choices=("measured", "reconstructed", "none"))

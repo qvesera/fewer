@@ -1853,28 +1853,16 @@ tasks:
   notes: []
   sessions:
   - start: "2026-09-29T21:32:19Z"
-    end: "2026-09-29T21:41:49Z"
-    measured: true
-    note: "Reconcile pass complete: 63 rows == 63 board items, doctor clean, no 'To triage' left"
-    proof: []
-    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
-  - start: "2026-09-29T21:32:19Z"
-    end: "2026-09-29T21:40:00Z"
-    measured: false
-    note: "Reconcile pass: fixed the linked-PR filter first (it had closed T-070 while #271 was open), re-based onto dev's ledger, re-applied the status decisions (T-033/T-038 closed, T-070 back in review), intake #269/#272, gh-sync relabelled 6, sync-details added 26 items and cleared every 'To triage' default, deleted the 5 PR items. Verified: 63 rows vs 63 board items, doctor clean."
-    proof: []
-    effort: null
-  - start: "2026-09-29T21:32:19Z"
     end: "2026-09-29T21:41:00Z"
     measured: false
     note: "Reconcile pass landed; proof is the ledger commit (63 rows == 63 board items, doctor clean, no 'To triage' left)"
-    proof: ["71afa587"]
+    proof: ["71afa58"]
     effort: {commits: 1, files: 1, insertions: 85, deletions: 4}
-  spent_min: 27
-  session_count: 3
+  spent_min: 9
+  session_count: 1
 - id: "T-073"
   title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks),…"
-  status: "triaged"
+  status: "in-progress"
   type: "fix"
   area: "infra"
   tier: null
@@ -1892,9 +1880,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-09-29T21:03:52Z"
   notes: ["2026-09-29T21:32:20Z · adopted at intake from GitHub (open)"]
-  sessions: []
+  sessions:
+  - start: "2026-09-29T21:44:25Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-074"
   title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending…"
   status: "triaged"
