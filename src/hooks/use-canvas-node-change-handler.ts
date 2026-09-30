@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import type { NodeChange } from "@xyflow/react";
 import type { FewerNode } from "@/lib/fewer/types";
 import { isResizeGestureFor, nodeDims, pendingResizeOps, type Dims } from "@/lib/fewer/resizeGesture";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { useGraphStore } from "@/store/graphStore";
 
 interface NodeChangeHandlerDeps {
@@ -97,6 +98,36 @@ export function applyDimensionChanges(
   return { nodes: changed ? next : nodes, changed };
 }
 
+export type PositionChange = NodeChange<FewerNode> & {
+  id: string;
+  position: { x: number; y: number };
+};
+
+/**
+ * Fold a batch of React Flow position reports into the store's nodes.
+ *
+ * Returns the SAME array (and `changed: false`) when no card actually moved.
+ * A re-report of a position that is already the store's is not a drag: writing
+ * it rebuilt the store's node array, which rebuilt every mounted view's lens
+ * and pushed a fresh array back into React Flow — the round trip that chains
+ * into React's "Maximum update depth exceeded" (#281).
+ */
+export function applyPositionChanges(
+  nodes: FewerNode[],
+  changes: PositionChange[],
+): { nodes: FewerNode[]; changed: boolean } {
+  if (changes.length === 0) return { nodes, changed: false };
+  const targets = new Map(changes.map((c) => [c.id, c.position]));
+  let changed = false;
+  const next = nodes.map((n) => {
+    const pos = targets.get(n.id);
+    if (!pos || (n.position.x === pos.x && n.position.y === pos.y)) return n;
+    changed = true;
+    return { ...n, position: pos };
+  });
+  return { nodes: changed ? next : nodes, changed };
+}
+
 /**
  * Handle React Flow node position + dimension changes:
  *   - position changes → commit to the store immediately
@@ -149,12 +180,13 @@ export function useCanvasNodeChangeHandler({
           const entries = positionChanges.map((c) => ({ id: c.id, pos: c.position! }));
           useGraphStore.getState().setNodePositionsBatch(leafId, entries);
         } else {
-          useGraphStore.setState((s) => ({
-            nodes: s.nodes.map((n) => {
-              const change = positionChanges.find((c) => c.id === n.id);
-              return change ? { ...n, position: change.position } : n;
-            }),
-          }));
+          // Same guard as the per-view path (applyPositionChanges): a position
+          // the store already holds must not rebuild `nodes`.
+          useGraphStore.setState((s) => {
+            const next = applyPositionChanges(s.nodes, positionChanges);
+            if (next.changed) markLoop("write:positions-shared");
+            return next.changed ? { nodes: next.nodes } : {};
+          });
         }
       }
 
@@ -180,6 +212,7 @@ export function useCanvasNodeChangeHandler({
           changed = next.changed; // zustand runs the updater synchronously
           return next.changed ? { nodes: next.nodes } : {};
         });
+        if (changed) markLoop("write:dimensions");
         if (!changed) return;
 
         // Commit a resize op once the gesture settles (debounced). Nothing

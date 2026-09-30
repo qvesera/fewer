@@ -96,6 +96,61 @@ test("deletes a node from the context menu, then undoes", async ({ page }) => {
   await expect(srcHeader(page).first()).toHaveCount(1);
 });
 
+// Regression (#281): dragging a card as the FIRST interaction — nothing selected,
+// so `activeLeafId` was still null — painted the dragged card unselected on the
+// canvas's next push, React Flow re-reported the empty selection, and
+// store → canvas → React Flow → store repeated until React gave up with
+// "Maximum update depth exceeded" and tore the canvas down. Selecting the card
+// first avoided it (the view already had the id), which is why it looked like a
+// "sometimes it works" bug.
+//
+// Both drag modes are covered, and the loop probe is on (`?debugLoop=1`) so a
+// regression shows up as a burst of updates long before React's own limit:
+// React Flow re-adopts every node whose identity changed, so a whole-canvas
+// rebuild per frame is loud even when it does not trip the limit.
+async function dragCard(page: Page, opts: { selectFirst: boolean }) {
+  const errors: string[] = [];
+  const bursts: string[] = [];
+  page.on("console", (m) => {
+    const text = m.text();
+    if (m.type() === "error" || text.includes("Maximum update depth")) errors.push(text);
+    if (text.startsWith("[loop]")) bursts.push(text);
+  });
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+
+  await page.goto("/app?debugLoop=1");
+  await loadSample(page);
+  const card = srcHeader(page).first();
+  await expect(card).toBeVisible({ timeout: 15000 });
+  const before = (await card.boundingBox())!;
+  const startX = before.x + before.width / 2;
+  const startY = before.y + 10;
+
+  if (opts.selectFirst) {
+    await page.mouse.click(startX, startY);
+    await expect(card).toHaveClass(selected(), { timeout: 10000 });
+  }
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(startX + i * 14, startY + i * 8);
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await card.boundingBox())!.x, { timeout: 10000 })
+    .toBeGreaterThan(before.x + 100);
+  expect(errors.filter((e) => e.includes("Maximum update depth"))).toEqual([]);
+  expect(bursts).toEqual([]);
+}
+
+test("dragging a card without selecting it first does not loop the canvas (#281)", async ({ page }) => {
+  await dragCard(page, { selectFirst: false });
+});
+
+test("dragging an already selected card does not loop the canvas (#281)", async ({ page }) => {
+  await dragCard(page, { selectFirst: true });
+});
+
 test("dragging a node is undoable", async ({ page }) => {
   await openCanvas(page);
 

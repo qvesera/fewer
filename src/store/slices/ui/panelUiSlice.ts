@@ -10,6 +10,7 @@ import {
 } from "@/lib/fewer/panelLayout";
 import * as treeModule from "@/lib/fewer/panelTree";
 import { can, type Tier } from "@/lib/fewer/tiers";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { dropLeafHistory } from "../historySlice";
 
 export type PanelUiSliceCreator = StateCreator<
@@ -148,8 +149,19 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
 
   setNodePositionsBatch: (leafId, entries) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
-    const positions = { ...(leaf.positions ?? {}) };
-    for (const { id, pos } of entries) positions[id] = pos;
+    const current = leaf.positions ?? {};
+    // Skip reports that change nothing: React Flow re-reports a card's position
+    // when it re-adopts the node array we just pushed, and an unguarded write
+    // here starts the whole store → lens → push → report round trip again on a
+    // value that did not move (#281).
+    const moved = entries.filter(({ id, pos }) => {
+      const prev = current[id];
+      return !prev || prev.x !== pos.x || prev.y !== pos.y;
+    });
+    if (moved.length === 0) return {};
+    markLoop("write:positions-batch");
+    const positions = { ...current };
+    for (const { id, pos } of moved) positions[id] = pos;
     const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next }; // No graphVersion bump — RF already shows positions
   }),

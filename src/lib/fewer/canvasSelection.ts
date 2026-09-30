@@ -30,3 +30,26 @@ export function mergeSelection(
     ...selected.filter((n: { id: string }) => !prevSet.has(n.id)).map((n: { id: string }) => n.id),
   ];
 }
+
+export interface NextSelectionArgs {
+  prevIds: string[];
+  selected: { id: string }[];
+  selectedIds: Set<string>;
+  base: Set<string> | null;
+  /** Ids the live drag started with, or null when no drag is running. */
+  dragSelection: string[] | null;
+}
+
+/**
+ * The selection the store should hold for one React Flow report.
+ *
+ * Mid-drag, an EMPTY report does not mean "the user deselected": the canvas
+ * pushes its own node array, and until the store has this view's selection that
+ * push paints the dragged cards unselected — so React Flow reports empty again,
+ * and store → canvas → React Flow → store repeats until React gives up with
+ * "Maximum update depth exceeded" (#281). A drag therefore keeps its selection.
+ */
+export function nextSelectionIds({ prevIds, selected, selectedIds, base, dragSelection }: NextSelectionArgs): string[] {
+  if (dragSelection && selected.length === 0) return dragSelection;
+  return mergeSelection(prevIds, selected, selectedIds, base);
+}

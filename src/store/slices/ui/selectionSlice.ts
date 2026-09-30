@@ -1,5 +1,6 @@
 "use client";
 import { StateCreator } from "zustand";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import type { GraphState } from "../types";
 import { swapLeafHistory } from "../historySlice";
 
@@ -96,6 +97,7 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   setSelectionForLeaf: (leafId, ids) => set((s) => {
     const prev = s.leafSelections[leafId];
     if (s.activeLeafId === leafId && prev !== undefined && sameIds(prev, ids)) return {};
+    markLoop("write:selection");
     // This leaf already holds exactly these ids, and the shared list already
     // agrees: a React Flow selection report is re-emitting what we painted, not
     // a new selection. Only the active leaf changed, so DON'T bump
