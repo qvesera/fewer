@@ -2011,6 +2011,41 @@ tasks:
     effort: null
   spent_min: 25
   session_count: 1
+- id: "T-078"
+  title: "Splitting into two views breaks hydration: the navbar's Radix trigger ids differ between server and client"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 283
+  pr: 284
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#283"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-30T13:23:22Z"
+  notes: ["2026-09-30T13:24:30Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-30T13:24:32Z"
+    end: "2026-09-30T13:42:38Z"
+    measured: true
+    note: "The /app shell is now client-only (FewerApp via dynamic ssr:false in src/app/app/AppShell.tsx), so the server sends no Radix useId values and React has nothing it cannot match. Proof: a pre-fix dev server serves exactly the reported id (radix-_R_e1inebmulb_); after the change /app serves zero id=radix- attributes (asserted in e2e), and a two-view workspace boots with 2 canvases and no hydration errors. Adds a dev-only ?tier=pro|free|guest override so Pro flows are reachable without a Pro account (this gating is what hid the bug: a guest's stored tree collapses to one leaf), and PORT is now overridable in playwright.config.ts. Gates: unit 1473, components 187, lint 0, tsc 0, build OK, e2e 13/13."
+    proof: ["a6753d1", "#284"]
+    effort: {commits: 1, files: 9, insertions: 167, deletions: 11}
+  - start: "2026-09-30T14:14:17Z"
+    end: "2026-09-30T14:23:55Z"
+    measured: true
+    note: "Fixed the red CI test job on PR #284 and rebased onto dev (#282 merged). Cause of the red: the ?tier= override I had put inside tierOf read window.location from an ambient global, and snapshot.test.ts/uiSlices.test.ts leave globalThis.window = globalThis (no location) behind for the rest of the process — every original tierOf test threw TypeError depending on bun's file order, so it was green locally and red on the runner. Fix: tierOf is pure again; the override lives in devTier.ts as devTierOverride(search?) with a tolerant default reader and is applied at the single call site (FewerApp), so the new tests pass the query string explicitly and touch no globals (covered by a regression test that installs a location-less window). Rebase: resolved the CHANGELOG.md and TASKS.yaml unions by hand (dev's T-079/T-080 rows kept alongside mine, T-078 in id order); validate-merge reports no id collisions and no reverts. Gates after rebase: bun test src 1487, test:components 187, lint 0, tsc 0, build OK, e2e 15/15 (PORT=3100 alongside the maintainer's dev server), validate/validate-merge/changelog OK."
+    proof: ["b2f8b6c", "3b70e80", "a93d74d", "#284"]
+    effort: {commits: 3, files: 12, insertions: 276, deletions: 94}
+  spent_min: 28
+  session_count: 2
 - id: "T-079"
   title: "Dragging a card without selecting it first loops into 'Maximum update depth exceeded' and crashes the canvas"
   status: "review"
