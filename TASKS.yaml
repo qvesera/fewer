@@ -2098,3 +2098,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-081"
+  title: "Splitting the canvas while a card is selected loops into 'Maximum update depth exceeded' and tears down the tree"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 285
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#285"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-30T14:58:35Z"
+  notes: ["2026-09-30T14:59:33Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-30T14:59:34Z"
+    end: "2026-09-30T19:27:46Z"
+    measured: true
+    note: "Fixed the split-with-selection crash (#285) in four layers, each verified by the deterministic Playwright repro (select a card, drag the bottom-right corner grip → 2 canvases, 0 'Maximum update depth'): (1) a leaf gained by a tree change starts with an explicit empty selection instead of borrowing the shared one, and a joined leaf's entry is dropped (panelSelectionPatch in panelUiSlice); (2) selectionForLeaf is the single resolver for card stamps and edge highlighting and falls back to the shared list only while no leaf owns it; (3) setSelectionForLeaf is a state sync now — an echo of what a leaf already paints writes NOTHING (not even activeLeafId), and an empty report from a non-owner is ignored; (4) React Flow's selection subscription is advisory: only a pointer gesture may change the store, because RF's report lags our own push by a frame and the two drove each other into a limit cycle — the trace showed push[card] → RF echoes [] → push[] → RF echoes [card] forever. A card click writes the selection itself so a click in a background canvas still selects, and stampSelection now emits an explicit selected:false on a clear and re-asserts the flag on fresh node objects, so a stale RF selection can neither survive a clear nor vanish on a dimensions rewrite. Gates: bun test src 1501, test:components 188, lint 0, tsc 0, build OK, e2e 18/18 (PORT=3100), validate OK."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 268
+  session_count: 1
