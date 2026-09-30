@@ -1953,3 +1953,61 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 68, deletions: 18}
   spent_min: 1
   session_count: 1
+- id: "T-076"
+  title: "reconcile --apply can move a row to done without proof, producing a ledger that fails validate"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 279
+  pr: 277
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#279"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-30T09:33:58Z"
+  notes: []
+  sessions:
+  - start: "2026-09-30T09:34:10Z"
+    end: "2026-09-30T09:48:39Z"
+    measured: true
+    note: "has_proof() shared by set-status/validate/reconcile_plan; reconcile_plan returns (plan, notes) and refuses to plan an unprovable done; 13 new selftest checks"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 14
+  session_count: 1
+- id: "T-077"
+  title: "Ledger row ids collide across branches, and an older copy reverts rows it never saw"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 280
+  pr: 277
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#280"
+  time_source: "reconstructed"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-09-30T09:34:14Z"
+  notes: []
+  sessions:
+  - start: "2026-09-30T09:40:00Z"
+    end: "2026-09-30T10:05:00Z"
+    measured: false
+    note: "Ledger id-collision work; proof is the #277 commit that lands it"
+    proof: ["#277"]
+    effort: null
+  spent_min: 25
+  session_count: 1

@@ -40,6 +40,12 @@ jobs:
         run: python3 scripts/tasks.py validate
       - name: Every commit names a tracked task in review/done
         run: python3 scripts/tasks.py validate-commits --base origin/${{ github.base_ref }}
+      # `validate` reads ONE ledger file, so it cannot see what a MERGE would do to
+      # it: a branch cut before the base moved mints ids the base already used
+      # (two different rows, one id) and its stale copy silently reverts rows the
+      # base has moved on. Collisions fail; reverts and dropped rows warn.
+      - name: Merging the base keeps the ledger sane (id collisions, reverts)
+        run: python3 scripts/tasks.py validate-merge --base origin/${{ github.base_ref }}
       # The engine's own harness. It was a local-only obligation ("run selftest
       # after changing this file"), which is why a regression in the readiness
       # gate or the body splice could merge green. Pure python, no gh, ~1s.

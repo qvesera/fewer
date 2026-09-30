@@ -67,8 +67,32 @@ the `DECISION` line and why (candidate, score, state) before continuing.
   (`git commit --no-verify` / `SKIP_TASK_HOOK=1` are the escape hatches — record
   the time manually if you use one).
 - Never edit `TASKS.yaml` by hand: use `start` / `stop` / `set-status` / `note` /
-  `record-session`. `validate` rejects a file that is not canonical.
+  `record-session`. `validate` rejects a file that is not canonical. A back-fill
+  recorded twice is corrected with `record-session … --replace` (it drops the
+  closed sessions the new window overlaps) — without it an overlap is a hard
+  `validate` failure with no way back.
+- `done` means shipped, and shipped needs proof: a commit or PR ref somewhere, or a
+  row whose time was never measured (`time_source: none|reconstructed`).
+  `reconcile` will not plan a `done` a row cannot prove — it prints a NOTE with the
+  `record-session` line that makes it appliable instead.
 - Scope grew → `task:note <id> "…"`; genuinely new scope → a new task.
+
+### The ledger is one file, so branches collide
+
+Row ids are allocated above the local max **and** the base branch's, so a branch
+cut before `dev` moved on cannot mint an id `dev` just used. Two branches cut from
+the same base still can, and an older copy silently **reverts** rows it never saw —
+`validate` reads one file and cannot see any of it. So after a rebase, or before a
+PR:
+
+```bash
+python3 scripts/tasks.py validate-merge --base origin/dev   # collisions FAIL, reverts warn
+python3 scripts/tasks.py renumber <T-id> --next             # the sanctioned repair
+```
+
+and re-derive the affected rows with the tooling — never resolve a ledger conflict
+by taking one side wholesale. `TASKS_BASE_REF` moves the allocation base. CI runs
+`validate-merge` on every PR.
 
 ### One writer per surface
 
