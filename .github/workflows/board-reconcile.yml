@@ -1,0 +1,48 @@
+name: Board Reconcile
+# The project board is a PROJECTION of TASKS.yaml: one item per work unit (its
+# issue), and Status/Size/Estimate written only by `sync-details`. This job heals
+# that projection from the ledger on a schedule, so drift cannot accumulate until
+# a human runs a sync by hand — and a no-op pass writes nothing at all.
+#
+# It deliberately does NOT apply `reconcile`: that moves rows in the ledger, which
+# belongs in review like any other change. Its plan is printed for a human.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Labels: ledger -> issue `status:*`. GITHUB_TOKEN can read/write issues.
+      - name: Mirror the ledger's status labels onto the issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/tasks.py gh-sync --status-only
+
+      # Board: ledger -> item Status/Size/Estimate. Needs a token with the
+      # `project` scope; GITHUB_TOKEN cannot read Projects v2.
+      - name: Project the ledger onto the board (the one writer)
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        run: python3 scripts/tasks.py sync-details
+
+      # What reconcile WOULD do, for a human to apply with review.
+      - name: Show the reconcile plan (not applied — the ledger is reviewed)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/tasks.py reconcile
+
+      # Fails the job when a row and its item disagree, so the drift is visible
+      # in CI rather than only on the board.
+      - name: Report ledger ↔ board drift
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        run: python3 scripts/tasks.py doctor --board
