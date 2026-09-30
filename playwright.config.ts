@@ -27,6 +27,10 @@ export default defineConfig({
     env: {
       HOSTNAME: "127.0.0.1",
       PORT: String(PORT),
+      // Production build must honour ?tier= so the Pro-only flows (the
+      // corner-grip split) are exercisable in CI. Inlined at build time, and
+      // unset in every other build — see devTier.ts (#285).
+      NEXT_PUBLIC_ALLOW_TIER_OVERRIDE: "1",
     },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

@@ -413,6 +413,41 @@ describe("stampSelection", () => {
     const nodes = [node("a")];
     expect(stampSelection(nodes, new Set(["nope"]))[0]).toBe(nodes[0]);
   });
+
+  test("a clear reaches RF as an explicit false when the canvas restamps (#285)", () => {
+    // The canvas path: the store's nodes carry NO flag, and RF holds whatever
+    // the previous stamp pushed. Comparing only against the bare store node made
+    // a clear a no-op — the node came back without a flag, RF kept its internal
+    // `selected: true`, and it re-reported a selection the store no longer
+    // listed (store → canvas → RF → store, #285).
+    const storeNodes = [node("a"), node("b"), node("c")]; // no flags at all
+    const prevStamped = stampSelection(storeNodes, new Set(["b"]));
+    expect(prevStamped.map((n) => !!n.selected)).toEqual([false, true, false]);
+
+    const cleared = stampSelection(storeNodes, new Set(), prevStamped);
+    expect(cleared.map((n) => !!n.selected)).toEqual([false, false, false]);
+    // The one RF painted selected must now carry an EXPLICIT false…
+    expect(cleared[1].selected).toBe(false);
+    // …and nothing else churns.
+    expect(cleared[0]).toBe(storeNodes[0]);
+    expect(cleared[2]).toBe(storeNodes[2]);
+
+    // Restamping with the same ids changes nothing again (identity-stable).
+    const again = stampSelection(storeNodes, new Set(), cleared);
+    expect(again[0]).toBe(storeNodes[0]);
+    expect(again[1]).toBe(storeNodes[1]);
+    expect(again[2]).toBe(storeNodes[2]);
+  });
+
+  test("selecting after a clear still clones only the flipped cards (#285)", () => {
+    const storeNodes = [node("a"), node("b")];
+    const stamped = stampSelection(storeNodes, new Set(), undefined);
+    expect(stamped[0]).toBe(storeNodes[0]);
+
+    const selected = stampSelection(storeNodes, new Set(["a"]), stamped);
+    expect(selected[0].selected).toBe(true);
+    expect(selected[1]).toBe(storeNodes[1]);
+  });
 });
 
 describe("needsLayoutDerivation", () => {

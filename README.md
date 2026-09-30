@@ -116,7 +116,7 @@ docker run -p 3000:3000 fewer
 - **React Flow v12** canvas with minimap + controls
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
-- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
+- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left — and the view re-fits to the whole graph when you switch, or after Organize
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively

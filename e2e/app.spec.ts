@@ -411,3 +411,80 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
 
   expect(after).not.toBe(before);
 });
+
+// Splitting while a card is selected used to crash: the new leaf had no
+// selection of its own, so it painted the SHARED selection, reported it back,
+// and the two canvases traded `activeLeafId` — each flip re-pushing the other's
+// edges — until React hit its 50-nested-update limit and tore the tree down
+// (#285). Pro-only (the corner grip is gated on panelWorkspace), which is why
+// this suite's build sets NEXT_PUBLIC_ALLOW_TIER_OVERRIDE so `?tier=` works.
+test("splitting the canvas while a card is selected keeps both canvases alive (#285)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  await page.goto("/app?tier=pro");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  // The precondition: a non-empty selection.
+  await page.locator(".react-flow__node").first().click();
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(1);
+
+  // Drag the bottom-right corner grip inward: inside the leaf → split mode.
+  const box = await page.locator(".react-flow").first().boundingBox();
+  expect(box).not.toBeNull();
+  const sx = box!.x + box!.width - 6;
+  const sy = box!.y + box!.height - 6;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx - 70, sy - 35, { steps: 5 });
+  await page.mouse.up();
+
+  await expect(page.locator(".react-flow")).toHaveCount(2, { timeout: 10000 });
+  expect(errors.filter((e) => /Maximum update depth/i.test(e))).toEqual([]);
+});
+
+// Changing the layout direction or running Organize re-fits the view to the
+// whole graph (#286). Zoom in first, otherwise the fit is a geometric no-op and
+// the assertion would be vacuous — the point is that a user working close to a
+// card gets the whole graph back after the re-flow.
+async function zoomIntoTheGraph(page: import("@playwright/test").Page) {
+  const flow = page.locator(".react-flow").first();
+  await flow.hover({ position: { x: 200, y: 200 } });
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -900);
+  await page.keyboard.up("Control");
+  await page.waitForTimeout(400);
+  return page.locator(".react-flow__viewport").first().getAttribute("style");
+}
+
+test("Organize re-fits the view to the whole graph (#286)", async ({ page }) => {
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const zoomedIn = await zoomIntoTheGraph(page);
+
+  await page.getByRole("button", { name: "Organize" }).click();
+  // The fit runs 120ms after the re-flow so it targets the settled layout.
+  await page.waitForTimeout(900);
+
+  const after = await page.locator(".react-flow__viewport").first().getAttribute("style");
+  expect(after).not.toBe(zoomedIn);
+});
+
+test("changing the layout direction re-fits the view to the whole graph (#286)", async ({ page }) => {
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const zoomedIn = await zoomIntoTheGraph(page);
+
+  // LayoutPicker: "Vertical" (TB) → "Horizontal" (LR).
+  await page.getByRole("button", { name: /Horizontal/ }).first().click();
+  await page.waitForTimeout(900);
+
+  const after = await page.locator(".react-flow__viewport").first().getAttribute("style");
+  expect(after).not.toBe(zoomedIn);
+});
