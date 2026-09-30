@@ -2100,14 +2100,14 @@ tasks:
   session_count: 0
 - id: "T-081"
   title: "Splitting the canvas while a card is selected loops into 'Maximum update depth exceeded' and tears down the tree"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ux"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 285
-  pr: null
+  pr: 287
   internal: false
   milestone: null
   blocked_by: []
@@ -2129,14 +2129,14 @@ tasks:
   session_count: 1
 - id: "T-082"
   title: "Re-fit the view to the whole graph after a layout-direction change or Organize"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: null
   estimate_min: 480
   estimate_basis: "type-default"
   issue: 286
-  pr: null
+  pr: 287
   internal: false
   milestone: null
   blocked_by: []
