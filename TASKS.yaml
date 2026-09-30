@@ -1926,30 +1926,30 @@ tasks:
   session_count: 0
 - id: "T-075"
   title: "Project board Status keeps being rewritten: sync-details re-writes every field on every run (189 writes for 0…"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "infra"
   tier: null
   estimate_min: 180
   estimate_basis: "cli"
   issue: 276
-  pr: null
+  pr: 277
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#276"
-  time_source: null
+  time_source: "measured"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-09-29T21:49:12Z"
   notes: ["2026-09-30T08:43:54Z · adopted at intake from GitHub (open)"]
   sessions:
   - start: "2026-09-30T08:44:01Z"
-    end: null
+    end: "2026-09-30T08:45:03Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Board single-writer (sync-details diffs, --pr scope, pr-metadata delegation, triage guard, nightly board-reconcile, doctor --board) plus record-session --replace, rebased onto dev where #274 already fixed the cross-reference bug"
+    proof: ["acf0cf8"]
+    effort: {commits: 1, files: 2, insertions: 68, deletions: 18}
+  spent_min: 1
   session_count: 1
