@@ -2013,7 +2013,7 @@ tasks:
   session_count: 1
 - id: "T-078"
   title: "Splitting into two views breaks hydration: the navbar's Radix trigger ids differ between server and client"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "ux"
   tier: null
@@ -2038,8 +2038,14 @@ tasks:
     note: "The /app shell is now client-only (FewerApp via dynamic ssr:false in src/app/app/AppShell.tsx), so the server sends no Radix useId values and React has nothing it cannot match. Proof: a pre-fix dev server serves exactly the reported id (radix-_R_e1inebmulb_); after the change /app serves zero id=radix- attributes (asserted in e2e), and a two-view workspace boots with 2 canvases and no hydration errors. Adds a dev-only ?tier=pro|free|guest override so Pro flows are reachable without a Pro account (this gating is what hid the bug: a guest's stored tree collapses to one leaf), and PORT is now overridable in playwright.config.ts. Gates: unit 1473, components 187, lint 0, tsc 0, build OK, e2e 13/13."
     proof: ["a6753d1", "#284"]
     effort: {commits: 1, files: 9, insertions: 167, deletions: 11}
+  - start: "2026-09-30T14:14:17Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 18
-  session_count: 1
+  session_count: 2
 - id: "T-079"
   title: "Dragging a card without selecting it first loops into 'Maximum update depth exceeded' and crashes the canvas"
   status: "review"
