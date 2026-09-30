@@ -45,7 +45,7 @@ tasks:
   session_count: 3
 - id: "T-002"
   title: "Back-export the three posts that exist only in the database (`v031-performance`, `v040-accounts`, `v050-remote-sources`) into `content/blog/`, so `scripts/gen-seed-content.py` covers every row in `content_pages`."
-  status: "review"
+  status: "done"
   type: "docs"
   area: "blog"
   tier: null
@@ -848,7 +848,7 @@ tasks:
   session_count: 0
 - id: "T-033"
   title: "Layout research: radial vs tree vs grid - when to use which"
-  status: "review"
+  status: "done"
   type: "research"
   area: "layout"
   tier: null
@@ -975,7 +975,7 @@ tasks:
   session_count: 1
 - id: "T-038"
   title: "Docs update sweep (content/docs/*)"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: null
@@ -1793,7 +1793,7 @@ tasks:
   session_count: 1
 - id: "T-070"
   title: "Canvas 'Maximum update depth exceeded': canvas interaction re-pushes new node/edge arrays into React Flow, which writes the store again"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -1806,14 +1806,20 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#264"
-  time_source: null
+  time_source: "reconstructed"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-09-29T19:20:03Z"
   notes: ["2026-09-29T19:31:17Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-09-29T20:28:02Z"
+    end: "2026-09-29T21:57:43Z"
+    measured: false
+    note: "Canvas 'Maximum update depth exceeded' fix shipped in #271 (merged by qvesera 21:57). Session reconstructed from the PR timeline: the row sat at review on a branch that dev has since squash-merged, so its recorded session never reached dev's ledger."
+    proof: ["#271"]
+    effort: null
+  spent_min: 90
+  session_count: 1
 - id: "T-071"
   title: "Supabase migration history drift on dev: 0046-0049 are not recorded, so apply-dev refuses to push and no reseed (0050-0052) reaches the environment"
   status: "blocked"
@@ -1839,7 +1845,7 @@ tasks:
   session_count: 0
 - id: "T-072"
   title: "migrations.py baseline gives dangerous advice for the legacy-timestamp case: it calls genuinely-pending migrations drift and tells you to repair them as applied, which skips their DDL forever"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: 0
@@ -1868,7 +1874,7 @@ tasks:
   session_count: 1
 - id: "T-073"
   title: "Ledger integrity: reconcile treats a mere cross-reference as a fix (silently completing unfinished tasks), and concurrent writers can clobber TASKS.yaml"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: 0
@@ -1919,13 +1925,13 @@ tasks:
   spent_min: 0
   session_count: 0
 - id: "T-075"
-  title: "Project board Status keeps being rewritten: sync-details re-writes every field on every run (189 writes for 0 changes), pr-metadata re-adds a PR item with its own Status, and a 'triage --area' edit on a review row silently drops it back to triaged"
+  title: "Project board Status keeps being rewritten: sync-details re-writes every field on every run (189 writes for 0…"
   status: "in-progress"
   type: "fix"
-  area: "other"
+  area: "infra"
   tier: null
-  estimate_min: 120
-  estimate_basis: "type-default"
+  estimate_min: 180
+  estimate_basis: "cli"
   issue: 276
   pr: null
   internal: false
@@ -1934,12 +1940,12 @@ tasks:
   parent: null
   source: "gh#276"
   time_source: null
-  reporter: null
+  reporter: "qvesera"
   assignee: "qvesera"
-  created_at: "2026-09-29T21:49:13Z"
-  notes: []
+  created_at: "2026-09-29T21:49:12Z"
+  notes: ["2026-09-30T08:43:54Z · adopted at intake from GitHub (open)"]
   sessions:
-  - start: "2026-09-29T21:49:24Z"
+  - start: "2026-09-30T08:44:01Z"
     end: null
     measured: true
     note: ""

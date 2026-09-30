@@ -551,6 +551,22 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         proof = [p for p in args.pr or []]
     sess = {"start": args.start, "end": args.end, "measured": not args.reconstructed,
             "note": args.note or "", "proof": proof, "effort": effort_for_commits(proof)}
+    # `--replace` corrects a back-fill that was recorded twice (or whose window
+    # moved). The atomic write and the stale-read guard added in #274 stop
+    # concurrent writers from clobbering the file, but they cannot see this: the
+    # write is legitimate, the VALUE is wrong, and two overlapping sessions are a
+    # hard `validate` failure that blocks every commit with no way back.
+    dropped: list[str] = []
+    if getattr(args, "replace", False):
+        start, end = parse_iso(args.start), parse_iso(args.end)
+        keep = []
+        for old_sess in row["sessions"]:
+            if (old_sess.get("end")
+                    and parse_iso(old_sess["start"]) < end and start < parse_iso(old_sess["end"])):
+                dropped.append(f"{old_sess['start']}…{old_sess['end']}")
+                continue
+            keep.append(old_sess)
+        row["sessions"] = keep
     row["sessions"].append(sess)
     if args.time_source:
         row["time_source"] = args.time_source
@@ -558,6 +574,8 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         row["time_source"] = "reconstructed"
     refresh(row)
     save(ledger)
+    for window in dropped:
+        print(f"replaced overlapping session {window}")
     print(f"recorded {session_minutes(sess)}m on {row['id']} "
           f"({sess['start']} → {sess['end']}, measured={sess['measured']}, "
           f"proof={proof or '-'})")
@@ -3540,6 +3558,28 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("closes: another issue's Fixes does not close this one",
           not closes_issue("Fixes #220\n\nsee #213", 213))
 
+    # `record-session --replace` is the only way back from a duplicate
+    # back-fill (overlapping sessions are a hard validate failure), so pin the
+    # window arithmetic it uses to pick what to drop.
+    def _dropped(sessions: list[dict[str, str]], start: str, end: str) -> list[dict[str, str]]:
+        keep, a, b = [], parse_iso(start), parse_iso(end)
+        for old in sessions:
+            if old.get("end") and parse_iso(old["start"]) < b and a < parse_iso(old["end"]):
+                continue
+            keep.append(old)
+        return keep
+
+    _s = lambda st, en: {"start": st, "end": en}
+    check("replace: an overlapping window is dropped",
+          _dropped([_s("2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")],
+                   "2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z") == [])
+    check("replace: a non-overlapping session is kept",
+          len(_dropped([_s("2026-01-02T00:00:00Z", "2026-01-02T01:00:00Z")],
+                       "2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")) == 1)
+    check("replace: an adjacent session is kept (touching is not overlapping)",
+          len(_dropped([_s("2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")],
+                       "2026-01-01T01:00:00Z", "2026-01-01T02:00:00Z")) == 1)
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -3623,6 +3663,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--note", default="")
     sp.add_argument("--proof", nargs="*")
     sp.add_argument("--pr", nargs="*", help="alias: PR refs like #181")
+    sp.add_argument("--replace", action="store_true",
+                    help="drop the closed sessions this window overlaps, then record "
+                         "(corrects a duplicate back-fill; overlapping sessions are a "
+                         "hard validate failure and this verb only ever appended)")
     sp.add_argument("--reconstructed", action="store_true",
                     help="time is inferred from evidence, not a live session")
     sp.add_argument("--time-source", choices=("measured", "reconstructed", "none"))
