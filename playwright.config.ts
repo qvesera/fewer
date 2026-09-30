@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3000;
+// Overridable so the suite can run next to a `bun run dev` on 3000 (e.g. while
+// verifying a change by hand): PORT=3100 bunx playwright test.
+const PORT = Number(process.env.PORT ?? 3000);
 const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({

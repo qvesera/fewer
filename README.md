@@ -42,6 +42,11 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
+**Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
+the Pro surface — split views, docking, tags — without a Pro account. `?tier=free` and
+`?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
+and production builds ignore the parameter.
+
 ---
 
 ## Install

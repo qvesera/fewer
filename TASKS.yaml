@@ -2011,6 +2011,35 @@ tasks:
     effort: null
   spent_min: 25
   session_count: 1
+- id: "T-078"
+  title: "Splitting into two views breaks hydration: the navbar's Radix trigger ids differ between server and client"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 283
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#283"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-30T13:23:22Z"
+  notes: ["2026-09-30T13:24:30Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-30T13:24:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
 - id: "T-079"
   title: "Dragging a card without selecting it first loops into 'Maximum update depth exceeded' and crashes the canvas"
   status: "review"

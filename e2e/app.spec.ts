@@ -54,6 +54,22 @@ test("loads the sample project and renders nodes", async ({ page }) => {
   await expect(nodeByName(page, "App.tsx").first()).toBeVisible({ timeout: 10000 });
 });
 
+// /app used to server-render the whole shell, which shipped Radix's useId values
+// in the markup. React derives those ids from the render pass, so any client-only
+// subtree (the ssr:false canvas tree/dialogs, the workspace restored from
+// localStorage) shifted them and React re-rendered the navbar instead of
+// hydrating it: "A tree hydrated but some attributes … didn't match" (#283).
+// The shell is client-only now, so the invariant is simply: no Radix ids arrive
+// from the server — which is also the only thing assertable here, because this
+// suite runs a production build and React reports attribute mismatches only in
+// development builds.
+test("/app server markup carries no Radix-generated ids (#283)", async ({ request }) => {
+  const res = await request.get("/app");
+  expect(res.status()).toBe(200);
+  const html = await res.text();
+  expect(html).not.toContain('id="radix-');
+});
+
 test("adds a node, then undoes and redoes", async ({ page }) => {
   await openCanvas(page);
 

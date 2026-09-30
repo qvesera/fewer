@@ -21,14 +21,36 @@ export type Tier = "guest" | "free" | "pro";
 
 const RANK: Record<Tier, number> = { guest: 0, free: 1, pro: 2 };
 
+// ── Dev-only tier override ──
+
+/**
+ * `?tier=pro|free|guest` forces a tier, in local development only.
+ *
+ * The Pro surface (split views, docking, tags) is otherwise unreachable without
+ * a real Pro account, so it went untested — #283 (a hydration mismatch that only
+ * appears with a stored two-view workspace) was invisible to CI and to every
+ * guest session because of exactly that. This is a **UI** override: the server
+ * still enforces the real plan, so it only makes gated controls render.
+ *
+ * Guarded on `NODE_ENV !== "production"` so a production build can never honour
+ * it, and on `typeof window` so server renders keep deriving the real tier.
+ */
+function devTierOverride(): Tier | null {
+  if (process.env.NODE_ENV === "production" || typeof window === "undefined") return null;
+  const forced = new URLSearchParams(window.location.search).get("tier");
+  return forced === "guest" || forced === "free" || forced === "pro" ? forced : null;
+}
+
 /**
  * Auth + profile → one tier. Fail-safe: no user → guest, unknown/missing
- * plan → free (mirrors `limitsFor` in plans.ts).
+ * plan → free (mirrors `limitsFor` in plans.ts). `?tier=` overrides it in dev.
  */
 export function tierOf(
   user: { id?: string } | null | undefined,
   plan?: string | null,
 ): Tier {
+  const forced = devTierOverride();
+  if (forced) return forced;
   if (!user) return "guest";
   return plan === "pro" || plan === "team" ? "pro" : "free";
 }
