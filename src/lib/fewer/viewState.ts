@@ -225,10 +225,47 @@ export function withCollapsedPillGeometry(
  * cut/paste, undo) can't resurrect a stale selection: the stamp runs on every
  * rebuild path, after the layout.
  */
-export function stampSelection(nodes: FewerNode[], selectedIds: ReadonlySet<string>): FewerNode[] {
+/**
+ * Paint the selection onto the node array React Flow will adopt.
+ *
+ * `prevStamped` is the previously stamped array (the canvas keeps it in a ref).
+ * The comparison is against what RF currently paints, not against the bare
+ * store node, because the store's nodes carry no `selected` flag at all: on a
+ * CLEAR, returning the store node untouched left RF's internal `selected: true`
+ * in place (adopt ignores a node that has no flag), so RF re-reported a
+ * selection the store no longer held and the two sides drove each other —
+ * store → canvas → React Flow → store — until React hit its update-depth limit
+ * (#285, splitting while a card is selected).
+ *
+ * Copy-on-write as before: a node whose flag already matches keeps its identity
+ * (a drag re-stamps the whole array every frame, and cloning all of it handed
+ * RF a new object per card, #281). Only nodes whose flag actually changes are
+ * cloned — now including the `true → false` case, which is exactly the one that
+ * has to reach RF explicitly.
+ */
+export function stampSelection(
+  nodes: FewerNode[],
+  selectedIds: ReadonlySet<string>,
+  prevStamped?: readonly FewerNode[],
+): FewerNode[] {
+  const prevById = prevStamped ? new Map(prevStamped.map((n) => [n.id, n.selected])) : null;
   return nodes.map((n) => {
     const shouldSelect = selectedIds.has(n.id);
-    if (!!n.selected === shouldSelect) return n;
+    // The node already carries the right flag — keep its identity (a drag
+    // re-stamps the whole array every frame, and cloning all of it handed RF a
+    // new object per card, #281).
+    if (n.selected === shouldSelect) return n;
+    // The node itself carries a flag that disagrees: fix it. This is the
+    // rebuild path — a node rebuilt for another reason (hide, cut/paste, undo)
+    // must not resurrect a selection the store no longer lists.
+    if (n.selected !== undefined) return { ...n, selected: shouldSelect };
+    // No flag on the node, and RF has never painted it: leave it untouched so a
+    // selection-free drag costs nothing.
+    if (!shouldSelect && prevById?.get(n.id) !== true) return n;
+    // Otherwise the flag must reach RF EXPLICITLY — adopting a node that has no
+    // flag at all leaves RF's internal selection to its own bookkeeping, which
+    // is how a selection got dropped when a dimensions rewrite handed the canvas
+    // a fresh object for a selected card (#285).
     return { ...n, selected: shouldSelect };
   });
 }

@@ -53,3 +53,35 @@ export function nextSelectionIds({ prevIds, selected, selectedIds, base, dragSel
   if (dragSelection && selected.length === 0) return dragSelection;
   return mergeSelection(prevIds, selected, selectedIds, base);
 }
+
+/**
+ * The id list a leaf paints (both the card stamps and the edge highlight must
+ * derive it the same way — two hand-rolled copies could disagree).
+ *
+ * Its own entry always wins. With no entry of its own, the leaf falls back to
+ * the shared `selectedNodeIds` **only while no leaf owns it** (`activeLeafId
+ * === null` — a pristine session, e.g. a search jump before the first canvas
+ * interaction). Otherwise the shared list belongs to another view: a leaf that
+ * borrowed it painted someone else's selection, reported it back as its own,
+ * and the two canvases then traded `activeLeafId` — each flip makes the other
+ * view inactive, which re-pushes its edges, which makes it report again —
+ * until React hit its 50-nested-update limit and tore the tree down (#285).
+ *
+ * NO_SELECTION is a shared constant, never a fresh `[]`: the caller memoises on
+ * this array's identity, so a new one per call re-derived the node lens every
+ * render and re-ran the canvas's `setRfNodes` push effect forever (#282 made
+ * the same call for `collapsedFolderIds`). Read-only — every caller only reads.
+ */
+const NO_SELECTION: string[] = [];
+
+export function selectionForLeaf(
+  leafSelections: Record<string, string[]>,
+  leafId: string | null | undefined,
+  activeLeafId: string | null,
+  shared: string[],
+): string[] {
+  if (!leafId) return shared;
+  const own = leafSelections[leafId];
+  if (own !== undefined) return own;
+  return activeLeafId === null ? shared : NO_SELECTION;
+}

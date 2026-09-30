@@ -28,11 +28,20 @@ function currentSearch(): string {
 }
 
 /**
- * `?tier=pro|free|guest` in a development build → that tier.
+ * `?tier=` in a development build → that tier.
  * `null` means "no override — derive the tier normally".
+ *
+ * Production builds ignore it unless the build explicitly opts in with
+ * `NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1` — which the e2e job sets, so CI can drive
+ * the Pro-only surface (the corner-grip split is Pro-gated) without a Pro
+ * account. A normal production build never sets the flag, so the override stays
+ * dev-only by default; the server enforces the real plan either way.
  */
 export function devTierOverride(search: string = currentSearch()): Tier | null {
-  if (process.env.NODE_ENV === "production") return null;
+  const allowed =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_ALLOW_TIER_OVERRIDE === "1";
+  if (!allowed) return null;
   const forced = new URLSearchParams(search).get("tier");
   return forced === "guest" || forced === "free" || forced === "pro" ? forced : null;
 }

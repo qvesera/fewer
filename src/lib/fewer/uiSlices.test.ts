@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "bun:test";
 import { useGraphStore, isAnyDialogOpen } from "@/store/graphStore";
 import type { FewerNode, FewerEdge } from "./types";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "./tutorial";
+import * as treeModule from "./panelTree";
 
 // bun's test env ships no localStorage; dialogsSlice gate-guards on
 // `typeof window === "undefined"`, so stub both (same harness as snapshot.test.ts).
@@ -330,19 +331,28 @@ describe("selectionSlice", () => {
     expect(s().graphVersion).toBe(graphVersionBefore);
   });
 
-  it("a background leaf re-reporting the shared selection does not bump the version", () => {
-    // React Flow's selection listener re-fires whenever a view's nodes are
-    // re-pushed, so a background canvas reports the selection the store already
-    // painted on it. That is not a new selection: this leaf holds these ids AND
-    // the shared list agrees, so the canvas must not rebuild. The old
-    // unconditional bump rebuilt and re-pushed every edge of every mounted view
-    // (the round trip behind "Maximum update depth exceeded").
+  it("a leaf re-reporting what it already paints writes NOTHING — not even activeLeafId (#285)", () => {
+    // React Flow re-reports a view's selection whenever its nodes are re-pushed.
+    // Treating that echo as a claim on the shared selection let two mounted
+    // canvases trade `activeLeafId` back and forth — each flip makes the other
+    // view inactive, which re-pushes its edges, which makes it report again —
+    // until React hit its 50-nested-update limit and tore the tree down when
+    // splitting a canvas with a card selected. Activation is an input event now
+    // (GraphCanvas activates on pointer-down), so an echo must be inert.
     s().setSelectionForLeaf("leaf1", ["outer"]);
-    s().setSelectionForLeaf("leaf2", ["outer"]); // both views show the same card
+    s().setSelectionForLeaf("leaf2", ["outer"]); // leaf2 takes the shared list
+    expect(s().activeLeafId).toBe("leaf2");
     const versionBefore = s().selectionVersion;
-    s().setSelectionForLeaf("leaf1", ["outer"]); // leaf1's canvas reports it back
-    expect(s().activeLeafId).toBe("leaf1"); // the gesture still activates the view
-    expect(s().selectionVersion).toBe(versionBefore);
+    const sharedBefore = s().selectedNodeIds;
+    s().setSelectionForLeaf("leaf1", ["outer"]); // leaf1's canvas echoes it back
+    expect(s().activeLeafId).toBe("leaf2"); // no flip
+    expect(s().selectedNodeIds).toBe(sharedBefore); // no shared write
+    expect(s().selectionVersion).toBe(versionBefore); // no rebuild
+
+    // ...and the gesture still activates a view, through input:
+    s().setActiveLeaf("leaf1");
+    expect(s().activeLeafId).toBe("leaf1");
+    expect(s().selectedNodeIds).toEqual(["outer"]);
   });
 
   it("a leaf re-reporting a DIFFERENT selection still bumps the version", () => {
@@ -353,13 +363,125 @@ describe("selectionSlice", () => {
     expect(s().selectionVersion).toBe(versionBefore + 1);
   });
 
-  it("a leaf reporting a selection the shared list disagrees with still bumps", () => {
+  it("a background leaf's report never disturbs the view that owns the shared list (#285)", () => {
     useGraphStore.setState({ leafSelections: {}, activeLeafId: null });
     s().setSelectionForLeaf("leaf1", ["outer"]);
     s().setActiveLeaf("leaf2"); // shared list becomes leaf2's (empty)
     const versionBefore = s().selectionVersion;
+    const sharedBefore = s().selectedNodeIds;
+    const activeBefore = s().activeLeafId;
+    // leaf1 still paints ["outer"] (its own entry), so React Flow re-reports it
+    // whenever leaf1's nodes are re-pushed. That is an echo of what leaf1 holds,
+    // not a bid for ownership: the shared list belongs to the active view.
     s().setSelectionForLeaf("leaf1", ["outer"]);
-    expect(s().selectionVersion).toBe(versionBefore + 1);
+    expect(s().selectedNodeIds).toBe(sharedBefore); // leaf2's list untouched
+    expect(s().activeLeafId).toBe(activeBefore); // no ownership steal
+    expect(s().selectionVersion).toBe(versionBefore); // nothing rebuilt
+  });
+
+  it("an empty report from a leaf that owns nothing is ignored (#285)", () => {
+    useGraphStore.setState({ leafSelections: {}, activeLeafId: null, selectedNodeIds: [] });
+    s().setSelectionForLeaf("leaf1", ["outer"]);
+    const versionBefore = s().selectionVersion;
+    // A brand-new leaf's canvas re-derives an empty selection on mount:
+    s().setSelectionForLeaf("leaf2", []);
+    expect(s().activeLeafId).toBe("leaf1");
+    expect(s().selectedNodeIds).toEqual(["outer"]);
+    expect(s().selectionVersion).toBe(versionBefore);
+    // ...and the same once the leaf has been seeded an empty entry (the split
+    // path seeds one before the canvas mounts).
+    useGraphStore.setState({ leafSelections: { leaf1: ["outer"], leaf2: [] } });
+    s().setSelectionForLeaf("leaf2", []);
+    expect(s().activeLeafId).toBe("leaf1");
+    expect(s().selectionVersion).toBe(versionBefore);
+  });
+
+  it("splitting gives the new leaf its own empty selection, not the shared one (#285)", () => {
+    useGraphStore.setState({ tier: "pro", leafSelections: {}, activeLeafId: null, selectedNodeIds: [] });
+    const a = treeModule.makeLeaf(treeModule.createArea("graph"), true);
+    const b = treeModule.makeLeaf(treeModule.createArea("graph"));
+    s().setPanelTree(treeModule.makeSplit("h", a, b));
+    s().setSelectionForLeaf(a.area.id, ["outer"]); // a owns the shared selection
+    const versionBefore = s().selectionVersion;
+
+    // The gesture: a third leaf appears.
+    const c = treeModule.makeLeaf(treeModule.createArea("graph"));
+    s().setPanelTree(treeModule.makeSplit("v", treeModule.makeSplit("h", a, b), c));
+
+    expect(s().leafSelections[a.area.id]).toEqual(["outer"]); // preserved
+    expect(s().leafSelections[c.area.id]).toEqual([]); // seeded EMPTY — no borrow
+    expect(s().selectionVersion).toBe(versionBefore); // no selection churn
+    expect(s().activeLeafId).toBe(a.area.id); // activation untouched
+  });
+
+  it("joining a leaf drops its selection and hands activation to the survivor (#285)", () => {
+    useGraphStore.setState({ tier: "pro", leafSelections: {}, activeLeafId: null, selectedNodeIds: [] });
+    const a = treeModule.makeLeaf(treeModule.createArea("graph"), true);
+    const b = treeModule.makeLeaf(treeModule.createArea("graph"));
+    s().setPanelTree(treeModule.makeSplit("h", a, b));
+    s().setSelectionForLeaf(b.area.id, ["outer"]); // b owns
+    expect(s().activeLeafId).toBe(b.area.id);
+
+    s().joinArea(b.area.id); // b is merged away
+
+    expect(s().leafSelections[b.area.id]).toBeUndefined(); // pruned
+    expect(s().activeLeafId).not.toBe(b.area.id); // no dangling owner
+    expect(s().activeLeafId).not.toBeNull();
+    expect(s().selectedNodeIds).toEqual(s().leafSelections[s().activeLeafId!] ?? []);
+  });
+});
+
+describe("reflowVersion (auto-fit after a direction change or Organize, #286)", () => {
+  const v = () => s().reflowVersion;
+
+  it("a global direction change re-flows every canvas", () => {
+    useGraphStore.setState({ reflowVersion: 0, reflowTarget: null });
+    s().setDirection("LR");
+    expect(s().reflowVersion).toBe(1);
+    expect(s().reflowTarget).toBeNull(); // null = every mounted canvas fits
+  });
+
+  it("a per-view direction change re-flows only that view", () => {
+    useGraphStore.setState({ reflowVersion: 0, reflowTarget: null });
+    s().updateViewSettings("leafA", { direction: "LR" });
+    expect(s().reflowVersion).toBe(1);
+    expect(s().reflowTarget).toBe("leafA");
+
+    const before = v();
+    s().setViewSetting("leafB", "direction", "TB");
+    expect(s().reflowVersion).toBe(before + 1);
+    expect(s().reflowTarget).toBe("leafB");
+  });
+
+  it("a view setting that is not a direction change does not re-flow", () => {
+    useGraphStore.setState({ reflowVersion: 0, reflowTarget: null });
+    s().setViewSetting("leafA", "showFiles", false);
+    s().updateViewSettings("leafA", { edgeStyle: "straight" });
+    expect(s().reflowVersion).toBe(0);
+  });
+
+  it("Organize re-flows the target view; Organize-all re-flows every canvas", () => {
+    useGraphStore.setState({ reflowVersion: 0, reflowTarget: null, tier: "pro" });
+    s().organize("leafA");
+    expect(s().reflowVersion).toBe(1);
+    expect(s().reflowTarget).toBe("leafA");
+
+    s().organizeAll();
+    expect(s().reflowVersion).toBe(2);
+    expect(s().reflowTarget).toBeNull();
+
+    s().organize();
+    expect(s().reflowVersion).toBe(3);
+    expect(s().reflowTarget).toBeNull();
+  });
+
+  it("relayouts that the user did not ask for never bump the re-flow", () => {
+    // graphVersion drives the canvas rebuilds; fitting on those made the
+    // viewport jump while the user was working (cut/paste, parent/unparent).
+    useGraphStore.setState({ reflowVersion: 0, reflowTarget: null });
+    s().relayout();
+    s().setEdgeStyle("straight");
+    expect(s().reflowVersion).toBe(0);
   });
 });
 

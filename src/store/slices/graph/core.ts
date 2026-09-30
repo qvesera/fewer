@@ -123,6 +123,8 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     const s = get();
     if (!leafId) {
       s.relayout();
+      // A direction-less Organize is the whole canvas asking to re-flow.
+      s.bumpReflow();
       return;
     }
     const allFileIds = (s.nodes).filter((n) => n.data.type === "file").map((n) => n.id);
@@ -137,6 +139,9 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     } else {
       set({ graphVersion: get().graphVersion + 1 });
     }
+    // Organize is a user-requested re-flow: this view fits the whole graph once
+    // the new layout settles (#286).
+    s.bumpReflow(leafId);
   },
   /** Re-flow everything the user can see. `organize` stays per-view on
    *  purpose (Crown Shyness is documented as clearing the current view's manual
@@ -150,6 +155,9 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
       if (s.viewSettings[leafId]?.positions) s.clearViewPositions(leafId);
     }
     s.relayout();
+    // The Organize button is a whole-workspace re-flow: every mounted canvas
+    // fits the graph to its view afterwards (#286).
+    s.bumpReflow();
   },
   applySearch: () => {
     const { nodes, searchQuery, categoryFilter, graphVersion } = get();

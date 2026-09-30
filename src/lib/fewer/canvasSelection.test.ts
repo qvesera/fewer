@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mergeSelection, nextSelectionIds } from "./canvasSelection";
+import { mergeSelection, nextSelectionIds, selectionForLeaf } from "./canvasSelection";
 
 describe("nextSelectionIds (drag-safe selection, #281)", () => {
   test("a drag keeps its selection when React Flow reports nothing selected", () => {
@@ -81,5 +81,37 @@ describe("mergeSelection", () => {
     expect(out[0]).toBe("n0");
     expect(out[19_999]).toBe("n19999");
     expect(out[20_000]).toBe("fresh");
+  });
+});
+
+describe("selectionForLeaf (which id list a leaf paints, #285)", () => {
+  const shared = ["n1"];
+
+  test("a leaf's own entry always wins", () => {
+    expect(selectionForLeaf({ a: ["n2"] }, "a", "a", shared)).toEqual(["n2"]);
+    // ...even when another leaf owns the shared list.
+    expect(selectionForLeaf({ a: ["n2"] }, "a", "b", shared)).toEqual(["n2"]);
+  });
+
+  test("no entry and no owner → the shared list (pristine session)", () => {
+    // Nothing has claimed the shared selection yet (e.g. a search jump before
+    // the first canvas interaction), so it is the only selection there is.
+    expect(selectionForLeaf({}, "a", null, shared)).toEqual(["n1"]);
+  });
+
+  test("no entry while another leaf owns it → nothing (#285)", () => {
+    // A brand-new canvas must NOT borrow the active view's selection: painting
+    // it made the new leaf report it as its own, and the two canvases then
+    // traded `activeLeafId` until React tore the tree down.
+    const painted = selectionForLeaf({ a: ["n1"] }, "b", "a", ["n1"]);
+    expect(painted).toEqual([]);
+    // ...and it must be the SAME array every call: the canvas memoises its node
+    // lens on this identity, so a fresh `[]` re-derives and re-pushes forever.
+    expect(painted).toBe(selectionForLeaf({ a: ["n1"] }, "b", "a", ["n1"]));
+  });
+
+  test("no leafId (single legacy canvas) → the shared list", () => {
+    expect(selectionForLeaf({}, undefined, null, shared)).toEqual(["n1"]);
+    expect(selectionForLeaf({}, null, "a", shared)).toEqual(["n1"]);
   });
 });

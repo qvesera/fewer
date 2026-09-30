@@ -23,7 +23,7 @@ Right-click empty canvas space to open quick actions:
 
 - **Fit View**: zoom to show all cards
 - **Select All**: select every visible card
-- **Organize**: re-run the tree layout to reflow the graph (every view, not just the active one)
+- **Organize**: re-run the tree layout to reflow the graph (every view, not just the active one) — the view re-fits to the whole graph afterwards, as does a layout-direction change
 - **Zoom In / Zoom Out**
 - **Delete Connection**: removes the last-clicked connection
 - **Parent selected cards (Alt+P)**: with 2+ cards selected, makes the last-selected folder the parent of the rest
@@ -232,7 +232,7 @@ Image exports mirror the active view (see [Import & Export](/docs/import-export)
 
 Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
 
-Organize (sidebar, **Alt+R**, or the canvas context menu) is the exception: it re-flows the whole graph, dropping the manual card positions of **every** view and re-running the layout, so a card that was moved or created in one pane never sits stale in another. Within a view, a card you dragged keeps its spot while every other card re-flows around it.
+Organize (sidebar, **Alt+R**, or the canvas context menu) is the exception: it re-flows the whole graph, dropping the manual card positions of **every** view and re-running the layout, so a card that was moved or created in one pane never sits stale in another. Within a view, a card you dragged keeps its spot while every other card re-flows around it. Organize and a layout-direction change both re-fit the view to the whole graph once the new layout settles, so working close to a card never leaves the re-flowed tree offscreen.
 
 Sort by Name/Size/Type is a lighter touch than Organize: it re-flows the layout in every view but keeps manual card positions, so a hand-placed card stays where you put it and its siblings re-order around it.
 

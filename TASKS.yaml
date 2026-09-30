@@ -2127,3 +2127,32 @@ tasks:
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   spent_min: 268
   session_count: 1
+- id: "T-082"
+  title: "Re-fit the view to the whole graph after a layout-direction change or Organize"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 286
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#286"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-09-30T19:28:52Z"
+  notes: ["2026-09-30T19:29:37Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-09-30T19:29:38Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
