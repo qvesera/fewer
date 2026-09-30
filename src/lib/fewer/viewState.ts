@@ -315,9 +315,20 @@ export function applyViewPositions(
   positions: Record<string, { x: number; y: number }> | undefined,
 ): FewerNode[] {
   if (!positions) return base;
-  return base.map((n) =>
-    positions[n.id] ? { ...n, position: positions[n.id] } : n,
-  );
+  // Copy-on-write, and identity-stable when nothing moved: only the overridden
+  // cards are cloned. This runs on every drag frame (a drag rewrites the leaf's
+  // map), so cloning the whole array handed React Flow a new object for every
+  // card — it re-adopted and re-rendered the entire graph per frame, then
+  // answered with its own reports, which is the store→canvas round trip behind
+  // "Maximum update depth exceeded" (#281).
+  let moved = false;
+  const next = base.map((n) => {
+    const pos = positions[n.id];
+    if (!pos || (n.position.x === pos.x && n.position.y === pos.y)) return n;
+    moved = true;
+    return { ...n, position: pos };
+  });
+  return moved ? next : base;
 }
 
 // ── Resolution ──
@@ -357,9 +368,16 @@ export function resolveViewSettings(
     direction: pick(vs.direction, global.direction),
     positions: vs.positions,
     hiddenIds: hidden,
-    collapsedFolderIds: vs.collapsedFolderIds ?? [],
+    // Shared empty list, not a fresh `[]`: a view with no collapsed folder must
+    // not hand every consumer a new array identity each time this runs — the
+    // canvas re-resolves it on every drag frame, and the collapsed ids are a dep
+    // of the pill-geometry and card memos (#281).
+    collapsedFolderIds: vs.collapsedFolderIds ?? EMPTY_IDS,
   };
 }
+
+/** Identity-stable stand-in for "this view has no collapsed folder". */
+const EMPTY_IDS: string[] = [];
 
 // ── Persistence ──
 

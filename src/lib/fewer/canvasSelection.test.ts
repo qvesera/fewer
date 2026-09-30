@@ -1,5 +1,37 @@
 import { describe, expect, test } from "bun:test";
-import { mergeSelection } from "./canvasSelection";
+import { mergeSelection, nextSelectionIds } from "./canvasSelection";
+
+describe("nextSelectionIds (drag-safe selection, #281)", () => {
+  test("a drag keeps its selection when React Flow reports nothing selected", () => {
+    // The canvas pushed the dragged card unselected (the store had no entry for
+    // this view yet) → an empty report is the canvas's echo, not a user action.
+    expect(nextSelectionIds({
+      prevIds: [], selected: [], selectedIds: new Set(), base: null,
+      dragSelection: ["n1"],
+    })).toEqual(["n1"]);
+  });
+
+  test("outside a drag an empty report still clears the selection", () => {
+    expect(nextSelectionIds({
+      prevIds: ["n1"], selected: [], selectedIds: new Set(), base: null,
+      dragSelection: null,
+    })).toEqual([]);
+  });
+
+  test("mid-drag a real report wins over the seeded ids", () => {
+    expect(nextSelectionIds({
+      prevIds: ["n1"], selected: [{ id: "n1" }, { id: "n2" }], selectedIds: new Set(["n1", "n2"]),
+      base: null, dragSelection: ["n1"],
+    })).toEqual(["n1", "n2"]);
+  });
+
+  test("a shift-box gesture still unions with its base mid-drag", () => {
+    expect(nextSelectionIds({
+      prevIds: ["n1"], selected: [{ id: "n2" }], selectedIds: new Set(["n2"]),
+      base: new Set(["n1"]), dragSelection: ["n1"],
+    })).toEqual(["n1", "n2"]);
+  });
+});
 
 describe("mergeSelection", () => {
   test("keeps previously selected ids still present in the fresh snapshot, appends new ones in RF order", () => {

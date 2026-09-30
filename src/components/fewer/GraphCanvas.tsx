@@ -60,6 +60,7 @@ import { useCanvasConnect } from "@/hooks/use-canvas-connect";
 import { useCanvasSelection } from "@/hooks/use-canvas-selection";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { markLoop } from "@/lib/fewer/loopProbe";
 
 import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 import { CanvasOverlays } from "./CanvasOverlays";
@@ -74,6 +75,14 @@ import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
+
+// React Flow's `StoreUpdater` compares tracked props BY IDENTITY and writes its
+// store for every field that differs (and re-renders everything reading it), so
+// these must not be built inline: a fresh object each render wrote the RF store
+// from an effect on every render of the canvas — a commit-phase write per render
+// on the very path that chains into "Maximum update depth exceeded" (#281).
+const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.0, minZoom: 0.35 };
+const PRO_OPTIONS = { hideAttribution: true };
 
 interface CanvasMenuPosition { x: number; y: number; }
 interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; leafId?: string; }
@@ -226,10 +235,14 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // change forever — each report re-rendering the canvas, 50 nested updates,
   // "Maximum update depth exceeded" on a single card click. The cheapness lives
   // upstream instead: the store only hands out a new node array when a card
-  // actually changed size (see applyDimensionChanges).
+  // actually changed size or moved (see applyDimensionChanges / applyPositionChanges).
   useEffect(() => {
+    markLoop("push:nodes");
     setRfNodes(stampedNodes);
   }, [stampedNodes, setRfNodes]);
+  useEffect(() => {
+    markLoop("render:canvas");
+  });
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
@@ -243,7 +256,6 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { seedOnFirstDrag, effectiveRecordDragMoves } = useCanvasDragRecording({
     leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
   });
-  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
   const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
@@ -259,9 +271,25 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
-  const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
+  const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll, seedSelectionForDrag, endSelectionDrag } = useCanvasSelection({
     setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
   });
+
+  // Drag handlers come after the selection hook: a drag seeds the store's
+  // selection before React Flow's own select reports, so the canvas's next push
+  // cannot paint the dragged cards unselected and bounce the selection back
+  // (#281).
+  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves, seedSelectionForDrag, endSelectionDrag);
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: edgeTypeFor(vs.edgeStyle),
+      animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
+      style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+      zIndex: 0,
+    }),
+    [vs.edgeStyle, tier, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, themeColors.edge, vs.edgeWidth, dashArray],
+  );
 
   const { onConnect, onConnectEnd } = useCanvasConnect({
     connectNodes, setRfEdges, edgeStyle: vs.edgeStyle, screenToFlowPosition, toast,
@@ -285,16 +313,28 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // Hover ring as a Set, built once per ring change instead of scanned by every
   // card and child row (see GraphViewScope.hoverIds).
   const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
+  // The cards read only these two fields from the scope (CustomNode), but they
+  // read them through a context — and a drag rewrites `positions` on every frame.
+  // Carrying the resolved object whole meant a new context value every frame, so
+  // a drag re-rendered EVERY mounted card; with it pinned to the fields cards
+  // actually use, a drag frame re-renders the dragged card alone (#281).
+  const scopeResolved = useMemo(
+    () => ({ ...vs, positions: undefined }),
+    [
+      vs.showFiles, vs.minimapHidden, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly,
+      vs.edgeStrokeStyle, vs.edgeWidth, vs.direction, vs.hiddenIds, vs.collapsedFolderIds,
+    ],
+  );
   const scope = useMemo(
     () => ({
       leafId: leafId ?? "primary",
       isActive: leafId ? leafId === activeLeafId : true,
       direction: vs.direction,
-      resolved: vs,
+      resolved: scopeResolved,
       visibleIds,
       hoverIds,
     }),
-    [leafId, activeLeafId, vs, visibleIds, hoverIds],
+    [leafId, activeLeafId, vs.direction, scopeResolved, visibleIds, hoverIds],
   );
   return (
     <GraphViewProvider value={scope}>
@@ -328,15 +368,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
         panActivationKeyCode={mini.scrollAction === "zoom" ? "Control" : null}
-        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={0.15} maxZoom={3}
-        defaultEdgeOptions={{
-          type: edgeTypeFor(vs.edgeStyle), animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
-          style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
-          zIndex: 0,
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
         elevateNodesOnSelect
-        proOptions={{ hideAttribution: true }}
+        proOptions={PRO_OPTIONS}
         className="bg-transparent h-full w-full"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={themeColors.bgDot} className="transition-colors" />

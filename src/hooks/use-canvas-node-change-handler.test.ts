@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { NodeChange } from "@xyflow/react";
 import type { FewerNode } from "@/lib/fewer/types";
-import { applyDimensionChanges, flipBoxSelectDeselects, type DimensionChange } from "./use-canvas-node-change-handler";
+import { applyDimensionChanges, applyPositionChanges, flipBoxSelectDeselects, type DimensionChange, type PositionChange } from "./use-canvas-node-change-handler";
 
 const select = (id: string, selected: boolean) =>
   ({ id, type: "select", selected }) as unknown as NodeChange<FewerNode>;
@@ -98,5 +98,39 @@ describe("applyDimensionChanges", () => {
     const seen: string[] = [];
     applyDimensionChanges(nodes, [dims("a", 200, 120), dims("b", 240, 58)], noCollapsed, (n) => seen.push(n.id));
     expect(seen).toEqual(["b"]);
+  });
+});
+
+describe("applyPositionChanges", () => {
+  const at = (id: string, x: number, y: number): FewerNode =>
+    ({ id, position: { x, y }, data: { label: id, path: `/${id}`, type: "folder" } }) as unknown as FewerNode;
+  const pos = (id: string, x: number, y: number): PositionChange =>
+    ({ id, type: "position", position: { x, y } }) as unknown as PositionChange;
+
+  test("a re-report of the position the store already holds changes nothing (#281)", () => {
+    const nodes = [at("a", 5, 6)];
+    const out = applyPositionChanges(nodes, [pos("a", 5, 6)]);
+    expect(out.changed).toBe(false);
+    expect(out.nodes).toBe(nodes);
+  });
+
+  test("a real move rewrites only the card that moved", () => {
+    const nodes = [at("a", 0, 0), at("b", 10, 10)];
+    const out = applyPositionChanges(nodes, [pos("b", 40, 40), pos("a", 0, 0)]);
+    expect(out.changed).toBe(true);
+    expect(out.nodes[0]).toBe(nodes[0]);
+    expect(out.nodes[1]!.position).toEqual({ x: 40, y: 40 });
+  });
+
+  test("an unknown id is ignored", () => {
+    const nodes = [at("a", 0, 0)];
+    const out = applyPositionChanges(nodes, [pos("gone", 1, 1)]);
+    expect(out.changed).toBe(false);
+    expect(out.nodes).toBe(nodes);
+  });
+
+  test("an empty batch is a no-op", () => {
+    const nodes = [at("a", 0, 0)];
+    expect(applyPositionChanges(nodes, [])).toEqual({ nodes, changed: false });
   });
 });

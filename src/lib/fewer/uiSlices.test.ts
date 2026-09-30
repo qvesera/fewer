@@ -252,6 +252,38 @@ describe("collapseSlice", () => {
   });
 });
 
+describe("panelUiSlice (per-view positions)", () => {
+  it("stores the dragged card's position for the view", () => {
+    s().setNodePositionsBatch("leaf1", [{ id: "outer", pos: { x: 12, y: 34 } }]);
+    expect(s().viewSettings["leaf1"].positions).toEqual({ outer: { x: 12, y: 34 } });
+  });
+
+  it("a report of the position the view already holds writes nothing (#281)", () => {
+    s().setNodePositionsBatch("leaf1", [{ id: "outer", pos: { x: 12, y: 34 } }]);
+    const before = s().viewSettings;
+    // React Flow re-reports a position when it re-adopts the node array the
+    // canvas pushed; writing it again restarted the whole store → canvas →
+    // React Flow round trip on a value that did not move.
+    s().setNodePositionsBatch("leaf1", [{ id: "outer", pos: { x: 12, y: 34 } }]);
+    expect(s().viewSettings).toBe(before);
+  });
+
+  it("a mixed batch keeps the cards that moved and leaves the rest alone", () => {
+    s().setNodePositionsBatch("leaf1", [
+      { id: "outer", pos: { x: 1, y: 1 } },
+      { id: "inner1", pos: { x: 2, y: 2 } },
+    ]);
+    s().setNodePositionsBatch("leaf1", [
+      { id: "outer", pos: { x: 1, y: 1 } },
+      { id: "inner1", pos: { x: 9, y: 9 } },
+    ]);
+    expect(s().viewSettings["leaf1"].positions).toEqual({
+      outer: { x: 1, y: 1 },
+      inner1: { x: 9, y: 9 },
+    });
+  });
+});
+
 describe("selectionSlice", () => {
   it("keeps the id list canonical and leaves the store's nodes untouched", () => {
     // The canvas stamps `selected` onto the RF node array from this list

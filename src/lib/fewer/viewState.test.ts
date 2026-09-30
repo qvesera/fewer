@@ -356,6 +356,16 @@ describe("deriveViewLayout / applyViewPositions split", () => {
     expect(out[0]).toBe(nodes[0]);
     expect(out[1]!.position).toEqual({ x: 9, y: 9 });
   });
+
+  test("applyViewPositions is identity-stable when every override already matches (#281)", () => {
+    // A drag rewrites this map every frame; returning a fresh array for a
+    // position that did not move handed React Flow a new node array to re-adopt,
+    // and it answered with its own reports (the store → canvas round trip).
+    const nodes = [node("a", 1, 2), node("b", 3, 4)];
+    const positions = { a: { x: 1, y: 2 }, b: { x: 9, y: 9 } };
+    const applied = applyViewPositions(nodes, positions);
+    expect(applyViewPositions(applied, positions)).toBe(applied);
+  });
 });
 
 describe("stampSelection", () => {
