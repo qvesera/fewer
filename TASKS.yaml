@@ -2193,7 +2193,7 @@ tasks:
   session_count: 0
 - id: "T-084"
   title: "[Refactor] Fold the Archive origin into the File origin (one picker, extension-driven)"
-  status: "in-progress"
+  status: "triaged"
   type: "refactor"
   area: "import"
   tier: null
@@ -2206,17 +2206,17 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#289"
-  time_source: null
+  time_source: "measured"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-10-01T22:11:51Z"
   notes: ["2026-10-01T22:13:17Z · adopted at intake from GitHub (open)", "2026-10-01T22:14:15Z · 2026-10-01 · from the CSV/DOT import session: archive origin is the same shape as file (both end at filterTree → chunkTreeToGraph), so fold it into the File origin; listArchive sniffs magic bytes so the extension is only a UI mode hint; trap: the merged picker's archive accept must stay outside the advancedFormats filter or archive import silently disappears for advanced-off users"]
   sessions:
   - start: "2026-10-01T22:20:18Z"
-    end: null
+    end: "2026-10-01T22:59:04Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Fold the Archive origin into the File origin: OriginSource file arm becomes a kind-discriminated pair (text | archive), one picker accepts everything via FILE_ACCEPT derived from ARCHIVE_EXTENSIONS (single source for accept + mode detection so they cannot drift), archive mode = chip + size with no tiles/paste box. Dispatcher branches on kind and reuses runArchiveImport verbatim (reader untouched; listArchive sniffs magic bytes so the extension is only a UI hint). Trap handled: the merged accept is never filtered by advancedFormats (component test pins it); finding that advancedFormats is always true in practice (free tier) made that guard structural. 13 new contract tests + 3 rewritten component tests; docs folded, decision 55ab1b55 recorded. Full suite 1531+190 green; lint/tsc/build/changelog/decisions/migrations all pass."
+    proof: ["8cd635b"]
+    effort: {commits: 1, files: 13, insertions: 451, deletions: 152}
+  spent_min: 39
   session_count: 1
