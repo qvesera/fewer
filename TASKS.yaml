@@ -663,14 +663,14 @@ tasks:
   session_count: 7
 - id: "T-026"
   title: "CSV + Graphviz DOT import (export side already ships)"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
   issue: 201
-  pr: null
+  pr: 288
   internal: false
   milestone: null
   blocked_by: []
