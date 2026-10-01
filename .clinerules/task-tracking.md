@@ -67,8 +67,61 @@ the `DECISION` line and why (candidate, score, state) before continuing.
   (`git commit --no-verify` / `SKIP_TASK_HOOK=1` are the escape hatches — record
   the time manually if you use one).
 - Never edit `TASKS.yaml` by hand: use `start` / `stop` / `set-status` / `note` /
-  `record-session`. `validate` rejects a file that is not canonical.
+  `record-session`. `validate` rejects a file that is not canonical. A back-fill
+  recorded twice is corrected with `record-session … --replace` (it drops the
+  closed sessions the new window overlaps) — without it an overlap is a hard
+  `validate` failure with no way back.
+- `done` means shipped, and shipped needs proof: a commit or PR ref somewhere, or a
+  row whose time was never measured (`time_source: none|reconstructed`).
+  `reconcile` will not plan a `done` a row cannot prove — it prints a NOTE with the
+  `record-session` line that makes it appliable instead.
 - Scope grew → `task:note <id> "…"`; genuinely new scope → a new task.
+
+### The ledger is one file, so branches collide
+
+Row ids are allocated above the local max **and** the base branch's, so a branch
+cut before `dev` moved on cannot mint an id `dev` just used. Two branches cut from
+the same base still can, and an older copy silently **reverts** rows it never saw —
+`validate` reads one file and cannot see any of it. So after a rebase, or before a
+PR:
+
+```bash
+python3 scripts/tasks.py validate-merge --base origin/dev   # collisions FAIL, reverts warn
+python3 scripts/tasks.py renumber <T-id> --next             # the sanctioned repair
+```
+
+and re-derive the affected rows with the tooling — never resolve a ledger conflict
+by taking one side wholesale. `TASKS_BASE_REF` moves the allocation base. CI runs
+`validate-merge` on every PR.
+
+### One writer per surface
+
+The ledger is the source of truth; GitHub and the board are **projections**, each
+with exactly one writer. Two writers on one field is what makes a status "jump":
+
+| Surface | Writer | Scope it may touch |
+| --- | --- | --- |
+| issue `status:*` labels | `gh-sync` | the row's own issue |
+| issue body details block | `sync-details` | between the `task-details` markers |
+| board item `Status`/`Size`/`Estimate` | `sync-details` | that row's **issue** item |
+| board item creation | `gh-sync` / `sync-details` | issue items only — never a PR item |
+
+So: `sync-details` only writes a field that actually differs (a no-op pass writes
+nothing and leaves `updated` alone), `pr-metadata` delegates its board step to
+`sync-details --pr <N>`, and `doctor --board` reports any disagreement. The
+project's **Auto-add** workflow must stay off: an item it adds lands on the board
+default (`To triage`) with nothing behind it, and the next pass flips it. A nightly
+`board-reconcile` workflow heals labels and the board from the ledger; `reconcile`
+stays manual, because moving a row is a change that wants review.
+
+After any `start` / `stop` / `set-status`, project just that row before pushing:
+
+```bash
+python3 scripts/tasks.py sync-details --issue <N>   # or --pr <PR#>
+```
+
+and never run two sync verbs from two sessions at once — the second pass sees the
+first one's half-finished state and the two fight.
 
 ## Closing
 

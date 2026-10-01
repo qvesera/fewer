@@ -9,8 +9,54 @@ import {
   accessibleLayout,
 } from "@/lib/fewer/panelLayout";
 import * as treeModule from "@/lib/fewer/panelTree";
+import type { PanelNode } from "@/lib/fewer/panelTree";
 import { can, type Tier } from "@/lib/fewer/tiers";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { dropLeafHistory } from "../historySlice";
+
+/**
+ * What a rewritten panel tree implies for per-leaf selection (#285).
+ *
+ * Leaves the tree gained get an explicit entry — empty, because a brand-new
+ * canvas must not borrow another view's shared selection (that borrow is what
+ * looped two canvases into React's update-depth limit). Leaves it lost are
+ * dropped, so `leafSelections` stops growing forever. And an owner that was
+ * joined away hands activation to whatever survived, instead of leaving no view
+ * to own the shared list.
+ *
+ * Before any leaf owns the shared list (pristine session, e.g. a search jump
+ * before the first canvas interaction) the shared list *is* the only selection,
+ * so new leaves keep painting it.
+ */
+function panelSelectionPatch(s: GraphState, tree: PanelNode): Partial<GraphState> {
+  const prev: Record<string, string[]> = s.leafSelections ?? {};
+  const wanted = new Set(treeModule.leafList(tree).map((l) => l.area.id));
+  const patch: Partial<GraphState> = {};
+
+  let changed = false;
+  const next: Record<string, string[]> = {};
+  for (const id of wanted) {
+    const own = prev[id];
+    if (own !== undefined) { next[id] = own; continue; }
+    next[id] = s.activeLeafId === null ? (s.selectedNodeIds as string[]) : [];
+    changed = true;
+  }
+  if (!changed) {
+    for (const id of Object.keys(prev)) {
+      if (!wanted.has(id)) { changed = true; break; }
+    }
+  }
+  if (changed) patch.leafSelections = next;
+
+  if (s.activeLeafId !== null && !wanted.has(s.activeLeafId)) {
+    const survivor =
+      treeModule.getPrimary(tree)?.area.id ?? treeModule.leafList(tree)[0]?.area.id ?? null;
+    patch.activeLeafId = survivor;
+    patch.selectedNodeIds = survivor !== null ? (next[survivor] ?? []) : [];
+    patch.selectionVersion = (s.selectionVersion as number) + 1;
+  }
+  return patch;
+}
 
 export type PanelUiSliceCreator = StateCreator<
   GraphState,
@@ -34,6 +80,18 @@ export type PanelUiSliceCreator = StateCreator<
     panelTree: import("@/lib/fewer/panelTree").PanelNode;
     /** Derived from auth + profile.plan — never persisted. */
     tier: Tier;
+    /**
+     * Bumped when the user asks for a re-flow — a layout-direction change or
+     * Organize. Each canvas watches it and fits the whole graph to its own view
+     * afterwards (#286). Separate from `graphVersion` on purpose: that bumps for
+     * every relayout (cut/paste, parent/unparent, …), and fitting on those made
+     * the viewport jump under the user while they were working.
+     */
+    reflowVersion: number;
+    /** The leaf the re-flow targeted, or null for every mounted canvas. */
+    reflowTarget: string | null;
+    /** Record a user-requested re-flow; `target` limits which canvases fit. */
+    bumpReflow: (target?: string | null) => void;
 
     setShowMiniMap: (show: boolean) => void;
     toggleMinimapForLeaf: (leafId: string) => void;
@@ -108,6 +166,13 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     return { sidebarSide: layout.sidebarSide, panelTree: layout.panelTree };
   })(),
   tier: "guest" as Tier,
+  reflowVersion: 0,
+  reflowTarget: null,
+
+  bumpReflow: (target = null) => set((s) => ({
+    reflowVersion: s.reflowVersion + 1,
+    reflowTarget: target,
+  })),
 
   setShowMiniMap: (show) => set({ showMiniMap: show }),
   toggleMinimapForLeaf: (leafId) => {
@@ -123,6 +188,8 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const leaf = s.viewSettings[leafId] ?? {};
     const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
     set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+    // A direction change is a user-requested re-flow: this view fits afterwards.
+    if (key === "direction") get().bumpReflow(leafId);
     get()._persistLayout();
   },
 
@@ -136,6 +203,11 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     }
     const viewNext = { ...s.viewSettings, [leafId]: next };
     set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+    // Same as setViewSetting: a real direction change re-flows THIS view, and
+    // the canvas fits it once the re-derivation settles (#286).
+    if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
+      get().bumpReflow(leafId);
+    }
     get()._persistLayout();
   },
 
@@ -148,8 +220,19 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
 
   setNodePositionsBatch: (leafId, entries) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
-    const positions = { ...(leaf.positions ?? {}) };
-    for (const { id, pos } of entries) positions[id] = pos;
+    const current = leaf.positions ?? {};
+    // Skip reports that change nothing: React Flow re-reports a card's position
+    // when it re-adopts the node array we just pushed, and an unguarded write
+    // here starts the whole store → lens → push → report round trip again on a
+    // value that did not move (#281).
+    const moved = entries.filter(({ id, pos }) => {
+      const prev = current[id];
+      return !prev || prev.x !== pos.x || prev.y !== pos.y;
+    });
+    if (moved.length === 0) return {};
+    markLoop("write:positions-batch");
+    const positions = { ...current };
+    for (const { id, pos } of moved) positions[id] = pos;
     const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
     return { viewSettings: next }; // No graphVersion bump — RF already shows positions
   }),
@@ -185,7 +268,13 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
   setScrollAction: (action) => set({ scrollAction: action }),
-  setCanvasSize: (size) => set({ canvasSize: size }),
+  setCanvasSize: (size) => set((s) => {
+    // A ResizeObserver tick fires whenever the element is observed, not only
+    // when it actually resized, and the write feeds the minimap sliders — a
+    // fresh object on every tick re-renders SettingsDialog for nothing.
+    if (s.canvasSize.width === size.width && s.canvasSize.height === size.height) return {};
+    return { canvasSize: size };
+  }),
 
   // ── Panel layout actions ──
 
@@ -225,7 +314,7 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
 
   setPanelTree: (tree) => {
     const next = accessibleLayout(tree, can("panelWorkspace", get().tier));
-    set({ panelTree: next });
+    set({ panelTree: next, ...panelSelectionPatch(get(), next) });
     get()._persistLayout();
   },
 
@@ -241,10 +330,11 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     const tree = get().panelTree;
     const newTree = treeModule.joinLeaf(tree, id);
     if (newTree !== tree) {
-      // The joined leaf is gone — its undo/redo stack goes with it.
+      // The joined leaf is gone — its undo/redo stack goes with it, and so does
+      // its per-leaf selection (panelSelectionPatch, #285).
       // Don't funnel through setPanelTree — dropLeafHistory patches state in
       // the same call, avoiding a double-set on panelTree.
-      set({ panelTree: newTree, ...dropLeafHistory(get(), id) });
+      set({ panelTree: newTree, ...dropLeafHistory(get(), id), ...panelSelectionPatch(get(), newTree) });
       get()._persistLayout();
     }
   },
@@ -274,7 +364,7 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
 
   resetPanelLayout: () => {
     const d = defaultLayout();
-    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree });
+    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree, ...panelSelectionPatch(get(), d.panelTree) });
     clearLayoutStorage();
     // Drop any queued write, or it would restore the layout we just cleared.
     if (persistTimer !== null) {

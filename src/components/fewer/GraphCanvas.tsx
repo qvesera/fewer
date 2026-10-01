@@ -33,7 +33,7 @@ import { edgeTypeFor } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStrokeStyle } from "@/lib/fewer/types";
+import type { EdgeStrokeStyle, FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphData, useLayoutConfig, useThemeConfig, useUiState, useViewState, useStoreActions } from "@/store/hooks";
 
@@ -60,6 +60,8 @@ import { useCanvasConnect } from "@/hooks/use-canvas-connect";
 import { useCanvasSelection } from "@/hooks/use-canvas-selection";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { selectionForLeaf } from "@/lib/fewer/canvasSelection";
+import { markLoop } from "@/lib/fewer/loopProbe";
 
 import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 import { CanvasOverlays } from "./CanvasOverlays";
@@ -74,6 +76,14 @@ import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
 const nodeTypes = { folder: CustomNode, file: CustomNode };
 const PERF_NODE_LIMIT = 300;
+
+// React Flow's `StoreUpdater` compares tracked props BY IDENTITY and writes its
+// store for every field that differs (and re-renders everything reading it), so
+// these must not be built inline: a fresh object each render wrote the RF store
+// from an effect on every render of the canvas — a commit-phase write per render
+// on the very path that chains into "Maximum update depth exceeded" (#281).
+const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.0, minZoom: 0.35 };
+const PRO_OPTIONS = { hideAttribution: true };
 
 interface CanvasMenuPosition { x: number; y: number; }
 interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; leafId?: string; }
@@ -199,16 +209,23 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   );
 
   // ── Selection: derived, never stored on the store's nodes ──
-  // The leaf's own ids when it has any, else the global list (same precedence
-  // the graph sync and the edge highlight use). Stamped AFTER the layout on
-  // purpose: doing it before would make the layout memo depend on the selection
-  // and re-derive the whole tree on every click.
-  const leafSelection = leafId ? leafSelections[leafId] ?? selectedNodeIds : selectedNodeIds;
+  // The leaf's own ids, or — only while no leaf owns the shared list — the
+  // global one (see selectionForLeaf; a brand-new leaf must not borrow another
+  // view's selection, #285). Stamped AFTER the layout on purpose: doing it
+  // before would make the layout memo depend on the selection and re-derive the
+  // whole tree on every click.
+  const leafSelection = selectionForLeaf(leafSelections, leafId, activeLeafId, selectedNodeIds);
   const selectionSet = useMemo(() => new Set<string>(leafSelection), [leafSelection]);
-  const stampedNodes = useMemo(
-    () => stampSelection(positionedNodes, selectionSet),
-    [positionedNodes, selectionSet],
-  );
+  // What RF currently paints for this leaf — the stamp compares against it, so
+  // a clear can be pushed as an explicit `selected: false` instead of a node
+  // that has no flag at all (RF would keep its internal selection and re-report
+  // it forever, #285).
+  const lastStampedRef = useRef<readonly FewerNode[] | undefined>(undefined);
+  const stampedNodes = useMemo(() => {
+    const next = stampSelection(positionedNodes, selectionSet, lastStampedRef.current);
+    lastStampedRef.current = next;
+    return next;
+  }, [positionedNodes, selectionSet]);
 
   const graphsExists = allNodes.length > 0;
 
@@ -218,24 +235,66 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasGraphSync(graphVersion, stampedNodes, visibleEdges, setRfNodes, setRfEdges);
   // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
   // It is deliberately NOT a graphVersion change: that would rebuild everything.
-  useEffect(() => { setRfNodes(stampedNodes); }, [stampedNodes, setRfNodes]);
+  //
+  // This push is deliberately UNGUARDED, and skipping it when "the flags already
+  // match" is NOT safe: the array is also how React Flow's internals get resynced
+  // after it reports its own changes (a re-measure carries a `measured` the store
+  // copy has already settled). Skipping it let React Flow re-report the same
+  // change forever — each report re-rendering the canvas, 50 nested updates,
+  // "Maximum update depth exceeded" on a single card click. The cheapness lives
+  // upstream instead: the store only hands out a new node array when a card
+  // actually changed size or moved (see applyDimensionChanges / applyPositionChanges).
+  useEffect(() => {
+    markLoop("push:nodes");
+    setRfNodes(stampedNodes);
+  }, [stampedNodes, setRfNodes]);
+  useEffect(() => {
+    markLoop("render:canvas");
+  });
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
   const updateNodeInternals = useUpdateNodeInternals();
   useCanvasCollapsedInternals(vs.collapsedFolderIds, updateNodeInternals);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
-  useCanvasInitialFit(positionedNodes, containerRef, setViewport);
+  // User-requested re-flows (direction change, Organize) re-fit the view — see
+  // useCanvasInitialFit, which reuses the same bounds computation (#286).
+  const reflowVersion = useGraphStore((s) => s.reflowVersion);
+  const reflowTarget = useGraphStore((s) => s.reflowTarget);
+  useCanvasInitialFit(positionedNodes, containerRef, setViewport, reflowVersion, reflowTarget, leafId);
   useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
 
   const { seedOnFirstDrag, effectiveRecordDragMoves } = useCanvasDragRecording({
     leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
   });
-  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
-  const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
+  const { baseRef: boxSelectBaseRef, onPointerDownCapture: boxSelectOnPointerDown, onPointerUp: boxSelectOnPointerUp, onPointerCancel: boxSelectOnPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
+  // Activation belongs to input, not to selection echoes: a pointer landing in
+  // this canvas makes it the active view before React Flow reports anything.
+  // Without this, a card click in a background canvas relied on its selection
+  // report to flip `activeLeafId`, and that report is now (deliberately) a
+  // silent state sync — see setSelectionForLeaf (#285).
+  //
+  // The same ref tells useCanvasSelection whether RF's report can carry user
+  // intent at all: only a live pointer gesture may change the store's selection,
+  // because RF's subscription re-emits its own bookkeeping on every node push
+  // (those echoes lag a frame and oscillated the selection, #285).
+  const pointerActiveRef = useRef(false);
+  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
+    pointerActiveRef.current = true;
+    if (leafId) useGraphStore.getState().setActiveLeaf(leafId);
+    boxSelectOnPointerDown(e);
+  }, [leafId, boxSelectOnPointerDown]);
+  const onPointerUp = useCallback(() => {
+    pointerActiveRef.current = false;
+    boxSelectOnPointerUp();
+  }, [boxSelectOnPointerUp]);
+  const onPointerCancel = useCallback(() => {
+    pointerActiveRef.current = false;
+    boxSelectOnPointerCancel();
+  }, [boxSelectOnPointerCancel]);
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
   const animation = useEdgeAnimationOpts(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
@@ -248,9 +307,25 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
-  const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
-    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
+  const { onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll, seedSelectionForDrag, endSelectionDrag } = useCanvasSelection({
+    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId, pointerActiveRef,
   });
+
+  // Drag handlers come after the selection hook: a drag seeds the store's
+  // selection before React Flow's own select reports, so the canvas's next push
+  // cannot paint the dragged cards unselected and bounce the selection back
+  // (#281).
+  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves, seedSelectionForDrag, endSelectionDrag);
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: edgeTypeFor(vs.edgeStyle),
+      animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
+      style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+      zIndex: 0,
+    }),
+    [vs.edgeStyle, tier, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, themeColors.edge, vs.edgeWidth, dashArray],
+  );
 
   const { onConnect, onConnectEnd } = useCanvasConnect({
     connectNodes, setRfEdges, edgeStyle: vs.edgeStyle, screenToFlowPosition, toast,
@@ -274,16 +349,28 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // Hover ring as a Set, built once per ring change instead of scanned by every
   // card and child row (see GraphViewScope.hoverIds).
   const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
+  // The cards read only these two fields from the scope (CustomNode), but they
+  // read them through a context — and a drag rewrites `positions` on every frame.
+  // Carrying the resolved object whole meant a new context value every frame, so
+  // a drag re-rendered EVERY mounted card; with it pinned to the fields cards
+  // actually use, a drag frame re-renders the dragged card alone (#281).
+  const scopeResolved = useMemo(
+    () => ({ ...vs, positions: undefined }),
+    [
+      vs.showFiles, vs.minimapHidden, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly,
+      vs.edgeStrokeStyle, vs.edgeWidth, vs.direction, vs.hiddenIds, vs.collapsedFolderIds,
+    ],
+  );
   const scope = useMemo(
     () => ({
       leafId: leafId ?? "primary",
       isActive: leafId ? leafId === activeLeafId : true,
       direction: vs.direction,
-      resolved: vs,
+      resolved: scopeResolved,
       visibleIds,
       hoverIds,
     }),
-    [leafId, activeLeafId, vs, visibleIds, hoverIds],
+    [leafId, activeLeafId, vs.direction, scopeResolved, visibleIds, hoverIds],
   );
   return (
     <GraphViewProvider value={scope}>
@@ -302,6 +389,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
+        onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
         onDelete={onDelete}
         onNodeContextMenu={onNodeContextMenu}
@@ -317,15 +405,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
         panActivationKeyCode={mini.scrollAction === "zoom" ? "Control" : null}
-        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={0.15} maxZoom={3}
-        defaultEdgeOptions={{
-          type: edgeTypeFor(vs.edgeStyle), animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
-          style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
-          zIndex: 0,
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
         elevateNodesOnSelect
-        proOptions={{ hideAttribution: true }}
+        proOptions={PRO_OPTIONS}
         className="bg-transparent h-full w-full"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={themeColors.bgDot} className="transition-colors" />

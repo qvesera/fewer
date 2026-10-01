@@ -94,9 +94,11 @@ already stamped `pr:`) and derives:
 ### Project board — configured
 
 - The scope is granted (`gh auth refresh -s project`) and `PROJECT_NUMBER = 1`
-  is set, so plain `pr-metadata <N>` now adds the item **and** syncs Status +
-  Size (verified by GraphQL read-back: #196/#197 `In review`/`M`, #198
-  `In progress`/`M` while its session is open).
+  is set, so plain `pr-metadata <N>` projects the PR's task rows onto their
+  **issue** items (`sync-details --pr <N>`), writing only fields that differ.
+  It deliberately does **not** add an item for the PR: one work unit, one item,
+  one writer — a PR item got its own Status from CI and nothing ever closed it,
+  so a merged PR sat at "In review" beside a "Done" issue.
 - **CI Status sync** still needs a PAT: add a `PROJECTS_TOKEN` secret (scope
   `project`) and uncomment the step in `.github/workflows/pr-metadata.yml` —
   `GITHUB_TOKEN` cannot reach Projects v2.

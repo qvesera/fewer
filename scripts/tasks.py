@@ -25,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any
+from typing import Any, Iterable
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LEDGER = os.path.join(ROOT, "TASKS.yaml")
@@ -320,19 +320,64 @@ def emit_ledger(ledger: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+_LEDGER_STAMP: tuple[int, int] | None = None  # (mtime_ns, size) recorded by load()
+
+
+def _ledger_stamp() -> tuple[int, int] | None:
+    try:
+        st = os.stat(LEDGER)
+        return (st.st_mtime_ns, st.st_size)
+    except FileNotFoundError:
+        return None
+
+
 def load() -> dict[str, Any]:
+    global _LEDGER_STAMP
     if not os.path.isfile(LEDGER):
+        _LEDGER_STAMP = None
         return {"version": 1, "tasks": []}
     with open(LEDGER, encoding="utf-8") as fh:
-        return parse_ledger(fh.read())
+        text = fh.read()
+    _LEDGER_STAMP = _ledger_stamp()
+    return parse_ledger(text)
 
 
 def save(ledger: dict[str, Any]) -> None:
+    """Write the ledger atomically, refusing to clobber a concurrent write.
+
+    The file is replaced in one move, so a crash cannot leave TASKS.yaml
+    truncated.  And before writing, a stale-read guard compares the stamp
+    recorded at load() with the file's current stamp: if another writer has
+    touched the ledger since we read it, saving is refused instead of
+    silently discarding their change.  (Two such silent reversions - a
+    status flip and a lost session - were observed when verbs that walk
+    GitHub ran concurrently with edits.)
+    """
+    global _LEDGER_STAMP
     for row in ledger["tasks"]:
         backfill(row)
         refresh(row)
-    with open(LEDGER, "w", encoding="utf-8") as fh:
-        fh.write(emit_ledger(ledger))
+    if _LEDGER_STAMP is not None:
+        current = _ledger_stamp()
+        if current is not None and current != _LEDGER_STAMP:
+            _die(
+                "TASKS.yaml changed since it was read - another writer touched it. "
+                "Concurrent edits lose work, so this write is refused rather than "
+                "clobbering theirs. Re-run the command."
+            )
+    directory = os.path.dirname(LEDGER) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".TASKS-", suffix=".yaml")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(emit_ledger(ledger))
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, LEDGER)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp)
+        raise
+    _LEDGER_STAMP = _ledger_stamp()
 
 
 def backfill(row: dict[str, Any]) -> None:
@@ -435,8 +480,42 @@ def rollup_estimate(ledger: dict[str, Any], rid: str) -> int:
     return sum(int(rows[t]["estimate_min"] or 0) for t in subtree_ids(ledger, rid) if t in rows)
 
 
-def next_id(ledger: dict[str, Any]) -> str:
+# The branch whose ledger also holds ids we must not reuse. A branch cut before
+# dev moved on has a ledger that cannot see the rows dev added, so it happily
+# mints an id that already means something else there — and the merge lands two
+# different rows on one id. Override with TASKS_BASE_REF; "" disables the lookup.
+BASE_REF = os.environ.get("TASKS_BASE_REF", "origin/dev")
+
+
+def base_ids(ref: str = BASE_REF) -> set[str]:
+    """Ids already taken on `ref`'s ledger. Best effort by design.
+
+    No remote, a shallow clone, or a ref that does not exist ⇒ an empty set and a
+    printed NOTE: allocation falls back to the local ledger, which is what it did
+    before, and the operator is told the collision guard was not in force.
+    """
+    if not ref:
+        return set()
+    text = git("show", f"{ref}:TASKS.yaml", check=False)
+    if "tasks:" not in text:
+        print(f"NOTE  could not read {ref}:TASKS.yaml (no remote, shallow clone, or the ref "
+              f"moved) — allocating from the local ledger only")
+        return set()
+    try:
+        rows = parse_ledger(text)["tasks"]
+    except (SystemExit, FileNotFoundError, ValueError, TypeError, KeyError):
+        print(f"NOTE  {ref}:TASKS.yaml did not parse — allocating from the local ledger only")
+        return set()
+    return {r["id"] for r in rows if isinstance(r.get("id"), str)}
+
+
+def next_id(ledger: dict[str, Any], reserved: Iterable[str] = ()) -> str:
+    """The next free T-id: one above the highest in the ledger OR in `reserved`.
+
+    `reserved` carries the ids the base branch already uses (see `base_ids`).
+    """
     nums = [int(m.group(0)[2:]) for m in (TASK_RE.fullmatch(t["id"]) for t in ledger["tasks"]) if m]
+    nums += [int(m.group(0)[2:]) for m in (TASK_RE.fullmatch(str(r)) for r in reserved) if m]
     return f"T-{(max(nums) + 1 if nums else 1):03d}"
 
 
@@ -506,6 +585,22 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         proof = [p for p in args.pr or []]
     sess = {"start": args.start, "end": args.end, "measured": not args.reconstructed,
             "note": args.note or "", "proof": proof, "effort": effort_for_commits(proof)}
+    # `--replace` corrects a back-fill that was recorded twice (or whose window
+    # moved). The atomic write and the stale-read guard added in #274 stop
+    # concurrent writers from clobbering the file, but they cannot see this: the
+    # write is legitimate, the VALUE is wrong, and two overlapping sessions are a
+    # hard `validate` failure that blocks every commit with no way back.
+    dropped: list[str] = []
+    if getattr(args, "replace", False):
+        start, end = parse_iso(args.start), parse_iso(args.end)
+        keep = []
+        for old_sess in row["sessions"]:
+            if (old_sess.get("end")
+                    and parse_iso(old_sess["start"]) < end and start < parse_iso(old_sess["end"])):
+                dropped.append(f"{old_sess['start']}…{old_sess['end']}")
+                continue
+            keep.append(old_sess)
+        row["sessions"] = keep
     row["sessions"].append(sess)
     if args.time_source:
         row["time_source"] = args.time_source
@@ -513,6 +608,8 @@ def cmd_record_session(args: argparse.Namespace) -> int:
         row["time_source"] = "reconstructed"
     refresh(row)
     save(ledger)
+    for window in dropped:
+        print(f"replaced overlapping session {window}")
     print(f"recorded {session_minutes(sess)}m on {row['id']} "
           f"({sess['start']} → {sess['end']}, measured={sess['measured']}, "
           f"proof={proof or '-'})")
@@ -794,7 +891,7 @@ def cmd_add(args: argparse.Namespace) -> int:
         parent=args.parent,
         source=args.source or (f"gh#{args.issue}" if args.issue else None),
     )
-    row["id"] = next_id(ledger)
+    row["id"] = next_id(ledger, base_ids())
     ledger["tasks"].append(row)
     save(ledger)
     print(f"created {row['id']}  status=backlog  type={row['type']}  estimate={row['estimate_min']}m")
@@ -807,7 +904,12 @@ def cmd_triage(args: argparse.Namespace) -> int:
     row = find_row(ledger, args.ref)
     if row is None:
         _die(f"no task {args.ref}")
-    if row["status"] in ("in-progress", "done", "wontfix"):
+    # A field edit (--area/--estimate/--parent) is not a status change. It used
+    # to reset a `review` row to `triaged` on the way through, so classifying a
+    # row whose PR is open silently reopened it: the label and the board Status
+    # followed, and the task looked un-started. `set-status` stays the way to
+    # move a row (review → triaged is a legal transition).
+    if row["status"] in ("in-progress", "review", "done", "wontfix"):
         _die(f"{row['id']} is {row['status']} — set-status first if you really mean to triage it again")
     if args.estimate_min is not None:
         row["estimate_min"] = int(args.estimate_min)
@@ -1037,6 +1139,23 @@ ALLOWED = {
 }
 
 
+def has_proof(row: dict[str, Any]) -> bool:
+    """Can this row be `done`? The ONE definition, used by the verb, the gate
+    and `reconcile_plan`.
+
+    Three copies of this rule is how they drifted: `set-status` accepted a
+    row-level `proof` while `validate` only looked at session proof, so a row
+    the verb was happy with failed the gate. `done` means shipped, and shipped
+    needs evidence — a commit or PR ref somewhere, or a row whose time was
+    never measured (and says so).
+    """
+    if row.get("proof"):
+        return True
+    if row.get("time_source") in ("none", "reconstructed"):
+        return True
+    return any(s.get("proof") for s in (row.get("sessions") or []))
+
+
 def cmd_set_status(args: argparse.Namespace) -> int:
     if args.status not in STATUSES:
         _die(f"unknown status {args.status!r} — one of {', '.join(STATUSES)}")
@@ -1055,8 +1174,7 @@ def cmd_set_status(args: argparse.Namespace) -> int:
         _die(f"{row['id']}: in-progress requires an open session — run `start {row['id']}`")
     if args.status != "in-progress" and has_open:
         _die(f"{row['id']}: stop the open session first (`stop {row['id']}`)")
-    if args.status == "done" and not (row.get("proof") or row.get("time_source") in ("none", "reconstructed")
-                                      or any(s.get("proof") for s in row["sessions"])):
+    if args.status == "done" and not has_proof(row):
         _die(f"{row['id']}: done requires proof (record a session) or time_source none/reconstructed")
     row["status"] = args.status
     save(ledger)
@@ -1409,6 +1527,11 @@ BODY_BEGIN = "<!-- task-details:begin -->"
 BODY_END = "<!-- task-details:end -->"
 
 
+def field_key(field: dict[str, Any]) -> str:
+    """The `gh project item-list` key a field's value appears under."""
+    return (field.get("name") or "").strip().lower()
+
+
 def details_block(row: dict[str, Any], milestone: str | None = None) -> str:
     """The row's task details as a markdown block for its issue body.
 
@@ -1471,6 +1594,12 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     """
     ledger = load()
     rows = [r for r in ledger["tasks"] if r.get("issue")]
+    if getattr(args, "pr", None):
+        # A PR's board projection lives on its task rows' ISSUES, not on a
+        # second item for the PR: one work unit, one item, one writer.
+        pr_info = gh_json("pr", "view", str(args.pr),
+                          "--json", "number,title,body,commits,url") or {}
+        rows = [r for r in pr_task_rows(ledger, pr_info, int(args.pr)) if r.get("issue")]
     if args.issue:
         rows = [r for r in rows if str(r["issue"]) == str(args.issue).lstrip("#")]
     if not rows:
@@ -1495,18 +1624,28 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     # item-list once, then map issue number -> item id. Issues may already be on
     # the board (its Auto-add workflow can catch them), and a second copy of the
     # same issue is not harmless.
-    items: dict[int, str] = {}
+    # number -> the whole item record, so the field writes below can compare
+    # against what the board already shows. Writing an unchanged value still
+    # counts as an edit to the item (its `updated` moves, board views reshuffle),
+    # which is how a no-op sync looked like the board "keeps updating".
+    items: dict[int, dict[str, Any]] = {}
     try:
         listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
                                "--limit", "200", "--format", "json", check=False))
         for item in listed.get("items", []):
             number = (item.get("content") or {}).get("number")
             if number and item.get("id"):
-                items[int(number)] = item["id"]
+                items[int(number)] = item
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         pass
 
-    bodies = field_writes = added = 0
+    def shown(number: int) -> dict[str, Any]:
+        return items.get(number, {})
+
+    def item_id(number: int) -> str | None:
+        return (items.get(number) or {}).get("id")
+
+    bodies = field_writes = added = unchanged = 0
     for row in rows:
         rid, number = row["id"], int(row["issue"])
         if not args.no_body:
@@ -1524,8 +1663,8 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
                     bodies += 1
         if args.dry_run:
             continue
-        item_id = items.get(number)
-        if not item_id:
+        rid_item = item_id(number)
+        if not rid_item:
             code, out = _gh_project(["project", "item-add", str(args.project), "--owner",
                                      PROJECT_OWNER, "--url",
                                      f"https://github.com/{REPO_SLUG}/issues/{number}",
@@ -1542,15 +1681,16 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
             if not item_id:
                 print(f"  {rid} #{number}: project item-add failed — {out}")
                 continue
-            items[number] = item_id
+            items[number] = {"id": item_id}
+            rid_item = item_id
             added += 1
         if not project_id:
             continue
         want_status = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
         want_size = size_option_name(int(row.get("estimate_min") or 0))
         for field, wanted, match in (
-            (status_field, want_status, lambda a, b: a.lower() == b.lower()),
-            (size_field, want_size, lambda a, b: a.upper() == b.upper()),
+            (status_field, want_status, lambda a, b: (a or "").lower() == (b or "").lower()),
+            (size_field, want_size, lambda a, b: (a or "").upper() == (b or "").upper()),
         ):
             if not field:
                 continue
@@ -1558,17 +1698,26 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
                            if match(o.get("name") or "", wanted)), None)
             if not option:
                 continue
-            gh("project", "item-edit", "--id", item_id, "--field-id", field["id"],
+            current = shown(number).get(field_key(field))
+            if current and match(current, wanted):
+                unchanged += 1
+                continue
+            gh("project", "item-edit", "--id", rid_item, "--field-id", field["id"],
                "--project-id", project_id, "--single-select-option-id", option["id"],
                check=False)
             field_writes += 1
         if estimate_field and row.get("estimate_min"):
-            gh("project", "item-edit", "--id", item_id, "--field-id", estimate_field["id"],
-               "--project-id", project_id, "--number", str(row["estimate_min"]), check=False)
-            field_writes += 1
+            want_estimate = int(row["estimate_min"])
+            if shown(number).get("estimate") == want_estimate:
+                unchanged += 1
+            else:
+                gh("project", "item-edit", "--id", rid_item, "--field-id", estimate_field["id"],
+                   "--project-id", project_id, "--number", str(want_estimate), check=False)
+                field_writes += 1
     verb = "would sync" if args.dry_run else "synced"
     print(f"sync-details: {verb} {len(rows)} row(s) · {bodies} body update(s) · "
-          f"{added} item(s) added · {field_writes} project field write(s)")
+          f"{added} item(s) added · {field_writes} project field write(s) · "
+          f"{unchanged} already correct")
     return 0
 
 
@@ -1708,13 +1857,22 @@ def cmd_pr_metadata(args: argparse.Namespace) -> int:
     elif stamped:
         print("  (--no-write: ledger pr: stamp skipped — CI checkout)")
 
-    status = rows[0].get("status") or "review"
     if args.no_project:
         print("project: skipped (--no-project: labels/milestone/assignee only)")
     elif project is None:
         print("project: skipped — no board configured")
     else:
-        _apply_project(project, info, status, int(rows[0]["estimate_min"] or 0))
+        # One item per work unit: the ISSUE carries the board Status, written by
+        # sync-details. This verb used to add a separate PR item and give it a
+        # Status of its own, which CI re-stamped on every push and nothing ever
+        # closed — so a merged PR sat at "In review" next to a "Done" issue, and
+        # the two statuses flipped on different triggers.
+        ns = argparse.Namespace(issue=None, pr=pr, project=project, no_body=True,
+                                dry_run=getattr(args, "dry_run", False))
+        try:
+            cmd_sync_details(ns)
+        except SystemExit:
+            print("project: sync-details exited non-zero — see above")
     print(f"applied: +{add or '-'} -{drop or '-'} milestone={milestone or '-'} "
           f"assignee={assignee} · ledger pr:{pr} written to {len(rows)} row(s)")
     if args.require_link and issues:
@@ -1866,7 +2024,7 @@ def adopt_issue(ledger: dict[str, Any], issue: dict[str, Any], *, status: str | 
         created_at=issue.get("createdAt") or now_iso(),
         notes=[f"{now_iso()} · adopted at intake from GitHub ({issue.get('state', '?').lower()})"],
     )
-    row["id"] = next_id(ledger)
+    row["id"] = next_id(ledger, base_ids())
     ledger["tasks"].append(row)
     return row
 
@@ -1963,7 +2121,7 @@ def cmd_track(args: argparse.Namespace) -> int:
         number = create_issue(title=full_title, body=body, labels=labels)
         row = new_row(title=title, rtype=rtype, area=args.area or "other", issue=number,
                       source=f"gh#{number}", estimate_basis="type-default", parent=parent_id)
-        row["id"] = next_id(ledger)
+        row["id"] = next_id(ledger, base_ids())
         ledger["tasks"].append(row)
         save(ledger)
         print(f"DECISION create → #{number} · {row['id']} (no candidate ≥0.75; "
@@ -2271,7 +2429,7 @@ def cmd_import_todo(args: argparse.Namespace) -> int:
         return 0
     title_to_id: dict[str, str] = {}
     for row, item in staged:
-        row["id"] = next_id(ledger)
+        row["id"] = next_id(ledger, base_ids())
         title_to_id[item["title"]] = row["id"]
         ledger["tasks"].append(row)
     for row, item in staged:
@@ -2386,18 +2544,72 @@ def cmd_gh_sync(args: argparse.Namespace) -> int:
 
 
 # ── reconcile: GitHub state → ledger status ─────────────────────────────
+CLOSING_KEYWORDS = ("fix", "fixes", "fixed", "close", "closes", "closed",
+                    "resolve", "resolves", "resolved")
+
+
+def closes_issue(text: str, number: int) -> bool:
+    """True when `text` closes issue #number with a keyword alone on its line.
+
+    Mirrors the repo's linking rule (see .agents/skills/pr/SKILL.md): the
+    keyword only links when it stands on its own line next to the reference -
+    "Closes #186 (parent umbrella)" is a mention, never a fix.  The match is
+    deliberately strict: an optional leading bullet is allowed, prose on
+    either side of the reference is not.
+    """
+    for line in (text or "").splitlines():
+        m = re.match(
+            r"^\s*(?:[-*+]|\d+[.)])?\s*(fix(?:es|ed)?|close[sd]?|resolve[sd]?)"
+            r"\s*:?\s*#(\d+)\s*\.?\s*$",
+            line, re.IGNORECASE,
+        )
+        if m and m.group(1).lower() in CLOSING_KEYWORDS and int(m.group(2)) == number:
+            return True
+    return False
+
+
 def _linked_prs(number: int) -> list[dict[str, Any]]:
+    """PRs that CLOSE issue #number - not ones that merely mention it.
+
+    The search is only a candidate filter: `{number} in:body` matches any PR
+    whose body contains the digits (cross-references, parent links, "Fixes"
+    of a *different* issue), so every candidate is then checked against the
+    closing-keyword rule before it can count.  Previously the mere presence
+    of a merged candidate was treated as a fix, which silently completed
+    tasks that were still open with an open PR of their own.
+    """
     try:
-        prs = gh_json("pr", "list", "--state", "all", "--limit", "20",
-                      "--search", f"{number} in:body", "--json", "number,state,mergedAt,title")
+        prs = gh_json("pr", "list", "--state", "all", "--limit", "30",
+                      "--search", f"{number} in:body",
+                      "--json", "number,state,mergedAt,title,body")
     except (SystemExit, FileNotFoundError):
         return []
-    return [p for p in prs if f"#{number}" in p.get("title", "") or p.get("mergedAt")
-            or "Fixes" in p.get("title", "")]
+    return [p for p in prs if closes_issue(p.get("body"), number)]
 
 
-def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
-    plan = []
+def reconcile_plan(ledger: dict[str, Any]) -> tuple[list[tuple[dict[str, Any], str, str]], list[str]]:
+    """What `reconcile` would do, and what it deliberately will NOT do.
+
+    Returns (plan, notes). A `done` the row cannot PROVE is a note, never a plan
+    entry: `done` is gated on proof (`has_proof`), so applying such an entry wrote
+    a ledger that failed `validate` — the tool producing a file its own gate
+    rejects. The note carries the command that makes it appliable, so the
+    reconciliation is one step away from being applied rather than a dead end.
+    """
+    plan: list[tuple[dict[str, Any], str, str]] = []
+    notes: list[str] = []
+
+    def as_done(row: dict[str, Any], why: str) -> bool:
+        if has_proof(row):
+            plan.append((row, "done", why))
+            return True
+        notes.append(
+            f"{row['id']}: {why} — would be `done`, but the row has no proof, so it is left "
+            f"where it is. Record it, then re-run: "
+            f"python3 scripts/tasks.py record-session {row['id']} --start <iso> --end <iso> "
+            f"--proof <commit-or-pr> --reconstructed")
+        return False
+
     for row in ledger["tasks"]:
         # An open session means the work is live — never auto-close it, even if
         # the PR it references has merged (it may be carried into a follow-up).
@@ -2411,7 +2623,7 @@ def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, st
             except (SystemExit, FileNotFoundError):
                 pr_state = ""
             if pr_state == "MERGED":
-                plan.append((row, "done", f"PR #{pr_no} merged"))
+                as_done(row, f"PR #{pr_no} merged")
                 continue
         number = row.get("issue")
         if not number:
@@ -2425,17 +2637,19 @@ def reconcile_plan(ledger: dict[str, Any]) -> list[tuple[dict[str, Any], str, st
         merged = any(p.get("mergedAt") for p in prs)
         open_pr = any(p.get("state") == "OPEN" for p in prs)
         if row["status"] in ("in-progress", "review") and (state == "CLOSED" or merged):
-            plan.append((row, "done", f"#{number} {'merged' if merged else 'closed'}"))
+            as_done(row, f"#{number} {'merged' if merged else 'closed'}")
         elif row["status"] == "done" and state == "OPEN":
             plan.append((row, "triaged", f"#{number} reopened"))
         elif row["status"] == "review" and state == "OPEN" and not open_pr and not merged:
             plan.append((row, "triaged", f"#{number} open, no PR"))
-    return plan
+    return plan, notes
 
 
 def cmd_reconcile(args: argparse.Namespace) -> int:
     ledger = load()
-    plan = reconcile_plan(ledger)
+    plan, notes = reconcile_plan(ledger)
+    for note in notes:
+        print(f"NOTE  {note}")
     if not plan:
         print("reconcile: ledger matches GitHub state")
         return 0
@@ -2452,6 +2666,187 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
 
 
 # ── doctor: bidirectional drift check (needs gh) ────────────────────────
+def board_problems(ledger: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Ledger → board drift: an item's Status must equal the row's mapping.
+
+    The board is a projection, so a disagreement is a stale projection, not a
+    second opinion: `sync-details` fixes it. Kept separate from the label check
+    because it needs the project scope (a PAT / PROJECTS_TOKEN), which the
+    default GITHUB_TOKEN does not have.
+    """
+    rows = [r for r in ledger["tasks"] if r.get("issue")]
+    if not rows or PROJECT_NUMBER is None:
+        return [], []
+    try:
+        listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
+                               "--limit", "100", "--format", "json", check=False))
+    except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+        # A note, NOT drift: a token without the project scope, or a flaky read,
+        # must not report the board as wrong — and must not fail the nightly job
+        # for a check it could not run.
+        return [], ["board check skipped: could not read the project (needs read:project)"]
+    shown: dict[int, dict[str, Any]] = {}
+    for item in listed.get("items", []):
+        content = item.get("content") or {}
+        if content.get("type") == "Issue" and content.get("number"):
+            shown[int(content["number"])] = item
+    problems: list[str] = []
+    for row in rows:
+        number = int(row["issue"])
+        want = STATUS_TO_PROJECT.get(row.get("status", ""), "Backlog")
+        item = shown.get(number)
+        if item is None:
+            problems.append(f"#{number} ({row['id']}) has no board item "
+                            f"(run: python3 scripts/tasks.py sync-details)")
+        elif (item.get("status") or "") != want:
+            problems.append(f"#{number} ({row['id']}) board Status {item.get('status')!r} != {want!r} "
+                            f"(run: python3 scripts/tasks.py sync-details)")
+    return problems, []
+
+
+# How far along a row is, for "is this branch older?" heuristics. parked and
+# wontfix sit off the ladder: they are not a step in it, so a row that moved to
+# either is never reported as a revert.
+STATUS_RANK = {"backlog": 0, "triaged": 1, "blocked": 1, "in-progress": 2,
+               "review": 3, "done": 4}
+
+
+def stale_reasons(local: dict[str, Any], base: dict[str, Any]) -> list[str]:
+    """Why `local` looks like an OLDER copy of the same row than `base`."""
+    out: list[str] = []
+    ls, bs = local.get("sessions") or [], base.get("sessions") or []
+    if len(bs) > len(ls):
+        out.append(f"base records {len(bs)} session(s), this branch {len(ls)}")
+    if base.get("pr") and not local.get("pr"):
+        out.append(f"base points at PR #{base['pr']}, this branch has none")
+    lrank, brank = STATUS_RANK.get(local.get("status", "")), STATUS_RANK.get(base.get("status", ""))
+    if lrank is not None and brank is not None and lrank < brank:
+        out.append(f"base is {base['status']}, this branch {local['status']}")
+    return out
+
+
+def merge_findings(local: dict[str, Any], base: dict[str, Any], ref: str) -> tuple[list[str], list[str]]:
+    """What merging `ref`'s ledger into `local` would cost. (failures, warnings).
+
+    `TASKS.yaml` is one file, so a branch cut before the base moved carries rows it
+    never saw: it mints ids the base already used (two different rows, one id) and
+    its copy silently REVERTS the rows the base has moved on. Both are invisible
+    to `validate`, which only ever reads one file.
+    """
+    mine = {r["id"]: r for r in local.get("tasks", [])}
+    theirs = {r["id"]: r for r in base.get("tasks", [])}
+    hard: list[str] = []
+    soft: list[str] = []
+    for rid in sorted(set(mine) & set(theirs), key=lambda x: int(x[2:])):
+        here, there = mine[rid], theirs[rid]
+        if here.get("created_at") != there.get("created_at"):
+            hard.append(
+                f"{rid}: two DIFFERENT rows share this id — on {ref} it is "
+                f"{str(there.get('title'))[:46]!r}, here {str(here.get('title'))[:46]!r}. "
+                f"Renumber this branch's: python3 scripts/tasks.py renumber {rid} --next")
+            continue
+        why = stale_reasons(here, there)
+        if why:
+            soft.append(f"{rid}: this branch looks older than {ref} — "
+                        + "; ".join(why) + " (re-derive the row with the tooling)")
+    for rid in sorted(set(theirs) - set(mine), key=lambda x: int(x[2:])):
+        soft.append(f"{rid}: on {ref} but not here — merging as-is drops the row")
+    return hard, soft
+
+
+def cmd_validate_merge(args: argparse.Namespace) -> int:
+    ref = args.base or BASE_REF
+    text = git("show", f"{ref}:TASKS.yaml", check=False)
+    if "tasks:" not in text:
+        print(f"NOTE  could not read {ref}:TASKS.yaml (fetch it, or pass --base) — "
+              f"merge check skipped")
+        return 0
+    try:
+        base = parse_ledger(text)
+    except (SystemExit, FileNotFoundError, ValueError, TypeError, KeyError) as exc:
+        print(f"NOTE  {ref}:TASKS.yaml did not parse ({exc.__class__.__name__}) — merge check skipped")
+        return 0
+    hard, soft = merge_findings(load(), base, ref)
+    for w in soft:
+        print(f"WARN  {w}")
+    for h in hard:
+        print(f"FAIL  {h}")
+    if not hard and not soft:
+        print(f"merge-check: merging {ref} into this branch keeps the ledger sane "
+              f"({len(load()['tasks'])} rows, no id collisions, no reverts)")
+    else:
+        print(f"merge-check: {len(hard)} failure(s), {len(soft)} warning(s) against {ref}")
+    return 1 if hard else 0
+
+
+def renumber_rows(ledger: dict[str, Any], old: str, new: str) -> list[str]:
+    """Rename `old` to `new` in place and return the references it rewrote.
+
+    Pure over the ledger dict, so the reference rewriting is testable without
+    touching the file. `parent` and `blocked_by` are the only structural
+    references; prose in `notes` is left alone.
+    """
+    row = find_row(ledger, old)
+    if row is None:
+        raise KeyError(old)
+    refs: list[str] = []
+    for other in ledger["tasks"]:
+        if other is row:
+            continue
+        if other.get("parent") == old:
+            other["parent"] = new
+            refs.append(f"{other['id']}.parent")
+        if old in (other.get("blocked_by") or []):
+            other["blocked_by"] = [new if x == old else x for x in other["blocked_by"]]
+            refs.append(f"{other['id']}.blocked_by")
+    row["id"] = new
+    refresh(row)
+    return refs
+
+
+def cmd_renumber(args: argparse.Namespace) -> int:
+    """Give a row a new T-id, rewriting the references that point at it.
+
+    A collision (two different rows on one id, from two branches cut before the
+    base moved) has no sanctioned fix other than this: `validate` reports it and
+    the rules forbid hand-editing the ledger, so the repair has to be a verb.
+    """
+    ledger = load()
+    row = find_row(ledger, args.ref)
+    if row is None:
+        _die(f"no task {args.ref}")
+    old = row["id"]
+    if args.next:
+        target = next_id(ledger, base_ids())
+    else:
+        if not args.to:
+            _die("renumber needs --to T-0NN or --next")
+        target = args.to.strip().upper()
+    if target == old:
+        print(f"{old}: already that id")
+        return 0
+    if not TASK_RE.fullmatch(target):
+        _die(f"{target} is not a T-### id")
+    clash = next((r for r in ledger["tasks"] if r["id"] == target), None)
+    if clash is not None:
+        _die(f"{target} is taken by {str(clash.get('title'))[:48]!r} — pick another (--next takes "
+             f"the next free one)")
+    try:
+        refs = renumber_rows(ledger, old, target)
+    except KeyError:
+        _die(f"no task {old}")
+    plan = (f"{old} → {target}"
+            + (f"; references rewritten: {', '.join(refs)}" if refs else "; no row referenced it"))
+    if args.dry_run:
+        print(f"renumber: would {plan}")
+        return 0
+    save(ledger)
+    print(f"renumber: {plan}")
+    print("  commit the ledger (a ledger-only commit needs no session) and re-run "
+          "validate-merge")
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     ledger = load()
     problems: list[str] = []
@@ -2482,12 +2877,23 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} #{issue['number']} closed on GitHub but status="
                             f"{row['status']} ({remedy})")
         # Sub-issue parity, both directions: GitHub must agree with the ledger.
+        # An empty read is NOT "no parent": a rate-limited or failed call returns
+        # nothing, and reporting that as drift invents five broken links out of one
+        # throttled request. Unknown is reported as a note instead.
         parent_id = row.get("parent")
         try:
-            gh_parent = gh("issue", "view", str(issue["number"]), "--json", "parent",
-                           "--jq", ".parent.number // 0", check=False).strip() or "0"
+            out = gh("issue", "view", str(issue["number"]), "--json", "parent",
+                     "--jq", ".parent.number // 0", check=False)
         except (SystemExit, FileNotFoundError):
+            out = ""
+        gh_parent = out.strip()
+        if not gh_parent:
+            if parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
+                notes.append(f"{row['id']} #{issue['number']}: parent unreadable "
+                             f"(rate limit?) — link parity unverified")
             gh_parent = None
+        elif gh_parent == "0":
+            gh_parent = "0"
         if gh_parent is None:
             pass
         elif parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
@@ -2508,6 +2914,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
         if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
+    notes: list[str] = []
+    if getattr(args, "board", False):
+        # Board drift is the same class of drift, one surface over: the item is a
+        # projection of the row, and `sync-details` is its only writer.
+        board_drift, notes = board_problems(ledger)
+        problems.extend(board_drift)
+    for note in notes:
+        print(f"NOTE   {note}")
     payload = {"problems": problems, "count": len(problems)}
     if args.json:
         print(json.dumps(payload, indent=2))
@@ -2515,7 +2929,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print("\n".join(f"DRIFT  {p}" for p in problems))
         print(f"{len(problems)} problem(s)")
     else:
-        print("doctor: ledger and GitHub agree (1:1, labels, states)")
+        print("doctor: ledger and GitHub agree (1:1, labels, states"
+              + (", board" if getattr(args, "board", False) else "") + ")")
     return 1 if problems else 0
 
 
@@ -2799,11 +3214,9 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         elif open_count:
             fail(f"{rid}: status {row['status']} but session {i if sessions else ''} is still open "
                  f"(stop it or set-status in-progress)")
-        if row["status"] == "done":
-            has_proof = any(s.get("proof") for s in sessions)
-            if not has_proof and row.get("time_source") not in ("none", "reconstructed"):
-                fail(f"{rid}: done without proof (record a session, or set time_source "
-                     f"none/reconstructed)")
+        if row["status"] == "done" and not has_proof(row):
+            fail(f"{rid}: done without proof (record a session, or set time_source "
+                 f"none/reconstructed)")
 
     if in_progress > WIP_LIMIT:
         fail(f"WIP limit {WIP_LIMIT}: {in_progress} tasks are in-progress "
@@ -3005,6 +3418,16 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
         print(f"{'PASS' if cond else 'FAIL'}  {name}" + (f" — {detail}" if detail and not cond else ""))
         if not cond:
             failures.append(name)
+
+    def raises(exc: type[BaseException], fn) -> bool:
+        """Does `fn` raise `exc`? For the paths that must not fail silently."""
+        try:
+            fn()
+        except exc:
+            return True
+        except BaseException:
+            return False
+        return False
 
     row_a = new_row(title='quote "and" unicode — café', rtype="fix", area="file-ops",
                     issue=180, source="gh#180", estimate_min=120, time_source="measured")
@@ -3343,6 +3766,140 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("details: a body with no marker still gets the block",
           BODY_BEGIN in body_with_details("just prose\n", block))
 
+    # Ledger integrity: reconcile must never treat a mere mention as a fix.
+    check("closes: a bare Fixes line closes the issue", closes_issue("Fixes #213", 213))
+    check("closes: a bullet is fine", closes_issue("- Closes #213", 213))
+    check("closes: trailing period is fine", closes_issue("fix #213.", 213))
+    check("closes: a different issue does not close", not closes_issue("Fixes #212", 213))
+    check("closes: prose on the line is only a mention",
+          not closes_issue("Closes #213 (parent umbrella)", 213))
+    check("closes: prose before is only a mention",
+          not closes_issue("This fixes #213", 213))
+    check("closes: a cross-reference is not a fix", not closes_issue("Related to #213", 213))
+    check("closes: no keyword is not a fix", not closes_issue("#213 merged", 213))
+    check("closes: works across a multi-line body",
+          closes_issue("See #212 and #220\n\nFixes #213", 213))
+    check("closes: another issue's Fixes does not close this one",
+          not closes_issue("Fixes #220\n\nsee #213", 213))
+
+    # `record-session --replace` is the only way back from a duplicate
+    # back-fill (overlapping sessions are a hard validate failure), so pin the
+    # window arithmetic it uses to pick what to drop.
+    def _dropped(sessions: list[dict[str, str]], start: str, end: str) -> list[dict[str, str]]:
+        keep, a, b = [], parse_iso(start), parse_iso(end)
+        for old in sessions:
+            if old.get("end") and parse_iso(old["start"]) < b and a < parse_iso(old["end"]):
+                continue
+            keep.append(old)
+        return keep
+
+    _s = lambda st, en: {"start": st, "end": en}
+    check("replace: an overlapping window is dropped",
+          _dropped([_s("2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")],
+                   "2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z") == [])
+    check("replace: a non-overlapping session is kept",
+          len(_dropped([_s("2026-01-02T00:00:00Z", "2026-01-02T01:00:00Z")],
+                       "2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")) == 1)
+    check("replace: an adjacent session is kept (touching is not overlapping)",
+          len(_dropped([_s("2026-01-01T00:00:00Z", "2026-01-01T01:00:00Z")],
+                       "2026-01-01T01:00:00Z", "2026-01-01T02:00:00Z")) == 1)
+
+    # ── ledger integrity: one proof rule, an appliable plan, cross-branch ids ──
+    import contextlib as _ctx
+
+    def _row(rid: str, status: str = "review", **kw) -> dict[str, Any]:
+        r = new_row(title=kw.pop("title", f"row {rid}"), rtype="fix", area="infra",
+                    estimate_min=120, source="cli", status=status)
+        r["id"] = rid
+        r.update(kw)
+        return r
+
+    # 1. has_proof: the ONE definition the verb, the gate and reconcile share.
+    check("proof: a session with proof counts",
+          has_proof(_row("T-001", sessions=[{"start": "a", "end": "b", "proof": ["9cb0075"]}])))
+    check("proof: a row-level proof counts (set-status accepted it, validate did not)",
+          has_proof(_row("T-001", proof=["#271"])))
+    check("proof: time_source none/reconstructed counts",
+          has_proof(_row("T-001", time_source="reconstructed")))
+    check("proof: measured time with no evidence does NOT",
+          not has_proof(_row("T-001", sessions=[{"start": "a", "end": "b", "proof": []}])))
+
+    # 2. reconcile_plan never plans a `done` the applier would refuse.
+    @_ctx.contextmanager
+    def patched_gh(reply: str):
+        real = globals()["gh"]
+        globals()["gh"] = lambda *a, **k: reply
+        try:
+            yield
+        finally:
+            globals()["gh"] = real
+
+    unproven = {"version": 1, "tasks": [_row("T-009", pr=999)]}
+    with patched_gh("MERGED"):
+        plan, notes = reconcile_plan(unproven)
+    check("reconcile: an unprovable done is NOT planned",
+          not [p for p in plan if p[1] == "done"])
+    check("reconcile: it is reported as a note with the remedy",
+          any("record-session" in n for n in notes))
+
+    proven = {"version": 1, "tasks": [
+        _row("T-009", pr=999, sessions=[{"start": "a", "end": "b", "proof": ["#999"]}])]}
+    with patched_gh("MERGED"):
+        plan, notes = reconcile_plan(proven)
+    check("reconcile: a provable done IS planned",
+          any(p[0]["id"] == "T-009" and p[1] == "done" for p in plan))
+
+    # 3. The invariant the fix exists for: every planned move is appliable.
+    check("reconcile: every planned status is a legal transition",
+          all(new in ALLOWED[row["status"]] for row, new, _ in plan))
+    check("reconcile: every planned `done` is provable",
+          all(has_proof(row) for row, new, _ in plan if new == "done"))
+
+    # 4. next_id must not mint an id the base branch already uses.
+    local = {"version": 1, "tasks": [_row("T-001"), _row("T-002")]}
+    check("next_id: local only takes the next free id", next_id(local) == "T-003")
+    check("next_id: an id reserved by the base branch is not reused",
+          next_id(local, {"T-070", "T-071", "T-072"}) == "T-073")
+
+    # 5. merge_findings: collision is a failure, a stale copy and a dropped row warn.
+    base = {"version": 1, "tasks": [
+        _row("T-050", title="docs sweep", created_at="2026-09-01T00:00:00Z", status="done"),
+        _row("T-051", title="mine", created_at="2026-09-02T00:00:00Z", status="triaged",
+             sessions=[{"start": "a", "end": "b", "proof": []}]),
+        _row("T-053", title="base only", created_at="2026-09-04T00:00:00Z", status="done")]}
+    here = {"version": 1, "tasks": [
+        _row("T-050", title="a different row entirely", created_at="2026-09-05T00:00:00Z"),
+        _row("T-051", title="mine", created_at="2026-09-02T00:00:00Z", status="triaged",
+             sessions=[]),
+        _row("T-052", title="only here", created_at="2026-09-03T00:00:00Z")]}
+    hard, soft = merge_findings(here, base, "origin/dev")
+    check("merge: two rows on one id is a FAILURE",
+          any("DIFFERENT rows" in h for h in hard))
+    check("merge: the failure names the renumber remedy",
+          any("renumber" in h for h in hard))
+    check("merge: a row this branch has less history for warns",
+          any("T-051" in w and "older" in w for w in soft))
+    check("merge: a row the base has and this branch lacks warns",
+          any("T-053" in w and "not here" in w for w in soft))
+    check("merge: a row only this branch has is not reported as dropped",
+          not [w for w in soft if "T-052" in w])
+
+    # 6. renumber rewrites the structural references and nothing else.
+    led = {"version": 1, "tasks": [
+        _row("T-060", title="parent me"),
+        _row("T-061", title="child", parent="T-060", blocked_by=["T-060", "T-062"]),
+        _row("T-062", title="blocker")]}
+    refs = renumber_rows(led, "T-060", "T-099")
+    check("renumber: the row itself is renamed",
+          any(r["id"] == "T-099" for r in led["tasks"]))
+    check("renumber: parent reference rewritten",
+          any(r["id"] == "T-061" and r["parent"] == "T-099" for r in led["tasks"]))
+    check("renumber: blocked_by rewritten, others untouched",
+          any(r["id"] == "T-061" and r["blocked_by"] == ["T-099", "T-062"] for r in led["tasks"]))
+    check("renumber: it reports what it rewrote", set(refs) == {"T-061.parent", "T-061.blocked_by"})
+    check("renumber: an unknown row raises rather than silently doing nothing",
+          raises(KeyError, lambda: renumber_rows(led, "T-404", "T-405")))
+
     if failures:
         print(f"selftest: {len(failures)} FAILED ({', '.join(failures)})")
         return 1
@@ -3426,6 +3983,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--note", default="")
     sp.add_argument("--proof", nargs="*")
     sp.add_argument("--pr", nargs="*", help="alias: PR refs like #181")
+    sp.add_argument("--replace", action="store_true",
+                    help="drop the closed sessions this window overlaps, then record "
+                         "(corrects a duplicate back-fill; overlapping sessions are a "
+                         "hard validate failure and this verb only ever appended)")
     sp.add_argument("--reconstructed", action="store_true",
                     help="time is inferred from evidence, not a live session")
     sp.add_argument("--time-source", choices=("measured", "reconstructed", "none"))
@@ -3457,6 +4018,7 @@ def build_parser() -> argparse.ArgumentParser:
              "mirror the ledger's task details onto GitHub: issue body + project Status/Size/Estimate")
     sp.add_argument("--dry-run", action="store_true")
     sp.add_argument("--issue", help="only this issue number")
+    sp.add_argument("--pr", type=int, help="only a PR's task rows (projected onto their ISSUES)")
     sp.add_argument("--project", type=int, default=PROJECT_NUMBER_DEFAULT)
     sp.add_argument("--no-body", action="store_true", help="project fields only")
 
@@ -3498,6 +4060,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = add("doctor", cmd_doctor, "bidirectional drift check (needs gh)")
     sp.add_argument("--json", action="store_true")
+    sp.add_argument("--board", action="store_true",
+                    help="also compare each row with its project item's Status "
+                         "(needs read:project)")
 
     sp = add("report", cmd_report, "time and estimate rollup")
     sp.add_argument("--since", help="ISO date, e.g. 2026-09-01")
@@ -3517,6 +4082,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--detach", action="store_true", help="make it a root")
 
     add("validate", cmd_validate, "structural gate (CI runs this)")
+
+    sp = add("renumber", cmd_renumber,
+             "give a row a new T-id (collision repair); rewrites parent/blocked_by")
+    sp.add_argument("ref")
+    sp.add_argument("--to", help="the new id, e.g. T-090")
+    sp.add_argument("--next", action="store_true",
+                    help="take the next free id (the base branch's ids included)")
+    sp.add_argument("--dry-run", action="store_true")
+
+    sp = add("validate-merge", cmd_validate_merge,
+             "would merging --base's ledger into this one keep it sane "
+             "(id collisions, stale reverts, dropped rows)?")
+    sp.add_argument("--base", default="",
+                    help=f"git ref whose ledger is the base (default {BASE_REF})")
 
     sp = add("validate-commits", cmd_validate_commits, "every commit names a task in review/done")
     sp.add_argument("--base", help="ref to compare, e.g. origin/dev")

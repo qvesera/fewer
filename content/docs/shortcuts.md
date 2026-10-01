@@ -9,27 +9,27 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 
 | Key       | Action                                       |
 | --------- | -------------------------------------------- |
-| **↑ / ↓** | Move to parent/child node                    |
+| **↑ / ↓** | Move to parent/child card                    |
 | **←**     | Collapse current folder or move to parent    |
 | **→**     | Expand current folder or move to first child |
-| **Shift+↑↓←→** | Add node to selection (multi-select)    |
+| **Shift+↑↓←→** | Add card to selection (multi-select)    |
 
 ## Editing
 
 | Key                    | Action                           |
 | ---------------------- | -------------------------------- |
-| **F2**                 | Rename selected node             |
-| **Delete / Backspace** | Delete selected node (cascading) |
-| **Alt+N**              | Add new node (file or folder)    |
+| **F2**                 | Rename selected card             |
+| **Delete / Backspace** | Delete selected card (cascading) |
+| **Alt+N**              | Add new card (file or folder)    |
 | **Alt+Shift+N**        | Clear canvas                     |
-| **Ctrl+C**             | Copy selected node               |
-| **Ctrl+X**             | Cut selected node                |
-| **Ctrl+V**             | Paste copied/cut node            |
-| **Ctrl+D**             | Duplicate selected node(s)       |
+| **Ctrl+C**             | Copy selected card               |
+| **Ctrl+X**             | Cut selected card                |
+| **Ctrl+V**             | Paste copied/cut card            |
+| **Ctrl+D**             | Duplicate selected card(s)       |
 | **Ctrl+Z**             | Undo last action                 |
 | **Ctrl+Shift+Z / Ctrl+Y** | Redo last action              |
-| **H**                  | Hide selected nodes              |
-| **Shift+H**            | Show all nodes                   |
+| **H**                  | Hide selected cards              |
+| **Shift+H**            | Show all cards                   |
 | **Alt+S**              | Save current graph (signed in)   |
 | **Enter**              | Focus the folder's first child; opens the selected file when OS integration is enabled |
 
@@ -37,8 +37,8 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 
 | Key             | Action                              |
 | --------------- | ----------------------------------- |
-| **Alt+P**       | Parent selected nodes (last selected = parent) |
-| **Alt+Shift+P** | Unparent all selected nodes         |
+| **Alt+P**       | Parent selected cards (last selected = parent) |
+| **Alt+Shift+P** | Unparent all selected cards         |
 
 ## Search
 
@@ -51,7 +51,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 
 | Key        | Action                                                                  |
 | ---------- | ----------------------------------------------------------------------- |
-| **Space**  | Fit view to show all nodes                                              |
+| **Space**  | Fit view to show all cards                                              |
 | **+ / =**  | Zoom in                                                                 |
 | **-**      | Zoom out                                                                |
 | **0**      | Reset zoom to 100%                                                      |
@@ -88,11 +88,11 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | Gesture            | Action                                             |
 | ------------------ | -------------------------------------------------- |
 | **Drag (canvas)**  | Pan the canvas                                     |
-| **Shift+drag**     | Box-select nodes — adds to the existing selection  |
+| **Shift+drag**     | Box-select cards — adds to the existing selection  |
 
 ## Tips
 
 - Shortcuts work when the canvas is focused
 - Use **Tab** to move focus between panels if needed
-- **Ctrl+A** selects all visible nodes
-- **Ctrl+click** a node handle removes its connected connections
+- **Ctrl+A** selects all visible cards
+- **Ctrl+click** a card handle removes its connected connections

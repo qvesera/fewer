@@ -13,6 +13,8 @@ import {
 import type { EdgeAnimationOptions, EdgeThemeColors } from "@/lib/fewer/edgeHighlight";
 import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { selectionForLeaf } from "@/lib/fewer/canvasSelection";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { useGraphStore } from "@/store/graphStore";
 
 /**
@@ -112,9 +114,14 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, select
 
   useEffect(() => {
     const state = useGraphStore.getState();
-    const leafSel = leafId ? state.leafSelections[leafId] : undefined;
-    const selectedForHighlight = leafSel ?? state.selectedNodeIds;
+    // Same precedence as the card stamps (selectionForLeaf): a leaf that owns
+    // nothing paints nothing, so its edges must not highlight another view's
+    // selection either (#285).
+    const selectedForHighlight = selectionForLeaf(
+      state.leafSelections, leafId, state.activeLeafId, state.selectedNodeIds,
+    );
     const hoverForHighlight = isActive ? state.hoverHighlightIds : [];
+    markLoop("push:edges");
     setRfEdges(applyEdgeSelection(
       applyEdgeHighlights(baseEdges, selectedForHighlight, hoverForHighlight, lookups, themeColors, vs.edgeWidth, animation, symlinkTargetIds),
       selectedEdgeIdsRef.current,

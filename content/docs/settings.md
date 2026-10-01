@@ -1,6 +1,6 @@
 ---
 title: Settings, Power User Mode & Notifications
-description: Configure Fewer via the Settings dialog: theme, minimap, node dimensions, power user mode, notifications, and the About/Help tabs.
+description: Configure Fewer via the Settings dialog: theme, minimap, card dimensions, power user mode, notifications, and the About/Help tabs.
 ---
 
 The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **About**, **Appearance**, **Advanced**, and **Help**.
@@ -17,8 +17,8 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 ## Appearance
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
-- **Show Files toggle**: show or hide file-level nodes on the canvas (folders only)
-- **Connection Motion**: **Animate Selected Connections Only** toggle — when on, the connections along the selected nodes' path to the root animate in the chosen **Selected Edge Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) edges. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static connections.
+- **Show Files toggle**: show or hide file-level cards on the canvas (folders only)
+- **Connection Motion**: **Animate Selected Connections Only** toggle — when on, the connections along the selected cards' path to the root animate in the chosen **Selected Connection Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) connections. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static connections.
 
 ## Advanced
 
@@ -33,12 +33,12 @@ Settings in Advanced:
 
 | Setting              | Description                                    |
 | -------------------- | ---------------------------------------------- |
-| **Show Files**       | Show/hide file nodes (also in Appearance)      |
+| **Show Files**       | Show/hide file cards (also in Appearance)      |
 | **Minimap**          | Toggle the minimap on/off                      |
 | **Minimap Position** | Top-left, Top-right, Bottom-left, Bottom-right |
 | **Minimap Size**     | Slider, 80–300px                               |
-| **Node Width**       | Card width slider, 120–400px                   |
-| **Node Height**      | Card height slider, 40–300px                   |
+| **Width**            | Card width slider (Card Metrics), 120–400px    |
+| **Height**           | Card height slider (Card Metrics), 40–300px    |
 | **Crown Shyness**    | Branch-spacing intensity, 0–3 — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value — changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as it gets |
 | **Auto-relayout**    | On (default), showing, revealing or bulk-revealing cards re-flows the tree so the new cards find their slots. Turn it off to keep the current arrangement through those actions and re-flow when you choose. Hiding a card never moved anything on its own, and **Organize** and **Sort** always re-flow, whatever this is set to |
 
@@ -68,7 +68,7 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 2. Click **Save Current Graph** in the **Your Directories** sidebar section
 3. Name the graph and click **Save**
 
-Saved graphs capture the graph itself — nodes, connections, and their positions. Your app settings (layout direction, connection style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
+Saved graphs capture the graph itself — cards, connections, and their positions. Your app settings (layout direction, connection style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
 
 ### Manage saved graphs
 
@@ -86,7 +86,7 @@ Saving is always user-initiated. Fewer never auto-uploads your graph.
 The bell icon in the navbar opens the **notification history** panel. Every major action posts a toast:
 
 - Delete, copy, cut, duplicate, paste, unparent, connect, organize
-- Show/hide nodes, open file, refresh from disk
+- Show/hide cards, open file, refresh from disk
 - Auto-hide notifications on import
 
 A badge on the bell shows unread notifications; it clears when you open the panel. Up to 5 toasts stack at the right edge of the screen.
@@ -99,4 +99,4 @@ Disabling **Power User mode** resets all settings to defaults, including the the
 
 - [Theming](/docs/theming): custom colors, presets, and the theme editor
 - [Graph Features](/docs/graph-features): minimap, layout, and canvas behavior
-- [Editing Cards](/docs/editing): add, rename, delete, and connect nodes
+- [Editing Cards](/docs/editing): add, rename, delete, and connect cards

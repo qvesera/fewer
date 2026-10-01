@@ -127,6 +127,9 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
       direction,
       edges: s.edges.map((e) => ({ ...e, id: nextEdgeId(e.source, e.target), type: edgeTypeFromStyle(s.edgeStyle) })),
     }));
+    // The user just changed orientation — every mounted canvas fits the whole
+    // graph so the new edge routing is visible (#286).
+    get().bumpReflow();
   },
 
   setEdgeStyle: (style) => {

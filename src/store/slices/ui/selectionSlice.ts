@@ -1,5 +1,6 @@
 "use client";
 import { StateCreator } from "zustand";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import type { GraphState } from "../types";
 import { swapLeafHistory } from "../historySlice";
 
@@ -95,13 +96,31 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
 
   setSelectionForLeaf: (leafId, ids) => set((s) => {
     const prev = s.leafSelections[leafId];
-    if (s.activeLeafId === leafId && prev !== undefined && sameIds(prev, ids)) return {};
+    // React Flow re-reports its selection whenever a view's nodes are re-pushed,
+    // so every report is either an echo of what this canvas already paints or a
+    // genuinely new selection. An ECHO writes NOTHING — not the entry, not
+    // `selectedNodeIds`, and crucially not `activeLeafId`: two mounted canvases
+    // would otherwise trade the active leaf back and forth (each flip makes the
+    // other view inactive, which re-pushes its edges, which makes it report
+    // again) until React hit its 50-nested-update limit and tore the tree down
+    // (#285). Activation is an input event now — a pointer landing in a canvas
+    // calls setActiveLeaf before any report arrives.
+    if (prev !== undefined && sameIds(prev, ids)) return {};
+    // An empty report from a view that owns nothing is React Flow re-deriving
+    // its own initial state: it must not clear another view's selection or
+    // steal activation. A real deselect happens in the owner (which this
+    // pointer-down already made the active view).
+    if (prev === undefined && ids.length === 0) return {};
+
+    markLoop("write:selection");
+    const selectionChanged =
+      prev === undefined || !sameIds(prev, ids) || !sameIds(s.selectedNodeIds, ids);
     return {
       ...swapLeafHistory(s, leafId),
       leafSelections: { ...s.leafSelections, [leafId]: ids },
       activeLeafId: leafId,
       selectedNodeIds: ids,
-      selectionVersion: s.selectionVersion + 1,
+      ...(selectionChanged ? { selectionVersion: s.selectionVersion + 1 } : {}),
     };
   }),
 

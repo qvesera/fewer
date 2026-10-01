@@ -27,9 +27,13 @@ It resolves the task from the `Task: T-###` trailers and sets:
   targets the **default branch**; on `dev` it is a cross-reference and the sidebar
   link stays a one-click manual step (the check prints `link: NOTE` instead of
   failing — a gate that can never go green would block every merge);
-- **project** — `--project <N>` adds the item and mirrors Status; without the
-  `read:project` scope it prints `project: skipped …` (the board's Auto-add
-  workflow can cover PRs instead — both paths are in `.agents/skills/pr/SKILL.md`).
+- **project** — the board is a projection of the ledger, and the **issue** item
+  is that projection: `pr-metadata` hands the PR's task rows to
+  `sync-details --pr <N>` (one writer, and it only writes a field that differs).
+  It never creates a separate item for the PR — a second item per work unit meant
+  two Statuses that flipped on different triggers. Without the `read:project`
+  scope it prints `project: skipped …`; the nightly `board-reconcile` workflow
+  heals the board from the ledger either way.
 
 No tracked task → it derives nothing (and the `tasks` CI job fails the PR for
 the missing trailer anyway). CI re-applies it on every PR event via

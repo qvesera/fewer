@@ -6,14 +6,15 @@ import { useGraphStore } from "@/store/graphStore";
 
 /**
  * Fit the view exactly once per loaded graph — when nodes first appear — and
- * never on relayout. React Flow's `fitView` boolean prop only fits at mount
- * (so an import that happens after the canvas mounts would never fit), and a
- * `graphVersion`-driven fitView would zoom/jump the user's viewport on every
- * relayout (parent/unparent, cut/paste, edge-style, beautify, …). Guarding on
- * "nodes went from empty to non-empty" gives a fit on initial load, and
- * resetting the guard when the canvas empties fits again on the next import.
- * The small delay lets the initial dimension-measure → relayout settle so the
- * fit targets real positions, not the raw stacked layout.
+ * again whenever the user asks for a re-flow (`reflowVersion`: a layout-direction
+ * change or Organize, #286). Never on relayout: React Flow's `fitView` boolean
+ * prop only fits at mount (so an import that happens after the canvas mounts
+ * would never fit), and a `graphVersion`-driven fitView would zoom/jump the
+ * user's viewport on every relayout (parent/unparent, cut/paste, edge-style,
+ * beautify, …). Guarding on "nodes went from empty to non-empty" gives a fit on
+ * initial load, and resetting the guard when the canvas empties fits again on
+ * the next import. The small delay lets the initial dimension-measure →
+ * relayout settle so the fit targets real positions, not the raw stacked layout.
  *
  * We deliberately do NOT call React Flow's fitView() for the initial fit:
  * with onlyRenderVisibleElements, nodes outside the current viewport never
@@ -29,14 +30,27 @@ export function useCanvasInitialFit(
   visibleNodes: FewerNode[],
   containerRef: RefObject<HTMLDivElement | null>,
   setViewport: (viewport: { x: number; y: number; zoom: number }) => void,
+  reflowVersion?: number,
+  reflowTarget?: string | null,
+  leafId?: string | null,
 ) {
   const didInitialFitRef = useRef(false);
   const fitTimerRef = useRef<number | null>(null);
+  const lastReflowRef = useRef<number | undefined>(reflowVersion);
   // NOTE: the pending timer deliberately survives dependency churn (the
   // measure→relayout pass right after load re-creates the `visibleNodes`
   // array). Clearing the timer in this effect's cleanup cancelled the fit
   // before it ever ran — the one-shot ref then blocked rescheduling.
   useEffect(() => {
+    // A user-requested re-flow (direction change, Organize) re-arms the fit for
+    // the canvases it targeted — including the ones whose layout did not change
+    // position-wise, because switching orientation while zoomed into a card
+    // should show the whole graph again (#286).
+    if (reflowVersion !== undefined && reflowVersion !== lastReflowRef.current) {
+      lastReflowRef.current = reflowVersion;
+      const mine = reflowTarget == null || reflowTarget === leafId;
+      if (mine) didInitialFitRef.current = false;
+    }
     if (visibleNodes.length === 0) {
       didInitialFitRef.current = false;
       if (fitTimerRef.current !== null) { clearTimeout(fitTimerRef.current); fitTimerRef.current = null; }
@@ -74,7 +88,7 @@ export function useCanvasInitialFit(
         zoom,
       });
     }, 120);
-  }, [visibleNodes, setViewport]);
+  }, [visibleNodes, setViewport, reflowVersion, reflowTarget, leafId]);
   // Clear the fit timer only on unmount.
   useEffect(() => () => { if (fitTimerRef.current !== null) clearTimeout(fitTimerRef.current); }, []);
 }

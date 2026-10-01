@@ -356,6 +356,16 @@ describe("deriveViewLayout / applyViewPositions split", () => {
     expect(out[0]).toBe(nodes[0]);
     expect(out[1]!.position).toEqual({ x: 9, y: 9 });
   });
+
+  test("applyViewPositions is identity-stable when every override already matches (#281)", () => {
+    // A drag rewrites this map every frame; returning a fresh array for a
+    // position that did not move handed React Flow a new node array to re-adopt,
+    // and it answered with its own reports (the store → canvas round trip).
+    const nodes = [node("a", 1, 2), node("b", 3, 4)];
+    const positions = { a: { x: 1, y: 2 }, b: { x: 9, y: 9 } };
+    const applied = applyViewPositions(nodes, positions);
+    expect(applyViewPositions(applied, positions)).toBe(applied);
+  });
 });
 
 describe("stampSelection", () => {
@@ -402,6 +412,41 @@ describe("stampSelection", () => {
   test("an id that isn't in the array is ignored", () => {
     const nodes = [node("a")];
     expect(stampSelection(nodes, new Set(["nope"]))[0]).toBe(nodes[0]);
+  });
+
+  test("a clear reaches RF as an explicit false when the canvas restamps (#285)", () => {
+    // The canvas path: the store's nodes carry NO flag, and RF holds whatever
+    // the previous stamp pushed. Comparing only against the bare store node made
+    // a clear a no-op — the node came back without a flag, RF kept its internal
+    // `selected: true`, and it re-reported a selection the store no longer
+    // listed (store → canvas → RF → store, #285).
+    const storeNodes = [node("a"), node("b"), node("c")]; // no flags at all
+    const prevStamped = stampSelection(storeNodes, new Set(["b"]));
+    expect(prevStamped.map((n) => !!n.selected)).toEqual([false, true, false]);
+
+    const cleared = stampSelection(storeNodes, new Set(), prevStamped);
+    expect(cleared.map((n) => !!n.selected)).toEqual([false, false, false]);
+    // The one RF painted selected must now carry an EXPLICIT false…
+    expect(cleared[1].selected).toBe(false);
+    // …and nothing else churns.
+    expect(cleared[0]).toBe(storeNodes[0]);
+    expect(cleared[2]).toBe(storeNodes[2]);
+
+    // Restamping with the same ids changes nothing again (identity-stable).
+    const again = stampSelection(storeNodes, new Set(), cleared);
+    expect(again[0]).toBe(storeNodes[0]);
+    expect(again[1]).toBe(storeNodes[1]);
+    expect(again[2]).toBe(storeNodes[2]);
+  });
+
+  test("selecting after a clear still clones only the flipped cards (#285)", () => {
+    const storeNodes = [node("a"), node("b")];
+    const stamped = stampSelection(storeNodes, new Set(), undefined);
+    expect(stamped[0]).toBe(storeNodes[0]);
+
+    const selected = stampSelection(storeNodes, new Set(["a"]), stamped);
+    expect(selected[0].selected).toBe(true);
+    expect(selected[1]).toBe(storeNodes[1]);
   });
 });
 
@@ -470,5 +515,15 @@ describe("withCollapsedPillGeometry", () => {
   test("a file id in the collapsed list is ignored", () => {
     const nodes = [node("c", "file", 58)];
     expect(withCollapsedPillGeometry(nodes, ["c"])[0]).toBe(nodes[0]);
+  });
+
+  test("a collapsed folder keeps the shared node's measured height", () => {
+    // React Flow re-reports the collapsed card's size forever if the array we
+    // hand it disagrees with the DOM — the canvas swallows that no-op batch
+    // (applyDimensionChanges) instead of pinning the pill into the shared node.
+    const measured = { ...node("a", "folder", 240), measured: { width: 240, height: 240 } } as FewerNode;
+    const out = withCollapsedPillGeometry([measured], ["a"]);
+    expect(out[0]!.style?.height).toBe(COLLAPSED_PILL_HEIGHT);
+    expect(out[0]!.measured?.height).toBe(240);
   });
 });

@@ -152,4 +152,29 @@ describe("GraphCanvas smoke", () => {
     );
     expect(container).toBeDefined();
   });
+
+  test("a leaf with no selection of its own neither claims nor rebuilds on mount (#285)", () => {
+    // leafB is the canvas a split just created: another view owns the shared
+    // selection. Mounting it must not write to the store at all — no version
+    // bump (that re-pushes edges in every mounted view) and no stolen
+    // activation, which is what looped two canvases into a crash.
+    seedStore({
+      tier: "pro",
+      selectedNodeIds: ["n1"],
+      leafSelections: { leafA: ["n1"] },
+      activeLeafId: "leafA",
+      selectionVersion: 7,
+    });
+    const before = useGraphStore.getState();
+    const { container } = render(
+      <GraphCanvas onOpenImport={() => {}} onLoadSample={() => {}} leafId="leafB" />,
+    );
+    expect(container).toBeDefined();
+
+    const after = useGraphStore.getState();
+    expect(after.selectionVersion).toBe(7);
+    expect(after.activeLeafId).toBe("leafA");
+    expect(after.leafSelections).toBe(before.leafSelections);
+    expect(after.selectedNodeIds).toEqual(["n1"]);
+  });
 });

@@ -11,12 +11,17 @@ export interface VisibleGraph {
  * Drop hidden nodes and lock zIndex 1000 so nodes always render above edges
  * (React Flow defaults edges to 0, nodes to 1000; locking it explicitly means
  * no edge can overlap a node). Always returns a fresh array.
+ *
+ * Copy-on-write on the zIndex too: a node already at 1000 keeps its identity.
+ * React Flow re-adopts and re-renders every node whose userNode identity
+ * changes, and the canvas re-derives this lens on every drag frame — cloning all
+ * of them unconditionally is what made a drag cost 1–2 s per frame at 585 cards.
  */
 export function filterVisibleNodes(allNodes: FewerNode[], hiddenIds: string[]): FewerNode[] {
   const nodes = hiddenIds.length === 0
     ? allNodes
     : (() => { const hidden = new Set(hiddenIds); return allNodes.filter((n: FewerNode) => !hidden.has(n.id)); })();
-  return nodes.map((n: FewerNode) => ({ ...n, zIndex: 1000 }));
+  return nodes.map((n: FewerNode) => (n.zIndex === 1000 ? n : { ...n, zIndex: 1000 }));
 }
 
 /**

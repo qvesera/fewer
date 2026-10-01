@@ -71,7 +71,7 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-item-hover`         | Hover state background     |
 | `--fewer-handle`             | Connection handle color    |
 | `--fewer-edge`               | Graph connection color           |
-| `--fewer-select-ring`        | Selected node outline      |
+| `--fewer-select-ring`        | Selected card outline      |
 | `--fewer-folder-bg`          | Folder card background     |
 | `--fewer-folder-border`      | Folder card border         |
 | `--fewer-folder-text`        | Folder title color         |
@@ -105,7 +105,7 @@ background: var(--fewer-background-gradient, var(--fewer-background));
 **Note:** the main `--fewer-*` variable always stays a solid color, so features
 that take a single color — the minimap, SVG/PNG export, saved-theme preview
 dots — render the solid start color even when a gradient is configured. Only
-the in-app canvas and node card backgrounds render gradients.
+the in-app canvas and card backgrounds render gradients.
 
 Editing a slot's base color (via the main picker or hex input) preserves its
 gradient — the gradient endpoint and angle are kept.
@@ -192,9 +192,9 @@ In Power User mode, the sidebar Connections section also controls:
 
 - **Pattern**: solid, dashed, or dotted
 - **Line Thickness**: 0.5px to 6px slider
-- **Corner Radius**: 0-20px for angled edges
+- **Corner Radius**: 0-20px for angled connections
 
 ## Next Steps
 
-- [Settings](/docs/settings): Power User mode and node dimensions
+- [Settings](/docs/settings): Power User mode and card dimensions
 - [Graph Features](/docs/graph-features): canvas, layout, and connection behavior

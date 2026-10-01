@@ -42,6 +42,11 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
+**Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
+the Pro surface — split views, docking, tags — without a Pro account. `?tier=free` and
+`?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
+and production builds ignore the parameter.
+
 ---
 
 ## Install
@@ -111,7 +116,7 @@ docker run -p 3000:3000 fewer
 - **React Flow v12** canvas with minimap + controls
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
-- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
+- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left — and the view re-fits to the whole graph when you switch, or after Organize
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
