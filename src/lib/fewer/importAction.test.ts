@@ -16,7 +16,7 @@ const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({
 }));
 const runFileImport = mock<
   (
-    source: Extract<OriginSource, { origin: "file" }>,
+    source: Extract<OriginSource, { origin: "file"; kind: "text" }>,
     options: ImportOptions,
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Graph built from file" }));
@@ -27,10 +27,7 @@ const runCloudImport = mock<
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Imported from cloud" }));
 const runArchiveImport = mock<
-  (
-    source: Extract<OriginSource, { origin: "archive" }>,
-    options: ImportOptions,
-  ) => Promise<ImportActionResult>
+  (source: { file: File | null; name: string }, options: ImportOptions) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Graph built from archive" }));
 
 mock.module("@/lib/fewer/importActionFolder", () => ({ runFolderImport }));
@@ -113,19 +110,21 @@ describe("runImport dispatch", () => {
   });
 
   test("file → runFileImport with the source and options", async () => {
-    const source = { origin: "file", content: "root {{ child }}", format: "tree" } as const;
+    const source = { origin: "file", kind: "text", content: "root {{ child }}", format: "tree" } as const;
     const o = opts();
     await runImport(source, o, ctx());
     expect(runFileImport).toHaveBeenCalledWith(source, o, undefined);
     expect(runFolderImport).not.toHaveBeenCalled();
   });
 
-  test("archive → runArchiveImport with the source and options", async () => {
+  test("file + archive kind → runArchiveImport with the source and options", async () => {
     const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], "backup.zip");
-    const source = { origin: "archive", file, name: "backup.zip" } as const;
+    const source = { origin: "file", kind: "archive", file, name: "backup.zip" } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runArchiveImport).toHaveBeenCalledWith(source, o, undefined);
+    // The dispatcher hands the reader a plain {file, name} — the origin field is
+    // gone, but the archive action itself is unchanged.
+    expect(runArchiveImport).toHaveBeenCalledWith({ file, name: "backup.zip" }, o, undefined);
     expect(runFileImport).not.toHaveBeenCalled();
     expect(runFolderImport).not.toHaveBeenCalled();
   });

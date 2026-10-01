@@ -36,7 +36,7 @@ const { formatBytes } = await import("@/lib/fewer/stats");
 const { DEFAULT_IMPORT_OPTIONS } = await import("@/lib/fewer/importOptions");
 const initial = useGraphStore.getInitialState();
 
-function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "archive" | "url" | "cloud" }) {
+function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "url" | "cloud" }) {
   const onOpenChange = mock(() => {});
   render(
     <ImportFlowDialog open={props?.open ?? true} onOpenChange={onOpenChange} initialOrigin={props?.initialOrigin ?? "folder"} />,
@@ -65,19 +65,31 @@ describe("ImportFlowDialog 3-step flow", () => {
     renderDialog();
     expect(screen.getByRole("radio", { name: /^folder/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^file/i })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: /^archive/i })).toBeTruthy();
+    // Archive is not an origin any more — it rides along inside the file origin.
+    expect(screen.queryByRole("radio", { name: /^archive/i })).toBeNull();
     expect(screen.queryByRole("radio", { name: /^url/i })).toBeNull();
     expect(screen.queryByRole("radio", { name: /^cloud/i })).toBeNull();
   });
 
-  test("signed-in grid shows all five origins", () => {
+  test("signed-in grid shows all four origins", () => {
     useGraphStore.setState({ tier: "free" });
     renderDialog();
     expect(screen.getByRole("radio", { name: /^folder/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^file/i })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: /^archive/i })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: /^archive/i })).toBeNull();
     expect(screen.getByRole("radio", { name: /^url/i })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /^cloud/i })).toBeTruthy();
+  });
+
+  test("the file picker's accept always lists archives (not gated by format mode)", () => {
+    // The fold's one real trap: archive import is unconditional today, so the
+    // merged picker must keep every archive extension in its accept attribute.
+    renderDialog({ initialOrigin: "file" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.accept).toContain(".zip");
+    expect(input.accept).toContain(".7z");
+    expect(input.accept).toContain(".csv");
+    expect(input.accept).toContain(".txt");
   });
 
   test("step 1 Continue is gated on a ready file source", async () => {
@@ -176,9 +188,9 @@ describe("ImportFlowDialog state and step-3 import", () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
-  test("archive origin gates step 1 on a chosen file and imports it", async () => {
+  test("picking an archive in the file origin switches to archive mode and imports it", async () => {
     const interaction = userEvent.setup();
-    const onOpenChange = renderDialog({ initialOrigin: "archive" });
+    const onOpenChange = renderDialog({ initialOrigin: "file" });
     // No file yet: Continue stays disabled on the source step.
     expect(
       (screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled,
@@ -191,7 +203,10 @@ describe("ImportFlowDialog state and step-3 import", () => {
         target: { files: [new File([bytes], "backup.zip")] },
       });
     });
+    // Archive mode: the chip replaces the format tiles and the paste box.
     expect(screen.getByText("backup.zip")).toBeTruthy();
+    expect(screen.queryByText("Format")).toBeNull();
+    expect(screen.queryByText(/Or paste content below/)).toBeNull();
     expect(
       (screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled,
     ).toBe(false);
@@ -207,7 +222,7 @@ describe("ImportFlowDialog state and step-3 import", () => {
 
   test("a failed archive import shows the inline error and stays open", async () => {
     const interaction = userEvent.setup();
-    const onOpenChange = renderDialog({ initialOrigin: "archive" });
+    const onOpenChange = renderDialog({ initialOrigin: "file" });
     runArchiveImport.mockResolvedValueOnce({
       ok: false,
       title: "Archive import failed",
@@ -227,6 +242,24 @@ describe("ImportFlowDialog state and step-3 import", () => {
       expect(screen.getByText("Not a zip, tar, or .tar.gz archive.")).toBeTruthy(),
     );
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  test("Clear in archive mode drops back to the text panel", async () => {
+    const interaction = userEvent.setup();
+    renderDialog({ initialOrigin: "file" });
+    const bytes = new Uint8Array([0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, {
+        target: { files: [new File([bytes], "backup.zip")] },
+      });
+    });
+    expect(screen.getByText("backup.zip")).toBeTruthy();
+
+    await interaction.click(screen.getByRole("button", { name: /^Clear$/i }));
+    expect(screen.queryByText("backup.zip")).toBeNull();
+    // Back on the text panel: the format tiles return.
+    expect(screen.getByText("Format")).toBeTruthy();
   });
 
   test("successful url import requests a watch before closing", async () => {

@@ -7,13 +7,13 @@
  * panel behaves identically for every origin.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn, TextFileSource } from "@/lib/fewer/importFlow";
 import { buildProgress, collectAutoHideNotes } from "@/lib/fewer/importFlow";
 import { chunkTreeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runFileImport(
-  source: Extract<OriginSource, { origin: "file" }>,
+  source: TextFileSource,
   options: ImportOptions,
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {

@@ -10,21 +10,61 @@ import { guessCsvMapping, isCsvMappingUsable, isExportCsv, parseCsvRows } from "
 import type { CsvColumnMap } from "@/lib/fewer/csvModel";
 import { useGraphStore } from "@/store/graphStore";
 
-export type ImportOrigin = "folder" | "file" | "archive" | "url" | "cloud";
+export type ImportOrigin = "folder" | "file" | "url" | "cloud";
 
 export type FileImportFormat = "json" | "tree" | "script" | "csv" | "dot";
 
-/** What the user picked in step 1 for the active origin. */
+/**
+ * Extensions the archive reader accepts. ONE list serves two jobs: the file
+ * input's accept attribute and the panel's mode detection — so the picker and
+ * the UI can never drift into two disagreeing lists.
+ *
+ * `listArchive` sniffs magic bytes rather than extensions, so this is a UI
+ * hint only: a renamed archive still imports once the user is in archive mode.
+ */
+export const ARCHIVE_EXTENSIONS = [
+  "zip",
+  "tar",
+  "gz",
+  "tgz",
+  "tar.gz",
+  "tar.xz",
+  "tar.bz2",
+  "tar.zst",
+  "7z",
+  "rar",
+  "xz",
+  "bz2",
+  "zst",
+] as const;
+
+/** Derived accept attribute. Always includes archives — never tier/flag gated. */
+export const ARCHIVE_ACCEPT = ARCHIVE_EXTENSIONS.map((e) => `.${e}`).join(",");
+
+/** Does this filename look like an archive the reader can list? */
+export function isArchiveFileName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`));
+}
+
+/**
+ * What the user picked in step 1 for the active origin.
+ *
+ * Archive is NOT its own origin: both payloads below converge on filterTree →
+ * chunkTreeToGraph → setGraph, and the reader sniffs magic bytes, so the
+ * extension is only a UI hint for which panel to show.
+ */
 export type OriginSource =
   | { origin: "folder" }
   | {
       origin: "file";
+      kind: "text";
       content: string;
       format: FileImportFormat;
       /** Set when the CSV is not our own export: which column plays which role. */
       csvMapping?: CsvColumnMap;
     }
-  | { origin: "archive"; file: File | null; name: string }
+  | { origin: "file"; kind: "archive"; file: File | null; name: string }
   | { origin: "url"; url: string; watch: boolean }
   | {
       origin: "cloud";
@@ -33,6 +73,11 @@ export type OriginSource =
       ref: string;
       name: string;
     };
+
+/** The file origin's text payload (pasted or uploaded as text). */
+export type TextFileSource = Extract<OriginSource, { origin: "file"; kind: "text" }>;
+/** The file origin's archive payload (picked as a binary file). */
+export type ArchiveFileSource = Extract<OriginSource, { origin: "file"; kind: "archive" }>;
 
 export interface ImportActionResult {
   ok: boolean;
@@ -72,8 +117,10 @@ export const ORIGIN_META: Record<
   { label: string; blurb: string }
 > = {
   folder: { label: "Folder", blurb: "Scan a directory on this device" },
-  file: { label: "File", blurb: "ASCII tree, JSON, CSV, DOT, or shell script" },
-  archive: { label: "Archive", blurb: "Zip or tar of a folder tree" },
+  file: {
+    label: "File",
+    blurb: "ASCII tree, JSON, CSV, DOT, shell script — or a zip/tar archive",
+  },
   url: { label: "URL", blurb: "GitHub repo or public file index" },
   cloud: { label: "Cloud", blurb: "Linked cloud account (read-only)" },
 };
@@ -83,14 +130,19 @@ export function defaultSourceFor(origin: ImportOrigin): OriginSource {
     case "folder":
       return { origin: "folder" };
     case "file":
-      return { origin: "file", content: "", format: "tree" };
-    case "archive":
-      return { origin: "archive", file: null, name: "" };
+      return defaultFileSource("text");
     case "url":
       return { origin: "url", url: "", watch: false };
     case "cloud":
       return { origin: "cloud", connectionId: "", provider: "github", ref: "", name: "" };
   }
+}
+
+/** A fresh source for the file origin's other payload kind (mode switch). */
+export function defaultFileSource(kind: "text" | "archive"): OriginSource {
+  return kind === "archive"
+    ? { origin: "file", kind: "archive", file: null, name: "" }
+    : { origin: "file", kind: "text", content: "", format: "tree" };
 }
 
 /** Step 1 → step 2 gate: is the source complete enough to configure? */
@@ -99,6 +151,8 @@ export function isSourceReady(source: OriginSource): boolean {
     case "folder":
       return true;
     case "file": {
+      // Archive mode is ready the moment a file is picked — nothing to decode.
+      if (source.kind === "archive") return source.file !== null;
       if (source.content.trim().length === 0) return false;
       // A non-export CSV needs a usable column mapping before step 2 can run —
       // our own export carries its header and needs none. The guess is the
@@ -111,8 +165,6 @@ export function isSourceReady(source: OriginSource): boolean {
       }
       return true;
     }
-    case "archive":
-      return source.file !== null;
     case "url":
       return isValidHttpUrl(source.url);
     case "cloud":
@@ -161,13 +213,14 @@ export function sourceLabel(source: OriginSource): string {
     case "folder":
       return "Device folder (picker opens on import)";
     case "file": {
+      if (source.kind === "archive") {
+        return source.file
+          ? `${source.name} (${formatBytes(source.file.size)})`
+          : "No archive selected";
+      }
       const n = source.content.trim().split("\n").length;
       return `${source.format.toUpperCase()} payload, ${n} line${n === 1 ? "" : "s"}`;
     }
-    case "archive":
-      return source.file
-        ? `${source.name} (${formatBytes(source.file.size)})`
-        : "No archive selected";
     case "url":
       return source.url.trim();
     case "cloud":
