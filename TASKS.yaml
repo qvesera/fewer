@@ -663,7 +663,7 @@ tasks:
   session_count: 7
 - id: "T-026"
   title: "CSV + Graphviz DOT import (export side already ships)"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: null
@@ -689,12 +689,12 @@ tasks:
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   - start: "2026-10-01T15:39:03Z"
-    end: null
+    end: "2026-10-01T15:41:47Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 59
+    note: "CSV + DOT import: parseCSVGraph (export-format + foreign CSV with column mapping), parseDOTGraph (quote-aware tokenizer, containment edges, third-party folder inference), CsvColumnMapper UI, pure export payload builders for round-trip testing. 24 new tests; full suite 188 pass; lint/tsc/build/changelog validate green."
+    proof: ["ceb372b"]
+    effort: {commits: 1, files: 14, insertions: 1446, deletions: 82}
+  spent_min: 62
   session_count: 2
 - id: "T-027"
   title: "Mermaid markdown import + export"
