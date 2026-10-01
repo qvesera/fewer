@@ -7,10 +7,17 @@
  * handled by ImportFlowDialog.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,11 +25,14 @@ import {
   BellRing,
   ChevronRight,
   Cloud,
+  Columns3,
   ExternalLink,
   FileArchive,
   FileIcon,
   FileJson,
+  FileSpreadsheet,
   FileTerminal,
+  FileText,
   Folder as FolderIcon,
   FolderOpen,
   FolderTree,
@@ -37,6 +47,14 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import {
+  CSV_FIELD_LABELS,
+  CSV_MAPPING_FIELDS,
+  guessCsvMapping,
+  isExportCsv,
+  parseCsvRows,
+} from "@/lib/fewer/csvModel";
+import type { CsvMappingField } from "@/lib/fewer/csvModel";
 import {
   listCloudFolder,
   PROVIDER_LABELS,
@@ -325,12 +343,16 @@ const FILE_FORMATS: {
   { value: "tree", label: "ASCII Tree", icon: FolderTree, accept: ".txt" },
   { value: "json", label: "JSON Graph", icon: FileJson, accept: ".json" },
   { value: "script", label: "Shell Script", icon: FileTerminal, accept: ".sh,.bat" },
+  { value: "csv", label: "CSV", icon: FileSpreadsheet, accept: ".csv" },
+  { value: "dot", label: "DOT", icon: FileText, accept: ".dot,.gv" },
 ];
 
 const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
   json: `{\n  "cards": [...],\n  "edges": [...]\n}`,
   tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
   script: `mkdir -p "src/components"\nmkdir -p "src/hooks"\nmkdir -p "public"`,
+  csv: `id,label,path,type,extension,category,size_bytes,symlink_target\nroot,app,folder,,folder,,0,\na1,index,app/index.ts,file,ts,code,1024,`,
+  dot: `digraph fewer {\n  "app" [label="app\\nfolder", fillcolor="#f97316"];\n  "app/index.ts" [label="index\\n.ts", fillcolor="#a855f7"];\n  "app" -> "app/index.ts";\n}`,
 };
 
 function FileSource({
@@ -386,7 +408,10 @@ function FileSource({
       if (advancedFormats && ext === "json") format = "json";
       else if (advancedFormats && (ext === "sh" || ext === "bat"))
         format = "script";
-      onSourceChange({ origin: "file", content: text, format });
+      else if (advancedFormats && ext === "csv") format = "csv";
+      else if (advancedFormats && (ext === "dot" || ext === "gv")) format = "dot";
+      // Drop any column mapping from the previous file: it belongs to those headers.
+      onSourceChange({ origin: "file", content: text, format, csvMapping: undefined });
     };
     reader.onerror = () =>
       onSourceChange({ ...source, content: "", format: source.format });
@@ -404,7 +429,10 @@ function FileSource({
         <div
           ref={formatsRef}
           onKeyDown={handleFormatsKeyDown}
-          className={cn("grid gap-2", formats.length === 1 ? "grid-cols-1" : "grid-cols-3")}
+          className={cn(
+            "grid gap-2",
+            formats.length === 1 ? "grid-cols-1" : formats.length <= 3 ? "grid-cols-3" : "grid-cols-2",
+          )}
         >
           {formats.map((f, i) => {
             const Icon = f.icon;
@@ -455,11 +483,132 @@ function FileSource({
         </Label>
         <Textarea
           value={source.content}
-          onChange={(e) => onSourceChange({ ...source, content: e.target.value })}
+          onChange={(e) => {
+            // A mapping belongs to one set of headers — drop it when the pasted
+            // content changes (the guess is re-derived from the new header).
+            onSourceChange({ ...source, content: e.target.value, csvMapping: undefined });
+          }}
           placeholder={FILE_PLACEHOLDERS[source.format]}
           className="gm-scroll min-h-[140px] max-h-[240px] bg-muted/20 p-3.5 font-mono text-xs font-medium leading-relaxed text-foreground"
         />
       </div>
+
+      {source.format === "csv" && source.content.trim() !== "" && (
+        <CsvColumnMapper source={source} onSourceChange={onSourceChange} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Column mapping for a CSV that isn't our own export. Shows only when the
+ * header row doesn't match the export shape; pre-fills the guess from the
+ * header names, and lets any field be re-pointed or cleared. The Name column
+ * is required — the others are optional enhancements to the hierarchy.
+ */
+function CsvColumnMapper({
+  source,
+  onSourceChange,
+}: {
+  source: Extract<OriginSource, { origin: "file" }>;
+  onSourceChange: (source: OriginSource) => void;
+}) {
+  const headers = useMemo(() => parseCsvRows(source.content)[0] ?? [], [source.content]);
+  const isExport = isExportCsv(headers);
+  const mapping = source.csvMapping ?? guessCsvMapping(headers);
+  const sample = useMemo(() => parseCsvRows(source.content).slice(1, 4), [source.content]);
+
+  if (isExport) return null;
+
+  const set = (field: CsvMappingField, index: number) => {
+    onSourceChange({ ...source, csvMapping: { ...mapping, [field]: index } });
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3.5">
+      <div className="flex items-center gap-2">
+        <Columns3 className="h-4 w-4 text-muted-foreground/80" />
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+          Columns
+        </Label>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        This CSV isn't a Fewer export — tell us which column holds which. Pick the
+        Name column to continue; the rest refine folders and links.
+      </p>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {CSV_MAPPING_FIELDS.map((field) => (
+          <div key={field} className="space-y-1">
+            <Label
+              htmlFor={`csv-map-${field}`}
+              className={cn(
+                "text-[11px] font-medium",
+                field === "name" && "text-primary",
+              )}
+            >
+              {CSV_FIELD_LABELS[field]}
+              {field === "name" ? " *" : ""}
+            </Label>
+            <Select
+              value={String(mapping[field])}
+              onValueChange={(v) => set(field, Number(v))}
+            >
+              <SelectTrigger id={`csv-map-${field}`} size="sm" className="w-full">
+                <SelectValue placeholder="Column…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="-1">— none —</SelectItem>
+                {headers.map((h, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {h || `Column ${i + 1}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </div>
+
+      {sample.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border/40 gm-scroll">
+          <table className="w-full text-[11px] font-mono">
+            <thead>
+              <tr className="border-b border-border/40 bg-muted/30">
+                {headers.map((h, i) => (
+                  <th
+                    key={i}
+                    className={cn(
+                      "px-2 py-1.5 text-left font-semibold whitespace-nowrap text-muted-foreground",
+                      i === mapping.name && "text-primary",
+                    )}
+                  >
+                    {h || `Column ${i + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sample.map((row, r) => (
+                <tr key={r} className="border-b border-border/20 last:border-0">
+                  {headers.map((_, c) => (
+                    <td
+                      key={c}
+                      className={cn(
+                        "max-w-[160px] truncate px-2 py-1 whitespace-nowrap text-foreground/80",
+                        c === mapping.name && "font-semibold text-foreground",
+                      )}
+                      title={row[c] ?? ""}
+                    >
+                      {row[c] ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

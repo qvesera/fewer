@@ -663,7 +663,7 @@ tasks:
   session_count: 7
 - id: "T-026"
   title: "CSV + Graphviz DOT import (export side already ships)"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "import"
   tier: null
@@ -676,14 +676,26 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:14Z"
   notes: ["2026-09-25T12:38:05Z · from roadmap: import/export gap - both formats already export, neither parses"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-01T14:39:25Z"
+    end: "2026-10-01T15:38:20Z"
+    measured: true
+    note: "CSV + DOT import: parsers (export-format round-trip + foreign CSV column mapping + third-party DOT), pure export payload builders, column-mapper UI in the file origin step, docs/README/ROADMAP/changelog. 21 parser tests + 3 exporter round-trip tests, full suite 188 pass."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-10-01T15:39:03Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 59
+  session_count: 2
 - id: "T-027"
   title: "Mermaid markdown import + export"
   status: "triaged"
