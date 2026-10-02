@@ -2222,14 +2222,14 @@ tasks:
   session_count: 1
 - id: "T-085"
   title: "Auto-detect the import format from content (drop format tiles, add chip + on-demand override)"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: null
   estimate_min: 270
   estimate_basis: "cli"
   issue: 292
-  pr: null
+  pr: 293
   internal: false
   milestone: null
   blocked_by: []
