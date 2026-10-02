@@ -2193,7 +2193,7 @@ tasks:
   session_count: 0
 - id: "T-084"
   title: "[Refactor] Fold the Archive origin into the File origin (one picker, extension-driven)"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "import"
   tier: null
@@ -2255,3 +2255,32 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 59, deletions: 28}
   spent_min: 42
   session_count: 2
+- id: "T-086"
+  title: "[Fix] Import options silently filter explicit file imports, and the panel shows controls that cannot do anything"
+  status: "review"
+  type: "fix"
+  area: "import"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 294
+  pr: 295
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#294"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-02T12:10:09Z"
+  notes: ["2026-10-02T12:10:29Z · adopted at intake from GitHub (open)", "2026-10-02T12:10:29Z · 2026-10-02 · from the auto-detect session: the import options panel renders one shared form for all five origins while the options act at three layers (scan / content filter / display). BUG: runFileImport calls filterTree(raw, options) unconditionally (importActionFile.ts:37; same for archive :38, cloud :78), so the persisted defaults (maxDepth 6, includeHidden false, skipEmptyFolders true) silently drop .github from a pasted JSON export, truncate past depth 6, and drop empty folders; a stale extensions filter strips files from the next file import. BASIC_MODE_OPTION_DEFAULTS resets those to the filtering defaults on every open. Symlinks + Look Inside Archives are provably no-ops for non-folder origins (consumers: localTree.ts only, folder walkers only). URL path already guards this (use-github-import.ts:52-59 filters only when an option differs from neutral) — file/archive/cloud lack the guard. Settled: RELEVANT_OPTIONS + scopeOptionsToOrigin in importOptions.ts (irrelevant keys forced to no-op: includeHidden→true, maxDepth→0, skipEmptyFolders→false, extensions→[], symlinks→leaf, expandArchives→false), scoped once in runImport (single seam), panel renders from the same constant, Show Files moves out of the Advanced block. file = includeVendored + includeFiles + displayMaxDepth only; archive/url/cloud keep scan filters minus symlinks/expandArchives; folder = everything. Stacks on #293 → #291."]
+  sessions:
+  - start: "2026-10-02T12:12:37Z"
+    end: "2026-10-02T12:42:21Z"
+    measured: true
+    note: "Options scoping shipped: RELEVANT_OPTIONS + scopeOptionsToOrigin keyed by option scope (origin + file payload kind: file:text / file:archive), one seam in runImport; file:text shows only Show Files on Canvas + Include dependency folders + Max Display Depth; archive/url/cloud keep scan filters minus walk-only switches; folder unchanged; Show Files moved out of the advanced gate. Bug fixed: pasted exports were truncated at depth 6 and .github dropped by persisted scan defaults. 12 matrix/bug-pin + dispatch + 2 component tests; docs, README, changelog added+fixed, decision c7c577cd."
+    proof: ["47002e6"]
+    effort: {commits: 1, files: 11, insertions: 716, deletions: 208}
+  spent_min: 30
+  session_count: 1

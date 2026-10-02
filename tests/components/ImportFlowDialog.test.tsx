@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ImportActionResult, ImportProgressFn, TextFileSource } from "@/lib/fewer/importFlow";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
@@ -337,6 +337,48 @@ describe("ImportFlowDialog state and step-3 import", () => {
     expect(screen.queryByText("backup.zip")).toBeNull();
     // Back on the text panel: detection is live again, so the chip says Auto.
     expect(chipText()).toContain("Auto");
+  });
+
+  test("file import offers only the options that can act on a pasted file", () => {
+    useGraphStore.setState({ tier: "free" });
+    renderDialog({ initialOrigin: "file" });
+    // Give the source content so step 1 lets us advance to the options step.
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "root {{ child }}" } });
+    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+
+    const panel = within(screen.getByTestId("import-options-panel"));
+    // Display-layer controls — they apply to every origin.
+    expect(panel.getByText("Max Display Depth")).toBeTruthy();
+    expect(panel.getByLabelText("Show Files on Canvas")).toBeTruthy();
+    // The dependency filter is the one scan-ish option that applies to content.
+    expect(panel.getByLabelText("Include dependency & build folders")).toBeTruthy();
+    // Everything a folder walk needs has nothing to do with a pasted file.
+    expect(panel.queryByText("Max Scan Depth")).toBeNull();
+    expect(panel.queryByLabelText("Include Hidden Files")).toBeNull();
+    expect(panel.queryByLabelText("Skip Empty Folders")).toBeNull();
+    expect(panel.queryByLabelText("Look Inside Archives")).toBeNull();
+    expect(panel.queryByText("File Extensions")).toBeNull();
+    expect(panel.queryByText("Symlinks")).toBeNull();
+  });
+
+  test("a folder import keeps the full option set", async () => {
+    const interaction = userEvent.setup();
+    useGraphStore.setState({ tier: "free" });
+    renderDialog();
+    // Folder needs no content to advance, so Continue lands on the options step.
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+
+    const panel = within(screen.getByTestId("import-options-panel"));
+    expect(panel.getByText("Max Scan Depth")).toBeTruthy();
+    expect(panel.getByText("Max Display Depth")).toBeTruthy();
+    expect(panel.getByLabelText("Include Hidden Files")).toBeTruthy();
+    expect(panel.getByLabelText("Include dependency & build folders")).toBeTruthy();
+    expect(panel.getByLabelText("Skip Empty Folders")).toBeTruthy();
+    expect(panel.getByLabelText("Look Inside Archives")).toBeTruthy();
+    expect(panel.getByLabelText("Show Files on Canvas")).toBeTruthy();
+    expect(panel.getByText("Symlinks")).toBeTruthy();
+    expect(panel.getByText("File Extensions")).toBeTruthy();
   });
 
   test("successful url import requests a watch before closing", async () => {

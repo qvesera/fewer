@@ -311,3 +311,40 @@ decisions:
     Detection is pinned by 20 unit tests plus export round-trips (each exporter''s payload must detect
     as its own format), and the component suite asserts the bug is gone: pasting JSON with nothing
     selected hands the parser a json format.
+- id: c7c577cd34e74424be79f4545c95e2bf
+  title: 'Import options act at three layers; explicit content is not scanned'
+  decision: 'Import options are scoped to the source at one seam (runImport) through RELEVANT_OPTIONS
+    in importOptions.ts, keyed by option scope — an origin, plus which payload the file origin carries
+    (file:text vs file:archive). A key irrelevant to a scope is forced to its no-op value before any
+    action sees it, so "irrelevant" means no effect rather than merely not rendered, and the panel
+    renders from the same map so the UI and the behavior cannot drift. A pasted file imports exactly
+    as given: only Include dependency & build folders and the display settings touch it. An uploaded
+    archive is a real filesystem listing and keeps the scan filters; only the walk-only switches
+    (consumed by localTree.ts and the folder walkers alone) drop out everywhere else.'
+  reason: 'The panel rendered one shared form for all four origins while the options act at three
+    layers — scan (what Fewer looks at), content filter (filterTree over whatever tree it is handed),
+    display (after import). So a pasted JSON export was silently rewritten by options the user never
+    applied to it: the persisted maxDepth of 6 truncated any tree nested deeper than six levels,
+    includeHidden:false dropped .github-style folders, skipEmptyFolders cascaded folders empty, and a
+    stale extensions filter stripped files. The URL path already guarded against exactly this
+    (use-github-import filters only when an option differs from its neutral value); file, archive and
+    cloud did not. Scoping once at the dispatcher — rather than per action — means every origin
+    inherits it without touching the actions, and the no-op values are the opposite of the default
+    where they differ, because a neutral is what never filters, not what merely resets.'
+  scope:
+  - src/lib/fewer/importOptions.ts
+  - src/lib/fewer/importOptions.test.ts
+  - src/lib/fewer/importAction.ts
+  - src/lib/fewer/importAction.test.ts
+  - src/components/fewer/ImportOptionsPanel.tsx
+  - src/components/fewer/ImportFlowDialog.tsx
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T12:40:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - Accepted by Yash Srivastava; follows #291 (archive fold) and #293 (format detection) on the same
+    panel. 12 matrix tests pin every key against every scope plus a bug-pin that a deep export is
+    truncated and .github-dropped under unscoped defaults yet survives under scoped ones; the dispatch
+    suite asserts the neutralized options reach each action; the component suite asserts the file panel
+    offers only its three controls and the folder panel keeps the full set.

@@ -200,7 +200,7 @@ docker run -p 3000:3000 fewer
 
 - **File operations**: copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
-- **Import settings**: depth limit, hidden files, vendored dirs, extension filter, file/folder toggles
+- **Import settings**: options are scoped to where the import comes from — folder and listing imports offer scan depth, hidden files, vendored dirs, extension filter, symlink handling and archive expansion, while a pasted or uploaded file imports exactly as given (only the dependency-folder filter and the display settings apply to it)
 
 </details>
 

@@ -109,12 +109,49 @@ describe("runImport dispatch", () => {
     expect(runCloudImport).not.toHaveBeenCalled();
   });
 
-  test("file → runFileImport with the source and options", async () => {
+  test("file → runFileImport receives options scoped to the payload, not the raw ones", async () => {
+    // Exactly the values a folder import leaves behind — the ones that used to
+    // silently rewrite a pasted JSON export (truncate at depth 6, drop
+    // .github, strip files by extension).
+    const leaked = opts({
+      maxDepth: 6,
+      includeHidden: false,
+      skipEmptyFolders: true,
+      extensions: ["ts"],
+      symlinks: "skip",
+      expandArchives: true,
+    });
     const source = { origin: "file", kind: "text", content: "root {{ child }}", format: "tree", formatOverride: null } as const;
-    const o = opts();
-    await runImport(source, o, ctx());
-    expect(runFileImport).toHaveBeenCalledWith(source, o, undefined);
+    await runImport(source, leaked, ctx());
+
+    const received = runFileImport.mock.calls[0]![1];
+    // The scan concepts cannot act on a pasted file…
+    expect(received.maxDepth).toBe(0);
+    expect(received.includeHidden).toBe(true);
+    expect(received.skipEmptyFolders).toBe(false);
+    expect(received.extensions).toEqual([]);
+    expect(received.symlinks).toBe("leaf");
+    expect(received.expandArchives).toBe(false);
+    // …while the options file imports DO honour pass through untouched.
+    expect(received.includeVendored).toBe(leaked.includeVendored);
+    expect(received.includeFiles).toBe(leaked.includeFiles);
+    expect(received.displayMaxDepth).toBe(leaked.displayMaxDepth);
     expect(runFolderImport).not.toHaveBeenCalled();
+  });
+
+  test("file + archive payload → runArchiveImport keeps the scan filters but not the walk-only switches", async () => {
+    const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], "backup.zip");
+    const leaked = opts({ maxDepth: 4, includeHidden: true, symlinks: "follow", expandArchives: true });
+    const source = { origin: "file", kind: "archive", file, name: "backup.zip" } as const;
+    await runImport(source, leaked, ctx());
+
+    const received = runArchiveImport.mock.calls[0]![1];
+    // An archive listing IS a filesystem — the scan filters earn their keep…
+    expect(received.maxDepth).toBe(4);
+    expect(received.includeHidden).toBe(true);
+    // …but these two are consumed only by the folder walkers.
+    expect(received.symlinks).toBe("leaf");
+    expect(received.expandArchives).toBe(false);
   });
 
   test("file + archive kind → runArchiveImport with the source and options", async () => {
