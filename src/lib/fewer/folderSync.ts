@@ -16,6 +16,7 @@ import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { useGraphStore } from "@/store/graphStore";
 import type { GraphState } from "@/store/slices/types";
 import { isLocalClient } from "./isLocalClient";
+import { isTauri, nativeOpenPath } from "./nativeShell";
 import { nodeAbsolutePath } from "./filePaths";
 import { isBrowserRenderable } from "./fileRender";
 
@@ -262,6 +263,14 @@ export async function openNodeFile(
   node: { id: string; data: { type: string; path?: string } },
   dataSource: string,
 ): Promise<boolean> {
+  if (isTauri() && node.data.path) {
+    try {
+      await nativeOpenPath(node.data.path);
+      return true;
+    } catch {
+      // shell command unavailable — fall through to the other paths
+    }
+  }
   if (isLocalClient() && node.data.path) {
     try {
       const res = await fetch("/api/open-file", {
@@ -295,6 +304,15 @@ export async function openFolderInExplorer(path: string): Promise<boolean> {
   const st = useGraphStore.getState();
   const root = st.nodes.find((n) => n.data.isRoot);
   const sendPath = nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
+  if (isTauri()) {
+    try {
+      await nativeOpenPath(sendPath);
+      return true;
+    } catch (err) {
+      console.error("Open folder error:", err instanceof Error ? err.message : "Unknown error");
+      return false;
+    }
+  }
   try {
     const res = await fetch("/api/open-folder", {
       method: "POST",
