@@ -2344,7 +2344,7 @@ tasks:
   session_count: 0
 - id: "T-089"
   title: "Local graph library: Fewer Library dir format + FS adapter + panel swap"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "infra"
   tier: null
@@ -2357,19 +2357,19 @@ tasks:
   blocked_by: []
   parent: "T-088"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
   notes: ["2026-10-02T21:59:51Z · Library format + backend landed: localLibrary.ts (manifest v1 + graph files reusing SavedGraph shape), graphsData.ts (GraphsBackend interface; cloud fetch impl extracted verbatim; local impl over LibraryFs), libraryConfig.ts (localStorage root), nativeShell + Rust fs_read/write/remove + pick_library_dir (tauri-plugin-dialog). SavedGraphsPanel now talks to the backend; local mode skips auth gating, hides share/history, shows library CTA + path. 13 new tests (format round-trip, backend CRUD/rename/favorite/corruption), full suite 1598+194 pass, tsc/lint/build clean, cargo clean, tauri dev boot smoke ok (dialog plugin registers). content/docs page deferred to the static-export child (desktop app UI not shipped yet; docs render from Supabase seeds)."]
   sessions:
   - start: "2026-10-02T21:47:47Z"
-    end: null
+    end: "2026-10-02T22:00:02Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Local library shipped: format v1 (manifest + SavedGraph-shaped graph files), GraphsBackend interface with cloud fetch impl extracted verbatim + local FS impl, panel swapped (auth gating skipped, share/history hidden in local mode, library CTA), Rust fs read/write/remove + native folder picker via tauri-plugin-dialog. 13 new tests; 1598+194 suite pass; tsc/lint/build/cargo clean; tauri dev boot smoke ok."
+    proof: ["7828d9e"]
+    effort: {commits: 1, files: 11, insertions: 939, deletions: 63}
+  spent_min: 12
   session_count: 1
 - id: "T-090"
   title: "License gate: offline Ed25519 license file + tiers integration + signing script"
