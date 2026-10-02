@@ -27,7 +27,7 @@ import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
 import { ImportOriginStep, ORIGIN_ICONS } from "./ImportOriginStep";
-import type { ImportOptions } from "@/lib/fewer/importOptions";
+import { optionScopeFor, type ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -304,13 +304,14 @@ function isEditableTarget(el: HTMLElement): boolean {
             />
           </div>
 
-          <div className={cn(step !== 2 && "hidden")}>
+          <div data-testid="import-options-panel" className={cn(step !== 2 && "hidden")}>
             <ImportOptionsPanel
               options={options}
               onChange={(partial) =>
                 setOptions((prev) => ({ ...prev, ...partial }))
               }
               advancedFormats={advancedFormats}
+              scope={optionScopeFor(source)}
             />
           </div>
 

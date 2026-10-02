@@ -145,6 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Splitting a canvas into a new view while a card is selected no longer crashes with React's 'Maximum update depth exceeded'. A brand-new leaf had no selection of its own, so it painted the active view's shared selection and reported it back, and React Flow's selection subscription re-emits its bookkeeping with a one-frame lag — the two sides drove each other until React tore the tree down. A leaf now starts with an explicit empty selection (and a joined leaf's entry is dropped), React Flow's report is advisory and only a pointer gesture changes what the store selects, and a card click writes the selection itself so a click in a background canvas still selects.
 - JSON, CSV and DOT round-trips keep file extensions — the exporters strip the extension from the display label, and the importers now rebuild the name from the path basename instead of dropping it
 - In the File import panel, clicking Auto highlighted the DETECTED format's tile and the chip read Detected, so the UI looked like it had defaulted to ASCII selection. Auto now stays on Auto: the chip names the mode first (Auto vs Format), and the Auto tile is the one highlighted while auto is in force — only a manual pick highlights a format. The component tests now assert which tile is highlighted in each state, not just which text is present
+- File imports are no longer silently rewritten by folder-scan settings: the saved max scan depth truncated any tree nested deeper than 6 levels, the hidden-files filter dropped .github folders, and a stale extension filter stripped files — all from options the user never applied to the file. A preference set for one import origin can no longer leak into another.
 
 ### Added
 
@@ -170,6 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dev-only `?tier=pro|free|guest` query parameter forces the client tier so the Pro surface (split views, docking, tags) is reachable without a Pro account. Development builds only; the server still enforces the real plan.
 - Changing the layout direction or running Organize now re-fits the view to the whole graph: the canvas waits for the re-flow to settle and frames the full graph, so working close to a card no longer leaves the new layout offscreen. A per-view direction change re-fits only that view; the global direction change and Organize re-fit every canvas.
 - CSV and Graphviz DOT import from the File origin — Fewer's own exports round-trip with no setup, and any other CSV gets a column-mapping panel (Name/Path/Type/Extension/Symlink target/Parent) with a live preview before you import
+- Import options are now scoped to the import's origin: a pasted or uploaded file shows only Show Files on Canvas, Include dependency & build folders and Max Display Depth, and the folder-only controls (Symlinks, Look Inside Archives) no longer appear where they could do nothing.
 
 ### Performance
 

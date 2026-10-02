@@ -64,6 +64,23 @@ disk** instead — the options are identical.
 
 ## Import Options
 
+**Explicit content is not scanned: a pasted file imports exactly as given.** The options act at three layers — what Fewer looks at (a scan), how the resulting tree is filtered, and what the canvas shows afterwards — and the panel shows only the options that can act on the import you're making, so what you see is what applies.
+
+### What applies to what
+
+| Option | Applies to | Default | Description |
+| --- | --- | --- | --- |
+| Max Scan Depth | folder, archive, URL, cloud | 6 | How deep to scan the listing (see below) |
+| Max Display Depth | all | 6 | How deep to display after import. Deeper cards go to the Hidden Cards panel |
+| Include Hidden Files | folder, archive, URL, cloud | Off | Include dotfiles (`.gitignore`, `.env`, etc.) |
+| Include dependency &amp; build folders | all | Off | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
+| Skip Empty Folders | folder, archive, URL, cloud | On | Hide folders with no files inside |
+| Show Files on Canvas | all | On | Show file cards. Off = directories only |
+| Look Inside Archives | folder only | Off | Show what's inside archives found in the folder |
+| File Extensions | folder, archive, URL, cloud | None | Comma-separated whitelist (e.g. `ts, tsx, js`) |
+| Case-Sensitive Match | folder, archive, URL, cloud | Off | Match extensions case-sensitively |
+| Symlinks | folder only | Show as links | How the walk treats symbolic links (see below) |
+
 ### Max Scan Depth
 
 How deep to scan the directory tree. `0` = no limit.
@@ -72,18 +89,11 @@ How deep to scan the directory tree. `0` = no limit.
 
 How deep to display after import. Deeper cards go to the Hidden Cards panel.
 
-### Advanced Options (Power User mode)
+### What "applies to" means
 
-| Option                                 | Default | Description                                        |
-| -------------------------------------- | ------- | -------------------------------------------------- |
-| Include Hidden Files                   | Off     | Include dotfiles (`.gitignore`, `.env`, etc.)      |
-| Include dependency &amp; build folders | Off     | Scan `node_modules`, `dist`, `build`, `.git`, etc. |
-| Skip Empty Folders                     | On      | Hide folders with no files inside                  |
-| Show Files on Canvas                   | On      | Show file cards. Off = directories only            |
-| Look Inside Archives                   | Off     | Show what's inside archives found in the folder    |
-| File Extensions                        | None    | Comma-separated whitelist (e.g. `ts, tsx, js`)     |
-| Case-Sensitive Match                   | Off     | Match extensions case-sensitively                  |
-| Symlinks                               | Show as links | How the walk treats symbolic links (see below) |
+- **A pasted file (or a re-imported graph export) is not scanned.** Depth, hidden-file, extension, and empty-folder settings cannot act on a file — there is no scan step — so a `.github/` folder in an export is kept, and a tree nested ten levels deep arrives in full. The only options that touch a pasted file are the dependency-folder filter and the two display settings.
+- **An uploaded archive is a real filesystem listing**, so it does keep the scan filters — a `.zip` genuinely contains `node_modules` and dotfiles. Only the two walk-only switches (Symlinks, Look Inside Archives) are dropped for it, since nothing in the archive reader consults them.
+- **Symlinks and Look Inside Archives follow the disk walk**, so they appear for folder imports only — the archive, URL, and cloud readers are listings, not walks.
 
 ### Symlinks
 
