@@ -35,3 +35,19 @@ export interface NativeDirPage {
 export function nativeListDir(path: string, offset: number, limit: number): Promise<NativeDirPage> {
   return tauriInvoke("list_dir", { path, offset, limit });
 }
+
+/* ---- Local library FS (T-089): scoped text-file ops for the library dir ---- */
+
+export function nativeFsRead(path: string): Promise<string> {
+  return tauriInvoke("fs_read_text", { path });
+}
+export function nativeFsWrite(path: string, contents: string): Promise<void> {
+  return tauriInvoke("fs_write_text", { path, contents });
+}
+export function nativeFsRemove(path: string): Promise<void> {
+  return tauriInvoke("fs_remove_file", { path });
+}
+/** Native folder picker; resolves to the chosen directory path or null. */
+export function nativePickDirectory(): Promise<string | null> {
+  return tauriInvoke<string | null>("pick_library_dir");
+}
