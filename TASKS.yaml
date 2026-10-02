@@ -2193,7 +2193,7 @@ tasks:
   session_count: 0
 - id: "T-084"
   title: "[Refactor] Fold the Archive origin into the File origin (one picker, extension-driven)"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "import"
   tier: null
