@@ -185,9 +185,11 @@ Supported formats:
 - **DOT**: Graphviz output (Fewer's export, or any other tool's)
 - **Archive**: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, plus `.7z`, `.rar`, `.xz`, `.bz2`, `.zst` via a lazily-loaded engine
 
-Click **Import from File** and select your file. You can also paste content directly into the dialog. The format is detected from the file extension, or chosen with the format tiles.
+Click **Import from File** and select your file. You can also paste content directly into the dialog — **the format is detected from what you give it**, not chosen. A Fewer export, a `tree` output, a `mkdir` script, a CSV table, or a Graphviz DOT graph are each recognised, and the panel reports what it found (`Detected: JSON`, `Detected: CSV`, …). Uploads are detected by content too, so a `.txt` full of JSON imports as JSON.
 
-**Archives are just a file here** — there is no separate "Archive" origin. Pick an archive and the panel switches to archive mode: the chosen file and its size replace the format tiles and the paste box, and step 3 reads the archive's listing. Everything else (options, depth limits, stats) is identical to every other origin.
+If detection gets it wrong, press **Change** to reveal the format tiles — plus **Auto**, which returns to detection — and pick the parser yourself. Your choice is kept for that file, even as you keep editing it.
+
+**Archives are just a file here** — there is no separate "Archive" origin. Pick an archive and the panel switches to archive mode: the chosen file and its size replace the detection chip and the paste box, and step 3 reads the archive's listing. Everything else (options, depth limits, stats) is identical to every other origin.
 
 ### CSV column mapping
 

@@ -8,11 +8,15 @@ import type { CloudProvider } from "@/lib/fewer/cloud/types";
 import { formatBytes } from "@/lib/fewer/stats";
 import { guessCsvMapping, isCsvMappingUsable, isExportCsv, parseCsvRows } from "@/lib/fewer/csvModel";
 import type { CsvColumnMap } from "@/lib/fewer/csvModel";
+import { detectImportFormat } from "@/lib/fewer/importDetect";
 import { useGraphStore } from "@/store/graphStore";
 
 export type ImportOrigin = "folder" | "file" | "url" | "cloud";
 
-export type FileImportFormat = "json" | "tree" | "script" | "csv" | "dot";
+/** The text formats the file origin can parse, in the order the panel lists them. */
+export const FILE_IMPORT_FORMATS = ["tree", "json", "script", "csv", "dot"] as const;
+
+export type FileImportFormat = (typeof FILE_IMPORT_FORMATS)[number];
 
 /**
  * Extensions the archive reader accepts. ONE list serves two jobs: the file
@@ -60,7 +64,14 @@ export type OriginSource =
       origin: "file";
       kind: "text";
       content: string;
+      /** Resolved: `formatOverride ?? detectImportFormat(content)`. */
       format: FileImportFormat;
+      /**
+       * The user's choice for THIS file, kept across edits so tweaking a CSV
+       * cell does not flip them back to tree. Cleared by picking a new file or
+       * by the Auto tile. Never resolved here — see `resolveFileFormat`.
+       */
+      formatOverride: FileImportFormat | null;
       /** Set when the CSV is not our own export: which column plays which role. */
       csvMapping?: CsvColumnMap;
     }
@@ -78,6 +89,25 @@ export type OriginSource =
 export type TextFileSource = Extract<OriginSource, { origin: "file"; kind: "text" }>;
 /** The file origin's archive payload (picked as a binary file). */
 export type ArchiveFileSource = Extract<OriginSource, { origin: "file"; kind: "archive" }>;
+
+/**
+ * Fold detection and the user's intent into the two fields the panel and the
+ * parser both read. Content is the single source of truth for which parser
+ * runs; the override is the user's intent for THIS file.
+ *
+ * Resolution belongs in change handlers, not during render: `isSourceReady`
+ * reads the already-resolved `format`, so a megabyte paste is tokenised once
+ * rather than on every unrelated keystroke.
+ */
+export function resolveFileFormat(
+  content: string,
+  formatOverride: FileImportFormat | null,
+): { format: FileImportFormat; formatOverride: FileImportFormat | null } {
+  // An override that names no real format is no override at all.
+  const override =
+    formatOverride !== null && FILE_IMPORT_FORMATS.includes(formatOverride) ? formatOverride : null;
+  return { format: override ?? detectImportFormat(content), formatOverride: override };
+}
 
 export interface ImportActionResult {
   ok: boolean;
@@ -142,7 +172,7 @@ export function defaultSourceFor(origin: ImportOrigin): OriginSource {
 export function defaultFileSource(kind: "text" | "archive"): OriginSource {
   return kind === "archive"
     ? { origin: "file", kind: "archive", file: null, name: "" }
-    : { origin: "file", kind: "text", content: "", format: "tree" };
+    : { origin: "file", kind: "text", content: "", ...resolveFileFormat("", null) };
 }
 
 /** Step 1 → step 2 gate: is the source complete enough to configure? */

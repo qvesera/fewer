@@ -40,8 +40,10 @@ import {
   Loader2,
   Lock,
   RefreshCw,
+  ScanLine,
   Settings as SettingsIcon,
   Upload,
+  Wand2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,6 +70,7 @@ import {
   defaultSourceFor,
   isArchiveFileName,
   isGitHubUrl,
+  resolveFileFormat,
 } from "@/lib/fewer/importFlow";
 import type {
   FileImportFormat,
@@ -81,7 +84,6 @@ export interface ImportOriginStepProps {
   onOriginChange: (origin: ImportOrigin) => void;
   source: OriginSource;
   onSourceChange: (source: OriginSource) => void;
-  advancedFormats: boolean;
   cloudImport: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
@@ -115,7 +117,6 @@ export function ImportOriginStep({
   onOriginChange,
   source,
   onSourceChange,
-  advancedFormats,
   cloudImport,
   onRequireAuth,
   onOpenCloudSettings,
@@ -262,7 +263,6 @@ export function ImportOriginStep({
             <FileSource
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
-              advancedFormats={advancedFormats}
             />
           )}
           {origin === "url" && (
@@ -340,10 +340,9 @@ const FILE_FORMATS: {
 ];
 
 /**
- * One picker, everything it can read: every format tile's extension plus the
- * archive set. Deliberately NOT filtered by `advancedFormats` — archive import
- * is unconditional today, and folding it into this panel must not make it
- * vanish for advanced-off users.
+ * One picker, everything it can read: every text format's extension plus the
+ * archive set. Unconditional on purpose — archive import is not tier-gated, so
+ * nothing in this panel may narrow what the picker offers.
  */
 const FILE_ACCEPT = Array.from(
   new Set([
@@ -352,18 +351,21 @@ const FILE_ACCEPT = Array.from(
   ]),
 ).join(",");
 
-const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
-  json: `{\n  "cards": [...],\n  "edges": [...]\n}`,
-  tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
-  script: `mkdir -p "src/components"\nmkdir -p "src/hooks"\nmkdir -p "public"`,
-  csv: `id,label,path,type,extension,category,size_bytes,symlink_target\nroot,app,folder,,folder,,0,\na1,index,app/index.ts,file,ts,code,1024,`,
-  dot: `digraph fewer {\n  "app" [label="app\\nfolder", fillcolor="#f97316"];\n  "app/index.ts" [label="index\\n.ts", fillcolor="#a855f7"];\n  "app" -> "app/index.ts";\n}`,
-};
+/**
+ * One box, five shapes — the panel no longer asks which, it detects. The
+ * example shown is an ASCII tree, the most common paste; the rest are named.
+ */
+const PASTE_PLACEHOLDER = `Paste a Fewer export, an ASCII tree, a mkdir script, a CSV table, or a Graphviz DOT graph — the format is detected for you.
+
+root/
+├── src/
+│   └── App.tsx
+└── package.json`;
 
 /**
  * The file origin's panel, in one of two modes:
  *
- *  - **text** — format tiles + upload + paste box + CSV column mapper.
+ *  - **text** — upload + a paste box that detects its format + CSV column mapper.
  *  - **archive** — the chosen archive and its size; nothing else to configure.
  *
  * The mode is chosen by the picked file's extension (`isArchiveFileName`).
@@ -371,53 +373,65 @@ const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
  * bytes, so a renamed archive still imports once the user switches mode. The
  * upgrade path is sniffing the first bytes at pick time if that ever matters.
  *
- * The archive accept attribute is deliberately NOT filtered by
- * `advancedFormats`: archive import is unconditional today, and folding it
- * into this panel must not make it vanish for advanced-off users.
+ * The text format is DETECTED, not chosen: `resolveFileFormat` folds detection
+ * and the user's override into the two fields the parser reads. The tiles
+ * exist only as that override, revealed by "Change" — detection stays the
+ * default because the panel's old promise ("this tile says tree") was a
+ * promise the parser never checked: pasting JSON while the ASCII-Tree tile was
+ * active parsed it as a tree.
  */
 function FileSource({
   source,
   onSourceChange,
-  advancedFormats,
 }: {
   source: Extract<OriginSource, { origin: "file" }>;
   onSourceChange: (source: OriginSource) => void;
-  advancedFormats: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatsRef = useRef<HTMLDivElement>(null);
   const isArchive = source.kind === "archive";
   // Narrow to the text payload so every field access below is safe.
   const text = source.kind === "text" ? source : null;
-  const formats = advancedFormats
-    ? FILE_FORMATS
-    : FILE_FORMATS.filter((f) => f.value === "tree");
+  // Local UI state only — the chosen override lives in `source.formatOverride`.
+  const [showOverride, setShowOverride] = useState(false);
+  // The override tiles: Auto (back to detection) first, then every format.
+  const overrideOptions: { value: FileImportFormat | null; label: string; icon: LucideIcon }[] = [
+    { value: null, label: "Auto", icon: Wand2 },
+    ...FILE_FORMATS.map(({ value, label, icon }) => ({ value, label, icon })),
+  ];
+  /** Which tile is active: the override, else the detected format. */
+  const activeOption = text ? (text.formatOverride ?? text.format) : null;
 
-  // Arrow-key navigation across the format tiles (a row; wraps at the ends).
+  /**
+   * Apply an override (null = back to detection). Resolves against the current
+   * content in one call, so `format` and `formatOverride` cannot drift.
+   */
+  const chooseOverride = useCallback(
+    (value: FileImportFormat | null) => {
+      if (!text) return;
+      onSourceChange({ ...text, ...resolveFileFormat(text.content, value) });
+    },
+    [text, onSourceChange],
+  );
+
+  // Arrow-key navigation across the override tiles (a row; wraps at the ends).
   const handleFormatsKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (!text) return;
-      const idx = formats.findIndex((f) => f.value === text.format);
+      const idx = overrideOptions.findIndex((f) => f.value === activeOption);
       if (idx < 0) return;
       let next = -1;
-      if (e.key === "ArrowRight") next = (idx + 1) % formats.length;
-      else if (e.key === "ArrowLeft") next = (idx - 1 + formats.length) % formats.length;
+      if (e.key === "ArrowRight") next = (idx + 1) % overrideOptions.length;
+      else if (e.key === "ArrowLeft") next = (idx - 1 + overrideOptions.length) % overrideOptions.length;
       else return;
       e.preventDefault();
-      const chosen = formats[next].value;
-      onSourceChange({ ...text, format: chosen });
+      chooseOverride(overrideOptions[next]!.value);
       formatsRef.current
         ?.querySelector<HTMLButtonElement>(`[data-format-idx="${next}"]`)
         ?.focus();
     },
-    [text, formats, onSourceChange],
+    [text, activeOption, overrideOptions, chooseOverride],
   );
-
-  // Advanced mode off → only ASCII tree is allowed.
-  useEffect(() => {
-    if (!text || advancedFormats || text.format === "tree") return;
-    onSourceChange({ ...text, format: "tree" });
-  }, [advancedFormats, text, onSourceChange]);
 
   const pickFile = () => fileInputRef.current?.click();
   const clearArchive = () => onSourceChange(defaultFileSource("text"));
@@ -437,24 +451,27 @@ function FileSource({
     const reader = new FileReader();
     reader.onload = (ev) => {
       const content = (ev.target?.result as string) ?? "";
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      let format: FileImportFormat = "tree";
-      if (advancedFormats && ext === "json") format = "json";
-      else if (advancedFormats && (ext === "sh" || ext === "bat"))
-        format = "script";
-      else if (advancedFormats && ext === "csv") format = "csv";
-      else if (advancedFormats && (ext === "dot" || ext === "gv")) format = "dot";
+      // A picked file is a NEW file, so the format is detected from its content
+      // and any override from the previous one no longer applies. The extension
+      // decides nothing here: detection is the same rule the paste box uses, so
+      // an uploaded .txt containing JSON imports as JSON.
+      //
       // Drop any column mapping from the previous file: it belongs to those headers.
       onSourceChange({
         origin: "file",
         kind: "text",
         content,
-        format,
         csvMapping: undefined,
+        ...resolveFileFormat(content, null),
       });
     };
     reader.onerror = () =>
-      onSourceChange({ origin: "file", kind: "text", content: "", format: "tree" });
+      onSourceChange({
+        origin: "file",
+        kind: "text",
+        content: "",
+        ...resolveFileFormat("", null),
+      });
     reader.readAsText(file);
   };
 
@@ -506,41 +523,65 @@ function FileSource({
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-          Format
-        </Label>
-        <div
-          ref={formatsRef}
-          onKeyDown={handleFormatsKeyDown}
-          className={cn(
-            "grid gap-2",
-            formats.length === 1 ? "grid-cols-1" : formats.length <= 3 ? "grid-cols-3" : "grid-cols-2",
-          )}
-        >
-          {formats.map((f, i) => {
-            const Icon = f.icon;
-            const active = text?.format === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                data-format-idx={i}
-                onClick={() => text && onSourceChange({ ...text, format: f.value })}
-                className={cn(
-                  "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-primary bg-primary/10 text-primary shadow-sm"
-                    : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
-                )}
-              >
-                <Icon className="h-4.5 w-4.5 opacity-85" />
-                <span className="text-center text-xs font-medium leading-tight">
-                  {f.label}
-                </span>
-              </button>
-            );
-          })}
+        {/* The detected format is the product, not the choice: say what will
+            happen, and offer "Change" only so the user can disagree with it. */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <ScanLine
+              className={cn(
+                "h-4 w-4 shrink-0",
+                text?.formatOverride ? "text-primary" : "text-muted-foreground/80",
+              )}
+              aria-hidden="true"
+            />
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+              {text?.formatOverride ? "Format" : "Detected"}
+            </Label>
+            <span className="truncate text-xs font-medium text-foreground/85">
+              {FILE_FORMATS.find((f) => f.value === text?.format)?.label ?? "—"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowOverride((v) => !v)}
+            aria-expanded={showOverride}
+            className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showOverride ? "Done" : "Change"}
+          </button>
         </div>
+
+        {showOverride && (
+          <div
+            ref={formatsRef}
+            onKeyDown={handleFormatsKeyDown}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          >
+            {overrideOptions.map((f, i) => {
+              const Icon = f.icon;
+              const active = f.value === activeOption;
+              return (
+                <button
+                  key={f.value ?? "auto"}
+                  type="button"
+                  data-format-idx={i}
+                  onClick={() => chooseOverride(f.value)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-xl border p-3 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4 opacity-85" />
+                  <span className="text-center text-xs font-medium leading-tight">
+                    {f.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <input
@@ -567,13 +608,19 @@ function FileSource({
         <Textarea
           value={text?.content ?? ""}
           onChange={(e) => {
-            // A mapping belongs to one set of headers — drop it when the pasted
-            // content changes (the guess is re-derived from the new header).
-            if (text) {
-              onSourceChange({ ...text, content: e.target.value, csvMapping: undefined });
-            }
+            if (!text) return;
+            // Editing keeps the user's override — a tweak to a CSV cell must not
+            // flip them back to tree — and drops any column mapping, since a
+            // mapping belongs to the headers it was guessed from.
+            const content = e.target.value;
+            onSourceChange({
+              ...text,
+              content,
+              csvMapping: undefined,
+              ...resolveFileFormat(content, text.formatOverride),
+            });
           }}
-          placeholder={FILE_PLACEHOLDERS[text?.format ?? "tree"]}
+          placeholder={PASTE_PLACEHOLDER}
           className="gm-scroll min-h-[140px] max-h-[240px] bg-muted/20 p-3.5 font-mono text-xs font-medium leading-relaxed text-foreground"
         />
       </div>

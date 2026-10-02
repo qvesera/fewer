@@ -7,16 +7,25 @@ import {
   defaultSourceFor,
   isArchiveFileName,
   isSourceReady,
+  resolveFileFormat,
   sourceLabel,
   type OriginSource,
+  type TextFileSource,
 } from "./importFlow";
 import { formatBytes } from "./stats";
 
 const text = (over: Partial<Extract<OriginSource, { origin: "file"; kind: "text" }>> = {}) =>
-  ({ origin: "file", kind: "text", content: "root\n└── child", format: "tree", ...over }) as OriginSource;
+  ({ origin: "file", kind: "text", content: "root\n└── child", format: "tree", formatOverride: null, ...over }) as OriginSource;
 
 const archive = (file: File | null) =>
   ({ origin: "file", kind: "archive", file, name: "backup.zip" }) as OriginSource;
+
+/**
+ * Build a text source the way the panel does: the format is RESOLVED from the
+ * content, never hand-set — so these tests pin what a user would actually get.
+ */
+const textFrom = (content: string, over: Partial<TextFileSource> = {}): OriginSource =>
+  ({ origin: "file", kind: "text", content, ...resolveFileFormat(content, null), ...over }) as OriginSource;
 
 describe("isSourceReady — the file origin's two payloads", () => {
   test("text: empty content is not ready, non-empty is", () => {
@@ -30,21 +39,47 @@ describe("isSourceReady — the file origin's two payloads", () => {
   });
 
   test("text csv: our own export needs no mapping, a foreign one needs a usable guess", () => {
-    // Our export header → straight to step 2.
+    // Our export header → detected as csv, and its header needs no mapping.
     expect(
-      isSourceReady(
-        text({
-          content: "id,label,path,type,extension,category,size_bytes,symlink_target",
-          format: "csv",
-        }),
-      ),
+      isSourceReady(textFrom("id,label,path,type,extension,category,size_bytes,symlink_target")),
     ).toBe(true);
     // A header with no name column and no stored mapping → blocked.
-    expect(
-      isSourceReady(text({ content: "col_a,col_b\n1,2", format: "csv" })),
-    ).toBe(false);
-    // A header the guess resolves (single column → name) → ready.
-    expect(isSourceReady(text({ content: "name\na.ts", format: "csv" }))).toBe(true);
+    expect(isSourceReady(textFrom("col_a,col_b\n1,2"))).toBe(false);
+    // The same single-column list forced to CSV by the override → the guess
+    // resolves name, so the gate opens. Unforced it detects as tree, where no
+    // mapping is involved at all.
+    expect(isSourceReady(textFrom("name\na.ts", resolveFileFormat("name\na.ts", "csv")))).toBe(
+      true,
+    );
+  });
+});
+
+describe("resolveFileFormat — detection folded with the user's intent", () => {
+  test("no override → the detected format", () => {
+    expect(resolveFileFormat('{ "nodes": [] }', null).format).toBe("json");
+    expect(resolveFileFormat("id,label,path\nr,show", null).format).toBe("csv");
+    expect(resolveFileFormat("root/\n├── a", null).format).toBe("tree");
+  });
+
+  test("an override wins over detection, and survives a content change", () => {
+    expect(resolveFileFormat("root/\n├── a", "csv")).toEqual({
+      format: "csv",
+      formatOverride: "csv",
+    });
+    // Editing keeps the override — a tweak must not flip them back to tree.
+    expect(resolveFileFormat("root/\n├── a\n└── b", "csv").format).toBe("csv");
+  });
+
+  test("an override naming no real format is dropped", () => {
+    const bogus = "pdf" as "csv";
+    expect(resolveFileFormat('{ "nodes": [] }', bogus)).toEqual({
+      format: "json",
+      formatOverride: null,
+    });
+  });
+
+  test("empty content resolves to tree with no override", () => {
+    expect(resolveFileFormat("", null)).toEqual({ format: "tree", formatOverride: null });
   });
 });
 

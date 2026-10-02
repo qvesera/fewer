@@ -2220,3 +2220,32 @@ tasks:
     effort: {commits: 1, files: 13, insertions: 451, deletions: 152}
   spent_min: 39
   session_count: 1
+- id: "T-085"
+  title: "Auto-detect the import format from content (drop format tiles, add chip + on-demand override)"
+  status: "in-progress"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 270
+  estimate_basis: "cli"
+  issue: 292
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#292"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-02T10:19:38Z"
+  notes: ["2026-10-02T10:19:51Z · adopted at intake from GitHub (open)", "2026-10-02T10:20:07Z · 2026-10-02 · from the archive-fold session: the File panel's format is chosen independently of the pasted content, and parseImportFile takes format as a required arg, so pasting JSON while the ASCII-Tree tile is active parses it as a tree (upload sniffs by extension only, so an uploaded .txt with JSON has the same gap). Plan: detectImportFormat (json→dot→script→csv→tree ladder), resolveFileFormat helper with formatOverride kept across edits, chip + Change reveal reusing the existing tiles code, upload runs the same detection (archive stays extension-based), advancedFormats drops out of FileSource/ImportOriginStep. Stacks on #291 (same FileSource panel)."]
+  sessions:
+  - start: "2026-10-02T10:22:28Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
