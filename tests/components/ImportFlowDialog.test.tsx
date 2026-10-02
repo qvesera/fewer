@@ -38,6 +38,9 @@ const { formatBytes } = await import("@/lib/fewer/stats");
 const { DEFAULT_IMPORT_OPTIONS } = await import("@/lib/fewer/importOptions");
 const initial = useGraphStore.getInitialState();
 
+/** The format chip's rendered text: the mode ("Auto"/"Format") + the format. */
+const chipText = () => screen.getByTestId("format-chip").textContent ?? "";
+
 function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "url" | "cloud" }) {
   const onOpenChange = mock(() => {});
   render(
@@ -200,10 +203,11 @@ describe("ImportFlowDialog state and step-3 import", () => {
         },
       });
     });
-    // The chip reports what will be parsed — no tile had to be chosen.
-    expect(screen.getByText("Detected")).toBeTruthy();
-    expect(screen.getByText("JSON Graph")).toBeTruthy();
-    expect(screen.queryByText("Auto")).toBeNull();
+    // The chip reports the MODE (Auto) and what will be parsed — and no tile
+    // had to be chosen, so none is revealed yet.
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("JSON Graph");
+    expect(screen.queryByRole("button", { name: /^Auto$/ })).toBeNull();
 
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
@@ -222,18 +226,27 @@ describe("ImportFlowDialog state and step-3 import", () => {
       // A single-column list has no delimiters, so it detects as tree.
       fireEvent.change(screen.getByRole("textbox"), { target: { value: "name\na.ts" } });
     });
-    expect(screen.getByText("Detected")).toBeTruthy();
-    expect(screen.getByText("ASCII Tree")).toBeTruthy();
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("ASCII Tree");
 
     await interaction.click(screen.getByRole("button", { name: /^Change$/ }));
-    // Auto first (back to detection), then every format the parser accepts.
+    // Auto first (back to detection), then every format the parser accepts —
+    // and Auto is the highlighted tile, never the detected format's.
     expect(screen.getByRole("button", { name: /^Auto$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^CSV$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^ASCII Tree$/ }).className).not.toContain(
+      "border-primary",
+    );
 
     await interaction.click(screen.getByRole("button", { name: /^CSV$/ }));
-    // Overridden: the chip now says Format, and the tiles stay revealed.
-    expect(screen.getByText("Format")).toBeTruthy();
-    expect(screen.queryByText("Detected")).toBeNull();
+    // Overridden: the chip says Format, and CSV — not Auto — is highlighted.
+    expect(chipText()).toContain("Format");
+    expect(chipText()).toContain("CSV");
+    expect(screen.getByRole("button", { name: /^CSV$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).not.toContain(
+      "border-primary",
+    );
     // A non-export CSV needs no mapping gate here — a single column maps to
     // name by guess — so step 2 is reachable.
     expect(
@@ -241,11 +254,15 @@ describe("ImportFlowDialog state and step-3 import", () => {
     ).toBe(false);
 
     await interaction.click(screen.getByRole("button", { name: /^Auto$/ }));
-    // Back to detection, and "Done" collapses the tiles so the panel names the
-    // format in exactly one place again.
+    // Auto is highlighted again — the detected format's tile never claims it.
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^ASCII Tree$/ }).className).not.toContain(
+      "border-primary",
+    );
+    // "Done" collapses the tiles so the panel names the format in one place.
     await interaction.click(screen.getByRole("button", { name: /^Done$/ }));
-    expect(screen.getByText("Detected")).toBeTruthy();
-    expect(screen.getByText("ASCII Tree")).toBeTruthy();
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("ASCII Tree");
   });
 
   test("picking an archive in the file origin switches to archive mode and imports it", async () => {
@@ -318,8 +335,8 @@ describe("ImportFlowDialog state and step-3 import", () => {
 
     await interaction.click(screen.getByRole("button", { name: /^Clear$/i }));
     expect(screen.queryByText("backup.zip")).toBeNull();
-    // Back on the text panel: detection is live again, so the chip is present.
-    expect(screen.getByText("Detected")).toBeTruthy();
+    // Back on the text panel: detection is live again, so the chip says Auto.
+    expect(chipText()).toContain("Auto");
   });
 
   test("successful url import requests a watch before closing", async () => {

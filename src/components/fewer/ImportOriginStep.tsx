@@ -399,8 +399,13 @@ function FileSource({
     { value: null, label: "Auto", icon: Wand2 },
     ...FILE_FORMATS.map(({ value, label, icon }) => ({ value, label, icon })),
   ];
-  /** Which tile is active: the override, else the detected format. */
-  const activeOption = text ? (text.formatOverride ?? text.format) : null;
+  /**
+   * The override ONLY — never the detected format. While Auto is active this is
+   * null, so the Auto tile is the one highlighted: lighting up the detected
+   * format's tile instead made clicking Auto look like it had defaulted to
+   * that format.
+   */
+  const activeOption = text?.formatOverride ?? null;
 
   /**
    * Apply an override (null = back to detection). Resolves against the current
@@ -524,9 +529,11 @@ function FileSource({
     <div className="space-y-3">
       <div className="space-y-2">
         {/* The detected format is the product, not the choice: say what will
-            happen, and offer "Change" only so the user can disagree with it. */}
+            happen, and offer "Change" only so the user can disagree with it.
+            The chip names the MODE first (Auto vs Format) so clicking Auto
+            reads as staying on Auto — never as a format being selected. */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
+          <div data-testid="format-chip" className="flex min-w-0 items-center gap-2">
             <ScanLine
               className={cn(
                 "h-4 w-4 shrink-0",
@@ -535,7 +542,7 @@ function FileSource({
               aria-hidden="true"
             />
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-              {text?.formatOverride ? "Format" : "Detected"}
+              {text?.formatOverride ? "Format" : "Auto"}
             </Label>
             <span className="truncate text-xs font-medium text-foreground/85">
               {FILE_FORMATS.find((f) => f.value === text?.format)?.label ?? "—"}
