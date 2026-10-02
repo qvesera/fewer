@@ -2292,14 +2292,14 @@ tasks:
   session_count: 1
 - id: "T-087"
   title: "Tauri POC: measure IPC + native list_dir on Rust box"
-  status: "triaged"
+  status: "review"
   type: "research"
   area: "infra"
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
   issue: 298
-  pr: null
+  pr: 299
   internal: false
   milestone: null
   blocked_by: []
