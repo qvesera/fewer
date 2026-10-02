@@ -2351,7 +2351,7 @@ tasks:
   estimate_min: 720
   estimate_basis: "cli"
   issue: 301
-  pr: 305
+  pr: 306
   internal: false
   milestone: null
   blocked_by: []
@@ -2373,14 +2373,14 @@ tasks:
   session_count: 1
 - id: "T-090"
   title: "License gate: offline Ed25519 license file + tiers integration + signing script"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 720
   estimate_basis: "cli"
   issue: 302
-  pr: null
+  pr: 306
   internal: false
   milestone: null
   blocked_by: []
