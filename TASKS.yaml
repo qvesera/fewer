@@ -2344,14 +2344,14 @@ tasks:
   session_count: 0
 - id: "T-089"
   title: "Local graph library: Fewer Library dir format + FS adapter + panel swap"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 720
   estimate_basis: "cli"
   issue: 301
-  pr: null
+  pr: 305
   internal: false
   milestone: null
   blocked_by: []
