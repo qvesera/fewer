@@ -1022,14 +1022,14 @@ tasks:
   session_count: 2
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
-  status: "triaged"
+  status: "review"
   type: "research"
   area: "infra"
   tier: null
   estimate_min: 960
   estimate_basis: "cli"
   issue: 214
-  pr: null
+  pr: 297
   internal: false
   milestone: null
   blocked_by: []
