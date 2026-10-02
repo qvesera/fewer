@@ -307,10 +307,10 @@ decisions:
   accepted_at: '2026-10-02T11:05:00.000000'
   accepted_by: Yash Srivastava
   evidence:
-  - Accepted by Yash Srivastava; follows #288 (CSV/DOT import) and #291 (archive fold) on the same panel.
+  - 'Accepted by Yash Srivastava; follows #288 (CSV/DOT import) and #291 (archive fold) on the same panel.
     Detection is pinned by 20 unit tests plus export round-trips (each exporter''s payload must detect
     as its own format), and the component suite asserts the bug is gone: pasting JSON with nothing
-    selected hands the parser a json format.
+    selected hands the parser a json format.'
 - id: c7c577cd34e74424be79f4545c95e2bf
   title: 'Import options act at three layers; explicit content is not scanned'
   decision: 'Import options are scoped to the source at one seam (runImport) through RELEVANT_OPTIONS
@@ -343,8 +343,50 @@ decisions:
   accepted_at: '2026-10-02T12:40:00.000000'
   accepted_by: Yash Srivastava
   evidence:
-  - Accepted by Yash Srivastava; follows #291 (archive fold) and #293 (format detection) on the same
+  - 'Accepted by Yash Srivastava; follows #291 (archive fold) and #293 (format detection) on the same
     panel. 12 matrix tests pin every key against every scope plus a bug-pin that a deep export is
     truncated and .github-dropped under unscoped defaults yet survives under scoped ones; the dispatch
     suite asserts the neutralized options reach each action; the component suite asserts the file panel
-    offers only its three controls and the folder panel keeps the full set.
+    offers only its three controls and the folder panel keeps the full set.'
+- id: dde1721f71af0e1ec541d4694cea08b8
+  title: 'Native shell: Tauri v2 (Rust) thin shell, not a Swift/macOS-native shell'
+  decision: 'If fewer ever ships a desktop build, it is a Tauri v2 shell over a Rust core, configured as a thin
+    shell: build.frontendDist points at the hosted web app (the config accepts an external URL and
+    embeds no assets), so every src/app/api/* route, Supabase SSR auth and Stripe billing keep working
+    unchanged. Native commands add only what a webview cannot do: scoped filesystem reads and directory
+    listing (tauri-plugin-fs), OS file/folder opening (tauri-plugin-opener, replacing /api/open-folder
+    and /api/open-file), a native file watcher (shipped inside the official fs plugin), system tray
+    (Tauri core TrayIconConfig) and global shortcuts (tauri-plugin-global-shortcut). The Rust core
+    replaces exactly one unbounded memory path - the libarchive.js WASM engine that copies the whole
+    archive into the Emscripten MEMFS heap under a wasm32 ceiling - behind the existing ArchiveReader
+    seam, and tree reads are windowed (list_dir(path, offset, limit) -> { entries: TreeEntry[], total })
+    so a 100k-node tree never exists three times as Rust struct -> JSON -> JS. Every LOCAL_FS_FEATURES
+    flag maps to a named native replacement; the three localhost-restricted routes stay for self-hosted
+    web and go dead only in the desktop build.'
+  reason: 'RAM does not justify the port: zip is already O(central directory) via Blob.slice, tar is
+    O(names+sizes) with an arithmetic skip and reads no payload bytes, and tar.gz is O(1) with a bounded
+    64KB read-and-discard buffer (Rust would add threads, not less RAM). The graph - per-node path
+    strings, edges and the derived index from #240 - dominates heap usage in the webview JS heap
+    regardless of core language, and Tauri IPC is JSON-serializable by default, so a whole-tree response
+    costs an extra serialise/parse. The port is therefore justified by what ROADMAP already lists
+    (native file watching, system tray, global hotkeys) with bounded-memory archive reads as a bonus.
+    Swift/macOS-native wins macOS fidelity only: it is macOS-only, drops Windows and Linux, rebuilds or
+    re-embeds the UI, has no plugin parity and cannot be built here (no Xcode/macOS toolchain). Tauri
+    reuses the entire web UI through the documented external-URL frontendDist option, and the migration
+    seams (LOCAL_FS_FEATURES, TreeEntry, ArchiveReader) were designed so this lands as a flag flip plus
+    injected readers. Nothing is benchmarked - no cargo/rustc/tauri/pkg-config/gtk3 on the dev box - so
+    the consuming task''s first step is instrumenting node-count vs bytes-read on the worst real
+    archive.'
+  scope:
+  - src/lib/fewer/features.ts
+  - src/lib/fewer/archiveExpand.ts
+  - src/lib/fewer/archiveEngine.ts
+  - ROADMAP.md
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T15:38:18'
+  accepted_by: qvesera
+  evidence:
+  - 'Ruling recorded for issue #214 (task T-039); full analysis, seam inventory and deferred POC spec in
+    .agents/doc/2026-10-02-native-shell-spike.md. Downstream: issue #250 (T-063) is unblocked by this
+    decision.'

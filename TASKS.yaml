@@ -1022,27 +1022,33 @@ tasks:
   session_count: 2
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
-  status: "backlog"
+  status: "review"
   type: "research"
   area: "infra"
   tier: null
   estimate_min: 960
   estimate_basis: "cli"
   issue: 214
-  pr: null
+  pr: 297
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:16Z"
-  notes: ["2026-09-25T12:38:21Z · disk import uses the browser File System Access API today; evaluate Tauri (Rust) vs a Swift native shell for the compute-heavy paths", "2026-09-28T17:45:49Z · RAM evidence gathered 2026-09-28 while designing T-055 (look-inside-archives), answering 'would a Rust core use less RAM for unarchiving?'. Per-path findings on the shipped code: zip = O(central directory) via Blob.slice (only reads 512B head, <=66KB tail, then the CD) - a Blob is disk-backed and already seekable, so a native pread/mmap is NO real win. tar = O(names+sizes) via 512B header walk with arithmetic skip (pos += n, zero bytes read) - already optimal. tar.gz/gz = O(1) RAM (bounded buffer, reads+discards in 64KB chunks) but must inflate EVERY byte (gzip not seekable) and runs on the main thread - Rust gives threads, not less RAM. 7z/rar/xz/bz2/zst via libarchive.js WASM = O(FILE): Archive.open copies the entire archive into the Emscripten MEMFS heap, under a wasm32 ceiling (2-4GB) - the ONE unbounded case, and the one Rust genuinely fixes. THE BIGGEST CONSUMER IS NOT THE ARCHIVE: the graph (per-node path string + edges + derived index from #240) lives in the webview JS heap regardless of core language, and Tauri IPC is JSON by default so a 100k-node tree briefly exists 3x (Rust struct -> JSON -> JS objects). Conclusion for the spike: do NOT port for RAM alone. Port for what ROADMAP already lists (native file watching, tray, global hotkeys) and take bounded-memory archive reads as a bonus. Any real RAM win on the graph side is architectural (compact/paged tree), not a language change, and it helps web + desktop alike. Cannot be benchmarked here: no cargo/rustc/tauri, no pkg-config/gtk3. feats.ts + ROADMAP 'Tauri desktop app: better compute' are already in place; migrate via LOCAL_FS_FEATURES flip and TreeEntry as the unchanged contract."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  notes: ["2026-09-25T12:38:21Z · disk import uses the browser File System Access API today; evaluate Tauri (Rust) vs a Swift native shell for the compute-heavy paths", "2026-09-28T17:45:49Z · RAM evidence gathered 2026-09-28 while designing T-055 (look-inside-archives), answering 'would a Rust core use less RAM for unarchiving?'. Per-path findings on the shipped code: zip = O(central directory) via Blob.slice (only reads 512B head, <=66KB tail, then the CD) - a Blob is disk-backed and already seekable, so a native pread/mmap is NO real win. tar = O(names+sizes) via 512B header walk with arithmetic skip (pos += n, zero bytes read) - already optimal. tar.gz/gz = O(1) RAM (bounded buffer, reads+discards in 64KB chunks) but must inflate EVERY byte (gzip not seekable) and runs on the main thread - Rust gives threads, not less RAM. 7z/rar/xz/bz2/zst via libarchive.js WASM = O(FILE): Archive.open copies the entire archive into the Emscripten MEMFS heap, under a wasm32 ceiling (2-4GB) - the ONE unbounded case, and the one Rust genuinely fixes. THE BIGGEST CONSUMER IS NOT THE ARCHIVE: the graph (per-node path string + edges + derived index from #240) lives in the webview JS heap regardless of core language, and Tauri IPC is JSON by default so a 100k-node tree briefly exists 3x (Rust struct -> JSON -> JS objects). Conclusion for the spike: do NOT port for RAM alone. Port for what ROADMAP already lists (native file watching, tray, global hotkeys) and take bounded-memory archive reads as a bonus. Any real RAM win on the graph side is architectural (compact/paged tree), not a language change, and it helps web + desktop alike. Cannot be benchmarked here: no cargo/rustc/tauri, no pkg-config/gtk3. feats.ts + ROADMAP 'Tauri desktop app: better compute' are already in place; migrate via LOCAL_FS_FEATURES flip and TreeEntry as the unchanged contract.", "2026-10-02T15:54:40Z · Ruling: Tauri v2 (Rust) thin shell; Swift rejected. Doc .agents/doc/2026-10-02-native-shell-spike.md + ADR dde1721f71af0e1ec541d4694cea08b8 (active). Reasoned, not measured - no cargo/rustc/tauri/swift on the box. RAM does not justify the port (zip/tar/tar.gz already optimal; only wasm libarchive is O(FILE); graph heap is core-language-independent). Justified by ROADMAP: native watching/tray/global hotkeys, bounded archive reads as bonus. Thin shell (external-URL frontendDist) keeps src/app/api/* + Supabase/Stripe working; bundled-static fork is a separate product decision. #250 unblocked, estimate fits thin shell only. Side findings: ROADMAP:45 presupposed the answer (matches, no edit); milestone mismatch #214 on v1.0.0 vs #250 on v0.9.0 (flagged only). Also repaired two pre-existing unparseable evidence scalars in .repowise/decisions.yaml (' #' starts a YAML comment in plain scalars); noted repowise export drops file-only ADRs (14->12) and was NOT run."]
+  sessions:
+  - start: "2026-10-02T15:33:43Z"
+    end: "2026-10-02T16:31:35Z"
+    measured: true
+    note: "Spike delivered: .agents/doc/2026-10-02-native-shell-spike.md + ADR dde1721f (active) + decision summary on #214. Ruling: Tauri v2 thin shell, Swift rejected; reasoned not measured. Also repaired two unparseable ADR scalars in .repowise/decisions.yaml (' #' starts a YAML comment). #250 unblocked."
+    proof: ["93ab76a"]
+    effort: {commits: 1, files: 3, insertions: 317, deletions: 8}
+  spent_min: 58
+  session_count: 1
 - id: "T-040"
   title: "Collaborative editing with live WebSocket sync"
   status: "backlog"
