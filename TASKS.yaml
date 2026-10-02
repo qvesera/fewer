@@ -2298,7 +2298,7 @@ tasks:
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
-  issue: null
+  issue: 298
   pr: null
   internal: false
   milestone: null
