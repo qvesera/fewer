@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" /><title>fewer Tauri POC bench (T-087)</title></head>
+<body>
+<h1>fewer Tauri POC bench — T-087</h1>
+<pre id="out"></pre>
+<script>
+const out = document.getElementById("out");
+const log = (m) => {
+  out.textContent += m + "\n";
+  console.log(m);
+  // Beacon each line to the static server's query string so the harness can
+  // read results from its access log (http.server logs GETs with queries).
+  try { new Image().src = "/r?" + encodeURIComponent(String(m)); } catch {}
+};
+const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);
+const REPO = "/run/media/system/BigDawg/Work/fewer";
+
+async function main() {
+  log("tauri: " + ("__TAURI_INTERNALS__" in window));
+  log("webkitdirectory input: " + ("webkitdirectory" in document.createElement("input")));
+
+  // 1) list_dir windowing on real dirs
+  for (const p of [REPO + "/src", REPO + "/node_modules/react"]) {
+    try {
+      const r = await invoke("list_dir", { path: p, offset: 0, limit: 5 });
+      const w = await invoke("list_dir", { path: p, offset: Math.max(0, r.total - 3), limit: 5 });
+      log(`list_dir ${p}: total=${r.total} page0=${JSON.stringify(r.entries.map(e=>e.name))} last_page=${JSON.stringify(w.entries.map(e=>e.name))}`);
+    } catch (e) { log(`list_dir ${p} ERR ${e}`); }
+  }
+
+  // 2) IPC: 100k-node tree, JSON vs raw bytes
+  const N = 100000;
+  const js = await invoke("bench_tree_json", { n: N });
+  let t0 = performance.now();
+  const objs = JSON.parse(js.json);
+  const parseMs = performance.now() - t0;
+  log(`JSON: rust_serialize_ms=${js.serializeMs.toFixed(1)} json_bytes=${js.jsonBytes} js_parse_ms=${parseMs.toFixed(1)} js_objects=${objs.length}`);
+  objs.length = 0;
+
+  const meta = await invoke("bench_tree_raw_meta", { n: N });
+  t0 = performance.now();
+  const buf = await invoke("bench_tree_raw", { n: N });
+  const recvMs = performance.now() - t0;
+  const view = new DataView(buf);
+  const dec = new TextDecoder();
+  t0 = performance.now();
+  let off = 0, count = 0;
+  const arr = new Array(N);
+  while (off < buf.byteLength) {
+    const nl = view.getUint32(off, true); off += 4;
+    const name = dec.decode(new Uint8Array(buf, off, nl)); off += nl;
+    const kind = view.getUint8(off) ? "folder" : "file"; off += 1;
+    const size = Number(view.getBigUint64(off, true)); off += 8;
+    arr[count++] = { name, type: kind, size };
+  }
+  const decodeMs = performance.now() - t0;
+  log(`RAW: rust_encode_ms=${meta.encodeMs.toFixed(1)} raw_bytes=${meta.rawBytes} js_recv_ms=${recvMs.toFixed(1)} js_decode_ms=${decodeMs.toFixed(1)} objects=${count}`);
+  log(`json_bytes/raw_bytes=${(js.jsonBytes / meta.rawBytes).toFixed(2)}`);
+
+  // 3) list_dir + walk throughput on the deep tree
+  const walk = await invoke("bench_walk", { path: REPO + "/node_modules" });
+  log(`bench_walk node_modules: entries=${walk.entries} dirs=${walk.dirs} elapsed_ms=${walk.elapsedMs.toFixed(0)} entries_per_sec=${Math.round(walk.entriesPerSec)}`);
+  const t1 = performance.now();
+  const big = await invoke("list_dir", { path: REPO + "/node_modules", offset: 0, limit: 1000 });
+  log(`list_dir node_modules root: total=${big.total} ipc_roundtrip_ms=${(performance.now()-t1).toFixed(1)}`);
+
+  // 4) opener proof (visual): should pop the file manager on /tmp
+  try { await invoke("open_in_os", { path: "/tmp" }); log("open_in_os /tmp: invoked (file manager should open)"); }
+  catch (e) { log(`open_in_os ERR ${e}`); }
+}
+main().catch((e) => log("FATAL " + e));
+</script>
+</body>
+</html>

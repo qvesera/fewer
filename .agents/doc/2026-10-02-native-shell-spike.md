@@ -244,6 +244,90 @@ Goal: turn every `ASSUMED` into `MEASURED`. Timebox: one day.
 - `list_dir` throughput on a deep studio tree (~100k entries) — windowing
   correctness + latency floor.
 
+### 9.1 Results — MEASURED (2026-10-02, `T-087`, dev box: Ubuntu 24.04,
+rustc 1.99.0, tauri 2.12.1, WebKitGTK 2.52.6, KDE wayland)
+
+POC lives in `src-tauri/` (thin shell: `devUrl` → real dev server;
+`frontendDist` → external URL per §5). Harness: `src-tauri/poc/bench.html`
+(webview) + `src-tauri/src/bin/archive_bench.rs` (headless, release) +
+`src-tauri/poc/wasm-rss.ts` (wasm engine, bun).
+
+**1. Archive listing — worst real archives (§9 acceptance #1).**
+
+| archive | engine | open+list wall | peak RSS (VmHWM) |
+| --- | --- | --- | --- |
+| 717 MB zip, 133 entries | wasm `libarchive.js` (MEMFS) | 2217 ms (open 2145 + list 72) | **4 272 572 KB (~4.1 GB)** |
+| same | native libarchive (FD, data skip) | **50 ms** | **6 464 KB (~6.3 MB)** |
+| 2.48 GB zip, 113 entries | wasm `libarchive.js` | — | **process core-dumped (OOM)** — MEMFS ceiling confirmed at scale |
+| same | native libarchive | **15 ms** | 6 544 KB (~6.4 MB) |
+
+Native wins ~660× on RSS and ~40× on wall time on the mid-size archive, and
+is the only engine that survives the large one. The single unbounded case the
+spike identified is now measured, not assumed: **the wasm O(FILE) claim is
+real and it is large.** This is the strongest concrete argument yet for the
+native `ArchiveReader` drop-in (T-063 child 2), including the 64 MB cap
+relaxation.
+
+**2. IPC — 100k-node tree, JSON vs raw bytes (§9 acceptance #2).**
+
+| path | rust side | payload | webview side |
+| --- | --- | --- | --- |
+| JSON (`serde_json` → invoke) | 684 ms serialize | 9 034 528 B | 43 ms `JSON.parse` |
+| raw (`ipc::Response` bytes) | 32 ms encode | 6 300 000 B | 71 ms receive + 72 ms decode |
+
+`json/raw` payload ratio **1.43×**, not 3× (the 3× claim counted Rust struct +
+JSON string + JS objects as simultaneous residency; the measured payload
+itself is 1.43×). Caveat: Rust timings are from a **debug** build (tauri dev);
+release serialize will be several× faster, which only widens the raw path's
+edge on the Rust side. JS `JSON.parse` of 100k entries is cheap (43 ms) — the
+spike's "IPC is JSON by default" fear is mostly a **bytes** problem (1.43×
+transfer + a larger transient string), not a parse-time problem. Verdict for
+T-063: windowed paging (§7.1) matters more than the wire format; if raw bytes
+are used, prefer them for big pages, keep JSON for small ones. Peak-RSS
+per-path inside the webview was not measurable (WebKitGTK exposes no
+`performance.memory`); noted as a remaining gap.
+
+**3. `list_dir` throughput + windowing (§9 acceptance #3).**
+
+- `node_modules` walk: **73 195 entries / 5 980 dirs in 112 ms
+  (~655 000 entries/s)** — release build, cold cache.
+- `list_dir(node_modules, 0, 1000)`: **8.0 ms** full IPC roundtrip (read +
+  sort + page + serialize + webview), 597 entries.
+- Windowing correctness proven in-webview: `offset=0` and `offset=total-3`
+  pages return disjoint, correctly-sorted slices; `TreeEntry` JSON shape
+  byte-compatible with the TS type (no adapter needed).
+
+**4. Shell integration proof (§9 item 4).**
+
+- `LOCAL_FS_FEATURES.openInOs` / `openFileInOs` now flip at runtime inside the
+  webview (`src/lib/fewer/nativeShell.ts`); the two opener call sites in
+  `folderSync.ts` route to the shell's `open_in_os` command first and fall
+  back to the localhost routes on web. `open_in_os("/tmp")` invoked from the
+  bench page spawned `xdg-open` successfully (file manager opened).
+- `webkitdirectory` input is present in the WebKitGTK webview — folder import
+  from disk works with zero native code, exactly as `features.ts` predicted.
+- Remaining flags (`dragDropImport`, `dropToExpand`, `fsaDirectoryPicker`)
+  stay OFF — their native replacements are T-063 children, not POC scope.
+
+**5. Box/toolchain findings (feed T-063 packaging child).**
+
+- `#[tauri::command]` at crate root fails on rustc 1.99 (E0255, hidden macro
+  reimport); the same commands inside `mod commands` compile clean. No tauri
+  version bump fixes it (2.12.1 is the latest 2.x; 3.0 is alpha).
+- Edition-2024 crate needs `unsafe extern "C"` for the libarchive FFI block.
+- Linux deps that were actually required: `libwebkit2gtk-4.1-dev`,
+  `libgtk-3-dev`, `libayatana-appindicator3-dev` (tray, future),
+  `librsvg2-dev`, `libxdo-dev`, `libsoup-3.0-dev`,
+  `libjavascriptcoregtk-4.1-dev`, `libarchive-dev`.
+- The thin shell needed **no** API-route shims: dev-mode `devUrl` → real Next
+  server keeps auth/APIs working, confirming §5's thin-shell sizing.
+
+**Impact on #250 (`T-063`):** the archive-reader child is now justified by
+measurement (660× RSS, only engine that survives >2 GB archives). The IPC
+child's design constraint stands but is softer than §2.2 assumed: 1.43× bytes,
+43 ms parse — windowing remains the real fix. Estimate 2400m for the thin
+shell still fits; no re-estimation triggered.
+
 ## 10. What would change this ruling
 
 - A measurable, dominant RAM/latency problem in zip/tar/tar.gz — today: none.

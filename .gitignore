@@ -93,3 +93,7 @@ lighthouse/*
 !/.repowise/
 /.repowise/*
 !/.repowise/decisions.yaml
+
+# tauri shell (T-087 POC)
+src-tauri/target/
+src-tauri/gen/
