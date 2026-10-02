@@ -30,7 +30,9 @@ export async function runFileImport(
 
     // Dynamic import keeps parsers out of the startup bundle (same as old dialog).
     const { parseImportFile } = await import("@/lib/fewer/parsers");
-    const raw = parseImportFile(source.content, source.format);
+    const raw = parseImportFile(source.content, source.format, {
+      csvMapping: source.csvMapping,
+    });
 
     const tree = filterTree(raw, options);
     if (!tree) {

@@ -1,6 +1,6 @@
 ---
 title: Import & Export
-description: Import directories from disk, GitHub, or files. Export your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees.
+description: Import directories from disk, GitHub, or files (JSON, ASCII tree, CSV, DOT, shell script). Export your graph as SVG, PNG, JSON, CSV, DOT, shell scripts, or ASCII trees.
 ---
 
 Fewer lets you import file trees in multiple formats, whether it is directly from your disk, a github url, or from a previously exported file.
@@ -181,8 +181,22 @@ Supported formats:
 - **JSON**: previous Fewer export
 - **ASCII tree**: `tree` command output
 - **Shell/batch script**: `mkdir -p` output
+- **CSV**: previous Fewer export, or your own spreadsheet
+- **DOT**: Graphviz output (Fewer's export, or any other tool's)
 
-Click **Import from File** and select your file. You can also paste content directly into the dialog.
+Click **Import from File** and select your file. You can also paste content directly into the dialog. The format is detected from the file extension, or chosen with the format tiles.
+
+### CSV column mapping
+
+Fewer's own CSV export imports with no extra steps — its header says which column is which. Any other CSV opens a **Columns** panel: the header names are matched automatically (Name, Path, Type, Extension, Symlink target, Parent), and every mapping can be re-pointed before you import. A preview shows the first rows as they will be read.
+
+- Hierarchy comes from the **Parent** column when present, otherwise from the **Path** column — each folder prefix on the way becomes a card. A single column of slash-separated paths imports the same way.
+- The **Name** column is required; the rest are optional refinements.
+
+### DOT notes
+
+- A node is a folder when other nodes point at it, a file otherwise — DOT has no folder concept of its own.
+- Fewer's own DOT export round-trips fully: file extensions, and symlink targets (marked with a dashed connection).
 
 ## Import from Archive
 
@@ -210,8 +224,8 @@ Notes:
 | SVG    | `.svg`         | Vector, documentation, presentations |
 | PNG    | `.png`         | Raster, slides, social media         |
 | JSON   | `.json`        | Full graph state, re-import          |
-| CSV    | `.csv`         | Tabular, spreadsheets                |
-| DOT    | `.dot`         | Graphviz rendering                   |
+| CSV    | `.csv`         | Tabular, spreadsheets, re-import     |
+| DOT    | `.dot`         | Graphviz rendering, re-import        |
 | Script | `.sh` / `.bat` | Reproduce directory structure        |
 | Tree   | `.txt`         | ASCII tree for docs/README           |
 

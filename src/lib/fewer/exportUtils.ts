@@ -197,13 +197,28 @@ export function exportJSON(
 /*                                  CSV                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportCSV(
+/**
+ * Format literals of the CSV export. The importer (`parsers.ts` +
+ * `csvModel.ts`) duplicates them because parsers must not import this module —
+ * it drags the DOM-backed graph renderer into the startup path. The round-trip
+ * test in `exportUtils.test.ts` is the drift detector: exporter and importer
+ * must agree on every one of these.
+ */
+const CSV_NODE_HEADER = "id,label,path,type,extension,category,size_bytes,symlink_target";
+const CSV_EDGES_MARKER = "# edges";
+const CSV_EDGES_HEADER = "id,source,target";
+
+/**
+ * Build the CSV export payload. Pure — `exportCSV` downloads it, tests and the
+ * CSV importer (`parsers.parseCSVGraph`) read exactly these bytes.
+ */
+export function buildCsvExport(
   nodes: FewerNode[],
   edges: FewerEdge[],
   includeBranding = true,
-) {
+): string {
   const lines: string[] = [];
-  lines.push("id,label,path,type,extension,category,size_bytes,symlink_target");
+  lines.push(CSV_NODE_HEADER);
   for (const n of nodes) {
     const row = [
       n.id,
@@ -218,13 +233,21 @@ export function exportCSV(
     lines.push(row.join(","));
   }
   lines.push("");
-  lines.push("# edges");
-  lines.push("id,source,target");
+  lines.push(CSV_EDGES_MARKER);
+  lines.push(CSV_EDGES_HEADER);
   for (const e of edges) {
     lines.push([e.id, e.source, e.target].join(","));
   }
   if (includeBranding) lines.push(`# ${FEWER_CREDIT}`);
-  downloadBlob(lines.join("\n"), `fewer-${timestamp()}.csv`, "text/csv");
+  return lines.join("\n");
+}
+
+export function exportCSV(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
+  downloadBlob(buildCsvExport(nodes, edges, includeBranding), `fewer-${timestamp()}.csv`, "text/csv");
 }
 
 function csvEscape(value: string): string {
@@ -238,11 +261,22 @@ function csvEscape(value: string): string {
 /*                                  DOT                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportDOT(
+/**
+ * Marker the exporter uses for "link edge" — the DOT importer reads the same
+ * token back as a symlink instead of containment (see the format-literal note
+ * on the CSV constants above).
+ */
+const DOT_DASHED_EDGE_ATTR = "style=dashed";
+
+/**
+ * Build the DOT export payload. Pure — `exportDOT` downloads it, tests and the
+ * DOT importer (`parsers.parseDOTGraph`) read exactly these bytes.
+ */
+export function buildDotExport(
   nodes: FewerNode[],
   edges: FewerEdge[],
   includeBranding = true,
-) {
+): string {
   const lines: string[] = [];
   lines.push("digraph fewer {");
   lines.push('  graph [rankdir="TB", bgcolor="transparent"];');
@@ -265,13 +299,21 @@ export function exportDOT(
   for (const e of edges) {
     // A link edge reads as "points at", not containment: dashed.
     const style = nodes.find((n) => n.id === e.target)?.data.symlink
-      ? ' [style=dashed]'
+      ? ` [${DOT_DASHED_EDGE_ATTR}]`
       : "";
     lines.push(`  "${e.source}" -> "${e.target}"${style};`);
   }
   if (includeBranding) lines.push(`  // ${FEWER_CREDIT}`);
   lines.push("}");
-  downloadBlob(lines.join("\n"), `fewer-${timestamp()}.dot`, "text/plain");
+  return lines.join("\n");
+}
+
+export function exportDOT(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  includeBranding = true,
+) {
+  downloadBlob(buildDotExport(nodes, edges, includeBranding), `fewer-${timestamp()}.dot`, "text/plain");
 }
 
 /* -------------------------------------------------------------------------- */

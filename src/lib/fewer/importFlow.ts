@@ -6,16 +6,24 @@
  */
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
 import { formatBytes } from "@/lib/fewer/stats";
+import { guessCsvMapping, isCsvMappingUsable, isExportCsv, parseCsvRows } from "@/lib/fewer/csvModel";
+import type { CsvColumnMap } from "@/lib/fewer/csvModel";
 import { useGraphStore } from "@/store/graphStore";
 
 export type ImportOrigin = "folder" | "file" | "archive" | "url" | "cloud";
 
-export type FileImportFormat = "json" | "tree" | "script";
+export type FileImportFormat = "json" | "tree" | "script" | "csv" | "dot";
 
 /** What the user picked in step 1 for the active origin. */
 export type OriginSource =
   | { origin: "folder" }
-  | { origin: "file"; content: string; format: FileImportFormat }
+  | {
+      origin: "file";
+      content: string;
+      format: FileImportFormat;
+      /** Set when the CSV is not our own export: which column plays which role. */
+      csvMapping?: CsvColumnMap;
+    }
   | { origin: "archive"; file: File | null; name: string }
   | { origin: "url"; url: string; watch: boolean }
   | {
@@ -64,7 +72,7 @@ export const ORIGIN_META: Record<
   { label: string; blurb: string }
 > = {
   folder: { label: "Folder", blurb: "Scan a directory on this device" },
-  file: { label: "File", blurb: "ASCII tree, JSON graph, or shell script" },
+  file: { label: "File", blurb: "ASCII tree, JSON, CSV, DOT, or shell script" },
   archive: { label: "Archive", blurb: "Zip or tar of a folder tree" },
   url: { label: "URL", blurb: "GitHub repo or public file index" },
   cloud: { label: "Cloud", blurb: "Linked cloud account (read-only)" },
@@ -90,8 +98,19 @@ export function isSourceReady(source: OriginSource): boolean {
   switch (source.origin) {
     case "folder":
       return true;
-    case "file":
-      return source.content.trim().length > 0;
+    case "file": {
+      if (source.content.trim().length === 0) return false;
+      // A non-export CSV needs a usable column mapping before step 2 can run —
+      // our own export carries its header and needs none. The guess is the
+      // same one the mapper UI pre-fills, so the gate and the parser agree.
+      if (source.format === "csv") {
+        const headers = parseCsvRows(source.content)[0] ?? [];
+        if (!isExportCsv(headers)) {
+          return isCsvMappingUsable(source.csvMapping ?? guessCsvMapping(headers));
+        }
+      }
+      return true;
+    }
     case "archive":
       return source.file !== null;
     case "url":
