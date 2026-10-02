@@ -172,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changing the layout direction or running Organize now re-fits the view to the whole graph: the canvas waits for the re-flow to settle and frames the full graph, so working close to a card no longer leaves the new layout offscreen. A per-view direction change re-fits only that view; the global direction change and Organize re-fit every canvas.
 - CSV and Graphviz DOT import from the File origin — Fewer's own exports round-trip with no setup, and any other CSV gets a column-mapping panel (Name/Path/Type/Extension/Symlink target/Parent) with a live preview before you import
 - Import options are now scoped to the import's origin: a pasted or uploaded file shows only Show Files on Canvas, Include dependency & build folders and Max Display Depth, and the folder-only controls (Symlinks, Look Inside Archives) no longer appear where they could do nothing.
+- Tauri v2 desktop thin-shell POC (`src-tauri/`): windowed `list_dir` RPC on the `TreeEntry` contract, native libarchive listing bench (measured 660x lower peak RSS than the wasm engine on a real 717MB archive, and the only engine that survives a 2.48GB one), OS opener wired behind the desktop-only `LOCAL_FS_FEATURES` opener flags, and the spike-decision numbers (IPC JSON vs raw bytes, listing throughput) measured in a real WebKitGTK webview. Dev-only scaffold: not shipped to web users.
 
 ### Performance
 
