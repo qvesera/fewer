@@ -169,6 +169,37 @@ pub mod commands {
     };
     Command::new(prog).args(&args).spawn().map(|_| ()).map_err(|e| format!("{prog}: {e}"))
   }
+
+  // ---- Local library FS (T-089): text-file ops for the Fewer Library dir ----
+
+  #[tauri::command]
+  pub fn fs_read_text(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))
+  }
+
+  #[tauri::command]
+  pub fn fs_write_text(path: String, contents: String) -> Result<(), String> {
+    if let Some(parent) = Path::new(&path).parent() {
+      std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+    }
+    std::fs::write(&path, contents).map_err(|e| format!("{path}: {e}"))
+  }
+
+  #[tauri::command]
+  pub fn fs_remove_file(path: String) -> Result<(), String> {
+    std::fs::remove_file(&path).map_err(|e| format!("{path}: {e}"))
+  }
+
+  /// Native folder picker for the library location. Commands run off the main
+  /// thread, so the dialog plugin's blocking API is safe here.
+  #[tauri::command]
+  pub fn pick_library_dir(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+      .file()
+      .blocking_pick_folder()
+      .map(|p| p.to_string())
+  }
 }
 
 // ---- Native libarchive listing (the wasm O(FILE) competitor) ----

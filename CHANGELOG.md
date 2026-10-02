@@ -173,6 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV and Graphviz DOT import from the File origin — Fewer's own exports round-trip with no setup, and any other CSV gets a column-mapping panel (Name/Path/Type/Extension/Symlink target/Parent) with a live preview before you import
 - Import options are now scoped to the import's origin: a pasted or uploaded file shows only Show Files on Canvas, Include dependency & build folders and Max Display Depth, and the folder-only controls (Symlinks, Look Inside Archives) no longer appear where they could do nothing.
 - Tauri v2 desktop thin-shell POC (`src-tauri/`): windowed `list_dir` RPC on the `TreeEntry` contract, native libarchive listing bench (measured 660x lower peak RSS than the wasm engine on a real 717MB archive, and the only engine that survives a 2.48GB one), OS opener wired behind the desktop-only `LOCAL_FS_FEATURES` opener flags, and the spike-decision numbers (IPC JSON vs raw bytes, listing throughput) measured in a real WebKitGTK webview. Dev-only scaffold: not shipped to web users.
+- Desktop builds can now keep graphs in a local Fewer Library folder: pick a folder once, save/load/rename/delete graphs as plain JSON files on disk (same format as graph export, re-importable anywhere), no account or server involved. Share and version-history actions are hidden in the library view; the web app keeps its cloud saved graphs unchanged.
 
 ### Performance
 
