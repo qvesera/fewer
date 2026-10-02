@@ -23,6 +23,7 @@ import { loadSettingsLocal, applyUserSettings, withSyncGuard, pinThemeLink } fro
 import { shouldDeferHashForAuth, PENDING_AUTH_HASH_KEY } from "@/lib/fewer/authGate";
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
+import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
 import { devTierOverride } from "@/lib/fewer/devTier";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
@@ -103,14 +104,20 @@ export function FewerApp() {
     useGraphStore.setState({ searchHistory, tutorialBeginnerDone, tutorialDismissed });
   }, []);
 
-  // Tier: who is the visitor? Derived from auth + profile, never persisted.
-  // Panel layout hydration is keyed on tier — Pro gets their stored workspace,
-  // guests/free get the default single canvas.
+  // Tier: who is the visitor? Derived from auth + profile + (desktop) license,
+  // never persisted. Panel layout hydration is keyed on tier — Pro gets their
+  // stored workspace, guests/free get the default single canvas.
   useEffect(() => {
-    // `?tier=` (dev builds only) forces the tier so the Pro surface is testable
-    // without a Pro account — see devTier.ts. The server still enforces the real
-    // plan; production builds ignore it.
-    const tier = devTierOverride() ?? tierOf(user, profile.plan);
+    let cancelled = false;
+    const apply = async () => {
+      // Desktop shell: a valid offline license promotes the tier above the
+      // account fallback (license gate, T-090). `?tier=` dev override still wins.
+      const licensed = await desktopLicensedTier();
+      if (cancelled) return;
+      // `?tier=` (dev builds only) forces the tier so the Pro surface is testable
+      // without a Pro account — see devTier.ts. The server still enforces the real
+      // plan; production builds ignore it.
+      const tier = devTierOverride() ?? licensed ?? tierOf(user, profile.plan);
     const prev = useGraphStore.getState().tier;
     useGraphStore.setState({
       tier,
@@ -144,6 +151,10 @@ export function FewerApp() {
       // and viewSettings so per-leaf prefs survive the downgrade.
       useGraphStore.setState({ panelTree: def.panelTree });
     }
+  };
+    void apply();
+    // Activation/deactivation while the app is open re-derives the tier live.
+    return onLicenseChanged(() => void apply());
   }, [user, profile.plan]);
   // a deliberate toggle (local or cloud) is never clobbered. The store keeps the
   // isomorphic `true` default to avoid an SSR/client hydration mismatch; this

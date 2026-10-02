@@ -17,6 +17,7 @@ export type SettingsTabId =
   | "appearance"
   | "watched"
   | "cloud"
+  | "license"
   | "advanced"
   | "help";
 
@@ -228,9 +229,12 @@ export function visibleTabs(opts: {
   tier: string;
   isMobile: boolean;
   advancedMode: boolean;
+  /** Desktop shell: license activation lives in its own tab. */
+  inShell?: boolean;
 }): SettingsTabId[] {
   const tabs: SettingsTabId[] = ["account", "about", "appearance"];
   if (opts.tier !== "guest") tabs.push("watched", "cloud");
+  if (opts.inShell) tabs.push("license");
   if (opts.advancedMode || !opts.isMobile) tabs.push("advanced");
   tabs.push("help");
   return tabs;
