@@ -2292,7 +2292,7 @@ tasks:
   session_count: 1
 - id: "T-087"
   title: "Tauri POC: measure IPC + native list_dir on Rust box"
-  status: "in-progress"
+  status: "triaged"
   type: "research"
   area: "infra"
   tier: null
@@ -2305,17 +2305,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T17:54:16Z"
   notes: ["2026-10-02T17:56:06Z · Internal research row (no GitHub issue - POC derives from #250/T-063 spike deferred spec section 9). Ledger has no set-internal verb, so start used --force.", "2026-10-02T18:32:35Z · POC complete, all §9 acceptance numbers MEASURED (spike doc §9.1 now canonical): native libarchive 6.3MB RSS / 50ms vs wasm 4.1GB RSS / 2.2s on 717MB zip; wasm core-dumped (OOM) on 2.48GB zip, native 15ms/6.4MB. IPC 100k-tree: JSON 9.03MB payload (684ms debug serialize + 43ms parse) vs raw 6.3MB (1.43x, not 3x); windowed list_dir 8ms roundtrip, 655k entries/s walk. LOCAL_FS_FEATURES opener flags flip in-shell, open_in_os + webkitdirectory proven in WebKitGTK. Toolchain: #[tauri::command] needs mod wrapper on rustc 1.99 (E0255), unsafe extern for edition 2024. Gates: lint/tsc/build clean, 194 tests pass."]
   sessions:
   - start: "2026-10-02T17:56:06Z"
-    end: null
+    end: "2026-10-02T18:33:13Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "POC complete (spike §9 all numbers MEASURED, written back to .agents/doc/2026-10-02-native-shell-spike.md §9.1): native libarchive 6.3MB RSS/50ms vs wasm 4.1GB/2.2s on 717MB zip; wasm core-dumped on 2.48GB zip (native 15ms). IPC 100k-tree JSON 9.03MB vs raw 6.3MB (1.43x not 3x); windowed list_dir 8ms roundtrip, 655k entries/s. Opener flags flip in-shell; open_in_os + webkitdirectory proven in WebKitGTK. Toolchain: #[tauri::command] needs mod wrapper on rustc 1.99. Gates lint/tsc/build clean, 194 tests pass."
+    proof: ["d26bd0a"]
+    effort: {commits: 1, files: 35, insertions: 5224, deletions: 8}
+  spent_min: 37
   session_count: 1
