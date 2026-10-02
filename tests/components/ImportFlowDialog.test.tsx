@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn, TextFileSource } from "@/lib/fewer/importFlow";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 
 // Mock boundaries, not the dialog steps or the Zustand store.
@@ -22,7 +22,9 @@ const runFolderImport = mock<
     _onProgress?: ImportProgressFn,
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Directory loaded", description: "root: 1 entries" }));
-const runFileImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from file", description: "root: 1 entries" }));
+const runFileImport = mock<
+  (source: TextFileSource, options: ImportOptions) => Promise<ImportActionResult>
+>(async () => ({ ok: true, title: "Graph built from file", description: "root: 1 entries" }));
 const runCloudImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Imported from cloud", description: "cloud: 1 entries" }));
 const runArchiveImport = mock<() => Promise<ImportActionResult>>(async () => ({ ok: true, title: "Graph built from archive", description: "backup.zip: 1 entries" }));
 mock.module("@/lib/fewer/importActionFolder", () => ({ runFolderImport }));
@@ -35,6 +37,9 @@ const { useGraphStore } = await import("@/store/graphStore");
 const { formatBytes } = await import("@/lib/fewer/stats");
 const { DEFAULT_IMPORT_OPTIONS } = await import("@/lib/fewer/importOptions");
 const initial = useGraphStore.getInitialState();
+
+/** The format chip's rendered text: the mode ("Auto"/"Format") + the format. */
+const chipText = () => screen.getByTestId("format-chip").textContent ?? "";
 
 function renderDialog(props?: { open?: boolean; initialOrigin?: "folder" | "file" | "url" | "cloud" }) {
   const onOpenChange = mock(() => {});
@@ -96,7 +101,7 @@ describe("ImportFlowDialog 3-step flow", () => {
     const interaction = userEvent.setup();
     renderDialog({ initialOrigin: "file" });
     expect((screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled).toBe(true);
-    await interaction.type(screen.getByPlaceholderText(/root_project_folder/i), "root {{ child }}");
+    await interaction.type(screen.getByRole("textbox"), "root {{ child }}");
     await waitFor(() =>
       expect((screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled).toBe(false),
     );
@@ -109,7 +114,7 @@ describe("ImportFlowDialog 3-step flow", () => {
   test("Back from step 2 preserves the typed file source", async () => {
     const interaction = userEvent.setup();
     renderDialog({ initialOrigin: "file" });
-    await interaction.type(screen.getByPlaceholderText(/root_project_folder/i), "root {{ kept }}");
+    await interaction.type(screen.getByRole("textbox"), "root {{ kept }}");
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     expect(screen.getByRole("button", { name: /Back/ })).toBeTruthy();
     await interaction.click(screen.getByRole("button", { name: /Back/ }));
@@ -180,12 +185,84 @@ describe("ImportFlowDialog state and step-3 import", () => {
     const interaction = userEvent.setup();
     const onOpenChange = renderDialog({ initialOrigin: "file" });
     runFileImport.mockResolvedValueOnce({ ok: false, title: "Import failed", error: "Bad script" });
-    await interaction.type(screen.getByPlaceholderText(/root_project_folder/i), "root {{ child }}");
+    await interaction.type(screen.getByRole("textbox"), "root {{ child }}");
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
     await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
     await waitFor(() => expect(screen.getByText("Bad script")).toBeTruthy());
     expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  test("pasting JSON with nothing selected detects JSON — the old mismatch is gone", async () => {
+    const interaction = userEvent.setup();
+    const onOpenChange = renderDialog({ initialOrigin: "file" });
+    await act(async () => {
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: {
+          value: '{\n  "nodes": [{ "id": "r", "label": "show", "path": "show", "type": "folder" }],\n  "edges": []\n}',
+        },
+      });
+    });
+    // The chip reports the MODE (Auto) and what will be parsed — and no tile
+    // had to be chosen, so none is revealed yet.
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("JSON Graph");
+    expect(screen.queryByRole("button", { name: /^Auto$/ })).toBeNull();
+
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    await interaction.click(screen.getByRole("button", { name: /Continue/ }));
+    expect(screen.getByText(/JSON payload/)).toBeTruthy();
+    await interaction.click(screen.getByRole("button", { name: /^(?:browse|import)$/i }));
+    await waitFor(() => expect(runFileImport).toHaveBeenCalled());
+    // The parser was handed the DETECTED format, not the tree default.
+    expect(runFileImport.mock.calls[0]![0].format).toBe("json");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  test("Change reveals the override tiles, and Auto restores detection", async () => {
+    const interaction = userEvent.setup();
+    renderDialog({ initialOrigin: "file" });
+    await act(async () => {
+      // A single-column list has no delimiters, so it detects as tree.
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: "name\na.ts" } });
+    });
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("ASCII Tree");
+
+    await interaction.click(screen.getByRole("button", { name: /^Change$/ }));
+    // Auto first (back to detection), then every format the parser accepts —
+    // and Auto is the highlighted tile, never the detected format's.
+    expect(screen.getByRole("button", { name: /^Auto$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^CSV$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^ASCII Tree$/ }).className).not.toContain(
+      "border-primary",
+    );
+
+    await interaction.click(screen.getByRole("button", { name: /^CSV$/ }));
+    // Overridden: the chip says Format, and CSV — not Auto — is highlighted.
+    expect(chipText()).toContain("Format");
+    expect(chipText()).toContain("CSV");
+    expect(screen.getByRole("button", { name: /^CSV$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).not.toContain(
+      "border-primary",
+    );
+    // A non-export CSV needs no mapping gate here — a single column maps to
+    // name by guess — so step 2 is reachable.
+    expect(
+      (screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+
+    await interaction.click(screen.getByRole("button", { name: /^Auto$/ }));
+    // Auto is highlighted again — the detected format's tile never claims it.
+    expect(screen.getByRole("button", { name: /^Auto$/ }).className).toContain("border-primary");
+    expect(screen.getByRole("button", { name: /^ASCII Tree$/ }).className).not.toContain(
+      "border-primary",
+    );
+    // "Done" collapses the tiles so the panel names the format in one place.
+    await interaction.click(screen.getByRole("button", { name: /^Done$/ }));
+    expect(chipText()).toContain("Auto");
+    expect(chipText()).toContain("ASCII Tree");
   });
 
   test("picking an archive in the file origin switches to archive mode and imports it", async () => {
@@ -258,8 +335,8 @@ describe("ImportFlowDialog state and step-3 import", () => {
 
     await interaction.click(screen.getByRole("button", { name: /^Clear$/i }));
     expect(screen.queryByText("backup.zip")).toBeNull();
-    // Back on the text panel: the format tiles return.
-    expect(screen.getByText("Format")).toBeTruthy();
+    // Back on the text panel: detection is live again, so the chip says Auto.
+    expect(chipText()).toContain("Auto");
   });
 
   test("successful url import requests a watch before closing", async () => {

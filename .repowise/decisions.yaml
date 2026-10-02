@@ -273,3 +273,41 @@ decisions:
   evidence:
   - Accepted by Yash Srivastava; follows T-049 / T-050 / T-051 (archive features, all done) and makes
     the "all four origins" phrasing in 3d6a225b71ffe94046ff4724880ca7cb accurate again.
+- id: 86efdb75ebf44a40ab6501f3701f9cdf
+  title: 'The file origin detects the import format from content; the tiles are an override, not a picker'
+  decision: 'Content is the single source of truth for which parser runs. detectImportFormat (importDetect.ts)
+    picks json, dot, script, csv or tree from the pasted or uploaded text with an ordered, cheap ladder —
+    and tree is the tolerant fallback that loses every tie. resolveFileFormat (importFlow.ts) folds that
+    detection with the user''s override into the two fields the parser reads, so the resolved format and
+    the intent cannot drift. The override is kept across edits to a file (tweaking a CSV cell must not
+    flip the user back to tree) and cleared by picking a new file or by the Auto tile. Uploads run the
+    same detection; the extension decides only archive-vs-text, since archives are binary. The format
+    tiles still exist but render only when the user presses Change, and advancedFormats no longer gates
+    this panel — it still gates ImportOptionsPanel and ExportPanel.'
+  reason: 'The tiles were a promise the parser never checked: parseImportFile takes the format as a
+    required argument, so pasting JSON while the ASCII-Tree tile was active parsed it as a tree, and the
+    upload path — which sniffed only the extension — had the same mismatch for a .txt full of JSON. That
+    is a confidently-wrong graph rather than an error, which is worse than either. Detection removes the
+    whole class of mismatch instead of patching each format. Two rules earn their place: the tree-glyph
+    check runs BEFORE csv, because a comma inside a tree name must not win over the box-drawing
+    characters (the glyph set is exactly the one parseASCIITree keys depth on, so the two cannot
+    disagree), and the override exists because detection is genuinely imperfect — a single-column list
+    has no delimiters and no glyphs, so it detects as tree, and the CSV column-mapper for that shape is
+    only reachable through the override. The ladder is a scanner, not a parser: the parsers already
+    existed and are reused.'
+  scope:
+  - src/components/fewer/ImportFlowDialog.tsx
+  - src/components/fewer/ImportOriginStep.tsx
+  - src/lib/fewer/importDetect.ts
+  - src/lib/fewer/importDetect.test.ts
+  - src/lib/fewer/importFlow.ts
+  - src/lib/fewer/importFlow.test.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T11:05:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - Accepted by Yash Srivastava; follows #288 (CSV/DOT import) and #291 (archive fold) on the same panel.
+    Detection is pinned by 20 unit tests plus export round-trips (each exporter''s payload must detect
+    as its own format), and the component suite asserts the bug is gone: pasting JSON with nothing
+    selected hands the parser a json format.

@@ -2220,3 +2220,38 @@ tasks:
     effort: {commits: 1, files: 13, insertions: 451, deletions: 152}
   spent_min: 39
   session_count: 1
+- id: "T-085"
+  title: "Auto-detect the import format from content (drop format tiles, add chip + on-demand override)"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 270
+  estimate_basis: "cli"
+  issue: 292
+  pr: 293
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#292"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-02T10:19:38Z"
+  notes: ["2026-10-02T10:19:51Z · adopted at intake from GitHub (open)", "2026-10-02T10:20:07Z · 2026-10-02 · from the archive-fold session: the File panel's format is chosen independently of the pasted content, and parseImportFile takes format as a required arg, so pasting JSON while the ASCII-Tree tile is active parses it as a tree (upload sniffs by extension only, so an uploaded .txt with JSON has the same gap). Plan: detectImportFormat (json→dot→script→csv→tree ladder), resolveFileFormat helper with formatOverride kept across edits, chip + Change reveal reusing the existing tiles code, upload runs the same detection (archive stays extension-based), advancedFormats drops out of FileSource/ImportOriginStep. Stacks on #291 (same FileSource panel).", "2026-10-02T11:05:48Z · review follow-up: clicking Auto highlighted the DETECTED format's tile (activeOption fell back to text.format) and the chip read 'Detected', so the UI looked like it had defaulted to ASCII selection. Fix: activeOption is the override only (Auto tile highlighted while auto), chip reads Auto/Format, data-testid on the chip span."]
+  sessions:
+  - start: "2026-10-02T10:22:28Z"
+    end: "2026-10-02T10:55:53Z"
+    measured: true
+    note: "Auto-detect the file-import format from content. detectImportFormat (new importDetect.ts): ordered ladder json→dot→script→tree-by-glyph→csv→tree, scanner not parser, glyph check before csv so a comma in a tree name cannot win. resolveFileFormat folds detection + user override into the two fields the parser reads; override kept across edits, cleared by a new file or Auto. Uploads now run the same detection (extension decides only archive-vs-text). Chips report the detected format; Change reveals the tiles + Auto; advancedFormats dropped from the panel (still gates ImportOptionsPanel + ExportPanel). Fixes the real mismatch: pasting JSON while ASCII-Tree was active parsed it as a tree. 20 detector cases + export round-trips + resolveFileFormat contract + 2 component tests pinning the bug gone; 1572 lib + 192 component tests green; lint/tsc/build/changelog/decisions/migrations all pass."
+    proof: ["80e236c"]
+    effort: {commits: 1, files: 14, insertions: 609, deletions: 112}
+  - start: "2026-10-02T11:05:33Z"
+    end: "2026-10-02T11:14:12Z"
+    measured: true
+    note: "Review follow-up on the detection work: clicking Auto highlighted the DETECTED format's tile (activeOption fell back to text.format) and the chip read 'Detected', so the panel looked like it had defaulted to ASCII selection. activeOption is now the override only — Auto highlights Auto; the chip names the mode first (Auto vs Format) with the detected value as the hint; container testid on the chip since 'Auto' now appears in both chip and tile. Tests assert per-state tile highlighting, not just text presence. Docs + changelog corrected to Auto/Format wording."
+    proof: ["52a638d"]
+    effort: {commits: 1, files: 6, insertions: 59, deletions: 28}
+  spent_min: 42
+  session_count: 2

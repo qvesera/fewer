@@ -110,7 +110,7 @@ describe("runImport dispatch", () => {
   });
 
   test("file → runFileImport with the source and options", async () => {
-    const source = { origin: "file", kind: "text", content: "root {{ child }}", format: "tree" } as const;
+    const source = { origin: "file", kind: "text", content: "root {{ child }}", format: "tree", formatOverride: null } as const;
     const o = opts();
     await runImport(source, o, ctx());
     expect(runFileImport).toHaveBeenCalledWith(source, o, undefined);

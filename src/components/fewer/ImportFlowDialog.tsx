@@ -293,7 +293,6 @@ function isEditableTarget(el: HTMLElement): boolean {
               }}
               source={source}
               onSourceChange={setSource}
-              advancedFormats={advancedFormats}
               cloudImport={can("cloudImport", tier)}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)

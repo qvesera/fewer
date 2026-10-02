@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildCsvExport, buildDotExport, buildJsonExport } from "./exportUtils";
+import { detectImportFormat } from "./importDetect";
 import { parseCSVGraph, parseDOTGraph, parseJSONGraph } from "./parsers";
 import { APP_VERSION, FEWER_CREDIT } from "./branding";
 import type { FewerEdge, FewerNode } from "./types";
@@ -89,6 +90,45 @@ describe("CSV / DOT round-trip", () => {
       "show/latest:folder->v012",
       "show/v012:folder",
     ]);
+  });
+});
+
+describe("detection recognises every exported payload", () => {
+  // What we write must be what the detector sees — otherwise a re-import would
+  // parse our own export with the wrong parser. (Tree and script exports are
+  // excluded because they call downloadBlob internally and are not pure; their
+  // shapes are pinned in importDetect.test.ts.)
+  test("json export → json", () => {
+    const { nodes, edges } = fixture();
+    expect(detectImportFormat(JSON.stringify(buildJsonExport(nodes, edges)))).toBe("json");
+  });
+
+  test("csv export → csv", () => {
+    const { nodes, edges } = fixture();
+    expect(detectImportFormat(buildCsvExport(nodes, edges))).toBe("csv");
+  });
+
+  test("dot export → dot", () => {
+    const { nodes, edges } = fixture();
+    expect(detectImportFormat(buildDotExport(nodes, edges))).toBe("dot");
+  });
+
+  test("and each detected payload still parses back to the same tree", () => {
+    const { nodes, edges } = fixture();
+    const expected = [
+      "show:folder",
+      "show/assets:folder",
+      "show/assets/logo.png:file",
+      "show/latest:folder->v012",
+      "show/v012:folder",
+    ];
+    for (const [payload, parse] of [
+      [JSON.stringify(buildJsonExport(nodes, edges)), parseJSONGraph],
+      [buildCsvExport(nodes, edges), parseCSVGraph],
+      [buildDotExport(nodes, edges), parseDOTGraph],
+    ] as const) {
+      expect(flatten(parse(payload))).toEqual(expected);
+    }
   });
 });
 
