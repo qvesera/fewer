@@ -183,8 +183,11 @@ Supported formats:
 - **Shell/batch script**: `mkdir -p` output
 - **CSV**: previous Fewer export, or your own spreadsheet
 - **DOT**: Graphviz output (Fewer's export, or any other tool's)
+- **Archive**: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, plus `.7z`, `.rar`, `.xz`, `.bz2`, `.zst` via a lazily-loaded engine
 
 Click **Import from File** and select your file. You can also paste content directly into the dialog. The format is detected from the file extension, or chosen with the format tiles.
+
+**Archives are just a file here** — there is no separate "Archive" origin. Pick an archive and the panel switches to archive mode: the chosen file and its size replace the format tiles and the paste box, and step 3 reads the archive's listing. Everything else (options, depth limits, stats) is identical to every other origin.
 
 ### CSV column mapping
 
@@ -198,9 +201,9 @@ Fewer's own CSV export imports with no extra steps — its header says which col
 - A node is a folder when other nodes point at it, a file otherwise — DOT has no folder concept of its own.
 - Fewer's own DOT export round-trips fully: file extensions, and symlink targets (marked with a dashed connection).
 
-## Import from Archive
+### Archives
 
-Visualize a compressed folder without extracting it. Pick **Archive** as the origin, choose the file, and the same options panel and graph builder as every other origin apply.
+Visualize a compressed folder without extracting it. Pick an archive in the File picker and the panel switches to archive mode — the same options panel and graph builder as every other origin apply.
 
 | Format                | How it is read                                              |
 | --------------------- | ----------------------------------------------------------- |
@@ -215,7 +218,7 @@ Notes:
 - **Sizes are real**, read from the archive metadata, and feed the same sorting and stats panels as a disk import.
 - **Import options apply as usual** — depth limits, hidden files, dependency/build folders, and the extension filter all work on the archive's contents.
 - **The entry cap is 20,000.** Larger archives import their first 20,000 entries and show a truncation notice.
-- **Not yet readable:** 7z, RAR, xz, bzip2, and Zstandard. These need a full decompressor, which browsers do not provide natively; the error message says so by name rather than failing vaguely.
+- **7z, RAR, xz, bzip2, and Zstandard** are read through a lazily-fetched WebAssembly engine, since browsers ship no native decompressor for them — the engine is downloaded the first time you open one of those, and reads the whole archive into memory.
 
 ## Export Formats
 

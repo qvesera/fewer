@@ -62,14 +62,18 @@ import {
 } from "@/hooks/use-cloud";
 import type { CloudConnection, CloudEntry } from "@/lib/fewer/cloud/types";
 import {
+  ARCHIVE_EXTENSIONS,
   ORIGIN_META,
+  defaultFileSource,
   defaultSourceFor,
+  isArchiveFileName,
   isGitHubUrl,
 } from "@/lib/fewer/importFlow";
 import type {
   FileImportFormat,
   ImportOrigin,
   OriginSource,
+  TextFileSource,
 } from "@/lib/fewer/importFlow";
 
 export interface ImportOriginStepProps {
@@ -85,16 +89,14 @@ export interface ImportOriginStepProps {
   onAdvance: () => void;
 }
 
-const ORIGINS: ImportOrigin[] = ["folder", "file", "archive", "url", "cloud"];
+const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
 
 // URL and cloud origins require a linked account — only available to
-// signed-in users. Signed-out users see the local-only origins: folder, file,
-// and archive.
+// signed-in users. Signed-out users see the local-only origins: folder and
+// file. Archive rides along inside the file origin, so it needs no card.
 const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
   linkable: ORIGINS,
-  basic: ORIGINS.filter(
-    (o) => o === "folder" || o === "file" || o === "archive",
-  ),
+  basic: ORIGINS.filter((o) => o === "folder" || o === "file"),
 };
 
 /**
@@ -104,7 +106,6 @@ const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
 export const ORIGIN_ICONS: Record<ImportOrigin, LucideIcon> = {
   folder: FolderOpen,
   file: Upload,
-  archive: FileArchive,
   url: Globe,
   cloud: Cloud,
 };
@@ -254,10 +255,7 @@ export function ImportOriginStep({
       </p>
 
       {/* ── Origin-specific source picking ── */}
-      {cloudImport ||
-      origin === "folder" ||
-      origin === "file" ||
-      origin === "archive" ? (
+      {cloudImport || origin === "folder" || origin === "file" ? (
         <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
@@ -265,12 +263,6 @@ export function ImportOriginStep({
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
               advancedFormats={advancedFormats}
-            />
-          )}
-          {origin === "archive" && (
-            <ArchiveSource
-              source={source as Extract<OriginSource, { origin: "archive" }>}
-              onSourceChange={onSourceChange}
             />
           )}
           {origin === "url" && (
@@ -347,6 +339,19 @@ const FILE_FORMATS: {
   { value: "dot", label: "DOT", icon: FileText, accept: ".dot,.gv" },
 ];
 
+/**
+ * One picker, everything it can read: every format tile's extension plus the
+ * archive set. Deliberately NOT filtered by `advancedFormats` — archive import
+ * is unconditional today, and folding it into this panel must not make it
+ * vanish for advanced-off users.
+ */
+const FILE_ACCEPT = Array.from(
+  new Set([
+    ...FILE_FORMATS.flatMap((f) => f.accept.split(",")),
+    ...ARCHIVE_EXTENSIONS.map((e) => `.${e}`),
+  ]),
+).join(",");
+
 const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
   json: `{\n  "cards": [...],\n  "edges": [...]\n}`,
   tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
@@ -355,6 +360,21 @@ const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
   dot: `digraph fewer {\n  "app" [label="app\\nfolder", fillcolor="#f97316"];\n  "app/index.ts" [label="index\\n.ts", fillcolor="#a855f7"];\n  "app" -> "app/index.ts";\n}`,
 };
 
+/**
+ * The file origin's panel, in one of two modes:
+ *
+ *  - **text** — format tiles + upload + paste box + CSV column mapper.
+ *  - **archive** — the chosen archive and its size; nothing else to configure.
+ *
+ * The mode is chosen by the picked file's extension (`isArchiveFileName`).
+ * ponytail: the extension is a UI hint only — `listArchive` sniffs magic
+ * bytes, so a renamed archive still imports once the user switches mode. The
+ * upgrade path is sniffing the first bytes at pick time if that ever matters.
+ *
+ * The archive accept attribute is deliberately NOT filtered by
+ * `advancedFormats`: archive import is unconditional today, and folding it
+ * into this panel must not make it vanish for advanced-off users.
+ */
 function FileSource({
   source,
   onSourceChange,
@@ -366,6 +386,9 @@ function FileSource({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatsRef = useRef<HTMLDivElement>(null);
+  const isArchive = source.kind === "archive";
+  // Narrow to the text payload so every field access below is safe.
+  const text = source.kind === "text" ? source : null;
   const formats = advancedFormats
     ? FILE_FORMATS
     : FILE_FORMATS.filter((f) => f.value === "tree");
@@ -373,8 +396,8 @@ function FileSource({
   // Arrow-key navigation across the format tiles (a row; wraps at the ends).
   const handleFormatsKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const current = source.format;
-      const idx = formats.findIndex((f) => f.value === current);
+      if (!text) return;
+      const idx = formats.findIndex((f) => f.value === text.format);
       if (idx < 0) return;
       let next = -1;
       if (e.key === "ArrowRight") next = (idx + 1) % formats.length;
@@ -382,27 +405,38 @@ function FileSource({
       else return;
       e.preventDefault();
       const chosen = formats[next].value;
-      onSourceChange({ ...source, format: chosen });
+      onSourceChange({ ...text, format: chosen });
       formatsRef.current
         ?.querySelector<HTMLButtonElement>(`[data-format-idx="${next}"]`)
         ?.focus();
     },
-    [source, formats, onSourceChange],
+    [text, formats, onSourceChange],
   );
 
   // Advanced mode off → only ASCII tree is allowed.
   useEffect(() => {
-    if (!advancedFormats && source.format !== "tree") {
-      onSourceChange({ ...source, format: "tree" });
-    }
-  }, [advancedFormats, source, onSourceChange]);
+    if (!text || advancedFormats || text.format === "tree") return;
+    onSourceChange({ ...text, format: "tree" });
+  }, [advancedFormats, text, onSourceChange]);
+
+  const pickFile = () => fileInputRef.current?.click();
+  const clearArchive = () => onSourceChange(defaultFileSource("text"));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Allow re-selecting the same file.
+    e.target.value = "";
     if (!file) return;
+
+    // Archives are binary: route straight to the archive reader, no decode step.
+    if (isArchiveFileName(file.name)) {
+      onSourceChange({ origin: "file", kind: "archive", file, name: file.name });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = (ev.target?.result as string) ?? "";
+      const content = (ev.target?.result as string) ?? "";
       const ext = file.name.split(".").pop()?.toLowerCase();
       let format: FileImportFormat = "tree";
       if (advancedFormats && ext === "json") format = "json";
@@ -411,14 +445,63 @@ function FileSource({
       else if (advancedFormats && ext === "csv") format = "csv";
       else if (advancedFormats && (ext === "dot" || ext === "gv")) format = "dot";
       // Drop any column mapping from the previous file: it belongs to those headers.
-      onSourceChange({ origin: "file", content: text, format, csvMapping: undefined });
+      onSourceChange({
+        origin: "file",
+        kind: "text",
+        content,
+        format,
+        csvMapping: undefined,
+      });
     };
     reader.onerror = () =>
-      onSourceChange({ ...source, content: "", format: source.format });
+      onSourceChange({ origin: "file", kind: "text", content: "", format: "tree" });
     reader.readAsText(file);
-    // Allow re-selecting the same file.
-    e.target.value = "";
   };
+
+  if (isArchive) {
+    return (
+      <div className="space-y-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={FILE_ACCEPT}
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
+          onClick={pickFile}
+        >
+          <FileArchive className="h-4 w-4 text-muted-foreground" />
+          Choose a different file
+        </Button>
+
+        <div className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2">
+          <FileArchive className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
+            {source.name}
+          </p>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {formatBytes(source.file?.size ?? 0)}
+          </span>
+          <button
+            type="button"
+            onClick={clearArchive}
+            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Reads the archive&apos;s file listing and draws it as a graph — the archive
+          is never unpacked on disk, and your files never leave the browser.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -436,13 +519,13 @@ function FileSource({
         >
           {formats.map((f, i) => {
             const Icon = f.icon;
-            const active = source.format === f.value;
+            const active = text?.format === f.value;
             return (
               <button
                 key={f.value}
                 type="button"
                 data-format-idx={i}
-                onClick={() => onSourceChange({ ...source, format: f.value })}
+                onClick={() => text && onSourceChange({ ...text, format: f.value })}
                 className={cn(
                   "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
@@ -463,7 +546,7 @@ function FileSource({
       <input
         ref={fileInputRef}
         type="file"
-        accept={FILE_FORMATS.find((f) => f.value === source.format)?.accept}
+        accept={FILE_ACCEPT}
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -471,7 +554,7 @@ function FileSource({
         variant="outline"
         size="sm"
         className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={pickFile}
       >
         <Upload className="h-4 w-4 text-muted-foreground" />
         Upload file
@@ -482,19 +565,21 @@ function FileSource({
           Or paste content below
         </Label>
         <Textarea
-          value={source.content}
+          value={text?.content ?? ""}
           onChange={(e) => {
             // A mapping belongs to one set of headers — drop it when the pasted
             // content changes (the guess is re-derived from the new header).
-            onSourceChange({ ...source, content: e.target.value, csvMapping: undefined });
+            if (text) {
+              onSourceChange({ ...text, content: e.target.value, csvMapping: undefined });
+            }
           }}
-          placeholder={FILE_PLACEHOLDERS[source.format]}
+          placeholder={FILE_PLACEHOLDERS[text?.format ?? "tree"]}
           className="gm-scroll min-h-[140px] max-h-[240px] bg-muted/20 p-3.5 font-mono text-xs font-medium leading-relaxed text-foreground"
         />
       </div>
 
-      {source.format === "csv" && source.content.trim() !== "" && (
-        <CsvColumnMapper source={source} onSourceChange={onSourceChange} />
+      {text?.format === "csv" && text.content.trim() !== "" && (
+        <CsvColumnMapper source={text} onSourceChange={onSourceChange} />
       )}
     </div>
   );
@@ -510,7 +595,7 @@ function CsvColumnMapper({
   source,
   onSourceChange,
 }: {
-  source: Extract<OriginSource, { origin: "file" }>;
+  source: TextFileSource;
   onSourceChange: (source: OriginSource) => void;
 }) {
   const headers = useMemo(() => parseCsvRows(source.content)[0] ?? [], [source.content]);
@@ -608,76 +693,6 @@ function CsvColumnMapper({
             </tbody>
           </table>
         </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Extensions the picker offers. Every one of these is readable: zip/tar/gz
- * through the zero-dependency fast path, 7z/rar/xz/bz2/zstd through the
- * lazily-loaded wasm engine (T-051). Only the listing is ever read.
- */
-const ARCHIVE_ACCEPT = ".zip,.tar,.gz,.tgz,.tar.gz,.tar.xz,.tar.bz2,.tar.zst,.7z,.rar,.xz,.bz2,.zst";
-
-function ArchiveSource({
-  source,
-  onSourceChange,
-}: {
-  source: Extract<OriginSource, { origin: "archive" }>;
-  onSourceChange: (source: OriginSource) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Allow re-selecting the same file.
-    e.target.value = "";
-    if (!file) return;
-    onSourceChange({ origin: "archive", file, name: file.name });
-  };
-
-  return (
-    <div className="space-y-3">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ARCHIVE_ACCEPT}
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <FileArchive className="h-4 w-4 text-muted-foreground" />
-        {source.file ? "Choose a different archive" : "Choose archive"}
-      </Button>
-
-      {source.file ? (
-        <div className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2">
-          <FileArchive className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <p className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
-            {source.name}
-          </p>
-          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
-            {formatBytes(source.file.size)}
-          </span>
-          <button
-            type="button"
-            onClick={() => onSourceChange({ origin: "archive", file: null, name: "" })}
-            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
-          >
-            Clear
-          </button>
-        </div>
-      ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Reads the archive&apos;s file listing and draws it as a graph — the archive
-          is never unpacked on disk, and your files never leave the browser.
-        </p>
       )}
     </div>
   );

@@ -241,3 +241,35 @@ decisions:
   aliases:
   - 7c1cd6c3f686ba264622902b0dd7c98d
   - 8f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c
+- id: 55ab1b5529bd4d9191f9eb0a536df0d0
+  title: 'Archive is a source kind of the File origin, not its own origin'
+  decision: 'Step 1 of the import flow has four origins (folder, file, url, cloud). The File origin
+    carries one of two payloads discriminated by kind: text (ASCII tree, JSON, CSV, DOT, shell script,
+    decoded with parseImportFile) or archive (a binary File listed with listArchive). One picker accepts
+    both — FILE_ACCEPT is derived from the format tiles plus ARCHIVE_EXTENSIONS — and the panel switches
+    to archive mode when the picked file has an archive extension. ARCHIVE_EXTENSIONS in importFlow.ts
+    is the single source for both the input accept attribute and the mode detection, so the picker and
+    the UI cannot drift into two disagreeing lists.'
+  reason: 'Archive was a separate origin even though both paths converge on filterTree → chunkTreeToGraph
+    → setGraph and both set dataSource: file, which made step 1 ask a question the user could not answer
+    without knowing Fewer internals ("is my .tar.gz a File or an Archive?"). Folding it also gives a
+    single entry point for future canvas drag-and-drop (features.ts dragDropImport is still off). The one
+    real regression risk was the advancedFormats gate on the File panel''s format tiles versus the
+    Archive origin''s unconditional picker — so the merged accept attribute is deliberately never filtered
+    by advancedFormats, and a component test pins that archives stay in the accept list. listArchive
+    sniffs magic bytes rather than extensions, so the extension is only a UI hint: a renamed archive
+    still imports once the user is in archive mode.'
+  scope:
+  - src/components/fewer/ImportFlowDialog.tsx
+  - src/components/fewer/ImportOriginStep.tsx
+  - src/lib/fewer/importAction.ts
+  - src/lib/fewer/importActionArchive.ts
+  - src/lib/fewer/importActionFile.ts
+  - src/lib/fewer/importFlow.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-10-01T22:47:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - Accepted by Yash Srivastava; follows T-049 / T-050 / T-051 (archive features, all done) and makes
+    the "all four origins" phrasing in 3d6a225b71ffe94046ff4724880ca7cb accurate again.

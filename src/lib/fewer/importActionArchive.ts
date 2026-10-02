@@ -6,14 +6,14 @@
  * exactly like the file import does.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
 import { buildProgress, collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
 import { formatBytes } from "@/lib/fewer/stats";
 import { chunkTreeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runArchiveImport(
-  source: Extract<OriginSource, { origin: "archive" }>,
+  source: { file: File | null; name: string },
   options: ImportOptions,
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {

@@ -37,9 +37,11 @@ export async function runImport(
     case "folder":
       return await runFolderImport(options, undefined, onProgress);
     case "file":
-      return await runFileImport(source, options, onProgress);
-    case "archive":
-      return await runArchiveImport(source, options, onProgress);
+      // Archive is no longer its own origin, but it still has its own reader:
+      // branch on the payload kind and reuse both actions verbatim.
+      return source.kind === "archive"
+        ? await runArchiveImport({ file: source.file, name: source.name }, options, onProgress)
+        : await runFileImport(source, options, onProgress);
     case "cloud":
       return await runCloudImport(source, options, onProgress);
     case "url": {
