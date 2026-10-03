@@ -2351,7 +2351,7 @@ tasks:
   estimate_min: 720
   estimate_basis: "cli"
   issue: 301
-  pr: 305
+  pr: 306
   internal: false
   milestone: null
   blocked_by: []
@@ -2373,27 +2373,33 @@ tasks:
   session_count: 1
 - id: "T-090"
   title: "License gate: offline Ed25519 license file + tiers integration + signing script"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 720
   estimate_basis: "cli"
   issue: 302
-  pr: null
+  pr: 306
   internal: false
   milestone: null
   blocked_by: []
   parent: "T-088"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
-  notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  notes: ["2026-10-02T22:46:26Z · License gate landed: Ed25519 offline .fewerlicense (payload JSON signed over exact bytes — no canonicalization), Rust verify_license_sig via ed25519-dalek with pinned dev pubkey (private key at ~/.fewer-signing, script refuses in-repo key paths), pick_license_file dialog. TS: license/ types+policy (expiry, kind→tier, enterprise feature mask), licenseState (localStorage path + re-check + change event), FewerApp tier = devOverride ?? licensed ?? account, Settings → License tab (LicensePanel), SavedGraphsPanel gates localLibrary behind can(). New Features: localLibrary/nativeBrowse/localPreview all MIN_TIER pro. Also fixed: T-089 FS commands were never registered in generate_handler (silent invoke failure — caught here). Cross-language proof: cargo test signs fixture via node crypto, dalek verifies, tampered rejected (3 rust tests); 10 TS policy tests; 1608+194 suite green; tsc/lint/build clean; tauri dev boot smoke ok."]
+  sessions:
+  - start: "2026-10-02T22:35:57Z"
+    end: "2026-10-02T22:46:38Z"
+    measured: true
+    note: "License gate shipped: .fewerlicense Ed25519 (exact-bytes signing, no canonicalization), Rust verify via ed25519-dalek + pinned dev pubkey (key outside repo; script refuses in-repo keys), Settings → License activation panel, FewerApp tier = devOverride ?? licensed ?? account, localLibrary/nativeBrowse/localPreview gated at pro. Cross-language fixture test (node-sign → dalek-verify, tamper rejected); 10 TS policy tests; suite 1608+194; also registered T-089 FS commands that were missing from generate_handler."
+    proof: ["d57a7e6"]
+    effort: {commits: 1, files: 17, insertions: 859, deletions: 14}
+  spent_min: 11
+  session_count: 1
 - id: "T-091"
   title: "Native file UX: browse origin via list_dir + preview panel (image/PDF/text)"
   status: "triaged"

@@ -49,6 +49,10 @@ export type Feature =
   | "cloudImport"     // OneDrive / GitHub / Google Drive import origins
   // ── Power-user tools (free tier gets these) ──
   | "edgeMotion"           // animated edges, dash clock
+  // ── Desktop offline (license-gated; T-090) ──
+  | "localLibrary"     // save/load graphs in the on-disk Fewer Library
+  | "nativeBrowse"     // stream local dirs through the shell's list_dir
+  | "localPreview"     // in-app image/PDF/text preview of local files
   | "advancedImportFormats" // JSON / script import formats
   | "unbrandedExport"      // export without the fewer watermark
   | "customTheme"          // custom theme mode in Settings
@@ -67,6 +71,10 @@ export const MIN_TIER: Record<Feature, Tier> = {
   tags: "pro",
   largeShareLinks: "pro",  // server: SHARE_FREE_MAX_CHARS threshold + planLimits.largeShareLinks
   savedThemes: "pro",
+  // Desktop offline: gated behind a desktop pro license (license gate, T-090).
+  localLibrary: "pro",
+  nativeBrowse: "pro",
+  localPreview: "pro",
 
   // Everything else: any signed-in account.
   savedGraphs: "free",

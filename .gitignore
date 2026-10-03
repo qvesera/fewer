@@ -97,3 +97,4 @@ lighthouse/*
 # tauri shell (T-087 POC)
 src-tauri/target/
 src-tauri/gen/
+!scripts/sign-license.ts

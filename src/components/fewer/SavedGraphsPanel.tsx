@@ -28,6 +28,7 @@ import {
 } from "@/lib/fewer/graphsData";
 import { getLibraryDir } from "@/lib/fewer/libraryConfig";
 import { isTauri } from "@/lib/fewer/nativeShell";
+import { can } from "@/lib/fewer/tiers";
 import {
   buildShareRequestBody,
   graphSaveUnchanged,
@@ -88,6 +89,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [backend, setBackend] = useState<GraphsBackend>(() => getGraphsBackend());
   const localMode = backend.local;
   const inShell = isTauri();
+  // Library saves are a desktop Pro feature (license gate, T-090).
+  const libraryLicensed = can("localLibrary", tier);
 
   const loadGraphs = useCallback(async () => {
     if (!backend.local && tier === "guest") {
@@ -125,6 +128,10 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleSave = async () => {
+    if (localMode && !libraryLicensed) {
+      toast({ title: "Pro license required", description: "Activate a Fewer license in Settings → License to save graphs to the local library.", variant: "destructive" });
+      return;
+    }
     if (!localMode && tier === "guest") return onRequireAuth();
     const updating = saveTarget !== "new";
     // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
@@ -161,6 +168,10 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const openSaveDialog = () => {
+    if (localMode && !libraryLicensed) {
+      toast({ title: "Pro license required", description: "Activate a Fewer license in Settings → License to save graphs to the local library.", variant: "destructive" });
+      return;
+    }
     if (!localMode && tier === "guest") return onRequireAuth();
     if (nodes.length === 0) {
       toast({ title: "Nothing to save", description: "Add cards to your canvas first." });
@@ -263,7 +274,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       </Button>
 
       {/* Desktop library location (T-089): pick the local Fewer Library folder */}
-      {inShell && !localMode && (
+      {inShell && !localMode && libraryLicensed && (
         <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
           <p className="text-[11px] text-muted-foreground/80">
             Desktop builds keep graphs in a local Fewer Library folder — no account needed.
@@ -282,6 +293,11 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       {localMode && (
         <p className="px-1 text-[10px] text-muted-foreground/60 truncate" title={getLibraryDir()}>
           Library: {getLibraryDir()}
+        </p>
+      )}
+      {inShell && !localMode && !libraryLicensed && (
+        <p className="px-1 text-[11px] text-muted-foreground/70">
+          Local graph saving needs a Fewer Pro license — Settings → License.
         </p>
       )}
 

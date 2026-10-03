@@ -200,6 +200,45 @@ pub mod commands {
       .blocking_pick_folder()
       .map(|p| p.to_string())
   }
+
+  // ---- License gate (T-090): offline Ed25519 verification -----------------
+
+  /// Dev public key (raw 32 bytes, hex). The PRIVATE key never ships — it
+  /// lives outside the repo (scripts/sign-license.ts --gen-key). Rotating:
+  /// generate a new keypair, replace this const, rebuild.
+  const LICENSE_PUBLIC_KEY_HEX: &str =
+    "c9b138300462d3c778916de3e0ad7680f656f90564cf7e328361535dc894f9b2";
+
+  fn hex_decode(s: &str) -> Option<Vec<u8>> {
+    (0..s.len())
+      .step_by(2)
+      .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
+      .collect()
+  }
+
+  /// Verify a license signature over the exact payload bytes (base64 sig
+  /// arrives decoded as bytes by the JS side). Pure offline check.
+  #[tauri::command]
+  pub fn verify_license_sig(payload: String, sig: Vec<u8>) -> Result<(), String> {
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    let pk = hex_decode(LICENSE_PUBLIC_KEY_HEX).ok_or("bad public key constant")?;
+    let pk: [u8; 32] = pk.try_into().map_err(|_| "bad public key length")?;
+    let key = VerifyingKey::from_bytes(&pk).map_err(|e| format!("key: {e}"))?;
+    let sig: [u8; 64] = sig.try_into().map_err(|_| "bad signature length")?;
+    key.verify(payload.as_bytes(), &Signature::from_bytes(&sig))
+      .map_err(|_| "signature invalid".to_string())
+  }
+
+  /// Native single-file picker for license activation.
+  #[tauri::command]
+  pub fn pick_license_file(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    app.dialog()
+      .file()
+      .add_filter("Fewer license", &["fewerlicense", "json"])
+      .blocking_pick_file()
+      .map(|p| p.to_string())
+  }
 }
 
 // ---- Native libarchive listing (the wasm O(FILE) competitor) ----
@@ -324,8 +363,63 @@ pub fn run() {
       commands::bench_tree_raw_meta,
       commands::bench_tree_raw,
       commands::bench_walk,
-      commands::open_in_os
+      commands::open_in_os,
+      commands::fs_read_text,
+      commands::fs_write_text,
+      commands::fs_remove_file,
+      commands::pick_library_dir,
+      commands::verify_license_sig,
+      commands::pick_license_file
     ])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");
+}
+
+#[cfg(test)]
+mod license_tests {
+  use super::commands::verify_license_sig;
+
+  // Fixture signed by scripts/sign-license.ts with the dev key (public key
+  // pinned in LICENSE_PUBLIC_KEY_HEX). Proves the Rust verifier accepts a
+  // real signature end-to-end without a webview.
+  const PAYLOAD: &str = r#"{"format":1,"id":"lic_murju3ld_b2dczg","holder":"Fixture Holder","kind":"pro","expires":null,"features":null,"issued_at":"2026-10-02T22:43:03.985Z"}"#;
+  const SIG_B64: &str = "cG3zsMn52VpHFroDLuFT8bmbjTOfwCB3tULGYWAwigNnQblbLVw/lUSg9MJp61YhCLQ4qZGY0k0K4Z9iczeiBQ==";
+
+  fn b64_decode(s: &str) -> Vec<u8> {
+    // minimal standard-base64 decoder for the test only
+    const TBL: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0u32;
+    for c in s.bytes() {
+      if c == b'=' { break; }
+      let v = TBL.iter().position(|&t| t == c).expect("b64 char") as u32;
+      buf = (buf << 6) | v;
+      bits += 6;
+      if bits >= 8 {
+        bits -= 8;
+        out.push((buf >> bits) as u8);
+      }
+    }
+    out
+  }
+
+  #[test]
+  fn verifies_real_dev_key_signature() {
+    let sig = b64_decode(SIG_B64);
+    assert_eq!(sig.len(), 64);
+    verify_license_sig(PAYLOAD.to_string(), sig).expect("fixture signature must verify");
+  }
+
+  #[test]
+  fn rejects_tampered_payload() {
+    let sig = b64_decode(SIG_B64);
+    let tampered = PAYLOAD.replace("Fixture Holder", "Evil Corp");
+    assert!(verify_license_sig(tampered, sig).is_err());
+  }
+
+  #[test]
+  fn rejects_wrong_signature_length() {
+    assert!(verify_license_sig(PAYLOAD.to_string(), vec![0u8; 32]).is_err());
+  }
 }

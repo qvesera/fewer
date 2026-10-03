@@ -51,3 +51,11 @@ export function nativeFsRemove(path: string): Promise<void> {
 export function nativePickDirectory(): Promise<string | null> {
   return tauriInvoke<string | null>("pick_library_dir");
 }
+/** Native single-file picker for license activation; null = cancelled. */
+export function nativePickLicenseFile(): Promise<string | null> {
+  return tauriInvoke<string | null>("pick_license_file");
+}
+/** Ed25519 license signature check (Rust). Resolves on valid, rejects otherwise. */
+export function nativeVerifyLicenseSig(payload: string, sig: number[]): Promise<void> {
+  return tauriInvoke<void>("verify_license_sig", { payload, sig });
+}
