@@ -238,10 +238,13 @@ pub mod commands {
     Ok(tauri::ipc::Response::new(bytes))
   }
 
-  /// Native folder picker for the library location. Commands run off the main
-  /// thread, so the dialog plugin's blocking API is safe here.
+  /// Native folder picker for the library location. MUST be async: sync
+  /// commands run on the main GTK thread, and a blocking dialog there
+  /// deadlocks the event loop (app freezes — plugin docs forbid main-thread
+  /// blocking). Async commands run on the Tauri async runtime, where the
+  /// blocking API is sanctioned (it marshals to main + waits on a channel).
   #[tauri::command]
-  pub fn pick_library_dir(app: tauri::AppHandle) -> Option<String> {
+  pub async fn pick_library_dir(app: tauri::AppHandle) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
     app.dialog()
       .file()
@@ -277,9 +280,10 @@ pub mod commands {
       .map_err(|_| "signature invalid".to_string())
   }
 
-  /// Native single-file picker for license activation.
+  /// Native single-file picker for license activation. Async for the same
+  /// reason as pick_library_dir — blocking dialogs never on the main thread.
   #[tauri::command]
-  pub fn pick_license_file(app: tauri::AppHandle) -> Option<String> {
+  pub async fn pick_license_file(app: tauri::AppHandle) -> Option<String> {
     use tauri_plugin_dialog::DialogExt;
     app.dialog()
       .file()
