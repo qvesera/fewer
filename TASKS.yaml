@@ -2402,14 +2402,14 @@ tasks:
   session_count: 1
 - id: "T-091"
   title: "Native file UX: browse origin via list_dir + preview panel (image/PDF/text)"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "import"
   tier: null
   estimate_min: 600
   estimate_basis: "cli"
   issue: 303
-  pr: null
+  pr: 307
   internal: false
   milestone: null
   blocked_by: []
