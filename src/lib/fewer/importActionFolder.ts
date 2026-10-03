@@ -19,7 +19,6 @@ import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
 import { useGraphStore } from "@/store/graphStore";
 import { isTauri, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
 import { buildTreeFromNative } from "@/lib/fewer/nativeTree";
-import { can } from "@/lib/fewer/tiers";
 /** Produce the tree for a dropped folder through whichever channel delivered it. */
 async function treeFromDropped(
   source: DroppedDirectorySource,
@@ -64,10 +63,14 @@ export async function runFolderImport(
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
-    // Desktop shell + nativeBrowse license: walk via the shell's list_dir RPC.
-    // Absolute paths survive the walk, so localRootPath is known exactly and
-    // Open-in-Explorer / saved graphs resolve without a filesystem search.
-    const nativeAllowed = isTauri() && can("nativeBrowse", useGraphStore.getState().tier);
+    // Desktop shell: ALWAYS walk via the shell's list_dir RPC. Import is a
+    // core capability (plan: desktop free = import + canvas), and the
+    // webview fallback (<input webkitdirectory>) presents a file-only chooser
+    // in WebKitGTK — no folder selection at all (reported 2026-10-03). The
+    // native dialog is folder-only and the walk needs no server. Absolute
+    // paths survive, so localRootPath is known exactly and Open-in-Explorer /
+    // saved graphs resolve without a filesystem search.
+    const nativeAllowed = isTauri();
     let tree: TreeEntry | null = null;
     let nativeRoot: string | null = null;
     if (dropped) {
