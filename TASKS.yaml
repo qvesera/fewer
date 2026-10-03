@@ -2402,7 +2402,7 @@ tasks:
   session_count: 1
 - id: "T-091"
   title: "Native file UX: browse origin via list_dir + preview panel (image/PDF/text)"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "import"
   tier: null
@@ -2415,19 +2415,19 @@ tasks:
   blocked_by: []
   parent: "T-088"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
   notes: ["2026-10-03T08:32:24Z · Native UX landed: nativeTree.ts mirrors localTree semantics (filters, ext+archive exemption, skipEmptyFolders, symlink skip/leaf/follow with resolved-path cycle guard, depth cap 8, archive expansion via fs_read_bytes reader seam) over injected list_dir; list_dir Rust now emits symlink {target,broken} (kind follows the link); fs_read_bytes with size cap; importActionFolder native branch (pick dialog → walk → setLocalRootPath(root) so offline resolution works); PreviewPanel (image/pdf/text, caps 50/100/2MB, open-in-OS fallback, localPreview pro gate) opened from double-click on file nodes in licensed shell. 11 nativeTree/previewKind tests; suite 1619+194; cargo check+tests clean; lint/tsc/build clean; tauri dev boot smoke ok. Follow-ups noted: Space shortcut (needs ShortcutsDialog+docs), PDF support in WebKitGTK unverified live."]
   sessions:
   - start: "2026-10-03T08:15:57Z"
-    end: null
+    end: "2026-10-03T08:32:39Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Native UX shipped: nativeTree walker over windowed list_dir (localTree semantics + symlink modes + cycle guard + archive reader seam), list_dir symlink wire, fs_read_bytes capped reader, importActionFolder native branch with setLocalRootPath, PreviewPanel (image/pdf/text, caps, open-in-OS fallback) on file double-click behind localPreview gate. 11 new tests; suite 1619+194; cargo/lint/tsc/build clean; boot smoke ok."
+    proof: ["e3e29ad"]
+    effort: {commits: 1, files: 12, insertions: 719, deletions: 8}
+  spent_min: 17
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
