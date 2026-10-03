@@ -23,10 +23,13 @@ export function nativeOpenPath(path: string): Promise<void> {
 }
 
 /** Windowed directory listing — the spike §7.1 RPC shape. */
+/** One entry of the shell's list_dir RPC; symlink carries link metadata
+ *  (type already FOLLOWS the link — folder/file is the honest target kind). */
 export interface NativeDirEntry {
   name: string;
   type: "folder" | "file";
   size?: number;
+  symlink?: { target: string; broken: boolean };
 }
 export interface NativeDirPage {
   entries: NativeDirEntry[];
@@ -58,4 +61,8 @@ export function nativePickLicenseFile(): Promise<string | null> {
 /** Ed25519 license signature check (Rust). Resolves on valid, rejects otherwise. */
 export function nativeVerifyLicenseSig(payload: string, sig: number[]): Promise<void> {
   return tauriInvoke<void>("verify_license_sig", { payload, sig });
+}
+/** Read a file as raw bytes (preview panel). Rejects when over `maxBytes`. */
+export function nativeFsReadBytes(path: string, maxBytes: number): Promise<ArrayBuffer> {
+  return tauriInvoke<ArrayBuffer>("fs_read_bytes", { path, maxBytes });
 }
