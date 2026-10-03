@@ -10,6 +10,7 @@ import {
   BreadcrumbBar,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
+import { PreviewPanel } from "@/components/fewer/PreviewPanel";
 import { useDialogState, useViewState } from "@/store/hooks";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/fewer/sampleData";
@@ -578,6 +579,7 @@ export function FewerApp() {
       <SectionDragLayer />
 
       <ExportPanel />
+      <PreviewPanel />
       <SearchPanel />
       <BatchRenameDialog />
       <BatchTagDialog />

@@ -25,6 +25,16 @@ pub mod commands {
     pub kind: &'static str, // "folder" | "file" (EntryType)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
+    /// Present when the entry is a symlink: raw target + broken flag. The
+    /// honest folder/file kind above already FOLLOWS the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symlink: Option<SymlinkWire>,
+  }
+
+  #[derive(Serialize, Clone)]
+  pub struct SymlinkWire {
+    pub target: String,
+    pub broken: bool,
   }
 
   #[derive(Serialize)]
@@ -39,11 +49,36 @@ pub mod commands {
     let mut entries: Vec<TreeEntry> = Vec::new();
     for entry in std::fs::read_dir(&path).map_err(|e| format!("{path}: {e}"))? {
       let entry = entry.map_err(|e| e.to_string())?;
+      let name = entry.file_name().to_string_lossy().into_owned();
+      let entry_path = Path::new(&path).join(&name);
+      let ftype = entry.file_type().map_err(|e| e.to_string())?;
+      if ftype.is_symlink() {
+        // lstat-style: file_type says "link"; follow for the honest kind/size.
+        let target = std::fs::read_link(&entry_path)
+          .map(|p| p.display().to_string())
+          .unwrap_or_default();
+        match std::fs::metadata(&entry_path) {
+          Ok(md) => entries.push(TreeEntry {
+            name,
+            kind: if md.is_dir() { "folder" } else { "file" },
+            size: if md.is_file() { Some(md.len()) } else { None },
+            symlink: Some(SymlinkWire { target, broken: false }),
+          }),
+          Err(_) => entries.push(TreeEntry {
+            name,
+            kind: "file",
+            size: Some(0),
+            symlink: Some(SymlinkWire { target, broken: true }),
+          }),
+        }
+        continue;
+      }
       let md = entry.metadata().map_err(|e| e.to_string())?;
       entries.push(TreeEntry {
-        name: entry.file_name().to_string_lossy().into_owned(),
+        name,
         kind: if md.is_dir() { "folder" } else { "file" },
         size: if md.is_file() { Some(md.len()) } else { None },
+        symlink: None,
       });
     }
     // Case-insensitive name sort, matching the app's folder-import ordering.
@@ -60,6 +95,7 @@ pub mod commands {
         name: format!("node_with_a_reasonably_long_path_component_{i:07}"),
         kind: if i % 10 == 0 { "folder" } else { "file" },
         size: Some(i as u64 * 13),
+        symlink: None,
       })
       .collect()
   }
@@ -188,6 +224,18 @@ pub mod commands {
   #[tauri::command]
   pub fn fs_remove_file(path: String) -> Result<(), String> {
     std::fs::remove_file(&path).map_err(|e| format!("{path}: {e}"))
+  }
+
+  /// Read a file as raw bytes for the preview panel. Refuses files larger
+  /// than `max_bytes` so a huge PDF can't stall the webview IPC.
+  #[tauri::command]
+  pub fn fs_read_bytes(path: String, max_bytes: u64) -> Result<tauri::ipc::Response, String> {
+    let md = std::fs::metadata(&path).map_err(|e| format!("{path}: {e}"))?;
+    if md.len() > max_bytes {
+      return Err(format!("file too large: {} bytes (cap {max_bytes})", md.len()));
+    }
+    let bytes = std::fs::read(&path).map_err(|e| format!("{path}: {e}"))?;
+    Ok(tauri::ipc::Response::new(bytes))
   }
 
   /// Native folder picker for the library location. Commands run off the main
@@ -367,6 +415,7 @@ pub fn run() {
       commands::fs_read_text,
       commands::fs_write_text,
       commands::fs_remove_file,
+      commands::fs_read_bytes,
       commands::pick_library_dir,
       commands::verify_license_sig,
       commands::pick_license_file

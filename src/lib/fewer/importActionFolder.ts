@@ -17,6 +17,9 @@ import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { TreeEntry } from "@/lib/fewer/types";
 import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
 import { useGraphStore } from "@/store/graphStore";
+import { isTauri, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
+import { buildTreeFromNative } from "@/lib/fewer/nativeTree";
+import { can } from "@/lib/fewer/tiers";
 /** Produce the tree for a dropped folder through whichever channel delivered it. */
 async function treeFromDropped(
   source: DroppedDirectorySource,
@@ -61,9 +64,24 @@ export async function runFolderImport(
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
-    const tree = dropped
-      ? await treeFromDropped(dropped, options)
-      : await pickDirectoryTree(options, undefined, onProgress);
+    // Desktop shell + nativeBrowse license: walk via the shell's list_dir RPC.
+    // Absolute paths survive the walk, so localRootPath is known exactly and
+    // Open-in-Explorer / saved graphs resolve without a filesystem search.
+    const nativeAllowed = isTauri() && can("nativeBrowse", useGraphStore.getState().tier);
+    let tree: TreeEntry | null = null;
+    let nativeRoot: string | null = null;
+    if (dropped) {
+      tree = await treeFromDropped(dropped, options);
+    } else if (nativeAllowed) {
+      const rootPath = await nativePickDirectory();
+      if (!rootPath) return { ok: false, cancelled: true, title: "Import cancelled" };
+      nativeRoot = rootPath;
+      tree = await buildTreeFromNative(rootPath, options, nativeListDir, (phase) =>
+        onProgress?.({ phase }),
+      );
+    } else {
+      tree = await pickDirectoryTree(options, undefined, onProgress);
+    }
     if (!tree) {
       return { ok: false, cancelled: true, title: "Import cancelled" };
     }
@@ -80,6 +98,7 @@ export async function runFolderImport(
       maxDisplayDepth: options.displayMaxDepth,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
+    if (nativeRoot) useGraphStore.getState().setLocalRootPath(nativeRoot);
 
     // Resolve the imported root to its absolute path on the dev machine once,
     // so later opens (and saved graphs) use it directly instead of searching.
