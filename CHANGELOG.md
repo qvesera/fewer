@@ -146,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON, CSV and DOT round-trips keep file extensions — the exporters strip the extension from the display label, and the importers now rebuild the name from the path basename instead of dropping it
 - In the File import panel, clicking Auto highlighted the DETECTED format's tile and the chip read Detected, so the UI looked like it had defaulted to ASCII selection. Auto now stays on Auto: the chip names the mode first (Auto vs Format), and the Auto tile is the one highlighted while auto is in force — only a manual pick highlights a format. The component tests now assert which tile is highlighted in each state, not just which text is present
 - File imports are no longer silently rewritten by folder-scan settings: the saved max scan depth truncated any tree nested deeper than 6 levels, the hidden-files filter dropped .github folders, and a stale extension filter stripped files — all from options the user never applied to the file. A preference set for one import origin can no longer leak into another.
+- Desktop shell rendering now matches the web app: cards read solid instead of see-through (WebKitGTK never blurs the backdrop behind canvas cards, so the shell floors the card tint and drops the dead blur), and floating panels/minimap/tutorial glow keep their backgrounds on WebKit builds that lack color-mix(). Web rendering is unchanged.
 
 ### Added
 

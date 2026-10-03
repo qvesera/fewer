@@ -9,6 +9,7 @@ import {
   type NativeListEntry,
 } from "./nativeTree";
 import { previewCapFor, previewKindFor, imageMimeFor } from "./previewKind";
+import { shellSlotOpacity, toCssColor, SHELL_CARD_OPACITY_FLOOR } from "./themeColors";
 import type { TreeEntry } from "./types";
 
 /** fs-like fixture: path → entries. listDir serves pages from it. */
@@ -177,6 +178,23 @@ describe("resolveLinkTarget", () => {
     expect(resolveLinkTarget("/proj/src/a.txt", "../b")).toBe("/proj/b");
     expect(resolveLinkTarget("/proj/src/a.txt", "/etc/x")).toBe("/etc/x");
     expect(resolveLinkTarget("/proj/src/a.txt", "./y/./z")).toBe("/proj/src/y/z");
+  });
+});
+
+describe("shell card opacity floor (T-091)", () => {
+  test("floors folder/file card tints in the shell only", () => {
+    expect(shellSlotOpacity("folderBg", 0.12, true)).toBe(SHELL_CARD_OPACITY_FLOOR);
+    expect(shellSlotOpacity("fileBg", 0.12, true)).toBe(SHELL_CARD_OPACITY_FLOOR);
+    // Already-opaque tints pass through; non-card slots never floored.
+    expect(shellSlotOpacity("folderBg", 1, true)).toBe(1);
+    expect(shellSlotOpacity("background", 0.5, true)).toBe(0.5);
+    // Web: untouched.
+    expect(shellSlotOpacity("folderBg", 0.12, false)).toBe(0.12);
+  });
+
+  test("floored color renders opaque-ish rgba", () => {
+    const css = toCssColor("#fd7e14", shellSlotOpacity("folderBg", 0.12, true));
+    expect(css).toBe("rgba(253, 126, 20, 0.92)");
   });
 });
 

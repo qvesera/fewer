@@ -444,6 +444,7 @@ aside::-webkit-scrollbar-thumb:hover {
 /* ── Glass Utilities ───────────────────────────────────────────────────────── */
 
 .gm-glass {
+  background: var(--background);
   background: color-mix(in srgb, var(--background) 85%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -452,6 +453,7 @@ aside::-webkit-scrollbar-thumb:hover {
 
 /* Floating panel — for toolbar, breadcrumbs, search, bottom bar */
 .gm-float {
+  background: var(--background);
   background: color-mix(in srgb, var(--background) 80%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -561,6 +563,21 @@ aside::-webkit-scrollbar-thumb:hover {
   -webkit-backdrop-filter: none;
 }
 .gm-perf .react-flow__node > div {
+  animation: none;
+}
+
+/* ── Tauri shell rendering (T-091) ─────────────────────────────────────
+   WebKitGTK does not render backdrop-filter behind transformed React Flow
+   nodes (every node is transform-positioned), so the glass card look can't
+   work there — cards must read solid from their tint alone. themeColors
+   floors the folder/file tint at 0.92 in the shell (applyCustomThemeToDOM +
+   the layout bootstrap script); this rule drops the dead blur (same policy
+   as gm-perf). html[data-shell] is set by FewerApp when isTauri(). */
+html[data-shell] .react-flow__node > div {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-shell] .react-flow__node > div {
   animation: none;
 }
 
