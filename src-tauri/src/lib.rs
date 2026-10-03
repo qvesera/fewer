@@ -405,6 +405,10 @@ pub fn run() {
       }
       Ok(())
     })
+    // Dialog plugin MUST be registered here — the dependency alone compiles,
+    // but pick_library_dir / pick_license_file panic at first use without it
+    // ("state() called before manage() for tauri_plugin_dialog").
+    .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![
       commands::list_dir,
       commands::bench_tree_json,
