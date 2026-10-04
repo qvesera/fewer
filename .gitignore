@@ -100,3 +100,5 @@ lighthouse/*
 src-tauri/target/
 src-tauri/gen/
 !scripts/sign-license.ts
+# electron shell build output (T-095)
+electron/dist/

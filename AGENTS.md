@@ -65,6 +65,15 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   banned in `src/` by an ESLint `no-restricted-imports` guard — the Rust side of
   the contract is `src-tauri/src/lib.rs`, the Node side will be
   `electron/handlers/`.
+- **Electron shell** (`electron/`, T-095): `main.ts` (window + privileged
+  `app://` protocol serving `out/` — `net.fetch` cannot read `file://` URLs
+  through a custom protocol, so the handler reads files itself with a MIME
+  map), `preload.ts` (the `__FEWER_NATIVE__` bridge), `handlers.ts` (pure-Node
+  command surface mirroring `src-tauri/src/lib.rs`; unit-tested by
+  `bun test electron`, incl. the shared cross-host license fixture).
+  `bun run electron:start` compiles + launches against `out/`; set
+  `FEWER_DEV_SERVER_URL=http://localhost:3000` (with `bun run dev`) to iterate
+  against the Next dev server with HMR instead.
 - Segment config (`export const revalidate`) must stay a **literal** in export
   mode: Next parses it statically, and a ternary aborts the build with
   "Invalid segment configuration export detected".
