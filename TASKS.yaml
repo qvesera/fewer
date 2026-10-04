@@ -2489,36 +2489,36 @@ tasks:
   session_count: 0
 - id: "T-094"
   title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 315
-  pr: null
+  pr: 319
   internal: false
   milestone: null
   blocked_by: []
   parent: "T-093"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-04T19:36:39Z"
   notes: []
   sessions:
   - start: "2026-10-04T19:42:02Z"
-    end: null
+    end: "2026-10-04T20:19:18Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Stale session from the branch-collision: the T-094 work and its measured record live on feat/electron-seam (PR #319); this ledger copy is being aligned to it."
+    proof: ["f17c2b8", "bf1ee02", "#308"]
+    effort: {commits: 2, files: 22, insertions: 1011, deletions: 23}
+  spent_min: 37
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "infra"
   tier: null
@@ -2541,7 +2541,7 @@ tasks:
   session_count: 0
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
-  status: "triaged"
+  status: "blocked"
   type: "infra"
   area: "infra"
   tier: null
@@ -2564,7 +2564,7 @@ tasks:
   session_count: 0
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
-  status: "triaged"
+  status: "blocked"
   type: "infra"
   area: "infra"
   tier: null
