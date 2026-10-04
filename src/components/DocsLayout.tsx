@@ -75,6 +75,7 @@ export function DocsLayout({ children, type, title, backHref, backLabel }: DocsL
             border: none;
           }
           .prose thead tr {
+            background: ${accentColor}1a;
             background: color-mix(in srgb, ${accentColor} 10%, transparent);
           }
           .prose thead tr th {

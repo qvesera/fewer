@@ -50,8 +50,11 @@ export type Feature =
   // ── Power-user tools (free tier gets these) ──
   | "edgeMotion"           // animated edges, dash clock
   // ── Desktop offline (license-gated; T-090) ──
+  // nativeBrowse is reserved: folder import itself is CORE in the shell
+  // (the webview fallback picker is broken in WebKitGTK — see
+  // importActionFolder.ts), so no UI checks this flag today.
   | "localLibrary"     // save/load graphs in the on-disk Fewer Library
-  | "nativeBrowse"     // stream local dirs through the shell's list_dir
+  | "nativeBrowse"     // reserved: future pro-tier native browsing extras
   | "localPreview"     // in-app image/PDF/text preview of local files
   | "advancedImportFormats" // JSON / script import formats
   | "unbrandedExport"      // export without the fewer watermark

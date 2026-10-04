@@ -67,6 +67,21 @@ export function toCssColor(color: string, opacity: number): string {
 }
 
 /**
+ * Minimum card-tint opacity for the desktop shell (T-091). WebKitGTK does not
+ * render backdrop-filter behind transformed React Flow nodes, so the ~0.12
+ * glass tint must stand alone there; the web keeps its translucent cards.
+ */
+export const SHELL_CARD_OPACITY_FLOOR = 0.92;
+
+export function shellSlotOpacity(slotKey: string, opacity: number, shell: boolean): number {
+  if (!shell) return opacity;
+  if (slotKey === "folderBg" || slotKey === "fileBg") {
+    return Math.max(opacity, SHELL_CARD_OPACITY_FLOOR);
+  }
+  return opacity;
+}
+
+/**
  * Build the `linear-gradient(...)` string for a color slot, or null when the
  * slot has no (valid) `gradientTo`. Opacity applies to both stops.
  */
