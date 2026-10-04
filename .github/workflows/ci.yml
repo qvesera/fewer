@@ -110,3 +110,36 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+  # Desktop static export (T-092). `out/` is the shell's only artifact, and it
+  # must build with NO Supabase env (CI has none) — docs/blog then render from
+  # the repo markdown instead of `content_pages`. Also asserts the build script
+  # restored the server-only trees it moves aside for the export.
+  build-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run build:desktop
+      - name: Export sanity (app shell + offline docs/blog)
+        run: |
+          test -f out/index.html
+          test -f out/app.html
+          test -f out/404.html
+          test -f out/docs/shortcuts.html
+          test -f out/blog/v060-release.html
+      - name: Server-only trees are back after the export
+        run: |
+          test -f middleware.ts
+          test -d src/app/api
+          test -f src/app/auth/callback/route.ts
+

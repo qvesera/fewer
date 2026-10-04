@@ -21,6 +21,7 @@
     "test": "bun test src && bun run test:components",
     "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
     "build:netlify": "bun run vendor:archive && bun next build",
+    "build:desktop": "bun run vendor:archive && ./scripts/build-desktop.sh",
     "env": "bun run scripts/env-sync.ts",
     "env:check": "bun run scripts/env-sync.ts check",
     "vendor:archive": "bun run scripts/vendor-libarchive.ts",

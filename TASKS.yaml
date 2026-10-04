@@ -2431,23 +2431,156 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "triaged"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
   issue: 304
-  pr: null
+  pr: 308
   internal: false
   milestone: null
   blocked_by: []
   parent: "T-088"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
+  notes: []
+  sessions:
+  - start: "2026-10-04T10:43:06Z"
+    end: "2026-10-04T11:04:41Z"
+    measured: true
+    note: "Static export target landed: scripts/build-desktop.sh moves middleware/api/auth-callback aside, builds Next output:export to out/, restores them (trap-guarded; CI asserts). next.config picks export only under DESKTOP_EXPORT. Docs+blog render from in-repo markdown in export mode (src/lib/content/localContent.ts mirrors gen-seed-content.py front matter + its hidden docs/plans rule) so the build works offline and the app ships docs; generateStaticParams lists repo slugs in export, [] on web (ISR unchanged). Segment config must stay literal — a ternary trips Next's static parser ('Invalid segment configuration export detected'); documented in AGENTS.md + both call sites. tauri.conf now points at ../out + build:desktop. New build-desktop CI job asserts out/{index,app,404}.html + docs/blog pages and that the moved trees are restored. Verified: export built with Supabase env (35 pages, DB slugs) and with env blanked (15 docs + 8 posts from markdown); web standalone build, tsc, lint, 1625+ tests green; 4 new localContent tests."
+    proof: ["addf8c0", "#308"]
+    effort: {commits: 1, files: 13, insertions: 285, deletions: 7}
+  - start: "2026-10-04T19:23:18Z"
+    end: "2026-10-04T19:31:09Z"
+    measured: true
+    note: "Follow-up: committed scripts/build-desktop.sh (gitignore allowlist entry); CI green on #308 incl. build-desktop job."
+    proof: ["f18d1df", "37aa445", "#308"]
+    effort: {commits: 2, files: 3, insertions: 56, deletions: 2}
+  spent_min: 30
+  session_count: 2
+- id: "T-093"
+  title: "Electron desktop shell — offline desktop app (Chromium renderer; Tauri parked)"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 314
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-094"
+  title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
+  status: "review"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 315
+  pr: 319
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-093"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions:
+  - start: "2026-10-04T19:42:02Z"
+    end: "2026-10-04T20:19:18Z"
+    measured: true
+    note: "Stale session from the branch-collision: the T-094 work and its measured record live on feat/electron-seam (PR #319); this ledger copy is being aligned to it."
+    proof: ["f17c2b8", "bf1ee02", "#308"]
+    effort: {commits: 2, files: 22, insertions: 1011, deletions: 23}
+  spent_min: 37
+  session_count: 1
+- id: "T-095"
+  title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
+  status: "blocked"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 316
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-094"]
+  parent: "T-093"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-096"
+  title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
+  status: "blocked"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 317
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-095"]
+  parent: "T-093"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-097"
+  title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
+  status: "blocked"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 318
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-095"]
+  parent: "T-093"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:40Z"
   notes: []
   sessions: []
   spent_min: 0

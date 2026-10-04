@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 import { getSupabase } from "@/lib/supabase";
+import { isDesktopExport, listLocalContent } from "@/lib/content/localContent";
 
 export const metadata = {
   title: "Docs | Fewer",
@@ -18,6 +19,14 @@ type DocMeta = {
 };
 
 async function getDocs(): Promise<DocMeta[]> {
+  // Desktop export: the same repo markdown the pages render, no server query.
+  if (isDesktopExport()) {
+    return (await listLocalContent("docs")).map((d) => ({
+      slug: d.slug,
+      title: d.title,
+      description: d.description,
+    }));
+  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")

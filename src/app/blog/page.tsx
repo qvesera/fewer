@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 import { getSupabase } from "@/lib/supabase";
+import { isDesktopExport, listLocalContent } from "@/lib/content/localContent";
 
 export const metadata = {
   title: "Blog | Fewer",
@@ -22,6 +23,19 @@ type PostMeta = {
 };
 
 async function getPosts(): Promise<PostMeta[]> {
+  // Desktop export: the same repo markdown the pages render, no server query.
+  if (isDesktopExport()) {
+    return (await listLocalContent("blog"))
+      .map((p) => ({
+        slug: p.slug,
+        title: p.title,
+        date: p.date,
+        description: p.description,
+        author: p.author,
+        tags: p.tags,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")
