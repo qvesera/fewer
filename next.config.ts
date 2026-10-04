@@ -11,7 +11,11 @@ const commitHash = process.env.COMMIT_REF
 const appVersion = `${version}-${commitHash}`;
 
 const nextConfig: NextConfig = {
-  output: process.env.NETLIFY ? undefined : "standalone",
+  output: process.env.NETLIFY
+    ? undefined
+    : process.env.DESKTOP_EXPORT
+      ? "export"
+      : "standalone",
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   typescript: {
     ignoreBuildErrors: true,

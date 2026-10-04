@@ -41,9 +41,26 @@ reference: `.agents/skills/tasks/SKILL.md` (`bun run task:status` first).
 ```bash
 bun install            # Install dependencies
 bun run dev            # Start dev server on port 3000
-bun run build          # Production build
+bun run build          # Production build (standalone server)
+bun run build:desktop  # Static export for the desktop shell → out/
 bun run lint           # Run ESLint
 ```
+
+## Desktop shell
+
+The desktop app is a **static export** (`out/`) loaded by an Electron shell —
+`bun run build:desktop` (Electron consumes `out/` through a custom protocol).
+
+- `scripts/build-desktop.sh` moves the server-only trees aside for the export
+  (`middleware.ts`, `src/app/api`, `src/app/auth/callback`), builds with
+  `output: "export"`, then restores them. `out/` is gitignored.
+- Docs + blog render from the in-repo markdown (`src/lib/content/localContent.ts`)
+  in export mode, so the build works offline and the app ships its own docs.
+  The web build keeps reading `content_pages` with ISR — the **same markdown is
+  the source of record** for both (`scripts/gen-seed-content.py` seeds the DB).
+- Segment config (`export const revalidate`) must stay a **literal** in export
+  mode: Next parses it statically, and a ternary aborts the build with
+  "Invalid segment configuration export detected".
 
 ## Project Architecture
 

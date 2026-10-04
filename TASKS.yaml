@@ -2431,7 +2431,7 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "triaged"
+  status: "in-progress"
   type: "infra"
   area: "infra"
   tier: null
@@ -2449,6 +2449,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-04T10:43:06Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
