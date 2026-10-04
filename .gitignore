@@ -86,6 +86,8 @@ lighthouse/*
 scripts/*
 # the archive worker vendoring script is a real build input (see package.json)
 !scripts/vendor-libarchive.ts
+# the desktop static-export build (see package.json build:desktop)
+!scripts/build-desktop.sh
 lighthouse/*
 .clinerules/*
 
