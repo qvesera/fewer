@@ -2431,7 +2431,7 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
@@ -2457,10 +2457,10 @@ tasks:
     proof: ["addf8c0", "#308"]
     effort: {commits: 1, files: 13, insertions: 285, deletions: 7}
   - start: "2026-10-04T19:23:18Z"
-    end: null
+    end: "2026-10-04T19:31:09Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 22
+    note: "Follow-up: committed scripts/build-desktop.sh (gitignore allowlist entry); CI green on #308 incl. build-desktop job."
+    proof: ["f18d1df", "37aa445", "#308"]
+    effort: {commits: 2, files: 3, insertions: 56, deletions: 2}
+  spent_min: 30
   session_count: 2
