@@ -2518,7 +2518,7 @@ tasks:
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "infra"
   tier: null
@@ -2541,7 +2541,7 @@ tasks:
   session_count: 0
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
-  status: "triaged"
+  status: "blocked"
   type: "infra"
   area: "infra"
   tier: null
@@ -2564,7 +2564,7 @@ tasks:
   session_count: 0
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
-  status: "triaged"
+  status: "blocked"
   type: "infra"
   area: "infra"
   tier: null
