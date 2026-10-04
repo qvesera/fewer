@@ -2431,30 +2431,30 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
   estimate_min: 480
   estimate_basis: "cli"
   issue: 304
-  pr: null
+  pr: 308
   internal: false
   milestone: null
   blocked_by: []
   parent: "T-088"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-02T21:44:56Z"
   notes: []
   sessions:
   - start: "2026-10-04T10:43:06Z"
-    end: null
+    end: "2026-10-04T11:04:41Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Static export target landed: scripts/build-desktop.sh moves middleware/api/auth-callback aside, builds Next output:export to out/, restores them (trap-guarded; CI asserts). next.config picks export only under DESKTOP_EXPORT. Docs+blog render from in-repo markdown in export mode (src/lib/content/localContent.ts mirrors gen-seed-content.py front matter + its hidden docs/plans rule) so the build works offline and the app ships docs; generateStaticParams lists repo slugs in export, [] on web (ISR unchanged). Segment config must stay literal — a ternary trips Next's static parser ('Invalid segment configuration export detected'); documented in AGENTS.md + both call sites. tauri.conf now points at ../out + build:desktop. New build-desktop CI job asserts out/{index,app,404}.html + docs/blog pages and that the moved trees are restored. Verified: export built with Supabase env (35 pages, DB slugs) and with env blanked (15 docs + 8 posts from markdown); web standalone build, tsc, lint, 1625+ tests green; 4 new localContent tests."
+    proof: ["addf8c0", "#308"]
+    effort: {commits: 1, files: 13, insertions: 285, deletions: 7}
+  spent_min: 22
   session_count: 1
