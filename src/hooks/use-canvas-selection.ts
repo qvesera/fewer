@@ -5,7 +5,7 @@ import type { OnSelectionChangeParams } from "@xyflow/react";
 import { nextSelectionIds, selectionForLeaf } from "@/lib/fewer/canvasSelection";
 import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
-import { isTauri } from "@/lib/fewer/nativeShell";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
 import { nodeAbsolutePath } from "@/lib/fewer/filePaths";
 import { usePreviewStore } from "@/lib/fewer/previewStore";
@@ -142,7 +142,7 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
       if (
         full?.data.type === "file" &&
         full.data.path &&
-        isTauri() &&
+        isHost() &&
         can("localPreview", st.tier)
       ) {
         const root = st.nodes.find((n) => n.data.isRoot);

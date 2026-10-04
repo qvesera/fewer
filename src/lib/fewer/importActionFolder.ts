@@ -17,7 +17,7 @@ import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { TreeEntry } from "@/lib/fewer/types";
 import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
 import { useGraphStore } from "@/store/graphStore";
-import { isTauri, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
+import { isHost, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
 import { buildTreeFromNative } from "@/lib/fewer/nativeTree";
 /** Produce the tree for a dropped folder through whichever channel delivered it. */
 async function treeFromDropped(
@@ -70,7 +70,7 @@ export async function runFolderImport(
     // native dialog is folder-only and the walk needs no server. Absolute
     // paths survive, so localRootPath is known exactly and Open-in-Explorer /
     // saved graphs resolve without a filesystem search.
-    const nativeAllowed = isTauri();
+    const nativeAllowed = isHost();
     let tree: TreeEntry | null = null;
     let nativeRoot: string | null = null;
     if (dropped) {

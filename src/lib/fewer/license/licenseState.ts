@@ -5,7 +5,7 @@
 // Enforcement honesty (same as tiers.ts): this is a best-effort client gate —
 // it hides UI, it does not sandbox the binary. Real enforcement would move the
 // check behind a signed Rust surface; recorded as the upgrade path.
-import { isTauri, nativeFsRead, nativePickLicenseFile, nativeVerifyLicenseSig } from "@/lib/fewer/nativeShell";
+import { isHost, nativeFsRead, nativePickLicenseFile, nativeVerifyLicenseSig } from "@/lib/fewer/nativeShell";
 import {
   licenseStatus,
   licensedDesktopTier,
@@ -50,7 +50,7 @@ export function onLicenseChanged(cb: () => void): () => void {
 /** Verify the stored (or given) license file via the shell. */
 export async function checkLicense(path?: string): Promise<LicenseStatus> {
   const target = path ?? getLicensePath();
-  if (!isTauri() || !target) return { state: "none" };
+  if (!isHost() || !target) return { state: "none" };
   try {
     const raw = await nativeFsRead(target);
     const file = parseLicenseFile(raw);
@@ -104,7 +104,7 @@ export function deactivateLicense(): void {
  * Mirrors devTierOverride() precedence in FewerApp.
  */
 export async function desktopLicensedTier(): Promise<Tier | null> {
-  if (!isTauri()) return null;
+  if (!isHost()) return null;
   const status = await checkLicense();
   return licensedDesktopTier(status);
 }
