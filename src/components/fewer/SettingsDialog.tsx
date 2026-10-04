@@ -58,7 +58,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import { LicensePanel } from "./LicensePanel";
-import { isTauri } from "@/lib/fewer/nativeShell";
+import { isHost } from "@/lib/fewer/nativeShell";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1360,7 +1360,7 @@ export function SettingsDialog() {
   const isMobile = useIsMobile();
   // The Advanced tab is empty for non-Pro mobile users: Layout Policy +
   // Node Metrics are Pro-tier and the Scroll to Zoom card is desktop-only.
-  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled, inShell: isTauri() });
+  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled, inShell: isHost() });
   const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks

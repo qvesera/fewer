@@ -4,7 +4,7 @@ import type { GraphState } from "./types";
 import type { ThemeMode, CustomTheme, CustomThemeColor } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
 import { toCssColor, toGradientCss, migrateCustomTheme, deriveShadcnVars, shellSlotOpacity } from "@/lib/fewer/themeColors";
-import { isTauri } from "@/lib/fewer/nativeShell";
+import { isHost } from "@/lib/fewer/nativeShell";
 
 const STORAGE_THEME = "fewer-theme";
 const STORAGE_CUSTOM = "fewer-custom-theme";
@@ -89,9 +89,10 @@ export const createThemeSlice: ThemeSliceCreator = (set, get) => ({
 export function applyCustomThemeToDOM(theme: CustomTheme) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  // Tauri shell: floor the card tints — WebKitGTK never blurs the backdrop
-  // behind transformed nodes, so ~0.12 alpha reads as "see-through dots".
-  const shell = isTauri();
+  // Shell card tints: floor them where the host cannot blur the backdrop
+  // (WebKitGTK-era behavior; the Electron host blurs fine — whether to keep the
+  // floor there is a T-095 capability question, see shellSlotOpacity).
+  const shell = isHost();
   for (const meta of THEME_COLOR_META) {
     const raw = theme[meta.key];
     const c: CustomThemeColor =

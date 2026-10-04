@@ -2509,12 +2509,12 @@ tasks:
   notes: []
   sessions:
   - start: "2026-10-04T19:42:02Z"
-    end: "2026-10-04T20:19:18Z"
+    end: "2026-10-04T19:52:12Z"
     measured: true
-    note: "Stale session from the branch-collision: the T-094 work and its measured record live on feat/electron-seam (PR #319); this ledger copy is being aligned to it."
-    proof: ["f17c2b8", "bf1ee02", "#308"]
-    effort: {commits: 2, files: 22, insertions: 1011, deletions: 23}
-  spent_min: 37
+    note: "Host seam landed: nativeShell.ts gains isElectron()/isHost() + hostInvoke (Electron __FEWER_NATIVE__.invoke first, then Tauri __TAURI_INTERNALS__; rejects cleanly in web — typeof window guard caught by test). All 11 feature-code isTauri() gates → isHost() (9 files); public native* API unchanged. ESLint no-restricted-imports bans @tauri-apps/* + electron in src/ (negative-tested with probe file). 6 seam tests, suite 1631 green, tsc/lint/web build clean. Follow-up noted for T-095: shellSlotOpacity tint floor is WebKitGTK-era; Electron blurs fine — capability question."
+    proof: ["70aae70", "bf1ee02", "#319"]
+    effort: {commits: 2, files: 15, insertions: 323, deletions: 46}
+  spent_min: 10
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"

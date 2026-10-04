@@ -27,7 +27,7 @@ import {
   type GraphsBackend,
 } from "@/lib/fewer/graphsData";
 import { getLibraryDir } from "@/lib/fewer/libraryConfig";
-import { isTauri } from "@/lib/fewer/nativeShell";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
 import {
   buildShareRequestBody,
@@ -88,7 +88,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   // Data backend: local Fewer Library on desktop, cloud account otherwise (T-089).
   const [backend, setBackend] = useState<GraphsBackend>(() => getGraphsBackend());
   const localMode = backend.local;
-  const inShell = isTauri();
+  const inShell = isHost();
   // Library saves are a desktop Pro feature (license gate, T-090).
   const libraryLicensed = can("localLibrary", tier);
 

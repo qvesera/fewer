@@ -58,6 +58,13 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   in export mode, so the build works offline and the app ships its own docs.
   The web build keeps reading `content_pages` with ISR — the **same markdown is
   the source of record** for both (`scripts/gen-seed-content.py` seeds the DB).
+- **Host seam** (`src/lib/fewer/nativeShell.ts`, T-094): feature code gates on
+  `isHost()` and routes RPCs through `hostInvoke`; the Electron preload exposes
+  `window.__FEWER_NATIVE__.invoke` with the same command names/shapes as Tauri's
+  `__TAURI_INTERNALS__.invoke`. Host packages (`@tauri-apps/*`, `electron`) are
+  banned in `src/` by an ESLint `no-restricted-imports` guard — the Rust side of
+  the contract is `src-tauri/src/lib.rs`, the Node side will be
+  `electron/handlers/`.
 - Segment config (`export const revalidate`) must stay a **literal** in export
   mode: Next parses it statically, and a ternary aborts the build with
   "Invalid segment configuration export detected".

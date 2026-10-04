@@ -25,7 +25,7 @@ import { shouldDeferHashForAuth, PENDING_AUTH_HASH_KEY } from "@/lib/fewer/authG
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isTauri } from "@/lib/fewer/nativeShell";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { devTierOverride } from "@/lib/fewer/devTier";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
@@ -109,7 +109,7 @@ export function FewerApp() {
   // Desktop shell marker for CSS (T-091): cards/panels that assume web
   // rendering (backdrop-filter, color-mix) degrade under html[data-shell].
   useEffect(() => {
-    if (isTauri()) document.documentElement.dataset.shell = "";
+    if (isHost()) document.documentElement.dataset.shell = "";
   }, []);
 
   // Tier: who is the visitor? Derived from auth + profile + (desktop) license,

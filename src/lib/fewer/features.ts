@@ -23,16 +23,16 @@
  *  - file / URL / cloud imports (plain inputs, FileReader, fetch)
  *  - in-app node drag & drop (custom DataTransfer payload, no item access)
  */
-import { isTauri } from "./nativeShell";
+import { isHost } from "./nativeShell";
 
-/** True inside the Tauri webview; false on web, SSR, and bun tests. */
-const inTauriShell = isTauri();
+/** True inside any desktop shell host (Tauri or Electron); false on web, SSR, and bun tests. */
+const inHostShell = isHost();
 
 export const LOCAL_FS_FEATURES = {
   /** "Open in File Explorer" (folder context menu + Alt+O): /api/open-folder or the shell's open_in_os. */
-  openInOs: inTauriShell,
+  openInOs: inHostShell,
   /** "Open File" (file context menu + Enter): /api/open-file, FS handles, or the shell's open_in_os. */
-  openFileInOs: inTauriShell,
+  openFileInOs: inHostShell,
   /** External OS folder drop on the empty canvas → import. */
   dragDropImport: false,
   /** Drop a disk-backed folder child onto the canvas to expand it from disk. */

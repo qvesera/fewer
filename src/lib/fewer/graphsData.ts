@@ -19,7 +19,7 @@ import {
   type LibraryFs,
   type LibraryManifest,
 } from "./localLibrary";
-import { isTauri, nativeFsRead, nativeFsRemove, nativeFsWrite, nativePickDirectory } from "./nativeShell";
+import { isHost, nativeFsRead, nativeFsRemove, nativeFsWrite, nativePickDirectory } from "./nativeShell";
 import { getLibraryDir } from "./libraryConfig";
 
 export interface GraphSaveInput {
@@ -166,7 +166,7 @@ export function localGraphsBackend(fs: LibraryFs, root: string): GraphsBackend {
 
 /** True when the desktop shell has a library folder configured. */
 export function hasLocalLibrary(): boolean {
-  return isTauri() && !!getLibraryDir();
+  return isHost() && !!getLibraryDir();
 }
 
 /** Pick a library folder via the shell dialog and persist it. Returns the dir or null. */
