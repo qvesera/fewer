@@ -105,3 +105,4 @@ export function nativeVerifyLicenseSig(payload: string, sig: number[]): Promise<
 export function nativeFsReadBytes(path: string, maxBytes: number): Promise<ArrayBuffer> {
   return hostInvoke<ArrayBuffer>("fs_read_bytes", { path, maxBytes });
 }
+
