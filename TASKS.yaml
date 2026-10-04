@@ -2431,7 +2431,7 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: null
@@ -2489,7 +2489,7 @@ tasks:
   session_count: 0
 - id: "T-094"
   title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2518,7 +2518,7 @@ tasks:
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
-  status: "blocked"
+  status: "triaged"
   type: "feat"
   area: "infra"
   tier: null
