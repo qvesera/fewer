@@ -7,6 +7,9 @@ const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // The Electron smoke has its own config (playwright.electron.config.ts) and
+  // its own CI job — it must not boot the webServer or need a built shell here.
+  testIgnore: ["**/electron.spec.ts"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

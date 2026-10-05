@@ -143,3 +143,44 @@ jobs:
           test -d src/app/api
           test -f src/app/auth/callback/route.ts
 
+  # Desktop packaging gate (T-097): builds the export + shell, runs the Playwright
+  # Electron smoke against the REAL app (xvfb — headless runners have no display),
+  # then packages AppImage + deb and uploads them as artifacts. The smoke needs
+  # out/ + electron/dist; the package step reuses them (no rebuild).
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - name: Cache electron + electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - name: Static export + shell compile
+        run: bun run build:desktop && bun run electron:compile
+      - name: Electron smoke (Playwright under xvfb)
+        run: xvfb-run -a bunx playwright test --config playwright.electron.config.ts
+      - name: Package AppImage + deb
+        run: bunx electron-builder --linux --publish never
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fewer-linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+

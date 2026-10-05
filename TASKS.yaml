@@ -2576,7 +2576,7 @@ tasks:
   session_count: 1
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
-  status: "triaged"
+  status: "in-progress"
   type: "infra"
   area: "infra"
   tier: null
@@ -2594,6 +2594,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-04T19:36:40Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-05T11:03:59Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
