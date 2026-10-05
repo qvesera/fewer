@@ -2628,7 +2628,7 @@ tasks:
   session_count: 0
 - id: "T-099"
   title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2663,7 +2663,7 @@ tasks:
   session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
-  status: "blocked"
+  status: "triaged"
   type: "feat"
   area: "infra"
   tier: null
