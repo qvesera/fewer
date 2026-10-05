@@ -2628,7 +2628,7 @@ tasks:
   session_count: 0
 - id: "T-099"
   title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
@@ -2654,12 +2654,12 @@ tasks:
     proof: ["2213913", "#339"]
     effort: {commits: 1, files: 13, insertions: 339, deletions: 12}
   - start: "2026-10-05T15:06:11Z"
-    end: null
+    end: "2026-10-05T15:09:30Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 24
+    note: "Follow-up (user-reported): navbar logo navigated to the marketing homepage in the shell (its web nav showed Sign in/Launch again). Fix: logo inert when isHost() (Link kept for web); main.ts will-navigate guard — only /app* and /docs* may document-load in the standalone (pushState routing unaffected, dev-server mode exempt); Playwright smoke now asserts window.url() contains app.html. Gates: tsc/lint/suite green, export rebuilt, smoke green 1.4s. PR #339."
+    proof: ["1a6d643", "#339"]
+    effort: {commits: 1, files: 4, insertions: 35, deletions: 6}
+  spent_min: 27
   session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
