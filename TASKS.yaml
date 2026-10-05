@@ -2547,32 +2547,32 @@ tasks:
   session_count: 1
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 317
-  pr: null
+  pr: 321
   internal: false
   milestone: null
   blocked_by: ["T-095"]
   parent: "T-093"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-04T19:36:39Z"
   notes: []
   sessions:
   - start: "2026-10-05T08:56:57Z"
-    end: null
+    end: "2026-10-05T09:09:40Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Packaging shipped: electron-builder.yml (AppImage+deb, logo-512 icon, syncDesktopName for WM_CLASS, npmRebuild off, asar on), electron:dist chains build:desktop+compile+builder, version from package.json (Fewer-0.7.1.AppImage ~284MB + deb ~195MB verified). Packaged layout mirrors repo (app.asar holds electron/dist + out) so ../../out resolves identically; AppImage smoke on dev box boots clean (Fedora needs --appimage-extract-and-run, no libfuse2 — documented in README+AGENTS). tsc/lint/full suite green. Remaining: T-097 (Playwright _electron.launch e2e + CI package job)."
+    proof: ["5ebc816", "#321"]
+    effort: {commits: 1, files: 8, insertions: 497, deletions: 10}
+  spent_min: 13
   session_count: 1
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
