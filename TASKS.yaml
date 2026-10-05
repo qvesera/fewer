@@ -2431,7 +2431,7 @@ tasks:
   session_count: 1
 - id: "T-092"
   title: "Static-export desktop build target + CI dual build"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: null
@@ -2489,7 +2489,7 @@ tasks:
   session_count: 0
 - id: "T-094"
   title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2518,27 +2518,33 @@ tasks:
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
-  status: "blocked"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 960
   estimate_basis: "cli"
   issue: 316
-  pr: null
+  pr: 320
   internal: false
   milestone: null
   blocked_by: ["T-094"]
   parent: "T-093"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-04T19:36:39Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-04T21:24:03Z"
+    end: "2026-10-04T21:41:37Z"
+    measured: true
+    note: "Electron shell core shipped: main.ts serves out/ over privileged app:// protocol (net.fetch cannot read file:// through custom protocols — caught live as ERR_FILE_NOT_FOUND; handler reads files with MIME map; directory routes EISDIR fixed via isFile check), preload exposes __FEWER_NATIVE__.invoke (Tauri-shaped), handlers.ts = full command surface in pure Node (windowed list_dir w/ symlink honesty, scoped fs caps, async pickers, open_in_os, Ed25519 verify via node:crypto on pinned dev key). 9 electron tests incl. shared cross-host license fixture; suite 1631+9+194; tsc/lint/web build/desktop export clean. Live smoke: app window up on dev box, zero request errors — app left running for user feature verification. Follow-ups: T-096 packaging (electron-builder), T-097 Playwright e2e + CI package job; FEWER_DEV_SERVER_URL loop documented in AGENTS.md."
+    proof: ["70a2374", "#320"]
+    effort: {commits: 1, files: 12, insertions: 580, deletions: 13}
+  spent_min: 18
+  session_count: 1
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
   status: "blocked"
