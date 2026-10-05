@@ -2518,7 +2518,7 @@ tasks:
   session_count: 1
 - id: "T-095"
   title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2547,7 +2547,7 @@ tasks:
   session_count: 1
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
-  status: "blocked"
+  status: "triaged"
   type: "infra"
   area: "infra"
   tier: null
