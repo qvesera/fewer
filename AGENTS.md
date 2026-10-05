@@ -80,6 +80,11 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   save/share/gallery/URL-import/watch/history/billing) — one map, no scattered
   checks. External http(s) links open in the system browser
   (`webContents.setWindowOpenHandler`).
+- **Standalone tier model** (T-100): shell tier = `devOverride ?? (licensed ?
+  'pro' : 'free')` — **never `guest`** (that would blank advanced UI);
+  `SHELL_MIN_TIER`/`canFor()` in tiers.ts apply shell-only overrides (e.g.
+  `unbrandedExport` → license); settings are localStorage-only (`isHost()`
+  guards both `/api/settings` fetches). Web tiers unchanged.
 - **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
   `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
   `.deb` — version always from package.json (single source of truth). Packaged

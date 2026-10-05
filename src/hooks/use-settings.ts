@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { useAuth } from "./use-auth";
+import { isHost } from "@/lib/fewer/nativeShell";
 import {
   captureUserSettings,
   applyUserSettings,
@@ -43,7 +44,8 @@ export function useSettingsSync() {
       timerRef.current = setTimeout(() => {
         const settings = captureUserSettings();
         saveSettingsLocal(settings);
-        if (uidRef.current) {
+        // Standalone (T-100): localStorage only — no server exists in the shell.
+        if (uidRef.current && !isHost()) {
           fetch("/api/settings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -67,7 +69,9 @@ export function useSettingsSync() {
 
   // When the signed-in user resolves or changes, load their cloud settings.
   useEffect(() => {
-    if (tier === "guest") {
+    // Standalone (T-100): settings live in localStorage only — the shell has
+    // no server, and its tier is never "guest", so guard on the host directly.
+    if (isHost() || tier === "guest") {
       readyRef.current = true;
       return;
     }
