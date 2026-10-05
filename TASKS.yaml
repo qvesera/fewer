@@ -2663,7 +2663,7 @@ tasks:
   session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2692,7 +2692,7 @@ tasks:
   session_count: 1
 - id: "T-101"
   title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
-  status: "blocked"
+  status: "triaged"
   type: "feat"
   area: "infra"
   tier: null
