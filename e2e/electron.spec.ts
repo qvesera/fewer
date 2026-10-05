@@ -42,6 +42,9 @@ test.describe("Electron shell", () => {
 
   test("opens a window with the native bridge and working IPC", async () => {
     const window = await app.firstWindow();
+    // Standalone entry (T-099): boots into the app route — never the marketing
+    // homepage (the will-navigate guard in main.ts enforces it too).
+    expect(window.url()).toContain("app.html");
     // The marketing page's title is "fewer | Turn any directory…" (lowercase).
     await expect
       .poll(() => window.title().then((t) => t.toLowerCase()), { timeout: 60_000 })

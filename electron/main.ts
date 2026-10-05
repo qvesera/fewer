@@ -118,6 +118,16 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
+  // Standalone (T-099 follow-up): the export also contains the marketing pages,
+  // but the app never navigates to them — only /app (canvas) and /docs (kept
+  // in-app per product) may load as documents. Client-side routing (pushState)
+  // never fires this; it catches real document loads only (links, redirects).
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("app://")) return; // dev server: iterate freely
+    const path = new URL(url).pathname;
+    if (!path.startsWith("/app") && !path.startsWith("/docs")) event.preventDefault();
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

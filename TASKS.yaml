@@ -2628,7 +2628,7 @@ tasks:
   session_count: 0
 - id: "T-099"
   title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "infra"
   tier: null
@@ -2653,8 +2653,14 @@ tasks:
     note: "App-first standalone landed: main.ts boots app://fewer/app.html (marketing stays web-only), external http(s) via setWindowOpenHandler→shell.openExternal. features.ts gains CLOUD_FEATURES + cloudFeature()/cloudFeatureFor() (8 server features OFF in shell); gated navbar sign-in/account, AuthDialog mount, settings tabs (visibleTabs shell: about/appearance/license/advanced/help), import origins URL+cloud (new cloudAvailable prop — dialog-side features import deterministically SIGABRTs bun's mock.module graph in that suite, bisected), theme gallery publish (user-gated). getGraphsBackend always local in shell (was: no dir → cloud backend → dead API); panel prompt keys on unset dir; loadGraphs/save guarded. Tests: features.test (3) + visibleTabs shell (3); suite green; web build green; desktop export rebuilt; Playwright electron smoke green 3.9s (boots into app). PR #339."
     proof: ["2213913", "#339"]
     effort: {commits: 1, files: 13, insertions: 339, deletions: 12}
+  - start: "2026-10-05T15:06:11Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 24
-  session_count: 1
+  session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
   status: "blocked"

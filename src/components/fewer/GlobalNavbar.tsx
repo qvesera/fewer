@@ -10,6 +10,7 @@ import { useBilling } from "@/hooks/use-billing";
 import { useEffect, useMemo, useRef } from "react";
 import { Logo } from "./Logo";
 import { cloudFeature } from "@/lib/fewer/features";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile, userDisplayName, initialsOf } from "@/hooks/use-profile";
 import { getBrowserSupabase } from "@/lib/supabase";
@@ -76,12 +77,21 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
   };
 
 
+  const inShell = isHost();
+
   return (
     <div className="relative w-full flex items-center justify-between gap-4 border-b border-border/40 bg-background/95 px-4 py-2.5">
-      {/* Brand Group — clickable, goes to the homepage */}
-      <Link href={process.env.NEXT_PUBLIC_HOME_URL || "/"} className="z-10 flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Fewer home">
-        <Logo showText />
-      </Link>
+      {/* Brand Group: links home on the web; inert in the standalone (T-099
+          follow-up — clicking it must never navigate to the marketing pages). */}
+      {inShell ? (
+        <div className="z-10 flex items-center gap-2" aria-label="Fewer">
+          <Logo showText />
+        </div>
+      ) : (
+        <Link href={process.env.NEXT_PUBLIC_HOME_URL || "/"} className="z-10 flex items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="Fewer home">
+          <Logo showText />
+        </Link>
+      )}
 
       {/* Global Search Center Input Box */}
       <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-md hidden sm:block z-20">
