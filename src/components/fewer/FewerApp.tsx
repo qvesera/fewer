@@ -126,7 +126,10 @@ export function FewerApp() {
       // `?tier=` (dev builds only) forces the tier so the Pro surface is testable
       // without a Pro account — see devTier.ts. The server still enforces the real
       // plan; production builds ignore it.
-      const tier = devTierOverride() ?? licensed ?? tierOf(user, profile.plan);
+      // Standalone (T-100): no account exists in the shell, so the tier comes
+      // from the offline license alone — never "guest" (which would also blank
+      // the advanced UI). Web keeps the account ladder unchanged.
+      const tier = devTierOverride() ?? licensed ?? (isHost() ? "free" : tierOf(user, profile.plan));
     const prev = useGraphStore.getState().tier;
     useGraphStore.setState({
       tier,
