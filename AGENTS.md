@@ -74,6 +74,13 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   `bun run electron:start` compiles + launches against `out/`; set
   `FEWER_DEV_SERVER_URL=http://localhost:3000` (with `bun run dev`) to iterate
   against the Next dev server with HMR instead.
+- **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
+  `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
+  `.deb` — version always from package.json (single source of truth). Packaged
+  layout mirrors the repo (`app.asar` holds `electron/dist/` + `out/`), so
+  main.ts's `../../out` resolution is identical dev vs packaged; asar-patched
+  fs makes existsSync/statSync/readFile work inside. AppImage needs libfuse2 —
+  on Fedora 39+ run with `--appimage-extract-and-run`. CI packaging job: T-097.
 - Segment config (`export const revalidate`) must stay a **literal** in export
   mode: Next parses it statically, and a ternary aborts the build with
   "Invalid segment configuration export detected".

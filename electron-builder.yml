@@ -1,0 +1,37 @@
+# electron-builder packaging (T-096) — Linux AppImage + deb for the desktop shell.
+#
+# The packaged layout mirrors the repo: app.asar holds electron/dist/ (compiled
+# shell) + out/ (the T-092 static export) at the same relative paths as in the
+# working tree, so main.ts's ../../out resolution is identical dev vs packaged
+# (electron's fs is asar-patched, so existsSync/statSync/readFile work inside).
+#
+# Version comes from package.json — the single source of truth the changelog
+# gates (scripts/changelog.py validate), so `bun run electron:dist` always
+# ships the released version.
+
+appId: com.fewer.desktop
+productName: Fewer
+copyright: Copyright © 2026 qvesera
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - electron/dist/**
+  - out/**
+  - package.json
+
+asar: true
+npmRebuild: false
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  icon: public/logo-512.png
+  synopsis: Interactive file and system graph visualizer
+  maintainer: qvesera <qvesera@proton.me>
+  # Associate running windows with the .desktop entry (WM_CLASS = productName).
+  syncDesktopName: true

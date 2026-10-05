@@ -102,3 +102,5 @@ src-tauri/gen/
 !scripts/sign-license.ts
 # electron shell build output (T-095)
 electron/dist/
+# electron-builder output (T-096)
+release/
