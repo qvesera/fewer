@@ -181,14 +181,17 @@ export async function chooseLibraryDir(): Promise<string | null> {
 
 /** Backend for the current context: local library on desktop, cloud otherwise. */
 export function getGraphsBackend(): GraphsBackend {
-  if (hasLocalLibrary()) {
+  // The desktop shell ships no server (T-099): cloud saving cannot work there,
+  // so the backend is ALWAYS local — an unset dir means the panel's choose-folder
+  // prompt and an empty list until the user picks one.
+  if (isHost()) {
     return localGraphsBackend(
       {
         read: nativeFsRead,
         write: nativeFsWrite,
         remove: nativeFsRemove,
       },
-      getLibraryDir() as string,
+      getLibraryDir() ?? "",
     );
   }
   return cloudGraphsBackend();

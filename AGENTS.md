@@ -74,6 +74,12 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   `bun run electron:start` compiles + launches against `out/`; set
   `FEWER_DEV_SERVER_URL=http://localhost:3000` (with `bun run dev`) to iterate
   against the Next dev server with HMR instead.
+- **Standalone scope** (T-099): the shell boots straight into
+  `app://fewer/app.html` (no marketing landing); `features.ts → cloudFeature()`
+  flips every server-dependent surface OFF in the shell (sign-in, cloud
+  save/share/gallery/URL-import/watch/history/billing) — one map, no scattered
+  checks. External http(s) links open in the system browser
+  (`webContents.setWindowOpenHandler`).
 - **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
   `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
   `.deb` — version always from package.json (single source of truth). Packaged

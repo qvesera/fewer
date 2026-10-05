@@ -24,6 +24,7 @@ import { loadSettingsLocal, applyUserSettings, withSyncGuard, pinThemeLink } fro
 import { shouldDeferHashForAuth, PENDING_AUTH_HASH_KEY } from "@/lib/fewer/authGate";
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
+import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
 import { isHost } from "@/lib/fewer/nativeShell";
 import { devTierOverride } from "@/lib/fewer/devTier";
@@ -606,6 +607,7 @@ export function FewerApp() {
         onOpenChange={setImportFlowOpen}
         initialOrigin={importFlowOrigin}
         onFirstOpen={() => setImportFlowMounted(true)}
+        cloudAvailable={cloudFeature("cloudImport")}
       />
     )}
 
@@ -625,7 +627,7 @@ export function FewerApp() {
         mode="parent"
       />
 
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      {cloudFeature("accounts") && <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />}
     </div>
   );
 }

@@ -40,3 +40,42 @@ export const LOCAL_FS_FEATURES = {
   /** File System Access API directory picker (showDirectoryPicker). */
   fsaDirectoryPicker: false,
 } as const;
+
+// ── Standalone shell: server-dependent features (T-098 / T-099) ─────────────
+// The web app is the only host with a server — none of the /api routes ship in
+// the desktop static export. Every surface below is OFF in the shell regardless
+// of tier: no account exists to gate on. Replacements: local library (.fwr,
+// T-101), theme files (.fwtheme, T-101), host_fetch for URL/GitHub import
+// (T-102), GitHub issues for bug reports (T-105). One map decides — components
+// gate on cloudFeature() instead of inventing per-surface shell checks.
+export type CloudFeature =
+  | "accounts"        // sign-in, profile edits, account deletion
+  | "cloudSave"       // /api/graphs cloud-saved projects
+  | "share"           // share dialogs, short links, invite tokens
+  | "gallery"         // community galleries + theme gallery publish
+  | "cloudImport"     // OneDrive/GDrive connectors + server-backed URL import
+  | "watch"           // watched indexes + nightly email digests
+  | "versionHistory"  // /api/graphs/[id]/versions snapshots
+  | "billing";        // Stripe checkout / customer portal
+
+/** True on the web (a server exists); false in the desktop shell. */
+export const CLOUD_FEATURES: Record<CloudFeature, boolean> = {
+  accounts: true,
+  cloudSave: true,
+  share: true,
+  gallery: true,
+  cloudImport: true,
+  watch: true,
+  versionHistory: true,
+  billing: true,
+};
+
+/** Pure core: unit-testable without a DOM or a host. */
+export function cloudFeatureFor(inShell: boolean, feature: CloudFeature): boolean {
+  return CLOUD_FEATURES[feature] && !inShell;
+}
+
+/** Shell-aware check used by components: server features are off standalone. */
+export function cloudFeature(feature: CloudFeature): boolean {
+  return cloudFeatureFor(inHostShell, feature);
+}

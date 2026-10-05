@@ -229,12 +229,18 @@ export function visibleTabs(opts: {
   tier: string;
   isMobile: boolean;
   advancedMode: boolean;
-  /** Desktop shell: license activation lives in its own tab. */
+  /** Desktop shell: no account/cloud tabs — those need the server. License
+   *  activation replaces them (T-099). */
   inShell?: boolean;
 }): SettingsTabId[] {
+  if (opts.inShell) {
+    const shellTabs: SettingsTabId[] = ["about", "appearance", "license"];
+    if (opts.advancedMode || !opts.isMobile) shellTabs.push("advanced");
+    shellTabs.push("help");
+    return shellTabs;
+  }
   const tabs: SettingsTabId[] = ["account", "about", "appearance"];
   if (opts.tier !== "guest") tabs.push("watched", "cloud");
-  if (opts.inShell) tabs.push("license");
   if (opts.advancedMode || !opts.isMobile) tabs.push("advanced");
   tabs.push("help");
   return tabs;

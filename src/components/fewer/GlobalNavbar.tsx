@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useBilling } from "@/hooks/use-billing";
 import { useEffect, useMemo, useRef } from "react";
 import { Logo } from "./Logo";
+import { cloudFeature } from "@/lib/fewer/features";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile, userDisplayName, initialsOf } from "@/hooks/use-profile";
 import { getBrowserSupabase } from "@/lib/supabase";
@@ -187,7 +188,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           </Button>
         )}
 
-        {!loading && !user && (
+        {!loading && !user && cloudFeature("accounts") && (
           <Button
             variant="ghost"
             size="sm"
@@ -200,7 +201,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           </Button>
         )}
 
-        {!loading && user && (
+        {!loading && user && cloudFeature("accounts") && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

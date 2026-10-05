@@ -106,8 +106,17 @@ function createWindow(): void {
         `static export not found at ${OUT_DIR} — run \`bun run build:desktop\` first (T-092)`,
       );
     }
-    void mainWindow.loadURL("app://fewer/index.html");
+    // Standalone (T-099): land directly in the app — the marketing homepage
+    // exists for the web only.
+    void mainWindow.loadURL("app://fewer/app.html");
   }
+
+  // External links (http/https) open in the system browser — never in an
+  // Electron popup window. Everything else (blank targets, odd schemes) denied.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
