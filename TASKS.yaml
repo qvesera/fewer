@@ -2663,32 +2663,32 @@ tasks:
   session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 240
   estimate_basis: "cli"
   issue: 333
-  pr: null
+  pr: 340
   internal: false
   milestone: null
   blocked_by: ["T-099"]
   parent: "T-098"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:18:50Z"
   notes: []
   sessions:
   - start: "2026-10-05T15:35:40Z"
-    end: null
+    end: "2026-10-05T15:43:22Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "License-only shell tier landed: FewerApp tier = devOverride ?? (licensed ? pro : free), never guest (fixes denied power-user UI + blank advancedModeEnabled). tiers.ts: SHELL_MIN_TIER (unbrandedExport free→pro per agreed split) + minTierFor/canFor pure cores; can() shell-aware via one host constant (zero call-site churn; web parity pinned by canFor(false,·) tests). use-settings.ts: both /api/settings fetches isHost()-guarded — the GET gate would have fired dead now that shell tier != guest. Spot-checked the three tier!==guest sites (all safe). Tests +3; suite/tsc/lint/web build/desktop export/Playwright smoke green. PR #340."
+    proof: ["1422982", "#340"]
+    effort: {commits: 1, files: 7, insertions: 74, deletions: 8}
+  spent_min: 8
   session_count: 1
 - id: "T-101"
   title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
