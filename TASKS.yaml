@@ -2547,7 +2547,7 @@ tasks:
   session_count: 1
 - id: "T-096"
   title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: null
@@ -2576,7 +2576,7 @@ tasks:
   session_count: 1
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
-  status: "blocked"
+  status: "triaged"
   type: "infra"
   area: "infra"
   tier: null
