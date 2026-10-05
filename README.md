@@ -66,6 +66,23 @@ bun run dev
 ### Alternative installs
 
 <details>
+<summary><b>Desktop app (Electron)</b></summary>
+
+```bash
+bun install
+bun run electron:dist          # builds out/ + packages release/Fewer-<version>.AppImage + .deb
+./release/Fewer-*.AppImage     # or: sudo apt install release/fewer_*_amd64.deb
+```
+
+Fully offline: the app ships its own build and docs — no server, no account needed
+for import, canvas, and the local graph library. On distros without libfuse2 (e.g.
+Fedora 39+), run the AppImage with `--appimage-extract-and-run`. Develop against the
+shell with `bun run electron:start`; point it at the Next dev server (HMR) with
+`FEWER_DEV_SERVER_URL=http://localhost:3000` + `bun run dev`.
+
+</details>
+
+<details>
 <summary><b>Docker</b></summary>
 
 ```bash
