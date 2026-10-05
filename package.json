@@ -19,7 +19,7 @@
     "build": "bun run vendor:archive && bun next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "bun eslint .",
-    "test": "bun test src && bun test electron && bun run test:components",
+    "test": "bun test src && bun test electron/handlers.test.ts && bun run test:components",
     "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
     "build:netlify": "bun run vendor:archive && bun next build",
     "build:desktop": "bun run vendor:archive && ./scripts/build-desktop.sh",

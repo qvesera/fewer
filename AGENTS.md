@@ -81,6 +81,12 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   main.ts's `../../out` resolution is identical dev vs packaged; asar-patched
   fs makes existsSync/statSync/readFile work inside. AppImage needs libfuse2 —
   on Fedora 39+ run with `--appimage-extract-and-run`. CI packaging job: T-097.
+  The Electron smoke (`e2e/electron.spec.ts`, its own
+  `playwright.electron.config.ts`) drives the real shell via Playwright
+  `_electron`: window up, `__FEWER_NATIVE__` bridge present, `list_dir`
+  round-trip through ipcMain → handlers → fs. CI's `package` job runs it under
+  `xvfb-run` before packaging; locally: `bunx playwright test --config
+  playwright.electron.config.ts`.
 - Segment config (`export const revalidate`) must stay a **literal** in export
   mode: Next parses it statically, and a ternary aborts the build with
   "Invalid segment configuration export detected".
