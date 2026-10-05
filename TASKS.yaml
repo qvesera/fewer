@@ -2576,7 +2576,7 @@ tasks:
   session_count: 1
 - id: "T-097"
   title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: null
@@ -2603,3 +2603,199 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 148, deletions: 4}
   spent_min: 10
   session_count: 1
+- id: "T-098"
+  title: "Standalone app parity — app-first entry, license-only gating, .fwr library, mac/win builds"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 331
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:49Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-099"
+  title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
+  status: "review"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 332
+  pr: 339
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:49Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T13:24:29Z"
+    end: "2026-10-05T13:48:54Z"
+    measured: true
+    note: "App-first standalone landed: main.ts boots app://fewer/app.html (marketing stays web-only), external http(s) via setWindowOpenHandler→shell.openExternal. features.ts gains CLOUD_FEATURES + cloudFeature()/cloudFeatureFor() (8 server features OFF in shell); gated navbar sign-in/account, AuthDialog mount, settings tabs (visibleTabs shell: about/appearance/license/advanced/help), import origins URL+cloud (new cloudAvailable prop — dialog-side features import deterministically SIGABRTs bun's mock.module graph in that suite, bisected), theme gallery publish (user-gated). getGraphsBackend always local in shell (was: no dir → cloud backend → dead API); panel prompt keys on unset dir; loadGraphs/save guarded. Tests: features.test (3) + visibleTabs shell (3); suite green; web build green; desktop export rebuilt; Playwright electron smoke green 3.9s (boots into app). PR #339."
+    proof: ["2213913", "#339"]
+    effort: {commits: 1, files: 13, insertions: 339, deletions: 12}
+  - start: "2026-10-05T15:06:11Z"
+    end: "2026-10-05T15:09:30Z"
+    measured: true
+    note: "Follow-up (user-reported): navbar logo navigated to the marketing homepage in the shell (its web nav showed Sign in/Launch again). Fix: logo inert when isHost() (Link kept for web); main.ts will-navigate guard — only /app* and /docs* may document-load in the standalone (pushState routing unaffected, dev-server mode exempt); Playwright smoke now asserts window.url() contains app.html. Gates: tsc/lint/suite green, export rebuilt, smoke green 1.4s. PR #339."
+    proof: ["1a6d643", "#339"]
+    effort: {commits: 1, files: 4, insertions: 35, deletions: 6}
+  spent_min: 27
+  session_count: 2
+- id: "T-100"
+  title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
+  status: "blocked"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 333
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-099"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-101"
+  title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
+  status: "blocked"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 334
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-100"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-102"
+  title: "Main-process fetch bridge (host_fetch) for URL + GitHub import without our server"
+  status: "blocked"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 335
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-101"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-103"
+  title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
+  status: "blocked"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 336
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-102"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-104"
+  title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
+  status: "blocked"
+  type: "docs"
+  area: "infra"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 337
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-103"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-105"
+  title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
+  status: "blocked"
+  type: "docs"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 338
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-104"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0

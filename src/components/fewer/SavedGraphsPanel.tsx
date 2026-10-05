@@ -29,6 +29,7 @@ import {
 import { getLibraryDir } from "@/lib/fewer/libraryConfig";
 import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
+import { cloudFeature } from "@/lib/fewer/features";
 import {
   buildShareRequestBody,
   graphSaveUnchanged,
@@ -93,6 +94,12 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const libraryLicensed = can("localLibrary", tier);
 
   const loadGraphs = useCallback(async () => {
+    // Shell with no library dir chosen yet (T-099): nothing to list — the
+    // choose-folder prompt covers onboarding.
+    if (inShell && !getLibraryDir()) {
+      setGraphs([]);
+      return;
+    }
     if (!backend.local && tier === "guest") {
       setGraphs([]);
       return;
@@ -128,6 +135,10 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleSave = async () => {
+    if (localMode && !getLibraryDir()) {
+      toast({ title: "Choose a library folder", description: "Use the folder prompt in Your Directories to pick where graphs are saved." });
+      return;
+    }
     if (localMode && !libraryLicensed) {
       toast({ title: "Pro license required", description: "Activate a Fewer license in Settings → License to save graphs to the local library.", variant: "destructive" });
       return;
@@ -274,7 +285,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       </Button>
 
       {/* Desktop library location (T-089): pick the local Fewer Library folder */}
-      {inShell && !localMode && libraryLicensed && (
+      {inShell && !getLibraryDir() && libraryLicensed && (
         <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
           <p className="text-[11px] text-muted-foreground/80">
             Desktop builds keep graphs in a local Fewer Library folder — no account needed.
@@ -295,7 +306,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
           Library: {getLibraryDir()}
         </p>
       )}
-      {inShell && !localMode && !libraryLicensed && (
+      {inShell && !getLibraryDir() && !libraryLicensed && (
         <p className="px-1 text-[11px] text-muted-foreground/70">
           Local graph saving needs a Fewer Pro license — Settings → License.
         </p>

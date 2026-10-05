@@ -106,8 +106,27 @@ function createWindow(): void {
         `static export not found at ${OUT_DIR} — run \`bun run build:desktop\` first (T-092)`,
       );
     }
-    void mainWindow.loadURL("app://fewer/index.html");
+    // Standalone (T-099): land directly in the app — the marketing homepage
+    // exists for the web only.
+    void mainWindow.loadURL("app://fewer/app.html");
   }
+
+  // External links (http/https) open in the system browser — never in an
+  // Electron popup window. Everything else (blank targets, odd schemes) denied.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  // Standalone (T-099 follow-up): the export also contains the marketing pages,
+  // but the app never navigates to them — only /app (canvas) and /docs (kept
+  // in-app per product) may load as documents. Client-side routing (pushState)
+  // never fires this; it catches real document loads only (links, redirects).
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("app://")) return; // dev server: iterate freely
+    const path = new URL(url).pathname;
+    if (!path.startsWith("/app") && !path.startsWith("/docs")) event.preventDefault();
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
