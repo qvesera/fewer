@@ -15,12 +15,14 @@ import {
   manifestUpsert,
   parseGraphFile,
   parseManifest,
+  rebuildManifestFromGraphDir,
   savedGraphFrom,
   type LibraryFs,
   type LibraryManifest,
 } from "./localLibrary";
-import { isHost, nativeFsRead, nativeFsRemove, nativeFsWrite, nativePickDirectory } from "./nativeShell";
-import { getLibraryDir } from "./libraryConfig";
+import { cloudThemesBackend, localThemesBackend, type ThemesBackend } from "./themesData";
+import { isHost, nativeDefaultLibraryDir, nativeFsRead, nativeFsRemove, nativeFsWrite, nativeListDir, nativePickDirectory } from "./nativeShell";
+import { getLibraryDir, setLibraryDir } from "./libraryConfig";
 
 export interface GraphSaveInput {
   /** Existing graph id to update in place, or null for a new save. */
@@ -91,6 +93,24 @@ export function localGraphsBackend(fs: LibraryFs, root: string): GraphsBackend {
   return {
     local: true,
     async list() {
+      // Disk is the source of truth when the host can list directories (T-101):
+      // scanned libraries reflect files dropped in by hand plus legacy .json
+      // entries; the manifest stays the fallback (tests, non-list hosts).
+      if (fs.list) {
+        const scanned = await rebuildManifestFromGraphDir(fs, root);
+        if (scanned) {
+          const scannedGraphs: SavedGraph[] = [];
+          for (const entry of scanned.graphs) {
+            try {
+              scannedGraphs.push(parseGraphFile(await fs.read(libraryGraphPath(root, entry.file))));
+            } catch {
+              // Skip unreadable files.
+            }
+          }
+          // buildManifest keeps newest-updated first.
+          return scannedGraphs;
+        }
+      }
       const man = await readManifest();
       const graphs: SavedGraph[] = [];
       for (const entry of man.graphs) {
@@ -136,7 +156,13 @@ export function localGraphsBackend(fs: LibraryFs, root: string): GraphsBackend {
     async remove(id) {
       const man = await readManifest();
       const entry = man.graphs.find((g) => g.id === id);
-      if (entry) await fs.remove(libraryGraphPath(root, entry.file)).catch(() => {});
+      let file = entry?.file;
+      if (!file && fs.list) {
+        // Scanned library: locate the file by id on disk (T-101).
+        const scanned = await rebuildManifestFromGraphDir(fs, root);
+        file = scanned?.graphs.find((g) => g.id === id)?.file;
+      }
+      if (file) await fs.remove(libraryGraphPath(root, file)).catch(() => {});
       await fs.write(libraryManifestPath(root), JSON.stringify(manifestRemove(man, id), null, 2));
     },
     async setFavorite(id, isFavorite) {
@@ -185,14 +211,53 @@ export function getGraphsBackend(): GraphsBackend {
   // so the backend is ALWAYS local — an unset dir means the panel's choose-folder
   // prompt and an empty list until the user picks one.
   if (isHost()) {
-    return localGraphsBackend(
-      {
-        read: nativeFsRead,
-        write: nativeFsWrite,
-        remove: nativeFsRemove,
-      },
-      getLibraryDir() ?? "",
-    );
+    return localGraphsBackend(nativeLibraryFs(), getLibraryDir() ?? "");
   }
   return cloudGraphsBackend();
+}
+
+/** Paged dir listing via the host's list_dir (T-101): file names only. */
+export async function listGraphDirFiles(dir: string): Promise<string[]> {
+  const names: string[] = [];
+  for (let offset = 0; ; offset += 512) {
+    const page = await nativeListDir(dir, offset, 512);
+    for (const e of page.entries) if (e.type === "file") names.push(e.name);
+    if (page.entries.length === 0 || offset + page.entries.length >= page.total) break;
+  }
+  return names;
+}
+
+/** The host-backed LibraryFs (read/write/remove + list_dir). */
+export function nativeLibraryFs(): LibraryFs {
+  return {
+    read: nativeFsRead,
+    write: nativeFsWrite,
+    remove: nativeFsRemove,
+    list: listGraphDirFiles,
+  };
+}
+
+/**
+ * First run in the shell (T-101): create and persist the default library dir
+ * (~/Documents/fewer — the host resolves and mkdirs it) so saving works
+ * without a picker round-trip. Returns "" on web or when unavailable.
+ */
+export async function ensureLibraryDir(): Promise<string> {
+  const existing = getLibraryDir();
+  if (existing) return existing;
+  if (!isHost()) return "";
+  try {
+    const dir = await nativeDefaultLibraryDir();
+    if (dir) setLibraryDir(dir);
+    return dir;
+  } catch {
+    return "";
+  }
+}
+
+/** Named themes: local .fwtheme files in the shell, cloud rows on the web. */
+export function libraryThemesBackend(): ThemesBackend {
+  return isHost()
+    ? localThemesBackend(nativeLibraryFs(), getLibraryDir())
+    : cloudThemesBackend();
 }

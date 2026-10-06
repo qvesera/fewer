@@ -23,6 +23,7 @@ import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
 import {
   chooseLibraryDir,
+  ensureLibraryDir,
   getGraphsBackend,
   type GraphsBackend,
 } from "@/lib/fewer/graphsData";
@@ -118,6 +119,19 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   useEffect(() => {
     loadGraphs();
   }, [loadGraphs]);
+
+  // First run in the shell (T-101): create and persist the default library
+  // dir (~/Documents/fewer) so saving works without a picker round-trip.
+  useEffect(() => {
+    if (!inShell) return;
+    let cancelled = false;
+    void ensureLibraryDir().then((dir) => {
+      if (!cancelled && dir) setBackend(getGraphsBackend());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [inShell]);
 
   /** Close the save dialog and reset it back to "save as new". */
   const closeSaveDialog = () => {

@@ -27,6 +27,7 @@ import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
 import { isHost } from "@/lib/fewer/nativeShell";
+import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
@@ -600,7 +601,7 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
       <SettingsDialog />
-      <ThemeEditorDialog />
+      <ThemeEditorDialog localThemes={isHost() ? libraryThemesBackend() : undefined} />
       <ShareDialog />
     {/* Lazy-mount once, then keep alive across minimize so the dock pill can render.
         Shell hooks (useAuth/useWatch) still defer until first open. */}

@@ -101,6 +101,10 @@ export function nativePickLicenseFile(): Promise<string | null> {
 export function nativeVerifyLicenseSig(payload: string, sig: number[]): Promise<void> {
   return hostInvoke<void>("verify_license_sig", { payload, sig });
 }
+/** First-run default library dir (~/Documents/fewer), created by the host. */
+export function nativeDefaultLibraryDir(): Promise<string> {
+  return hostInvoke<string>("default_library_dir");
+}
 /** Read a file as raw bytes (preview panel). Rejects when over `maxBytes`. */
 export function nativeFsReadBytes(path: string, maxBytes: number): Promise<ArrayBuffer> {
   return hostInvoke<ArrayBuffer>("fs_read_bytes", { path, maxBytes });

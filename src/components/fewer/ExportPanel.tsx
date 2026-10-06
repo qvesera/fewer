@@ -87,6 +87,7 @@ const ADVANCED_FORMATS: {
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
   { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Use for programmatic processing or importing into other tools." },
+  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's portable graph document — save and share projects, import on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {

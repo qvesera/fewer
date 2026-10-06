@@ -85,6 +85,18 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   `SHELL_MIN_TIER`/`canFor()` in tiers.ts apply shell-only overrides (e.g.
   `unbrandedExport` → license); settings are localStorage-only (`isHost()`
   guards both `/api/settings` fetches). Web tiers unchanged.
+- **Local-first stores** (T-101): graphs save as `.fwr` documents
+  (`{format_version, app, graph}` — same shape `localLibrary.ts` always wrote,
+  new extension); legacy `.json` library files stay readable, and when the
+  host can `list_dir` the backend scans `graphs/` for `*.fwr` + `*.json` on
+  every list (disk is the source of truth; the manifest is a fallback for
+  fakes/tests). Named themes live in `<library>/themes/<slug>.fwtheme`
+  (`.fwtheme.json` tolerated) via a `ThemesBackend` swap in `themesData.ts`
+  mirroring `graphsData.ts` — cloud rows on the web, files in the shell.
+  First run creates `~/Documents/fewer` (`default_library_dir` host command,
+  persisted via `libraryConfig`); Export gains a "Fewer graph (.fwr)" format
+  and Import accepts `.fwr` (the json parser unwraps envelopes). Tauri's
+  handlers predate `default_library_dir` (Tauri parked) — parity is pending.
 - **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
   `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
   `.deb` — version always from package.json (single source of truth). Packaged

@@ -2,16 +2,21 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildGraphFile,
+  buildThemeFile,
   emptyManifest,
   graphFileName,
+  isThemeFile,
   libraryGraphPath,
   libraryManifestPath,
   manifestRemove,
   manifestUpsert,
   parseGraphFile,
   parseManifest,
+  parseThemeFile,
+  rebuildManifestFromGraphDir,
   savedGraphFrom,
   slugify,
+  themeFileName,
   type LibraryFs,
 } from "./localLibrary";
 import { localGraphsBackend } from "./graphsData";
@@ -51,8 +56,8 @@ describe("localLibrary format", () => {
     expect(slugify("ÄÖÜ Studio")).toBe("aou-studio");
   });
 
-  test("graph file name embeds slug + id prefix", () => {
-    expect(graphFileName("abcd1234-5678", "My Graph")).toBe("my-graph-abcd1234.json");
+  test("graph file name embeds slug + id prefix (.fwr, T-101)", () => {
+    expect(graphFileName("abcd1234-5678", "My Graph")).toBe("my-graph-abcd1234.fwr");
   });
 
   test("graph file round-trips through build/parse", () => {
@@ -170,5 +175,68 @@ describe("localGraphsBackend", () => {
   test("graph file path joins under graphs/", () => {
     expect(libraryGraphPath(root, "a.json")).toBe("/home/u/Fewer Library/graphs/a.json");
     expect(libraryManifestPath(root + "/")).toBe("/home/u/Fewer Library/library.json");
+  });
+});
+
+describe("T-101: .fwr scanning + .fwtheme files", () => {
+  const root = "/lib/fewer";
+
+  /** memFs + list() — basenames under a dir (mirrors list_dir). */
+  function memFsList(seed: Record<string, string> = {}) {
+    const files = new Map(Object.entries(seed));
+    return {
+      files,
+      async read(p: string) {
+        const v = files.get(p);
+        if (v === undefined) throw new Error(`ENOENT ${p}`);
+        return v;
+      },
+      async write(p: string, c: string) {
+        files.set(p, c);
+      },
+      async remove(p: string) {
+        files.delete(p);
+      },
+      async list(dir: string) {
+        const prefix = dir.endsWith("/") ? dir : `${dir}/`;
+        return [...files.keys()].filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes("/")).map((k) => k.slice(prefix.length));
+      },
+    };
+  }
+
+  test("rebuildManifestFromGraphDir scans .fwr + legacy .json, skips junk", async () => {
+    const good = buildGraphFile(savedGraphFrom("id-1", "Kept", data));
+    const legacy = buildGraphFile(savedGraphFrom("id-2", "Legacy", data));
+    const fs = memFsList({
+      [libraryGraphPath(root, "kept-id-1.fwr")]: JSON.stringify(good),
+      [libraryGraphPath(root, "legacy-id-2.json")]: JSON.stringify(legacy),
+      [libraryGraphPath(root, "notes.txt")]: "junk",
+      [libraryGraphPath(root, "broken.fwr")]: "{not json",
+    });
+    const man = await rebuildManifestFromGraphDir(fs, root);
+    expect(man).not.toBeNull();
+    const names = man!.graphs.map((g) => g.name).sort();
+    expect(names).toEqual(["Kept", "Legacy"]);
+  });
+
+  test("backend list() uses the scan when fs.list exists", async () => {
+    const doc = buildGraphFile(savedGraphFrom("scan-1", "Dropped In", data));
+    const fs = memFsList({ [libraryGraphPath(root, "dropped-in-scan-1.fwr")]: JSON.stringify(doc) });
+    // No manifest at all — the dropped file alone must surface.
+    const graphs = await localGraphsBackend(fs, root).list();
+    expect(graphs).toHaveLength(1);
+    expect(graphs[0].name).toBe("Dropped In");
+  });
+
+  test("theme file names + parse round-trip", () => {
+    expect(themeFileName("Ocean Blue")).toBe("ocean-blue.fwtheme");
+    expect(isThemeFile("ocean-blue.fwtheme")).toBe(true);
+    expect(isThemeFile("ocean-blue.fwtheme.json")).toBe(true);
+    expect(isThemeFile("readme.txt")).toBe(false);
+    const doc = buildThemeFile("Ocean Blue", { mode: "custom" });
+    const parsed = parseThemeFile(JSON.stringify(doc));
+    expect(parsed.name).toBe("Ocean Blue");
+    expect(parsed.theme).toEqual({ mode: "custom" });
+    expect(parsed.format_version).toBe(1);
   });
 });

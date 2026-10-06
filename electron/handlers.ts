@@ -24,6 +24,8 @@ export interface HostDialogs {
 export interface HostShell {
   /** Open a path with the OS default handler; rejects with the OS error. */
   openPath(p: string): Promise<void>;
+  /** Resolve (and create) the default library dir: ~/Documents/fewer. */
+  defaultLibraryDir(): Promise<string>;
 }
 
 /* -------------------------------- list_dir -------------------------------- */
@@ -151,6 +153,9 @@ export function createHostHandlers(deps: { dialogs: HostDialogs; shell: HostShel
     },
     async verify_license_sig({ payload, sig }: { payload: string; sig: number[] }): Promise<void> {
       verifyLicenseSig(payload, Uint8Array.from(sig));
+    },
+    default_library_dir(): Promise<string> {
+      return deps.shell.defaultLibraryDir();
     },
   };
 }

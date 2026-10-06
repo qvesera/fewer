@@ -42,6 +42,8 @@ export interface LibraryFs {
   read(path: string): Promise<string>;
   write(path: string, contents: string): Promise<void>;
   remove(path: string): Promise<void>;
+  /** Optional dir listing (file names). Desktop: list_dir; older fakes omit it. */
+  list?(dir: string): Promise<string[]>;
 }
 
 /** Path helpers — posix-style joins; the Rust side normalizes separators. */
@@ -53,6 +55,51 @@ export function libraryGraphPath(root: string, file: string): string {
 }
 function trimSlash(root: string): string {
   return root.endsWith("/") || root.endsWith("\\") ? root.slice(0, -1) : root;
+}
+
+// ── Named themes as files (T-101): <library>/themes/<slug>.fwtheme ─────
+
+export const THEME_EXT = ".fwtheme";
+/** Tolerated alongside .fwtheme — hand-edited copies usually add .json. */
+export const THEME_JSON_EXT = ".fwtheme.json";
+
+export interface ThemeFile {
+  format_version: number;
+  app: "fewer";
+  name: string;
+  theme: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+export function libraryThemeDir(root: string): string {
+  return `${trimSlash(root)}/themes`;
+}
+
+export function libraryThemePath(root: string, file: string): string {
+  return `${libraryThemeDir(root)}/${file}`;
+}
+
+export function themeFileName(name: string): string {
+  return `${slugify(name)}${THEME_EXT}`;
+}
+
+export function isThemeFile(name: string): boolean {
+  return name.endsWith(THEME_EXT) || name.endsWith(THEME_JSON_EXT);
+}
+
+export function buildThemeFile(name: string, theme: unknown): ThemeFile {
+  const now = new Date().toISOString();
+  return { format_version: LIBRARY_FORMAT_VERSION, app: "fewer", name, theme, created_at: now, updated_at: now };
+}
+
+/** Parse a theme file. Throws on anything malformed — callers surface it. */
+export function parseThemeFile(raw: string): ThemeFile {
+  const f = JSON.parse(raw) as Partial<ThemeFile>;
+  if (!f || f.format_version !== LIBRARY_FORMAT_VERSION || !f.name || !f.theme || typeof f.theme !== "object") {
+    throw new Error("not a fewer theme file");
+  }
+  return f as ThemeFile;
 }
 
 /** Stable, filesystem-safe slug for a graph name. */
@@ -69,9 +116,41 @@ export function slugify(name: string): string {
   return slug || "graph";
 }
 
-/** Graph file name: `<slug>-<id-prefix>.json`. Id prefix keeps renames collision-free. */
+/** Graph file name: `<slug>-<id-prefix>.fwr` (T-101: Fewer graph documents).
+ *  Id prefix keeps renames collision-free. Legacy `.json` libraries keep
+ *  working — scanning accepts both extensions; new saves write `.fwr`. */
 export function graphFileName(id: string, name: string): string {
-  return `${slugify(name)}-${id.slice(0, 8)}.json`;
+  return `${slugify(name)}-${id.slice(0, 8)}.fwr`;
+}
+
+export function isGraphFile(name: string): boolean {
+  return name.endsWith(".fwr") || name.endsWith(".json");
+}
+
+/**
+ * Rebuild a manifest by scanning the graphs dir (disk is the source of truth):
+ * any folder of `.fwr` files — or legacy `.json` graph files — is a valid
+ * library; files dropped in by hand appear without touching the manifest.
+ */
+export async function rebuildManifestFromGraphDir(fs: LibraryFs, root: string): Promise<LibraryManifest | null> {
+  if (!fs.list) return null;
+  let names: string[];
+  try {
+    names = await fs.list(libraryGraphPath(root, ""));
+  } catch {
+    return null;
+  }
+  const graphs: SavedGraph[] = [];
+  for (const name of names) {
+    if (!isGraphFile(name)) continue;
+    try {
+      graphs.push(parseGraphFile(await fs.read(libraryGraphPath(root, name))));
+    } catch {
+      // Skip unreadable files (old formats, partial writes).
+    }
+  }
+  if (!graphs.length) return null;
+  return buildManifest(graphs);
 }
 
 export function buildGraphFile(graph: SavedGraph): LibraryGraphFile {
