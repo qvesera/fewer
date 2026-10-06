@@ -1,6 +1,6 @@
 // T-092: offline content source for the desktop static export.
-import { describe, expect, test } from "bun:test";
-import { parseContentFile } from "./localContent";
+import { describe, expect, test, afterEach } from "bun:test";
+import { parseContentFile, listLocalContent, isDesktopExport } from "./localContent";
 
 describe("parseContentFile", () => {
   const DOC = `---
@@ -41,5 +41,34 @@ Body line one.
     expect(c.date).toBe("2026-10-01");
     expect(c.author).toBe("Ada");
     expect(c.tags).toBe("release, notes");
+  });
+});
+
+describe("shell export filtering (T-104)", () => {
+  const orig = process.env.DESKTOP_EXPORT;
+  afterEach(() => {
+    if (orig === undefined) delete process.env.DESKTOP_EXPORT;
+    else process.env.DESKTOP_EXPORT = orig;
+  });
+
+  test("export mode: web-only docs hidden, app-only page in, blogs gone", async () => {
+    process.env.DESKTOP_EXPORT = "1";
+    expect(isDesktopExport()).toBe(true);
+    const docs = (await listLocalContent("docs")).map((d) => d.slug);
+    expect(docs).toContain("getting-started");
+    expect(docs).toContain("desktop"); // app-only ships in the shell
+    expect(docs).not.toContain("cloud"); // web-only hidden
+    expect(docs).not.toContain("plans");
+    expect(docs).not.toContain("privacy");
+    expect(await listLocalContent("blog")).toEqual([]); // blogs are web-only
+  });
+
+  test("web mode: app-only docs hidden, web docs kept", async () => {
+    delete process.env.DESKTOP_EXPORT;
+    expect(isDesktopExport()).toBe(false);
+    const docs = (await listLocalContent("docs")).map((d) => d.slug);
+    expect(docs).not.toContain("desktop");
+    expect(docs).toContain("cloud");
+    expect(docs).toContain("getting-started");
   });
 });

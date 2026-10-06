@@ -1,0 +1,52 @@
+---
+title: Fewer Desktop App
+description: Using the standalone desktop app — local library, .fwr saves, themes, licensing, and offline use.
+---
+
+# Fewer Desktop App
+
+The Fewer desktop app is a **standalone, local-first** build of Fewer. It runs entirely on your machine: no account, no server, no network required (URL import is the one optional online feature).
+
+## Your library
+
+On first launch the app creates a library folder at:
+
+```
+~/Documents/fewer
+```
+
+Saved projects live in `graphs/` as **`.fwr`** files — Fewer's portable graph document (`{ format_version, app, graph }`). Named themes live in `themes/` as **`.fwtheme`** files. Both are plain JSON you can copy, back up, or sync with any file tool.
+
+- Legacy library files saved as `.json` stay readable — the app scans both extensions.
+- You can point the library at a different folder any time from **Saved → library location**.
+- Dropping `.fwr` files into the `graphs/` folder by hand works too: the app rescans the directory.
+
+## Import & export
+
+- **Import** accepts `.fwr` (and raw `.json` graph exports), ASCII trees, shell scripts, CSV, DOT, directory files, GitHub repository URLs, and public file-index URLs.
+- **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project.
+
+GitHub and URL imports fetch directly from your machine — no proxy server in between. They are the only network traffic the app ever makes, and only when you ask for them.
+
+## Themes
+
+The theme editor saves named themes to your library as `.fwtheme` files. No sign-in, no cloud gallery — themes are yours on disk. Theme files are portable JSON: share the file itself with another Fewer install.
+
+## Licensing
+
+The desktop app uses a **license key** instead of an account:
+
+- Without a license the app runs in **free mode**: canvas, layout, search, undo/redo, import, and watermarked exports.
+- A license unlocks saved projects, docking, tags, custom themes, metrics, batch operations, version history, analytics, and unbranded exports.
+
+Activate a license from **Settings → License**. License checks are offline (Ed25519 signature verified on-device).
+
+## Updating
+
+Download a new build from the releases page and install it over the old one — your library folder is untouched. Unsigned builds: on macOS right-click → Open the first time; on Windows SmartScreen may warn on first run (More info → Run anyway).
+
+## Troubleshooting
+
+- **Library won't save** — check that the library folder (default `~/Documents/fewer`) exists and is writable.
+- **A graph won't open** — the `.fwr` file may be corrupted; the app skips unreadable files rather than crashing, and the rest of the library still loads.
+- **GitHub import says "not found"** — unauthenticated GitHub API access is rate-limited to ~60 requests/hour; wait an hour or use a folder download instead.

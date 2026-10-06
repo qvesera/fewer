@@ -17,6 +17,7 @@ DISABLED_PATHS=(
   "middleware.ts"
   "src/app/api"
   "src/app/auth/callback"
+  "src/app/blog"
 )
 
 TEMP_DIR=$(mktemp -d)
@@ -44,3 +45,8 @@ echo "Building static export (output: 'export')..."
 DESKTOP_EXPORT=1 bun next build
 
 echo "Static export complete: out/"
+
+# Standalone scope (T-104): blogs are web-only marketing — strip them from the
+# desktop export (the pages also 404 via localContent; this removes the files).
+rm -rf out/blog
+echo "Stripped out/blog from the desktop export"

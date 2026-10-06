@@ -45,7 +45,7 @@ async function getDocs(): Promise<DocMeta[]> {
   }
 }
 
-const sections = [
+const WEB_SECTIONS = [
   {
     title: "Getting Started",
     items: ["getting-started"],
@@ -63,6 +63,21 @@ const sections = [
     items: ["privacy", "terms"],
   },
 ];
+
+// Shell variant (T-104): only locally relevant guides + the app-only page —
+// accounts/cloud/pricing/legal/PWA pages don't exist in the standalone export.
+const SHELL_SECTIONS = [
+  {
+    title: "Getting Started",
+    items: ["getting-started", "desktop"],
+  },
+  {
+    title: "Using Fewer",
+    items: ["graph-features", "editing", "import-export", "shortcuts", "theming", "settings"],
+  },
+];
+
+const sections = isDesktopExport() ? SHELL_SECTIONS : WEB_SECTIONS;
 
 export default async function DocsPage() {
   const docs = await getDocs();

@@ -9,6 +9,9 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { isDesktopExport } from "./exportMode";
+
+export { isDesktopExport };
 
 export type ContentType = "docs" | "blog";
 
@@ -31,10 +34,31 @@ const DIRS: Record<ContentType, string> = {
 // hidden on the site, so the desktop export must not publish them either.
 const UNPUBLISHED = new Set(["docs/plans"]);
 
-/** True when building the static desktop export (set by scripts/build-desktop.sh). */
-export function isDesktopExport(): boolean {
-  return Boolean(process.env.DESKTOP_EXPORT);
-}
+// Web-only docs the standalone shell must not ship (T-104): cloud accounts,
+// pricing, hosted-service legal pages, PWA install, deployment. The export's
+// docs variant keeps the locally relevant guides plus the app-only pages.
+export const SHELL_HIDDEN_DOCS = new Set([
+  "accounts",
+  "cloud",
+  "deployment",
+  "plans",
+  "privacy",
+  "pwa-install",
+  "sharing",
+  "terms",
+  "watch",
+]);
+
+// App-only docs (T-104): shipped in the desktop export, never on the web
+// (gen-seed-content.py skips them too — the file is the single source).
+export const APP_ONLY_DOCS = new Set(["desktop"]);
+
+// Blogs are web-only: release posts are marketing; the standalone ships none
+// (the build also removes out/blog — belt and braces for prerendered pages).
+const SHELL_DROPS_BLOG = true;
+
+/** True when building the static desktop export (set by scripts/build-desktop.sh).
+ *  Re-exported from ./exportMode (dependency-free) so client graphs can import it. */
 
 /**
  * Split one markdown file into front matter fields + body. Mirrors the parser
@@ -75,10 +99,16 @@ export async function listLocalContent(type: ContentType): Promise<LocalContent[
   }
 
   const out: LocalContent[] = [];
+  // Standalone export (T-104): no blogs, web-only docs hidden, app-only docs in.
+  if (type === "blog" && SHELL_DROPS_BLOG && isDesktopExport()) return [];
   for (const name of names) {
     if (!name.endsWith(".md")) continue;
     const slug = name.slice(0, -3);
     if (UNPUBLISHED.has(`${type}/${slug}`)) continue;
+    if (type === "docs") {
+      if (APP_ONLY_DOCS.has(slug) && !isDesktopExport()) continue;
+      if (SHELL_HIDDEN_DOCS.has(slug) && isDesktopExport()) continue;
+    }
     try {
       out.push(parseContentFile(await fs.readFile(path.join(dir, name), "utf8"), slug));
     } catch {

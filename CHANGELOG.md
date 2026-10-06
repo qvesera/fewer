@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop standalone (T-101): local-first stores — graphs save as .fwr documents (legacy .json libraries still readable; dropped-in files are scanned in), named themes as .fwtheme files in <library>/themes, ~/Documents/fewer created automatically on first run, Export gains a 'Fewer graph (.fwr)' format, and Import accepts .fwr files.
 - Desktop standalone (T-102): URL and GitHub import now work without the Fewer server — a GET-only host_fetch bridge in the main process (no CORS, 10s timeout, 10MB cap) drives the same client-side crawl/tree builders the server routes used; the shell's import dialog shows the URL origin (cloud connectors stay off).
 - Desktop packaging (T-103): macOS dmg + zip and Windows nsis + portable join the Linux builds — all unsigned by design (mac: identity null, no notarization; Windows SmartScreen flags the download). CI's package job is now a 3-OS matrix running the Electron smoke on each runner before packaging; icons derive from public/logo-512.png.
+- Standalone docs (T-104): the desktop app's in-app docs are now a shell variant — web-only pages (accounts, cloud, pricing, legal, PWA, deployment) are excluded, a new app-only 'Fewer Desktop App' page documents the local library, .fwr saves, themes and licensing, marketing chrome is stripped from docs pages, the Settings → Documentation link opens in-app, and blogs are removed from the standalone entirely.
 
 ### Fixed
 

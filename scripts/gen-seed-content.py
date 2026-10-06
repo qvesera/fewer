@@ -27,6 +27,10 @@ root = pathlib.Path(__file__).resolve().parent.parent
 # rows keep whatever `published` they already have.
 UNPUBLISHED_ON_INSERT = {("docs", "plans")}
 
+# App-only pages (T-104): shipped in the desktop static export only — never
+# seeded to content_pages (mirrors APP_ONLY_DOCS in src/lib/content/localContent.ts).
+APP_ONLY_ON_INSERT = {("docs", "desktop")}
+
 SOURCES = (("blog", "content/blog"), ("docs", "content/docs"))
 
 
@@ -60,6 +64,8 @@ for kind, folder in SOURCES:
     for path in sorted((root / folder).glob("*.md")):
         meta = parse(path)
         slug = path.stem
+        if (kind, slug) in APP_ONLY_ON_INSERT:
+            continue
         published = "false" if (kind, slug) in UNPUBLISHED_ON_INSERT else "true"
         # Docs carry no author/date/tags; blog posts do.
         author = meta["author"] if kind == "blog" else None
