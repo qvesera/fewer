@@ -333,7 +333,7 @@ const FILE_FORMATS: {
   accept: string;
 }[] = [
   { value: "tree", label: "ASCII Tree", icon: FolderTree, accept: ".txt" },
-  { value: "json", label: "JSON Graph", icon: FileJson, accept: ".json" },
+  { value: "json", label: "Graph File (.json / .fwr)", icon: FileJson, accept: ".json,.fwr" },
   { value: "script", label: "Shell Script", icon: FileTerminal, accept: ".sh,.bat" },
   { value: "csv", label: "CSV", icon: FileSpreadsheet, accept: ".csv" },
   { value: "dot", label: "DOT", icon: FileText, accept: ".dot,.gv" },

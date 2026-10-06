@@ -2663,7 +2663,7 @@ tasks:
   session_count: 2
 - id: "T-100"
   title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2692,27 +2692,33 @@ tasks:
   session_count: 1
 - id: "T-101"
   title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
-  status: "blocked"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: null
   estimate_min: 360
   estimate_basis: "cli"
   issue: 334
-  pr: null
+  pr: 341
   internal: false
   milestone: null
   blocked_by: ["T-100"]
   parent: "T-098"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:18:50Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-05T16:01:41Z"
+    end: "2026-10-06T09:57:40Z"
+    measured: true
+    note: ".fwr graph docs (scan accepts legacy .json), .fwtheme theme files, default_library_dir, export/import wiring; PR #341"
+    proof: ["f4797f1", "#341"]
+    effort: {commits: 1, files: 22, insertions: 656, deletions: 31}
+  spent_min: 1076
+  session_count: 1
 - id: "T-102"
   title: "Main-process fetch bridge (host_fetch) for URL + GitHub import without our server"
   status: "blocked"

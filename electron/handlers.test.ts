@@ -103,7 +103,7 @@ describe("dispatch", () => {
           return null;
         },
       },
-      shell: { openPath: async () => {} },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
     });
 
     expect(await dispatch("pick_library_dir")).toBe("/tmp/library");
@@ -114,7 +114,7 @@ describe("dispatch", () => {
   test("open_in_os rejects when the OS reports an error", async () => {
     const dispatch = createDispatch({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => Promise.reject(new Error("no handler")) },
+      shell: { openPath: async () => Promise.reject(new Error("no handler")), defaultLibraryDir: async () => "/home/u/Documents/fewer" },
     });
     await expect(dispatch("open_in_os", { path: "/tmp/x" })).rejects.toThrow(/no handler/);
   });
@@ -122,10 +122,11 @@ describe("dispatch", () => {
   test("unknown commands reject (mirrors Tauri); full surface present", async () => {
     const handlers = createHostHandlers({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => {} },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
     });
     expect(Object.keys(handlers).sort()).toEqual(
       [
+        "default_library_dir",
         "fs_read_bytes",
         "fs_read_text",
         "fs_remove_file",
@@ -139,8 +140,16 @@ describe("dispatch", () => {
     );
     const dispatch = createDispatch({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => {} },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
     });
     await expect(dispatch("bench_tree_json")).rejects.toThrow(/unknown command/);
+  });
+
+  test("default_library_dir returns the host-resolved default dir", async () => {
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+    });
+    expect(await dispatch("default_library_dir")).toBe("/home/u/Documents/fewer");
   });
 });

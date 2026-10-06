@@ -102,6 +102,28 @@ test("JSON round-trip keeps file extensions (basename beats the stripped label)"
   expect(tree.children!.find((c) => c.name === "App.tsx")!.type).toBe("file");
 });
 
+test("parseJSONGraph unwraps a .fwr envelope ({format_version, app, graph})", () => {
+  // T-101: the desktop library + exportFWR write .fwr documents; the same
+  // JSON importer must accept them without a separate format.
+  const envelope = {
+    format_version: 1,
+    app: "fewer",
+    graph: {
+      id: "fwr_x",
+      name: "fewer-x",
+      data: {
+        nodes: [
+          { id: "r", label: "proj", path: "proj", type: "folder" },
+          { id: "a", label: "App.tsx", path: "proj/App.tsx", type: "file", extension: "tsx" },
+        ],
+        edges: [{ id: "e1", source: "r", target: "a" }],
+      },
+    },
+  };
+  const tree = parseJSONGraph(JSON.stringify(envelope));
+  expect(tree.children!.find((c) => c.name === "App.tsx")!.type).toBe("file");
+});
+
 describe("parseCSVGraph — our own export format", () => {
   const csv = [
     "id,label,path,type,extension,category,size_bytes,symlink_target",

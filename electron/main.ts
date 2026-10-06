@@ -12,7 +12,7 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
 import path from "node:path";
 import { existsSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { createDispatch } from "./handlers";
 
 // `out/` sits at the repo root: this file compiles to electron/dist/main.js.
@@ -154,6 +154,12 @@ const dispatch = createDispatch({
     async openPath(p: string) {
       const err = await shell.openPath(p);
       if (err) throw new Error(err);
+    },
+    async defaultLibraryDir() {
+      // T-101: first-run default — ~/Documents/fewer, created on demand.
+      const dir = path.join(app.getPath("documents"), "fewer");
+      await mkdir(dir, { recursive: true });
+      return dir;
     },
   },
 });
