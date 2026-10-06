@@ -26,6 +26,8 @@ export interface HostShell {
   openPath(p: string): Promise<void>;
   /** Resolve (and create) the default library dir: ~/Documents/fewer. */
   defaultLibraryDir(): Promise<string>;
+  /** GET a URL from the main process (no CORS); rejects on network failure. */
+  fetchText(url: string): Promise<{ status: number; body: string }>;
 }
 
 /* -------------------------------- list_dir -------------------------------- */
@@ -156,6 +158,21 @@ export function createHostHandlers(deps: { dialogs: HostDialogs; shell: HostShel
     },
     default_library_dir(): Promise<string> {
       return deps.shell.defaultLibraryDir();
+    },
+    async host_fetch({ url, method }: { url: string; method?: string }): Promise<{ status: number; body: string }> {
+      // T-102: GET-only http(s) bridge for URL + GitHub import. The renderer
+      // is CORS-bound to app://; the main process is not.
+      if ((method ?? "GET").toUpperCase() !== "GET") throw new Error("host_fetch: GET only");
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        throw new Error("host_fetch: invalid URL");
+      }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("host_fetch: only http(s) URLs are allowed");
+      }
+      return deps.shell.fetchText(parsed.toString());
     },
   };
 }

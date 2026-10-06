@@ -105,6 +105,19 @@ export function nativeVerifyLicenseSig(payload: string, sig: number[]): Promise<
 export function nativeDefaultLibraryDir(): Promise<string> {
   return hostInvoke<string>("default_library_dir");
 }
+export interface HostFetchResult {
+  status: number;
+  body: string;
+}
+/** GET a URL from the main process (no CORS). T-102: URL + GitHub import. */
+export function nativeHostFetch(url: string): Promise<HostFetchResult> {
+  return hostInvoke<HostFetchResult>("host_fetch", { url, method: "GET" });
+}
+/** netFetch-compatible adapter: host result → a real Response. */
+export async function hostFetchResponse(url: string): Promise<Response> {
+  const r = await nativeHostFetch(url);
+  return new Response(r.body, { status: r.status });
+}
 /** Read a file as raw bytes (preview panel). Rejects when over `maxBytes`. */
 export function nativeFsReadBytes(path: string, maxBytes: number): Promise<ArrayBuffer> {
   return hostInvoke<ArrayBuffer>("fs_read_bytes", { path, maxBytes });

@@ -4,6 +4,9 @@ import { treeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
+import { importUrlLocal } from "@/lib/fewer/localImport";
+import { netFetchIsHostBacked } from "@/lib/fewer/netFetch";
+import type { TreeEntry } from "@/lib/fewer/types";
 
 export interface UrlImportSnapshot {
   error: string | null;
@@ -31,21 +34,25 @@ export function useImport() {
       setError(null);
 
       try {
-        const endpoint = isGitHubUrl(url.trim())
-          ? "/api/github-tree"
-          : "/api/crawl";
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url.trim() }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to import URL");
-        }
-
-        const data = await res.json();
+        // Shell (T-102): no server exists — build the tree client-side through
+        // the host fetch bridge. Web keeps POSTing to the /api endpoints.
+        const data: { tree: TreeEntry; truncated: boolean } = netFetchIsHostBacked()
+          ? await importUrlLocal(url.trim())
+          : await (async () => {
+              const endpoint = isGitHubUrl(url.trim())
+                ? "/api/github-tree"
+                : "/api/crawl";
+              const res = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: url.trim() }),
+              });
+              if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to import URL");
+              }
+              return res.json();
+            })();
         setTruncated(!!data.truncated);
         snapshotRef.current.truncated = !!data.truncated;
         const opts = options ?? DEFAULT_IMPORT_OPTIONS;

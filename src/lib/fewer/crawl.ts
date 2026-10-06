@@ -1,4 +1,5 @@
 import { parseAutoIndex } from "@/lib/fewer/autoIndex";
+import { netFetch } from "@/lib/fewer/netFetch";
 import type { TreeEntry } from "@/lib/fewer/types";
 import { sortTreeFoldersFirst } from "@/lib/fewer/treeSort";
 
@@ -15,7 +16,8 @@ export async function fetchEntries(url: string): Promise<ReturnType<typeof parse
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    // Host bridge ignores init (it owns timeout/UA/redirect); web uses it all.
+    const res = await netFetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "fewer-app" },
       redirect: "follow",

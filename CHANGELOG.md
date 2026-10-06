@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone app boots straight into the graph canvas (no marketing landing), has **no sign-in UI**, and turns every server-dependent surface off (cloud saved graphs, share links, galleries, cloud/URL import, watch, version history, billing) — gated by one `cloudFeature()` map. The saved-graphs panel is always local in the desktop app: pick a library folder to save projects there.
 - Standalone tier model: the desktop app derives its tier from the **license only** (never the guest/account path), so power-user UI (advanced mode, custom themes, tags, metrics, batch actions) is available without a license, while **saved projects, preview, docking, and unbranded exports stay license-gated**. App settings are localStorage-only in the standalone — no settings sync calls.
 - Desktop standalone (T-101): local-first stores — graphs save as .fwr documents (legacy .json libraries still readable; dropped-in files are scanned in), named themes as .fwtheme files in <library>/themes, ~/Documents/fewer created automatically on first run, Export gains a 'Fewer graph (.fwr)' format, and Import accepts .fwr files.
+- Desktop standalone (T-102): URL and GitHub import now work without the Fewer server — a GET-only host_fetch bridge in the main process (no CORS, 10s timeout, 10MB cap) drives the same client-side crawl/tree builders the server routes used; the shell's import dialog shows the URL origin (cloud connectors stay off).
 
 ### Fixed
 
