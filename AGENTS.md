@@ -105,9 +105,17 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   `buildTree`/`subtreeItems`), including branch-split probing; the import
   dialog shows the `url` origin via `hostImportAvailable` (cloud connectors
   stay off). Web keeps POSTing to the endpoints.
-- **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
-  `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
-  `.deb` — version always from package.json (single source of truth). Packaged
+- **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
+  builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
+  `.deb` — version always from package.json (single source of truth). T-103
+  adds **unsigned** macOS (`electron:dist:mac`: dmg + zip, x64+arm64 —
+  `identity: null`, `hardenedRuntime: false`, CI sets
+  `CSC_IDENTITY_AUTO_DISCOVERY=false`) and Windows (`electron:dist:win`: nsis
+  setup + portable, x64 — no cert, SmartScreen flags by design) from the same
+  `public/logo-512.png` icon source (electron-builder derives .icns/.ico on the
+  respective runner). CI's `package` job is a 3-OS matrix: build → Electron
+  smoke → package → upload (`fewer-linux` / `fewer-mac` / `fewer-win`), with
+  `shell: bash` everywhere (build-desktop.sh) and xvfb only on linux. Packaged
   layout mirrors the repo (`app.asar` holds `electron/dist/` + `out/`), so
   main.ts's `../../out` resolution is identical dev vs packaged; asar-patched
   fs makes existsSync/statSync/readFile work inside. AppImage needs libfuse2 —

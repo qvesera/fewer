@@ -1,4 +1,7 @@
-# electron-builder packaging (T-096) — Linux AppImage + deb for the desktop shell.
+# electron-builder packaging (T-096/T-103) — Linux AppImage + deb, macOS dmg +
+# zip, Windows nsis + portable, all UNSIGNED (no Developer ID / code-signing
+# cert; mac sets identity: null + hardenedRuntime: false so electron-builder
+# never prompts for a cert, and CI sets CSC_IDENTITY_AUTO_DISCOVERY=false).
 #
 # The packaged layout mirrors the repo: app.asar holds electron/dist/ (compiled
 # shell) + out/ (the T-092 static export) at the same relative paths as in the
@@ -8,6 +11,9 @@
 # Version comes from package.json — the single source of truth the changelog
 # gates (scripts/changelog.py validate), so `bun run electron:dist` always
 # ships the released version.
+#
+# Icons: one high-res source (public/logo-512.png) — electron-builder converts
+# it to .icns (mac) / .ico (win) at package time on the respective runner.
 
 appId: com.fewer.desktop
 productName: Fewer
@@ -35,3 +41,46 @@ linux:
   maintainer: qvesera <qvesera@proton.me>
   # Associate running windows with the .desktop entry (WM_CLASS = productName).
   syncDesktopName: true
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.utilities
+  icon: public/logo-512.png
+  # Unsigned (T-103): no Developer ID available — skip signing entirely rather
+  # than fail or hang on cert discovery. Users open via right-click → Open.
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+dmg:
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+win:
+  icon: public/logo-512.png
+  # Unsigned (T-103): no code-signing cert configured — electron-builder
+  # skips signing and Windows SmartScreen flags the download, by design.
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  shortcutName: Fewer
+  uninstallDisplayName: Fewer
+  artifactName: ${productName}-${version}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
