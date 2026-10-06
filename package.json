@@ -22,7 +22,7 @@
     "test": "bun test src && bun test electron/handlers.test.ts && bun run test:components",
     "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
     "build:netlify": "bun run vendor:archive && bun next build",
-    "build:desktop": "bun run vendor:archive && ./scripts/build-desktop.sh",
+    "build:desktop": "bun run vendor:archive && bash scripts/build-desktop.sh",
     "electron:compile": "tsc -p electron/tsconfig.json",
     "electron:start": "bun run electron:compile && electron .",
     "electron:dist": "bun run build:desktop && bun run electron:compile && electron-builder --linux --publish never",

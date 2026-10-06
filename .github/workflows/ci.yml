@@ -149,8 +149,9 @@ jobs:
   # Windows nsis+portable — all UNSIGNED (see electron-builder.yml: mac
   # identity: null + hardenedRuntime: false; win has no cert by design).
   # xvfb only on linux (headless runner); mac/win runners have a display.
-  # `shell: bash` everywhere — build-desktop.sh is bash and git bash exists on
-  # the windows runner.
+  # `shell: bash` everywhere, and build:desktop invokes the script via
+  # `bash scripts/...` — windows checkouts lose the exec bit, so a shebang
+  # spawn fails there even under git bash.
   package:
     strategy:
       fail-fast: false
