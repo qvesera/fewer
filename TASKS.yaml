@@ -2750,7 +2750,7 @@ tasks:
   session_count: 1
 - id: "T-103"
   title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: null
@@ -2785,7 +2785,7 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "blocked"
+  status: "in-progress"
   type: "docs"
   area: "infra"
   tier: null
@@ -2803,9 +2803,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-05T13:19:14Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-06T11:22:33Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
   status: "blocked"
