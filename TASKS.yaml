@@ -2810,8 +2810,14 @@ tasks:
     note: "shell docs variant (SHELL_HIDDEN_DOCS/APP_ONLY_DOCS), desktop.md, blog stripped from export, app-only docs chrome; PR #344"
     proof: ["e0acac8", "0ee93cb", "70238e3", "#344"]
     effort: {commits: 3, files: 13, insertions: 218, deletions: 33}
+  - start: "2026-10-06T11:50:42Z"
+    end: "2026-10-06T11:50:44Z"
+    measured: true
+    note: "follow-up: CI export sanity updated for the T-104 contract; PR #344"
+    proof: ["6f6795d", "#344"]
+    effort: {commits: 1, files: 1, insertions: 6, deletions: 2}
   spent_min: 21
-  session_count: 1
+  session_count: 2
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
   status: "blocked"
