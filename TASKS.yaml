@@ -2785,7 +2785,7 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "in-progress"
+  status: "review"
   type: "docs"
   area: "infra"
   tier: null
@@ -2823,12 +2823,12 @@ tasks:
     proof: ["52158d4", "#344"]
     effort: {commits: 1, files: 8, insertions: 135, deletions: 5}
   - start: "2026-10-06T14:13:35Z"
-    end: null
+    end: "2026-10-06T14:14:10Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 22
+    note: "follow-up: isHost() runtime gate for docs chrome (hydration leak) + e2e regression test + heading-normalization fix; PR #344"
+    proof: ["8b3c1d0", "#344"]
+    effort: {commits: 1, files: 6, insertions: 57, deletions: 6}
+  spent_min: 23
   session_count: 4
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
