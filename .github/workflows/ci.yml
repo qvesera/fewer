@@ -143,12 +143,44 @@ jobs:
           test -d src/app/api
           test -f src/app/auth/callback/route.ts
 
-  # Desktop packaging gate (T-097): builds the export + shell, runs the Playwright
-  # Electron smoke against the REAL app (xvfb — headless runners have no display),
-  # then packages AppImage + deb and uploads them as artifacts. The smoke needs
-  # out/ + electron/dist; the package step reuses them (no rebuild).
+  # Desktop packaging gate (T-097/T-103): builds the export + shell, runs the
+  # Playwright Electron smoke against the REAL app, then packages that OS's
+  # artifacts and uploads them. Matrix: linux AppImage+deb, macOS dmg+zip,
+  # Windows nsis+portable — all UNSIGNED (see electron-builder.yml: mac
+  # identity: null + hardenedRuntime: false; win has no cert by design).
+  # xvfb only on linux (headless runner); mac/win runners have a display.
+  # `shell: bash` everywhere — build-desktop.sh is bash and git bash exists on
+  # the windows runner.
   package:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            artifact: fewer-linux
+            smoke: xvfb-run -a bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+          - os: macos-latest
+            target: mac
+            artifact: fewer-mac
+            smoke: bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+          - os: windows-latest
+            target: win
+            artifact: fewer-win
+            smoke: bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      # Unsigned mac builds (T-103): never let electron-builder hunt for a
+      # Developer ID cert on the runner.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -170,17 +202,18 @@ jobs:
           key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - name: Static export + shell compile
+        shell: bash
         run: bun run build:desktop && bun run electron:compile
-      - name: Electron smoke (Playwright under xvfb)
-        run: xvfb-run -a bunx playwright test --config playwright.electron.config.ts
-      - name: Package AppImage + deb
-        run: bunx electron-builder --linux --publish never
+      - name: Electron smoke (Playwright)
+        shell: bash
+        run: ${{ matrix.smoke }}
+      - name: Package ${{ matrix.target }} (unsigned)
+        shell: bash
+        run: bunx electron-builder --${{ matrix.target }} --publish never
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fewer-linux
-          path: |
-            release/*.AppImage
-            release/*.deb
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifacts }}
           if-no-files-found: error
 
