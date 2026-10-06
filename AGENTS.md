@@ -115,6 +115,11 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   (MarketingLayout gates on the dependency-free `exportMode.ts` — it also
   sits in client graphs, so localContent's node:fs can't be imported there);
   Settings → Documentation opens in-app; the Blog link is web-only.
+  Page CONTENT has variants too: `<!-- shell:off -->…` blocks are web-only,
+  `<!-- shell:on -->…` desktop-only (markers consumed in BOTH modes —
+  localContent for the export, gen-seed-content.py for the web seed), and
+  `neutralizeDeadShellLinks()` degrades links to pages the shell lacks into
+  plain text — the shell must never show a link it can't serve.
 
 - **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
   builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +

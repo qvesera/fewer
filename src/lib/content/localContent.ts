@@ -88,6 +88,39 @@ export function parseContentFile(text: string, slug: string): LocalContent {
   };
 }
 
+// ── Shell variants of page CONTENT (T-104) ──────────────────────────────
+//
+// Pages are filtered per mode, but individual pages also carry sections and
+// links that only make sense on one side. Two mechanisms keep one markdown
+// file serving both surfaces:
+//
+//   <!-- shell:off --> … <!-- /shell:off -->   web-only block
+//   <!-- shell:on  --> … <!-- /shell:on  -->    desktop-only block
+//
+// The markers never reach either output (they are consumed on both sides).
+function applyShellBlocks(content: string): string {
+  const isExport = isDesktopExport();
+  return content
+    .replace(/<!--\s*shell:off\s*-->([\s\S]*?)<!--\s*\/shell:off\s*-->/g, isExport ? "" : "$1")
+    .replace(/<!--\s*shell:on\s*-->([\s\S]*?)<!--\s*\/shell:on\s*-->/g, isExport ? "$1" : "");
+}
+
+/**
+ * Export only: markdown links to pages the standalone doesn't ship degrade to
+ * plain text — hand-edited docs can reintroduce dead `/docs/<hidden>` (or
+ * /blog, /gallery, …) links and they must not appear as clickable leaks.
+ * Anchors on live pages (`/docs/shortcuts#ctrl-a`) survive.
+ */
+export function neutralizeDeadShellLinks(content: string): string {
+  return content.replace(/\[([^\]]+)\]\(\s*(\/[^)\s]*)\s*\)/g, (full, label: string, href: string) => {
+    const target = (href.split("#")[0] || href).replace(/\/$/, "");
+    if (target === "/docs") return full;
+    const m = /^\/docs\/([a-z0-9-]+)$/i.exec(target);
+    if (m && !SHELL_HIDDEN_DOCS.has(m[1])) return full;
+    return label; // plain text — no dead navigation in the shell
+  });
+}
+
 /** Every published markdown file of a type, sorted by title. */
 export async function listLocalContent(type: ContentType): Promise<LocalContent[]> {
   const dir = path.join(process.cwd(), DIRS[type]);
@@ -110,7 +143,14 @@ export async function listLocalContent(type: ContentType): Promise<LocalContent[
       if (SHELL_HIDDEN_DOCS.has(slug) && isDesktopExport()) continue;
     }
     try {
-      out.push(parseContentFile(await fs.readFile(path.join(dir, name), "utf8"), slug));
+      const parsed = parseContentFile(await fs.readFile(path.join(dir, name), "utf8"), slug);
+      // Mode-conditional sections (both modes) + dead-link neutralization
+      // (export only) — the shell must never show links to pages it lacks.
+      parsed.content = applyShellBlocks(parsed.content);
+      if (type === "docs" && isDesktopExport()) {
+        parsed.content = neutralizeDeadShellLinks(parsed.content);
+      }
+      out.push(parsed);
     } catch {
       // Unreadable file: skip it rather than fail the export.
     }

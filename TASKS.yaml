@@ -2785,7 +2785,7 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "review"
+  status: "in-progress"
   type: "docs"
   area: "infra"
   tier: null
@@ -2816,8 +2816,14 @@ tasks:
     note: "follow-up: CI export sanity updated for the T-104 contract; PR #344"
     proof: ["6f6795d", "#344"]
     effort: {commits: 1, files: 1, insertions: 6, deletions: 2}
+  - start: "2026-10-06T13:48:47Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 21
-  session_count: 2
+  session_count: 3
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
   status: "blocked"

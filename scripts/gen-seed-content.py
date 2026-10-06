@@ -43,13 +43,24 @@ def parse(path: pathlib.Path) -> dict:
         m = re.search(rf"^{name}:\s*(.+)$", front, re.M)
         return m.group(1).strip() if m else None
 
+    # Shell variant blocks (T-104): the web seed keeps shell:off content and
+    # drops shell:on content; markers are stripped either way. Mirrors
+    # applyShellBlocks in src/lib/content/localContent.ts (web mode).
+    content = body.lstrip("\n")
+    content = re.sub(
+        r"<!--\s*shell:off\s*-->(.*?)<!--\s*/shell:off\s*-->", r"\1", content, flags=re.S
+    )
+    content = re.sub(
+        r"<!--\s*shell:on\s*-->(.*?)<!--\s*/shell:on\s*-->", "", content, flags=re.S
+    )
+
     return {
         "title": field("title"),
         "description": field("description") or "",
         "date": field("date"),
         "author": field("author"),
         "tags": field("tags"),
-        "content": body.lstrip("\n"),
+        "content": content,
     }
 
 
