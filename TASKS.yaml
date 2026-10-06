@@ -2721,7 +2721,7 @@ tasks:
   session_count: 1
 - id: "T-102"
   title: "Main-process fetch bridge (host_fetch) for URL + GitHub import without our server"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2750,7 +2750,7 @@ tasks:
   session_count: 1
 - id: "T-103"
   title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
-  status: "blocked"
+  status: "in-progress"
   type: "infra"
   area: "infra"
   tier: null
@@ -2768,9 +2768,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-05T13:19:14Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-06T10:37:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
   status: "blocked"
