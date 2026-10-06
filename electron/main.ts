@@ -161,6 +161,18 @@ const dispatch = createDispatch({
       await mkdir(dir, { recursive: true });
       return dir;
     },
+    async fetchText(url: string) {
+      // T-102: main-process GET — no CORS, 10s timeout, 10MB cap. UA set here
+      // because the renderer cannot (forbidden header).
+      const res = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(10_000),
+        headers: { "user-agent": "fewer-app" },
+      });
+      const body = await res.text();
+      if (body.length > 10 * 1024 * 1024) throw new Error("host_fetch: response too large (>10MB)");
+      return { status: res.status, body };
+    },
   },
 });
 

@@ -103,7 +103,7 @@ describe("dispatch", () => {
           return null;
         },
       },
-      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
 
     expect(await dispatch("pick_library_dir")).toBe("/tmp/library");
@@ -114,7 +114,7 @@ describe("dispatch", () => {
   test("open_in_os rejects when the OS reports an error", async () => {
     const dispatch = createDispatch({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => Promise.reject(new Error("no handler")), defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+      shell: { openPath: async () => Promise.reject(new Error("no handler")), defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
     await expect(dispatch("open_in_os", { path: "/tmp/x" })).rejects.toThrow(/no handler/);
   });
@@ -122,7 +122,7 @@ describe("dispatch", () => {
   test("unknown commands reject (mirrors Tauri); full surface present", async () => {
     const handlers = createHostHandlers({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
     expect(Object.keys(handlers).sort()).toEqual(
       [
@@ -131,6 +131,7 @@ describe("dispatch", () => {
         "fs_read_text",
         "fs_remove_file",
         "fs_write_text",
+        "host_fetch",
         "list_dir",
         "open_in_os",
         "pick_library_dir",
@@ -140,7 +141,7 @@ describe("dispatch", () => {
     );
     const dispatch = createDispatch({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
     await expect(dispatch("bench_tree_json")).rejects.toThrow(/unknown command/);
   });
@@ -148,8 +149,32 @@ describe("dispatch", () => {
   test("default_library_dir returns the host-resolved default dir", async () => {
     const dispatch = createDispatch({
       dialogs: { pickDirectory: async () => null, pickFile: async () => null },
-      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer" },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
     expect(await dispatch("default_library_dir")).toBe("/home/u/Documents/fewer");
+  });
+
+  test("host_fetch validates method + scheme and delegates to fetchText", async () => {
+    const seen: string[] = [];
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: {
+        openPath: async () => {},
+        defaultLibraryDir: async () => "/home/u/Documents/fewer",
+        fetchText: async (url: string) => {
+          seen.push(url);
+          return { status: 200, body: "<html/>" };
+        },
+      },
+    });
+    // T-102: GET-only http(s) bridge (CORS-free cross-origin for imports).
+    expect(await dispatch("host_fetch", { url: "https://example.com/idx/", method: "GET" })).toEqual({
+      status: 200,
+      body: "<html/>",
+    });
+    expect(seen).toEqual(["https://example.com/idx/"]);
+    await expect(dispatch("host_fetch", { url: "https://example.com/", method: "POST" })).rejects.toThrow(/GET only/);
+    await expect(dispatch("host_fetch", { url: "file:///etc/passwd" })).rejects.toThrow(/http/);
+    await expect(dispatch("host_fetch", { url: "not a url" })).rejects.toThrow(/invalid URL/);
   });
 });

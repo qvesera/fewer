@@ -26,7 +26,8 @@ import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isHost } from "@/lib/fewer/nativeShell";
+import { isHost, hostFetchResponse } from "@/lib/fewer/nativeShell";
+import { registerHostFetch } from "@/lib/fewer/netFetch";
 import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
@@ -84,6 +85,12 @@ export function FewerApp() {
 
   const { importFlowOpen, setImportFlowOpen, addChildOpen, setAddChildOpen, addStandaloneOpen, setAddStandaloneOpen, addParentOpen, setAddParentOpen, notificationOpen, setNotificationOpen, authOpen, setAuthOpen, sidebarSide } = useDialogState();
   const { panelTree } = useViewState();
+
+  // T-102: register the main-process fetch bridge in the shell so URL +
+  // GitHub import work without our server (CORS-free cross-origin GETs).
+  useEffect(() => {
+    if (isHost()) registerHostFetch(hostFetchResponse);
+  }, []);
 
   // On mobile, start with sidebar closed
   useEffect(() => {
@@ -612,6 +619,7 @@ export function FewerApp() {
         initialOrigin={importFlowOrigin}
         onFirstOpen={() => setImportFlowMounted(true)}
         cloudAvailable={cloudFeature("cloudImport")}
+        hostImportAvailable={isHost()}
       />
     )}
 

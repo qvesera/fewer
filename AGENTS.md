@@ -97,6 +97,14 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   persisted via `libraryConfig`); Export gains a "Fewer graph (.fwr)" format
   and Import accepts `.fwr` (the json parser unwraps envelopes). Tauri's
   handlers predate `default_library_dir` (Tauri parked) — parity is pending.
+- **host_fetch bridge** (T-102): URL + GitHub import work in the shell without
+  our server — `netFetch.ts` (dependency-free seam; FewerApp registers
+  `hostFetchResponse` at boot) routes crawl/GitHub fetches through a GET-only
+  `host_fetch` main-process command (http(s) only, 10s, 10MB). `localImport.ts`
+  reuses the pure builders the `/api` routes used (`crawlTree`,
+  `buildTree`/`subtreeItems`), including branch-split probing; the import
+  dialog shows the `url` origin via `hostImportAvailable` (cloud connectors
+  stay off). Web keeps POSTing to the endpoints.
 - **Packaging** (`electron-builder.yml`, T-096): `bun run electron:dist` builds
   `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
   `.deb` — version always from package.json (single source of truth). Packaged

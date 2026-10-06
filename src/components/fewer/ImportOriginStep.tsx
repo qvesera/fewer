@@ -85,6 +85,8 @@ export interface ImportOriginStepProps {
   source: OriginSource;
   onSourceChange: (source: OriginSource) => void;
   cloudImport: boolean;
+  /** Shell (T-102): show the "url" origin — host-fetch backed, no server. */
+  hostImport?: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
   /** Advance to the next step (folder origin has no picky source → Enter advances). */
@@ -118,11 +120,19 @@ export function ImportOriginStep({
   source,
   onSourceChange,
   cloudImport,
+  hostImport = false,
   onRequireAuth,
   onOpenCloudSettings,
   onAdvance,
 }: ImportOriginStepProps) {
-  const visibleOrigins = cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic;
+  // Origins visible for the mode: cloud (web, tier-gated) → all; shell
+  // host-fetch import (T-102) → folder/file/url (no cloud connectors);
+  // otherwise the local-only pair.
+  const visibleOrigins: ImportOrigin[] = cloudImport
+    ? VISIBLE_ORIGINS_FOR.linkable
+    : hostImport
+      ? ORIGINS.filter((o) => o !== "cloud")
+      : VISIBLE_ORIGINS_FOR.basic;
   const gridRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
 
@@ -205,7 +215,7 @@ export function ImportOriginStep({
       {/* ── Origin selection ── */}
       <div role="radiogroup" aria-label="Import source"
         className="grid grid-cols-2 gap-2" ref={gridRef} onKeyDown={handleGridKeyDown}>
-        {(cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic).map((o, idx) => {
+        {visibleOrigins.map((o, idx) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
@@ -256,7 +266,7 @@ export function ImportOriginStep({
       </p>
 
       {/* ── Origin-specific source picking ── */}
-      {cloudImport || origin === "folder" || origin === "file" ? (
+      {cloudImport || hostImport || origin === "folder" || origin === "file" ? (
         <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
