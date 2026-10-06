@@ -2785,7 +2785,7 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "in-progress"
+  status: "review"
   type: "docs"
   area: "infra"
   tier: null
@@ -2817,12 +2817,12 @@ tasks:
     proof: ["6f6795d", "#344"]
     effort: {commits: 1, files: 1, insertions: 6, deletions: 2}
   - start: "2026-10-06T13:48:47Z"
-    end: null
+    end: "2026-10-06T13:49:35Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 21
+    note: "follow-up: shell:off/on content blocks + neutralizeDeadShellLinks — docs header/link leak fixed; PR #344"
+    proof: ["52158d4", "#344"]
+    effort: {commits: 1, files: 8, insertions: 135, deletions: 5}
+  spent_min: 22
   session_count: 3
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
