@@ -2750,7 +2750,7 @@ tasks:
   session_count: 1
 - id: "T-103"
   title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
@@ -2776,11 +2776,11 @@ tasks:
     proof: ["d076d55", "ac6e148", "#343"]
     effort: {commits: 2, files: 6, insertions: 120, deletions: 21}
   - start: "2026-10-06T11:03:10Z"
-    end: null
+    end: "2026-10-06T11:03:22Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
+    note: "follow-up: windows exec-bit fix (bash scripts/build-desktop.sh); PR #343"
+    proof: ["8f35aff", "#343"]
+    effort: {commits: 1, files: 3, insertions: 12, deletions: 5}
   spent_min: 11
   session_count: 2
 - id: "T-104"
