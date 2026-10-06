@@ -2750,32 +2750,32 @@ tasks:
   session_count: 1
 - id: "T-103"
   title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: null
   estimate_min: 300
   estimate_basis: "cli"
   issue: 336
-  pr: null
+  pr: 343
   internal: false
   milestone: null
   blocked_by: ["T-102"]
   parent: "T-098"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:19:14Z"
   notes: []
   sessions:
   - start: "2026-10-06T10:37:32Z"
-    end: null
+    end: "2026-10-06T10:48:47Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "mac/win unsigned targets + 3-OS package matrix + artifact naming; PR #343"
+    proof: ["d076d55", "ac6e148", "#343"]
+    effort: {commits: 2, files: 6, insertions: 120, deletions: 21}
+  spent_min: 11
   session_count: 1
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
