@@ -120,6 +120,12 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   localContent for the export, gen-seed-content.py for the web seed), and
   `neutralizeDeadShellLinks()` degrades links to pages the shell lacks into
   plain text — the shell must never show a link it can't serve.
+  **Pitfall**: `isDesktopExport()` is build-time only — non-NEXT_PUBLIC env
+  is never inlined into client bundles, so components that render inside a
+  client graph (e.g. MarketingLayout via the `"use client"` DocsLayout)
+  must ALSO gate on `isHost()` or the web chrome hydrates over the
+  server-baked shell variant. The Electron smoke asserts the post-hydration
+  docs state (header + no dead links); static HTML greps can't see this.
 
 - **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
   builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +

@@ -154,6 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File imports are no longer silently rewritten by folder-scan settings: the saved max scan depth truncated any tree nested deeper than 6 levels, the hidden-files filter dropped .github folders, and a stale extension filter stripped files — all from options the user never applied to the file. A preference set for one import origin can no longer leak into another.
 - Desktop shell rendering now matches the web app: cards read solid instead of see-through (WebKitGTK never blurs the backdrop behind canvas cards, so the shell floors the card tint and drops the dead blur), and floating panels/minimap/tutorial glow keep their backgrounds on WebKit builds that lack color-mix(). Web rendering is unchanged.
 - Shell docs no longer leak web-only pages: dead cross-links (Accounts/Sharing/Deployment) render as plain text, sign-in sections are replaced by a desktop-app section via new shell:off/shell:on content markers in the markdown (web keeps the original content), and the web seed strips the markers the same way.
+- Shell docs header no longer flips to the marketing header after hydration: the layout gates on runtime host detection in addition to the build-time export flag (DocsLayout is a client component, so the browser re-runs it where the build env is absent). Regression-covered by a new Electron smoke that opens the docs in the real shell.
 
 ### Added
 

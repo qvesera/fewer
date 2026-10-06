@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Github, ShieldCheck, ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { isDesktopExport } from "@/lib/content/exportMode";
+import { isHost } from "@/lib/fewer/nativeShell";
 
 /** Origin used by OAuth callbacks and share links. */
 export const APP_ORIGIN =
@@ -21,9 +22,15 @@ const NAV = [
 export function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Shell variant (T-104): the desktop export renders docs with app-only
   // chrome — the marketing nav/footer pages (welcome, gallery, privacy,
-  // blog, launch-app) don't exist in the standalone export. Build-time
-  // constant (DESKTOP_EXPORT), so the prerendered HTML is already correct.
-  const shell = isDesktopExport();
+  // blog, launch-app) don't exist in the standalone export.
+  //
+  // BOTH gates are required: DocsLayout is a client component, so this
+  // layout re-runs in the browser — where process.env.DESKTOP_EXPORT is
+  // NOT inlined (non-NEXT_PUBLIC vars never reach client bundles) and the
+  // server-baked variant would be replaced by the web header on hydration.
+  // isHost() is the runtime truth inside the shell; isDesktopExport() covers
+  // the server render at build (no window there).
+  const shell = isDesktopExport() || isHost();
   const navItems = shell ? NAV.filter((n) => n.label === "Docs") : NAV;
   return (
     <div className="min-h-screen bg-background text-foreground">

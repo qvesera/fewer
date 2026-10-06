@@ -102,7 +102,11 @@ function applyShellBlocks(content: string): string {
   const isExport = isDesktopExport();
   return content
     .replace(/<!--\s*shell:off\s*-->([\s\S]*?)<!--\s*\/shell:off\s*-->/g, isExport ? "" : "$1")
-    .replace(/<!--\s*shell:on\s*-->([\s\S]*?)<!--\s*\/shell:on\s*-->/g, isExport ? "$1" : "");
+    .replace(/<!--\s*shell:on\s*-->([\s\S]*?)<!--\s*\/shell:on\s*-->/g, isExport ? "$1" : "")
+    // Stripping a block can leave \n\n\n junctions; the markdown renderer
+    // splits on exactly "\n\n" and a chunk starting with \n defeats its
+    // heading detection (## renders as literal text). Collapse runs of 3+.
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 /**

@@ -74,4 +74,31 @@ test.describe("Electron shell", () => {
       ),
     ).rejects.toThrow(/unknown command/);
   });
+
+  test("shell docs: no marketing header, no links to hidden pages (T-104)", async () => {
+    const window = await app.firstWindow();
+    // Direct load over app:// (the protocol maps /docs → out/docs.html; the
+    // will-navigate guard allows /docs).
+    await window.goto("app://fewer/docs");
+    await expect.poll(() => window.title(), { timeout: 30_000 }).toContain("Docs");
+    // Hydration runs MarketingLayout in the BROWSER (DocsLayout is a client
+    // component) — wait for it, then assert the web chrome never appears.
+    await window.waitForTimeout(2000);
+    expect(await window.locator("header >> text=Launch the app").count()).toBe(0);
+    expect(await window.locator("header nav >> text=Gallery").count()).toBe(0);
+    expect(await window.locator("header nav >> text=Blog").count()).toBe(0);
+    expect(await window.locator("header nav >> text=Privacy").count()).toBe(0);
+    expect(await window.locator("header nav >> text=Docs").count()).toBe(1);
+
+    // Article bodies must not link to pages the shell doesn't ship.
+    await window.goto("app://fewer/docs/getting-started");
+    await expect.poll(() => window.title(), { timeout: 30_000 }).toContain("Getting Started");
+    await window.waitForTimeout(1500);
+    for (const dead of ["/docs/accounts", "/docs/sharing", "/docs/deployment"]) {
+      expect(await window.locator(`a[href="${dead}"]`).count(), `dead link ${dead}`).toBe(0);
+    }
+    // The desktop-only replacement section is present, sign-in section is not.
+    expect(await window.locator("h2:has-text('In the Desktop App')").count()).toBe(1);
+    expect(await window.locator("h2:has-text('Sign In (Optional)')").count()).toBe(0);
+  });
 });
