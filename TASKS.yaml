@@ -2785,32 +2785,32 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "in-progress"
+  status: "review"
   type: "docs"
   area: "infra"
   tier: null
   estimate_min: 300
   estimate_basis: "cli"
   issue: 337
-  pr: null
+  pr: 344
   internal: false
   milestone: null
   blocked_by: ["T-103"]
   parent: "T-098"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:19:14Z"
   notes: []
   sessions:
   - start: "2026-10-06T11:22:33Z"
-    end: null
+    end: "2026-10-06T11:43:55Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "shell docs variant (SHELL_HIDDEN_DOCS/APP_ONLY_DOCS), desktop.md, blog stripped from export, app-only docs chrome; PR #344"
+    proof: ["e0acac8", "0ee93cb", "70238e3", "#344"]
+    effort: {commits: 3, files: 13, insertions: 218, deletions: 33}
+  spent_min: 21
   session_count: 1
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
