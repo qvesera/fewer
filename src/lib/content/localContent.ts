@@ -84,7 +84,10 @@ export function parseContentFile(text: string, slug: string): LocalContent {
     date: field("date"),
     author: field("author"),
     tags: field("tags"),
-    content: body.replace(/^\n+/, ""),
+    // Normalize CRLF → LF (Windows checkouts): every downstream regex and the
+    // renderer's "\n\n" block split assume LF (T-104: a CRLF junction defeats
+    // both the shell-block stripping and heading detection).
+    content: body.replace(/^\n+/, "").replace(/\r\n?/g, "\n"),
   };
 }
 

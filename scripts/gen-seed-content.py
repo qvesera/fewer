@@ -46,7 +46,9 @@ def parse(path: pathlib.Path) -> dict:
     # Shell variant blocks (T-104): the web seed keeps shell:off content and
     # drops shell:on content; markers are stripped either way. Mirrors
     # applyShellBlocks in src/lib/content/localContent.ts (web mode).
-    content = body.lstrip("\n")
+    # CRLF → LF first (Windows checkouts): the marker regexes and the web
+    # renderer both assume \n-only content.
+    content = body.lstrip("\n").replace("\r\n", "\n").replace("\r", "\n")
     content = re.sub(
         r"<!--\s*shell:off\s*-->(.*?)<!--\s*/shell:off\s*-->", r"\1", content, flags=re.S
     )

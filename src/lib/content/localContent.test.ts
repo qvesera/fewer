@@ -41,6 +41,15 @@ Body line one.
     expect(c.content).toBe("just text");
   });
 
+  test("CRLF content is normalized to LF (Windows checkouts)", () => {
+    // T-104: a CRLF junction (\r\n\r\n\r\n) defeats the shell-block
+    // stripping (\n{3,}) and the renderer's "\n\n" block split — parse-time
+    // normalization keeps every downstream regex LF-shaped.
+    const c = parseContentFile("---\ntitle: T\n---\n## Heading\r\n\r\npara\r\n", "t");
+    expect(c.content).not.toContain("\r");
+    expect(c.content).toContain("## Heading\n\npara");
+  });
+
   test("blog fields (date/author/tags) come through", () => {
     const POST = `---\ntitle: P\ndate: 2026-10-01\nauthor: Ada\ntags: release, notes\n---\nbody\n`;
     const c = parseContentFile(POST, "p");
