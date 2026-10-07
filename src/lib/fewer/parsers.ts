@@ -95,7 +95,10 @@ function buildTreeFromFlat(nodes: FlatNode[], edges: FlatEdge[]): TreeEntry {
  * The JSON format is the one produced by exportUtils.ts exportJSON().
  */
 export function parseJSONGraph(json: string): TreeEntry {
-  const data = JSON.parse(json);
+  const parsed = JSON.parse(json);
+  // T-101: accept Fewer graph documents (.fwr envelopes: { format_version,
+  //  app, graph }) as well as raw exportJSON payloads ({ nodes, ... }).
+  const data = parsed?.graph?.data && parsed.graph.data.nodes ? parsed.graph.data : parsed;
   if (!data.nodes || !Array.isArray(data.nodes)) {
     throw new Error("Invalid JSON: missing 'nodes' array");
   }

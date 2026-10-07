@@ -68,6 +68,13 @@ interface ImportFlowDialogProps {
   initialOrigin?: ImportOrigin;
   /** Called once when the dialog is first opened (for lazy-mount tracking). */
   onFirstOpen?: () => void;
+  /** Whether server-backed origins (URL, cloud) are reachable at all. The
+   *  desktop shell passes false — no server exists there (T-099); the parent
+   *  decides via cloudFeature() so this dialog stays server-agnostic. */
+  cloudAvailable?: boolean;
+  /** Shell (T-102): URL + GitHub import work via the host fetch bridge —
+   *  show the "url" origin even though there is no cloud/server behind it. */
+  hostImportAvailable?: boolean;
 }
 
 export function ImportFlowDialog({
@@ -75,6 +82,8 @@ export function ImportFlowDialog({
   onOpenChange,
   initialOrigin = "folder",
   onFirstOpen,
+  cloudAvailable = true,
+  hostImportAvailable = false,
 }: ImportFlowDialogProps) {
   const firstOpenDone = useRef(false);
   const handleFirstOpen = () => {
@@ -293,7 +302,8 @@ function isEditableTarget(el: HTMLElement): boolean {
               }}
               source={source}
               onSourceChange={setSource}
-              cloudImport={can("cloudImport", tier)}
+              cloudImport={cloudAvailable && can("cloudImport", tier)}
+              hostImport={hostImportAvailable}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)
               }

@@ -15,6 +15,11 @@
  * Fail-safe: missing plan / unknown plan → free; no user → guest.
  */
 
+import { isHost } from "./nativeShell";
+
+/** True inside any desktop shell host; false on web, SSR, and bun tests. */
+const inHostShell = isHost();
+
 // ── Tiers ─
 
 export type Tier = "guest" | "free" | "pro";
@@ -49,6 +54,13 @@ export type Feature =
   | "cloudImport"     // OneDrive / GitHub / Google Drive import origins
   // ── Power-user tools (free tier gets these) ──
   | "edgeMotion"           // animated edges, dash clock
+  // ── Desktop offline (license-gated; T-090) ──
+  // nativeBrowse is reserved: folder import itself is CORE in the shell
+  // (the webview fallback picker is broken in WebKitGTK — see
+  // importActionFolder.ts), so no UI checks this flag today.
+  | "localLibrary"     // save/load graphs in the on-disk Fewer Library
+  | "nativeBrowse"     // reserved: future pro-tier native browsing extras
+  | "localPreview"     // in-app image/PDF/text preview of local files
   | "advancedImportFormats" // JSON / script import formats
   | "unbrandedExport"      // export without the fewer watermark
   | "customTheme"          // custom theme mode in Settings
@@ -67,6 +79,10 @@ export const MIN_TIER: Record<Feature, Tier> = {
   tags: "pro",
   largeShareLinks: "pro",  // server: SHARE_FREE_MAX_CHARS threshold + planLimits.largeShareLinks
   savedThemes: "pro",
+  // Desktop offline: gated behind a desktop pro license (license gate, T-090).
+  localLibrary: "pro",
+  nativeBrowse: "pro",
+  localPreview: "pro",
 
   // Everything else: any signed-in account.
   savedGraphs: "free",
@@ -88,5 +104,26 @@ export const MIN_TIER: Record<Feature, Tier> = {
 
 /** True when the given tier meets or exceeds the feature's minimum. */
 export function can(feature: Feature, tier: Tier): boolean {
-  return RANK[tier] >= RANK[MIN_TIER[feature]];
+  return canFor(inHostShell, feature, tier);
+}
+
+// ── Standalone overrides (T-100) ────────────────────────────────────────
+// The shell's tier is license-based and never "guest" (FewerApp derives
+// "free" without a license, "pro" with one): "free" = the core offline app,
+// "pro" = a valid desktop license. Overrides adjust features whose web tier
+// doesn't fit the standalone split; everything else keeps MIN_TIER, which in
+// the shell reads as "available without a license".
+export const SHELL_MIN_TIER: Partial<Record<Feature, Tier>> = {
+  // Free standalone exports carry the watermark; removing it is a license feature.
+  unbrandedExport: "pro",
+};
+
+/** Pure core: the effective minimum tier for a feature. */
+export function minTierFor(inShell: boolean, feature: Feature): Tier {
+  return (inShell ? SHELL_MIN_TIER[feature] : undefined) ?? MIN_TIER[feature];
+}
+
+/** Pure core of `can` — unit-testable for both hosts. */
+export function canFor(inShell: boolean, feature: Feature, tier: Tier): boolean {
+  return RANK[tier] >= RANK[minTierFor(inShell, feature)];
 }

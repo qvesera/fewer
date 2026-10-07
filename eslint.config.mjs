@@ -45,7 +45,23 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/libarchive/**"]
+  // Host engines are a backend detail (T-094 seam): feature code routes through
+  // src/lib/fewer/nativeShell.ts (isHost() + hostInvoke) and never imports a
+  // host package directly. The Rust side of the contract is src-tauri/src/lib.rs;
+  // the Node side is electron/handlers/ — neither is importable from src/.
+  files: ["src/**/*.{ts,tsx}"],
+  rules: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        {
+          group: ["@tauri-apps/*", "electron", "electron/*"],
+          message: "Host packages are banned in src/ — route through @/lib/fewer/nativeShell.ts (isHost()/hostInvoke).",
+        },
+      ],
+    }],
+  },
+}, {
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/libarchive/**", "src-tauri/target/**", "src-tauri/gen/**", "electron/dist/**"]
 }];
 
 export default eslintConfig;

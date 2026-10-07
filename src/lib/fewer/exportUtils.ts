@@ -193,6 +193,33 @@ export function exportJSON(
   );
 }
 
+/**
+ * Fewer graph document (.fwr, T-101): the portable saved-graph format —
+ * `{ format_version, app, graph }` — importable by the desktop library, the
+ * file import (json parser unwraps envelopes), and the web alike.
+ */
+export function exportFWR(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  stats?: DirectoryStats,
+  includeBranding = true,
+) {
+  const now = new Date().toISOString();
+  const doc = {
+    format_version: 1,
+    app: "fewer",
+    graph: {
+      id: `fwr_${Date.now().toString(36)}`,
+      name: `fewer-${timestamp()}`,
+      data: buildJsonExport(nodes, edges, stats, includeBranding),
+      created_at: now,
+      updated_at: now,
+      share: null,
+    },
+  };
+  downloadBlob(JSON.stringify(doc, null, 2), `fewer-${timestamp()}.fwr`, "application/json");
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  CSV                                       */
 /* -------------------------------------------------------------------------- */
@@ -334,6 +361,8 @@ export function exportGraph(
       return exportPNG(nodes, edges, settings, opts);
     case "json":
       return exportJSON(nodes, edges, stats, settings.includeBranding);
+    case "fwr":
+      return exportFWR(nodes, edges, stats, settings.includeBranding);
     case "csv":
       return exportCSV(nodes, edges, settings.includeBranding);
     case "dot":

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Github, ShieldCheck, ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { isDesktopExport } from "@/lib/content/exportMode";
+import { isHost } from "@/lib/fewer/nativeShell";
 
 /** Origin used by OAuth callbacks and share links. */
 export const APP_ORIGIN =
@@ -18,18 +20,37 @@ const NAV = [
 ];
 
 export function MarketingLayout({ children }: { children: React.ReactNode }) {
+  // Shell variant (T-104): the desktop export renders docs with app-only
+  // chrome — the marketing nav/footer pages (welcome, gallery, privacy,
+  // blog, launch-app) don't exist in the standalone export.
+  //
+  // BOTH gates are required: DocsLayout is a client component, so this
+  // layout re-runs in the browser — where process.env.DESKTOP_EXPORT is
+  // NOT inlined (non-NEXT_PUBLIC vars never reach client bundles) and the
+  // server-baked variant would be replaced by the web header on hydration.
+  // isHost() is the runtime truth inside the shell; isDesktopExport() covers
+  // the server render at build (no window there).
+  const shell = isDesktopExport() || isHost();
+  const navItems = shell ? NAV.filter((n) => n.label === "Docs") : NAV;
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navbar */}
       <header className="sticky top-0 relative z-20 border-b border-border/40 bg-background/80 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <img src="/logo_flat.svg" alt="fewer logo" className="h-8 w-8" />
-            <span className="text-base font-bold tracking-tight">fewer</span>
-          </Link>
+          {shell ? (
+            <span className="flex items-center gap-2.5">
+              <img src="/logo_flat.svg" alt="fewer logo" className="h-8 w-8" />
+              <span className="text-base font-bold tracking-tight">fewer</span>
+            </span>
+          ) : (
+            <Link href="/" className="flex items-center gap-2.5">
+              <img src="/logo_flat.svg" alt="fewer logo" className="h-8 w-8" />
+              <span className="text-base font-bold tracking-tight">fewer</span>
+            </Link>
+          )}
 
           <nav className="hidden md:flex items-center gap-1 text-sm">
-            {NAV.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
@@ -49,6 +70,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
             </a>
           </nav>
 
+          {!shell && (
           <Link
             href={APP_URL}
             className={buttonVariants({ variant: "default", size: "sm" })}
@@ -56,13 +78,15 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
             Launch the app
             <ArrowRight className="h-4 w-4" />
           </Link>
+          )}
         </div>
       </header>
 
       {/* Content */}
       <main className="relative z-10">{children}</main>
 
-      {/* Footer */}
+      {/* Footer — hidden in the shell export (T-104): marketing links dead-end */}
+      {!shell && (
       <footer className="relative z-10 border-t border-border/40 bg-background/95">
         <div className="mx-auto max-w-6xl px-6 py-10 grid gap-10 md:grid-cols-3">
           <div>
@@ -136,6 +160,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

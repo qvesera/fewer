@@ -1,5 +1,26 @@
 import { describe, expect, expectTypeOf, test } from "bun:test";
-import { tierOf, can, MIN_TIER, type Tier, type Feature } from "./tiers";
+import { tierOf, can, canFor, minTierFor, MIN_TIER, type Tier, type Feature } from "./tiers";
+
+describe("canFor / SHELL_MIN_TIER (T-100)", () => {
+  test("shell promotes unbrandedExport free → pro; web unchanged", () => {
+    expect(canFor(false, "unbrandedExport", "free")).toBe(true);
+    expect(canFor(true, "unbrandedExport", "free")).toBe(false);
+    expect(canFor(true, "unbrandedExport", "pro")).toBe(true);
+  });
+
+  test("core offline features keep their web tier in the shell", () => {
+    for (const f of ["savedGraphs", "customTheme", "tags", "graphAnalytics"] as const) {
+      expect(canFor(true, f, "free")).toBe(canFor(false, f, "free"));
+      expect(canFor(true, f, "pro")).toBe(canFor(false, f, "pro"));
+    }
+  });
+
+  test("minTierFor applies the override only in the shell", () => {
+    expect(minTierFor(false, "unbrandedExport")).toBe(MIN_TIER.unbrandedExport);
+    expect(minTierFor(true, "unbrandedExport")).toBe("pro");
+    expect(minTierFor(true, "localLibrary")).toBe("pro");
+  });
+});
 
 // ── tierOf ─
 

@@ -110,3 +110,115 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+  # Desktop static export (T-092). `out/` is the shell's only artifact, and it
+  # must build with NO Supabase env (CI has none) — docs/blog then render from
+  # the repo markdown instead of `content_pages`. Also asserts the build script
+  # restored the server-only trees it moves aside for the export.
+  build-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - run: bun run build:desktop
+      - name: Export sanity (app shell + offline docs, blog stripped)
+        run: |
+          test -f out/index.html
+          test -f out/app.html
+          test -f out/404.html
+          test -f out/docs/shortcuts.html
+          test -f out/docs/desktop.html   # app-only page (T-104)
+          test ! -e out/blog              # blogs removed from the standalone (T-104)
+          test ! -e out/docs/cloud.html   # web-only docs hidden in the shell variant
+          test ! -e out/docs/accounts.html
+      - name: Server-only trees are back after the export
+        run: |
+          test -f middleware.ts
+          test -d src/app/api
+          test -f src/app/auth/callback/route.ts
+          test -d src/app/blog
+
+  # Desktop packaging gate (T-097/T-103): builds the export + shell, runs the
+  # Playwright Electron smoke against the REAL app, then packages that OS's
+  # artifacts and uploads them. Matrix: linux AppImage+deb, macOS dmg+zip,
+  # Windows nsis+portable — all UNSIGNED (see electron-builder.yml: mac
+  # identity: null + hardenedRuntime: false; win has no cert by design).
+  # xvfb only on linux (headless runner); mac/win runners have a display.
+  # `shell: bash` everywhere, and build:desktop invokes the script via
+  # `bash scripts/...` — windows checkouts lose the exec bit, so a shebang
+  # spawn fails there even under git bash.
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            artifact: fewer-linux
+            smoke: xvfb-run -a bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+          - os: macos-latest
+            target: mac
+            artifact: fewer-mac
+            smoke: bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+          - os: windows-latest
+            target: win
+            artifact: fewer-win
+            smoke: bunx playwright test --config playwright.electron.config.ts
+            artifacts: |
+              release/*.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      # Unsigned mac builds (T-103): never let electron-builder hunt for a
+      # Developer ID cert on the runner.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - name: Cache electron + electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - name: Static export + shell compile
+        shell: bash
+        run: bun run build:desktop && bun run electron:compile
+      - name: Electron smoke (Playwright)
+        shell: bash
+        run: ${{ matrix.smoke }}
+      - name: Package ${{ matrix.target }} (unsigned)
+        shell: bash
+        run: bunx electron-builder --${{ matrix.target }} --publish never
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: error
+

@@ -154,7 +154,7 @@ export interface DirectoryStats {
 }
 
 export interface ExportSettings {
-  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree";
+  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree" | "fwr";
   quality: number; // 1-100
   transparentBackground: boolean;
   includeStats: boolean;

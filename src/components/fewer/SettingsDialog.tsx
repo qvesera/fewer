@@ -49,6 +49,7 @@ import {
   Mail,
   Spline,
   SlidersHorizontal,
+  KeyRound,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
@@ -56,6 +57,8 @@ import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
+import { LicensePanel } from "./LicensePanel";
+import { isHost } from "@/lib/fewer/nativeShell";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,6 +103,7 @@ const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
   appearance: { label: "Appearance", Icon: Palette },
   watched: { label: "Watched", Icon: BellRing },
   cloud: { label: "Cloud", Icon: Cloud },
+  license: { label: "License", Icon: KeyRound },
   advanced: { label: "Advanced", Icon: Settings },
   help: { label: "Help", Icon: BookOpen },
 };
@@ -1294,8 +1298,20 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
-    { label: "Documentation", icon: BookOpen, onClick: () => window.open("/docs", "_blank", "noreferrer") },
+    // Blog is web-only: stripped from the standalone export (T-104).
+    ...(!isHost()
+      ? [{ label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") }]
+      : []),
+    {
+      label: "Documentation",
+      icon: BookOpen,
+      onClick: () => {
+        // Shell (T-104): docs live in-app — app:// serves the prerendered
+        // export and the navigation guard allows /docs. Web opens a tab.
+        if (isHost()) window.location.assign("/docs");
+        else window.open("/docs", "_blank", "noreferrer");
+      },
+    },
   ];
 
   const supportActions = [
@@ -1356,7 +1372,7 @@ export function SettingsDialog() {
   const isMobile = useIsMobile();
   // The Advanced tab is empty for non-Pro mobile users: Layout Policy +
   // Node Metrics are Pro-tier and the Scroll to Zoom card is desktop-only.
-  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled });
+  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled, inShell: isHost() });
   const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks
@@ -1422,6 +1438,7 @@ export function SettingsDialog() {
                 {id === "about" && <AboutTab />}
                 {id === "appearance" && <AppearanceTab />}
                 {id === "watched" && <WatchedIndexesPanel />}
+                {id === "license" && <LicensePanel />}
                 {id === "cloud" && <CloudTab />}
                 {id === "advanced" && <AdvancedTab />}
                 {id === "help" && <HelpTab />}

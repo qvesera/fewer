@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { DocsLayout } from "@/components/DocsLayout";
 import { getSupabase } from "@/lib/supabase";
+import { isDesktopExport } from "@/lib/content/localContent";
 
 export const metadata = {
   title: "Blog | Fewer",
@@ -22,6 +24,8 @@ type PostMeta = {
 };
 
 async function getPosts(): Promise<PostMeta[]> {
+  // Blogs are web-only (T-104): the standalone export ships none.
+  if (isDesktopExport()) notFound();
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")

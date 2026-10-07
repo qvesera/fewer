@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" /><title>blur probe (T-091)</title>
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  body {
+    background-color: #f7f7fb;
+    background-image: radial-gradient(#b9b9cc 1.2px, transparent 1.2px);
+    background-size: 18px 18px;
+    padding: 24px;
+  }
+  h2 { margin: 0 0 4px; font-size: 15px; color: #333; }
+  p  { margin: 0 0 16px; font-size: 12px; color: #666; }
+  .row { display: flex; gap: 24px; }
+  .card {
+    width: 280px; height: 150px; border-radius: 16px;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(255, 170, 100, 0.12); /* theme-like ~10% tint */
+    box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    padding: 14px; box-sizing: border-box;
+  }
+  #blurred { backdrop-filter: blur(24px) saturate(200%); -webkit-backdrop-filter: blur(24px) saturate(200%); }
+  .card b { display: block; margin-bottom: 6px; font-size: 13px; }
+  .card span { font-size: 11px; color: #555; }
+</style>
+</head>
+<body>
+<h2>Blur probe — compare these two cards</h2>
+<p>LEFT has backdrop-blur (what the app relies on). RIGHT has none. In the wrapper: is the LEFT card's dots softened like in Chrome, or sharp like the RIGHT?</p>
+<div class="row">
+  <div class="card" id="blurred"><b>Card A — backdrop-blur</b><span>dots behind me should look soft/frosted</span></div>
+  <div class="card"><b>Card B — no blur</b><span>dots behind me stay sharp (this is the bug look)</span></div>
+</div>
+<script>
+const log = (m) => { new Image().src = "/r?" + encodeURIComponent(String(m)); };
+log("probe boot");
+log("supports backdrop-filter: " + CSS.supports("backdrop-filter: blur(1px)"));
+log("supports -webkit-backdrop-filter: " + CSS.supports("-webkit-backdrop-filter: blur(1px)"));
+log("supports color-mix: " + CSS.supports("color-mix(in srgb, red 50%, transparent)"));
+log("supports oklch: " + CSS.supports("color: oklch(1 0 0)"));
+log("userAgent: " + navigator.userAgent);
+</script>
+</body>
+</html>

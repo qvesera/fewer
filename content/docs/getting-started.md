@@ -75,16 +75,31 @@ The graph on your canvas is cached locally, so refreshing or reopening the app b
 | **Space**                 | Fit view                               |
 | **+ / - / 0**             | Zoom in/out/reset                      |
 
+<!-- shell:off -->
 ## Sign In (Optional)
 
 Fewer works fully without an account. If you'd like to save your directories to your account, access them across devices, and share them, click **Sign in** in the top navbar. See [Accounts & Saved Graphs](/docs/accounts) for details.
+<!-- /shell:off -->
+
+<!-- shell:on -->
+## In the Desktop App
+
+Fewer on the desktop is fully local — no account, no sign-in, nothing in a top navbar to click. Saved projects live in `~/Documents/fewer`; see the [Fewer Desktop App](/docs/desktop) guide.
+<!-- /shell:on -->
 
 ## What's Next
 
 - [Graph Features](/docs/graph-features)
 - [Import & Export](/docs/import-export)
+<!-- shell:off -->
 - [Sharing Graphs](/docs/sharing)
 - [Accounts & Saved Graphs](/docs/accounts)
+<!-- /shell:off -->
 - [Keyboard Shortcuts](/docs/shortcuts)
 - [Theming](/docs/theming)
+<!-- shell:off -->
 - [Deployment & Self-Hosting](/docs/deployment)
+<!-- /shell:off -->
+<!-- shell:on -->
+- [Fewer Desktop App](/docs/desktop)
+<!-- /shell:on -->

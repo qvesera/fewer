@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { DocsLayout } from "@/components/DocsLayout";
 import { renderMarkdown } from "@/lib/MarkdownRenderer";
 import { getSupabase } from "@/lib/supabase";
+import { getLocalContent, isDesktopExport, listLocalSlugs } from "@/lib/content/localContent";
 
 // Serve from Supabase with a 60s revalidate so edits go live without a deploy.
+// (The desktop static export has no server: it renders the in-repo markdown at
+// build time via generateStaticParams/getLocalContent below. This segment config
+// must stay a literal — Next only statically parses it, and a ternary aborts the
+// build with "Invalid segment configuration export detected".)
 export const revalidate = 60;
 
 type PostMeta = {
@@ -16,6 +21,20 @@ type PostMeta = {
 };
 
 async function getPost(slug: string): Promise<{ content: string; meta: PostMeta } | null> {
+  if (isDesktopExport()) {
+    const local = await getLocalContent("blog", slug);
+    if (!local) return null;
+    return {
+      content: local.content,
+      meta: {
+        title: local.title,
+        date: local.date,
+        description: local.description,
+        author: local.author,
+        tags: local.tags,
+      },
+    };
+  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")
@@ -38,6 +57,13 @@ async function getPost(slug: string): Promise<{ content: string; meta: PostMeta 
   } catch {
     return null;
   }
+}
+
+// Static export prerenders every slug from the repo's markdown; the web build
+// renders on demand with ISR.
+export async function generateStaticParams() {
+  if (!isDesktopExport()) return [];
+  return (await listLocalSlugs("blog")).map((slug) => ({ slug }));
 }
 
 function formatDate(dateStr: string) {

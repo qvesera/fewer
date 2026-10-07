@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 import { getSupabase } from "@/lib/supabase";
+import { isDesktopExport, listLocalContent } from "@/lib/content/localContent";
 
 export const metadata = {
   title: "Docs | Fewer",
@@ -18,6 +19,14 @@ type DocMeta = {
 };
 
 async function getDocs(): Promise<DocMeta[]> {
+  // Desktop export: the same repo markdown the pages render, no server query.
+  if (isDesktopExport()) {
+    return (await listLocalContent("docs")).map((d) => ({
+      slug: d.slug,
+      title: d.title,
+      description: d.description,
+    }));
+  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")
@@ -36,7 +45,7 @@ async function getDocs(): Promise<DocMeta[]> {
   }
 }
 
-const sections = [
+const WEB_SECTIONS = [
   {
     title: "Getting Started",
     items: ["getting-started"],
@@ -54,6 +63,21 @@ const sections = [
     items: ["privacy", "terms"],
   },
 ];
+
+// Shell variant (T-104): only locally relevant guides + the app-only page —
+// accounts/cloud/pricing/legal/PWA pages don't exist in the standalone export.
+const SHELL_SECTIONS = [
+  {
+    title: "Getting Started",
+    items: ["getting-started", "desktop"],
+  },
+  {
+    title: "Using Fewer",
+    items: ["graph-features", "editing", "import-export", "shortcuts", "theming", "settings"],
+  },
+];
+
+const sections = isDesktopExport() ? SHELL_SECTIONS : WEB_SECTIONS;
 
 export default async function DocsPage() {
   const docs = await getDocs();

@@ -206,7 +206,7 @@ describe("ImportFlowDialog state and step-3 import", () => {
     // The chip reports the MODE (Auto) and what will be parsed — and no tile
     // had to be chosen, so none is revealed yet.
     expect(chipText()).toContain("Auto");
-    expect(chipText()).toContain("JSON Graph");
+    expect(chipText()).toContain("Graph File");
     expect(screen.queryByRole("button", { name: /^Auto$/ })).toBeNull();
 
     await interaction.click(screen.getByRole("button", { name: /Continue/ }));
