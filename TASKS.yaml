@@ -2290,3 +2290,572 @@ tasks:
     effort: {commits: 1, files: 11, insertions: 716, deletions: 208}
   spent_min: 30
   session_count: 1
+- id: "T-087"
+  title: "Tauri POC: measure IPC + native list_dir on Rust box"
+  status: "review"
+  type: "research"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 298
+  pr: 299
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T17:54:16Z"
+  notes: ["2026-10-02T17:56:06Z · Internal research row (no GitHub issue - POC derives from #250/T-063 spike deferred spec section 9). Ledger has no set-internal verb, so start used --force.", "2026-10-02T18:32:35Z · POC complete, all §9 acceptance numbers MEASURED (spike doc §9.1 now canonical): native libarchive 6.3MB RSS / 50ms vs wasm 4.1GB RSS / 2.2s on 717MB zip; wasm core-dumped (OOM) on 2.48GB zip, native 15ms/6.4MB. IPC 100k-tree: JSON 9.03MB payload (684ms debug serialize + 43ms parse) vs raw 6.3MB (1.43x, not 3x); windowed list_dir 8ms roundtrip, 655k entries/s walk. LOCAL_FS_FEATURES opener flags flip in-shell, open_in_os + webkitdirectory proven in WebKitGTK. Toolchain: #[tauri::command] needs mod wrapper on rustc 1.99 (E0255), unsafe extern for edition 2024. Gates: lint/tsc/build clean, 194 tests pass."]
+  sessions:
+  - start: "2026-10-02T17:56:06Z"
+    end: "2026-10-02T18:33:13Z"
+    measured: true
+    note: "POC complete (spike §9 all numbers MEASURED, written back to .agents/doc/2026-10-02-native-shell-spike.md §9.1): native libarchive 6.3MB RSS/50ms vs wasm 4.1GB/2.2s on 717MB zip; wasm core-dumped on 2.48GB zip (native 15ms). IPC 100k-tree JSON 9.03MB vs raw 6.3MB (1.43x not 3x); windowed list_dir 8ms roundtrip, 655k entries/s. Opener flags flip in-shell; open_in_os + webkitdirectory proven in WebKitGTK. Toolchain: #[tauri::command] needs mod wrapper on rustc 1.99. Gates lint/tsc/build clean, 194 tests pass."
+    proof: ["d26bd0a"]
+    effort: {commits: 1, files: 35, insertions: 5224, deletions: 8}
+  spent_min: 37
+  session_count: 1
+- id: "T-088"
+  title: "Offline desktop: local graph library + license-gated pro features + native file UX"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 300
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T21:36:33Z"
+  notes: ["2026-10-02T21:36:45Z · Approved plan 2026-10-02: offline-first desktop (static export), local library dir (format = buildJsonExport payload), offline Ed25519 license file feeding tiers.ts can(), native browse + preview panel. Supabase out of desktop. Follows ADR dde1721f §5 bundled-static fork decision + T-087 POC numbers."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-089"
+  title: "Local graph library: Fewer Library dir format + FS adapter + panel swap"
+  status: "review"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 720
+  estimate_basis: "cli"
+  issue: 301
+  pr: 306
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-088"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T21:44:56Z"
+  notes: ["2026-10-02T21:59:51Z · Library format + backend landed: localLibrary.ts (manifest v1 + graph files reusing SavedGraph shape), graphsData.ts (GraphsBackend interface; cloud fetch impl extracted verbatim; local impl over LibraryFs), libraryConfig.ts (localStorage root), nativeShell + Rust fs_read/write/remove + pick_library_dir (tauri-plugin-dialog). SavedGraphsPanel now talks to the backend; local mode skips auth gating, hides share/history, shows library CTA + path. 13 new tests (format round-trip, backend CRUD/rename/favorite/corruption), full suite 1598+194 pass, tsc/lint/build clean, cargo clean, tauri dev boot smoke ok (dialog plugin registers). content/docs page deferred to the static-export child (desktop app UI not shipped yet; docs render from Supabase seeds)."]
+  sessions:
+  - start: "2026-10-02T21:47:47Z"
+    end: "2026-10-02T22:00:02Z"
+    measured: true
+    note: "Local library shipped: format v1 (manifest + SavedGraph-shaped graph files), GraphsBackend interface with cloud fetch impl extracted verbatim + local FS impl, panel swapped (auth gating skipped, share/history hidden in local mode, library CTA), Rust fs read/write/remove + native folder picker via tauri-plugin-dialog. 13 new tests; 1598+194 suite pass; tsc/lint/build/cargo clean; tauri dev boot smoke ok."
+    proof: ["7828d9e"]
+    effort: {commits: 1, files: 11, insertions: 939, deletions: 63}
+  spent_min: 12
+  session_count: 1
+- id: "T-090"
+  title: "License gate: offline Ed25519 license file + tiers integration + signing script"
+  status: "review"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 720
+  estimate_basis: "cli"
+  issue: 302
+  pr: 306
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-088"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T21:44:56Z"
+  notes: ["2026-10-02T22:46:26Z · License gate landed: Ed25519 offline .fewerlicense (payload JSON signed over exact bytes — no canonicalization), Rust verify_license_sig via ed25519-dalek with pinned dev pubkey (private key at ~/.fewer-signing, script refuses in-repo key paths), pick_license_file dialog. TS: license/ types+policy (expiry, kind→tier, enterprise feature mask), licenseState (localStorage path + re-check + change event), FewerApp tier = devOverride ?? licensed ?? account, Settings → License tab (LicensePanel), SavedGraphsPanel gates localLibrary behind can(). New Features: localLibrary/nativeBrowse/localPreview all MIN_TIER pro. Also fixed: T-089 FS commands were never registered in generate_handler (silent invoke failure — caught here). Cross-language proof: cargo test signs fixture via node crypto, dalek verifies, tampered rejected (3 rust tests); 10 TS policy tests; 1608+194 suite green; tsc/lint/build clean; tauri dev boot smoke ok."]
+  sessions:
+  - start: "2026-10-02T22:35:57Z"
+    end: "2026-10-02T22:46:38Z"
+    measured: true
+    note: "License gate shipped: .fewerlicense Ed25519 (exact-bytes signing, no canonicalization), Rust verify via ed25519-dalek + pinned dev pubkey (key outside repo; script refuses in-repo keys), Settings → License activation panel, FewerApp tier = devOverride ?? licensed ?? account, localLibrary/nativeBrowse/localPreview gated at pro. Cross-language fixture test (node-sign → dalek-verify, tamper rejected); 10 TS policy tests; suite 1608+194; also registered T-089 FS commands that were missing from generate_handler."
+    proof: ["d57a7e6"]
+    effort: {commits: 1, files: 17, insertions: 859, deletions: 14}
+  spent_min: 11
+  session_count: 1
+- id: "T-091"
+  title: "Native file UX: browse origin via list_dir + preview panel (image/PDF/text)"
+  status: "review"
+  type: "feat"
+  area: "import"
+  tier: null
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: 303
+  pr: 307
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-088"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T21:44:56Z"
+  notes: ["2026-10-03T08:32:24Z · Native UX landed: nativeTree.ts mirrors localTree semantics (filters, ext+archive exemption, skipEmptyFolders, symlink skip/leaf/follow with resolved-path cycle guard, depth cap 8, archive expansion via fs_read_bytes reader seam) over injected list_dir; list_dir Rust now emits symlink {target,broken} (kind follows the link); fs_read_bytes with size cap; importActionFolder native branch (pick dialog → walk → setLocalRootPath(root) so offline resolution works); PreviewPanel (image/pdf/text, caps 50/100/2MB, open-in-OS fallback, localPreview pro gate) opened from double-click on file nodes in licensed shell. 11 nativeTree/previewKind tests; suite 1619+194; cargo check+tests clean; lint/tsc/build clean; tauri dev boot smoke ok. Follow-ups noted: Space shortcut (needs ShortcutsDialog+docs), PDF support in WebKitGTK unverified live.", "2026-10-03T08:45:54Z · User-reported bug: folder import in the shell showed a file-only chooser. Cause: without an active license the native branch was gated behind can(nativeBrowse) → fell back to <input webkitdirectory>, whose WebKitGTK chooser cannot select folders. Fix: folder import in the shell is now ALWAYS native (isTauri() gate only) — import is core per the offline plan (desktop free = import + canvas); nativeBrowse feature kept but reserved (commented in tiers.ts); changelog entry reworded. Suite 1619+194, tsc/lint clean.", "2026-10-03T08:55:43Z · Second user-reported bug: clicking import aborted the app (panic: state() called before manage() for tauri_plugin_dialog). Root cause: the Cargo dep existed but .plugin(tauri_plugin_dialog::init()) was never registered in the builder — missed in the T-089/T-090 edit batches; boot smokes never invoked a dialog so it stayed latent. Fix: registered the plugin; live-verified with poc/dialog-smoke.html — invoke pick_library_dir no longer aborts (process survives, picker opens). dialog-smoke.html committed as a reusable smoke page.", "2026-10-03T19:03:33Z · Third user-reported bug: app froze (non-responsive) on Browse. Root cause: sync commands execute inline on the main GTK thread; blocking_pick_folder there deadlocks the loop (plugin docs: blocking MUST NOT run on main thread). Fix: pick_library_dir + pick_license_file are now async fn (Tauri async runtime). Verified properly this time: dialog-smoke invoke → user cancel → resolved:null beacon arrives (the check the sync version failed). Committed to PR #307.", "2026-10-03T19:17:03Z · Fourth user-reported issue: cards translucent in wrapper vs web. Diagnosis via poc/blur-smoke.html in the real WebKit: backdrop-filter parses but never renders behind transformed React Flow nodes; color-mix() unsupported entirely (gm-glass/gm-float/minimap/tutorial/docs backgrounds silently invalid → fully transparent). Fix: html[data-shell] marker; themeColors.shellSlotOpacity floors folder/file tint at 0.92 in shell (both appliers: applyCustomThemeToDOM + layout.tsx inline bootstrap); data-shell CSS drops dead card blur; color-mix fallbacks (plain var()/hex-alpha) at all 7 sites; minimap branches on CSS.supports. Web untouched. Gates: 1621+194 tests (+2 floor tests), tsc/lint/build clean."]
+  sessions:
+  - start: "2026-10-03T08:15:57Z"
+    end: "2026-10-03T08:32:39Z"
+    measured: true
+    note: "Native UX shipped: nativeTree walker over windowed list_dir (localTree semantics + symlink modes + cycle guard + archive reader seam), list_dir symlink wire, fs_read_bytes capped reader, importActionFolder native branch with setLocalRootPath, PreviewPanel (image/pdf/text, caps, open-in-OS fallback) on file double-click behind localPreview gate. 11 new tests; suite 1619+194; cargo/lint/tsc/build clean; boot smoke ok."
+    proof: ["e3e29ad"]
+    effort: {commits: 1, files: 12, insertions: 719, deletions: 8}
+  spent_min: 17
+  session_count: 1
+- id: "T-092"
+  title: "Static-export desktop build target + CI dual build"
+  status: "done"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 304
+  pr: 308
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-088"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-02T21:44:56Z"
+  notes: []
+  sessions:
+  - start: "2026-10-04T10:43:06Z"
+    end: "2026-10-04T11:04:41Z"
+    measured: true
+    note: "Static export target landed: scripts/build-desktop.sh moves middleware/api/auth-callback aside, builds Next output:export to out/, restores them (trap-guarded; CI asserts). next.config picks export only under DESKTOP_EXPORT. Docs+blog render from in-repo markdown in export mode (src/lib/content/localContent.ts mirrors gen-seed-content.py front matter + its hidden docs/plans rule) so the build works offline and the app ships docs; generateStaticParams lists repo slugs in export, [] on web (ISR unchanged). Segment config must stay literal — a ternary trips Next's static parser ('Invalid segment configuration export detected'); documented in AGENTS.md + both call sites. tauri.conf now points at ../out + build:desktop. New build-desktop CI job asserts out/{index,app,404}.html + docs/blog pages and that the moved trees are restored. Verified: export built with Supabase env (35 pages, DB slugs) and with env blanked (15 docs + 8 posts from markdown); web standalone build, tsc, lint, 1625+ tests green; 4 new localContent tests."
+    proof: ["addf8c0", "#308"]
+    effort: {commits: 1, files: 13, insertions: 285, deletions: 7}
+  - start: "2026-10-04T19:23:18Z"
+    end: "2026-10-04T19:31:09Z"
+    measured: true
+    note: "Follow-up: committed scripts/build-desktop.sh (gitignore allowlist entry); CI green on #308 incl. build-desktop job."
+    proof: ["f18d1df", "37aa445", "#308"]
+    effort: {commits: 2, files: 3, insertions: 56, deletions: 2}
+  spent_min: 30
+  session_count: 2
+- id: "T-093"
+  title: "Electron desktop shell — offline desktop app (Chromium renderer; Tauri parked)"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 314
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-094"
+  title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 315
+  pr: 319
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-093"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions:
+  - start: "2026-10-04T19:42:02Z"
+    end: "2026-10-04T19:52:12Z"
+    measured: true
+    note: "Host seam landed: nativeShell.ts gains isElectron()/isHost() + hostInvoke (Electron __FEWER_NATIVE__.invoke first, then Tauri __TAURI_INTERNALS__; rejects cleanly in web — typeof window guard caught by test). All 11 feature-code isTauri() gates → isHost() (9 files); public native* API unchanged. ESLint no-restricted-imports bans @tauri-apps/* + electron in src/ (negative-tested with probe file). 6 seam tests, suite 1631 green, tsc/lint/web build clean. Follow-up noted for T-095: shellSlotOpacity tint floor is WebKitGTK-era; Electron blurs fine — capability question."
+    proof: ["70aae70", "bf1ee02", "#319"]
+    effort: {commits: 2, files: 15, insertions: 323, deletions: 46}
+  spent_min: 10
+  session_count: 1
+- id: "T-095"
+  title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 316
+  pr: 320
+  internal: false
+  milestone: null
+  blocked_by: ["T-094"]
+  parent: "T-093"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions:
+  - start: "2026-10-04T21:24:03Z"
+    end: "2026-10-04T21:41:37Z"
+    measured: true
+    note: "Electron shell core shipped: main.ts serves out/ over privileged app:// protocol (net.fetch cannot read file:// through custom protocols — caught live as ERR_FILE_NOT_FOUND; handler reads files with MIME map; directory routes EISDIR fixed via isFile check), preload exposes __FEWER_NATIVE__.invoke (Tauri-shaped), handlers.ts = full command surface in pure Node (windowed list_dir w/ symlink honesty, scoped fs caps, async pickers, open_in_os, Ed25519 verify via node:crypto on pinned dev key). 9 electron tests incl. shared cross-host license fixture; suite 1631+9+194; tsc/lint/web build/desktop export clean. Live smoke: app window up on dev box, zero request errors — app left running for user feature verification. Follow-ups: T-096 packaging (electron-builder), T-097 Playwright e2e + CI package job; FEWER_DEV_SERVER_URL loop documented in AGENTS.md."
+    proof: ["70a2374", "#320"]
+    effort: {commits: 1, files: 12, insertions: 580, deletions: 13}
+  spent_min: 18
+  session_count: 1
+- id: "T-096"
+  title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
+  status: "done"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 317
+  pr: 321
+  internal: false
+  milestone: null
+  blocked_by: ["T-095"]
+  parent: "T-093"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:39Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T08:56:57Z"
+    end: "2026-10-05T09:09:40Z"
+    measured: true
+    note: "Packaging shipped: electron-builder.yml (AppImage+deb, logo-512 icon, syncDesktopName for WM_CLASS, npmRebuild off, asar on), electron:dist chains build:desktop+compile+builder, version from package.json (Fewer-0.7.1.AppImage ~284MB + deb ~195MB verified). Packaged layout mirrors repo (app.asar holds electron/dist + out) so ../../out resolves identically; AppImage smoke on dev box boots clean (Fedora needs --appimage-extract-and-run, no libfuse2 — documented in README+AGENTS). tsc/lint/full suite green. Remaining: T-097 (Playwright _electron.launch e2e + CI package job)."
+    proof: ["5ebc816", "#321"]
+    effort: {commits: 1, files: 8, insertions: 497, deletions: 10}
+  spent_min: 13
+  session_count: 1
+- id: "T-097"
+  title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
+  status: "done"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 318
+  pr: 322
+  internal: false
+  milestone: null
+  blocked_by: ["T-095"]
+  parent: "T-093"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:40Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T11:03:59Z"
+    end: "2026-10-05T11:14:03Z"
+    measured: true
+    note: "Electron e2e + CI shipped: e2e/electron.spec.ts (Playwright _electron smoke — window title (lowercase, caught case-sensitivity live), __FEWER_NATIVE__ bridge, list_dir IPC round-trip renderer→preload→ipcMain→handlers→fs, unknown-command rejection; never invokes pickers; self-skips without out/+electron/dist), playwright.electron.config.ts (no webServer), main config testIgnore, CI package job (caches, build:desktop+compile, xvfb-run smoke, electron-builder, upload fewer-linux artifacts), test filter scoped to electron/handlers.test.ts (bun filter had matched the playwright spec). Smoke passes locally 3.8s; full suite green. Closes T-093 umbrella children 4/4."
+    proof: ["823681f", "#322"]
+    effort: {commits: 1, files: 7, insertions: 148, deletions: 4}
+  spent_min: 10
+  session_count: 1
+- id: "T-098"
+  title: "Standalone app parity — app-first entry, license-only gating, .fwr library, mac/win builds"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 331
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:49Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-099"
+  title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 332
+  pr: 339
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:49Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T13:24:29Z"
+    end: "2026-10-05T13:48:54Z"
+    measured: true
+    note: "App-first standalone landed: main.ts boots app://fewer/app.html (marketing stays web-only), external http(s) via setWindowOpenHandler→shell.openExternal. features.ts gains CLOUD_FEATURES + cloudFeature()/cloudFeatureFor() (8 server features OFF in shell); gated navbar sign-in/account, AuthDialog mount, settings tabs (visibleTabs shell: about/appearance/license/advanced/help), import origins URL+cloud (new cloudAvailable prop — dialog-side features import deterministically SIGABRTs bun's mock.module graph in that suite, bisected), theme gallery publish (user-gated). getGraphsBackend always local in shell (was: no dir → cloud backend → dead API); panel prompt keys on unset dir; loadGraphs/save guarded. Tests: features.test (3) + visibleTabs shell (3); suite green; web build green; desktop export rebuilt; Playwright electron smoke green 3.9s (boots into app). PR #339."
+    proof: ["2213913", "#339"]
+    effort: {commits: 1, files: 13, insertions: 339, deletions: 12}
+  - start: "2026-10-05T15:06:11Z"
+    end: "2026-10-05T15:09:30Z"
+    measured: true
+    note: "Follow-up (user-reported): navbar logo navigated to the marketing homepage in the shell (its web nav showed Sign in/Launch again). Fix: logo inert when isHost() (Link kept for web); main.ts will-navigate guard — only /app* and /docs* may document-load in the standalone (pushState routing unaffected, dev-server mode exempt); Playwright smoke now asserts window.url() contains app.html. Gates: tsc/lint/suite green, export rebuilt, smoke green 1.4s. PR #339."
+    proof: ["1a6d643", "#339"]
+    effort: {commits: 1, files: 4, insertions: 35, deletions: 6}
+  spent_min: 27
+  session_count: 2
+- id: "T-100"
+  title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 333
+  pr: 340
+  internal: false
+  milestone: null
+  blocked_by: ["T-099"]
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T15:35:40Z"
+    end: "2026-10-05T15:43:22Z"
+    measured: true
+    note: "License-only shell tier landed: FewerApp tier = devOverride ?? (licensed ? pro : free), never guest (fixes denied power-user UI + blank advancedModeEnabled). tiers.ts: SHELL_MIN_TIER (unbrandedExport free→pro per agreed split) + minTierFor/canFor pure cores; can() shell-aware via one host constant (zero call-site churn; web parity pinned by canFor(false,·) tests). use-settings.ts: both /api/settings fetches isHost()-guarded — the GET gate would have fired dead now that shell tier != guest. Spot-checked the three tier!==guest sites (all safe). Tests +3; suite/tsc/lint/web build/desktop export/Playwright smoke green. PR #340."
+    proof: ["1422982", "#340"]
+    effort: {commits: 1, files: 7, insertions: 74, deletions: 8}
+  spent_min: 8
+  session_count: 1
+- id: "T-101"
+  title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 334
+  pr: 341
+  internal: false
+  milestone: null
+  blocked_by: ["T-100"]
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions:
+  - start: "2026-10-05T16:01:41Z"
+    end: "2026-10-06T09:57:40Z"
+    measured: true
+    note: ".fwr graph docs (scan accepts legacy .json), .fwtheme theme files, default_library_dir, export/import wiring; PR #341"
+    proof: ["f4797f1", "#341"]
+    effort: {commits: 1, files: 22, insertions: 656, deletions: 31}
+  spent_min: 1076
+  session_count: 1
+- id: "T-102"
+  title: "Main-process fetch bridge (host_fetch) for URL + GitHub import without our server"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 335
+  pr: 342
+  internal: false
+  milestone: null
+  blocked_by: ["T-101"]
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:18:50Z"
+  notes: []
+  sessions:
+  - start: "2026-10-06T10:07:00Z"
+    end: "2026-10-06T10:21:24Z"
+    measured: true
+    note: "host_fetch GET bridge + localImport client-side builders + url origin in shell; PR #342"
+    proof: ["0f6ce46", "9cb2a05", "#342"]
+    effort: {commits: 2, files: 15, insertions: 358, deletions: 29}
+  spent_min: 14
+  session_count: 1
+- id: "T-103"
+  title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
+  status: "done"
+  type: "infra"
+  area: "infra"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 336
+  pr: 343
+  internal: false
+  milestone: null
+  blocked_by: ["T-102"]
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions:
+  - start: "2026-10-06T10:37:32Z"
+    end: "2026-10-06T10:48:47Z"
+    measured: true
+    note: "mac/win unsigned targets + 3-OS package matrix + artifact naming; PR #343"
+    proof: ["d076d55", "ac6e148", "#343"]
+    effort: {commits: 2, files: 6, insertions: 120, deletions: 21}
+  - start: "2026-10-06T11:03:10Z"
+    end: "2026-10-06T11:03:22Z"
+    measured: true
+    note: "follow-up: windows exec-bit fix (bash scripts/build-desktop.sh); PR #343"
+    proof: ["8f35aff", "#343"]
+    effort: {commits: 1, files: 3, insertions: 12, deletions: 5}
+  spent_min: 11
+  session_count: 2
+- id: "T-104"
+  title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
+  status: "done"
+  type: "docs"
+  area: "infra"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 337
+  pr: 344
+  internal: false
+  milestone: null
+  blocked_by: ["T-103"]
+  parent: "T-098"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions:
+  - start: "2026-10-06T11:22:33Z"
+    end: "2026-10-06T11:43:55Z"
+    measured: true
+    note: "shell docs variant (SHELL_HIDDEN_DOCS/APP_ONLY_DOCS), desktop.md, blog stripped from export, app-only docs chrome; PR #344"
+    proof: ["e0acac8", "0ee93cb", "70238e3", "#344"]
+    effort: {commits: 3, files: 13, insertions: 218, deletions: 33}
+  - start: "2026-10-06T11:50:42Z"
+    end: "2026-10-06T11:50:44Z"
+    measured: true
+    note: "follow-up: CI export sanity updated for the T-104 contract; PR #344"
+    proof: ["6f6795d", "#344"]
+    effort: {commits: 1, files: 1, insertions: 6, deletions: 2}
+  - start: "2026-10-06T13:48:47Z"
+    end: "2026-10-06T13:49:35Z"
+    measured: true
+    note: "follow-up: shell:off/on content blocks + neutralizeDeadShellLinks — docs header/link leak fixed; PR #344"
+    proof: ["52158d4", "#344"]
+    effort: {commits: 1, files: 8, insertions: 135, deletions: 5}
+  - start: "2026-10-06T14:13:35Z"
+    end: "2026-10-06T14:14:10Z"
+    measured: true
+    note: "follow-up: isHost() runtime gate for docs chrome (hydration leak) + e2e regression test + heading-normalization fix; PR #344"
+    proof: ["8b3c1d0", "#344"]
+    effort: {commits: 1, files: 6, insertions: 57, deletions: 6}
+  - start: "2026-10-06T16:24:52Z"
+    end: "2026-10-06T16:24:59Z"
+    measured: true
+    note: "T-104 follow-up: isHost() runtime gate + heading-normalization (LF junctions) + CRLF normalization at parse time (Windows CI) + e2e regression; commit d2c457a pushed to PR #344"
+    proof: ["d2c457a", "#344"]
+    effort: {commits: 1, files: 4, insertions: 24, deletions: 4}
+  spent_min: 23
+  session_count: 5
+- id: "T-105"
+  title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
+  status: "blocked"
+  type: "docs"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 338
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-104"]
+  parent: "T-098"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:14Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
