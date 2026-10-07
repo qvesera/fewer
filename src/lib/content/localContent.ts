@@ -9,6 +9,9 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { isDesktopExport } from "./exportMode";
+
+export { isDesktopExport };
 
 export type ContentType = "docs" | "blog";
 
@@ -31,10 +34,31 @@ const DIRS: Record<ContentType, string> = {
 // hidden on the site, so the desktop export must not publish them either.
 const UNPUBLISHED = new Set(["docs/plans"]);
 
-/** True when building the static desktop export (set by scripts/build-desktop.sh). */
-export function isDesktopExport(): boolean {
-  return Boolean(process.env.DESKTOP_EXPORT);
-}
+// Web-only docs the standalone shell must not ship (T-104): cloud accounts,
+// pricing, hosted-service legal pages, PWA install, deployment. The export's
+// docs variant keeps the locally relevant guides plus the app-only pages.
+export const SHELL_HIDDEN_DOCS = new Set([
+  "accounts",
+  "cloud",
+  "deployment",
+  "plans",
+  "privacy",
+  "pwa-install",
+  "sharing",
+  "terms",
+  "watch",
+]);
+
+// App-only docs (T-104): shipped in the desktop export, never on the web
+// (gen-seed-content.py skips them too — the file is the single source).
+export const APP_ONLY_DOCS = new Set(["desktop"]);
+
+// Blogs are web-only: release posts are marketing; the standalone ships none
+// (the build also removes out/blog — belt and braces for prerendered pages).
+const SHELL_DROPS_BLOG = true;
+
+/** True when building the static desktop export (set by scripts/build-desktop.sh).
+ *  Re-exported from ./exportMode (dependency-free) so client graphs can import it. */
 
 /**
  * Split one markdown file into front matter fields + body. Mirrors the parser
@@ -60,8 +84,48 @@ export function parseContentFile(text: string, slug: string): LocalContent {
     date: field("date"),
     author: field("author"),
     tags: field("tags"),
-    content: body.replace(/^\n+/, ""),
+    // Normalize CRLF → LF (Windows checkouts): every downstream regex and the
+    // renderer's "\n\n" block split assume LF (T-104: a CRLF junction defeats
+    // both the shell-block stripping and heading detection).
+    content: body.replace(/^\n+/, "").replace(/\r\n?/g, "\n"),
   };
+}
+
+// ── Shell variants of page CONTENT (T-104) ──────────────────────────────
+//
+// Pages are filtered per mode, but individual pages also carry sections and
+// links that only make sense on one side. Two mechanisms keep one markdown
+// file serving both surfaces:
+//
+//   <!-- shell:off --> … <!-- /shell:off -->   web-only block
+//   <!-- shell:on  --> … <!-- /shell:on  -->    desktop-only block
+//
+// The markers never reach either output (they are consumed on both sides).
+function applyShellBlocks(content: string): string {
+  const isExport = isDesktopExport();
+  return content
+    .replace(/<!--\s*shell:off\s*-->([\s\S]*?)<!--\s*\/shell:off\s*-->/g, isExport ? "" : "$1")
+    .replace(/<!--\s*shell:on\s*-->([\s\S]*?)<!--\s*\/shell:on\s*-->/g, isExport ? "$1" : "")
+    // Stripping a block can leave \n\n\n junctions; the markdown renderer
+    // splits on exactly "\n\n" and a chunk starting with \n defeats its
+    // heading detection (## renders as literal text). Collapse runs of 3+.
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+/**
+ * Export only: markdown links to pages the standalone doesn't ship degrade to
+ * plain text — hand-edited docs can reintroduce dead `/docs/<hidden>` (or
+ * /blog, /gallery, …) links and they must not appear as clickable leaks.
+ * Anchors on live pages (`/docs/shortcuts#ctrl-a`) survive.
+ */
+export function neutralizeDeadShellLinks(content: string): string {
+  return content.replace(/\[([^\]]+)\]\(\s*(\/[^)\s]*)\s*\)/g, (full, label: string, href: string) => {
+    const target = (href.split("#")[0] || href).replace(/\/$/, "");
+    if (target === "/docs") return full;
+    const m = /^\/docs\/([a-z0-9-]+)$/i.exec(target);
+    if (m && !SHELL_HIDDEN_DOCS.has(m[1])) return full;
+    return label; // plain text — no dead navigation in the shell
+  });
 }
 
 /** Every published markdown file of a type, sorted by title. */
@@ -75,12 +139,25 @@ export async function listLocalContent(type: ContentType): Promise<LocalContent[
   }
 
   const out: LocalContent[] = [];
+  // Standalone export (T-104): no blogs, web-only docs hidden, app-only docs in.
+  if (type === "blog" && SHELL_DROPS_BLOG && isDesktopExport()) return [];
   for (const name of names) {
     if (!name.endsWith(".md")) continue;
     const slug = name.slice(0, -3);
     if (UNPUBLISHED.has(`${type}/${slug}`)) continue;
+    if (type === "docs") {
+      if (APP_ONLY_DOCS.has(slug) && !isDesktopExport()) continue;
+      if (SHELL_HIDDEN_DOCS.has(slug) && isDesktopExport()) continue;
+    }
     try {
-      out.push(parseContentFile(await fs.readFile(path.join(dir, name), "utf8"), slug));
+      const parsed = parseContentFile(await fs.readFile(path.join(dir, name), "utf8"), slug);
+      // Mode-conditional sections (both modes) + dead-link neutralization
+      // (export only) — the shell must never show links to pages it lacks.
+      parsed.content = applyShellBlocks(parsed.content);
+      if (type === "docs" && isDesktopExport()) {
+        parsed.content = neutralizeDeadShellLinks(parsed.content);
+      }
+      out.push(parsed);
     } catch {
       // Unreadable file: skip it rather than fail the export.
     }

@@ -1298,8 +1298,20 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
-    { label: "Documentation", icon: BookOpen, onClick: () => window.open("/docs", "_blank", "noreferrer") },
+    // Blog is web-only: stripped from the standalone export (T-104).
+    ...(!isHost()
+      ? [{ label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") }]
+      : []),
+    {
+      label: "Documentation",
+      icon: BookOpen,
+      onClick: () => {
+        // Shell (T-104): docs live in-app — app:// serves the prerendered
+        // export and the navigation guard allows /docs. Web opens a tab.
+        if (isHost()) window.location.assign("/docs");
+        else window.open("/docs", "_blank", "noreferrer");
+      },
+    },
   ];
 
   const supportActions = [

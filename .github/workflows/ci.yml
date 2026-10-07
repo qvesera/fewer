@@ -130,18 +130,22 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
       - run: bun run build:desktop
-      - name: Export sanity (app shell + offline docs/blog)
+      - name: Export sanity (app shell + offline docs, blog stripped)
         run: |
           test -f out/index.html
           test -f out/app.html
           test -f out/404.html
           test -f out/docs/shortcuts.html
-          test -f out/blog/v060-release.html
+          test -f out/docs/desktop.html   # app-only page (T-104)
+          test ! -e out/blog              # blogs removed from the standalone (T-104)
+          test ! -e out/docs/cloud.html   # web-only docs hidden in the shell variant
+          test ! -e out/docs/accounts.html
       - name: Server-only trees are back after the export
         run: |
           test -f middleware.ts
           test -d src/app/api
           test -f src/app/auth/callback/route.ts
+          test -d src/app/blog
 
   # Desktop packaging gate (T-097/T-103): builds the export + shell, runs the
   # Playwright Electron smoke against the REAL app, then packages that OS's

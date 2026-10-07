@@ -105,6 +105,28 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   `buildTree`/`subtreeItems`), including branch-split probing; the import
   dialog shows the `url` origin via `hostImportAvailable` (cloud connectors
   stay off). Web keeps POSTing to the endpoints.
+- **Shell docs variant** (T-104): `localContent.ts` filters by build mode —
+  export hides web-only docs (accounts/cloud/plans/privacy/terms/sharing/
+  watch/deployment/pwa-install), ships app-only pages (`APP_ONLY_DOCS`,
+  e.g. `content/docs/desktop.md`; skipped by gen-seed-content.py too), and
+  drops blogs entirely (build-desktop.sh moves `src/app/blog` aside and
+  removes out/blog — export rejects dynamic routes with empty
+  generateStaticParams). Docs chrome in the export is app-only
+  (MarketingLayout gates on the dependency-free `exportMode.ts` — it also
+  sits in client graphs, so localContent's node:fs can't be imported there);
+  Settings → Documentation opens in-app; the Blog link is web-only.
+  Page CONTENT has variants too: `<!-- shell:off -->…` blocks are web-only,
+  `<!-- shell:on -->…` desktop-only (markers consumed in BOTH modes —
+  localContent for the export, gen-seed-content.py for the web seed), and
+  `neutralizeDeadShellLinks()` degrades links to pages the shell lacks into
+  plain text — the shell must never show a link it can't serve.
+  **Pitfall**: `isDesktopExport()` is build-time only — non-NEXT_PUBLIC env
+  is never inlined into client bundles, so components that render inside a
+  client graph (e.g. MarketingLayout via the `"use client"` DocsLayout)
+  must ALSO gate on `isHost()` or the web chrome hydrates over the
+  server-baked shell variant. The Electron smoke asserts the post-hydration
+  docs state (header + no dead links); static HTML greps can't see this.
+
 - **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
   builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
   `.deb` — version always from package.json (single source of truth). T-103
