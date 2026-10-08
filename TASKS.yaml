@@ -2838,7 +2838,7 @@ tasks:
   session_count: 5
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
-  status: "review"
+  status: "triaged"
   type: "docs"
   area: "infra"
   tier: null
@@ -2863,5 +2863,11 @@ tasks:
     note: "GitHub-only bug report in the shell (cloudFeature bugEmail gate + openExternal hardening), settings export (settingsExport.ts + Help tab), docs (README/AGENTS/desktop.md/settings.md) + changelog; Electron smoke T-105 test; commit f2e7f2c"
     proof: ["f2e7f2c"]
     effort: {commits: 1, files: 14, insertions: 250, deletions: 6}
-  spent_min: 42
-  session_count: 1
+  - start: "2026-10-08T11:33:41Z"
+    end: "2026-10-08T11:34:35Z"
+    measured: true
+    note: "e2e fresh-profile fix: seed fewer-tutorial-dismissed via addInitScript + strict-mode .first() toast locators; local wiped-profile run 3/3; commit 6bbd65e"
+    proof: ["6bbd65e"]
+    effort: {commits: 1, files: 1, insertions: 13, deletions: 2}
+  spent_min: 43
+  session_count: 2
