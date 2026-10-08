@@ -104,6 +104,16 @@ test.describe("Electron shell", () => {
 
   test("shell bug report via GitHub + settings export (T-105)", async () => {
     const window = await app.firstWindow();
+    // The tutorial auto-opens on a fresh profile and its z-max overlay swallows
+    // clicks (CI's runner profile is always fresh). Seed the dismissal key
+    // BEFORE the app hydrates — init scripts run before page scripts.
+    await window.addInitScript(() => {
+      try {
+        localStorage.setItem("fewer-tutorial-dismissed", "true");
+      } catch {
+        /* ignore */
+      }
+    });
     // Back to the app (the docs test left us on /docs/getting-started).
     await window.goto("app://fewer/app.html");
     await expect
@@ -121,7 +131,8 @@ test.describe("Electron shell", () => {
     // itself must never navigate away.
     await window.fill("#bug-title", "Shell smoke: GitHub bug report");
     await window.getByRole("button", { name: "Submit to GitHub" }).click();
-    await expect(window.locator("text=GitHub pre-filled!")).toBeVisible();
+    // .first(): the toast title and its aria-live announcement both match.
+    await expect(window.locator("text=GitHub pre-filled!").first()).toBeVisible();
     expect(await window.url()).toContain("app.html");
     // The Web3Forms email fallback is web-only: cloudFeature("bugEmail") is
     // OFF in the shell, so no email button ever appears.
@@ -131,6 +142,6 @@ test.describe("Electron shell", () => {
 
     // Export Settings downloads a fewer* localStorage snapshot and confirms.
     await window.getByRole("button", { name: "Export Settings" }).click();
-    await expect(window.locator("text=Settings exported")).toBeVisible();
+    await expect(window.locator("text=Settings exported").first()).toBeVisible();
   });
 });
