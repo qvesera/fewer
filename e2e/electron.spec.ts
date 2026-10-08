@@ -101,4 +101,36 @@ test.describe("Electron shell", () => {
     expect(await window.locator("h2:has-text('In the Desktop App')").count()).toBe(1);
     expect(await window.locator("h2:has-text('Sign In (Optional)')").count()).toBe(0);
   });
+
+  test("shell bug report via GitHub + settings export (T-105)", async () => {
+    const window = await app.firstWindow();
+    // Back to the app (the docs test left us on /docs/getting-started).
+    await window.goto("app://fewer/app.html");
+    await expect
+      .poll(() => window.title().then((t) => t.toLowerCase()), { timeout: 30_000 })
+      .toContain("fewer");
+
+    // Settings → Help → Report an Issue opens the shared dialog.
+    await window.locator('button[title="Settings"]').click();
+    await window.getByRole("tab", { name: "Help" }).click();
+    await window.getByRole("button", { name: "Report an Issue" }).click();
+    await expect(window.getByRole("dialog")).toContainText("Report a Bug");
+
+    // Submit: the pre-filled issue opens in the SYSTEM browser (window.open →
+    // main.ts setWindowOpenHandler → shell.openExternal) — the shell window
+    // itself must never navigate away.
+    await window.fill("#bug-title", "Shell smoke: GitHub bug report");
+    await window.getByRole("button", { name: "Submit to GitHub" }).click();
+    await expect(window.locator("text=GitHub pre-filled!")).toBeVisible();
+    expect(await window.url()).toContain("app.html");
+    // The Web3Forms email fallback is web-only: cloudFeature("bugEmail") is
+    // OFF in the shell, so no email button ever appears.
+    expect(await window.locator("text=Send via Email").count()).toBe(0);
+
+    await window.getByRole("button", { name: "Cancel" }).click();
+
+    // Export Settings downloads a fewer* localStorage snapshot and confirms.
+    await window.getByRole("button", { name: "Export Settings" }).click();
+    await expect(window.locator("text=Settings exported")).toBeVisible();
+  });
 });

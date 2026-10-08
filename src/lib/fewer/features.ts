@@ -56,7 +56,9 @@ export type CloudFeature =
   | "cloudImport"     // OneDrive/GDrive connectors + server-backed URL import
   | "watch"           // watched indexes + nightly email digests
   | "versionHistory"  // /api/graphs/[id]/versions snapshots
-  | "billing";        // Stripe checkout / customer portal
+  | "billing"         // Stripe checkout / customer portal
+  | "bugEmail";       // Web3Forms email fallback in the bug report (T-105): the
+                      // shell files GitHub issues instead — no server-side key
 
 /** True on the web (a server exists); false in the desktop shell. */
 export const CLOUD_FEATURES: Record<CloudFeature, boolean> = {
@@ -68,6 +70,7 @@ export const CLOUD_FEATURES: Record<CloudFeature, boolean> = {
   watch: true,
   versionHistory: true,
   billing: true,
+  bugEmail: true,
 };
 
 /** Pure core: unit-testable without a DOM or a host. */

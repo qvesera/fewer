@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
+import { cloudFeature } from "@/lib/fewer/features";
 import {
   buildGitHubIssueUrl,
   collectDiagnostics,
@@ -475,7 +476,10 @@ export function BugReportDialog() {
               <Github className="h-3.5 w-3.5" />
               Submit to GitHub
             </Button>
-            {githubClicked && (
+            {/* Email is the web's fallback (Web3Forms key + network). The desktop
+                shell files GitHub issues only — cloudFeature("bugEmail") is OFF
+                standalone (T-105). */}
+            {githubClicked && cloudFeature("bugEmail") && (
               <Button
                 size="sm"
                 onClick={handleSubmitEmail}

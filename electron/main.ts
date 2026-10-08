@@ -113,8 +113,11 @@ function createWindow(): void {
 
   // External links (http/https) open in the system browser — never in an
   // Electron popup window. Everything else (blank targets, odd schemes) denied.
+  // openExternal can reject (no browser handler — headless CI, kiosk images);
+  // swallow it so a failed hand-off never tears down the main process (T-105:
+  // the bug report's "Submit to GitHub" rides this path).
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url).catch(() => {});
     return { action: "deny" };
   });
 

@@ -46,6 +46,7 @@ Settings in Advanced:
 
 - **Keyboard Shortcuts**: open the shortcuts dialog
 - **Bug Report**: open the bug report dialog with auto-collected diagnostics
+- **Export Settings**: save a JSON snapshot of every Fewer setting on this device (theme, layout, search history, license) — a backup, or the file to attach when reporting a bug
 - **Restart Tutorial**: replay the interactive walkthrough
 - **GitHub Issues** link
 - **Website** link

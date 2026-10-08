@@ -126,6 +126,16 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   must ALSO gate on `isHost()` or the web chrome hydrates over the
   server-baked shell variant. The Electron smoke asserts the post-hydration
   docs state (header + no dead links); static HTML greps can't see this.
+- **Bug report + settings export** (T-105): the shell files **GitHub issues** —
+  *Settings → Help → Report an Issue* builds the pre-filled URL (`bugReport.ts`)
+  and `window.open` → main.ts `setWindowOpenHandler` → `shell.openExternal`
+  hands it to the system browser (`.catch`-swallowed: a headless box without a
+  browser must not kill the main process). The Web3Forms email fallback is
+  web-only via `cloudFeature("bugEmail")` (features.ts map — never a per-surface
+  `isHost()` check). *Settings → Help → Export Settings* snapshots every
+  `fewer*` localStorage key to `fewer-settings-<ts>.json`
+  (`settingsExport.ts`, pure collector + unit test). Both flows are
+  regression-covered by the Electron smoke's T-105 test.
 
 - **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
   builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
