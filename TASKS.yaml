@@ -2605,7 +2605,7 @@ tasks:
   session_count: 1
 - id: "T-098"
   title: "Standalone app parity — app-first entry, license-only gating, .fwr library, mac/win builds"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2618,14 +2618,20 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "none"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:18:49Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-08T12:08:34Z"
+    end: "2026-10-08T12:08:34Z"
+    measured: true
+    note: "umbrella row: standalone parity shipped via PRs #339-#344, #346 (T-099..T-105 carry the measured time); no own session time"
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-099"
   title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
   status: "done"
@@ -2838,7 +2844,7 @@ tasks:
   session_count: 5
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "infra"
   tier: null
