@@ -80,6 +80,11 @@ Fedora 39+), run the AppImage with `--appimage-extract-and-run`. Develop against
 shell with `bun run electron:start`; point it at the Next dev server (HMR) with
 `FEWER_DEV_SERVER_URL=http://localhost:3000` + `bun run dev`.
 
+Bug reports go through **GitHub**: *Settings → Help → Report an Issue* builds a
+pre-filled issue and opens it in your default browser (no email channel in the
+shell). *Settings → Help → Export Settings* saves a JSON snapshot of every Fewer
+setting for a backup or to attach to a report.
+
 </details>
 
 <details>

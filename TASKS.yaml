@@ -2838,24 +2838,42 @@ tasks:
   session_count: 5
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
-  status: "blocked"
+  status: "review"
   type: "docs"
   area: "infra"
   tier: null
   estimate_min: 120
   estimate_basis: "cli"
   issue: 338
-  pr: null
+  pr: 346
   internal: false
   milestone: null
   blocked_by: ["T-104"]
   parent: "T-098"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-05T13:19:14Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-08T10:37:38Z"
+    end: "2026-10-08T11:19:19Z"
+    measured: true
+    note: "GitHub-only bug report in the shell (cloudFeature bugEmail gate + openExternal hardening), settings export (settingsExport.ts + Help tab), docs (README/AGENTS/desktop.md/settings.md) + changelog; Electron smoke T-105 test; commit f2e7f2c"
+    proof: ["f2e7f2c"]
+    effort: {commits: 1, files: 14, insertions: 250, deletions: 6}
+  - start: "2026-10-08T11:33:41Z"
+    end: "2026-10-08T11:34:35Z"
+    measured: true
+    note: "e2e fresh-profile fix: seed fewer-tutorial-dismissed via addInitScript + strict-mode .first() toast locators; local wiped-profile run 3/3; commit 6bbd65e"
+    proof: ["6bbd65e"]
+    effort: {commits: 1, files: 1, insertions: 13, deletions: 2}
+  - start: "2026-10-08T11:56:30Z"
+    end: "2026-10-08T11:56:40Z"
+    measured: true
+    note: "linux CI hang fix: patch shell.openExternal in main via app.evaluate (record + assert URL, no xdg-open spawn); local wiped-profile 3/3; commit bcc681c"
+    proof: ["bcc681c", "#346"]
+    effort: {commits: 1, files: 1, insertions: 27, deletions: 0}
+  spent_min: 43
+  session_count: 3

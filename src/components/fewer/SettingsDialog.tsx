@@ -50,6 +50,7 @@ import {
   Spline,
   SlidersHorizontal,
   KeyRound,
+  Download,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
@@ -59,6 +60,7 @@ import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
 import { LicensePanel } from "./LicensePanel";
 import { isHost } from "@/lib/fewer/nativeShell";
+import { collectSettingsExport, settingsExportFilename } from "@/lib/fewer/settingsExport";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1285,6 +1287,33 @@ function CloudTab() {
 function HelpTab() {
   const setShortcutsOpen = useGraphStore((s) => s.setShortcutsOpen);
   const setBugReportOpen = useGraphStore((s) => s.setBugReportOpen);
+  const { toast } = useToast();
+
+  const handleExportSettings = () => {
+    // T-105: snapshot every Fewer localStorage entry (settings, themes, license)
+    // as JSON — backup on the web, and the attachment to send with a bug report.
+    const snapshot = collectSettingsExport({
+      keys: Object.keys(localStorage),
+      read: (key) => localStorage.getItem(key),
+      host: isHost(),
+    });
+    const filename = settingsExportFilename(Date.now());
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast({
+      title: "Settings exported",
+      description: `${Object.keys(snapshot.entries).length} entries saved as ${filename}.`,
+    });
+  };
 
   const handleRestartTutorial = () => {
     useGraphStore.getState().setSettingsOpen(false);
@@ -1317,6 +1346,8 @@ function HelpTab() {
   const supportActions = [
     { label: "Keyboard Shortcuts", icon: Keyboard, onClick: () => setShortcutsOpen(true) },
     { label: "Report an Issue", icon: Bug, onClick: () => setBugReportOpen(true) },
+    // T-105: settings snapshot for backup / bug-report attachments.
+    { label: "Export Settings", icon: Download, onClick: handleExportSettings },
     { label: "GitHub Issues", icon: HelpCircle, onClick: () => window.open("https://github.com/qvesera/fewer/issues", "_blank", "noreferrer") },
   ];
 

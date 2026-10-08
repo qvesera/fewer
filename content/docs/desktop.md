@@ -45,6 +45,12 @@ Activate a license from **Settings → License**. License checks are offline (Ed
 
 Download a new build from the releases page and install it over the old one — your library folder is untouched. Unsigned builds: on macOS right-click → Open the first time; on Windows SmartScreen may warn on first run (More info → Run anyway).
 
+## Reporting a bug
+
+**Settings → Help → Report an Issue** collects diagnostics (app version, layout, graph stats) and builds a pre-filled GitHub issue that opens in your **default browser** — review it there and press *Submit new issue*. **Download** / **Copy** give you the raw JSON if you'd rather attach it somewhere else. The desktop app files issues through GitHub only; there is no email submission.
+
+**Settings → Help → Export Settings** saves a JSON snapshot of every Fewer setting on this device (theme, panel layout, search history, license state) — useful as a backup, or as the file to attach to a bug report.
+
 ## Troubleshooting
 
 - **Library won't save** — check that the library folder (default `~/Documents/fewer`) exists and is writable.

@@ -101,4 +101,74 @@ test.describe("Electron shell", () => {
     expect(await window.locator("h2:has-text('In the Desktop App')").count()).toBe(1);
     expect(await window.locator("h2:has-text('Sign In (Optional)')").count()).toBe(0);
   });
+
+  test("shell bug report via GitHub + settings export (T-105)", async () => {
+    const window = await app.firstWindow();
+
+    // Main-process hand-off: RECORD shell.openExternal instead of letting
+    // xdg-open spawn an opener chain on CI — the chain inherits the runner's
+    // stdout pipe and Playwright's app.close() then waits for an EOF that
+    // never comes (mac/win spawn semantics don't hit this). We still assert
+    // the exact forwarded URL, which is stronger than "a browser opened".
+    await app.evaluate(({ shell }) => {
+      const target = shell as unknown as {
+        openExternal: (url: string) => Promise<void>;
+        __orig?: unknown;
+      };
+      const g = globalThis as unknown as { __opened?: string[] };
+      g.__opened = [];
+      const before = target.openExternal;
+      target.openExternal = async (url: string) => {
+        g.__opened!.push(url);
+      };
+      if (target.openExternal === before) throw new Error("openExternal not patchable");
+    });
+
+    // The tutorial auto-opens on a fresh profile and its z-max overlay swallows
+    // clicks (CI's runner profile is always fresh). Seed the dismissal key
+    // BEFORE the app hydrates — init scripts run before page scripts.
+    await window.addInitScript(() => {
+      try {
+        localStorage.setItem("fewer-tutorial-dismissed", "true");
+      } catch {
+        /* ignore */
+      }
+    });
+    // Back to the app (the docs test left us on /docs/getting-started).
+    await window.goto("app://fewer/app.html");
+    await expect
+      .poll(() => window.title().then((t) => t.toLowerCase()), { timeout: 30_000 })
+      .toContain("fewer");
+
+    // Settings → Help → Report an Issue opens the shared dialog.
+    await window.locator('button[title="Settings"]').click();
+    await window.getByRole("tab", { name: "Help" }).click();
+    await window.getByRole("button", { name: "Report an Issue" }).click();
+    await expect(window.getByRole("dialog")).toContainText("Report a Bug");
+
+    // Submit: the pre-filled issue opens in the SYSTEM browser (window.open →
+    // main.ts setWindowOpenHandler → shell.openExternal) — the shell window
+    // itself must never navigate away.
+    await window.fill("#bug-title", "Shell smoke: GitHub bug report");
+    await window.getByRole("button", { name: "Submit to GitHub" }).click();
+    // .first(): the toast title and its aria-live announcement both match.
+    await expect(window.locator("text=GitHub pre-filled!").first()).toBeVisible();
+    expect(await window.url()).toContain("app.html");
+    // The hand-off really reached main: openExternal got the pre-filled URL.
+    const opened = await app.evaluate(
+      () => (globalThis as unknown as { __opened: string[] }).__opened,
+    );
+    expect(
+      opened.some((u) => u.startsWith("https://github.com/qvesera/fewer/issues/new")),
+    ).toBe(true);
+    // The Web3Forms email fallback is web-only: cloudFeature("bugEmail") is
+    // OFF in the shell, so no email button ever appears.
+    expect(await window.locator("text=Send via Email").count()).toBe(0);
+
+    await window.getByRole("button", { name: "Cancel" }).click();
+
+    // Export Settings downloads a fewer* localStorage snapshot and confirms.
+    await window.getByRole("button", { name: "Export Settings" }).click();
+    await expect(window.locator("text=Settings exported").first()).toBeVisible();
+  });
 });

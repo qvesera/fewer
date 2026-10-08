@@ -13,6 +13,7 @@ const ALL: CloudFeature[] = [
   "watch",
   "versionHistory",
   "billing",
+  "bugEmail",
 ];
 
 describe("cloudFeatureFor", () => {
