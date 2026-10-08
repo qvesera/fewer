@@ -2785,7 +2785,7 @@ tasks:
   session_count: 2
 - id: "T-104"
   title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "infra"
   tier: null
