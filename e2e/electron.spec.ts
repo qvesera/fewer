@@ -104,6 +104,26 @@ test.describe("Electron shell", () => {
 
   test("shell bug report via GitHub + settings export (T-105)", async () => {
     const window = await app.firstWindow();
+
+    // Main-process hand-off: RECORD shell.openExternal instead of letting
+    // xdg-open spawn an opener chain on CI — the chain inherits the runner's
+    // stdout pipe and Playwright's app.close() then waits for an EOF that
+    // never comes (mac/win spawn semantics don't hit this). We still assert
+    // the exact forwarded URL, which is stronger than "a browser opened".
+    await app.evaluate(({ shell }) => {
+      const target = shell as unknown as {
+        openExternal: (url: string) => Promise<void>;
+        __orig?: unknown;
+      };
+      const g = globalThis as unknown as { __opened?: string[] };
+      g.__opened = [];
+      const before = target.openExternal;
+      target.openExternal = async (url: string) => {
+        g.__opened!.push(url);
+      };
+      if (target.openExternal === before) throw new Error("openExternal not patchable");
+    });
+
     // The tutorial auto-opens on a fresh profile and its z-max overlay swallows
     // clicks (CI's runner profile is always fresh). Seed the dismissal key
     // BEFORE the app hydrates — init scripts run before page scripts.
@@ -134,6 +154,13 @@ test.describe("Electron shell", () => {
     // .first(): the toast title and its aria-live announcement both match.
     await expect(window.locator("text=GitHub pre-filled!").first()).toBeVisible();
     expect(await window.url()).toContain("app.html");
+    // The hand-off really reached main: openExternal got the pre-filled URL.
+    const opened = await app.evaluate(
+      () => (globalThis as unknown as { __opened: string[] }).__opened,
+    );
+    expect(
+      opened.some((u) => u.startsWith("https://github.com/qvesera/fewer/issues/new")),
+    ).toBe(true);
     // The Web3Forms email fallback is web-only: cloudFeature("bugEmail") is
     // OFF in the shell, so no email button ever appears.
     expect(await window.locator("text=Send via Email").count()).toBe(0);
