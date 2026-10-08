@@ -3182,3 +3182,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-119"
+  title: "sync-details bare verb crashes after the first project item-add: the item-add path reassigns item_id (the name of the item_id() helper defined above), so the next row raises TypeError: 'str' object is not callable"
+  status: "in-progress"
+  type: "fix"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 347
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#347"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-08T12:39:01Z"
+  notes: []
+  sessions:
+  - start: "2026-10-08T12:40:24Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
