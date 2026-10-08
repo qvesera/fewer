@@ -2838,14 +2838,14 @@ tasks:
   session_count: 5
 - id: "T-105"
   title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "infra"
   tier: null
   estimate_min: 120
   estimate_basis: "cli"
   issue: 338
-  pr: null
+  pr: 346
   internal: false
   milestone: null
   blocked_by: ["T-104"]
