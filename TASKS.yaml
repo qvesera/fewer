@@ -2883,3 +2883,302 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 27, deletions: 0}
   spent_min: 43
   session_count: 3
+- id: "T-106"
+  title: "Standalone polish: bug report via GitHub, README/AGENTS/changelog, optional settings export"
+  status: "done"
+  type: "task"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 330
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#330"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:20:08Z"
+  notes: ["2026-10-08T12:27:08Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-107"
+  title: "Shell docs variant + app-only pages + blogs removed from the standalone export"
+  status: "done"
+  type: "task"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 329
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#329"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:20:06Z"
+  notes: ["2026-10-08T12:27:11Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-108"
+  title: "Desktop icons + macOS dmg + Windows exe + CI matrix (unsigned builds)"
+  status: "done"
+  type: "task"
+  area: "infra"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 328
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#328"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:20:04Z"
+  notes: ["2026-10-08T12:27:14Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-109"
+  title: "Main-process fetch bridge (host_fetch) for URL + GitHub import without our server"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 327
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#327"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:20:02Z"
+  notes: ["2026-10-08T12:27:16Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-110"
+  title: "Local-first stores: .fwr graph documents + .fwtheme theme files + library dir ~/Documents/fewer"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 326
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#326"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:20:00Z"
+  notes: ["2026-10-08T12:27:19Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-111"
+  title: "License-only shell tier model: SHELL_MIN_TIER, no account tier, settings local-only"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 325
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#325"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:57Z"
+  notes: ["2026-10-08T12:27:22Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-112"
+  title: "Shell entry + web-surface hiding: land on /app, cloud capability map, hide accounts/cloud surfaces"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 324
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#324"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:55Z"
+  notes: ["2026-10-08T12:27:25Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-113"
+  title: "Standalone app parity — app-first entry, license-only gating, .fwr library, mac/win builds"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 323
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#323"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-05T13:19:53Z"
+  notes: ["2026-10-08T12:27:28Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-114"
+  title: "Electron e2e + CI: Playwright _electron.launch smoke + package job"
+  status: "done"
+  type: "task"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 313
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#313"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:37:08Z"
+  notes: ["2026-10-08T12:27:31Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-115"
+  title: "Electron packaging: electron-builder (AppImage/deb) + icons + version sync from package.json"
+  status: "done"
+  type: "task"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 312
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#312"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:37:06Z"
+  notes: ["2026-10-08T12:27:33Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-116"
+  title: "Electron shell core: main/preload/contextBridge + command handlers + custom protocol serving out/"
+  status: "done"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 311
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#311"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:37:04Z"
+  notes: ["2026-10-08T12:27:35Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-117"
+  title: "Seam: host detection + Electron adapter behind nativeShell.ts (+ lint guard)"
+  status: "done"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 310
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#310"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:37:01Z"
+  notes: ["2026-10-08T12:27:37Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-118"
+  title: "Electron desktop shell — offline desktop app (Chromium renderer; Tauri parked)"
+  status: "done"
+  type: "feat"
+  area: "infra"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 309
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#309"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-04T19:36:59Z"
+  notes: ["2026-10-08T12:27:41Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
