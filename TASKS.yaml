@@ -2869,5 +2869,11 @@ tasks:
     note: "e2e fresh-profile fix: seed fewer-tutorial-dismissed via addInitScript + strict-mode .first() toast locators; local wiped-profile run 3/3; commit 6bbd65e"
     proof: ["6bbd65e"]
     effort: {commits: 1, files: 1, insertions: 13, deletions: 2}
+  - start: "2026-10-08T11:56:30Z"
+    end: "2026-10-08T11:56:40Z"
+    measured: true
+    note: "linux CI hang fix: patch shell.openExternal in main via app.evaluate (record + assert URL, no xdg-open spawn); local wiped-profile 3/3; commit bcc681c"
+    proof: ["bcc681c", "#346"]
+    effort: {commits: 1, files: 1, insertions: 27, deletions: 0}
   spent_min: 43
-  session_count: 2
+  session_count: 3
