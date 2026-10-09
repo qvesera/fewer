@@ -3211,3 +3211,32 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 37, deletions: 5}
   spent_min: 14
   session_count: 1
+- id: "T-120"
+  title: "Pane context menu: per-leaf view toggles (Show/Hide Files, Show/Hide Minimap) move below the action cluster, Files listed first"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 349
+  pr: 350
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T11:44:03Z"
+  notes: ["2026-10-09T11:44:10Z · UI-only reorder already staged on fix/context-menu (identical to stash@{0} contect menu); no behavior change"]
+  sessions:
+  - start: "2026-10-09T11:49:12Z"
+    end: "2026-10-09T11:52:14Z"
+    measured: true
+    note: "pushed the staged pane context-menu reorder (identical to stash@{0} contect menu) as commit 9a18b32; changelog entry added; lint + tsc + test (194) + build all green; PR #350 to dev with pr-metadata applied"
+    proof: ["9a18b32", "#350"]
+    effort: {commits: 1, files: 2, insertions: 24, deletions: 23}
+  spent_min: 3
+  session_count: 1
