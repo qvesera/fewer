@@ -198,7 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop app: drag a folder from the file manager onto the canvas to open it as the graph (asks before replacing the current one), or drop a file to open it in the system default app
 - Desktop app: double-click a .fwr to open it in Fewer (OS file association on Linux/macOS/Windows), an Open Recent list in the sidebar, and dropping a .fwr onto a running window opens it there instead of launching a second instance
 - Canvas groups: select two or more cards and right-click → More Actions → Group N Items to draw a gray frame around them (the same action appears in the card context menus' batch list, identically in the web app and the desktop app), with an editable title, a note (hover the title to read it), a collapse toggle that hides the cards and shrinks the frame to a pill, and Ungroup. Every group action — including collapse and ungroup — is a single undo step
-- Canvas groups: right-click a group title bar for its own menu — Rename, Edit Note, Color (a palette of nine swatches that tints the frame border, fill and header; Default returns to slate), Collapse/Expand, Select Members, Ungroup — and group colors save with the graph
+- Canvas groups: right-click a group title bar for its own menu — Rename, Edit Note, Color… (a color picker: drag it or type a hex value, with Reset to slate — it tints the frame border, fill and header, and one drag is a single undo step), Collapse/Expand, Select Members, Ungroup — and group colors save with the graph
 
 ### Performance
 

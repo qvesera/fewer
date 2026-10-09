@@ -135,9 +135,10 @@ exactly as they did before.
 - **Title** — double-click it (or focus it and press Enter) to rename.
 - **Note** — the note icon opens a small editor; hovering the title shows the
   note, and the icon is filled once one is set.
-- **Color** — right-click the frame's title bar → **Color** and pick a swatch;
-  the border, fill and header tint to match. **Default** returns to slate. The
-  color saves with the graph.
+- **Color** — right-click the frame's title bar → **Color…** opens the color
+  picker: drag the picker or type a hex value, and **Reset to default** returns
+  to slate. The border, fill and header tint to match, the colour saves with the
+  graph, and one drag is a single undo step.
 - **Collapse** — the chevron hides the group's cards and shrinks the frame to a
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
