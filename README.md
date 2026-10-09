@@ -115,9 +115,12 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
-> **Note:** Drag-and-drop import from your OS, "Open in File Explorer", and
-> "Open File" are switched off in the web build (build-time `LOCAL_FS_FEATURES`
-> flags in `src/lib/fewer/features.ts`) — use **Import → From disk** instead.
+> **Note:** In the **web build**, drag-and-drop import from your OS, "Open in
+> File Explorer", and "Open File" are switched off (build-time
+> `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`) — use
+> **Import → From disk** instead. The **desktop app** has them all: drag a
+> folder onto the canvas to open it as the graph (it asks before replacing the
+> current one), or drop a file to open it in its default app.
 
 ### Edit the graph
 

@@ -33,9 +33,15 @@ export const LOCAL_FS_FEATURES = {
   openInOs: inHostShell,
   /** "Open File" (file context menu + Enter): /api/open-file, FS handles, or the shell's open_in_os. */
   openFileInOs: inHostShell,
-  /** External OS folder drop on the empty canvas → import. */
-  dragDropImport: false,
-  /** Drop a disk-backed folder child onto the canvas to expand it from disk. */
+  /** External OS folder drop on the canvas → import (T-122).
+   *  ON in the shell only: the preload bridge resolves the dropped `File` to
+   *  an absolute path, so the walk needs no server. Off on web, where the old
+   *  picker fallback still exists behind it — reading `DataTransfer.files`
+   *  outside our own packaged Chromium is what the portalised-Chromium crash
+   *  hazard warns about (dropImport.ts), so the web build must never reach it. */
+  dragDropImport: inHostShell,
+  /** Drop a disk-backed folder child onto the canvas to expand it from disk.
+   *  FSA-handle only — the shell has no handles, so it stays OFF. */
   dropToExpand: false,
   /** File System Access API directory picker (showDirectoryPicker). */
   fsaDirectoryPicker: false,

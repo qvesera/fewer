@@ -11,7 +11,7 @@
 // process had (AGENTS.md → component test isolation).
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { hostInvoke, isElectron, isHost, isTauri, nativeListDir } from "./nativeShell";
+import { hostFilePathForDrop, hostInvoke, isElectron, isHost, isTauri, nativeListDir } from "./nativeShell";
 
 type FakeWindow = Record<string, unknown>;
 const g = globalThis as unknown as { window?: FakeWindow };
@@ -25,6 +25,53 @@ function installWindow(fake: FakeWindow): void {
 afterEach(() => {
   if (hadWindow) g.window = originalWindow;
   else delete g.window;
+});
+
+describe("hostFilePathForDrop (T-122)", () => {
+  const dropped = new File(["x"], "notes.md");
+
+  test("no window → empty path (web app)", () => {
+    delete g.window;
+    expect(hostFilePathForDrop(dropped)).toBe("");
+  });
+
+  test("bridge without the filePath helper → empty path (Tauri, older preload)", () => {
+    installWindow({ __FEWER_NATIVE__: { invoke: () => Promise.resolve() } });
+    expect(hostFilePathForDrop(dropped)).toBe("");
+  });
+
+  test("Electron preload helper → absolute path", () => {
+    const seen: unknown[] = [];
+    installWindow({
+      __FEWER_NATIVE__: {
+        invoke: () => Promise.resolve(),
+        filePath: (f: unknown) => {
+          seen.push(f);
+          return "/home/u/notes.md";
+        },
+      },
+    });
+    expect(hostFilePathForDrop(dropped)).toBe("/home/u/notes.md");
+    expect(seen).toEqual([dropped]);
+  });
+
+  test("helper returning empty or throwing → empty path", () => {
+    installWindow({ __FEWER_NATIVE__: { invoke: () => Promise.resolve(), filePath: () => "" } });
+    expect(hostFilePathForDrop(dropped)).toBe("");
+    installWindow({
+      __FEWER_NATIVE__: {
+        invoke: () => Promise.resolve(),
+        filePath: () => { throw new Error("not a File"); },
+      },
+    });
+    expect(hostFilePathForDrop(dropped)).toBe("");
+  });
+
+  test("no file at all → empty path", () => {
+    installWindow({ __FEWER_NATIVE__: { invoke: () => Promise.resolve(), filePath: () => "/x" } });
+    expect(hostFilePathForDrop(null)).toBe("");
+    expect(hostFilePathForDrop(undefined)).toBe("");
+  });
 });
 
 describe("host detection", () => {
