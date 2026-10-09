@@ -30,6 +30,12 @@ async function treeFromDropped(
       return await buildTreeFromHandle(source.handle, 0, options);
     case "entry":
       return await buildTreeFromEntry(source.entry, 0, options);
+    case "path":
+      // T-122: an OS-dropped folder arrives as an absolute path from the
+      // shell's preload bridge. Walk it with the same reader and filters as
+      // the picker branch, so a dropped folder and a picked folder produce
+      // identical graphs — and both record an absolute root path.
+      return await buildTreeFromNative(source.path, options, nativeListDir);
   }
 }
 
@@ -75,6 +81,9 @@ export async function runFolderImport(
     let nativeRoot: string | null = null;
     if (dropped) {
       tree = await treeFromDropped(dropped, options);
+      // A path drop carries its own absolute root (the picker branch sets the
+      // same value); without it, refresh/open would have nothing to resolve.
+      if (dropped.kind === "path") nativeRoot = dropped.path;
     } else if (nativeAllowed) {
       const rootPath = await nativePickDirectory();
       if (!rootPath) return { ok: false, cancelled: true, title: "Import cancelled" };

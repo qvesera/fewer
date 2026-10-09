@@ -193,6 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop packages**: \`bun run electron:dist\` now produces installable Linux builds — \`release/Fewer-<version>.AppImage\` and \`.deb\` — with the app icon and version synced from package.json. Fully offline desktop app (own static build + docs in the package); README documents install, the libfuse2 caveat (Fedora 39+: \`--appimage-extract-and-run\`), and the dev loop.
 - Standalone desktop app files bug reports as pre-filled GitHub issues: Settings → Help → Report a Issue opens the issue page in your default browser (the Web3Forms email fallback is web-only now), and a failed browser hand-off can no longer take the shell down
 - Settings → Help → Export Settings downloads a JSON snapshot of every Fewer setting on the device (theme, layout, search history, license) — a backup, or the file to attach to a bug report
+- Desktop app: drag a folder from the file manager onto the canvas to open it as the graph (asks before replacing the current one), or drop a file to open it in the system default app
 
 ### Performance
 

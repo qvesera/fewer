@@ -26,6 +26,10 @@ Saved projects live in `graphs/` as **`.fwr`** files — Fewer's portable graph 
 - **Import** accepts `.fwr` (and raw `.json` graph exports), ASCII trees, shell scripts, CSV, DOT, directory files, GitHub repository URLs, and public file-index URLs.
 - **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project.
 
+**Drag and drop**: drag a folder from your file manager onto the canvas to open
+it as the graph — the app asks before replacing the one you have. Drop a file
+instead and it opens in your system's default app for that type.
+
 GitHub and URL imports fetch directly from your machine — no proxy server in between. They are the only network traffic the app ever makes, and only when you ask for them.
 
 ### Updating a folder on the canvas

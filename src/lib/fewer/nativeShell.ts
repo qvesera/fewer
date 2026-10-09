@@ -34,7 +34,15 @@ type Invoke = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
 
 interface HostBridge {
   __TAURI_INTERNALS__?: { invoke: Invoke };
-  __FEWER_NATIVE__?: { invoke: Invoke };
+  __FEWER_NATIVE__?: {
+    invoke: Invoke;
+    /** Absolute OS path behind a `File` handed over from a drop (Electron
+     *  `webUtils.getPathForFile`, exposed by preload — it cannot cross IPC, so
+     *  it is a renderer-side helper rather than a command). Absent on Tauri:
+     *  that host delivers dropped paths through its `tauri://drag-drop` event
+     *  instead, which is not wired up yet (Tauri parked). */
+    filePath?: (file: unknown) => string;
+  };
 }
 
 /**
@@ -121,5 +129,25 @@ export async function hostFetchResponse(url: string): Promise<Response> {
 /** Read a file as raw bytes (preview panel). Rejects when over `maxBytes`. */
 export function nativeFsReadBytes(path: string, maxBytes: number): Promise<ArrayBuffer> {
   return hostInvoke<ArrayBuffer>("fs_read_bytes", { path, maxBytes });
+}
+
+/**
+ * Absolute OS path behind a dropped `File`, or `""` when no host exposes the
+ * helper (web app, Tauri). Synchronous by design: `webUtils.getPathForFile`
+ * is sync, and a drop handler wants the path before any await.
+ *
+ * The renderer may ONLY reach for the dropped `File` itself — never
+ * `DataTransfer.items` (see dropImport.ts for the portalised-Chromium crash
+ * hazard) — and only inside the shell, which is our own packaged Chromium.
+ */
+export function hostFilePathForDrop(file: unknown): string {
+  if (typeof window === "undefined" || !file) return "";
+  const helper = (window as unknown as HostBridge).__FEWER_NATIVE__?.filePath;
+  if (typeof helper !== "function") return "";
+  try {
+    return helper(file) || "";
+  } catch {
+    return "";
+  }
 }
 
