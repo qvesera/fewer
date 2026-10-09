@@ -16,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
+import { GroupFrames } from "./GroupFrames";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import {
@@ -428,6 +429,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           hiddenChipStyle={hiddenChipStyle}
         />
+        <GroupFrames />
       </ReactFlow>
 
       {canvasMenu && (

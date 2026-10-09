@@ -178,6 +178,17 @@ export function CanvasContextMenu({
                 })()}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuItem
+              onSelect={() => {
+                const id = useGraphStore.getState().addGroup(ids, "Group");
+                if (id) {
+                  toast({ title: "Group created", description: `${plural(ids.length, "card")} grouped` });
+                }
+                close();
+              }}
+            >
+              Group {ids.length} selected
+            </DropdownMenuItem>
             {del && (
               <>
                 <DropdownMenuSeparator />

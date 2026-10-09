@@ -32,11 +32,21 @@ export const GROUP_PADDING = 24;
 /** Header height the frame reserves so the title never overlaps a card. */
 export const GROUP_HEADER_HEIGHT = 32;
 
+/** Collapsed frames shrink to a pill anchored where the cluster was, so the
+ *  group stays findable after its cards are hidden. */
+export const COLLAPSED_PILL_WIDTH = 220;
+export const COLLAPSED_PILL_HEIGHT = 36;
+
 export interface GroupBounds {
   x: number;
   y: number;
   width: number;
   height: number;
+}
+
+/** Geometry of a collapsed group: a fixed-size pill at the cluster's corner. */
+export function groupPill(bounds: GroupBounds): GroupBounds {
+  return { x: bounds.x, y: bounds.y, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
 }
 
 /**

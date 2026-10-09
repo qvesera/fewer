@@ -130,6 +130,7 @@ docker run -p 3000:3000 fewer
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
+- **Group** cards: select two or more, right-click → **Group N selected** — a gray frame with a title, a note (hover the title to read it) and a collapse toggle
 
 ---
 
