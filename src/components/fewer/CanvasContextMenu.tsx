@@ -178,17 +178,9 @@ export function CanvasContextMenu({
                 })()}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem
-              onSelect={() => {
-                const id = useGraphStore.getState().addGroup(ids, "Group");
-                if (id) {
-                  toast({ title: "Group created", description: `${plural(ids.length, "card")} grouped` });
-                }
-                close();
-              }}
-            >
-              Group {ids.length} selected
-            </DropdownMenuItem>
+            {/* Grouping ships as a shared batch action (batchActions.ts), so it
+                appears here — under More Actions — AND in the node context
+                menus' batch section, identically on web and in the shell. */}
             {del && (
               <>
                 <DropdownMenuSeparator />

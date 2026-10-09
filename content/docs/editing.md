@@ -123,10 +123,12 @@ In Power User mode, right-click a folder for:
 
 ## Groups
 
-Select two or more cards, right-click and choose **Group N selected** to draw a
-gray frame around them. A group is an annotation layer, not a folder: it never
-changes the tree, and layout, search, export and undo treat the cards exactly
-as they did before.
+Select two or more cards, right-click → **More Actions → Group N Items** (the
+label carries the selection count) to draw a gray frame around them. The same
+action lives in the card context menus' batch list, and it is identical in the
+web app and the desktop app. A group is an annotation layer, not a folder: it
+never changes the tree, and layout, search, export and undo treat the cards
+exactly as they did before.
 
 - **Membership is explicit** — the cards you picked stay in the group when the
   layout moves them, so a re-layout never reshuffles who belongs where.
