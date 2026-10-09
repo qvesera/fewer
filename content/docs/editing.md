@@ -121,6 +121,26 @@ In Power User mode, right-click a folder for:
 > Importing folders from disk is unaffected — it uses the `webkitdirectory`
 > fallback in every browser.
 
+## Groups
+
+Select two or more cards, right-click and choose **Group N selected** to draw a
+gray frame around them. A group is an annotation layer, not a folder: it never
+changes the tree, and layout, search, export and undo treat the cards exactly
+as they did before.
+
+- **Membership is explicit** — the cards you picked stay in the group when the
+  layout moves them, so a re-layout never reshuffles who belongs where.
+- **Title** — double-click it (or focus it and press Enter) to rename.
+- **Note** — the note icon opens a small editor; hovering the title shows the
+  note, and the icon is filled once one is set.
+- **Collapse** — the chevron hides the group's cards and shrinks the frame to a
+  pill where the cluster was; expanding brings the cards back, except any you
+  hid yourself.
+- **Ungroup** — the × drops the frame and keeps the cards.
+
+Every group action is a single undo step: **Ctrl+Z** reverses a collapse (frame
+re-opens, cards reappear) or a delete.
+
 ## Undo / Redo
 
 Every editing operation records an undo step — including card moves (drag a

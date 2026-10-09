@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  COLLAPSED_PILL_HEIGHT,
+  COLLAPSED_PILL_WIDTH,
   GROUP_PADDING,
   groupBounds,
   groupsIndexOf,
+  groupPill,
   membershipMap,
   newGroup,
   normalizeGroups,
@@ -55,6 +58,17 @@ describe("groupBounds", () => {
       ["a"],
     );
     expect(b?.width).toBe(100 + GROUP_PADDING * 2);
+  });
+});
+
+describe("groupPill", () => {
+  test("collapsed frame is a fixed pill at the cluster corner", () => {
+    expect(groupPill({ x: 40, y: 60, width: 900, height: 400 })).toEqual({
+      x: 40,
+      y: 60,
+      width: COLLAPSED_PILL_WIDTH,
+      height: COLLAPSED_PILL_HEIGHT,
+    });
   });
 });
 

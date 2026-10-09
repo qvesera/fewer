@@ -196,6 +196,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Help → Export Settings downloads a JSON snapshot of every Fewer setting on the device (theme, layout, search history, license) — a backup, or the file to attach to a bug report
 - Desktop app: drag a folder from the file manager onto the canvas to open it as the graph (asks before replacing the current one), or drop a file to open it in the system default app
 - Desktop app: double-click a .fwr to open it in Fewer (OS file association on Linux/macOS/Windows), an Open Recent list in the sidebar, and dropping a .fwr onto a running window opens it there instead of launching a second instance
+- Canvas groups: select two or more cards and right-click → Group N selected to draw a gray frame around them, with an editable title, a note (hover the title to read it), a collapse toggle that hides the cards and shrinks the frame to a pill, and Ungroup. Every group action — including collapse and ungroup — is a single undo step
 
 ### Performance
 
