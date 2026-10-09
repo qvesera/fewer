@@ -3364,7 +3364,7 @@ tasks:
   session_count: 1
 - id: "T-125"
   title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
