@@ -18,6 +18,26 @@ import { createDispatch } from "./handlers";
 // `out/` sits at the repo root: this file compiles to electron/dist/main.js.
 const OUT_DIR = path.resolve(__dirname, "..", "..", "out");
 
+// ── T-123: a document the OS handed us (.fwr association) ───────────────────
+// Linux/Windows pass the path in argv; macOS delivers `open-file` instead, and
+// may do so before app ready — so the slot is filled whichever arrives first.
+// Exactly one pending path: the renderer takes it once at boot.
+let pendingOpenFile: string | null = null;
+
+function queueOpenFile(candidate: string | undefined | null): void {
+  if (candidate && /\.fwr$/i.test(candidate)) pendingOpenFile = candidate;
+}
+
+// argv[0] is the executable; under `electron .` (dev) argv[1] is the entry.
+for (const arg of process.argv.slice(app.isPackaged ? 1 : 2)) {
+  if (!arg.startsWith("-")) queueOpenFile(path.resolve(arg));
+}
+
+app.on("open-file", (event, filePath) => {
+  event.preventDefault();
+  queueOpenFile(filePath);
+});
+
 // Must run before app ready — the scheme's privileges are fixed at startup.
 protocol.registerSchemesAsPrivileged([
   { scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -175,6 +195,13 @@ const dispatch = createDispatch({
       const body = await res.text();
       if (body.length > 10 * 1024 * 1024) throw new Error("host_fetch: response too large (>10MB)");
       return { status: res.status, body };
+    },
+    takePendingOpen() {
+      // T-123: one-shot — the renderer reads it at boot, so a re-render never
+      // re-opens the same document.
+      const pending = pendingOpenFile;
+      pendingOpenFile = null;
+      return pending;
     },
   },
 });

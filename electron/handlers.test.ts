@@ -136,6 +136,7 @@ describe("dispatch", () => {
         "open_in_os",
         "pick_library_dir",
         "pick_license_file",
+        "take_pending_open_file",
         "verify_license_sig",
       ].sort(),
     );
@@ -152,6 +153,34 @@ describe("dispatch", () => {
       shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
     });
     expect(await dispatch("default_library_dir")).toBe("/home/u/Documents/fewer");
+  });
+
+  test("take_pending_open_file hands over the .fwr exactly once (T-123)", async () => {
+    let pending: string | null = "/home/u/graphs/plan.fwr";
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: {
+        openPath: async () => {},
+        defaultLibraryDir: async () => "/home/u/Documents/fewer",
+        fetchText: async () => ({ status: 200, body: "" }),
+        takePendingOpen: () => {
+          const next = pending;
+          pending = null;
+          return next;
+        },
+      },
+    });
+    expect(await dispatch("take_pending_open_file")).toBe("/home/u/graphs/plan.fwr");
+    // Second read must be empty — a re-render cannot reopen the document.
+    expect(await dispatch("take_pending_open_file")).toBeNull();
+  });
+
+  test("take_pending_open_file is null on a host that collects no documents", async () => {
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: { openPath: async () => {}, defaultLibraryDir: async () => "/home/u/Documents/fewer", fetchText: async () => ({ status: 200, body: "" }), },
+    });
+    expect(await dispatch("take_pending_open_file")).toBeNull();
   });
 
   test("host_fetch validates method + scheme and delegates to fetchText", async () => {

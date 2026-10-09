@@ -26,7 +26,7 @@ import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isHost, hostFetchResponse } from "@/lib/fewer/nativeShell";
+import { isHost, hostFetchResponse, nativeTakePendingOpenFile } from "@/lib/fewer/nativeShell";
 import { registerHostFetch } from "@/lib/fewer/netFetch";
 import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
@@ -91,6 +91,34 @@ export function FewerApp() {
   useEffect(() => {
     if (isHost()) registerHostFetch(hostFetchResponse);
   }, []);
+
+  // T-123: the OS handed us a document at launch (double-click on a .fwr).
+  // One-shot: the main process clears its slot on read, so StrictMode's double
+  // effect or any later re-render cannot reopen it. A host that does not
+  // collect documents rejects → ignored.
+  useEffect(() => {
+    if (!isHost()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const path = await nativeTakePendingOpenFile();
+        if (!path || cancelled) return;
+        const { loadGraphFromPath } = await import("@/lib/fewer/openLocalGraph");
+        const result = await loadGraphFromPath(path);
+        if (cancelled) return;
+        toast({
+          title: result.title,
+          description: result.ok ? result.description : result.error,
+          variant: result.ok ? "default" : "destructive",
+        });
+      } catch {
+        /* no document waiting, or a host without the command */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [toast]);
 
   // On mobile, start with sidebar closed
   useEffect(() => {

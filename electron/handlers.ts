@@ -28,6 +28,10 @@ export interface HostShell {
   defaultLibraryDir(): Promise<string>;
   /** GET a URL from the main process (no CORS); rejects on network failure. */
   fetchText(url: string): Promise<{ status: number; body: string }>;
+  /** Path of a document the OS asked us to open (argv / `open-file`), cleared
+   *  once taken. Optional: only Electron's main process collects it — a host
+   *  without the capability returns null and the boot hook does nothing. */
+  takePendingOpen?(): string | null;
 }
 
 /* -------------------------------- list_dir -------------------------------- */
@@ -158,6 +162,10 @@ export function createHostHandlers(deps: { dialogs: HostDialogs; shell: HostShel
     },
     default_library_dir(): Promise<string> {
       return deps.shell.defaultLibraryDir();
+    },
+    /** T-123: one-shot read of the .fwr the OS handed us at launch (double-click). */
+    take_pending_open_file(): Promise<string | null> {
+      return Promise.resolve(deps.shell.takePendingOpen?.() ?? null);
     },
     async host_fetch({ url, method }: { url: string; method?: string }): Promise<{ status: number; body: string }> {
       // T-102: GET-only http(s) bridge for URL + GitHub import. The renderer
