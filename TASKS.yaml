@@ -3271,7 +3271,7 @@ tasks:
   session_count: 1
 - id: "T-122"
   title: "Drag-and-drop a folder from the OS onto the canvas in the desktop shell: webUtils.getPathForFile bridge plus a path-based drop source"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "file-ops"
   tier: 0
