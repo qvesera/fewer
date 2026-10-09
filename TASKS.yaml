@@ -3278,20 +3278,26 @@ tasks:
   estimate_min: 300
   estimate_basis: "cli"
   issue: 352
-  pr: null
+  pr: 360
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-09T12:04:58Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-09T13:05:31Z"
+    end: "2026-10-09T13:07:25Z"
+    measured: true
+    note: "preload filePath bridge (webUtils.getPathForFile) + hostFilePathForDrop; dragDropImport now inHostShell; droppedPathOf + path drop source; runFolderImport reuses the native walker and records nativeRoot; folder probe via list_dir, file via open_in_os; confirm-before-replace; 9 new tests; docs README + desktop.md; lint/tsc/electron:compile/test/build green; PR #360"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 2
+  session_count: 1
 - id: "T-123"
   title: "Open files and folders end to end: absolute-path fix for openNodeFile, Open File/Open Folder/Open Recent, .fwr OS association and argv/open-file launch"
   status: "triaged"
