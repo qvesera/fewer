@@ -3335,32 +3335,32 @@ tasks:
   session_count: 1
 - id: "T-124"
   title: "Canvas groups: model, store slice, undo ops and snapshot persistence for titled groups with explicit membership"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 480
   estimate_basis: "cli"
   issue: 354
-  pr: null
+  pr: 363
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-09T12:04:58Z"
   notes: []
   sessions:
   - start: "2026-10-09T14:16:20Z"
-    end: null
+    end: "2026-10-09T14:45:38Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "model (groups.ts, 12 tests) + groupsSlice (add/rename/note/members/remove/collapse, 8 store tests) + GroupsOp undo via the view-state restore path (collapse+hiddenIds in one op) + SavedGraphData.groups/SNAPSHOT_VERSION 2/normalize on load; lint/tsc/test(1711)/build green; no UI yet (T-125)"
+    proof: ["338415a", "2de57d4", "ff44932", "#363"]
+    effort: {commits: 3, files: 12, insertions: 548, deletions: 8}
+  spent_min: 29
   session_count: 1
 - id: "T-125"
   title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
