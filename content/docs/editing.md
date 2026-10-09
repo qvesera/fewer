@@ -135,10 +135,17 @@ exactly as they did before.
 - **Title** — double-click it (or focus it and press Enter) to rename.
 - **Note** — the note icon opens a small editor; hovering the title shows the
   note, and the icon is filled once one is set.
+- **Color** — right-click the frame's title bar → **Color** and pick a swatch;
+  the border, fill and header tint to match. **Default** returns to slate. The
+  color saves with the graph.
 - **Collapse** — the chevron hides the group's cards and shrinks the frame to a
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
 - **Ungroup** — the × drops the frame and keeps the cards.
+
+Right-clicking the title bar also opens the **group menu**: Rename…, Edit
+Note…, Color ▸, Collapse/Expand, **Select Members** (selects every card in the
+group at once) and Ungroup.
 
 Every group action is a single undo step: **Ctrl+Z** reverses a collapse (frame
 re-opens, cards reappear) or a delete.

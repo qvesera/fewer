@@ -3489,3 +3489,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 77, deletions: 18}
   spent_min: 3
   session_count: 1
+- id: "T-130"
+  title: "Group context menu (rename, note, color, collapse, select members, ungroup), frame color palette, and the visual fix: frames must measure cards real rendered size and reserve the title bar above them"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 370
+  pr: 371
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T20:05:29Z"
+  notes: []
+  sessions:
+  - start: "2026-10-09T20:09:01Z"
+    end: "2026-10-09T20:10:38Z"
+    measured: true
+    note: "group context menu on the header (rename/note/color/collapse/select members/ungroup); setGroupColor + normalizeGroupColor with one-op undo and save/load repair; frame tinting from one accent; visual fix — groupBounds prefers measured size and reserves header height above cards; 5 new tests; docs editing.md + changelog Added/Fixed; lint/tsc/test(1718)/build green"
+    proof: ["069eadc", "#371"]
+    effort: {commits: 1, files: 7, insertions: 192, deletions: 17}
+  spent_min: 2
+  session_count: 1

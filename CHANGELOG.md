@@ -159,6 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task ledger engine: the bare sync-details verb no longer crashes with TypeError after the first project item-add (the item-add path shadowed the item_id() helper)
 - Desktop app: Refresh from Disk now re-scans folders — the re-scan routes through the shell list_dir RPC instead of the web-only File System Access handle and /api/list-directory channels, both of which are unavailable offline
 - Desktop app: Open File resolves the card path against the graph absolute root before handing it to the OS, so files open instead of failing on a relative path
+- Canvas groups: frames now measure the cards real rendered size and reserve the title bar above them, so tall folder cards no longer spill out of the gray box
 
 ### Added
 
@@ -197,6 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop app: drag a folder from the file manager onto the canvas to open it as the graph (asks before replacing the current one), or drop a file to open it in the system default app
 - Desktop app: double-click a .fwr to open it in Fewer (OS file association on Linux/macOS/Windows), an Open Recent list in the sidebar, and dropping a .fwr onto a running window opens it there instead of launching a second instance
 - Canvas groups: select two or more cards and right-click → More Actions → Group N Items to draw a gray frame around them (the same action appears in the card context menus' batch list, identically in the web app and the desktop app), with an editable title, a note (hover the title to read it), a collapse toggle that hides the cards and shrinks the frame to a pill, and Ungroup. Every group action — including collapse and ungroup — is a single undo step
+- Canvas groups: right-click a group title bar for its own menu — Rename, Edit Note, Color (a palette of nine swatches that tints the frame border, fill and header; Default returns to slate), Collapse/Expand, Select Members, Ungroup — and group colors save with the graph
 
 ### Performance
 

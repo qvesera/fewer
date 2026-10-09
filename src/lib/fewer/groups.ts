@@ -24,6 +24,9 @@ export interface Group {
   memberIds: string[];
   /** Collapsed groups hide their members and shrink to a title pill. */
   collapsed?: boolean;
+  /** Frame color (hex). Absent = the default slate; dropped on load when
+   *  malformed, so a hand-edited `.fwr` cannot paint an invalid border. */
+  color?: string;
 }
 
 /** Gap between the member bounding box and the frame edge. */
@@ -69,8 +72,12 @@ export function groupBounds(
 
   for (const node of nodes) {
     if (!members.has(node.id)) continue;
-    const w = (node.style?.width as number | undefined) ?? node.width ?? 0;
-    const h = (node.style?.height as number | undefined) ?? node.height ?? 0;
+    // React Flow reports the real rendered size in `measured`, and a folder
+    // card grows well past its nominal height once it lists children — reading
+    // only `style` made frames too short, so cards spilled out of the box.
+    // Precedence mirrors layout.ts: measured wins for height, style for width.
+    const w = (node.style?.width as number | undefined) || node.measured?.width || node.width || 0;
+    const h = node.measured?.height || (node.style?.height as number | undefined) || node.height || 0;
     const { x, y } = node.position;
     if (x < minX) minX = x;
     if (y < minY) minY = y;
@@ -80,11 +87,13 @@ export function groupBounds(
   }
 
   if (found === 0) return null;
+  // The header strip is RESERVED height above the cards, not padding inside
+  // them — otherwise a tall card slides under the title (and its hover note).
   return {
     x: minX - padding,
-    y: minY - padding,
+    y: minY - padding - GROUP_HEADER_HEIGHT,
     width: maxX - minX + padding * 2,
-    height: maxY - minY + padding * 2,
+    height: maxY - minY + padding * 2 + GROUP_HEADER_HEIGHT,
   };
 }
 
@@ -100,6 +109,12 @@ export function newGroup(id: string, title: string, memberIds: readonly string[]
 
 function dedupe(ids: readonly string[]): string[] {
   return [...new Set(ids)];
+}
+
+/** Valid six-digit hex, lowercased; anything else → undefined (frame keeps the
+ *  default). Shared by the load-time repair and the store action. */
+export function normalizeGroupColor(color: unknown): string | undefined {
+  return typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : undefined;
 }
 
 /**
@@ -120,6 +135,10 @@ export function normalizeGroups(groups: readonly Group[] | undefined, nodeIds: R
       title: (typeof g.title === "string" ? g.title : "").slice(0, 80) || "Untitled group",
       note: typeof g.note === "string" ? g.note : "",
       memberIds,
+      ...(() => {
+        const color = normalizeGroupColor(g.color);
+        return color ? { color } : {};
+      })(),
       ...(g.collapsed ? { collapsed: true } : {}),
     });
   }
