@@ -28,6 +28,14 @@ Saved projects live in `graphs/` as **`.fwr`** files — Fewer's portable graph 
 
 GitHub and URL imports fetch directly from your machine — no proxy server in between. They are the only network traffic the app ever makes, and only when you ask for them.
 
+### Updating a folder on the canvas
+
+Right-click a folder card → **Refresh from Disk** re-scans that folder against
+the real directory and replaces its subtree, reporting what appeared (`+3 / -1`)
+and what disappeared. The desktop app reads the directory directly through its
+own file-system bridge, so refresh works fully offline — no server, no browser
+permission prompt. The graph root's card offers it too.
+
 ## Themes
 
 The theme editor saves named themes to your library as `.fwtheme` files. No sign-in, no cloud gallery — themes are yours on disk. Theme files are portable JSON: share the file itself with another Fewer install.

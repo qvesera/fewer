@@ -100,7 +100,7 @@ In Power User mode, right-click a folder for:
 | Add Child Card        | Power User mode        |
 | Open in File Explorer | Disabled in the web build |
 | Copy Path             | Power User mode        |
-| Refresh from Disk     | Directory imports only |
+| Refresh from Disk     | Directory imports only; desktop app re-scans through the shell |
 
 ### Files
 

@@ -3242,27 +3242,33 @@ tasks:
   session_count: 1
 - id: "T-121"
   title: "Refresh from disk in the desktop shell: refreshFolderFromDisk needs a native list_dir walk channel (its handle and /api/list-directory channels are web-only)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "file-ops"
   tier: 0
   estimate_min: 180
   estimate_basis: "cli"
   issue: 351
-  pr: null
+  pr: 359
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-09T12:04:58Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-09T12:32:10Z"
+    end: "2026-10-09T12:37:54Z"
+    measured: true
+    note: "added channel 3 refreshViaNativeWalk (native list_dir + buildTreeFromNative, reader injected); 3 new tests; docs desktop.md + editing.md; changelog Fixed entry; lint/tsc/test/build green; PR #359 stacked on #350"
+    proof: ["a0f786a", "#359"]
+    effort: {commits: 1, files: 5, insertions: 117, deletions: 3}
+  spent_min: 6
+  session_count: 1
 - id: "T-122"
   title: "Drag-and-drop a folder from the OS onto the canvas in the desktop shell: webUtils.getPathForFile bridge plus a path-based drop source"
   status: "triaged"
