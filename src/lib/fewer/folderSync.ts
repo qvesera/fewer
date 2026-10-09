@@ -303,9 +303,19 @@ export async function openNodeFile(
   node: { id: string; data: { type: string; path?: string } },
   dataSource: string,
 ): Promise<boolean> {
-  if (isHost() && node.data.path) {
+  // `node.data.path` is relative to the graph root, and the shell records the
+  // root as an absolute `localRootPath` — handing the raw value to the OS
+  // opener makes every file open fail standalone. Resolve it the same way
+  // openFolderInExplorer already does; fall back to the raw path when the node
+  // is not under the root (detached/renamed), exactly as before.
+  const st = useGraphStore.getState();
+  const root = st.nodes.find((n) => n.data.isRoot);
+  const sendPath =
+    nodeAbsolutePath(node.data.path, root?.data.path, st.localRootPath) ?? node.data.path;
+
+  if (isHost() && sendPath) {
     try {
-      await nativeOpenPath(node.data.path);
+      await nativeOpenPath(sendPath);
       return true;
     } catch {
       // shell command unavailable — fall through to the other paths
@@ -316,7 +326,7 @@ export async function openNodeFile(
       const res = await fetch("/api/open-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: node.data.path }),
+        body: JSON.stringify({ path: sendPath }),
       });
       if (res.ok) return true;
     } catch {

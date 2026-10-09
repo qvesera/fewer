@@ -3300,27 +3300,33 @@ tasks:
   session_count: 1
 - id: "T-123"
   title: "Open files and folders end to end: absolute-path fix for openNodeFile, Open File/Open Folder/Open Recent, .fwr OS association and argv/open-file launch"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "file-ops"
   tier: 0
   estimate_min: 240
   estimate_basis: "cli"
   issue: 353
-  pr: null
+  pr: 361
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-09T12:04:58Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-09T13:28:21Z"
+    end: "2026-10-09T13:29:55Z"
+    measured: true
+    note: "take_pending_open_file seam + argv/open-file collection in main.ts + electron-builder fileAssociations/linux.mimeTypes; Open Recent (recentFiles.ts) in the sidebar; dropped .fwr opens in-window; fixed openNodeFile relative-path bug; 13 new tests; docs desktop.md; lint/tsc/electron:compile/test/build green; PR #361"
+    proof: ["a825059", "#361"]
+    effort: {commits: 1, files: 15, insertions: 412, deletions: 4}
+  spent_min: 2
+  session_count: 1
 - id: "T-124"
   title: "Canvas groups: model, store slice, undo ops and snapshot persistence for titled groups with explicit membership"
   status: "triaged"

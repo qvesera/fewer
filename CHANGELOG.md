@@ -158,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shell docs header no longer flips to the marketing header after hydration: the layout gates on runtime host detection in addition to the build-time export flag (DocsLayout is a client component, so the browser re-runs it where the build env is absent). Regression-covered by a new Electron smoke that opens the docs in the real shell.
 - Task ledger engine: the bare sync-details verb no longer crashes with TypeError after the first project item-add (the item-add path shadowed the item_id() helper)
 - Desktop app: Refresh from Disk now re-scans folders — the re-scan routes through the shell list_dir RPC instead of the web-only File System Access handle and /api/list-directory channels, both of which are unavailable offline
+- Desktop app: Open File resolves the card path against the graph absolute root before handing it to the OS, so files open instead of failing on a relative path
 
 ### Added
 
@@ -194,6 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone desktop app files bug reports as pre-filled GitHub issues: Settings → Help → Report a Issue opens the issue page in your default browser (the Web3Forms email fallback is web-only now), and a failed browser hand-off can no longer take the shell down
 - Settings → Help → Export Settings downloads a JSON snapshot of every Fewer setting on the device (theme, layout, search history, license) — a backup, or the file to attach to a bug report
 - Desktop app: drag a folder from the file manager onto the canvas to open it as the graph (asks before replacing the current one), or drop a file to open it in the system default app
+- Desktop app: double-click a .fwr to open it in Fewer (OS file association on Linux/macOS/Windows), an Open Recent list in the sidebar, and dropping a .fwr onto a running window opens it there instead of launching a second instance
 
 ### Performance
 

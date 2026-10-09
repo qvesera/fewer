@@ -38,6 +38,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { recentFiles, forgetRecent } from "@/lib/fewer/recentFiles";
+import { isHost } from "@/lib/fewer/nativeShell";
 import {
   Tooltip,
   TooltipContent,
@@ -152,6 +154,21 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     });
   };
 
+  // T-123: Open Recent — only the shell surfaces it (paths are meaningless on
+  // the web build, where documents live behind the server). Read on render, so
+  // opening a graph refreshes the list with the store re-render that follows.
+  const openRecent = async (path: string) => {
+    const { loadGraphFromPath } = await import("@/lib/fewer/openLocalGraph");
+    const result = await loadGraphFromPath(path);
+    if (!result.ok) forgetRecent(path); // file deleted/renamed — stop listing it
+    toast({
+      title: result.title,
+      description: result.ok ? result.description : result.error,
+      variant: result.ok ? "default" : "destructive",
+    });
+  };
+  const recents = isHost() ? recentFiles() : [];
+
   // Build section nodes keyed by id, then render in sidebarOrder
   const sections: Record<string, React.ReactNode> = {};
 
@@ -181,6 +198,23 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               <TooltipContent side="top" className="text-xs">Clear Canvas</TooltipContent>
             </Tooltip>
           </div>
+          {recents.length > 0 && (
+            <div className="pt-1 border-t border-border/20 w-full min-w-0">
+              <div className="px-1 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Open Recent
+              </div>
+              {recents.slice(0, 5).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => void openRecent(p)}
+                  title={p}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground nodrag"
+                >
+                  <span className="truncate">{p.split(/[\\/]/).pop() ?? p}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </CollapsibleSection>
     );

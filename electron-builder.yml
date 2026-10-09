@@ -31,6 +31,19 @@ files:
 asar: true
 npmRebuild: false
 
+# T-123: double-clicking a .fwr opens it in Fewer. main.ts reads the path from
+# process.argv (Linux/Windows) or the open-file event (macOS) and the renderer
+# takes it at boot via the take_pending_open_file command. Unsigned builds:
+# macOS/Windows registration still works (the association is installed with the
+# app), it is only the publisher identity that is unverified.
+fileAssociations:
+  - ext: fwr
+    name: Fewer graph
+    description: Fewer graph document
+    mimeType: application/x-fewer-graph
+    role: Editor
+    rank: 1
+
 linux:
   target:
     - AppImage
@@ -41,6 +54,10 @@ linux:
   maintainer: qvesera <qvesera@proton.me>
   # Associate running windows with the .desktop entry (WM_CLASS = productName).
   syncDesktopName: true
+  # T-123: .fwr opens in Fewer (Linux reads MimeType from the .desktop entry,
+  # not from fileAssociations — that is a macOS/Windows mechanism).
+  mimeTypes:
+    - application/x-fewer-graph
   artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
 mac:

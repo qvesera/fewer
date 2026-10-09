@@ -50,6 +50,18 @@ export function useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast }
       }
 
       if (!isFolder) {
+        // A dropped Fewer document opens IN this window — going through the OS
+        // association would launch a second instance on a file we can read.
+        if (/\.fwr$/i.test(path)) {
+          const { loadGraphFromPath } = await import("@/lib/fewer/openLocalGraph");
+          const result = await loadGraphFromPath(path);
+          toast({
+            title: result.title,
+            description: result.ok ? result.description : result.error,
+            variant: result.ok ? "default" : "destructive",
+          });
+          return;
+        }
         try {
           await nativeOpenPath(path);
           toast({ title: "Opened with the default app", description: path });

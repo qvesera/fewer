@@ -30,6 +30,16 @@ Saved projects live in `graphs/` as **`.fwr`** files — Fewer's portable graph 
 it as the graph — the app asks before replacing the one you have. Drop a file
 instead and it opens in your system's default app for that type.
 
+### Opening a graph
+
+- **Double-click a `.fwr`** in your file manager: Fewer claims the format, so
+  the document opens in the app (Linux, macOS and Windows all register the
+  association; a graph dropped on a running window opens there too instead of
+  starting a second one).
+- **Open Recent** appears in *File & Actions* once you have opened a document —
+  the five most recent, click to reopen. A file that has since moved or been
+  deleted drops off the list automatically.
+
 GitHub and URL imports fetch directly from your machine — no proxy server in between. They are the only network traffic the app ever makes, and only when you ask for them.
 
 ### Updating a folder on the canvas

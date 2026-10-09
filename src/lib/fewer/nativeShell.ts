@@ -132,6 +132,15 @@ export function nativeFsReadBytes(path: string, maxBytes: number): Promise<Array
 }
 
 /**
+ * One-shot read of a `.fwr` the OS handed us at launch (T-123, `.fwr`
+ * association): `null` when there is none, or when the host does not collect
+ * one (Tauri) — the boot hook simply does nothing then.
+ */
+export function nativeTakePendingOpenFile(): Promise<string | null> {
+  return hostInvoke<string | null>("take_pending_open_file");
+}
+
+/**
  * Absolute OS path behind a dropped `File`, or `""` when no host exposes the
  * helper (web app, Tauri). Synchronous by design: `webUtils.getPathForFile`
  * is sync, and a drop handler wants the path before any await.
