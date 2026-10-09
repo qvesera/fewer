@@ -3491,7 +3491,7 @@ tasks:
   session_count: 1
 - id: "T-130"
   title: "Group context menu (rename, note, color, collapse, select members, ungroup), frame color palette, and the visual fix: frames must measure cards real rendered size and reserve the title bar above them"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
