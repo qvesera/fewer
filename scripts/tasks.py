@@ -1675,14 +1675,17 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
                                          f"https://github.com/{REPO_SLUG}/issues/{number}",
                                          "--format", "json"])
             try:
-                item_id = json.loads(out).get("id")
+                # NB: a name other than `item_id` — rebinding the helper above
+                # would make the NEXT row's `item_id(number)` call raise
+                # TypeError: 'str' object is not callable (T-119).
+                new_item_id = json.loads(out).get("id")
             except json.JSONDecodeError:
-                item_id = None
-            if not item_id:
+                new_item_id = None
+            if not new_item_id:
                 print(f"  {rid} #{number}: project item-add failed — {out}")
                 continue
-            items[number] = {"id": item_id}
-            rid_item = item_id
+            items[number] = {"id": new_item_id}
+            rid_item = new_item_id
             added += 1
         if not project_id:
             continue
