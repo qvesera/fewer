@@ -3335,7 +3335,7 @@ tasks:
   session_count: 1
 - id: "T-124"
   title: "Canvas groups: model, store slice, undo ops and snapshot persistence for titled groups with explicit membership"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3353,9 +3353,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-09T12:04:58Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-09T14:16:20Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-125"
   title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
   status: "blocked"
