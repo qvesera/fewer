@@ -70,6 +70,7 @@ export type Feature =
   | "layoutOrientation"    // left-to-right / bottom-to-top layouts
   | "historyTools"         // undo/redo toolbar block
   | "graphAnalytics"       // graph statistics panel
+  | "nodeGroups"           // canvas group frames, notes, collapse (T-124/T-125)
   // ── Cloud-saved custom themes ──
   | "savedThemes";
 
@@ -100,6 +101,12 @@ export const MIN_TIER: Record<Feature, Tier> = {
   layoutOrientation: "free",
   historyTools: "free",
   graphAnalytics: "free",
+  // Groups are pure client-side canvas state — no server, no cost to serve —
+  // so they sit on the free tier: every signed-in account on the web and every
+  // desktop-shell user (licensed or not) has them; signed-out guests do not,
+  // per the app-wide rule that no feature is guest-accessible. Monetizing
+  // later is this one line: raise it to "pro".
+  nodeGroups: "free",
 };
 
 /** True when the given tier meets or exceeds the feature's minimum. */

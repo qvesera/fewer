@@ -1,5 +1,6 @@
 import { useGraphStore } from "@/store/graphStore";
 import { countDescendants, pluralizeCount } from "./keyboardShortcuts";
+import { can } from "./tiers";
 
 /** Minimal shape of the toast function menus pass in. */
 export type BatchToast = (t: { title: string; description?: string }) => void;
@@ -176,6 +177,28 @@ export function buildBatchActions(opts: {
       label: "Tags…",
       run: () => window.dispatchEvent(new CustomEvent("fewer-batch-tags")),
     },
+    // Grouping is organization, like tags — and because it lives in this shared
+    // list it reaches EVERY multi-select menu (canvas selection menu and the
+    // node context menus' batch section) on both the web app and the desktop
+    // shell, with no per-platform check. Tier-gated through a feature key so
+    // the paid/free split can move later without touching menus again.
+    ...(can("nodeGroups", g().tier ?? "guest")
+      ? [
+          {
+            id: "group",
+            label: `Group ${selectedIds.length} Items`,
+            run: () => {
+              const s = g();
+              const list = s.selectedNodeIds;
+              if (s.addGroup(list, "Group") === null) {
+                toast({ title: "Nothing to group", description: "Those cards are not on this canvas" });
+                return;
+              }
+              toast({ title: "Group created", description: `${pluralizeCount(list.length, "card")} grouped` });
+            },
+          } satisfies BatchAction,
+        ]
+      : []),
   ];
 
   actions.push(

@@ -3460,3 +3460,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-129"
+  title: "Group creation must ship in the shared multi-select batch menu (canvas selection menu + card context menus), web and shell alike, behind a nodeGroups feature key"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 367
+  pr: 368
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T17:05:50Z"
+  notes: ["2026-10-09T17:06:12Z · follow-up to T-125: the group action lived only in the canvas selection menu; buildBatchActions is the single source for every multi-select menu on both platforms, and nodeGroups is the feature key that controls the paid/free split"]
+  sessions:
+  - start: "2026-10-09T17:11:50Z"
+    end: "2026-10-09T17:14:58Z"
+    measured: true
+    note: "moved Group N Items into buildBatchActions (single source for every multi-select menu: canvas selection menu + card batch sections, web and shell); new nodeGroups feature key MIN_TIER free; removed the duplicate top-level item; pinned-order + behaviour tests; harness seeds tier; docs editing.md + README + changelog corrected; lint/tsc/test(1713)/build green"
+    proof: ["16a883d", "#368"]
+    effort: {commits: 1, files: 7, insertions: 77, deletions: 18}
+  spent_min: 3
+  session_count: 1
