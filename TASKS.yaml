@@ -3462,7 +3462,7 @@ tasks:
   session_count: 0
 - id: "T-129"
   title: "Group creation must ship in the shared multi-select batch menu (canvas selection menu + card context menus), web and shell alike, behind a nodeGroups feature key"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
