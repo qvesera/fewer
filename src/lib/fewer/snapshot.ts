@@ -3,6 +3,7 @@ import type { SavedGraphData } from "./savedGraphs";
 import { SNAPSHOT_VERSION } from "./savedGraphs";
 import type { FewerNode, FewerEdge } from "./types";
 import { TAG_FALLBACK_COLOR, type Tag } from "./tags";
+import { normalizeGroups, type Group } from "./groups";
 
 // ── Node pruning (strip transient React Flow fields before save) ────────────
 
@@ -62,8 +63,11 @@ export function normalizeSnapshot(data: SavedGraphData): SavedGraphData {
   const tags = normalizeTags(data.tags);
   const validTagIds = new Set(tags.map((t) => t.id));
   const nodes = pruneTagRefs(data.nodes, validTagIds);
+  // T-124: groups carry explicit membership, so a snapshot whose nodes moved on
+  // (deletes, a hand-edited .fwr) is repaired here rather than by the renderer.
+  const groups = normalizeGroups(data.groups, new Set(nodes.map((n) => n.id)));
 
-  return { ...data, dataVersion: SNAPSHOT_VERSION, nodes, tags };
+  return { ...data, dataVersion: SNAPSHOT_VERSION, nodes, tags, groups };
 }
 
 // ── Build / Apply ───────────────────────────────────────────────────────────
@@ -81,6 +85,7 @@ export function buildSnapshot(): SavedGraphData {
     nodes: s.nodes.map(pruneNodeForSave),
     edges: s.edges,
     tags: s.tags,
+    groups: (s.groups ?? []) as Group[],
     localRootPath: s.localRootPath,
   };
 }
@@ -107,6 +112,7 @@ export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions)
     localRootPath: normalized.localRootPath ?? null,
     skipNextAutoLayout: true,
     tags: normalized.tags ?? [],
+    groups: normalized.groups ?? [],
   });
 }
 

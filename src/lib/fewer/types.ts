@@ -1,4 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
+import type { Group } from "./groups";
 
 /** A reusable label+color marker that can be assigned to any number of nodes. */
 export interface Tag {
@@ -370,6 +371,21 @@ export interface ViewState {
    *  the key, so undoing an unrelated view-state op can never resurrect or drop
    *  a tag. A missing key is skipped rather than treated as "no tags". */
   tags?: Tag[];
+  /** Canvas groups (T-124) as they stood for this snapshot. Optional for the
+   *  same reason as `tags`: only ops that change the group list carry the key,
+   *  so undoing an unrelated op can neither drop a group nor invent one. */
+  groups?: Group[];
+}
+
+/** Any group mutation (create / rename / note / membership / collapse / delete).
+ *  Undo restores `before`, redo re-applies `after`. Groups carry their own
+ *  before/after (like `view-state`), so the node tables treat the op as a
+ *  passthrough — collapsing also toggles `hiddenIds`, which the same snapshot
+ *  restores. */
+export interface GroupsOp {
+  type: "groups";
+  before: ViewState;
+  after: ViewState;
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
@@ -472,6 +488,7 @@ export type HistoryOp =
   | CollapseBatchOp
   | SetNodeTagsOp
   | RefreshSubtreeOp
+  | GroupsOp
   | ViewStateOp;
 
 /**

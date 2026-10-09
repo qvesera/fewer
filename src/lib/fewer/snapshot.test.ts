@@ -58,14 +58,17 @@ test("buildSnapshot contains graph data only — no settings", () => {
     showMiniMap: true,
     localRootPath: "/tmp/root",
     cornerRadius: 12,
+    groups: [{ id: "g-1", title: "Assets", note: "", memberIds: ["a"] }],
   });
 
   const snap = buildSnapshot();
   expect(snap.nodes).toHaveLength(1);
   expect(snap.edges).toEqual([]);
   expect(snap.localRootPath).toBe("/tmp/root");
+  // Groups are graph data (T-124), so they save — unlike the settings below.
+  expect(snap.groups).toEqual([{ id: "g-1", title: "Assets", note: "", memberIds: ["a"] }]);
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "groups", "localRootPath", "nodes", "tags"]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);

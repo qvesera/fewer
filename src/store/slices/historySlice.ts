@@ -59,6 +59,9 @@ function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
     if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
   }
   if (view.tags !== undefined) patch.tags = view.tags;
+  // Canvas groups (T-124): same rule as tags — only the ops that change the
+  // list carry the key, so restoring an unrelated op never touches it.
+  if (view.groups !== undefined) patch.groups = view.groups;
   return patch;
 }
 
