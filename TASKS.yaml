@@ -3334,7 +3334,7 @@ tasks:
   session_count: 0
 - id: "T-125"
   title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3403,7 +3403,7 @@ tasks:
   session_count: 0
 - id: "T-128"
   title: "Copy to and Move to context menu: destination picker, progress UI, then refresh the affected folders"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "file-ops"
   tier: 0
