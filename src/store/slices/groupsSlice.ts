@@ -2,7 +2,7 @@
 import type { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { Group } from "@/lib/fewer/groups";
-import { newGroup } from "@/lib/fewer/groups";
+import { newGroup, normalizeGroupColor } from "@/lib/fewer/groups";
 import type { ViewState } from "@/lib/fewer/types";
 import { captureViewState } from "./historySlice";
 
@@ -21,6 +21,8 @@ export type GroupsSliceCreator = StateCreator<
     addGroup: (memberIds: string[], title: string) => string | null;
     renameGroup: (id: string, title: string) => void;
     setGroupNote: (id: string, note: string) => void;
+    /** Frame color: hex to set, or undefined to return to the default. */
+    setGroupColor: (id: string, color?: string) => void;
     setGroupMembers: (id: string, memberIds: string[]) => void;
     removeGroup: (id: string) => void;
     /** Collapse hides the members; expand reveals them again, except any the
@@ -88,6 +90,19 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
       if (!groups.some((g) => g.id === id)) return {};
       const members = [...new Set(memberIds)];
       return { groups: mapGroup(groups, id, (g) => (g.memberIds === members ? g : { ...g, memberIds: members })) };
+    }),
+
+  setGroupColor: (id, color) =>
+    commit(set, get, (state) => {
+      const groups = (state.groups ?? []) as Group[];
+      if (!groups.some((g) => g.id === id)) return {};
+      const next = normalizeGroupColor(color);
+      return {
+        groups: mapGroup(groups, id, (g) => {
+          const { color: _previous, ...rest } = g;
+          return next ? { ...rest, color: next } : rest;
+        }),
+      };
     }),
 
   removeGroup: (id) =>

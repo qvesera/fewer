@@ -15,8 +15,19 @@ import { useGraphStore } from "@/store/graphStore";
 import { GROUP_HEADER_HEIGHT, groupBounds, groupPill } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
+import { TAG_FALLBACK_COLOR, TAG_PALETTE } from "@/lib/fewer/tags";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { plural } from "@/lib/fewer/plural";
 
@@ -37,10 +48,24 @@ export function GroupFrames(): ReactNode {
 
 function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): ReactNode {
   const [editing, setEditing] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const bounds = groupBounds(nodes, group.memberIds);
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
   if (!bounds) return null;
   const box = group.collapsed ? groupPill(bounds) : bounds;
+
+  // Colored frames tint border + fill + header from the same hex; the default
+  // stays slate so a plain group reads exactly as it did before colors existed.
+  const accent = group.color ?? TAG_FALLBACK_COLOR;
+  const tinted = Boolean(group.color);
+  const frameStyle = tinted
+    ? { borderColor: accent, background: `${accent}14` }
+    : undefined;
+  const headerStyle = tinted
+    ? { height: GROUP_HEADER_HEIGHT, borderColor: `${accent}55`, background: `${accent}22` }
+    : { height: GROUP_HEADER_HEIGHT };
+
+  const act = () => useGraphStore.getState();
 
   return (
     <div
@@ -49,12 +74,22 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
       data-group-id={group.id}
     >
       {/* The gray area — inert, so cards inside it stay draggable/selectable. */}
-      <div className="absolute inset-0 rounded-2xl border border-border/50 bg-muted/35" />
-
       <div
-        className="pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2"
-        style={{ height: GROUP_HEADER_HEIGHT }}
-      >
+        className={tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}
+        style={frameStyle}
+      />
+
+      {/* Right-click the header for the group menu; the body stays out of the way. */}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            className={
+              tinted
+                ? "pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b px-2"
+                : "pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2"
+            }
+            style={headerStyle}
+          >
         <button
           type="button"
           onClick={() => useGraphStore.getState().toggleGroupCollapsed(group.id)}
@@ -110,7 +145,7 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
           {plural(group.memberIds.length, "card")}
         </span>
 
-        <Popover>
+        <Popover open={noteOpen} onOpenChange={setNoteOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
@@ -142,7 +177,51 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
         >
           <X className="h-3.5 w-3.5" />
         </button>
-      </div>
+          </div>
+        </ContextMenuTrigger>
+
+        <ContextMenuContent className="w-52">
+          <ContextMenuItem onSelect={() => setEditing(true)}>Rename…</ContextMenuItem>
+          <ContextMenuItem onSelect={() => setNoteOpen(true)}>Edit Note…</ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>Color</ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-40">
+              {TAG_PALETTE.map((c) => (
+                <ContextMenuItem
+                  key={c}
+                  onSelect={() => act().setGroupColor(group.id, c)}
+                  className="flex items-center gap-2"
+                >
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full border border-border/40"
+                    style={{ background: c }}
+                  />
+                  {c}
+                </ContextMenuItem>
+              ))}
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={() => act().setGroupColor(group.id, undefined)}>
+                Default
+              </ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuItem onSelect={() => act().toggleGroupCollapsed(group.id)}>
+            {group.collapsed ? "Expand" : "Collapse"}
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => useGraphStore.setState({ selectedNodeIds: [...group.memberIds] })}
+          >
+            Select Members
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onSelect={() => act().removeGroup(group.id)}
+            className="text-destructive focus:bg-red-500/10"
+          >
+            Ungroup
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }

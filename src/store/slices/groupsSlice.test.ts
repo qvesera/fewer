@@ -83,6 +83,20 @@ test("expand never reveals a card the user hid directly", () => {
   expect(hiddenIds).toContain("n2"); // independently hidden stays hidden
 });
 
+test("setGroupColor sets a hex color, normalizes it, and clears back to default", () => {
+  const id = useGraphStore.getState().addGroup(["n1"], "Cluster")!;
+  useGraphStore.getState().setGroupColor(id, "#A78BFA");
+  expect(useGraphStore.getState().groups[0].color).toBe("#a78bfa");
+
+  // Undo restores the previous (colorless) list, like every other group edit.
+  useGraphStore.getState().undo();
+  expect(useGraphStore.getState().groups[0].color).toBeUndefined();
+
+  useGraphStore.getState().setGroupColor(id, "#34d399");
+  useGraphStore.getState().setGroupColor(id, undefined);
+  expect(useGraphStore.getState().groups[0].color).toBeUndefined();
+});
+
 test("undo of an add removes the group, redo restores it", () => {
   const id = useGraphStore.getState().addGroup(["n1"], "Cluster")!;
   useGraphStore.getState().undo();

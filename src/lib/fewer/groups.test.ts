@@ -2,12 +2,14 @@ import { describe, expect, test } from "bun:test";
 import {
   COLLAPSED_PILL_HEIGHT,
   COLLAPSED_PILL_WIDTH,
+  GROUP_HEADER_HEIGHT,
   GROUP_PADDING,
   groupBounds,
   groupsIndexOf,
   groupPill,
   membershipMap,
   newGroup,
+  normalizeGroupColor,
   normalizeGroups,
 } from "./groups";
 import type { Group } from "./groups";
@@ -29,14 +31,26 @@ describe("groupBounds", () => {
     expect(groupBounds([], ["a"])).toBeNull();
   });
 
-  test("single member: node box plus padding on every side", () => {
+  test("single member: node box plus padding, with the header reserved above", () => {
     const b = groupBounds([node("a", 100, 200, 100, 50)], ["a"]);
     expect(b).toEqual({
       x: 100 - GROUP_PADDING,
-      y: 200 - GROUP_PADDING,
+      y: 200 - GROUP_PADDING - GROUP_HEADER_HEIGHT,
       width: 100 + GROUP_PADDING * 2,
-      height: 50 + GROUP_PADDING * 2,
+      height: 50 + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
     });
+  });
+
+  test("uses the rendered (measured) size, so tall folder cards stay inside", () => {
+    // A folder card's nominal height is ~50, but it renders taller once it
+    // lists children — reading only `style` made frames too short (cards
+    // spilled out of the gray box).
+    const tall = {
+      ...node("a", 0, 0, 100, 50),
+      measured: { width: 100, height: 260 },
+    } as FewerNode;
+    const b = groupBounds([tall], ["a"]);
+    expect(b?.height).toBe(260 + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT);
   });
 
   test("several members: union box plus padding", () => {
@@ -46,9 +60,9 @@ describe("groupBounds", () => {
     );
     expect(b).toEqual({
       x: -GROUP_PADDING,
-      y: -GROUP_PADDING,
+      y: -GROUP_PADDING - GROUP_HEADER_HEIGHT,
       width: 500 + GROUP_PADDING * 2,
-      height: 350 + GROUP_PADDING * 2,
+      height: 350 + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
     });
   });
 
@@ -124,6 +138,31 @@ describe("normalizeGroups", () => {
     expect(out[0].title).toHaveLength(80);
     expect(out[0].note).toBe("readme");
     expect(out[0].collapsed).toBe(true);
+  });
+});
+
+describe("normalizeGroupColor", () => {
+  test("accepts six-digit hex and lowercases it", () => {
+    expect(normalizeGroupColor("#A78BFA")).toBe("#a78bfa");
+  });
+
+  test("rejects everything that is not a six-digit hex", () => {
+    expect(normalizeGroupColor("red")).toBeUndefined();
+    expect(normalizeGroupColor("#fff")).toBeUndefined();
+    expect(normalizeGroupColor("#zzzzzz")).toBeUndefined();
+    expect(normalizeGroupColor(undefined)).toBeUndefined();
+  });
+
+  test("normalizeGroups keeps a valid color and drops an invalid one", () => {
+    const out = normalizeGroups(
+      [
+        { id: "g-1", title: "T", note: "", memberIds: ["a"], color: "#A78BFA" },
+        { id: "g-2", title: "T", note: "", memberIds: ["b"], color: "not-a-color" },
+      ],
+      new Set(["a", "b"]),
+    );
+    expect(out[0].color).toBe("#a78bfa");
+    expect(out[1].color).toBeUndefined();
   });
 });
 
