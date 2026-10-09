@@ -3211,3 +3211,216 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 37, deletions: 5}
   spent_min: 14
   session_count: 1
+- id: "T-120"
+  title: "Pane context menu: per-leaf view toggles (Show/Hide Files, Show/Hide Minimap) move below the action cluster, Files listed first"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 349
+  pr: 350
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T11:44:03Z"
+  notes: ["2026-10-09T11:44:10Z · UI-only reorder already staged on fix/context-menu (identical to stash@{0} contect menu); no behavior change"]
+  sessions:
+  - start: "2026-10-09T11:49:12Z"
+    end: "2026-10-09T11:52:14Z"
+    measured: true
+    note: "pushed the staged pane context-menu reorder (identical to stash@{0} contect menu) as commit 9a18b32; changelog entry added; lint + tsc + test (194) + build all green; PR #350 to dev with pr-metadata applied"
+    proof: ["9a18b32", "#350"]
+    effort: {commits: 1, files: 2, insertions: 24, deletions: 23}
+  spent_min: 3
+  session_count: 1
+- id: "T-121"
+  title: "Refresh from disk in the desktop shell: refreshFolderFromDisk needs a native list_dir walk channel (its handle and /api/list-directory channels are web-only)"
+  status: "triaged"
+  type: "fix"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 351
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:04:58Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-122"
+  title: "Drag-and-drop a folder from the OS onto the canvas in the desktop shell: webUtils.getPathForFile bridge plus a path-based drop source"
+  status: "triaged"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 352
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:04:58Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-123"
+  title: "Open files and folders end to end: absolute-path fix for openNodeFile, Open File/Open Folder/Open Recent, .fwr OS association and argv/open-file launch"
+  status: "triaged"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 353
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:04:58Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-124"
+  title: "Canvas groups: model, store slice, undo ops and snapshot persistence for titled groups with explicit membership"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 354
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:04:58Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-125"
+  title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
+  status: "blocked"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 355
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-124"]
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:05:10Z"
+  notes: ["2026-10-09T12:05:23Z · renders the frame over the model from T-124; inherits group collapse/notes state"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-126"
+  title: "Selection thumbnails: thumbnail strip for selected files and folders driven by a pure candidate model and a cached nativeFsReadBytes loader"
+  status: "triaged"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 420
+  estimate_basis: "cli"
+  issue: 356
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:05:10Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-127"
+  title: "Host copy_paths and move_paths commands: rsync first with fs.cp/fs.rename and robocopy fallback, progress and cancel, Electron plus Tauri parity"
+  status: "triaged"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: 357
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:05:10Z"
+  notes: ["2026-10-09T12:05:23Z · Tauri src-tauri/src/lib.rs parity is in scope for this row"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-128"
+  title: "Copy to and Move to context menu: destination picker, progress UI, then refresh the affected folders"
+  status: "blocked"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 358
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-127"]
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T12:05:10Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
