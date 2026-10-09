@@ -3184,7 +3184,7 @@ tasks:
   session_count: 0
 - id: "T-119"
   title: "sync-details bare verb crashes after the first project item-add: the item-add path reassigns item_id (the name of the item_id() helper defined above), so the next row raises TypeError: 'str' object is not callable"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
