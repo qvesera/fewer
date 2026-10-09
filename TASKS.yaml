@@ -3364,27 +3364,33 @@ tasks:
   session_count: 1
 - id: "T-125"
   title: "Canvas group frames: gray container behind member cards with editable title, collapse toggle, and group notes with a hover affordance on the title"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 480
   estimate_basis: "cli"
   issue: 355
-  pr: null
+  pr: 365
   internal: false
   milestone: null
   blocked_by: ["T-124"]
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-09T12:05:10Z"
   notes: ["2026-10-09T12:05:23Z · renders the frame over the model from T-124; inherits group collapse/notes state"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-09T15:08:18Z"
+    end: "2026-10-09T15:24:17Z"
+    measured: true
+    note: "GroupFrames via ViewportPortal (flow coords, never in nodes); inert gray area + interactive header (chevron collapse → pill, editable title with hover-note tooltip, note popover, count, Ungroup); Group N selected in the selection menu; groupPill geometry test; docs editing.md + README + changelog Added; lint/tsc/test(1711)/build green"
+    proof: ["e581fa7", "#365"]
+    effort: {commits: 1, files: 8, insertions: 207, deletions: 0}
+  spent_min: 16
+  session_count: 1
 - id: "T-126"
   title: "Selection thumbnails: thumbnail strip for selected files and folders driven by a pure candidate model and a cached nativeFsReadBytes loader"
   status: "triaged"
