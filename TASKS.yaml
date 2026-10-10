@@ -3518,3 +3518,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 192, deletions: 17}
   spent_min: 2
   session_count: 1
+- id: "T-131"
+  title: "Group color picker replaces the preset swatch submenu: HexColorPicker/HexColorInput in a header-anchored popover, draft locally and commit once so a drag stays one undo step"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 373
+  pr: 374
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-09T22:03:46Z"
+  notes: ["2026-10-09T22:08:59Z · approved plan: menu-only entry (Color…), react-colorful already a dependency, onChangeEnd for the single-undo commit, popover not inline because the frame sits in transformed viewport space"]
+  sessions:
+  - start: "2026-10-09T22:11:38Z"
+    end: "2026-10-10T12:23:57Z"
+    measured: true
+    note: "Color… menu item opens a header-anchored popover with HexColorPicker + HexColorInput (react-colorful, already a dependency); local draft with onChangeEnd commit so one drag = one groups op; commitDraft drops non-normalizing input; onCloseAutoFocus guard for the menu→popover handoff; presets and ContextMenuSub imports removed; 2 new assertions; docs editing.md + changelog entry corrected; lint/tsc/test/build/changelog green"
+    proof: ["b22779b", "#374"]
+    effort: {commits: 1, files: 4, insertions: 100, deletions: 32}
+  spent_min: 852
+  session_count: 1
