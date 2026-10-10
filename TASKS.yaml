@@ -3547,3 +3547,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 100, deletions: 32}
   spent_min: 852
   session_count: 1
+- id: "T-132"
+  title: "Group menu fixes: Color picker never appeared (menu-opened popover was closed by the same press that dismissed the menu, and had no Radix anchor to position it) and Select Members never lit up the cards (raw setState skipped the selectionVersion stamp)"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 376
+  pr: 377
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-10T13:49:14Z"
+  notes: ["2026-10-10T13:49:31Z · diagnosed in a real browser with Playwright: the menu item fired (console probes) but Radix called onOpenChange(false) in the same frame; Popper also had no anchor. Select Members wrote selectedNodeIds directly, so selectionVersion never bumped and the canvas lens never re-stamped the selected flags"]
+  sessions:
+  - start: "2026-10-10T13:54:31Z"
+    end: "2026-10-10T13:57:50Z"
+    measured: true
+    note: "probed in Chromium: menu item fired, Radix closed the popover in the same frame (outside-press race) and Popper had no anchor; fixed with openAfterMenu defer + outside-press/focus guards + PopoverAnchor. Select Members now uses setSelectedNodeIds (selectionVersion stamp + leaf mirror). 3 new e2e tests (real browser) + 2 component tests; e2e 21/21, unit 196, lint/tsc/build clean"
+    proof: ["8c1c7f3", "#377"]
+    effort: {commits: 1, files: 4, insertions: 252, deletions: 10}
+  spent_min: 3
+  session_count: 1
