@@ -3549,7 +3549,7 @@ tasks:
   session_count: 1
 - id: "T-132"
   title: "Group menu fixes: Color picker never appeared (menu-opened popover was closed by the same press that dismissed the menu, and had no Radix anchor to position it) and Select Members never lit up the cards (raw setState skipped the selectionVersion stamp)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
