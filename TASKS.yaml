@@ -3520,7 +3520,7 @@ tasks:
   session_count: 1
 - id: "T-131"
   title: "Group color picker replaces the preset swatch submenu: HexColorPicker/HexColorInput in a header-anchored popover, draft locally and commit once so a drag stays one undo step"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
