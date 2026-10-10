@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 
-import { nextSelectionIds, selectionForLeaf } from "@/lib/fewer/canvasSelection";
+import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer/canvasSelection";
 import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { isHost } from "@/lib/fewer/nativeShell";
@@ -93,7 +93,10 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
     const next = e?.shiftKey
       ? (prev.includes(node.id) ? prev : [...prev, node.id])
       : (e?.metaKey || e?.ctrlKey)
-        ? prev.filter((id) => id !== node.id)
+        // Toggle, both directions: an unselected card joins, a selected one
+        // leaves. Only the deselect half existed, so Ctrl+clicking a fresh card
+        // after a stale selection left the stale list in place.
+        ? toggleSelection(prev, node.id)
         : [node.id];
     state.setSelectionForLeaf(leafId, next);
   }, [leafId]);

@@ -160,6 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop app: Refresh from Disk now re-scans folders — the re-scan routes through the shell list_dir RPC instead of the web-only File System Access handle and /api/list-directory channels, both of which are unavailable offline
 - Desktop app: Open File resolves the card path against the graph absolute root before handing it to the OS, so files open instead of failing on a relative path
 - Canvas groups: frames now measure the cards real rendered size and reserve the title bar above them, so tall folder cards no longer spill out of the gray box
+- Canvas selection: clicking the empty canvas now genuinely clears the selection — the highlight ring vanished but the cards stayed selected, so the next Ctrl+click brought the whole box selection back. Ctrl/Cmd+click also toggles both ways now (an unselected card joins the selection instead of being ignored)
 
 ### Added
 
