@@ -18,7 +18,7 @@ import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
 import { HexColorInput, HexColorPicker } from "react-colorful";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -44,7 +44,10 @@ export function GroupFrames(): ReactNode {
   );
 }
 
-function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): ReactNode {
+/** One group's frame. Exported for tests: GroupFrames renders it inside a
+ *  ViewportPortal, which needs a mounted <ReactFlow> that a unit test has no
+ *  reason to build. */
+export function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
@@ -69,6 +72,15 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
     : { height: GROUP_HEADER_HEIGHT };
 
   const act = () => useGraphStore.getState();
+
+  /**
+   * Open a layer (popover) from a Radix menu item. The menu closes on the same
+   * pointer sequence that fired onSelect, so opening synchronously makes the new
+   * layer see that press as an OUTSIDE press and close immediately — the menu
+   * item looks like it does nothing. Deferring one frame lets the layer mount
+   * after the sequence has finished.
+   */
+  const openAfterMenu = (open: () => void) => requestAnimationFrame(open);
 
   // Commit only when the draft normalizes to a real colour: typing "#12" and
   // closing must keep the previous colour rather than store junk (the validator
@@ -95,6 +107,7 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            data-group-header={group.id}
             className={
               tinted
                 ? "pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b px-2"
@@ -199,12 +212,16 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <ContextMenuItem onSelect={() => setEditing(true)}>Rename…</ContextMenuItem>
-          <ContextMenuItem onSelect={() => setNoteOpen(true)}>Edit Note…</ContextMenuItem>
+          <ContextMenuItem onSelect={() => openAfterMenu(() => setNoteOpen(true))}>
+            Edit Note…
+          </ContextMenuItem>
           <ContextMenuItem
-            onSelect={() => {
-              setDraft(group.color ?? "");
-              setColorOpen(true);
-            }}
+            onSelect={() =>
+              openAfterMenu(() => {
+                setDraft(group.color ?? "");
+                setColorOpen(true);
+              })
+            }
           >
             Color…
           </ContextMenuItem>
@@ -212,7 +229,13 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
             {group.collapsed ? "Expand" : "Collapse"}
           </ContextMenuItem>
           <ContextMenuItem
-            onSelect={() => useGraphStore.setState({ selectedNodeIds: [...group.memberIds] })}
+            onSelect={() =>
+              // setSelectedNodeIds (not a raw setState): it bumps selectionVersion
+              // — the canvas lens stamps `selected` flags from that list — and
+              // mirrors into the active leaf's selection. A raw write left the
+              // stamp invalid, so nothing lit up.
+              useGraphStore.getState().setSelectedNodeIds([...group.memberIds])
+            }
           >
             Select Members
           </ContextMenuItem>
@@ -235,7 +258,26 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
           if (!open) commitDraft();
         }}
       >
-        <PopoverContent align="end" className="w-64 space-y-2 p-3">
+        {/* Radix Popper positions from an anchor. This popover is opened by a
+            menu item, so it has no trigger to serve as one — without this it
+            never got a position and the picker was unusable. The invisible div
+            sits exactly over the title bar. */}
+        <PopoverAnchor asChild>
+          <div
+            className="pointer-events-none absolute left-0 top-0"
+            style={{ width: box.width, height: GROUP_HEADER_HEIGHT }}
+          />
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          className="w-64 space-y-2 p-3"
+          // Opened from a menu item: the press that dismissed the menu arrives
+          // as an outside-press/focus on the fresh layer and Radix closes it in
+          // the same frame — the menu item looked like it did nothing. Keep it
+          // open until Escape or Done.
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()}
+        >
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Group color</div>
           <div className="overflow-hidden rounded-md">
             <HexColorPicker
