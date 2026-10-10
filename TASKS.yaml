@@ -3576,3 +3576,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 252, deletions: 10}
   spent_min: 3
   session_count: 1
+- id: "T-133"
+  title: "Pane click never cleared the store selection (the advisory onSelectionChange drops the empty report once the pointer is up, so the next canvas push repainted the old selection and a Ctrl+click resurrected it), and Ctrl+click only implemented the deselect half of the toggle"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 379
+  pr: 380
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-10T15:17:08Z"
+  notes: ["2026-10-10T15:17:29Z · repro from the user: shift+drag select, click empty canvas, ctrl+click another card, old selection returns. Root cause: onPaneClick never wrote the store, and onSelectionChange is advisory (guarded for #285) so the empty report was dropped. Second bug: onNodeClick ctrl branch only deselected, never toggled on. e2e verified to fail without the fix"]
+  sessions:
+  - start: "2026-10-10T15:21:56Z"
+    end: "2026-10-10T15:23:34Z"
+    measured: true
+    note: "pane click now clears the store via setSelectedNodeIds (advisory onSelectionChange drops the post-pointerup empty report — the #285 guard — so nothing else cleared it); Ctrl/Cmd+click extracted as toggleSelection, both directions. e2e repro verified to fail without the fix; 3 unit tests; e2e 22/22, unit 199, lint/tsc/build clean"
+    proof: ["bd4fc4e", "#380"]
+    effort: {commits: 1, files: 6, insertions: 61, deletions: 4}
+  spent_min: 2
+  session_count: 1
