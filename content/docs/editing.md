@@ -138,7 +138,7 @@ exactly as they did before.
 - **Color** — right-click the frame's title bar → **Color…** opens the color
   picker: drag the picker or type a hex value, and **Reset to default** returns
   to slate. The border, fill and header tint to match, the colour saves with the
-  graph, and one drag is a single undo step.
+  graph, and one drag is a single undo step. **Done** or **Escape** closes it.
 - **Collapse** — the chevron hides the group's cards and shrinks the frame to a
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
