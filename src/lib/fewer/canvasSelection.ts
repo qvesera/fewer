@@ -55,6 +55,16 @@ export function nextSelectionIds({ prevIds, selected, selectedIds, base, dragSel
 }
 
 /**
+ * React Flow's Ctrl/Cmd+click toggle: an unselected card joins the selection,
+ * a selected one leaves it. Written out because the hook used to implement only
+ * the deselect half — Ctrl+clicking a card that was NOT selected silently did
+ * nothing, which is how a stale store selection could appear to "come back".
+ */
+export function toggleSelection(prevIds: string[], id: string): string[] {
+  return prevIds.includes(id) ? prevIds.filter((x) => x !== id) : [...prevIds, id];
+}
+
+/**
  * The id list a leaf paints (both the card stamps and the edge highlight must
  * derive it the same way — two hand-rolled copies could disagree).
  *

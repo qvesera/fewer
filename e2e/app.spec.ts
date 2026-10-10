@@ -335,6 +335,29 @@ test("ctrl+click deselects a card that a shift-drag box select selected", async 
   await expect(src).not.toHaveClass(selected(), { timeout: 5000 });
 });
 
+test("clicking empty canvas clears the selection, so the next Ctrl+click starts fresh", async ({ page }) => {
+  await openCanvas(page);
+  await boxSelect(page, "src");
+
+  // How many cards the rect encloses depends on layout — what matters is that
+  // the selection is non-trivial before the click.
+  const selectedNodes = page.locator(".react-flow__node.selected");
+  expect(await selectedNodes.count()).toBeGreaterThan(1);
+
+  // Click empty canvas (top-left of the pane; the graph is centred).
+  const pane = (await page.locator(".react-flow__pane").boundingBox())!;
+  await page.mouse.click(pane.x + 12, pane.y + 12);
+  await expect(selectedNodes).toHaveCount(0);
+
+  // The regression: the store kept the box-selected ids (the empty report is
+  // advisory and gets dropped once the pointer is up), so Ctrl+clicking a
+  // fresh card resurrected all of them. Now only the clicked card is selected.
+  const src = srcHeader(page);
+  await src.click({ modifiers: ["Control"] });
+  await expect(selectedNodes).toHaveCount(1);
+  await expect(src).toHaveClass(selected());
+});
+
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 

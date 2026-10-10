@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mergeSelection, nextSelectionIds, selectionForLeaf } from "./canvasSelection";
+import { mergeSelection, nextSelectionIds, selectionForLeaf, toggleSelection } from "./canvasSelection";
 
 describe("nextSelectionIds (drag-safe selection, #281)", () => {
   test("a drag keeps its selection when React Flow reports nothing selected", () => {
@@ -113,5 +113,18 @@ describe("selectionForLeaf (which id list a leaf paints, #285)", () => {
   test("no leafId (single legacy canvas) → the shared list", () => {
     expect(selectionForLeaf({}, undefined, null, shared)).toEqual(["n1"]);
     expect(selectionForLeaf({}, null, "a", shared)).toEqual(["n1"]);
+  });
+});
+describe("toggleSelection (Ctrl/Cmd+click, both directions)", () => {
+  test("adds a card that is not selected", () => {
+    expect(toggleSelection(["n1", "n2"], "n3")).toEqual(["n1", "n2", "n3"]);
+  });
+
+  test("removes a card that is selected", () => {
+    expect(toggleSelection(["n1", "n2"], "n1")).toEqual(["n2"]);
+  });
+
+  test("toggling the only selected card leaves an empty selection", () => {
+    expect(toggleSelection(["n1"], "n1")).toEqual([]);
   });
 });
