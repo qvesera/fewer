@@ -12,10 +12,11 @@ import { useState, type ReactNode } from "react";
 import { ViewportPortal } from "@xyflow/react";
 import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { GROUP_HEADER_HEIGHT, groupBounds, groupPill } from "@/lib/fewer/groups";
+import { GROUP_HEADER_HEIGHT, groupBounds, groupPill, normalizeGroupColor } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
-import { TAG_FALLBACK_COLOR, TAG_PALETTE } from "@/lib/fewer/tags";
+import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
+import { HexColorInput, HexColorPicker } from "react-colorful";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -23,9 +24,6 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +47,11 @@ export function GroupFrames(): ReactNode {
 function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
+  // The picker reports every intermediate colour while dragging; we preview it
+  // locally and commit on onChangeEnd so one drag stays ONE history entry
+  // (setGroupColor records a `groups` op each call).
+  const [draft, setDraft] = useState<string>(group.color ?? "");
   const bounds = groupBounds(nodes, group.memberIds);
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
   if (!bounds) return null;
@@ -66,6 +69,15 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
     : { height: GROUP_HEADER_HEIGHT };
 
   const act = () => useGraphStore.getState();
+
+  // Commit only when the draft normalizes to a real colour: typing "#12" and
+  // closing must keep the previous colour rather than store junk (the validator
+  // is the same one the snapshot uses on load).
+  const commitDraft = () => {
+    const valid = normalizeGroupColor(draft);
+    if (valid && valid !== group.color) act().setGroupColor(group.id, valid);
+  };
+  const pickerColor = normalizeGroupColor(draft) ?? group.color ?? TAG_FALLBACK_COLOR;
 
   return (
     <div
@@ -180,31 +192,22 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
           </div>
         </ContextMenuTrigger>
 
-        <ContextMenuContent className="w-52">
+        <ContextMenuContent
+          className="w-52"
+          // The Color… item opens a popover; without this the menu's focus
+          // restore steals it back to the canvas on close.
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <ContextMenuItem onSelect={() => setEditing(true)}>Rename…</ContextMenuItem>
           <ContextMenuItem onSelect={() => setNoteOpen(true)}>Edit Note…</ContextMenuItem>
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>Color</ContextMenuSubTrigger>
-            <ContextMenuSubContent className="w-40">
-              {TAG_PALETTE.map((c) => (
-                <ContextMenuItem
-                  key={c}
-                  onSelect={() => act().setGroupColor(group.id, c)}
-                  className="flex items-center gap-2"
-                >
-                  <span
-                    className="h-3 w-3 shrink-0 rounded-full border border-border/40"
-                    style={{ background: c }}
-                  />
-                  {c}
-                </ContextMenuItem>
-              ))}
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={() => act().setGroupColor(group.id, undefined)}>
-                Default
-              </ContextMenuItem>
-            </ContextMenuSubContent>
-          </ContextMenuSub>
+          <ContextMenuItem
+            onSelect={() => {
+              setDraft(group.color ?? "");
+              setColorOpen(true);
+            }}
+          >
+            Color…
+          </ContextMenuItem>
           <ContextMenuItem onSelect={() => act().toggleGroupCollapsed(group.id)}>
             {group.collapsed ? "Expand" : "Collapse"}
           </ContextMenuItem>
@@ -222,6 +225,63 @@ function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): Rea
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      {/* Color picker: portalled to <body>, so it renders 1:1 in screen space
+          instead of scaling with the canvas (the frame lives in flow coords). */}
+      <Popover
+        open={colorOpen}
+        onOpenChange={(open) => {
+          setColorOpen(open);
+          if (!open) commitDraft();
+        }}
+      >
+        <PopoverContent align="end" className="w-64 space-y-2 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Group color</div>
+          <div className="overflow-hidden rounded-md">
+            <HexColorPicker
+              color={pickerColor}
+              onChange={(c) => setDraft(c)}
+              onChangeEnd={(c) => {
+                setDraft(c);
+                const valid = normalizeGroupColor(c);
+                if (valid) act().setGroupColor(group.id, valid);
+              }}
+              aria-label="Group color"
+              style={{ width: "100%", height: 140 }}
+            />
+          </div>
+          <HexColorInput
+            color={pickerColor}
+            onChange={(c) => setDraft(c)}
+            onBlur={commitDraft}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitDraft();
+            }}
+            prefixed
+            aria-label="Group color hex value"
+            className="w-full rounded-md border border-border bg-background px-2 py-1 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/60"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDraft("");
+                act().setGroupColor(group.id, undefined);
+              }}
+              className="rounded-md border border-border/60 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              Reset to default
+            </button>
+            <button
+              type="button"
+              onClick={() => setColorOpen(false)}
+              className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Done
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

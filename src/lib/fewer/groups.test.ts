@@ -149,8 +149,15 @@ describe("normalizeGroupColor", () => {
   test("rejects everything that is not a six-digit hex", () => {
     expect(normalizeGroupColor("red")).toBeUndefined();
     expect(normalizeGroupColor("#fff")).toBeUndefined();
+    // The half-typed value a hex field shows mid-edit: committing it must be a
+    // no-op, so closing the picker keeps the previous colour.
+    expect(normalizeGroupColor("#12")).toBeUndefined();
     expect(normalizeGroupColor("#zzzzzz")).toBeUndefined();
     expect(normalizeGroupColor(undefined)).toBeUndefined();
+  });
+
+  test("keeps a complete value untouched (what the picker emits)", () => {
+    expect(normalizeGroupColor("#abcdef")).toBe("#abcdef");
   });
 
   test("normalizeGroups keeps a valid color and drops an invalid one", () => {
