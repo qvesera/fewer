@@ -3578,7 +3578,7 @@ tasks:
   session_count: 1
 - id: "T-133"
   title: "Pane click never cleared the store selection (the advisory onSelectionChange drops the empty report once the pointer is up, so the next canvas push repainted the old selection and a Ctrl+click resurrected it), and Ctrl+click only implemented the deselect half of the toggle"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
