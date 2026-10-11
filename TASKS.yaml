@@ -3665,7 +3665,7 @@ tasks:
   session_count: 1
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
