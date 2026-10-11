@@ -268,20 +268,29 @@ test("Select Children selects the folder's children, not the folder", async ({ p
 // begin on a card) and its rect must fully contain the target — the default
 // SelectionMode.Full only selects cards the rect encloses.
 async function boxSelect(page: Page, targetName: string) {
-  const cards = await page.locator(".react-flow__node").evaluateAll((els) =>
-    els.map((e) => {
-      const r = e.getBoundingClientRect();
-      return {
-        x: r.x,
-        y: r.y,
-        w: r.width,
-        h: r.height,
-        // Cards render their own title first, so match the header, not a child
-        // chip that happens to mention the folder (root lists "src" too).
-        title: (e as HTMLElement).innerText.split("\n")[0].trim(),
-      };
-    }),
-  );
+  // The sample graph mounts its child cards a beat after the root card, and a
+  // single eager read raced on slow CI runners ("card src must be on the
+  // canvas" with the whole suite red). Poll until the target is really there,
+  // then take the geometry snapshot the drag needs.
+  const scanCards = () =>
+    page.locator(".react-flow__node").evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return {
+          x: r.x,
+          y: r.y,
+          w: r.width,
+          h: r.height,
+          // Cards render their own title first, so match the header, not a child
+          // chip that happens to mention the folder (root lists "src" too).
+          title: (e as HTMLElement).innerText.split("\n")[0].trim(),
+        };
+      }),
+    );
+  await expect
+    .poll(async () => (await scanCards()).some((c) => c.title === targetName), { timeout: 10000 })
+    .toBe(true);
+  const cards = await scanCards();
   const target = cards.find((c) => c.title === targetName);
   expect(target, `card "${targetName}" must be on the canvas`).toBeTruthy();
 

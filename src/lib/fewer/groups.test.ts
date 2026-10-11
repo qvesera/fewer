@@ -3,14 +3,20 @@ import {
   COLLAPSED_PILL_HEIGHT,
   COLLAPSED_PILL_WIDTH,
   GROUP_HEADER_HEIGHT,
+  GROUP_MIN_BOX,
   GROUP_PADDING,
   groupBounds,
   groupsIndexOf,
   groupPill,
+  handleAxes,
+  handleOrigin,
   membershipMap,
+  minScaleFor,
   newGroup,
   normalizeGroupColor,
   normalizeGroups,
+  scaleFactorFor,
+  scaleMemberPositions,
 } from "./groups";
 import type { Group } from "./groups";
 import type { FewerNode } from "./types";
@@ -211,5 +217,67 @@ describe("indexes", () => {
     expect(m.get("a")).toBe("g-1");
     expect(m.get("b")).toBe("g-2");
     expect(m.has("nope")).toBe(false);
+  });
+});
+
+describe("resize-by-scale model (T-136)", () => {
+  const BOX = { x: 0, y: 0, width: 400, height: 300 };
+
+  test("corners drive both axes, edges one", () => {
+    expect(handleAxes("se")).toEqual({ x: true, y: true });
+    expect(handleAxes("nw")).toEqual({ x: true, y: true });
+    expect(handleAxes("e")).toEqual({ x: true, y: false });
+    expect(handleAxes("n")).toEqual({ x: false, y: true });
+  });
+
+  test("each handle anchors on the opposite corner/edge", () => {
+    expect(handleOrigin("se", BOX)).toEqual({ x: 0, y: 0 });
+    expect(handleOrigin("nw", BOX)).toEqual({ x: 400, y: 300 });
+    expect(handleOrigin("ne", BOX)).toEqual({ x: 0, y: 300 });
+    expect(handleOrigin("e", BOX)).toEqual({ x: 0, y: 150 });
+    expect(handleOrigin("n", BOX)).toEqual({ x: 200, y: 300 });
+  });
+
+  test("scaleFactorFor is pointer-vs-start around the origin", () => {
+    // origin 0, start 200, now 100 → halve.
+    expect(scaleFactorFor(100, 0, 200, 0.1)).toBeCloseTo(0.5);
+    // now 400 → double.
+    expect(scaleFactorFor(400, 0, 200, 0.1)).toBeCloseTo(2);
+    // Negative direction (crossed the origin) clamps at the min.
+    expect(scaleFactorFor(-50, 0, 200, 0.25)).toBe(0.25);
+    // Degenerate reference pins the axis.
+    expect(scaleFactorFor(3, 0, 0.5, 0.25)).toBe(1);
+  });
+
+  test("minScaleFor keeps the frame at least GROUP_MIN_BOX", () => {
+    const tiny = minScaleFor({ ...BOX, width: 100, height: 80 });
+    // Already under the minimum: only growing is allowed (factor > 1).
+    expect(tiny.x).toBeCloseTo(GROUP_MIN_BOX.width / 100);
+    expect(tiny.y).toBeCloseTo(GROUP_MIN_BOX.height / 80);
+    expect(tiny.x).toBeGreaterThan(1);
+    // A big-enough box may shrink, down to just-fit and no further.
+    const big = minScaleFor(BOX);
+    expect(big.x).toBeCloseTo(GROUP_MIN_BOX.width / 400);
+    expect(big.y).toBeCloseTo(GROUP_MIN_BOX.height / 300);
+    expect(big.x).toBeLessThan(1);
+  });
+
+  test("scaleMemberPositions multiplies offsets from the origin; cards keep size", () => {
+    const starts = new Map([
+      ["a", { x: 100, y: 100 }],
+      ["b", { x: 300, y: 200 }],
+    ]);
+    const out = scaleMemberPositions(starts, { x: 0, y: 0 }, 2, 0.5);
+    expect(out.a).toEqual({ x: 200, y: 50 });
+    expect(out.b).toEqual({ x: 600, y: 100 });
+    // The map of starts is never mutated (the gesture reuses it every frame).
+    expect(starts.get("a")).toEqual({ x: 100, y: 100 });
+  });
+
+  test("scaleMemberPositions respects a non-zero origin (edge handles)", () => {
+    const starts = new Map([["a", { x: 100, y: 100 }]]);
+    // Horizontal-only scale around the left edge: y passes through untouched.
+    const out = scaleMemberPositions(starts, { x: 50, y: 999 }, 3, 1);
+    expect(out.a).toEqual({ x: 200, y: 100 });
   });
 });
