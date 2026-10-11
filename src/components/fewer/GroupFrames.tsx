@@ -12,7 +12,8 @@ import { useState, type ReactNode } from "react";
 import { ViewportPortal } from "@xyflow/react";
 import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { GROUP_HEADER_HEIGHT, groupBounds, groupPill, normalizeGroupColor } from "@/lib/fewer/groups";
+import { useGraphViewScope } from "@/hooks/use-graph-view-context";
+import { GROUP_HEADER_HEIGHT, GROUP_PADDING, groupBounds, groupPill, normalizeGroupColor } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -32,12 +33,15 @@ import { plural } from "@/lib/fewer/plural";
 export function GroupFrames(): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const nodes = useGraphStore((s) => s.nodes);
+  // Per-view visibility (memoized in GraphCanvas, one set per leaf) — the frame
+  // frames what THIS canvas paints, so split views can disagree on purpose.
+  const { visibleIds } = useGraphViewScope();
   if (groups.length === 0) return null;
   return (
     <ViewportPortal>
       <div className="pointer-events-none absolute left-0 top-0 h-0 w-0">
         {groups.map((group) => (
-          <GroupFrame key={group.id} group={group} nodes={nodes} />
+          <GroupFrame key={group.id} group={group} nodes={nodes} visible={visibleIds} />
         ))}
       </div>
     </ViewportPortal>
@@ -47,7 +51,16 @@ export function GroupFrames(): ReactNode {
 /** One group's frame. Exported for tests: GroupFrames renders it inside a
  *  ViewportPortal, which needs a mounted <ReactFlow> that a unit test has no
  *  reason to build. */
-export function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] }): ReactNode {
+export function GroupFrame({
+  group,
+  nodes,
+  visible,
+}: {
+  group: Group;
+  nodes: FewerNode[];
+  /** Ids this view paints. The box hugs these; a collapsed group anchors on all. */
+  visible: ReadonlySet<string>;
+}): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
@@ -55,10 +68,19 @@ export function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] 
   // locally and commit on onChangeEnd so one drag stays ONE history entry
   // (setGroupColor records a `groups` op each call).
   const [draft, setDraft] = useState<string>(group.color ?? "");
-  const bounds = groupBounds(nodes, group.memberIds);
+
+  const visibleCount = group.memberIds.filter((id) => visible.has(id)).length;
+  const hiddenCount = group.memberIds.length - visibleCount;
+  // Expanded: frame the visible members only, so a group of hidden cards is an
+  // empty box (T-134 edge case) — and drawing nothing at all when none is
+  // visible. Collapsed: anchor the pill on EVERY member, because collapse is
+  // what hides them — visible-only bounds would delete the pill's own handle.
+  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+  const allBounds = groupBounds(nodes, group.memberIds);
+  const anchor = group.collapsed ? (allBounds ?? visibleBounds) : visibleBounds;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
-  if (!bounds) return null;
-  const box = group.collapsed ? groupPill(bounds) : bounds;
+  const box = anchor && (group.collapsed ? groupPill(anchor) : anchor);
+  if (!box) return null;
 
   // Colored frames tint border + fill + header from the same hex; the default
   // stays slate so a plain group reads exactly as it did before colors existed.
@@ -167,7 +189,7 @@ export function GroupFrame({ group, nodes }: { group: Group; nodes: FewerNode[] 
         )}
 
         <span className="shrink-0 text-[10px] text-muted-foreground">
-          {plural(group.memberIds.length, "card")}
+          {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "card")}` : plural(group.memberIds.length, "card")}
         </span>
 
         <Popover open={noteOpen} onOpenChange={setNoteOpen}>

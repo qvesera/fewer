@@ -142,6 +142,10 @@ exactly as they did before.
 - **Collapse** — the chevron hides the group's cards and shrinks the frame to a
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
+- **The frame follows visibility** — the box hugs the cards the canvas actually
+  shows, and its count reads **3 of 5 cards** when some are hidden. Hide every
+  member and the frame disappears with them (a collapsed group always keeps its
+  pill); **Show All** or the Hidden Cards panel brings everything back at once.
 - **Ungroup** — the × drops the frame and keeps the cards.
 
 Right-clicking the title bar also opens the **group menu**: Rename…, Edit

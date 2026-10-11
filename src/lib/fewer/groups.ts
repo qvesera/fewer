@@ -53,15 +53,20 @@ export function groupPill(bounds: GroupBounds): GroupBounds {
 }
 
 /**
- * Bounding box of a group's members, padded, or `null` when none of them are
- * on the canvas (an all-hidden or all-deleted group has nothing to frame).
- * Hidden members still count: a collapsed group keeps its bounds so the pill
- * sits where the cluster was.
+ * Bounding box of a group's members, padded, or `null` when none of them are on
+ * the canvas.
+ *
+ * `visible` (optional) restricts the box to the members this VIEW paints — the
+ * frame then hugs what the user actually sees, and a group whose members are
+ * all hidden returns `null` (nothing to frame). Hidden members still count
+ * without it: a collapsed group keeps the footprint the cluster had, so its
+ * pill lands where the cards were.
  */
 export function groupBounds(
   nodes: FewerNode[],
   memberIds: readonly string[],
   padding = GROUP_PADDING,
+  visible?: ReadonlySet<string>,
 ): GroupBounds | null {
   const members = new Set(memberIds);
   let minX = Infinity;
@@ -72,6 +77,7 @@ export function groupBounds(
 
   for (const node of nodes) {
     if (!members.has(node.id)) continue;
+    if (visible && !visible.has(node.id)) continue;
     // React Flow reports the real rendered size in `measured`, and a folder
     // card grows well past its nominal height once it lists children — reading
     // only `style` made frames too short, so cards spilled out of the box.
