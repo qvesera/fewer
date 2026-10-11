@@ -348,3 +348,34 @@ test("group menu: Color… opens an anchored, on-screen color picker", async ({ 
   expect(box.y).toBeGreaterThanOrEqual(headerBox!.y);
 });
 
+test("renaming widens the pill to fit the name; no double ring while editing (T-142)", async ({ page }) => {
+  await openCanvas(page);
+  await createGroup(page);
+  const pill = groupHeader(page);
+  await pill.locator("button").first().click(); // collapse
+  await expect(page.locator("[data-pill-shell]").first()).toBeVisible();
+
+  // Layout width, not boundingBox: the pill lives under the canvas zoom
+  // transform, so getBoundingClientRect shrinks with zoom (T-142).
+  const layoutWidth = () => pill.evaluate((el) => parseFloat(getComputedStyle(el).width));
+  const baseWidth = await layoutWidth();
+  expect(baseWidth).toBeGreaterThanOrEqual(240); // the floor
+
+  // Rename via double-click on the title (T-139) to something long.
+  const longName = "A very long group name that must widen the pill beyond its floor";
+  await pill.locator('span[role="button"]').first().dblclick();
+  const input = page.locator('input[aria-label="Group title"]');
+  await expect(input).toBeVisible();
+  // The click that opened the editor also selects the frame, so the input must
+  // not add a second ring on top of the selection outline (the reported bug).
+  await expect(input).not.toHaveClass(/ring-1/);
+  await input.fill(longName);
+  await page.keyboard.press("Enter");
+
+  // Content-driven: the pill grew past the floor and the name is fully visible.
+  await expect(pill.getByText(longName)).toBeVisible();
+  const widened = await layoutWidth();
+  expect(widened).toBeGreaterThan(baseWidth);
+  expect(widened).toBeGreaterThan(240);
+});
+

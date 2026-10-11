@@ -19,7 +19,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { GroupFrame } from "@/components/fewer/GroupFrames";
 import { useGraphStore } from "@/store/graphStore";
 import type { Group } from "@/lib/fewer/groups";
-import { GROUP_PADDING } from "@/lib/fewer/groups";
+import { GROUP_PADDING, COLLAPSED_PILL_WIDTH } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 
 const NODES = [
@@ -532,5 +532,58 @@ describe("GroupFrame menu actions", () => {
     // The popover is portalled into document.body.
     expect(await screen.findByLabelText("Group color hex value")).toBeTruthy();
     expect(screen.getByText("Reset to default")).toBeTruthy();
+  });
+});
+
+describe("Collapsed pill sizing + rename ring (T-142)", () => {
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: NODES.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+      viewSettings: {},
+    });
+  });
+
+  test("the pill's width is content-driven with the constant only as a floor", () => {
+    // The static 240px cut long names off (T-142). The root sizes to its
+    // in-flow header (max-content); the header carries the floor as min-width.
+    const { container } = renderFrame({ group: { ...GROUP, collapsed: true } });
+    const pill = container.querySelector("[data-group-id]") as HTMLElement;
+    expect(pill.style.width).toBe("max-content");
+    expect((document.querySelector("[data-group-header]") as HTMLElement).style.minWidth).toBe(
+      `${COLLAPSED_PILL_WIDTH}px`,
+    );
+  });
+
+  test("a long name renders in full — no truncate on the collapsed title", () => {
+    const title = "Brand-system-2026-and-beyond final archive";
+    renderFrame({ group: { ...GROUP, title, collapsed: true } });
+    const span = screen.getByText(title);
+    expect(span.className).not.toContain("truncate");
+    expect(span.className).toContain("whitespace-nowrap");
+  });
+
+  test("the rename input drops its ring while the frame is selected", () => {
+    // The click that opens the editor also selects the frame, so an input ring
+    // stacked on the selection ring — the reported double ring (T-142).
+    useGraphStore.setState({ selectedGroupIds: ["g-1"] });
+    renderFrame({ group: { ...GROUP, collapsed: true } });
+    fireEvent.doubleClick(screen.getByText("Assets"));
+    expect(screen.getByLabelText("Group title").className).not.toContain("ring-1");
+  });
+
+  test("the rename input keeps its ring when the frame is NOT selected", () => {
+    renderFrame({ group: { ...GROUP, collapsed: true } });
+    fireEvent.doubleClick(screen.getByText("Assets"));
+    expect(screen.getByLabelText("Group title").className).toContain("ring-1 ring-primary/60");
+  });
+
+  test("a mouse click on the title draws no focus ring (focus-visible only)", () => {
+    // outline-none on the span; the class list must not carry a plain `ring-*`
+    // or `outline` style that a click would trigger — only focus-visible:*.
+    renderFrame({ group: { ...GROUP, collapsed: true } });
+    const span = screen.getByText("Assets");
+    expect(span.className).toContain("focus-visible:ring-1");
+    expect(span.className.split(" ").filter((c) => /^ring-|^outline-[0-9]/.test(c))).toEqual([]);
   });
 });
