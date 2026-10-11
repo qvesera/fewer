@@ -3665,7 +3665,7 @@ tasks:
   session_count: 1
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
-  status: "blocked"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3683,6 +3683,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-11T07:37:45Z"
   notes: ["2026-10-11T07:37:56Z · approved plan option A: scale member offsets from the box origin; cards keep size; handles on the selected frame only; one move-positions op on release; blocked by T-135 (needs selection to render handles)"]
-  sessions: []
+  sessions:
+  - start: "2026-10-11T09:45:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
