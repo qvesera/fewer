@@ -3665,7 +3665,7 @@ tasks:
   session_count: 1
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3690,5 +3690,11 @@ tasks:
     note: "8 resize handles on the selected frame scale member offsets from the handle's origin (cards keep size, Shift uniform, GROUP_MIN_BOX clamp); one move-positions op per gesture, Escape restores; pure scale model in groups.ts + component/e2e coverage; gesture slot moved behind gestureRef accessors for the react purity rule"
     proof: ["9044186", "de8bd94", "#389"]
     effort: {commits: 2, files: 8, insertions: 436, deletions: 46}
+  - start: "2026-10-11T10:25:45Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 32
-  session_count: 1
+  session_count: 2
