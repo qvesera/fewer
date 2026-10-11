@@ -3614,7 +3614,7 @@ tasks:
   estimate_min: 90
   estimate_basis: "cli"
   issue: 382
-  pr: null
+  pr: 385
   internal: false
   milestone: null
   blocked_by: []
@@ -3659,7 +3659,7 @@ tasks:
   session_count: 0
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "ux"
   tier: 0
