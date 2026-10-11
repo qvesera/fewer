@@ -3729,7 +3729,7 @@ tasks:
   session_count: 1
 - id: "T-138"
   title: "Group frame measures the canvas painted array (derived layout + per-view positions + pill geometry) instead of shared store nodes — drop the T-137 viewPositions overlay plumbing"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
