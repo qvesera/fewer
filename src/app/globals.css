@@ -66,6 +66,11 @@
   --color-fewer-folder-text: var(--fewer-folder-text);
   --color-fewer-folder-subtle-text: var(--fewer-folder-subtle-text);
   --color-fewer-folder-icon: var(--fewer-folder-icon);
+  --color-fewer-group-bg: var(--fewer-group-bg);
+  --color-fewer-group-border: var(--fewer-group-border);
+  --color-fewer-group-text: var(--fewer-group-text);
+  --color-fewer-group-subtle-text: var(--fewer-group-subtle-text);
+  --color-fewer-group-icon: var(--fewer-group-icon);
   --color-fewer-file-bg: var(--fewer-file-bg);
   --color-fewer-file-text: var(--fewer-file-text);
   --color-fewer-file-subtle-text: var(--fewer-file-subtle-text);
@@ -141,6 +146,15 @@
   --fewer-folder-subtle-text: #64748b;
   --fewer-folder-border: rgba(249, 115, 22, 0.35);
   --fewer-folder-icon: #f97316;
+  /* Group frames share the card design language (rounded-xl shell, tile, stat
+     sub-line) but keep the group's neutral slate identity — so a collapsed
+     group pill reads as the same product as a collapsed folder pill without
+     stealing the folder's orange. T-139. */
+  --fewer-group-bg: rgba(148, 163, 184, 0.08);
+  --fewer-group-text: #1e293b;
+  --fewer-group-subtle-text: #64748b;
+  --fewer-group-border: rgba(148, 163, 184, 0.35);
+  --fewer-group-icon: #94a3b8;
   --fewer-file-bg: rgba(168, 85, 247, 0.08);
   --fewer-file-text: #1e293b;
   --fewer-file-subtle-text: #64748b;
@@ -202,6 +216,11 @@
   --fewer-folder-subtle-text: #adb5bd;
   --fewer-folder-border: rgba(253, 126, 20, 0.45);
   --fewer-folder-icon: #ffa94d;
+  --fewer-group-bg: rgba(134, 142, 150, 0.12);
+  --fewer-group-text: #f8f9fa;
+  --fewer-group-subtle-text: #adb5bd;
+  --fewer-group-border: rgba(134, 142, 150, 0.45);
+  --fewer-group-icon: #adb5bd;
   --fewer-file-bg: rgba(190, 75, 219, 0.18);
   --fewer-file-text: #f8f9fa;
   --fewer-file-subtle-text: #adb5bd;

@@ -37,8 +37,10 @@ export const GROUP_HEADER_HEIGHT = 32;
 
 /** Collapsed frames shrink to a pill anchored where the cluster was, so the
  *  group stays findable after its cards are hidden. */
-export const COLLAPSED_PILL_WIDTH = 220;
-export const COLLAPSED_PILL_HEIGHT = 36;
+/** Collapsed-group pill geometry — card-sized so it reads like a collapsed
+ *  folder pill (same shell family, T-139), not a stray toolbar strip. */
+export const COLLAPSED_PILL_WIDTH = 240;
+export const COLLAPSED_PILL_HEIGHT = 48;
 
 export interface GroupBounds {
   x: number;

@@ -3758,27 +3758,33 @@ tasks:
   session_count: 1
 - id: "T-139"
   title: "Collapsed group pill speaks the folder pill design language: rounded-xl shell, group theme tokens, icon tile, stat sub-line, shared ring classes, fix the 36/32 geometry sliver"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ux"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 395
-  pr: null
+  pr: 400
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-11T16:11:30Z"
   notes: ["2026-10-11T16:11:59Z · root cause R3: pill uses raw bg-muted/70 + rounded-t-2xl vs folder card shell; adopt --fewer-group-* tokens defaulting to folder values, icon tile, stat sub-line, gm-* rings, fix 220x36 box vs 32px header sliver"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-11T19:20:45Z"
+    end: "2026-10-11T19:42:55Z"
+    measured: true
+    note: "pill shell + tokens (globals/tailwind), 240x48 geometry, Boxes tile, plain-card stat line, gm-selected-ring on pill and frame; 3 component tests + pill assertions in the collapse e2e"
+    proof: ["e151afe", "#400"]
+    effort: {commits: 1, files: 8, insertions: 134, deletions: 21}
+  spent_min: 22
+  session_count: 1
 - id: "T-140"
   title: "Collapsed group members stay in the layout so the pill reserves its space — Organize no longer re-flows cards on top of the pill"
   status: "triaged"
