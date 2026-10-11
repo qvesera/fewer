@@ -3607,7 +3607,7 @@ tasks:
   session_count: 1
 - id: "T-134"
   title: "Group frame follows visibility: bounds computed from visible members only (tight box), no visible member draws nothing, collapsed group always draws its pill, count label shows visible/total"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
