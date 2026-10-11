@@ -163,6 +163,35 @@ test("frame hugs the painted cards after a layout re-derive (Ctrl+L direction cy
   expect(fb.y + fb.height).toBeLessThan(bottom + 45);
 });
 
+test("Organize no longer re-flows cards onto a collapsed group's pill (T-140)", async ({ page }) => {
+  await openCanvas(page);
+  const { frame } = await createGroup(page);
+  await expect(frame).toBeVisible();
+
+  // Collapse the group: its members join hiddenIds, and relayout used to
+  // exclude every hidden node — the members froze at stale coords while cards
+  // re-flowed INTO that space, so the pill drew over them (T-140).
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  const pill = page.locator("[data-pill-shell]");
+  await expect(pill).toBeVisible();
+
+  await page.keyboard.press("Alt+r");
+  await page.waitForTimeout(700);
+
+  const pb = (await pill.boundingBox())!;
+  const rects = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return { l: r.x, t: r.y, r: r.x + r.width, b: r.y + r.height };
+    }),
+  );
+  expect(rects.length).toBeGreaterThan(0);
+  for (const c of rects) {
+    const intersects = !(c.r <= pb.x || c.l >= pb.x + pb.width || c.b <= pb.y || c.t >= pb.y + pb.height);
+    expect(intersects, `card at (${c.l},${c.t}) overlaps the pill`).toBe(false);
+  }
+});
+
 test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {
   await openCanvas(page);
   const { frame, cards } = await createGroup(page);
