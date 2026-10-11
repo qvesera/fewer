@@ -3845,7 +3845,7 @@ tasks:
   session_count: 1
 - id: "T-142"
   title: "Collapsed group pill sizes to its content instead of a static 240px (long names get cut off), and the rename input drops its own ring while the frame is selected (double ring)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
