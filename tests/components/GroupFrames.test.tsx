@@ -425,6 +425,42 @@ describe("GroupFrame per-view positions (T-137)", () => {
   });
 });
 
+describe("GroupFrame pill styling (T-139)", () => {
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: NODES.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+      viewSettings: {},
+    });
+  });
+
+  test("the collapsed pill carries the card shell, not the old toolbar strip", () => {
+    renderFrame({ group: { ...GROUP, collapsed: true } });
+    const shell = document.querySelector("[data-pill-shell]") as HTMLElement;
+    // Same design language as a collapsed folder card: rounded-xl shell,
+    // backdrop blur, node shadow, group theme tokens — plus an icon tile.
+    expect(shell.className).toContain("rounded-xl");
+    expect(shell.className).toContain("backdrop-blur-xl");
+    expect(shell.className).toContain("shadow-node-folder");
+    expect(shell.className).toContain("bg-fewer-group-bg");
+    expect(shell.className).toContain("border-fewer-group-border");
+    expect(document.querySelector('[data-group-header] svg.lucide-boxes')).toBeTruthy();
+  });
+
+  test("the pill reads \"2 cards\", never \"0 of 2 cards\"", () => {
+    // Every member is hidden BY the collapse — "0 of 2 cards" read as a bug.
+    renderFrame({ group: { ...GROUP, collapsed: true }, visible: new Set<string>() });
+    expect(screen.getByText("2 cards")).toBeTruthy();
+    expect(screen.queryByText(/0 of/)).toBeNull();
+  });
+
+  test("an expanded frame keeps the strip header and honest visible/total count", () => {
+    renderFrame();
+    expect(document.querySelector("[data-pill-shell]")).toBeNull();
+    expect(screen.getByText("2 cards")).toBeTruthy();
+  });
+});
+
 describe("GroupFrame menu actions", () => {
   test("Select Members selects the cards and invalidates the selection stamp", async () => {
     renderFrame();

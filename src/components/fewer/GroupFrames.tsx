@@ -10,10 +10,10 @@
 // they do outside one.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ViewportPortal, useViewport } from "@xyflow/react";
-import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
+import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
-import { GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
+import { COLLAPSED_PILL_HEIGHT, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -228,8 +228,12 @@ export function GroupFrame({
     ? { borderColor: accent, background: `${accent}14` }
     : undefined;
   const headerStyle = tinted
-    ? { height: GROUP_HEADER_HEIGHT, borderColor: `${accent}55`, background: `${accent}22` }
-    : { height: GROUP_HEADER_HEIGHT };
+    ? {
+        height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
+        borderColor: `${accent}55`,
+        background: `${accent}22`,
+      }
+    : { height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT };
 
   const act = () => useGraphStore.getState();
 
@@ -413,21 +417,28 @@ export function GroupFrame({
     >
       {/* The gray area — inert, so cards inside it stay draggable/selectable. */}
       <div
-        className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " ring-2 ring-primary/70" : ""}`}
+        className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " gm-selected-ring" : ""}`}
         style={frameStyle}
       />
 
-      {/* Right-click the header for the group menu; the body stays out of the way. */}
+      {/* Right-click the header for the group menu; the body stays out of the way.
+          Collapsed, this strip IS the whole frame — a card-sized pill in the
+          same design language as a collapsed folder card (T-139): rounded-xl
+          shell, backdrop blur, node shadow, theme tokens, icon tile and a stat
+          sub-line, instead of the old near-black toolbar strip. */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
             data-group-header={group.id}
+            data-pill-shell={group.collapsed ? "" : undefined}
             // Grab affordance: the header moves the whole cluster, the title
             // text keeps its own cursor-text.
             className={
-              tinted
-                ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b px-2 active:cursor-grabbing${isSelected ? " ring-2 ring-primary/70" : ""}`
-                : `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2 active:cursor-grabbing${isSelected ? " ring-2 ring-primary/70" : ""}`
+              group.collapsed
+                ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1.5 rounded-xl border px-2 backdrop-blur-xl shadow-node-folder active:cursor-grabbing${tinted ? "" : " bg-fewer-group-bg border-fewer-group-border"}${isSelected ? " gm-selected-ring" : ""}`
+                : tinted
+                  ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b px-2 active:cursor-grabbing${isSelected ? " gm-selected-ring" : ""}`
+                  : `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2 active:cursor-grabbing${isSelected ? " gm-selected-ring" : ""}`
             }
             style={headerStyle}
             onPointerDown={onHeaderPointerDown}
@@ -440,17 +451,27 @@ export function GroupFrame({
           onClick={() => useGraphStore.getState().toggleGroupCollapsed(group.id)}
           title={group.collapsed ? "Expand group" : "Collapse group"}
           aria-label={group.collapsed ? "Expand group" : "Collapse group"}
-          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          className={
+            group.collapsed
+              ? "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-fewer-group-subtle-text transition-colors hover:bg-fewer-group-subtle-text/10"
+              : "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+          }
         >
-          {group.collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {group.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
+
+        {group.collapsed && (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fewer-group-icon/10 text-fewer-group-icon">
+            <Boxes className="h-4 w-4" />
+          </span>
+        )}
 
         {editing ? (
           <input
             autoFocus
             defaultValue={group.title}
             aria-label="Group title"
-            className="min-w-0 flex-1 rounded-md bg-transparent px-1 text-xs font-semibold text-foreground outline-none ring-1 ring-primary/60"
+            className={`min-w-0 flex-1 rounded-md bg-transparent px-1 font-semibold outline-none ring-1 ring-primary/60${group.collapsed ? " text-sm text-fewer-group-text" : " text-xs text-foreground"}`}
             onBlur={(e) => {
               useGraphStore.getState().renameGroup(group.id, e.target.value);
               setEditing(false);
@@ -475,7 +496,11 @@ export function GroupFrame({
                     setEditing(true);
                   }
                 }}
-                className="min-w-0 flex-1 cursor-text truncate px-1 text-xs font-semibold text-foreground"
+                className={
+                  group.collapsed
+                    ? "min-w-0 flex-1 cursor-text truncate text-sm font-semibold text-fewer-group-text"
+                    : "min-w-0 flex-1 cursor-text truncate px-1 text-xs font-semibold text-foreground"
+                }
               >
                 {group.title}
               </span>
@@ -486,9 +511,18 @@ export function GroupFrame({
           </Tooltip>
         )}
 
-        <span className="shrink-0 text-[10px] text-muted-foreground">
-          {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "card")}` : plural(group.memberIds.length, "card")}
-        </span>
+        {/* Stat line: the collapsed pill shows the plain total — every member is
+            hidden BY the collapse, so "0 of 2 cards" read as a bug (T-139). The
+            expanded frame keeps the honest visible/total count. */}
+        {group.collapsed ? (
+          <span className="shrink-0 text-[10px] uppercase tracking-wider text-fewer-group-subtle-text">
+            {plural(group.memberIds.length, "card")}
+          </span>
+        ) : (
+          <span className="shrink-0 text-[10px] text-muted-foreground">
+            {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "card")}` : plural(group.memberIds.length, "card")}
+          </span>
+        )}
 
         <Popover open={noteOpen} onOpenChange={setNoteOpen}>
           <PopoverTrigger asChild>

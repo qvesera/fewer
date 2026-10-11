@@ -193,6 +193,16 @@ test("header buttons work after selecting: collapse, expand, ungroup (T-137)", a
   await expect(cards[0]).toBeHidden();
   await expect(page.getByRole("button", { name: "Expand group" })).toBeVisible();
 
+  // The collapsed pill is a card-sized shell in the folder-pill design
+  // language — never the old near-black toolbar strip reading "0 of 2 cards"
+  // (T-139).
+  const pill = page.locator("[data-pill-shell]");
+  await expect(pill).toBeVisible();
+  await expect(pill).toHaveClass(/rounded-xl/);
+  await expect(pill).toHaveClass(/bg-fewer-group-bg/);
+  await expect(pill).toContainText("2 cards");
+  await expect(pill).not.toContainText("0 of");
+
   await page.getByRole("button", { name: "Expand group" }).click();
   await expect(cards[0]).toBeVisible();
 
