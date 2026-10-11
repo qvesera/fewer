@@ -144,6 +144,70 @@ test("Delete on a selected group ungroups it, keeping the cards", async ({ page 
   await expect(cards[1]).toBeVisible();
 });
 
+test("header buttons work after selecting: collapse, expand, ungroup (T-137)", async ({ page }) => {
+  await openCanvas(page);
+  const { frame, cards } = await createGroup(page);
+  await expect(frame).toBeVisible();
+
+  // Pressing the header (to select) must not steal the click from the buttons
+  // inside it — pointerdown-era capture retargeted the click to the header and
+  // killed chevron/note/× in every real browser (T-137).
+  const headerBox = (await groupHeader(page).boundingBox())!;
+  await page.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  await expect(frame).toHaveAttribute("data-selected", "true");
+
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(cards[0]).toBeHidden();
+  await expect(page.getByRole("button", { name: "Expand group" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Expand group" }).click();
+  await expect(cards[0]).toBeVisible();
+
+  await page.getByRole("button", { name: "Ungroup" }).click();
+  await expect(page.locator("[data-group-id]")).toHaveCount(0);
+  await expect(cards[0]).toBeVisible();
+});
+
+test("after a card drag (per-view map), the group moves the CARDS with the frame (T-137)", async ({ page }) => {
+  await openCanvas(page);
+  // Drag a card FIRST — that seeds this canvas's per-view positions map, the
+  // exact state where the old gesture wrote invisible shared coords: the frame
+  // slid away while the cards stayed put.
+  const cards0 = (await standaloneCards(page))[0];
+  const cb = (await cards0.boundingBox())!;
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(cb.x + cb.width / 2 + 60, cb.y + 40, { steps: 6 });
+  await page.mouse.up();
+
+  const { frame, cards } = await createGroup(page);
+  await expect(frame).toBeVisible();
+  await page.waitForTimeout(300);
+  const before0 = (await cards[0].boundingBox())!;
+  const before1 = (await cards[1].boundingBox())!;
+
+  const headerBox = (await groupHeader(page).boundingBox())!;
+  await page.mouse.move(headerBox.x + 40, headerBox.y + headerBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(headerBox.x + 140, headerBox.y + headerBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  // The cards themselves travel — not just the frame (distance scales with
+  // the canvas zoom, so assert direction + substance, not an exact figure).
+  const after0 = (await cards[0].boundingBox())!;
+  const after1 = (await cards[1].boundingBox())!;
+  expect(after0.x - before0.x).toBeGreaterThan(20);
+  expect(after1.x - before1.x).toBeGreaterThan(20);
+  // Frame and cards stay glued (frame's left edge still inside the cluster).
+  const fb = (await frame.boundingBox())!;
+  expect(fb.x).toBeLessThan(after0.x);
+  expect(fb.x + fb.width).toBeGreaterThan(after1.x + after1.width - 4);
+
+  // ONE undo restores the arrangement.
+  await page.keyboard.press("Control+z");
+  await expect.poll(async () => Math.abs((await cards[0].boundingBox())!.x - before0.x)).toBeLessThan(3);
+});
+
 test("hiding every member removes the frame; Show All brings it back", async ({ page }) => {
   await openCanvas(page);
   const { cards } = await createGroup(page);
@@ -208,3 +272,4 @@ test("group menu: Color… opens an anchored, on-screen color picker", async ({ 
   expect(Math.abs(box.x - headerBox!.x)).toBeLessThan(80);
   expect(box.y).toBeGreaterThanOrEqual(headerBox!.y);
 });
+

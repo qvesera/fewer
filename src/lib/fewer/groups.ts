@@ -67,6 +67,11 @@ export function groupBounds(
   memberIds: readonly string[],
   padding = GROUP_PADDING,
   visible?: ReadonlySet<string>,
+  /** Per-view position override (`viewSettings[leafId].positions`). When a canvas
+   *  has one, cards paint from it, not from shared `nodes[].position` — so the
+   *  frame must measure the same coordinates or it detaches from the cluster
+   *  (T-137: handles moved the invisible shared coords while the cards stayed). */
+  viewPositions?: ReadonlyMap<string, { x: number; y: number }>,
 ): GroupBounds | null {
   const members = new Set(memberIds);
   let minX = Infinity;
@@ -84,7 +89,7 @@ export function groupBounds(
     // Precedence mirrors layout.ts: measured wins for height, style for width.
     const w = (node.style?.width as number | undefined) || node.measured?.width || node.width || 0;
     const h = node.measured?.height || (node.style?.height as number | undefined) || node.height || 0;
-    const { x, y } = node.position;
+    const { x, y } = viewPositions?.get(node.id) ?? node.position;
     if (x < minX) minX = x;
     if (y < minY) minY = y;
     if (x + w > maxX) maxX = x + w;

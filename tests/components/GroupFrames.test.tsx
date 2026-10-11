@@ -19,6 +19,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { GroupFrame } from "@/components/fewer/GroupFrames";
 import { useGraphStore } from "@/store/graphStore";
 import type { Group } from "@/lib/fewer/groups";
+import { GROUP_PADDING } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 
 const NODES = [
@@ -30,7 +31,14 @@ const NODES = [
 
 const GROUP: Group = { id: "g-1", title: "Assets", note: "", memberIds: ["n1", "n2"] };
 
-function renderFrame(props: { visible?: ReadonlySet<string>; group?: Group } = {}) {
+function renderFrame(
+  props: {
+    visible?: ReadonlySet<string>;
+    group?: Group;
+    viewPositions?: Record<string, { x: number; y: number }>;
+    leafId?: string;
+  } = {},
+) {
   return render(
     <ReactFlowProvider>
       <TooltipProvider>
@@ -38,6 +46,8 @@ function renderFrame(props: { visible?: ReadonlySet<string>; group?: Group } = {
           group={props.group ?? GROUP}
           nodes={NODES}
           visible={props.visible ?? new Set(["n1", "n2"])}
+          viewPositions={props.viewPositions}
+          leafId={props.leafId}
         />
       </TooltipProvider>
     </ReactFlowProvider>,
@@ -312,6 +322,90 @@ describe("GroupFrame resize-scale (T-136)", () => {
     expect(useGraphStore.getState().past).toHaveLength(0);
     // The selection survives the cancelled gesture.
     expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+  });
+});
+
+describe("GroupFrame per-view positions (T-137)", () => {
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: NODES.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+      viewSettings: {},
+    });
+  });
+
+  const headerEl = () => document.querySelector("[data-group-header]")!;
+  const memberPos = (id: string) => {
+    const n = useGraphStore.getState().nodes.find((x) => x.id === id)!;
+    return { x: n.position.x, y: n.position.y };
+  };
+  const viewPos = (leaf: string, id: string) =>
+    useGraphStore.getState().viewSettings[leaf]?.positions?.[id];
+
+  test("the frame measures the per-view positions, not the shared coords", () => {
+    // Cards painted 500px right of their shared coords — the box must follow
+    // the paint, or it detaches from the cluster the moment a view owns a map.
+    renderFrame({ viewPositions: { n1: { x: 500, y: 0 }, n2: { x: 800, y: 0 } } });
+    const box = document.querySelector("[data-group-id]") as HTMLElement;
+    expect(box.style.left).toBe(`${500 - GROUP_PADDING}px`);
+  });
+
+  test("in a leaf canvas the drag writes the per-view map, leaving shared positions alone", () => {
+    // Mirror the real canvas: a pointer landing in it activates the leaf first.
+    useGraphStore.setState({
+      activeLeafId: "leaf-1",
+      viewSettings: { "leaf-1": { positions: { n1: { x: 0, y: 0 }, n2: { x: 300, y: 0 } } } },
+    });
+    renderFrame({ leafId: "leaf-1", viewPositions: { n1: { x: 0, y: 0 }, n2: { x: 300, y: 0 } } });
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: 150, clientY: 130 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+    // The bug: writing shared coords while the cards paint from the map — the
+    // frame slid away and the cards never moved. Now the map is the write.
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+    expect(viewPos("leaf-1", "n1")).toEqual({ x: 50, y: 30 });
+    expect(viewPos("leaf-1", "n2")).toEqual({ x: 350, y: 30 });
+    // One undo entry, tagged with the leaf so undo restores the map.
+    const s = useGraphStore.getState();
+    expect(s.past).toHaveLength(1);
+    expect(JSON.stringify(s.past[0])).toContain("leaf-1");
+  });
+
+  test("the first gesture in a leaf canvas seeds the map from painted positions", () => {
+    renderFrame({ leafId: "leaf-1", viewPositions: { n1: { x: 40, y: 0 }, n2: { x: 340, y: 0 } } });
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: 10, clientY: 0 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+    // Seed starts from the PAINTED positions (40/340), not the shared (0/300),
+    // so the cluster doesn't jump when the map takes over.
+    expect(viewPos("leaf-1", "n1")).toEqual({ x: 50, y: 0 });
+    expect(viewPos("leaf-1", "n2")).toEqual({ x: 350, y: 0 });
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+  });
+
+  test("Escape restores the per-view map in a leaf canvas", () => {
+    useGraphStore.setState({
+      viewSettings: { "leaf-1": { positions: { n1: { x: 0, y: 0 }, n2: { x: 300, y: 0 } } } },
+    });
+    renderFrame({ leafId: "leaf-1" });
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: 50, clientY: 0 });
+    expect(viewPos("leaf-1", "n1")).toEqual({ x: 50, y: 0 });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(viewPos("leaf-1", "n1")).toEqual({ x: 0, y: 0 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+    expect(useGraphStore.getState().past).toHaveLength(0);
+  });
+
+  test("the header buttons keep their click (capture is deferred past the threshold)", () => {
+    renderFrame();
+    // A press on the header selects the group but must not break the buttons
+    // inside it — pointerdown-era capture retargeted the click away from them
+    // and killed collapse/note/× in every real browser (T-137).
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+    fireEvent.click(screen.getByLabelText("Collapse group"));
+    expect(useGraphStore.getState().groups[0]?.collapsed).toBe(true);
   });
 });
 
