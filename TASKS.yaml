@@ -3729,7 +3729,7 @@ tasks:
   session_count: 1
 - id: "T-138"
   title: "Group frame measures the canvas painted array (derived layout + per-view positions + pill geometry) instead of shared store nodes — drop the T-137 viewPositions overlay plumbing"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "ux"
   tier: 0
@@ -3742,19 +3742,19 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-11T16:11:30Z"
   notes: ["2026-10-11T16:11:59Z · root cause R1: GroupFrames reads s.nodes (shared) while GraphCanvas paints positionedNodes=applyViewPositions(laidNodes,vs.positions); pass painted array as prop, delete viewPositions/vpMap plumbing; collapsed pill anchor keeps a store fallback (painted set excludes hidden members)"]
   sessions:
   - start: "2026-10-11T16:14:32Z"
-    end: null
+    end: "2026-10-11T16:28:13Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "frame measures the painted array (positionedNodes) passed as a prop; dropped the T-137 viewPositions overlay plumbing; collapsed pill anchors on the store full list with the leaf map overlaid; e2e asserts the frame hugs painted cards after a Ctrl+L re-derive"
+    proof: ["47f9487"]
+    effort: {commits: 1, files: 6, insertions: 199, deletions: 53}
+  spent_min: 14
   session_count: 1
 - id: "T-139"
   title: "Collapsed group pill speaks the folder pill design language: rounded-xl shell, group theme tokens, icon tile, stat sub-line, shared ring classes, fix the 36/32 geometry sliver"
