@@ -3843,3 +3843,32 @@ tasks:
     effort: {commits: 1, files: 8, insertions: 196, deletions: 29}
   spent_min: 26
   session_count: 1
+- id: "T-142"
+  title: "Collapsed group pill sizes to its content instead of a static 240px (long names get cut off), and the rename input drops its own ring while the frame is selected (double ring)"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 405
+  pr: 406
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T21:41:02Z"
+  notes: ["2026-10-11T21:41:23Z · pill: root w-max + header min-width so content drives the width (title no longer truncated); COLLAPSED_PILL_WIDTH becomes the floor. ring: rename input ring-primary/60 suppressed while frame selected; title span gets focus-visible-only ring (no mouse-click ring). Tests: component (w-max/no fixed width, no ring class when selected) + e2e (rename to long title → pill widens, full name visible)."]
+  sessions:
+  - start: "2026-10-11T21:44:43Z"
+    end: "2026-10-11T22:08:16Z"
+    measured: true
+    note: "Collapsed pill: root width max-content + header min-width floor (COLLAPSED_PILL_WIDTH), in-flow header, no coincident area div; title span whitespace-nowrap (no flex/truncate). Rings: rename input drops ring-primary/60 while frame selected; title span outline-none + focus-visible-only ring. Gates: tsc 0, lint 0, lib 1641 + components 233 green, build ok, groups e2e 12/12 (new T-142 test uses computed layout width — boundingBox shrinks under canvas zoom)."
+    proof: ["1ed9d84"]
+    effort: {commits: 1, files: 6, insertions: 163, deletions: 19}
+  spent_min: 24
+  session_count: 1

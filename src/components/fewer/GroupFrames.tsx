@@ -13,7 +13,7 @@ import { ViewportPortal, useViewport } from "@xyflow/react";
 import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
-import { COLLAPSED_PILL_HEIGHT, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
+import { COLLAPSED_PILL_HEIGHT, COLLAPSED_PILL_WIDTH, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -238,13 +238,20 @@ export function GroupFrame({
   const frameStyle = tinted
     ? { borderColor: accent, background: `${accent}14` }
     : undefined;
+  // Collapsed: min-width is the FLOOR — the rendered width is content-driven
+  // (w-max on the header), so a long name widens the pill instead of truncating
+  // inside a static 240px (T-142).
   const headerStyle = tinted
     ? {
         height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
+        minWidth: group.collapsed ? COLLAPSED_PILL_WIDTH : undefined,
         borderColor: `${accent}55`,
         background: `${accent}22`,
       }
-    : { height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT };
+    : {
+        height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
+        minWidth: group.collapsed ? COLLAPSED_PILL_WIDTH : undefined,
+      };
 
   const act = () => useGraphStore.getState();
 
@@ -422,15 +429,26 @@ export function GroupFrame({
   return (
     <div
       className="pointer-events-none absolute"
-      style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
+      style={
+        // Collapsed: width is CONTENT-DRIVEN (T-142) — max-content off the
+        // header, with the header's own min-width as the floor. box.width stays
+        // the anchor geometry (groupPill) for anything that needs a box.
+        group.collapsed
+          ? { left: box.x, top: box.y, width: "max-content", height: box.height }
+          : { left: box.x, top: box.y, width: box.width, height: box.height }
+      }
       data-group-id={group.id}
       data-selected={isSelected ? "true" : undefined}
     >
-      {/* The gray area — inert, so cards inside it stay draggable/selectable. */}
-      <div
-        className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " gm-selected-ring" : ""}`}
-        style={frameStyle}
-      />
+      {/* The gray area — inert, so cards inside it stay draggable/selectable.
+          Collapsed there is no area: the pill itself IS the frame (T-139), and
+          a second coincident box under it doubles the selection outline. */}
+      {!group.collapsed && (
+        <div
+          className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " gm-selected-ring" : ""}`}
+          style={frameStyle}
+        />
+      )}
 
       {/* Member outlines (T-141): hovering or selecting the frame rings each
           member card — the box says "which cards are mine" without needing to
@@ -454,10 +472,11 @@ export function GroupFrame({
       )}
 
       {/* Right-click the header for the group menu; the body stays out of the way.
-          Collapsed, this strip IS the whole frame — a card-sized pill in the
-          same design language as a collapsed folder card (T-139): rounded-xl
-          shell, backdrop blur, node shadow, theme tokens, icon tile and a stat
-          sub-line, instead of the old near-black toolbar strip. */}
+          Collapsed, this pill IS the whole frame — the same design language as a
+          collapsed folder card (T-139): rounded-xl shell, backdrop blur, node
+          shadow, theme tokens, icon tile and a stat sub-line. It sizes to its
+          CONTENT (a long name widens it; COLLAPSED_PILL_WIDTH is only the floor
+          — T-142), so the header is in-flow here, not absolutely stretched. */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
@@ -467,7 +486,7 @@ export function GroupFrame({
             // text keeps its own cursor-text.
             className={
               group.collapsed
-                ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1.5 rounded-xl border px-2 backdrop-blur-xl shadow-node-folder active:cursor-grabbing${tinted ? "" : " bg-fewer-group-bg border-fewer-group-border"}${isSelected ? " gm-selected-ring" : ""}`
+                ? `pointer-events-auto nodrag nopan relative flex h-full w-max cursor-grab items-center gap-1.5 rounded-xl border px-2 backdrop-blur-xl shadow-node-folder active:cursor-grabbing${tinted ? "" : " bg-fewer-group-bg border-fewer-group-border"}${isSelected ? " gm-selected-ring" : ""}`
                 : tinted
                   ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b px-2 active:cursor-grabbing${isSelected ? " gm-selected-ring" : ""}`
                   : `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2 active:cursor-grabbing${isSelected ? " gm-selected-ring" : ""}`
@@ -505,7 +524,11 @@ export function GroupFrame({
             autoFocus
             defaultValue={group.title}
             aria-label="Group title"
-            className={`min-w-0 flex-1 rounded-md bg-transparent px-1 font-semibold outline-none ring-1 ring-primary/60${group.collapsed ? " text-sm text-fewer-group-text" : " text-xs text-foreground"}`}
+            // The frame is selected by the very click that opened the editor,
+            // so an input ring stacks on the selection ring — a double-ring bug
+            // (T-142). The selection outline IS the focus indicator here; the
+            // input only rings when the frame itself is not selected.
+            className={`min-w-0 flex-1 rounded-md bg-transparent px-1 font-semibold outline-none${isSelected ? "" : " ring-1 ring-primary/60"}${group.collapsed ? " text-sm text-fewer-group-text" : " text-xs text-foreground"}`}
             onBlur={(e) => {
               useGraphStore.getState().renameGroup(group.id, e.target.value);
               setEditing(false);
@@ -530,10 +553,15 @@ export function GroupFrame({
                     setEditing(true);
                   }
                 }}
+                // outline-none: a mouse click that focuses the span must not
+                // draw a second ring beside the frame's selection ring (the
+                // reported bug, T-142); focus-visible keeps one for keyboard.
+                // Collapsed, the span is pure content — no flex/truncate — so
+                // the pill hugs the real name and long titles widen it (T-142).
                 className={
                   group.collapsed
-                    ? "min-w-0 flex-1 cursor-text truncate text-sm font-semibold text-fewer-group-text"
-                    : "min-w-0 flex-1 cursor-text truncate px-1 text-xs font-semibold text-foreground"
+                    ? "cursor-text whitespace-nowrap rounded-sm text-sm font-semibold text-fewer-group-text outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
+                    : "min-w-0 flex-1 cursor-text truncate px-1 text-xs font-semibold text-foreground outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
                 }
               >
                 {group.title}
