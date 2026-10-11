@@ -5,6 +5,7 @@ import {
   GROUP_HEADER_HEIGHT,
   GROUP_MIN_BOX,
   GROUP_PADDING,
+  cardsInsideBox,
   groupBounds,
   groupsIndexOf,
   groupPill,
@@ -279,5 +280,28 @@ describe("resize-by-scale model (T-136)", () => {
     // Horizontal-only scale around the left edge: y passes through untouched.
     const out = scaleMemberPositions(starts, { x: 50, y: 999 }, 3, 1);
     expect(out.a).toEqual({ x: 200, y: 100 });
+  });
+});
+
+describe("cardsInsideBox (T-141)", () => {
+  const BOX = { x: 0, y: 0, width: 300, height: 200 };
+
+  test("a fully-contained non-member is offered; members never are", () => {
+    const inside = node("stranger", 50, 50);
+    const member = node("member", 60, 60);
+    const out = cardsInsideBox([inside, member], BOX, ["member"]);
+    expect(out).toEqual(["stranger"]);
+  });
+
+  test("a card straddling the border is not 'inside'", () => {
+    // Right edge at 310 — past the box's 300.
+    const straddling = node("edge", 210, 50);
+    expect(cardsInsideBox([straddling], BOX, [])).toEqual([]);
+  });
+
+  test("the visible set filters, same as groupBounds", () => {
+    const hidden = node("ghost", 50, 50);
+    expect(cardsInsideBox([hidden], BOX, [], new Set<string>())).toEqual([]);
+    expect(cardsInsideBox([hidden], BOX, [], new Set(["ghost"]))).toEqual(["ghost"]);
   });
 });

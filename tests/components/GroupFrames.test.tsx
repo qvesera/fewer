@@ -102,12 +102,12 @@ describe("GroupFrame visibility (T-134)", () => {
 
   test("the count reads visible/total when some members are hidden", () => {
     renderFrame({ visible: new Set(["n1"]) });
-    expect(screen.getByText("1 of 2 cards")).toBeTruthy();
+    expect(screen.getByText("1 of 2 members")).toBeTruthy();
   });
 
   test("the count reads plain total when nothing is hidden", () => {
     renderFrame();
-    expect(screen.getByText("2 cards")).toBeTruthy();
+    expect(screen.getByText("2 members")).toBeTruthy();
   });
 });
 
@@ -425,6 +425,53 @@ describe("GroupFrame per-view positions (T-137)", () => {
   });
 });
 
+describe("GroupFrame membership legibility (T-141)", () => {
+  const NODES3 = [
+    ...NODES,
+    { id: "n3", type: "file", position: { x: 100, y: 10 }, style: { width: 100, height: 30 },
+      data: { label: "stranger", path: "stranger", type: "file" } },
+  ] as FewerNode[];
+
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: NODES3.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+      viewSettings: {},
+    });
+  });
+
+  const headerEl = () => document.querySelector("[data-group-header]")!;
+  const memberRings = () => document.querySelectorAll("[data-group-member-ring]");
+
+  test("selecting the frame rings its member cards — and only them", () => {
+    // The box cannot promise to enclose its members (explicit membership), so
+    // selection states ownership directly by ringing exactly the members.
+    renderFrame({ nodes: NODES3, visible: new Set(["n1", "n2", "n3"]) });
+    expect(memberRings()).toHaveLength(0);
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+    const ids = [...memberRings()].map((el) => el.getAttribute("data-group-member-ring")).sort();
+    expect(ids).toEqual(["n1", "n2"]); // the stranger inside gets no ring
+  });
+
+  test("the menu offers to include the non-member sitting fully inside", () => {
+    renderFrame({ nodes: NODES3, visible: new Set(["n1", "n2", "n3"]) });
+    fireEvent.contextMenu(screen.getByText("Assets").parentElement!);
+    fireEvent.click(screen.getByText("Include 1 card inside"));
+    // Membership adopts the stranger in ONE groups op — one undo step.
+    const s = useGraphStore.getState();
+    expect(s.groups[0]?.memberIds).toEqual(["n1", "n2", "n3"]);
+    expect(s.past).toHaveLength(1);
+    expect(JSON.stringify(s.past[0])).toContain("groups");
+  });
+
+  test("no Include item when nothing extra is inside", () => {
+    renderFrame();
+    fireEvent.contextMenu(screen.getByText("Assets").parentElement!);
+    expect(screen.queryByText(/^Include /)).toBeNull();
+  });
+});
+
 describe("GroupFrame pill styling (T-139)", () => {
   beforeEach(() => {
     useGraphStore.setState({
@@ -447,17 +494,17 @@ describe("GroupFrame pill styling (T-139)", () => {
     expect(document.querySelector('[data-group-header] svg.lucide-boxes')).toBeTruthy();
   });
 
-  test("the pill reads \"2 cards\", never \"0 of 2 cards\"", () => {
-    // Every member is hidden BY the collapse — "0 of 2 cards" read as a bug.
+  test("the pill reads \"2 members\", never \"0 of 2 members\"", () => {
+    // Every member is hidden BY the collapse — "0 of 2 members" read as a bug.
     renderFrame({ group: { ...GROUP, collapsed: true }, visible: new Set<string>() });
-    expect(screen.getByText("2 cards")).toBeTruthy();
+    expect(screen.getByText("2 members")).toBeTruthy();
     expect(screen.queryByText(/0 of/)).toBeNull();
   });
 
   test("an expanded frame keeps the strip header and honest visible/total count", () => {
     renderFrame();
     expect(document.querySelector("[data-pill-shell]")).toBeNull();
-    expect(screen.getByText("2 cards")).toBeTruthy();
+    expect(screen.getByText("2 members")).toBeTruthy();
   });
 });
 

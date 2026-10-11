@@ -143,15 +143,16 @@ exactly as they did before.
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
 - **The frame follows visibility** — the box hugs the cards the canvas actually
-  shows, and its count reads **3 of 5 cards** when some are hidden. Hide every
+  shows, and its count reads **3 of 5 members** when some are hidden. Hide every
   member and the frame disappears with them (a collapsed group always keeps its
   pill); **Show All** or the Hidden Cards panel brings everything back at once.
 - **Select & move** — click the title bar to select the frame (it rings, and
-  card selection clears — they're mutually exclusive); Shift+click adds another
-  frame. Drag the title bar to move every member card at once — hidden ones
-  included — and release records **one undo step**. **Delete** ungroups the
-  selected frames; **Escape** clears the selection or cancels a move in flight
-  (positions snap back, nothing is recorded).
+  **each member card gets its own ring**, so you always see which cards belong
+  to it; card selection clears — the two are mutually exclusive). Shift+click
+  adds another frame. Drag the title bar to move every member card at once —
+  hidden ones included — and release records **one undo step**. **Delete**
+  ungroups the selected frames; **Escape** clears the selection or cancels a
+  move in flight (positions snap back, nothing is recorded).
 - **Resize** — a selected frame grows eight handles; drag a corner or edge to
   **scale the whole arrangement**: the cards keep their size while their
   spacing (and the frame) grows or shrinks around the opposite corner/edge.
@@ -161,7 +162,9 @@ exactly as they did before.
 
 Right-clicking the title bar also opens the **group menu**: Rename…, Edit
 Note…, Color ▸, Collapse/Expand, **Select Members** (selects every card in the
-group at once) and Ungroup.
+group at once), **Include N cards inside** (when a re-flow parked non-member
+cards fully inside the box — one click, one undo step, adds them to the group)
+and Ungroup.
 
 Every group action is a single undo step: **Ctrl+Z** reverses a collapse (frame
 re-opens, cards reappear) or a delete.

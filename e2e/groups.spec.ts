@@ -85,6 +85,9 @@ test("header click selects the group, dragging it moves the cards in one undo st
   const headerBox = (await groupHeader(page).boundingBox())!;
   await page.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
   await expect(frame).toHaveAttribute("data-selected", "true");
+  // Selection rings the MEMBER cards directly (T-141) — the box says which
+  // cards belong to it without needing to enclose them.
+  await expect(page.locator("[data-group-member-ring]")).toHaveCount(2);
 
   // Drag the header: every member card travels with it.
   await page.mouse.move(headerBox.x + 40, headerBox.y + headerBox.height / 2);
@@ -223,13 +226,13 @@ test("header buttons work after selecting: collapse, expand, ungroup (T-137)", a
   await expect(page.getByRole("button", { name: "Expand group" })).toBeVisible();
 
   // The collapsed pill is a card-sized shell in the folder-pill design
-  // language — never the old near-black toolbar strip reading "0 of 2 cards"
+  // language — never the old near-black toolbar strip reading "0 of 2 members"
   // (T-139).
   const pill = page.locator("[data-pill-shell]");
   await expect(pill).toBeVisible();
   await expect(pill).toHaveClass(/rounded-xl/);
   await expect(pill).toHaveClass(/bg-fewer-group-bg/);
-  await expect(pill).toContainText("2 cards");
+  await expect(pill).toContainText("2 members");
   await expect(pill).not.toContainText("0 of");
 
   await page.getByRole("button", { name: "Expand group" }).click();
