@@ -60,7 +60,7 @@ async function createGroup(page: Page) {
 
   const frame = page.locator("[data-group-id]").first();
   await expect(frame).toBeVisible({ timeout: 10000 });
-  return frame;
+  return { frame, cards: [a, b] };
 }
 
 const groupHeader = (page: Page) => page.locator("[data-group-header]").first();
@@ -68,6 +68,25 @@ const groupHeader = (page: Page) => page.locator("[data-group-header]").first();
 test("Group N Items from the selection menu draws a frame around the cards", async ({ page }) => {
   await openCanvas(page);
   await createGroup(page);
+  await expect(page.locator("[data-group-id]")).toHaveCount(1);
+});
+
+test("hiding every member removes the frame; Show All brings it back", async ({ page }) => {
+  await openCanvas(page);
+  const { cards } = await createGroup(page);
+  await expect(cards[0]).toBeVisible();
+
+  // Re-select the two members (using the menu can clear the selection), then H
+  // hides them. The frame must follow what the canvas paints: with no member
+  // visible there is nothing to frame (T-134).
+  await cards[0].click();
+  await cards[1].click({ modifiers: ["Shift"] });
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(2);
+  await page.keyboard.press("H");
+  await expect(page.locator("[data-group-id]")).toHaveCount(0);
+
+  // Recovery stays obvious: Show All restores every card and the frame with it.
+  await page.keyboard.press("Shift+H");
   await expect(page.locator("[data-group-id]")).toHaveCount(1);
 });
 

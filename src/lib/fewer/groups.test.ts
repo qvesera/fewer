@@ -73,6 +73,29 @@ describe("groupBounds", () => {
     );
     expect(b?.width).toBe(100 + GROUP_PADDING * 2);
   });
+
+  test("with a visible set, the box hugs only the visible members (T-134)", () => {
+    const nodes = [node("a", 0, 0, 100, 50), node("b", 400, 300, 100, 50)];
+    const b = groupBounds(nodes, ["a", "b"], GROUP_PADDING, new Set(["a"]));
+    expect(b).toEqual({
+      x: -GROUP_PADDING,
+      y: -GROUP_PADDING - GROUP_HEADER_HEIGHT,
+      width: 100 + GROUP_PADDING * 2,
+      height: 50 + GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT,
+    });
+  });
+
+  test("null when no member is visible (an all-hidden group draws nothing)", () => {
+    expect(groupBounds([node("a", 0, 0)], ["a"], GROUP_PADDING, new Set())).toBeNull();
+  });
+
+  test("without a visible set, hidden members still count (collapsed anchor)", () => {
+    // The pill must keep the cluster's footprint even though every member is
+    // hidden — collapse is what hides them.
+    const nodes = [node("a", 0, 0, 100, 50)];
+    expect(groupBounds(nodes, ["a"], GROUP_PADDING, new Set())).toBeNull();
+    expect(groupBounds(nodes, ["a"], GROUP_PADDING)).not.toBeNull();
+  });
 });
 
 describe("groupPill", () => {

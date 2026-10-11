@@ -72,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop packaging (T-103): macOS dmg + zip and Windows nsis + portable join the Linux builds — all unsigned by design (mac: identity null, no notarization; Windows SmartScreen flags the download). CI's package job is now a 3-OS matrix running the Electron smoke on each runner before packaging; icons derive from public/logo-512.png.
 - Standalone docs (T-104): the desktop app's in-app docs are now a shell variant — web-only pages (accounts, cloud, pricing, legal, PWA, deployment) are excluded, a new app-only 'Fewer Desktop App' page documents the local library, .fwr saves, themes and licensing, marketing chrome is stripped from docs pages, the Settings → Documentation link opens in-app, and blogs are removed from the standalone entirely.
 - Canvas context menu: the per-leaf view toggles (Show/Hide Files, Show/Hide Minimap) now sit below the action cluster instead of directly under the View heading, with Show/Hide Files listed first
+- Group frames now follow what each canvas actually draws: the box hugs the visible members (with a **3 of 5 cards** count when some are hidden), a collapsed group keeps its pill, and a group whose members are all hidden draws nothing — recover them with Show All.
 
 ### Fixed
 

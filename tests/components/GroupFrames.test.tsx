@@ -29,10 +29,14 @@ const NODES = [
 
 const GROUP: Group = { id: "g-1", title: "Assets", note: "", memberIds: ["n1", "n2"] };
 
-function renderFrame() {
+function renderFrame(props: { visible?: ReadonlySet<string>; group?: Group } = {}) {
   return render(
     <TooltipProvider>
-      <GroupFrame group={GROUP} nodes={NODES} />
+      <GroupFrame
+        group={props.group ?? GROUP}
+        nodes={NODES}
+        visible={props.visible ?? new Set(["n1", "n2"])}
+      />
     </TooltipProvider>,
   );
 }
@@ -53,6 +57,35 @@ beforeEach(() => {
   });
 });
 afterEach(cleanup);
+
+describe("GroupFrame visibility (T-134)", () => {
+  test("a group whose members are all hidden renders nothing", () => {
+    const { container } = renderFrame({ visible: new Set<string>() });
+    expect(container.querySelector("[data-group-id]")).toBeNull();
+    expect(screen.queryByText("Assets")).toBeNull();
+  });
+
+  test("a collapsed group still renders its pill when its members are hidden", () => {
+    // Collapse is what hides them — visible-only bounds would delete the pill's
+    // own handle and make collapsing undo-only.
+    const { container } = renderFrame({
+      visible: new Set<string>(),
+      group: { ...GROUP, collapsed: true },
+    });
+    expect(container.querySelector("[data-group-id]")).toBeTruthy();
+    expect(screen.getByText("Assets")).toBeTruthy();
+  });
+
+  test("the count reads visible/total when some members are hidden", () => {
+    renderFrame({ visible: new Set(["n1"]) });
+    expect(screen.getByText("1 of 2 cards")).toBeTruthy();
+  });
+
+  test("the count reads plain total when nothing is hidden", () => {
+    renderFrame();
+    expect(screen.getByText("2 cards")).toBeTruthy();
+  });
+});
 
 describe("GroupFrame menu actions", () => {
   test("Select Members selects the cards and invalidates the selection stamp", async () => {
