@@ -35,7 +35,7 @@ function renderFrame(
   props: {
     visible?: ReadonlySet<string>;
     group?: Group;
-    viewPositions?: Record<string, { x: number; y: number }>;
+    nodes?: FewerNode[];
     leafId?: string;
   } = {},
 ) {
@@ -44,9 +44,8 @@ function renderFrame(
       <TooltipProvider>
         <GroupFrame
           group={props.group ?? GROUP}
-          nodes={NODES}
+          nodes={props.nodes ?? NODES}
           visible={props.visible ?? new Set(["n1", "n2"])}
-          viewPositions={props.viewPositions}
           leafId={props.leafId}
         />
       </TooltipProvider>
@@ -66,6 +65,12 @@ function header() {
 
 beforeEach(() => {
   useGraphStore.setState({
+    // App-like baseline: the collapsed pill anchors on the store's FULL node
+    // list (hidden members aren't in the painted prop), so every describe needs
+    // the store populated, not just the nodes prop (T-138).
+    nodes: NODES.map((n) => ({ ...n })),
+    groups: [],
+    viewSettings: {},
     selectedNodeIds: [],
     selectedGroupIds: [],
     selectionVersion: 0,
@@ -342,10 +347,15 @@ describe("GroupFrame per-view positions (T-137)", () => {
   const viewPos = (leaf: string, id: string) =>
     useGraphStore.getState().viewSettings[leaf]?.positions?.[id];
 
-  test("the frame measures the per-view positions, not the shared coords", () => {
-    // Cards painted 500px right of their shared coords — the box must follow
-    // the paint, or it detaches from the cluster the moment a view owns a map.
-    renderFrame({ viewPositions: { n1: { x: 500, y: 0 }, n2: { x: 800, y: 0 } } });
+  test("the frame measures the painted nodes it is handed, not the shared coords", () => {
+    // The canvas paints cards 500px right of their shared coords (derived
+    // layout / per-view map) — the box must follow the painted array it is
+    // given, or it detaches from the cluster (T-138).
+    const painted = NODES.map((n) => ({
+      ...n,
+      position: n.id === "n1" ? { x: 500, y: 0 } : { x: 800, y: 0 },
+    }));
+    renderFrame({ nodes: painted });
     const box = document.querySelector("[data-group-id]") as HTMLElement;
     expect(box.style.left).toBe(`${500 - GROUP_PADDING}px`);
   });
@@ -356,7 +366,7 @@ describe("GroupFrame per-view positions (T-137)", () => {
       activeLeafId: "leaf-1",
       viewSettings: { "leaf-1": { positions: { n1: { x: 0, y: 0 }, n2: { x: 300, y: 0 } } } },
     });
-    renderFrame({ leafId: "leaf-1", viewPositions: { n1: { x: 0, y: 0 }, n2: { x: 300, y: 0 } } });
+    renderFrame({ leafId: "leaf-1" });
     fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: 150, clientY: 130 });
     fireEvent.pointerUp(headerEl(), { pointerId: 1 });
@@ -372,7 +382,13 @@ describe("GroupFrame per-view positions (T-137)", () => {
   });
 
   test("the first gesture in a leaf canvas seeds the map from painted positions", () => {
-    renderFrame({ leafId: "leaf-1", viewPositions: { n1: { x: 40, y: 0 }, n2: { x: 340, y: 0 } } });
+    // The canvas paints the cluster at 40/340 (its own layout); the shared
+    // store still says 0/300. The seed must come from the painted array.
+    const painted = NODES.map((n) => ({
+      ...n,
+      position: n.id === "n1" ? { x: 40, y: 0 } : { x: 340, y: 0 },
+    }));
+    renderFrame({ leafId: "leaf-1", nodes: painted });
     fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
     fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: 10, clientY: 0 });
     fireEvent.pointerUp(headerEl(), { pointerId: 1 });

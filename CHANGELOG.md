@@ -163,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas groups: frames now measure the cards real rendered size and reserve the title bar above them, so tall folder cards no longer spill out of the gray box
 - Canvas selection: clicking the empty canvas now genuinely clears the selection — the highlight ring vanished but the cards stayed selected, so the next Ctrl+click brought the whole box selection back. Ctrl/Cmd+click also toggles both ways now (an unselected card joins the selection instead of being ignored)
 - Group interactions work in the real canvas again: the header's buttons (collapse, note, ungroup) respond to clicks — the drag was capturing the pointer on press and stealing them — the resize handles grab the pointer immediately so scaling works even zoomed far out, and move/resize now follow each canvas's own card positions, so a group no longer detaches from its cards on a canvas with per-view positions (dragged cards or a loaded layout).
+- Group frames are measured against exactly what their canvas paints (derived layouts, per-view positions, collapsed-pill geometry), so a frame no longer drifts from its cards after Organize, a direction change, or on split canvases — the last of the sizing bugs.
 
 ### Added
 

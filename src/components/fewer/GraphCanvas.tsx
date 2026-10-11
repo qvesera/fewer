@@ -429,7 +429,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           hiddenChipStyle={hiddenChipStyle}
         />
-        <GroupFrames leafId={leafId} />
+        <GroupFrames leafId={leafId} nodes={positionedNodes} />
       </ReactFlow>
 
       {canvasMenu && (
