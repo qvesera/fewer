@@ -108,9 +108,22 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     get()._persistLayout();
   },
   relayout: () => {
-    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();
+    const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir, groups } = get();
     if (nodes.length === 0) return;
-    const excludeFromLayout = (hiddenIds as string[]).length > 0 ? new Set(hiddenIds as string[]) : undefined;
+    // A collapsed group hides its members, but their BLOCK must stay in the
+    // layout. Excluding them like any other hidden node (below) left them at
+    // stale positions while every visible card re-flowed INTO that space — and
+    // the group pill, which is the union of those stale member positions, then
+    // drew over the re-flowed cards (T-140: "Organize overlaps the closed
+    // group"). Laying the block out reserves contiguous room for the pill and
+    // keeps it tracking its cluster; ordinary hidden nodes keep the frozen
+    // behaviour they had.
+    const reserved = new Set<string>();
+    for (const g of (groups ?? []) as { collapsed?: boolean; memberIds: string[] }[]) {
+      if (g.collapsed) for (const id of g.memberIds) reserved.add(id);
+    }
+    const hidden = (hiddenIds as string[]).filter((h) => !reserved.has(h));
+    const excludeFromLayout = hidden.length > 0 ? new Set(hidden) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
     const searched = applySearchHighlight(laid, searchQuery, categoryFilter);
     set({ nodes: searched, graphVersion: graphVersion + 1 });

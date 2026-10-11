@@ -3758,7 +3758,7 @@ tasks:
   session_count: 1
 - id: "T-139"
   title: "Collapsed group pill speaks the folder pill design language: rounded-xl shell, group theme tokens, icon tile, stat sub-line, shared ring classes, fix the 36/32 geometry sliver"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -3787,27 +3787,33 @@ tasks:
   session_count: 1
 - id: "T-140"
   title: "Collapsed group members stay in the layout so the pill reserves its space — Organize no longer re-flows cards on top of the pill"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ux"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 396
-  pr: null
+  pr: 401
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-11T16:11:31Z"
   notes: ["2026-10-11T16:11:59Z · root cause R2: relayout excludes ALL hiddenIds from layout; collapsed group members keep stale positions while cards re-flow onto them; subtract collapsed-group members from excludeFromLayout so the block reserves space; e2e geometric assertion"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-11T19:58:21Z"
+    end: "2026-10-11T20:28:10Z"
+    measured: true
+    note: "relayout subtracts collapsed-group members from excludeFromLayout so the block reserves space; 2 store tests + geometric e2e (collapse → Alt+R → no card rect intersects the pill rect)"
+    proof: ["ba0cf98", "#401"]
+    effort: {commits: 1, files: 5, insertions: 123, deletions: 6}
+  spent_min: 30
+  session_count: 1
 - id: "T-141"
   title: "Group membership legible: count reads members, member cards ring on frame hover/select, Include-cards-inside menu item"
   status: "triaged"
