@@ -19,6 +19,11 @@ export type SelectionSliceCreator = StateCreator<
   [],
   {
     selectedNodeIds: string[];
+    /** Ids of selected group frames (T-135). Deliberately global, not per-leaf:
+     *  groups live in flow coordinates via ViewportPortal and aren't per-view
+     *  nodes, so there's nothing to key a per-leaf map by. Group and card
+     *  selection are mutually exclusive — see setSelectedGroupIds. */
+    selectedGroupIds: string[];
     /** Per-leaf selection storage. Key = leafId. */
     leafSelections: Record<string, string[]>;
     /** ID of the most recently interacted graph leaf (for keyboard shortcuts). */
@@ -44,6 +49,9 @@ export type SelectionSliceCreator = StateCreator<
     focusedNodeId: string | null;
 
     setSelectedNodeIds: (ids: string[]) => void;
+    /** Select group frames. Mutually exclusive with card selection: choosing a
+     *  group clears the card selection (and vice versa, in setSelectedNodeIds). */
+    setSelectedGroupIds: (ids: string[]) => void;
     setSelectionForLeaf: (leafId: string, ids: string[]) => void;
     setActiveLeaf: (leafId: string | null) => void;
     /** Ring a transient set of node ids on the canvas (sidebar row hover). */
@@ -60,6 +68,7 @@ export type SelectionSliceCreator = StateCreator<
 
 export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   selectedNodeIds: [],
+  selectedGroupIds: [],
   leafSelections: {},
   activeLeafId: null,
   selectionVersion: 0,
@@ -81,16 +90,29 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
   // every card's child-list memo.
   setSelectedNodeIds: (ids) =>
     set((s) => {
-      if (sameIds(s.selectedNodeIds, ids)) return {};
-      const patch: Record<string, unknown> = {
-        selectedNodeIds: ids,
-        selectionVersion: s.selectionVersion + 1,
-      };
+      const base: Record<string, unknown> = sameIds(s.selectedNodeIds, ids) ? {} : { selectedNodeIds: ids, selectionVersion: s.selectionVersion + 1 };
       // Mirror into active leaf's selection so per-view sync picks it up
-      if (s.activeLeafId) {
-        patch.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
+      if (s.activeLeafId && !sameIds(s.selectedNodeIds, ids)) {
+        base.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
       }
-      return patch;
+      // Mutual exclusion (T-135): a real card selection clears any selected
+      // group frames — and so does an empty list (Escape/blur clearing).
+      if (s.selectedGroupIds.length > 0) base.selectedGroupIds = [];
+      return base;
+    }),
+  setSelectedGroupIds: (ids) =>
+    set((s) => {
+      if (sameIds(s.selectedGroupIds, ids)) return {};
+      // Mutual exclusion: selecting a group clears the card selection so a
+      // Delete or a drag always has one unambiguous target. Bump
+      // selectionVersion so the canvas repaints any group ring off.
+      return {
+        selectedGroupIds: ids,
+        selectionVersion: s.selectionVersion + 1,
+        ...(ids.length > 0 && s.selectedNodeIds.length > 0
+          ? { selectedNodeIds: [], leafSelections: {} }
+          : {}),
+      };
     }),
   setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
 

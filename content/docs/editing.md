@@ -146,6 +146,12 @@ exactly as they did before.
   shows, and its count reads **3 of 5 cards** when some are hidden. Hide every
   member and the frame disappears with them (a collapsed group always keeps its
   pill); **Show All** or the Hidden Cards panel brings everything back at once.
+- **Select & move** — click the title bar to select the frame (it rings, and
+  card selection clears — they're mutually exclusive); Shift+click adds another
+  frame. Drag the title bar to move every member card at once — hidden ones
+  included — and release records **one undo step**. **Delete** ungroups the
+  selected frames; **Escape** clears the selection or cancels a move in flight
+  (positions snap back, nothing is recorded).
 - **Ungroup** — the × drops the frame and keeps the cards.
 
 Right-clicking the title bar also opens the **group menu**: Rename…, Edit

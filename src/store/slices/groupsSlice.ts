@@ -28,6 +28,11 @@ export type GroupsSliceCreator = StateCreator<
     /** Collapse hides the members; expand reveals them again, except any the
      *  user hid directly (independentlyHiddenIds) — same rule showSubtree uses. */
     toggleGroupCollapsed: (id: string) => void;
+    /** Live-drag write (T-135): move the group's member cards to exact
+     *  positions. No history — the header gesture records ONE move-positions
+     *  op on release via recordDragMoves. Positions are absolute (from the
+     *  gesture's captured start), so a mid-drag re-render cannot drift. */
+    setGroupMemberPositions: (id: string, positions: Record<string, { x: number; y: number }>) => void;
   }
 >;
 
@@ -132,4 +137,21 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
       return { groups, hiddenIds: [...hidden] };
     });
   },
+
+  setGroupMemberPositions: (id, positions) => set((s) => {
+    const group = ((s.groups ?? []) as Group[]).find((g) => g.id === id);
+    if (!group) return {};
+    const members = new Set(group.memberIds);
+    let changed = false;
+    const nodes = (s.nodes ?? []).map((n) => {
+      const pos = members.has(n.id) ? positions[n.id] : undefined;
+      if (!pos || (n.position.x === pos.x && n.position.y === pos.y)) return n;
+      changed = true;
+      return { ...n, position: pos };
+    });
+    // No graphVersion bump: position writes are what a node drag does mid-gesture
+    // too (applyPositionChanges), and rebuilding the lens per frame is the #281
+    // loop. Hidden members move as well — their positions are just not painted.
+    return changed ? { nodes } : {};
+  }),
 });

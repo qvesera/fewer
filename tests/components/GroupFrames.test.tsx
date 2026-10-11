@@ -15,6 +15,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ReactFlowProvider } from "@xyflow/react";
 import { GroupFrame } from "@/components/fewer/GroupFrames";
 import { useGraphStore } from "@/store/graphStore";
 import type { Group } from "@/lib/fewer/groups";
@@ -31,13 +32,15 @@ const GROUP: Group = { id: "g-1", title: "Assets", note: "", memberIds: ["n1", "
 
 function renderFrame(props: { visible?: ReadonlySet<string>; group?: Group } = {}) {
   return render(
-    <TooltipProvider>
-      <GroupFrame
-        group={props.group ?? GROUP}
-        nodes={NODES}
-        visible={props.visible ?? new Set(["n1", "n2"])}
-      />
-    </TooltipProvider>,
+    <ReactFlowProvider>
+      <TooltipProvider>
+        <GroupFrame
+          group={props.group ?? GROUP}
+          nodes={NODES}
+          visible={props.visible ?? new Set(["n1", "n2"])}
+        />
+      </TooltipProvider>
+    </ReactFlowProvider>,
   );
 }
 
@@ -46,9 +49,15 @@ function openMenu() {
   fireEvent.contextMenu(screen.getByText("Assets").parentElement!);
 }
 
+/** The draggable strip; also the click-to-select target. */
+function header() {
+  return document.querySelector("[data-group-header]")!;
+}
+
 beforeEach(() => {
   useGraphStore.setState({
     selectedNodeIds: [],
+    selectedGroupIds: [],
     selectionVersion: 0,
     leafSelections: {},
     activeLeafId: null,
@@ -84,6 +93,119 @@ describe("GroupFrame visibility (T-134)", () => {
   test("the count reads plain total when nothing is hidden", () => {
     renderFrame();
     expect(screen.getByText("2 cards")).toBeTruthy();
+  });
+});
+
+describe("GroupFrame select + move (T-135)", () => {
+  beforeEach(() => {
+    // The gesture writes the REAL store, so seed it with the same cards.
+    useGraphStore.setState({
+      nodes: NODES.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+    });
+  });
+
+  const headerEl = () => document.querySelector("[data-group-header]")!;
+  const memberPos = (id: string) => {
+    const n = useGraphStore.getState().nodes.find((x) => x.id === id)!;
+    return { x: n.position.x, y: n.position.y };
+  };
+  const press = (x: number, y: number, extra: Record<string, unknown> = {}) =>
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: x, clientY: y, ...extra });
+  const dragTo = (x: number, y: number) =>
+    fireEvent.pointerMove(headerEl(), { pointerId: 1, clientX: x, clientY: y });
+  const release = () => fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+
+  test("clicking the header selects the group and clears the card selection", () => {
+    useGraphStore.getState().setSelectedNodeIds(["n1", "n2"]);
+    renderFrame();
+    press(0, 0);
+    release();
+    const s = useGraphStore.getState();
+    expect(s.selectedGroupIds).toEqual(["g-1"]);
+    expect(s.selectedNodeIds).toEqual([]);
+    expect(document.querySelector("[data-group-id]")?.getAttribute("data-selected")).toBe("true");
+  });
+
+  test("selecting a card clears the group selection (mutual exclusion, both ways)", () => {
+    renderFrame();
+    press(0, 0);
+    release();
+    expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+    useGraphStore.getState().setSelectedNodeIds(["n1"]);
+    expect(useGraphStore.getState().selectedGroupIds).toEqual([]);
+  });
+
+  test("shift+clicking a selected group toggles it off", () => {
+    renderFrame();
+    press(0, 0);
+    release();
+    expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+    press(0, 0, { shiftKey: true });
+    release();
+    expect(useGraphStore.getState().selectedGroupIds).toEqual([]);
+  });
+
+  test("dragging the header moves every member and records ONE undo step", () => {
+    renderFrame();
+    press(100, 100);
+    dragTo(150, 130);
+    expect(memberPos("n1")).toEqual({ x: 50, y: 30 });
+    expect(memberPos("n2")).toEqual({ x: 350, y: 30 });
+    // Mid-gesture: nothing recorded yet — the drag is not its own history spam.
+    expect(useGraphStore.getState().past).toHaveLength(0);
+    release();
+    const s = useGraphStore.getState();
+    expect(s.past).toHaveLength(1);
+    expect(JSON.stringify(s.past[0])).toContain("move-positions");
+  });
+
+  test("a hidden member moves with the group", () => {
+    renderFrame({ visible: new Set(["n1"]) });
+    press(100, 100);
+    dragTo(130, 100);
+    release();
+    expect(memberPos("n2")).toEqual({ x: 330, y: 0 });
+  });
+
+  test("Ctrl+Z after a drag restores the original positions", () => {
+    renderFrame();
+    press(100, 100);
+    dragTo(150, 130);
+    release();
+    useGraphStore.getState().undo();
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+    expect(memberPos("n2")).toEqual({ x: 300, y: 0 });
+  });
+
+  test("Escape mid-drag restores positions and records nothing", () => {
+    renderFrame();
+    press(100, 100);
+    dragTo(150, 130);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+    release();
+    expect(useGraphStore.getState().past).toHaveLength(0);
+    // The selection survives the cancelled drag.
+    expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+  });
+
+  test("Escape with no drag clears the group selection", () => {
+    renderFrame();
+    press(0, 0);
+    release();
+    expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(useGraphStore.getState().selectedGroupIds).toEqual([]);
+  });
+
+  test("Delete ungroups every selected group", () => {
+    renderFrame();
+    press(0, 0);
+    release();
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(useGraphStore.getState().groups).toHaveLength(0);
+    expect(useGraphStore.getState().selectedGroupIds).toEqual([]);
   });
 });
 
