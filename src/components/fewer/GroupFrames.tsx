@@ -8,7 +8,7 @@
 // Only the header strip takes pointer events: the gray area itself is inert, so
 // dragging, selecting and right-clicking cards inside a group behave exactly as
 // they do outside one.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ViewportPortal, useViewport } from "@xyflow/react";
 import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
@@ -83,19 +83,43 @@ const gestureRef = {
   set: (g: FrameGesture | null) => { activeGesture = g; },
 };
 
-export function GroupFrames(): ReactNode {
+export function GroupFrames({ leafId }: { leafId?: string }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const nodes = useGraphStore((s) => s.nodes);
-  // Per-view visibility (memoized in GraphCanvas, one set per leaf) — the frame
-  // frames what THIS canvas paints, so split views can disagree on purpose.
+  // Per-view visibility + the per-view position map (both memoized in
+  // GraphCanvas, one per leaf). The frame must frame and move what THIS canvas
+  // actually paints — a split view with its own `positions` renders cards from
+  // that map, not from shared `nodes[].position`, so every coordinate the frame
+  // computes goes through it (T-137).
+  // `leafId` is the RAW canvas prop, deliberately NOT the scope's normalized
+  // label (scope.leafId falls back to "primary"): the primary canvas renders
+  // from viewSettings[undefined] (the defaults), and a gesture keyed on
+  // "primary" would write a map nothing paints from — frozen cards, drifting
+  // frame. This matches the leafId the card-drag path routes on.
   const { visibleIds } = useGraphViewScope();
+  // The per-view position map this canvas paints from — read RAW off the store,
+  // the same source `positionedNodes` uses. NOT through the view scope: the
+  // scope deliberately pins `resolved.positions: undefined` (the #281 fix, so a
+  // drag frame doesn't re-render every card via context), which meant reading it
+  // here gave an always-empty map and the frame could never follow a split
+  // canvas's dragged cards (T-137). Rebuilt only when that leaf's map identity
+  // changes — a drag rewrites it every frame, but it is one small object, not a
+  // per-card render fan-out.
+  const viewPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
 
   if (groups.length === 0) return null;
   return (
     <ViewportPortal>
       <div className="pointer-events-none absolute left-0 top-0 h-0 w-0">
         {groups.map((group) => (
-          <GroupFrame key={group.id} group={group} nodes={nodes} visible={visibleIds} />
+          <GroupFrame
+            key={group.id}
+            group={group}
+            nodes={nodes}
+            visible={visibleIds}
+            viewPositions={viewPositions}
+            leafId={leafId}
+          />
         ))}
       </div>
     </ViewportPortal>
@@ -109,11 +133,17 @@ export function GroupFrame({
   group,
   nodes,
   visible,
+  viewPositions,
+  leafId,
 }: {
   group: Group;
   nodes: FewerNode[];
   /** Ids this view paints. The box hugs these; a collapsed group anchors on all. */
   visible: ReadonlySet<string>;
+  /** This canvas's per-view position map, if it has one. Wins over shared coords. */
+  viewPositions?: Record<string, { x: number; y: number }>;
+  /** The owning canvas, for routing gesture writes to the per-view map. */
+  leafId?: string;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -126,6 +156,15 @@ export function GroupFrame({
   // Live viewport: the gestures convert screen deltas to flow coordinates with
   // it (a drag or scale must land where the pointer is at any zoom/pan).
   const { x: vpX, y: vpY, zoom } = useViewport();
+
+  // The coordinates THIS canvas paints: the per-view map wins over shared
+  // positions — the same precedence applyViewPositions applies to the cards
+  // (T-137). Reading shared coords here is what let a handle drag slide the
+  // frame away from the cluster the moment a view owned a positions map.
+  const vpMap = useMemo(
+    () => (viewPositions ? new Map(Object.entries(viewPositions)) : undefined),
+    [viewPositions],
+  );
 
   // Group keyboard (T-135) — one listener per mounted frame, every handler
   // reads live state, so with several groups the first one to act wins and the
@@ -140,9 +179,17 @@ export function GroupFrame({
       if (e.key === "Escape") {
         const g = gestureRef.get();
         if (g && g.moved && !g.cancelled) {
-          // Restore IS the Escape result for a live drag: positions snap back,
-          // nothing is recorded, the selection stays.
-          act.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
+          // Restore IS the Escape result for a live drag: positions snap back
+          // where THIS canvas painted them, nothing is recorded, the selection
+          // stays. Same routing as the gesture writes (per-view map vs shared).
+          // (`act` here is already the state snapshot, not a getter.)
+          const s = act;
+          if (leafId) {
+            // startPositions is a Map — spread it; Object.entries() on a Map is [].
+            s.setNodePositionsBatch(leafId, [...g.startPositions].map(([id, pos]) => ({ id, pos })));
+          } else {
+            s.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
+          }
           g.cancelled = true;
           return;
         }
@@ -157,7 +204,7 @@ export function GroupFrame({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [group.id]);
+  }, [group.id, leafId]);
 
   const visibleCount = group.memberIds.filter((id) => visible.has(id)).length;
   const hiddenCount = group.memberIds.length - visibleCount;
@@ -165,8 +212,8 @@ export function GroupFrame({
   // empty box (T-134 edge case) — and drawing nothing at all when none is
   // visible. Collapsed: anchor the pill on EVERY member, because collapse is
   // what hides them — visible-only bounds would delete the pill's own handle.
-  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
-  const allBounds = groupBounds(nodes, group.memberIds);
+  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible, vpMap);
+  const allBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, undefined, vpMap);
   const anchor = group.collapsed ? (allBounds ?? visibleBounds) : visibleBounds;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
   const box = anchor && (group.collapsed ? groupPill(anchor) : anchor);
@@ -194,6 +241,30 @@ export function GroupFrame({
   // gesture re-render cannot drift the cluster.
   const screenToFlow = (sx: number, sy: number) => ({ x: (sx - vpX) / zoom, y: (sy - vpY) / zoom });
 
+  /** Write member positions where THIS canvas reads them: the per-view map when
+   *  the leaf owns one (seeding it first, the way a card drag does), shared
+   *  nodes otherwise. The old shared-only write slid the frame away from the
+   *  cards the moment a view had its own map — the cards stayed painted from
+   *  the map while only the invisible shared coords moved (T-137). */
+  const writeMemberPositions = (positions: Record<string, { x: number; y: number }>) => {
+    const s = act();
+    if (leafId) {
+      if (!s.viewSettings[leafId]?.positions) {
+        // First gesture in this view: seed the map from what this canvas paints
+        // so the cards that aren't moving keep their rendered spots.
+        const seed: Record<string, { x: number; y: number }> = {};
+        for (const n of nodes) {
+          const p = vpMap?.get(n.id) ?? n.position;
+          seed[n.id] = { x: p.x, y: p.y };
+        }
+        s.seedNodePositions(leafId, seed);
+      }
+      s.setNodePositionsBatch(leafId, Object.entries(positions).map(([id, pos]) => ({ id, pos })));
+      return;
+    }
+    s.setGroupMemberPositions(group.id, positions);
+  };
+
   const startGesture = (
     e: React.PointerEvent<HTMLElement>,
     mode: "move" | "scale",
@@ -201,7 +272,12 @@ export function GroupFrame({
   ) => {
     const startPositions = new Map<string, { x: number; y: number }>();
     const members = new Set(group.memberIds);
-    for (const n of nodes) if (members.has(n.id)) startPositions.set(n.id, { x: n.position.x, y: n.position.y });
+    // Effective positions: what THIS canvas paints, per-view map first.
+    for (const n of nodes) {
+      if (!members.has(n.id)) continue;
+      const p = vpMap?.get(n.id) ?? n.position;
+      startPositions.set(n.id, { x: p.x, y: p.y });
+    }
     gestureRef.set({
       mode,
       groupId: group.id,
@@ -212,9 +288,11 @@ export function GroupFrame({
       cancelled: false,
       ...extra,
     });
-    // Keeps move/up firing when the pointer leaves the strip mid-gesture.
-    // (jsdom tests have no capture support — guard, don't crash.)
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // Deliberately NO pointer capture here: capturing on pointerdown retargets
+    // the whole pointer sequence — including the synthesized click — to the
+    // header, which killed every button inside it (chevron, note, ×) in a real
+    // browser. Capture is taken on the first move past the threshold instead,
+    // so a plain click never captures and the buttons keep working (T-137).
   };
 
   const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -237,13 +315,20 @@ export function GroupFrame({
   const onHandlePointerDown = (id: GroupHandleId) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible, vpMap);
     if (!current) return; // nothing rendered → nothing to scale
     startGesture(e, "scale", {
       startBox: { width: current.width, height: current.height },
       origin: handleOrigin(id, current),
       axes: handleAxes(id),
     });
+    // A handle is ~10 flow px — a few SCREEN px once zoomed out — so the
+    // pointer leaves it within one mousemove, and uncaptured moves past it go
+    // to the pane: a threshold-deferred capture would kill the gesture before
+    // it ever crossed the threshold (T-137: "the transform controls don't
+    // work"). Handles have no child controls, so capturing on press is safe —
+    // the header defers it only because its buttons need the click.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
   const onFramePointerMove = (e: React.PointerEvent<HTMLElement>) => {
@@ -254,12 +339,15 @@ export function GroupFrame({
     if (!g.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       g.moved = true;
+      // Capture only now: a plain click never captures (so the header's
+      // buttons keep their click), while a real drag keeps receiving move/up
+      // wherever the pointer goes (T-137).
+      e.currentTarget.setPointerCapture?.(e.pointerId);
     }
-    const state = act();
     if (g.mode === "move") {
       const positions: Record<string, { x: number; y: number }> = {};
       for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
-      state.setGroupMemberPositions(group.id, positions);
+      writeMemberPositions(positions);
       return;
     }
     // Resize-by-scale (T-136): the axis factors come from the pointer's
@@ -274,7 +362,7 @@ export function GroupFrame({
       sx = Math.max(s, mins.x);
       sy = Math.max(s, mins.y);
     }
-    state.setGroupMemberPositions(group.id, scaleMemberPositions(g.startPositions, g.origin!, sx, sy));
+    writeMemberPositions(scaleMemberPositions(g.startPositions, g.origin!, sx, sy));
   };
 
   const onFramePointerEnd = (e: React.PointerEvent<HTMLElement>) => {
@@ -283,16 +371,21 @@ export function GroupFrame({
     gestureRef.set(null);
     try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer already gone */ }
     if (!g.moved || g.cancelled) return; // a click is a selection, not a gesture
-    // One history entry for the whole gesture, exactly like a card drag stop.
+    // One history entry for the whole gesture, exactly like a card drag stop —
+    // tagged with the leaf when the gesture wrote the per-view map, so undo
+    // restores that map instead of the shared positions it never touched.
     const state = act();
     const members = new Set(group.memberIds);
+    const leafPos = leafId ? state.viewSettings[leafId]?.positions : undefined;
     const moves = (state.nodes ?? [])
       .filter((n) => members.has(n.id))
       .flatMap((n) => {
         const from = g.startPositions.get(n.id);
-        return from ? [{ nodeId: n.id, from, to: { x: n.position.x, y: n.position.y } }] : [];
+        const to = leafPos?.[n.id] ?? { x: n.position.x, y: n.position.y };
+        return from ? [{ nodeId: n.id, from, to }] : [];
       });
-    state.recordDragMoves(moves);
+    state.recordDragMoves(moves, leafId);
+    if (leafId) state._persistLayout();
   };
 
   /**

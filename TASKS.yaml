@@ -3698,3 +3698,32 @@ tasks:
     effort: {commits: 2, files: 2, insertions: 31, deletions: 16}
   spent_min: 33
   session_count: 2
+- id: "T-137"
+  title: "Group header buttons are dead and move/scale detach from the cards: defer pointer capture until the drag threshold, and make frame bounds + gesture writes follow the per-leaf positions map"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 391
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T11:03:52Z"
+  notes: ["2026-10-11T11:10:15Z · Both bugs from T-135/136: (1) header setPointerCapture on pointerdown steals the click from collapse/note/x buttons inside the ContextMenuTrigger subtree — defer capture until the drag crosses threshold; (2) move/scale read+write shared s.nodes but GraphCanvas paints cards from positionedNodes=applyViewPositions(laidNodes, vs.positions) — route gesture + bounds through the per-view map when present"]
+  sessions:
+  - start: "2026-10-11T11:12:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
