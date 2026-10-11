@@ -3787,7 +3787,7 @@ tasks:
   session_count: 1
 - id: "T-140"
   title: "Collapsed group members stay in the layout so the pill reserves its space — Organize no longer re-flows cards on top of the pill"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
