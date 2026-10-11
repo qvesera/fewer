@@ -3665,7 +3665,7 @@ tasks:
   session_count: 1
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3691,10 +3691,10 @@ tasks:
     proof: ["9044186", "de8bd94", "#389"]
     effort: {commits: 2, files: 8, insertions: 436, deletions: 46}
   - start: "2026-10-11T10:25:45Z"
-    end: null
+    end: "2026-10-11T10:26:58Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 32
+    note: "follow-up session: hardened app.spec boxSelect to poll for the target card (CI mount race turned the suite red on #389; passed locally in isolation)"
+    proof: ["6a65a60", "39b1bfe", "#389"]
+    effort: {commits: 2, files: 2, insertions: 31, deletions: 16}
+  spent_min: 33
   session_count: 2
