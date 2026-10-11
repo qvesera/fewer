@@ -3816,7 +3816,7 @@ tasks:
   session_count: 1
 - id: "T-141"
   title: "Group membership legible: count reads members, member cards ring on frame hover/select, Include-cards-inside menu item"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
