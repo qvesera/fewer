@@ -3700,7 +3700,7 @@ tasks:
   session_count: 2
 - id: "T-137"
   title: "Group header buttons are dead and move/scale detach from the cards: defer pointer capture until the drag threshold, and make frame bounds + gesture writes follow the per-leaf positions map"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
