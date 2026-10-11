@@ -130,6 +130,39 @@ test("dragging a corner handle scales the group; one undo restores it", async ({
   await expect.poll(async () => Math.abs((await cards[0].boundingBox())!.x - cardStart.x)).toBeLessThan(4);
 });
 
+test("frame hugs the painted cards after a layout re-derive (Ctrl+L direction cycle)", async ({ page }) => {
+  await openCanvas(page);
+  const { frame, cards } = await createGroup(page);
+  await expect(frame).toBeVisible();
+  await page.waitForTimeout(300);
+
+  // Cycle the layout direction: the canvas now DERIVES its own arrangement
+  // (needsLayoutDerivation), so the painted coords stop being the shared store
+  // coords. The frame must measure the painted array, not the stale store one
+  // — the last sizing bug (T-138).
+  await page.keyboard.press("Control+l");
+  await expect.poll(async () => (await frame.boundingBox()) !== null).toBeTruthy();
+  await page.waitForTimeout(400);
+
+  const fb = (await frame.boundingBox())!;
+  const a = (await cards[0].boundingBox())!;
+  const b = (await cards[1].boundingBox())!;
+  // Union of the two painted cards, inflated by padding+header — the frame's
+  // top edge sits above the cards (header), its left edge within ~30px of the
+  // leftmost card, and it contains both.
+  const left = Math.min(a.x, b.x);
+  const right = Math.max(a.x + a.width, b.x + b.width);
+  const top = Math.min(a.y, b.y);
+  const bottom = Math.max(a.y + a.height, b.y + b.height);
+  expect(fb.x).toBeGreaterThan(left - 40);
+  expect(fb.x).toBeLessThan(left + 2);
+  expect(fb.x + fb.width).toBeGreaterThan(right - 2);
+  expect(fb.x + fb.width).toBeLessThan(right + 40);
+  expect(fb.y).toBeLessThan(top + 2);
+  expect(fb.y + fb.height).toBeGreaterThan(bottom - 2);
+  expect(fb.y + fb.height).toBeLessThan(bottom + 45);
+});
+
 test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {
   await openCanvas(page);
   const { frame, cards } = await createGroup(page);

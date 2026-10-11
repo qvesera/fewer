@@ -83,29 +83,24 @@ const gestureRef = {
   set: (g: FrameGesture | null) => { activeGesture = g; },
 };
 
-export function GroupFrames({ leafId }: { leafId?: string }): ReactNode {
+/**
+ * All group frames for one canvas.
+ *
+ * `nodes` is the canvas's PAINTED array (`positionedNodes` from GraphCanvas:
+ * derived layout + per-view positions + collapsed-pill geometry) — the frame
+ * must measure exactly what this canvas paints, or the box disagrees with the
+ * cards in any view that derives its own layout (T-138, the last sizing bug:
+ * reading shared store nodes here made Organize detach frames from clusters).
+ *
+ * `leafId` is the RAW canvas prop, deliberately NOT the scope's normalized
+ * label (scope.leafId falls back to "primary"): the primary canvas renders from
+ * viewSettings[undefined] (the defaults), and a gesture keyed on "primary"
+ * would write a map nothing paints from. This matches the leafId the card-drag
+ * path routes on.
+ */
+export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNode[] }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
-  const nodes = useGraphStore((s) => s.nodes);
-  // Per-view visibility + the per-view position map (both memoized in
-  // GraphCanvas, one per leaf). The frame must frame and move what THIS canvas
-  // actually paints — a split view with its own `positions` renders cards from
-  // that map, not from shared `nodes[].position`, so every coordinate the frame
-  // computes goes through it (T-137).
-  // `leafId` is the RAW canvas prop, deliberately NOT the scope's normalized
-  // label (scope.leafId falls back to "primary"): the primary canvas renders
-  // from viewSettings[undefined] (the defaults), and a gesture keyed on
-  // "primary" would write a map nothing paints from — frozen cards, drifting
-  // frame. This matches the leafId the card-drag path routes on.
   const { visibleIds } = useGraphViewScope();
-  // The per-view position map this canvas paints from — read RAW off the store,
-  // the same source `positionedNodes` uses. NOT through the view scope: the
-  // scope deliberately pins `resolved.positions: undefined` (the #281 fix, so a
-  // drag frame doesn't re-render every card via context), which meant reading it
-  // here gave an always-empty map and the frame could never follow a split
-  // canvas's dragged cards (T-137). Rebuilt only when that leaf's map identity
-  // changes — a drag rewrites it every frame, but it is one small object, not a
-  // per-card render fan-out.
-  const viewPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
 
   if (groups.length === 0) return null;
   return (
@@ -117,7 +112,6 @@ export function GroupFrames({ leafId }: { leafId?: string }): ReactNode {
             group={group}
             nodes={nodes}
             visible={visibleIds}
-            viewPositions={viewPositions}
             leafId={leafId}
           />
         ))}
@@ -133,15 +127,15 @@ export function GroupFrame({
   group,
   nodes,
   visible,
-  viewPositions,
   leafId,
 }: {
   group: Group;
+  /** The canvas's PAINTED nodes (derived layout + per-view positions + pill
+   *  geometry). Bounds, gesture start positions and the scale origin all read
+   *  exactly what this canvas paints (T-138). */
   nodes: FewerNode[];
   /** Ids this view paints. The box hugs these; a collapsed group anchors on all. */
   visible: ReadonlySet<string>;
-  /** This canvas's per-view position map, if it has one. Wins over shared coords. */
-  viewPositions?: Record<string, { x: number; y: number }>;
   /** The owning canvas, for routing gesture writes to the per-view map. */
   leafId?: string;
 }): ReactNode {
@@ -157,14 +151,21 @@ export function GroupFrame({
   // it (a drag or scale must land where the pointer is at any zoom/pan).
   const { x: vpX, y: vpY, zoom } = useViewport();
 
-  // The coordinates THIS canvas paints: the per-view map wins over shared
-  // positions — the same precedence applyViewPositions applies to the cards
-  // (T-137). Reading shared coords here is what let a handle drag slide the
-  // frame away from the cluster the moment a view owned a positions map.
-  const vpMap = useMemo(
-    () => (viewPositions ? new Map(Object.entries(viewPositions)) : undefined),
-    [viewPositions],
-  );
+  // The painted array only contains VISIBLE members — but a collapsed group's
+  // pill must anchor on every member (collapse is what hides them, and
+  // visible-only bounds would delete the pill's own handle). So the collapsed
+  // anchor reads the store's full list, with this leaf's position map overlaid
+  // where one exists, so hidden members keep their per-view coords (T-138).
+  const allNodes = useGraphStore((s) => s.nodes);
+  const leafPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
+  const anchorNodes = useMemo(() => {
+    if (!group.collapsed) return nodes;
+    const members = new Set(group.memberIds);
+    return allNodes.map((n) => {
+      const p = members.has(n.id) ? leafPositions?.[n.id] : undefined;
+      return p ? { ...n, position: p } : n;
+    });
+  }, [group.collapsed, group.memberIds, allNodes, leafPositions, nodes]);
 
   // Group keyboard (T-135) — one listener per mounted frame, every handler
   // reads live state, so with several groups the first one to act wins and the
@@ -212,8 +213,8 @@ export function GroupFrame({
   // empty box (T-134 edge case) — and drawing nothing at all when none is
   // visible. Collapsed: anchor the pill on EVERY member, because collapse is
   // what hides them — visible-only bounds would delete the pill's own handle.
-  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible, vpMap);
-  const allBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, undefined, vpMap);
+  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+  const allBounds = group.collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
   const anchor = group.collapsed ? (allBounds ?? visibleBounds) : visibleBounds;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
   const box = anchor && (group.collapsed ? groupPill(anchor) : anchor);
@@ -253,10 +254,7 @@ export function GroupFrame({
         // First gesture in this view: seed the map from what this canvas paints
         // so the cards that aren't moving keep their rendered spots.
         const seed: Record<string, { x: number; y: number }> = {};
-        for (const n of nodes) {
-          const p = vpMap?.get(n.id) ?? n.position;
-          seed[n.id] = { x: p.x, y: p.y };
-        }
+        for (const n of nodes) seed[n.id] = { x: n.position.x, y: n.position.y };
         s.seedNodePositions(leafId, seed);
       }
       s.setNodePositionsBatch(leafId, Object.entries(positions).map(([id, pos]) => ({ id, pos })));
@@ -272,11 +270,11 @@ export function GroupFrame({
   ) => {
     const startPositions = new Map<string, { x: number; y: number }>();
     const members = new Set(group.memberIds);
-    // Effective positions: what THIS canvas paints, per-view map first.
+    // Effective positions: the painted array IS what this canvas shows, so the
+    // members' start coords are their painted ones (T-138).
     for (const n of nodes) {
       if (!members.has(n.id)) continue;
-      const p = vpMap?.get(n.id) ?? n.position;
-      startPositions.set(n.id, { x: p.x, y: p.y });
+      startPositions.set(n.id, { x: n.position.x, y: n.position.y });
     }
     gestureRef.set({
       mode,
@@ -315,7 +313,7 @@ export function GroupFrame({
   const onHandlePointerDown = (id: GroupHandleId) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible, vpMap);
+    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
     if (!current) return; // nothing rendered → nothing to scale
     startGesture(e, "scale", {
       startBox: { width: current.width, height: current.height },

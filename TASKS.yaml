@@ -3727,3 +3727,101 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 312, deletions: 25}
   spent_min: 74
   session_count: 1
+- id: "T-138"
+  title: "Group frame measures the canvas painted array (derived layout + per-view positions + pill geometry) instead of shared store nodes — drop the T-137 viewPositions overlay plumbing"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 394
+  pr: 398
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T16:11:30Z"
+  notes: ["2026-10-11T16:11:59Z · root cause R1: GroupFrames reads s.nodes (shared) while GraphCanvas paints positionedNodes=applyViewPositions(laidNodes,vs.positions); pass painted array as prop, delete viewPositions/vpMap plumbing; collapsed pill anchor keeps a store fallback (painted set excludes hidden members)"]
+  sessions:
+  - start: "2026-10-11T16:14:32Z"
+    end: "2026-10-11T16:28:13Z"
+    measured: true
+    note: "frame measures the painted array (positionedNodes) passed as a prop; dropped the T-137 viewPositions overlay plumbing; collapsed pill anchors on the store full list with the leaf map overlaid; e2e asserts the frame hugs painted cards after a Ctrl+L re-derive"
+    proof: ["47f9487"]
+    effort: {commits: 1, files: 6, insertions: 199, deletions: 53}
+  spent_min: 14
+  session_count: 1
+- id: "T-139"
+  title: "Collapsed group pill speaks the folder pill design language: rounded-xl shell, group theme tokens, icon tile, stat sub-line, shared ring classes, fix the 36/32 geometry sliver"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 395
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T16:11:30Z"
+  notes: ["2026-10-11T16:11:59Z · root cause R3: pill uses raw bg-muted/70 + rounded-t-2xl vs folder card shell; adopt --fewer-group-* tokens defaulting to folder values, icon tile, stat sub-line, gm-* rings, fix 220x36 box vs 32px header sliver"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-140"
+  title: "Collapsed group members stay in the layout so the pill reserves its space — Organize no longer re-flows cards on top of the pill"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 396
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T16:11:31Z"
+  notes: ["2026-10-11T16:11:59Z · root cause R2: relayout excludes ALL hiddenIds from layout; collapsed group members keep stale positions while cards re-flow onto them; subtract collapsed-group members from excludeFromLayout so the block reserves space; e2e geometric assertion"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-141"
+  title: "Group membership legible: count reads members, member cards ring on frame hover/select, Include-cards-inside menu item"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 397
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-11T16:11:31Z"
+  notes: ["2026-10-11T16:12:00Z · W3: count reads members, member cards ring on frame hover/select, Include-cards-inside (N) menu item via pure cardsInsideBox helper + setGroupMembers (one undo op)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
