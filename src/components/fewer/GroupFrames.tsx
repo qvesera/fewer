@@ -8,8 +8,8 @@
 // Only the header strip takes pointer events: the gray area itself is inert, so
 // dragging, selecting and right-clicking cards inside a group behave exactly as
 // they do outside one.
-import { useState, type ReactNode } from "react";
-import { ViewportPortal } from "@xyflow/react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ViewportPortal, useViewport } from "@xyflow/react";
 import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
@@ -30,12 +30,30 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { plural } from "@/lib/fewer/plural";
 
+/** Screen pixels before a header press becomes a move (a click still selects). */
+const DRAG_THRESHOLD = 3;
+
+/** A live header-drag. One pointer, one gesture — module scope keeps the
+ *  keyboard listener (owned by the parent) aware of it without prop drilling. */
+type HeaderGesture = {
+  groupId: string;
+  pointerId: number;
+  startScreen: { x: number; y: number };
+  /** Member positions when the drag began — the restore point for Escape and
+   *  the absolute base for every frame's target positions (no drift). */
+  startPositions: Map<string, { x: number; y: number }>;
+  moved: boolean;
+  cancelled: boolean;
+};
+let activeGesture: HeaderGesture | null = null;
+
 export function GroupFrames(): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const nodes = useGraphStore((s) => s.nodes);
   // Per-view visibility (memoized in GraphCanvas, one set per leaf) — the frame
   // frames what THIS canvas paints, so split views can disagree on purpose.
   const { visibleIds } = useGraphViewScope();
+
   if (groups.length === 0) return null;
   return (
     <ViewportPortal>
@@ -68,6 +86,42 @@ export function GroupFrame({
   // locally and commit on onChangeEnd so one drag stays ONE history entry
   // (setGroupColor records a `groups` op each call).
   const [draft, setDraft] = useState<string>(group.color ?? "");
+  const isSelected = useGraphStore((s) => s.selectedGroupIds.includes(group.id));
+  // Live viewport zoom: the header gesture converts its screen delta to flow
+  // coordinates with it (a drag must land where the pointer is at any zoom).
+  const { zoom } = useViewport();
+
+  // Group keyboard (T-135) — one listener per mounted frame, every handler
+  // reads live state, so with several groups the first one to act wins and the
+  // rest no-op. Escape cancels a live move (restore, no history) or clears the
+  // selection; Delete ungroups every selected group. An editable target keeps
+  // its own Escape/typing (rename input, note editor).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      const act = useGraphStore.getState();
+      if (e.key === "Escape") {
+        const g = activeGesture;
+        if (g && g.moved && !g.cancelled) {
+          // Restore IS the Escape result for a live drag: positions snap back,
+          // nothing is recorded, the selection stays.
+          act.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
+          g.cancelled = true;
+          return;
+        }
+        if (act.selectedGroupIds.length > 0) act.setSelectedGroupIds([]);
+        return;
+      }
+      if (e.key === "Delete" && act.selectedGroupIds.length > 0) {
+        e.preventDefault();
+        for (const id of act.selectedGroupIds) act.removeGroup(id);
+        act.setSelectedGroupIds([]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [group.id]);
 
   const visibleCount = group.memberIds.filter((id) => visible.has(id)).length;
   const hiddenCount = group.memberIds.length - visibleCount;
@@ -95,6 +149,75 @@ export function GroupFrame({
 
   const act = () => useGraphStore.getState();
 
+  // ── Select + move (T-135) ──
+  // The frame isn't a React Flow node, so its gesture is hand-rolled on the
+  // header: press selects (shift toggles), a drag past the threshold moves
+  // every member through the store, and release records ONE move-positions op.
+  // Positions are always computed from the captured start — never incremented —
+  // so a lost pointermove or a mid-drag re-render cannot drift the cluster.
+  const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return; // right-click stays the context menu's
+    // Keep this off the pane (T-133 clears selection there) and off React Flow.
+    e.stopPropagation();
+    const state = act();
+    const selected = state.selectedGroupIds;
+    const next = e.shiftKey
+      ? selected.includes(group.id)
+        ? selected.filter((id) => id !== group.id)
+        : [...selected, group.id]
+      : selected.length === 1 && selected[0] === group.id
+        ? selected
+        : [group.id];
+    state.setSelectedGroupIds(next);
+
+    const startPositions = new Map<string, { x: number; y: number }>();
+    const members = new Set(group.memberIds);
+    for (const n of nodes) if (members.has(n.id)) startPositions.set(n.id, { x: n.position.x, y: n.position.y });
+    activeGesture = {
+      groupId: group.id,
+      pointerId: e.pointerId,
+      startScreen: { x: e.clientX, y: e.clientY },
+      startPositions,
+      moved: false,
+      cancelled: false,
+    };
+    // Keeps move/up firing when the pointer leaves the header mid-drag.
+    // (jsdom tests have no capture support — guard, don't crash.)
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onHeaderPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = activeGesture;
+    if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId || g.cancelled) return;
+    const dx = e.clientX - g.startScreen.x;
+    const dy = e.clientY - g.startScreen.y;
+    if (!g.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      g.moved = true;
+    }
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
+    act().setGroupMemberPositions(group.id, positions);
+  };
+
+  const onHeaderPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = activeGesture;
+    if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId) return;
+    activeGesture = null;
+    try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer already gone */ }
+    if (!g.moved || g.cancelled) return; // a click is a selection, not a move
+    // One history entry for the whole gesture, exactly like a card drag stop.
+    const state = act();
+    const members = new Set(group.memberIds);
+    const moves = (state.nodes ?? [])
+      .filter((n) => members.has(n.id))
+      .flatMap((n) => {
+        const from = g.startPositions.get(n.id);
+        return from ? [{ nodeId: n.id, from, to: { x: n.position.x, y: n.position.y } }] : [];
+      });
+    state.recordDragMoves(moves);
+  };
+
   /**
    * Open a layer (popover) from a Radix menu item. The menu closes on the same
    * pointer sequence that fired onSelect, so opening synchronously makes the new
@@ -118,10 +241,11 @@ export function GroupFrame({
       className="pointer-events-none absolute"
       style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
       data-group-id={group.id}
+      data-selected={isSelected ? "true" : undefined}
     >
       {/* The gray area — inert, so cards inside it stay draggable/selectable. */}
       <div
-        className={tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}
+        className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " ring-2 ring-primary/70" : ""}`}
         style={frameStyle}
       />
 
@@ -130,12 +254,18 @@ export function GroupFrame({
         <ContextMenuTrigger asChild>
           <div
             data-group-header={group.id}
+            // Grab affordance: the header moves the whole cluster, the title
+            // text keeps its own cursor-text.
             className={
               tinted
-                ? "pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b px-2"
-                : "pointer-events-auto absolute left-0 right-0 top-0 flex items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2"
+                ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b px-2 active:cursor-grabbing${isSelected ? " ring-2 ring-primary/70" : ""}`
+                : `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b border-border/40 bg-muted/70 px-2 active:cursor-grabbing${isSelected ? " ring-2 ring-primary/70" : ""}`
             }
             style={headerStyle}
+            onPointerDown={onHeaderPointerDown}
+            onPointerMove={onHeaderPointerMove}
+            onPointerUp={onHeaderPointerEnd}
+            onPointerCancel={onHeaderPointerEnd}
           >
         <button
           type="button"

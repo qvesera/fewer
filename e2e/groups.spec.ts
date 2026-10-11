@@ -71,6 +71,50 @@ test("Group N Items from the selection menu draws a frame around the cards", asy
   await expect(page.locator("[data-group-id]")).toHaveCount(1);
 });
 
+test("header click selects the group, dragging it moves the cards in one undo step", async ({ page }) => {
+  await openCanvas(page);
+  const { frame, cards } = await createGroup(page);
+  // Settle: wait for the frame to paint before sampling any geometry, so the
+  // "before" coordinates are the true start (not a stale/partial layout).
+  await expect(frame).toBeVisible();
+  await page.waitForTimeout(300);
+  const beforeFrame = (await frame.boundingBox())!;
+  const beforeCard = (await cards[0].boundingBox())!;
+
+  // Click the header → the frame rings as selected (T-135).
+  const headerBox = (await groupHeader(page).boundingBox())!;
+  await page.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  await expect(frame).toHaveAttribute("data-selected", "true");
+
+  // Drag the header: every member card travels with it.
+  await page.mouse.move(headerBox.x + 40, headerBox.y + headerBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(headerBox.x + 180, headerBox.y + headerBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const afterFrame = (await frame.boundingBox())!;
+  const afterCard = (await cards[0].boundingBox())!;
+  expect(afterFrame.x - beforeFrame.x).toBeGreaterThan(100);
+  expect(afterCard.x - beforeCard.x).toBeGreaterThan(100);
+
+  // ONE undo restores the whole cluster.
+  await page.keyboard.press("Control+z");
+  await expect.poll(async () => Math.abs((await frame.boundingBox())!.x - beforeFrame.x)).toBeLessThan(2);
+});
+
+test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {
+  await openCanvas(page);
+  const { frame, cards } = await createGroup(page);
+  const headerBox = (await groupHeader(page).boundingBox())!;
+  await page.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  await expect(frame).toHaveAttribute("data-selected", "true");
+
+  await page.keyboard.press("Delete");
+  await expect(page.locator("[data-group-id]")).toHaveCount(0);
+  // The cards survive the frame.
+  await expect(cards[0]).toBeVisible();
+  await expect(cards[1]).toBeVisible();
+});
+
 test("hiding every member removes the frame; Show All brings it back", async ({ page }) => {
   await openCanvas(page);
   const { cards } = await createGroup(page);
