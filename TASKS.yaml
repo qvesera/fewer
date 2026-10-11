@@ -3816,7 +3816,7 @@ tasks:
   session_count: 1
 - id: "T-141"
   title: "Group membership legible: count reads members, member cards ring on frame hover/select, Include-cards-inside menu item"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
@@ -3834,6 +3834,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-11T16:11:31Z"
   notes: ["2026-10-11T16:12:00Z · W3: count reads members, member cards ring on frame hover/select, Include-cards-inside (N) menu item via pure cardsInsideBox helper + setGroupMembers (one undo op)"]
-  sessions: []
+  sessions:
+  - start: "2026-10-11T20:48:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1

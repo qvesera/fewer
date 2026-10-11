@@ -54,6 +54,16 @@ export function groupPill(bounds: GroupBounds): GroupBounds {
   return { x: bounds.x, y: bounds.y, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
 }
 
+/** Rendered size of a card. React Flow reports the real size in `measured`,
+ *  and a folder card grows well past its nominal height once it lists children
+ *  — reading only `style` made frames too short, so cards spilled out of the
+ *  box. Precedence mirrors layout.ts: measured wins for height, style for width. */
+export function nodeRenderedSize(node: FewerNode): { w: number; h: number } {
+  const w = (node.style?.width as number | undefined) || node.measured?.width || node.width || 0;
+  const h = node.measured?.height || (node.style?.height as number | undefined) || node.height || 0;
+  return { w, h };
+}
+
 /**
  * Bounding box of a group's members, padded, or `null` when none of them are on
  * the canvas.
@@ -85,12 +95,7 @@ export function groupBounds(
   for (const node of nodes) {
     if (!members.has(node.id)) continue;
     if (visible && !visible.has(node.id)) continue;
-    // React Flow reports the real rendered size in `measured`, and a folder
-    // card grows well past its nominal height once it lists children — reading
-    // only `style` made frames too short, so cards spilled out of the box.
-    // Precedence mirrors layout.ts: measured wins for height, style for width.
-    const w = (node.style?.width as number | undefined) || node.measured?.width || node.width || 0;
-    const h = node.measured?.height || (node.style?.height as number | undefined) || node.height || 0;
+    const { w, h } = nodeRenderedSize(node);
     const { x, y } = viewPositions?.get(node.id) ?? node.position;
     if (x < minX) minX = x;
     if (y < minY) minY = y;
@@ -108,6 +113,39 @@ export function groupBounds(
     width: maxX - minX + padding * 2,
     height: maxY - minY + padding * 2 + GROUP_HEADER_HEIGHT,
   };
+}
+
+/**
+ * Non-member cards that sit ENTIRELY inside a group's box (T-141).
+ *
+ * Membership is explicit, so a re-flow can park a stranger inside the frame —
+ * the box then reads as "containing" a card the group does not own. The group
+ * menu offers to include exactly these, so box and membership can agree again.
+ * Fully-contained only: a card straddling the border belongs to the layout,
+ * not to the group.
+ */
+export function cardsInsideBox(
+  nodes: FewerNode[],
+  box: GroupBounds,
+  memberIds: readonly string[],
+  visible?: ReadonlySet<string>,
+): string[] {
+  const members = new Set(memberIds);
+  const inside: string[] = [];
+  for (const node of nodes) {
+    if (members.has(node.id)) continue;
+    if (visible && !visible.has(node.id)) continue;
+    const { w, h } = nodeRenderedSize(node);
+    if (
+      node.position.x >= box.x &&
+      node.position.y >= box.y &&
+      node.position.x + w <= box.x + box.width &&
+      node.position.y + h <= box.y + box.height
+    ) {
+      inside.push(node.id);
+    }
+  }
+  return inside;
 }
 
 /** Construct a group. Id comes from the caller so this stays pure. */

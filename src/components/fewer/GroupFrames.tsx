@@ -13,7 +13,7 @@ import { ViewportPortal, useViewport } from "@xyflow/react";
 import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
-import { COLLAPSED_PILL_HEIGHT, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
+import { COLLAPSED_PILL_HEIGHT, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -142,6 +142,9 @@ export function GroupFrame({
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  // Header hover rings the member cards (T-134/T-141): the box communicates
+  // ownership without needing to enclose every member.
+  const [hovered, setHovered] = useState(false);
   // The picker reports every intermediate colour while dragging; we preview it
   // locally and commit on onChangeEnd so one drag stays ONE history entry
   // (setGroupColor records a `groups` op each call).
@@ -218,6 +221,14 @@ export function GroupFrame({
   const anchor = group.collapsed ? (allBounds ?? visibleBounds) : visibleBounds;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
   const box = anchor && (group.collapsed ? groupPill(anchor) : anchor);
+  // Non-members fully inside the box, offered by the group menu so membership
+  // and box can agree again (T-141). Primitives as deps: a drag re-render
+  // rebuilds `box`, but only a geometry or node change should recompute this.
+  const insideIds = useMemo(
+    () => (box ? cardsInsideBox(nodes, box, group.memberIds, visible) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- box identity churns per render; its primitives are the real inputs
+    [nodes, group.memberIds, visible, box?.x, box?.y, box?.width, box?.height],
+  );
   if (!box) return null;
 
   // Colored frames tint border + fill + header from the same hex; the default
@@ -421,6 +432,27 @@ export function GroupFrame({
         style={frameStyle}
       />
 
+      {/* Member outlines (T-141): hovering or selecting the frame rings each
+          member card — the box says "which cards are mine" without needing to
+          enclose them, which explicit membership makes impossible to promise. */}
+      {(isSelected || hovered) && !group.collapsed && (
+        <>
+          {nodes
+            .filter((n) => group.memberIds.includes(n.id) && visible.has(n.id))
+            .map((n) => {
+              const { w, h } = nodeRenderedSize(n);
+              return (
+                <div
+                  key={n.id}
+                  data-group-member-ring={n.id}
+                  className="pointer-events-none absolute gm-selected-ring rounded-xl"
+                  style={{ left: n.position.x - box.x, top: n.position.y - box.y, width: w, height: h }}
+                />
+              );
+            })}
+        </>
+      )}
+
       {/* Right-click the header for the group menu; the body stays out of the way.
           Collapsed, this strip IS the whole frame — a card-sized pill in the
           same design language as a collapsed folder card (T-139): rounded-xl
@@ -445,6 +477,8 @@ export function GroupFrame({
             onPointerMove={onFramePointerMove}
             onPointerUp={onFramePointerEnd}
             onPointerCancel={onFramePointerEnd}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
           >
         <button
           type="button"
@@ -512,15 +546,16 @@ export function GroupFrame({
         )}
 
         {/* Stat line: the collapsed pill shows the plain total — every member is
-            hidden BY the collapse, so "0 of 2 cards" read as a bug (T-139). The
-            expanded frame keeps the honest visible/total count. */}
+            hidden BY the collapse, so "0 of 2 members" read as a bug (T-139).
+            "Members", not "cards": a re-flow can park non-member cards inside
+            the box, and only members belong to the group (T-141). */}
         {group.collapsed ? (
           <span className="shrink-0 text-[10px] uppercase tracking-wider text-fewer-group-subtle-text">
-            {plural(group.memberIds.length, "card")}
+            {plural(group.memberIds.length, "member")}
           </span>
         ) : (
           <span className="shrink-0 text-[10px] text-muted-foreground">
-            {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "card")}` : plural(group.memberIds.length, "card")}
+            {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "member")}` : plural(group.memberIds.length, "member")}
           </span>
         )}
 
@@ -593,6 +628,16 @@ export function GroupFrame({
           >
             Select Members
           </ContextMenuItem>
+          {/* A re-flow parked these cards fully inside the box but outside the
+              membership — offer to adopt them so box and membership agree
+              (one `groups` op, one undo step). */}
+          {insideIds.length > 0 && (
+            <ContextMenuItem
+              onSelect={() => act().setGroupMembers(group.id, [...group.memberIds, ...insideIds])}
+            >
+              Include {plural(insideIds.length, "card")} inside
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem
             onSelect={() => act().removeGroup(group.id)}
