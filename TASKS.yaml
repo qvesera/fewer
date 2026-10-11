@@ -3636,7 +3636,7 @@ tasks:
   session_count: 1
 - id: "T-135"
   title: "Groups selectable and movable: selectedGroupIds, header click to select, drag the header to move every member card as one undo step, Delete = Ungroup"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
