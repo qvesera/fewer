@@ -3636,32 +3636,32 @@ tasks:
   session_count: 1
 - id: "T-135"
   title: "Groups selectable and movable: selectedGroupIds, header click to select, drag the header to move every member card as one undo step, Delete = Ungroup"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 240
   estimate_basis: "cli"
   issue: 383
-  pr: null
+  pr: 387
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-11T07:37:45Z"
   notes: ["2026-10-11T07:37:56Z · selectedGroupIds on the selection slice; move reuses the multi-select drag machinery (handleNodesChange + recordDragMoves, one move-positions op); Delete = Ungroup"]
   sessions:
   - start: "2026-10-11T08:30:56Z"
-    end: null
+    end: "2026-10-11T09:23:17Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "selectedGroupIds on the selection slice (mutual exclusion with card selection); header drag moves every member incl. hidden via setGroupMemberPositions + one move-positions op on release; Escape restores/clears, Delete ungroups; nodrag nopan fixed the RF pane-pan leak"
+    proof: ["b9d6420", "#387"]
+    effort: {commits: 1, files: 8, insertions: 376, deletions: 23}
+  spent_min: 52
   session_count: 1
 - id: "T-136"
   title: "Groups resizable by scaling the arrangement: corner/edge handles on the selected frame scale member offsets from the box origin (cards keep their size), one move-positions op on release"
