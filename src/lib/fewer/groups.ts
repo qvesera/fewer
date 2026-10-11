@@ -170,3 +170,84 @@ export function membershipMap(groups: readonly Group[]): Map<string, string> {
   }
   return owner;
 }
+
+// ── Resize-by-scale (T-136) ────────────────────────────────────────────────
+// A selected frame grows corner/edge handles; dragging one SCALES the member
+// arrangement around a fixed origin (the opposite corner/edge). Cards keep
+// their size — only their offsets from the origin are multiplied — and the
+// frame stores no geometry: the box is always re-derived from the members, so
+// this is pure `move-positions` (one undo op per gesture, nothing persisted).
+
+export type GroupHandleId = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
+export const GROUP_HANDLES: readonly GroupHandleId[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+
+/** Which axes a handle drives: corners scale both, edges one. */
+export function handleAxes(id: GroupHandleId): { x: boolean; y: boolean } {
+  const x = id.includes("e") || id.includes("w");
+  const y = id.includes("n") || id.includes("s");
+  return { x, y };
+}
+
+/** The fixed point of the scale: the point/edge OPPOSITE the dragged handle. */
+export function handleOrigin(id: GroupHandleId, box: GroupBounds): { x: number; y: number } {
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  switch (id) {
+    case "nw": return { x: box.x + box.width, y: box.y + box.height };
+    case "se": return { x: box.x, y: box.y };
+    case "ne": return { x: box.x, y: box.y + box.height };
+    case "sw": return { x: box.x + box.width, y: box.y };
+    case "n": return { x: cx, y: box.y + box.height };
+    case "s": return { x: cx, y: box.y };
+    case "e": return { x: box.x, y: cy };
+    case "w": return { x: box.x + box.width, y: cy };
+  }
+}
+
+/** Below this the frame would swallow its own cards: padding×2 + header + one card. */
+export const GROUP_MIN_BOX = {
+  width: GROUP_PADDING * 2 + 120,
+  height: GROUP_PADDING * 2 + GROUP_HEADER_HEIGHT + 60,
+} as const;
+
+/** Smallest scale that keeps the frame at least GROUP_MIN_BOX. Above 1 when the
+ *  box is already under the minimum — then the gesture may only grow it. */
+export function minScaleFor(box: GroupBounds): { x: number; y: number } {
+  return {
+    x: GROUP_MIN_BOX.width / Math.max(1, box.width),
+    y: GROUP_MIN_BOX.height / Math.max(1, box.height),
+  };
+}
+
+/**
+ * Scale factor for one axis: how far the pointer sits from the origin now,
+ * relative to where the gesture started. A degenerate start (handle on the
+ * origin) pins the axis at 1 — there is no reference length to scale from.
+ */
+export function scaleFactorFor(current: number, origin: number, start: number, min: number): number {
+  const ref = start - origin;
+  if (Math.abs(ref) < 1) return 1;
+  return Math.max(min, (current - origin) / ref);
+}
+
+/**
+ * New member positions for a scale: `to = origin + (from − origin) × (sx, sy)`.
+ * Cards keep their own size; only offsets scale. Pure — the gesture feeds it
+ * the captured start positions every frame so nothing drifts.
+ */
+export function scaleMemberPositions(
+  starts: ReadonlyMap<string, { x: number; y: number }>,
+  origin: { x: number; y: number },
+  sx: number,
+  sy: number,
+): Record<string, { x: number; y: number }> {
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const [id, p] of starts) {
+    out[id] = {
+      x: origin.x + (p.x - origin.x) * sx,
+      y: origin.y + (p.y - origin.y) * sy,
+    };
+  }
+  return out;
+}

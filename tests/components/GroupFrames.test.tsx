@@ -209,6 +209,112 @@ describe("GroupFrame select + move (T-135)", () => {
   });
 });
 
+describe("GroupFrame resize-scale (T-136)", () => {
+  beforeEach(() => {
+    useGraphStore.setState({
+      nodes: NODES.map((n) => ({ ...n })),
+      groups: [{ ...GROUP, memberIds: [...GROUP.memberIds] }],
+    });
+  });
+
+  const headerEl = () => document.querySelector("[data-group-header]")!;
+  const handleEl = (id: string) => document.querySelector(`[data-group-handle="${id}"]`)!;
+  const memberPos = (id: string) => {
+    const n = useGraphStore.getState().nodes.find((x) => x.id === id)!;
+    return { x: n.position.x, y: n.position.y };
+  };
+  const select = () => {
+    fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(headerEl(), { pointerId: 1 });
+  };
+  const dragHandle = (id: string, from: { x: number; y: number }, to: { x: number; y: number }, extra: Record<string, unknown> = {}) => {
+    fireEvent.pointerDown(handleEl(id), { pointerId: 2, button: 0, clientX: from.x, clientY: from.y });
+    fireEvent.pointerMove(handleEl(id), { pointerId: 2, clientX: to.x, clientY: to.y, ...extra });
+    fireEvent.pointerUp(handleEl(id), { pointerId: 2 });
+  };
+
+  test("handles render only on a selected, expanded frame", () => {
+    renderFrame();
+    expect(document.querySelector("[data-group-handle]")).toBeNull();
+    select();
+    expect(document.querySelectorAll("[data-group-handle]").length).toBe(8);
+  });
+
+  test("a collapsed selected frame renders no handles (the pill has no layout to scale)", () => {
+    renderFrame({ group: { ...GROUP, collapsed: true } });
+    select();
+    expect(document.querySelector("[data-group-handle]")).toBeNull();
+  });
+
+  test("dragging the se handle doubles the arrangement around the top-left origin", () => {
+    renderFrame();
+    select();
+    // Frame box: members at (0,0) and (300,0) with padding/header → box corner
+    // (-24,-56), size 488×172. se anchors on that corner; doubling the
+    // pointer's distance from it doubles every offset.
+    dragHandle("se", { x: 464, y: 116 }, { x: 952, y: 288 });
+    expect(memberPos("n1").x).toBeCloseTo(24, 0);
+    expect(memberPos("n1").y).toBeCloseTo(56, 0);
+    expect(memberPos("n2").x).toBeCloseTo(624, 0);
+    expect(memberPos("n2").y).toBeCloseTo(56, 0);
+  });
+
+  test("an edge handle scales one axis only", () => {
+    renderFrame();
+    select();
+    // e anchors on the left edge (x=-24, y=center 30); doubling x leaves y put.
+    dragHandle("e", { x: 464, y: 30 }, { x: 952, y: 30 });
+    expect(memberPos("n2").x).toBeCloseTo(624, 0);
+    expect(memberPos("n1").y).toBe(0);
+    expect(memberPos("n2").y).toBe(0);
+  });
+
+  test("Shift locks an edge handle to uniform scaling", () => {
+    renderFrame();
+    select();
+    // e-handle doubles x; with Shift the y factor follows — around the edge's
+    // midpoint (y=14: box spans −56…84), so the row widens and spreads.
+    dragHandle("e", { x: 464, y: 30 }, { x: 952, y: 30 }, { shiftKey: true });
+    expect(memberPos("n2").x).toBeCloseTo(624, 0);
+    expect(memberPos("n1").y).toBeCloseTo(-14, 0);
+    expect(memberPos("n2").y).toBeCloseTo(-14, 0);
+  });
+
+  test("the scale clamps so the frame never drops below GROUP_MIN_BOX", () => {
+    renderFrame();
+    select();
+    // Shatter toward the origin: sx would be ~0, clamped to 168/488.
+    dragHandle("se", { x: 464, y: 116 }, { x: -20, y: -50 });
+    const gap = memberPos("n2").x - memberPos("n1").x;
+    expect(gap).toBeCloseTo(300 * (168 / 488), 0);
+  });
+
+  test("a scale records ONE undo step and Ctrl+Z restores the arrangement", () => {
+    renderFrame();
+    select();
+    dragHandle("se", { x: 464, y: 116 }, { x: 952, y: 288 });
+    const s = useGraphStore.getState();
+    expect(s.past).toHaveLength(1);
+    expect(JSON.stringify(s.past[0])).toContain("move-positions");
+    s.undo();
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+    expect(memberPos("n2")).toEqual({ x: 300, y: 0 });
+  });
+
+  test("Escape mid-scale restores positions and records nothing", () => {
+    renderFrame();
+    select();
+    fireEvent.pointerDown(handleEl("se"), { pointerId: 2, button: 0, clientX: 464, clientY: 116 });
+    fireEvent.pointerMove(handleEl("se"), { pointerId: 2, clientX: 952, clientY: 288 });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(memberPos("n1")).toEqual({ x: 0, y: 0 });
+    fireEvent.pointerUp(handleEl("se"), { pointerId: 2 });
+    expect(useGraphStore.getState().past).toHaveLength(0);
+    // The selection survives the cancelled gesture.
+    expect(useGraphStore.getState().selectedGroupIds).toEqual(["g-1"]);
+  });
+});
+
 describe("GroupFrame menu actions", () => {
   test("Select Members selects the cards and invalidates the selection stamp", async () => {
     renderFrame();

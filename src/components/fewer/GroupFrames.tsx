@@ -13,7 +13,7 @@ import { ViewportPortal, useViewport } from "@xyflow/react";
 import { ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
-import { GROUP_HEADER_HEIGHT, GROUP_PADDING, groupBounds, groupPill, normalizeGroupColor } from "@/lib/fewer/groups";
+import { GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -33,19 +33,55 @@ import { plural } from "@/lib/fewer/plural";
 /** Screen pixels before a header press becomes a move (a click still selects). */
 const DRAG_THRESHOLD = 3;
 
-/** A live header-drag. One pointer, one gesture — module scope keeps the
- *  keyboard listener (owned by the parent) aware of it without prop drilling. */
-type HeaderGesture = {
+/** Resize handles render only on a selected, expanded frame. */
+const HANDLE_CURSORS: Record<GroupHandleId, string> = {
+  nw: "cursor-nwse-resize", n: "cursor-ns-resize", ne: "cursor-nesw-resize", e: "cursor-ew-resize",
+  se: "cursor-nwse-resize", s: "cursor-ns-resize", sw: "cursor-nesw-resize", w: "cursor-ew-resize",
+};
+
+/** Corner squares straddle the border; edge bars sit centered on their side. */
+function handleStyle(id: GroupHandleId): React.CSSProperties {
+  const sq = 10, half = sq / 2;
+  const bar = 16, barHalf = bar / 2, thin = 6, thinHalf = thin / 2;
+  switch (id) {
+    case "nw": return { left: -half, top: -half, width: sq, height: sq };
+    case "ne": return { right: -half, top: -half, width: sq, height: sq };
+    case "se": return { right: -half, bottom: -half, width: sq, height: sq };
+    case "sw": return { left: -half, bottom: -half, width: sq, height: sq };
+    case "n": return { left: "50%", top: -thinHalf, width: bar, height: thin, marginLeft: -barHalf };
+    case "s": return { left: "50%", bottom: -thinHalf, width: bar, height: thin, marginLeft: -barHalf };
+    case "e": return { right: -thinHalf, top: "50%", width: thin, height: bar, marginTop: -barHalf };
+    case "w": return { left: -thinHalf, top: "50%", width: thin, height: bar, marginTop: -barHalf };
+  }
+}
+
+/** A live frame gesture (move or resize-scale). One pointer, one gesture —
+ *  module scope keeps the keyboard listener (in each frame) aware of it
+ *  without prop drilling. */
+type FrameGesture = {
+  mode: "move" | "scale";
   groupId: string;
   pointerId: number;
   startScreen: { x: number; y: number };
-  /** Member positions when the drag began — the restore point for Escape and
-   *  the absolute base for every frame's target positions (no drift). */
+  /** Member positions when the gesture began — the restore point for Escape
+   *  and the absolute base for every frame's target positions (no drift). */
   startPositions: Map<string, { x: number; y: number }>;
+  /** Scale only: the frame box and the fixed origin captured on press. */
+  startBox?: { width: number; height: number };
+  origin?: { x: number; y: number };
+  axes?: { x: boolean; y: boolean };
   moved: boolean;
   cancelled: boolean;
 };
-let activeGesture: HeaderGesture | null = null;
+// Module-level slot for the one live gesture. Wrapped in accessors so event
+// handlers mutate it through a function call (the linter forbids reassigning an
+// outer-scope variable from inside a component's handlers, and a function call
+// sidesteps that while keeping the exact same single-slot semantics).
+let activeGesture: FrameGesture | null = null;
+const gestureRef = {
+  get: (): FrameGesture | null => activeGesture,
+  set: (g: FrameGesture | null) => { activeGesture = g; },
+};
 
 export function GroupFrames(): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
@@ -87,9 +123,9 @@ export function GroupFrame({
   // (setGroupColor records a `groups` op each call).
   const [draft, setDraft] = useState<string>(group.color ?? "");
   const isSelected = useGraphStore((s) => s.selectedGroupIds.includes(group.id));
-  // Live viewport zoom: the header gesture converts its screen delta to flow
-  // coordinates with it (a drag must land where the pointer is at any zoom).
-  const { zoom } = useViewport();
+  // Live viewport: the gestures convert screen deltas to flow coordinates with
+  // it (a drag or scale must land where the pointer is at any zoom/pan).
+  const { x: vpX, y: vpY, zoom } = useViewport();
 
   // Group keyboard (T-135) — one listener per mounted frame, every handler
   // reads live state, so with several groups the first one to act wins and the
@@ -102,7 +138,7 @@ export function GroupFrame({
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       const act = useGraphStore.getState();
       if (e.key === "Escape") {
-        const g = activeGesture;
+        const g = gestureRef.get();
         if (g && g.moved && !g.cancelled) {
           // Restore IS the Escape result for a live drag: positions snap back,
           // nothing is recorded, the selection stays.
@@ -149,12 +185,38 @@ export function GroupFrame({
 
   const act = () => useGraphStore.getState();
 
-  // ── Select + move (T-135) ──
-  // The frame isn't a React Flow node, so its gesture is hand-rolled on the
-  // header: press selects (shift toggles), a drag past the threshold moves
-  // every member through the store, and release records ONE move-positions op.
-  // Positions are always computed from the captured start — never incremented —
-  // so a lost pointermove or a mid-drag re-render cannot drift the cluster.
+  // ── Select, move, resize-scale (T-135/T-136) ──
+  // The frame isn't a React Flow node, so its gestures are hand-rolled: a
+  // header press selects (shift toggles) and drags every member; a handle press
+  // scales the arrangement around the handle's origin (cards keep their size).
+  // Both record ONE move-positions op on release, and both compute targets from
+  // the captured start — never incremented — so a lost pointermove or a mid-
+  // gesture re-render cannot drift the cluster.
+  const screenToFlow = (sx: number, sy: number) => ({ x: (sx - vpX) / zoom, y: (sy - vpY) / zoom });
+
+  const startGesture = (
+    e: React.PointerEvent<HTMLElement>,
+    mode: "move" | "scale",
+    extra: Pick<FrameGesture, "startBox" | "origin" | "axes"> = {},
+  ) => {
+    const startPositions = new Map<string, { x: number; y: number }>();
+    const members = new Set(group.memberIds);
+    for (const n of nodes) if (members.has(n.id)) startPositions.set(n.id, { x: n.position.x, y: n.position.y });
+    gestureRef.set({
+      mode,
+      groupId: group.id,
+      pointerId: e.pointerId,
+      startScreen: { x: e.clientX, y: e.clientY },
+      startPositions,
+      moved: false,
+      cancelled: false,
+      ...extra,
+    });
+    // Keeps move/up firing when the pointer leaves the strip mid-gesture.
+    // (jsdom tests have no capture support — guard, don't crash.)
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
   const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return; // right-click stays the context menu's
     // Keep this off the pane (T-133 clears selection there) and off React Flow.
@@ -169,25 +231,23 @@ export function GroupFrame({
         ? selected
         : [group.id];
     state.setSelectedGroupIds(next);
-
-    const startPositions = new Map<string, { x: number; y: number }>();
-    const members = new Set(group.memberIds);
-    for (const n of nodes) if (members.has(n.id)) startPositions.set(n.id, { x: n.position.x, y: n.position.y });
-    activeGesture = {
-      groupId: group.id,
-      pointerId: e.pointerId,
-      startScreen: { x: e.clientX, y: e.clientY },
-      startPositions,
-      moved: false,
-      cancelled: false,
-    };
-    // Keeps move/up firing when the pointer leaves the header mid-drag.
-    // (jsdom tests have no capture support — guard, don't crash.)
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    startGesture(e, "move");
   };
 
-  const onHeaderPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = activeGesture;
+  const onHandlePointerDown = (id: GroupHandleId) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+    if (!current) return; // nothing rendered → nothing to scale
+    startGesture(e, "scale", {
+      startBox: { width: current.width, height: current.height },
+      origin: handleOrigin(id, current),
+      axes: handleAxes(id),
+    });
+  };
+
+  const onFramePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const g = gestureRef.get();
     if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId || g.cancelled) return;
     const dx = e.clientX - g.startScreen.x;
     const dy = e.clientY - g.startScreen.y;
@@ -195,17 +255,34 @@ export function GroupFrame({
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       g.moved = true;
     }
-    const positions: Record<string, { x: number; y: number }> = {};
-    for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
-    act().setGroupMemberPositions(group.id, positions);
+    const state = act();
+    if (g.mode === "move") {
+      const positions: Record<string, { x: number; y: number }> = {};
+      for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
+      state.setGroupMemberPositions(group.id, positions);
+      return;
+    }
+    // Resize-by-scale (T-136): the axis factors come from the pointer's
+    // distance to the fixed origin now vs at press; Shift locks uniform.
+    const cur = screenToFlow(e.clientX, e.clientY);
+    const start = screenToFlow(g.startScreen.x, g.startScreen.y);
+    const mins = minScaleFor({ x: 0, y: 0, ...g.startBox! });
+    let sx = g.axes!.x ? scaleFactorFor(cur.x, g.origin!.x, start.x, mins.x) : 1;
+    let sy = g.axes!.y ? scaleFactorFor(cur.y, g.origin!.y, start.y, mins.y) : 1;
+    if (e.shiftKey) {
+      const s = g.axes!.x && g.axes!.y ? Math.max(sx, sy) : sx !== 1 ? sx : sy;
+      sx = Math.max(s, mins.x);
+      sy = Math.max(s, mins.y);
+    }
+    state.setGroupMemberPositions(group.id, scaleMemberPositions(g.startPositions, g.origin!, sx, sy));
   };
 
-  const onHeaderPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = activeGesture;
+  const onFramePointerEnd = (e: React.PointerEvent<HTMLElement>) => {
+    const g = gestureRef.get();
     if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId) return;
-    activeGesture = null;
+    gestureRef.set(null);
     try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer already gone */ }
-    if (!g.moved || g.cancelled) return; // a click is a selection, not a move
+    if (!g.moved || g.cancelled) return; // a click is a selection, not a gesture
     // One history entry for the whole gesture, exactly like a card drag stop.
     const state = act();
     const members = new Set(group.memberIds);
@@ -263,9 +340,9 @@ export function GroupFrame({
             }
             style={headerStyle}
             onPointerDown={onHeaderPointerDown}
-            onPointerMove={onHeaderPointerMove}
-            onPointerUp={onHeaderPointerEnd}
-            onPointerCancel={onHeaderPointerEnd}
+            onPointerMove={onFramePointerMove}
+            onPointerUp={onFramePointerEnd}
+            onPointerCancel={onFramePointerEnd}
           >
         <button
           type="button"
@@ -476,6 +553,23 @@ export function GroupFrame({
           </div>
         </PopoverContent>
       </Popover>
+
+      {/* Resize handles (T-136): selected, expanded frames only. Each is its
+          own pointer target — dragging one scales the arrangement around the
+          handle's origin (cards keep their size). */}
+      {isSelected && !group.collapsed &&
+        GROUP_HANDLES.map((h) => (
+          <div
+            key={h}
+            data-group-handle={h}
+            className={`pointer-events-auto nodrag nopan absolute rounded-[3px] border border-border/70 bg-background shadow-sm ${HANDLE_CURSORS[h]}`}
+            style={handleStyle(h)}
+            onPointerDown={onHandlePointerDown(h)}
+            onPointerMove={onFramePointerMove}
+            onPointerUp={onFramePointerEnd}
+            onPointerCancel={onFramePointerEnd}
+          />
+        ))}
     </div>
   );
 }

@@ -152,6 +152,11 @@ exactly as they did before.
   included — and release records **one undo step**. **Delete** ungroups the
   selected frames; **Escape** clears the selection or cancels a move in flight
   (positions snap back, nothing is recorded).
+- **Resize** — a selected frame grows eight handles; drag a corner or edge to
+  **scale the whole arrangement**: the cards keep their size while their
+  spacing (and the frame) grows or shrinks around the opposite corner/edge.
+  Hold **Shift** for proportional scaling. Like moving, it is one undo step
+  and nothing extra is stored — the frame is always derived from its cards.
 - **Ungroup** — the × drops the frame and keeps the cards.
 
 Right-clicking the title bar also opens the **group menu**: Rename…, Edit

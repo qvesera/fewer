@@ -101,6 +101,35 @@ test("header click selects the group, dragging it moves the cards in one undo st
   await expect.poll(async () => Math.abs((await frame.boundingBox())!.x - beforeFrame.x)).toBeLessThan(2);
 });
 
+test("dragging a corner handle scales the group; one undo restores it", async ({ page }) => {
+  await openCanvas(page);
+  const { frame, cards } = await createGroup(page);
+  await expect(frame).toBeVisible();
+  await page.waitForTimeout(300);
+
+  // Select the group → the frame grows eight resize handles (T-136).
+  const headerBox = (await groupHeader(page).boundingBox())!;
+  await page.mouse.click(headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  await expect(frame).toHaveAttribute("data-selected", "true");
+  const handle = page.locator('[data-group-handle="se"]');
+  await expect(handle).toBeVisible();
+
+  // The distance between the two member cards is the scale — it must grow.
+  const cardStart = (await cards[0].boundingBox())!;
+  const gapBefore = (await cards[1].boundingBox())!.x - cardStart.x;
+  const hb = (await handle.boundingBox())!;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2 + 160, hb.y + hb.height / 2 + 100, { steps: 10 });
+  await page.mouse.up();
+  const gapAfter = (await cards[1].boundingBox())!.x - (await cards[0].boundingBox())!.x;
+  expect(gapAfter).toBeGreaterThan(gapBefore * 1.2);
+
+  // ONE undo restores the arrangement (cards keep their size throughout).
+  await page.keyboard.press("Control+z");
+  await expect.poll(async () => Math.abs((await cards[0].boundingBox())!.x - cardStart.x)).toBeLessThan(4);
+});
+
 test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {
   await openCanvas(page);
   const { frame, cards } = await createGroup(page);

@@ -202,6 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas groups: select two or more cards and right-click → More Actions → Group N Items to draw a gray frame around them (the same action appears in the card context menus' batch list, identically in the web app and the desktop app), with an editable title, a note (hover the title to read it), a collapse toggle that hides the cards and shrinks the frame to a pill, and Ungroup. Every group action — including collapse and ungroup — is a single undo step
 - Canvas groups: right-click a group title bar for its own menu — Rename, Edit Note, Color… (a color picker: drag it or type a hex value, with Reset to slate — it tints the frame border, fill and header, and one drag is a single undo step), Collapse/Expand, Select Members, Ungroup — and group colors save with the graph
 - Groups are selectable and movable: click a group's title bar to select it (Shift+click adds another), drag it to move every member card as one undo step, and press Delete to ungroup. Escape clears the selection or cancels a move in progress.
+- Selected group frames can be resized: drag a corner or edge handle to scale the whole arrangement — the cards keep their size while their spacing scales (hold Shift for proportions). One undo step, nothing extra persisted.
 
 ### Performance
 
