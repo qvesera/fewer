@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 
 import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer/canvasSelection";
+import { selectionBounds, viewportForBounds } from "@/lib/fewer/fitBounds";
 import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { isHost } from "@/lib/fewer/nativeShell";
@@ -34,6 +35,11 @@ export interface CanvasSelectionDeps {
   /** Live RF edge-selection ref (owned by useCanvasEdges). */
   selectedEdgeIdsRef: { current: Set<string> };
   fitView: (opts: { nodes?: Array<{ id: string }>; duration?: number; padding?: number; maxZoom?: number }) => void;
+  /** Set the viewport directly — the bounds-based fit for selections with
+   *  groups in them (T-143); RF's fitView({nodes}) can't see hidden members. */
+  setViewport: (v: { x: number; y: number; zoom: number }, opts?: { duration?: number }) => void;
+  /** Pane the canvas paints into — bounds-based fits need its size. */
+  containerRef: { current: HTMLDivElement | null };
   leafId?: string | null;
   /**
    * True while a pointer gesture is live in this canvas (CanvasInner tracks it).
@@ -52,7 +58,7 @@ export interface CanvasSelectionDeps {
  * loop. That effect handles both RF-edge highlighting and store-edge sync on
  * every selection / graphVersion / theme change instead.
  */
-export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId, pointerActiveRef }: CanvasSelectionDeps): CanvasSelectionHandlers {
+export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, pointerActiveRef }: CanvasSelectionDeps): CanvasSelectionHandlers {
   // What React Flow selected when the live drag began. A drag must keep its
   // highlight: until the store has this view's own selection, the canvas paints
   // the dragged card unselected on its next push, React Flow reports an empty
@@ -168,10 +174,30 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
   );
 
   const fitToSelection = useCallback(() => {
-    const selected = useGraphStore.getState().selectedNodeIds;
-    if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
-    fitView({ nodes: selected.map((id: string) => ({ id })), duration: 600, padding: 0.3 });
-  }, [fitView]);
+    // Everything selected — cards AND groups (T-143). Group selection is
+    // mutually exclusive with card selection, so a card-only read fit the
+    // whole graph whenever a group was selected. The bounds path also covers
+    // what RF's fitView({nodes}) cannot: hidden (collapsed) members and
+    // culled/unmeasured cards.
+    const st = useGraphStore.getState();
+    const bounds = selectionBounds({
+      nodes: st.nodes,
+      groups: st.groups,
+      selectedNodeIds: st.selectedNodeIds,
+      selectedGroupIds: st.selectedGroupIds,
+      activeLeafId: st.activeLeafId,
+      viewSettings: st.viewSettings,
+    });
+    const el = containerRef.current;
+    if (!bounds || !el || el.clientWidth === 0) {
+      fitView({ duration: 600, padding: 0.2 });
+      return;
+    }
+    setViewport(
+      viewportForBounds(bounds, { width: el.clientWidth, height: el.clientHeight }),
+      { duration: 600 },
+    );
+  }, [fitView, setViewport, containerRef]);
 
   const selectAll = useCallback(() => {
     // The canvas stamps the `selected` flags from the id list, so selecting

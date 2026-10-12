@@ -350,6 +350,8 @@ function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Recor
       getEdges: () => [],
     },
     toast: (o) => { a.toast = o; },
+    // Mocked pane: the Alt+F tests (T-143) center bounds in this.
+    canvasSize: () => ({ width: 1000, height: 800 }),
     localFs: { openInOs: false, openFileInOs: false, dragDropImport: false, dropToExpand: false, fsaDirectoryPicker: false },
     openNodeFile: async () => true, openFolderInExplorer: async () => true,
     ...overrides,
@@ -402,6 +404,71 @@ test("Space fits view", () => {
   const { ctx, a } = makeCtx();
   expect(fire(buildKeyboardRules(), ctx, { code: "Space", key: " " })).toBe(true);
   expect(a.fitView).toBeDefined();
+});
+
+// ── Alt+F: zoom to selection (T-143) ──
+// Before: the rule read selectedNodeIds alone, and group selection is
+// mutually exclusive with card selection — so a selected group fell into the
+// empty branch and fit the WHOLE graph. The rule now fits the union bounds
+// (cards + groups) via setViewport; only an empty selection uses fitView.
+
+const ALT_F_STATE = {
+  nodes: [
+    { id: "n1", position: { x: 0, y: 0 }, style: { width: 140, height: 60 } },
+    { id: "n2", position: { x: 300, y: 0 }, style: { width: 140, height: 60 } },
+  ],
+  groups: [{ id: "g1", title: "G", note: "", memberIds: ["n1", "n2"] }],
+};
+
+test("Alt+F with a group selected fits the group box, not the whole graph", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => withActions(toStoreReader({ ...ALT_F_STATE, selectedGroupIds: ["g1"] }), a),
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "f" })).toBe(true);
+  expect(a.fitView).toBeUndefined(); // never the whole-graph fallback
+  const [v, o] = a.setViewport as [{ x: number; y: number; zoom: number }, { duration: number }];
+  expect(o).toEqual({ duration: 600 });
+  // Frame box 488×140 at (−24,−56) centered in the mocked 1000×800 pane.
+  expect(220 * v.zoom + v.x).toBeCloseTo(500, 4); // 220 = −24 + 488/2
+  expect(14 * v.zoom + v.y).toBeCloseTo(400, 4); //  14 = −56 + 140/2
+});
+
+test("Alt+F on a COLLAPSED group zooms into the pill box", () => {
+  const { ctx, a } = makeCtx({
+    getState: () =>
+      withActions(
+        toStoreReader({
+          ...ALT_F_STATE,
+          groups: [{ ...ALT_F_STATE.groups[0], collapsed: true }],
+          selectedGroupIds: ["g1"],
+        }),
+        a,
+      ),
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "f" })).toBe(true);
+  const [v] = a.setViewport as [{ zoom: number }];
+  // The pill (240×48) is far smaller than the member cluster — fitting it
+  // zooms IN past 1; fitting the cluster (or the whole graph) would not.
+  expect(v.zoom).toBeGreaterThan(1);
+});
+
+test("Alt+F with cards selected still zooms to the cards", () => {
+  const { ctx, a } = makeCtx({
+    getState: () => withActions(toStoreReader({ ...ALT_F_STATE, selectedNodeIds: ["n1"] }), a),
+  });
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "f" })).toBe(true);
+  expect(a.fitView).toBeUndefined();
+  const [v] = a.setViewport as [{ x: number; y: number; zoom: number }];
+  // n1 box 140×60 at (0,0): centre (70,30) lands mid-pane.
+  expect(70 * v.zoom + v.x).toBeCloseTo(500, 4);
+  expect(30 * v.zoom + v.y).toBeCloseTo(400, 4);
+});
+
+test("Alt+F with nothing selected still fits the whole graph", () => {
+  const { ctx, a } = makeCtx();
+  expect(fire(buildKeyboardRules(), ctx, { altKey: true, key: "f" })).toBe(true);
+  expect(a.setViewport).toBeUndefined();
+  expect(a.fitView).toEqual({ duration: 600, padding: 0.2 });
 });
 test("Ctrl+C copies selected", () => {
   const { ctx, a } = makeCtx({ getState: () => toStoreReader({ selectedNodeIds: ["n1", "n2"] }) });

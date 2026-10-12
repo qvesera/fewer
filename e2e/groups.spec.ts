@@ -379,3 +379,52 @@ test("renaming widens the pill to fit the name; no double ring while editing (T-
   expect(widened).toBeGreaterThan(240);
 });
 
+test("zoom to selection centers a selected group — toolbar button and Alt+F (T-143)", async ({ page }) => {
+  await openCanvas(page);
+  const { frame } = await createGroup(page);
+  await expect(frame).toBeVisible();
+  const header = groupHeader(page);
+  const canvas = () => page.locator(".react-flow").boundingBox();
+
+  const expectCentered = async (target: ReturnType<typeof page.locator>) => {
+    const pane = (await canvas())!;
+    await expect
+      .poll(async () => {
+        const b = (await target.boundingBox())!;
+        return Math.hypot(
+          b.x + b.width / 2 - (pane.x + pane.width / 2),
+          b.y + b.height / 2 - (pane.y + pane.height / 2),
+        );
+      })
+      .toBeLessThan(24);
+  };
+
+  // Select the frame (clicking the header).
+  const hb = (await header.boundingBox())!;
+  await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await expect(frame).toHaveAttribute("data-selected", "true");
+
+  // Pan away from the top-right corner of the pane — empty canvas there, so a
+  // plain drag pans instead of moving a card — so centering is observable.
+  const panAway = async () => {
+    const pane = (await canvas())!;
+    await page.mouse.move(pane.x + pane.width - 40, pane.y + 40);
+    await page.mouse.down();
+    await page.mouse.move(pane.x + pane.width - 340, pane.y + 300, { steps: 8 });
+    await page.mouse.up();
+  };
+  await panAway();
+
+  // Toolbar path: the crosshair button.
+  await page.locator('button[title="Zoom to selection"]').click();
+  await expectCentered(frame);
+
+  // Keyboard path, on the collapsed pill (its box is the fit target, and its
+  // members are hidden — invisible to React Flow's measured-node fitView).
+  await header.locator("button").first().click(); // collapse
+  await expect(page.locator("[data-pill-shell]").first()).toBeVisible();
+  await panAway();
+  await page.keyboard.press("Alt+F");
+  await expectCentered(header);
+});
+
