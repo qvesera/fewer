@@ -12,7 +12,9 @@ export const APP_ORIGIN =
 export const APP_URL = `${APP_ORIGIN}/app`;
 
 const NAV = [
-  { label: "Features", href: "/welcome#features" },
+  // The home page itself owns the #features anchor — /welcome used to be a
+  // byte-for-byte duplicate of it (T-149), so the link no longer hops off-page.
+  { label: "Features", href: "/#features" },
   { label: "Gallery", href: "/gallery" },
   { label: "Privacy", href: "/privacy" },
   { label: "Docs", href: "/docs" },

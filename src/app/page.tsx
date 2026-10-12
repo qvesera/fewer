@@ -5,7 +5,7 @@ import { MarketingHome } from "@/components/marketing/MarketingHome";
 export const metadata: Metadata = {
   title: "fewer | Turn any directory into an interactive graph",
   description:
-    "fewer turns any file system into an interactive graph you can explore, edit, and export. Runs entirely in your browser. Open source, keyboard-first, privacy-first.",
+    "fewer turns any file system into an interactive graph you can explore, edit, organise and group — and export in 8 formats, including the .fwr graph document. Runs entirely in your browser. Open source (AGPLv3), keyboard-first, privacy-first.",
 };
 
 /**

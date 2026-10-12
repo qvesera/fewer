@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
-    "Transform your file system navigation into an art form. Interactive graph-based directory visualization with React Flow, custom tree auto-layout, 7 export formats, keyboard-first navigation, custom themes, and real file system integration.",
+    "fewer turns any directory into an interactive graph you can explore, edit, organise and group — with 8 export formats, keyboard-first navigation, custom themes and real file system integration. Open source (AGPLv3), privacy-first.",
   keywords: [
     "fewer",
     "directory visualization",

@@ -23,7 +23,7 @@
 
 You need to understand a directory structure: a new codebase, a project to document, a mess to reorganize. Standard tools don't help: `tree` is static, file managers show one folder at a time, `ls -R` is a wall of text. You scroll, search, switch contexts, and still miss the shape of it.
 
-If you've used a file tree in VS Code or `tree` in the terminal, you know the fix. What's new is turning that tree into an interactive graph: drag, search, edit, rename, export in 7 formats, all in the browser, with nothing to install beyond a dev server.
+If you've used a file tree in VS Code or `tree` in the terminal, you know the fix. What's new is turning that tree into an interactive graph: drag, search, edit, rename, group, export in 8 formats, all in the browser, with nothing to install beyond a dev server.
 
 ---
 

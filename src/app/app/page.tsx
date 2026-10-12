@@ -4,7 +4,7 @@ import { AppShell } from "./AppShell";
 export const metadata: Metadata = {
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
-    "Transform your file system navigation into an art form. Interactive graph-based directory visualization with React Flow, custom tree auto-layout, 7 export formats, keyboard-first navigation, custom themes, and real file system integration.",
+    "Explore any directory as an interactive graph — organise and group cards, keyboard-first navigation, custom themes, real file system integration, and 8 export formats (SVG, PNG, JSON, CSV, DOT, script, tree, .fwr).",
 };
 
 /**
