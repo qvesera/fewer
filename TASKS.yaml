@@ -4067,5 +4067,11 @@ tasks:
     note: "Second session: em dashes removed from user-facing text and reworded, not just swapped. 62 targeted string rewrites across app UI + marketing, then docs (16 pages) and README swept with clause-aware rules; ~40 of the mechanical results were then re-edited by hand into natural sentences (double-colon run-ons, dangling clauses). Placeholder glyphs became -/None; export credit uses a middle dot. Deliberately untouched: code comments, test names, blog posts, historical changelog entries. Gates after the sweep: lint 0, tsc 0, bun run test 1792+233 0 fail, playwright app+marketing 21 passed, bun run build OK."
     proof: ["f5a3c42"]
     effort: {commits: 1, files: 55, insertions: 270, deletions: 274}
+  - start: "2026-10-12T22:29:20Z"
+    end: "2026-10-12T22:29:21Z"
+    measured: true
+    note: "Third session: the Unreleased changelog notes swept with the same clause-aware rules (88 em dashes -> 0); released-version sections and blog posts left as historical record. changelog validate OK."
+    proof: ["4b31d1e"]
+    effort: {commits: 1, files: 1, insertions: 72, deletions: 72}
   spent_min: 31
-  session_count: 2
+  session_count: 3
