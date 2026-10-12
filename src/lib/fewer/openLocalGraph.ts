@@ -10,7 +10,7 @@
  * The reader is injected so bun tests drive the flow without a host bridge.
  */
 import type { ImportActionResult } from "./importFlow";
-import { parseGraphFile } from "./localLibrary";
+import { parseGraphDocument } from "./localLibrary";
 import { applySnapshot } from "./snapshot";
 import { rememberFile } from "./recentFiles";
 import { nativeFsRead } from "./nativeShell";
@@ -21,21 +21,12 @@ export function isGraphDocument(path: string): boolean {
 }
 
 /**
- * Pure parse: `.fwr` envelope → `{ name, data }`, or `null` when the bytes are
- * not a Fewer graph document. Kept separate from the load so the format rules
- * are testable without a store or a host bridge.
+ * Pure parse of a `.fwr` envelope → `{ name, data }`, or `null` when the bytes
+ * are not a Fewer graph document. Re-exported from `localLibrary` (the format's
+ * home, pure module) so the file origin's importer and this open path share one
+ * implementation — see `parseGraphDocument` there.
  */
-export function parseGraphDocument(
-  raw: string,
-): { name: string; data: Parameters<typeof applySnapshot>[0] } | null {
-  try {
-    const graph = parseGraphFile(raw);
-    if (!graph?.data || !Array.isArray(graph.data.nodes)) return null;
-    return { name: graph.name, data: graph.data };
-  } catch {
-    return null;
-  }
-}
+export { parseGraphDocument };
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);

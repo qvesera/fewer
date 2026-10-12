@@ -13,6 +13,10 @@ import {
   type GraphRenderOptions,
 } from "./graphRenderer";
 import type { Tag } from "./tags";
+import type { Group } from "./groups";
+import { normalizeGroups } from "./groups";
+import { SNAPSHOT_VERSION, type SavedGraphData } from "./savedGraphs";
+import { pruneNodeForSave } from "./snapshot";
 import { APP_VERSION, FEWER_CREDIT } from "./branding";
   
 function downloadBlob(content: BlobPart, filename: string, mime: string) {
@@ -40,11 +44,12 @@ function timestamp(): string {
 }
 
 /**
- * Extra image-export options passed from the ExportPanel so the renderer can
- * mirror the live canvas (hidden nodes, per-view positions, collapsed folders,
- * tags, edge + node settings).
+ * Extra per-format options passed from the ExportPanel: the image formats read
+ * the render half (hidden nodes, per-view positions, collapsed folders, tags,
+ * edge + node settings) to mirror the live canvas; the `.fwr` document reads
+ * `tags`, `groups` and `localRootPath` so a saved graph round-trips whole (T-145).
  */
-export interface ImageExportOptions {
+export interface ExportExtraOptions {
   selectedIds?: string[];
   hiddenIds?: string[];
   nodeWidth?: number;
@@ -57,12 +62,16 @@ export interface ImageExportOptions {
   tags?: Tag[];
   /** Layout direction of the active view — edges anchor to it, as on canvas. */
   direction?: LayoutDirection;
+  /** Canvas groups carried by the `.fwr` document. */
+  groups?: Group[];
+  /** Absolute path of the graph root, carried by the `.fwr` document. */
+  localRootPath?: string | null;
 }
 
 /** Fold the shared image options into the renderer's option bag. */
 function imageRenderOptions(
   settings: ExportSettings,
-  opts: ImageExportOptions,
+  opts: ExportExtraOptions,
 ): GraphRenderOptions {
   return {
     palette: readThemePalette(),
@@ -90,7 +99,7 @@ export function exportSVG(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
-  opts: ImageExportOptions = {},
+  opts: ExportExtraOptions = {},
 ) {
   if (nodes.length === 0) return;
   const { svg, width } = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
@@ -106,7 +115,7 @@ export function exportPNG(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
-  opts: ImageExportOptions = {},
+  opts: ExportExtraOptions = {},
 ) {
   if (nodes.length === 0) return;
   const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
@@ -145,6 +154,10 @@ export function exportPNG(
 /**
  * Build the JSON export payload. Pure — `exportJSON` downloads it, tests and
  * any future importer can read it without touching the DOM.
+ *
+ * Reduced, structural export: cards, connections and positions, nothing that
+ * maps by node id (tags, groups). The `.fwr` document below is the fidelity
+ * format — re-importing a `.json` rebuilds the graph from its structure (T-145).
  */
 export function buildJsonExport(
   nodes: FewerNode[],
@@ -194,30 +207,61 @@ export function exportJSON(
 }
 
 /**
- * Fewer graph document (.fwr, T-101): the portable saved-graph format —
- * `{ format_version, app, graph }` — importable by the desktop library, the
- * file import (json parser unwraps envelopes), and the web alike.
+ * The document payload: a real `SavedGraphData` snapshot — cards with their
+ * positions and `data`, edges, tags, groups and the local root — so importing
+ * the file restores the graph exactly as it was (T-145). Pure: the caller
+ * hands in what to write (full canvas or the export selection).
  */
-export function exportFWR(
+export function buildExportSnapshot(
   nodes: FewerNode[],
   edges: FewerEdge[],
-  stats?: DirectoryStats,
-  includeBranding = true,
-) {
+  extras: { tags?: Tag[]; groups?: Group[]; localRootPath?: string | null } = {},
+): SavedGraphData {
+  // Groups list membership by node id, so a selection-scoped export keeps only
+  // the members it actually wrote; normalizeGroups also repairs dangling
+  // parents and cycles left by a hand-edited document.
+  const groups = normalizeGroups(extras.groups, new Set(nodes.map((n) => n.id)));
+  return {
+    dataVersion: SNAPSHOT_VERSION,
+    nodes: nodes.map(pruneNodeForSave),
+    edges,
+    tags: extras.tags ?? [],
+    groups,
+    localRootPath: extras.localRootPath ?? null,
+  };
+}
+
+/**
+ * Fewer graph document (.fwr, T-101): `{ format_version, app, graph }` with a
+ * full snapshot in `graph.data` — the same bytes the desktop library writes,
+ * so an exported document and a library file are interchangeable. Pure —
+ * `exportFWR` downloads it, tests and the importer read exactly these bytes.
+ */
+export function buildFwrDocument(
+  data: SavedGraphData,
+  name = `fewer-${timestamp()}`,
+): Record<string, unknown> {
   const now = new Date().toISOString();
-  const doc = {
+  return {
     format_version: 1,
     app: "fewer",
     graph: {
       id: `fwr_${Date.now().toString(36)}`,
-      name: `fewer-${timestamp()}`,
-      data: buildJsonExport(nodes, edges, stats, includeBranding),
+      name,
+      data,
       created_at: now,
       updated_at: now,
       share: null,
     },
   };
-  downloadBlob(JSON.stringify(doc, null, 2), `fewer-${timestamp()}.fwr`, "application/json");
+}
+
+export function exportFWR(data: SavedGraphData) {
+  downloadBlob(
+    JSON.stringify(buildFwrDocument(data), null, 2),
+    `fewer-${timestamp()}.fwr`,
+    "application/json",
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -352,7 +396,7 @@ export function exportGraph(
   edges: FewerEdge[],
   settings: ExportSettings,
   stats?: DirectoryStats,
-  opts: ImageExportOptions = {},
+  opts: ExportExtraOptions = {},
 ) {
   switch (settings.format) {
     case "svg":
@@ -362,7 +406,14 @@ export function exportGraph(
     case "json":
       return exportJSON(nodes, edges, stats, settings.includeBranding);
     case "fwr":
-      return exportFWR(nodes, edges, stats, settings.includeBranding);
+      // A document, not an export payload: full snapshot (T-145).
+      return exportFWR(
+        buildExportSnapshot(nodes, edges, {
+          tags: opts.tags,
+          groups: opts.groups,
+          localRootPath: opts.localRootPath,
+        }),
+      );
     case "csv":
       return exportCSV(nodes, edges, settings.includeBranding);
     case "dot":

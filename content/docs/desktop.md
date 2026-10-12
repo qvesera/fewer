@@ -17,14 +17,14 @@ On first launch the app creates a library folder at:
 
 Saved projects live in `graphs/` as **`.fwr`** files — Fewer's portable graph document (`{ format_version, app, graph }`). Named themes live in `themes/` as **`.fwtheme`** files. Both are plain JSON you can copy, back up, or sync with any file tool.
 
-- Legacy library files saved as `.json` stay readable — the app scans both extensions.
+- The library reads **`.fwr` files only** — an older `.json` copy of a saved graph is not scanned (export it again as `.fwr` to bring it back).
 - You can point the library at a different folder any time from **Saved → library location**.
 - Dropping `.fwr` files into the `graphs/` folder by hand works too: the app rescans the directory.
 
 ## Import & export
 
-- **Import** accepts `.fwr` (and raw `.json` graph exports), ASCII trees, shell scripts, CSV, DOT, directory files, GitHub repository URLs, and public file-index URLs.
-- **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project.
+- **Import** accepts `.fwr` documents (restored whole — cards, positions, tags and groups), raw `.json` graph exports (rebuilds the graph from its structure), ASCII trees, shell scripts, CSV, DOT, directory files, GitHub repository URLs, and public file-index URLs.
+- **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project — the `.fwr` carries cards, positions, tags and groups.
 
 **Drag and drop**: drag a folder from your file manager onto the canvas to open
 it as the graph — the app asks before replacing the one you have. Drop a file

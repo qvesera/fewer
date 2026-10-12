@@ -107,7 +107,7 @@ docker run -p 3000:3000 fewer
 | **2** | Use **arrow keys** (↑↓←→) to navigate the tree                              |
 | **3** | **Right-click** any card for context menu                                   |
 | **4** | Press **Ctrl+I** to see all keyboard shortcuts                              |
-| **5** | Click **Export** to save the graph (SVG, PNG, JSON, CSV, DOT, script, tree) |
+| **5** | Click **Export** to save the graph (SVG, PNG, JSON, FWR, CSV, DOT, script, tree) |
 
 ### Import a real directory
 
@@ -200,7 +200,7 @@ docker run -p 3000:3000 fewer
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
 - **Symlink support**: on local-path imports, symbolic links import as link cards (link icon, `↷ target` badge, contrast connection with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
-- **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts, CSV (Fewer export or your own spreadsheet — non-export CSVs get a column-mapping panel), Graphviz DOT (Fewer export or third-party), and archives — **the format is detected from the content**, not chosen: a chip reports the mode and what was found (`Auto: CSV`), and **Change** reveals the tiles to override it (Auto returns to detection, and stays highlighted while auto is in force — never the detected format's). Your override is kept for that file even as you keep editing it. Uploads are detected the same way, so a `.txt` full of JSON imports as JSON. For archives — `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and — via an on-demand WebAssembly libarchive — `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice. There is no separate "Archive" origin: picking an archive switches the File panel to archive mode. The folder-import **Look Inside Archives** option is unchanged.
+- **Import from File**: Fewer graph documents (`.fwr` — restored whole, with positions, tags and groups), JSON export (structural: the graph is rebuilt, and it carries no tags or groups), ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts, CSV (Fewer export or your own spreadsheet — non-export CSVs get a column-mapping panel), Graphviz DOT (Fewer export or third-party), and archives — **the format is detected from the content**, not chosen: a chip reports the mode and what was found (`Auto: CSV`), and **Change** reveals the tiles to override it (Auto returns to detection, and stays highlighted while auto is in force — never the detected format's). Your override is kept for that file even as you keep editing it. Uploads are detected the same way, so a `.txt` full of JSON imports as JSON. For archives — `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and — via an on-demand WebAssembly libarchive — `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice. There is no separate "Archive" origin: picking an archive switches the File panel to archive mode. The folder-import **Look Inside Archives** option is unchanged.
 - **Look Inside Archives** (advanced): folder imports can also expand the archives they find, showing each archive's contents as part of the tree — nothing is extracted, the listing is read in place. Off by default; one level deep; depth limits and per-import ceilings apply.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
@@ -278,7 +278,8 @@ docker run -p 3000:3000 fewer
 | ---------- | ------------------------------------------ | ----------------------------- |
 | **SVG**    | Vector with theme background               | Documentation, presentations  |
 | **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
-| **JSON**   | Full graph state                           | Re-import, programmatic use   |
+| **JSON**   | Structural graph data                      | Re-import, programmatic use   |
+| **FWR**    | Fewer graph document: cards, positions, tags, groups | Re-import restores the whole graph |
 | **CSV**    | Tabular cards + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |

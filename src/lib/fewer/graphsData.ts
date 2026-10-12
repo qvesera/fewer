@@ -94,8 +94,9 @@ export function localGraphsBackend(fs: LibraryFs, root: string): GraphsBackend {
     local: true,
     async list() {
       // Disk is the source of truth when the host can list directories (T-101):
-      // scanned libraries reflect files dropped in by hand plus legacy .json
-      // entries; the manifest stays the fallback (tests, non-list hosts).
+      // scanned libraries reflect the `.fwr` files present, including ones
+      // dropped in by hand (T-145: legacy .json copies are not read); the
+      // manifest stays the fallback (tests, non-list hosts).
       if (fs.list) {
         const scanned = await rebuildManifestFromGraphDir(fs, root);
         if (scanned) {

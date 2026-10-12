@@ -92,13 +92,13 @@ function buildTreeFromFlat(nodes: FlatNode[], edges: FlatEdge[]): TreeEntry {
 
 /**
  * Parse a JSON graph export back into a TreeEntry.
- * The JSON format is the one produced by exportUtils.ts exportJSON().
+ * The JSON format is the one produced by exportUtils.ts exportJSON() — a raw,
+ * reduced payload (top-level `nodes`). Fewer graph documents (`.fwr` envelopes)
+ * are snapshots, not structure: they are read by `parseGraphDocument` and
+ * applied whole, so this parser deliberately does not unwrap them (T-145).
  */
 export function parseJSONGraph(json: string): TreeEntry {
-  const parsed = JSON.parse(json);
-  // T-101: accept Fewer graph documents (.fwr envelopes: { format_version,
-  //  app, graph }) as well as raw exportJSON payloads ({ nodes, ... }).
-  const data = parsed?.graph?.data && parsed.graph.data.nodes ? parsed.graph.data : parsed;
+  const data = JSON.parse(json);
   if (!data.nodes || !Array.isArray(data.nodes)) {
     throw new Error("Invalid JSON: missing 'nodes' array");
   }

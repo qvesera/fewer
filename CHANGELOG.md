@@ -75,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Group frames now follow what each canvas actually draws: the box hugs the visible members (with a **3 of 5 cards** count when some are hidden), a collapsed group keeps its pill, and a group whose members are all hidden draws nothing — recover them with Show All.
 - A collapsed group pill now looks like a collapsed folder card: a card-sized rounded shell with backdrop blur, an icon tile, the group title and a plain card count (it no longer reads '0 of 2 cards' or sits on a near-black strip), all driven by new group theme tokens. Selection rings on group frames use the shared card ring.
 - Group membership is legible at a glance: hovering or selecting a group frame rings each of its member cards (so the box no longer needs to enclose them to show ownership), counts read members rather than cards, and the group menu offers Include N cards inside when a re-flow parked non-member cards fully inside the box — one click, one undo step.
+- FWR export is now a full Fewer graph document: cards with their positions, the graph's tags and its canvas groups, so re-importing it restores the graph exactly as saved
+- Import reads a Fewer graph document (.fwr) as a snapshot — ids, positions, tags and groups are restored, and the import filters do not apply to it; older reduced .fwr payloads and legacy .json library files are no longer read, so export the graph again as .fwr to bring it back
 
 ### Fixed
 
