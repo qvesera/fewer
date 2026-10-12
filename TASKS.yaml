@@ -3968,14 +3968,20 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#414"
-  time_source: null
+  time_source: "measured"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-10-12T12:07:55Z"
   notes: ["2026-10-12T12:08:39Z · adopted at intake from GitHub (open)"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-12T14:26:48Z"
+    end: "2026-10-12T15:45:27Z"
+    measured: true
+    note: "Nested canvas groups (W4-W6). Model: parentId on Group (membership stays cards-only), childGroups/descendantGroupIds/subtreeMemberIds/wouldCreateCycle, normalizeGroups now repairs dangling+self+cycles and keeps childless-parent groups. Geometry: groupFrameRects computes every frame rect centrally (parent contains child padded, collapse ancestor suppresses subtree, paint order parents-first); GroupFrames renders in that order passing rect, GroupFrame prefers it. Store: collapse hides whole subtree, removeGroup orphans children to grandparent, setGroupParent guarded by wouldCreateCycle (no-op records no undo), setGroupMemberPositions + gesture member-collection use subtree (transitive move/scale). UI: Move into group / Move out of group in the frame menu (targets filtered acyclic). Tests: 11 model + 7 geometry pure, 6 store, 1 browser e2e (containment + cascade). 14/14 groups e2e pass; typecheck/lint/build clean. Note: relayout test fails locally on pure origin/dev too (pre-existing order-dependent flake, passes in CI)."
+    proof: ["6822ad4", "f08f327", "e18a699"]
+    effort: {commits: 3, files: 8, insertions: 729, deletions: 34}
+  spent_min: 79
+  session_count: 1
 - id: "T-147"
   title: "Groups as first-class layout units: expanded group lays its members out as a cluster (v0.10 epic; supersedes the W2 pill-slot reservation)"
   status: "backlog"
