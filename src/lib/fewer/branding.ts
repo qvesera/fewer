@@ -18,7 +18,7 @@ export const FEWER_HOME_URL =
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
 
 /** One credit line appended to every export when branding is enabled. */
-export const FEWER_CREDIT = `Created with fewer — ${FEWER_HOME_URL}`;
+export const FEWER_CREDIT = `Created with fewer · ${FEWER_HOME_URL}`;
 
 /** Leading title line on the ASCII directory-tree export. */
 export const TREE_HEADER = "Directory Tree Structure";

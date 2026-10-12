@@ -88,7 +88,7 @@ const ADVANCED_FORMATS: {
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
   { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Use for programmatic processing or importing into other tools." },
-  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's portable graph document — save and share projects, import on desktop or web." },
+  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's portable graph document: save and share projects, import on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
@@ -422,7 +422,7 @@ export function ExportPanel() {
                 <Label className="text-xs font-semibold">Include fewer branding</Label>
                 <p className="text-xs text-muted-foreground">
                   {!canRemoveBranding
-                    ? "Signed out — exports carry the fewer watermark until you sign in."
+                    ? "Signed out: exports carry the fewer watermark until you sign in."
                     : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
                 </p>
               </div>

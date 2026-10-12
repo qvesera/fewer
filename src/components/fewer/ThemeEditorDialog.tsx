@@ -675,7 +675,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                             }`}
                             title={
                               sharedIds.has(t.id)
-                                ? `"${t.name}" is in the gallery — click to unshare`
+                                ? `"${t.name}" is in the gallery: click to unshare`
                                 : `Publish "${t.name}" to the gallery`
                             }
                           >

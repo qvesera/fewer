@@ -149,7 +149,7 @@ export const ORIGIN_META: Record<
   folder: { label: "Folder", blurb: "Scan a directory on this device" },
   file: {
     label: "File",
-    blurb: "ASCII tree, JSON, CSV, DOT, shell script — or a zip/tar archive",
+    blurb: "ASCII tree, JSON, CSV, DOT, shell script, or a zip/tar archive",
   },
   url: { label: "URL", blurb: "GitHub repo or public file index" },
   cloud: { label: "Cloud", blurb: "Linked cloud account (read-only)" },

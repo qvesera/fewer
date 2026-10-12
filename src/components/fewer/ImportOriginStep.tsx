@@ -319,7 +319,7 @@ function FolderSource() {
         <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
         Your device's folder picker opens when you press{" "}
         <span className="font-medium text-foreground">Browse</span>. This
-        browser uses the legacy picker — everything still stays local.
+        browser uses the legacy picker; everything still stays local.
       </div>
     );
   }
@@ -329,7 +329,7 @@ function FolderSource() {
       <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
       Your device's folder picker opens when you press{" "}
       <span className="font-medium text-foreground">Browse</span>. Everything
-      is processed in browser — nothing is uploaded.
+      is processed in browser; nothing is uploaded.
     </div>
   );
 }
@@ -365,7 +365,7 @@ const FILE_ACCEPT = Array.from(
  * One box, five shapes — the panel no longer asks which, it detects. The
  * example shown is an ASCII tree, the most common paste; the rest are named.
  */
-const PASTE_PLACEHOLDER = `Paste a Fewer export, an ASCII tree, a mkdir script, a CSV table, or a Graphviz DOT graph — the format is detected for you.
+const PASTE_PLACEHOLDER = `Paste a Fewer export, an ASCII tree, a mkdir script, a CSV table, or a Graphviz DOT graph. The format is detected for you.
 
 root/
 ├── src/
@@ -528,7 +528,7 @@ function FileSource({
         </div>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Reads the archive&apos;s file listing and draws it as a graph — the archive
+          Reads the archive&apos;s file listing and draws it as a graph: the archive
           is never unpacked on disk, and your files never leave the browser.
         </p>
       </div>
@@ -555,7 +555,7 @@ function FileSource({
               {text?.formatOverride ? "Format" : "Auto"}
             </Label>
             <span className="truncate text-xs font-medium text-foreground/85">
-              {FILE_FORMATS.find((f) => f.value === text?.format)?.label ?? "—"}
+              {FILE_FORMATS.find((f) => f.value === text?.format)?.label ?? "-"}
             </span>
           </div>
           <button
@@ -682,7 +682,7 @@ function CsvColumnMapper({
         </Label>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        This CSV isn't a Fewer export — tell us which column holds which. Pick the
+        This CSV isn't a Fewer export: tell us which column holds which. Pick the
         Name column to continue; the rest refine folders and links.
       </p>
 
@@ -707,7 +707,7 @@ function CsvColumnMapper({
                 <SelectValue placeholder="Column…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="-1">— none —</SelectItem>
+                <SelectItem value="-1">None</SelectItem>
                 {headers.map((h, i) => (
                   <SelectItem key={i} value={String(i)}>
                     {h || `Column ${i + 1}`}

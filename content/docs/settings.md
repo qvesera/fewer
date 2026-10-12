@@ -18,7 +18,7 @@ The gear icon in the top navbar opens **Settings**, a dialog with four tabs: **A
 
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level cards on the canvas (folders only)
-- **Connection Motion**: **Animate Selected Connections Only** toggle — when on, the connections along the selected cards' path to the root animate in the chosen **Selected Connection Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) connections. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature — it's hidden for signed-out users, and non-auth graphs render with static connections.
+- **Connection Motion**: **Animate Selected Connections Only** toggle: when on, the connections along the selected cards' path to the root animate in the chosen **Selected Connection Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) connections. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature: it's hidden for signed-out users, and non-auth graphs render with static connections.
 
 ## Advanced
 
@@ -39,14 +39,14 @@ Settings in Advanced:
 | **Minimap Size**     | Slider, 80–300px                               |
 | **Width**            | Card width slider (Card Metrics), 120–400px    |
 | **Height**           | Card height slider (Card Metrics), 40–300px    |
-| **Crown Shyness**    | Branch-spacing intensity, 0–3 — gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value — changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as it gets |
+| **Crown Shyness**    | Branch-spacing intensity, 0–3: gaps between sibling subtrees scale with their depth and size. Click the value to type a custom intensity; it applies as soon as you release the slider (or commit a typed value; changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the usual spacing, 2 is clearly looser, and 3 opens the tree right up. The top of the range is capped there, so 3 is as loose as it gets |
 | **Auto-relayout**    | On (default), showing, revealing or bulk-revealing cards re-flows the tree so the new cards find their slots. Turn it off to keep the current arrangement through those actions and re-flow when you choose. Hiding a card never moved anything on its own, and **Organize** and **Sort** always re-flow, whatever this is set to |
 
 ## Help
 
 - **Keyboard Shortcuts**: open the shortcuts dialog
 - **Bug Report**: open the bug report dialog with auto-collected diagnostics
-- **Export Settings**: save a JSON snapshot of every Fewer setting on this device (theme, layout, search history, license) — a backup, or the file to attach when reporting a bug
+- **Export Settings**: saves a JSON snapshot of every Fewer setting on this device (theme, layout, search history, license), useful as a backup or as the file to attach when reporting a bug
 - **Restart Tutorial**: replay the interactive walkthrough
 - **GitHub Issues** link
 - **Website** link
@@ -70,7 +70,7 @@ Click the **Sign in** button in the top navbar to open the auth dialog. You can:
 2. Click **Save Current Graph** in the **Your Directories** sidebar section
 3. Name the graph and click **Save**
 
-Saved graphs capture the graph itself — cards, connections, and their positions. Your app settings (layout direction, connection style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
+Saved graphs capture the graph itself: cards, connections, and their positions. Your app settings (layout direction, connection style, theme, minimap, display filters) are separate account-level preferences that follow you, so restoring a saved graph never overwrites your current settings.
 
 ### Manage saved graphs
 

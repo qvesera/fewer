@@ -111,7 +111,7 @@ export function overLimit(count: number, limit: number): boolean {
  * failed) renders a dash; an unlimited cap renders "Unlimited".
  */
 export function formatUsage(count: number, cap: number): string {
-  if (count === -1) return "—";
+  if (count === -1) return "-";
   if (cap === Infinity) return "Unlimited";
   return `${count} of ${cap}`;
 }

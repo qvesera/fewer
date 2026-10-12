@@ -15,7 +15,7 @@
 ---
 
 > [!IMPORTANT]
-> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project, and your directory is never uploaded. Network calls happen only for features you opt into — a GitHub/URL/Internet Archive import, a linked cloud account, an optional account (saved graphs, share links, gallery), watch digests, or the on-demand archive engine for `.7z`/`.rar`/`.xz`/`.bz2`/`.zst`. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
+> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project, and your directory is never uploaded. Network calls happen only for features you opt into: a GitHub/URL/Internet Archive import, a linked cloud account, an optional account (saved graphs, share links, gallery), watch digests, or the on-demand archive engine for `.7z`/`.rar`/`.xz`/`.bz2`/`.zst`. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
 
 ---
 
@@ -43,7 +43,7 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
 **Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
-the Pro surface — split views, docking, tags — without a Pro account. `?tier=free` and
+the Pro surface (split views, docking, tags) without a Pro account. `?tier=free` and
 `?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
 and production builds ignore the parameter.
 
@@ -74,7 +74,7 @@ bun run electron:dist          # builds out/ + packages release/Fewer-<version>.
 ./release/Fewer-*.AppImage     # or: sudo apt install release/fewer_*_amd64.deb
 ```
 
-Fully offline: the app ships its own build and docs — no server, no account needed
+Fully offline: the app ships its own build and docs, with no server and no account needed
 for import, canvas, and the local graph library. On distros without libfuse2 (e.g.
 Fedora 39+), run the AppImage with `--appimage-extract-and-run`. Develop against the
 shell with `bun run electron:start`; point it at the Next dev server (HMR) with
@@ -117,7 +117,7 @@ docker run -p 3000:3000 fewer
 
 > **Note:** In the **web build**, drag-and-drop import from your OS, "Open in
 > File Explorer", and "Open File" are switched off (build-time
-> `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`) — use
+> `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`): use
 > **Import → From disk** instead. The **desktop app** has them all: drag a
 > folder onto the canvas to open it as the graph (it asks before replacing the
 > current one), or drop a file to open it in its default app.
@@ -130,7 +130,7 @@ docker run -p 3000:3000 fewer
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
-- **Group** cards: select two or more, right-click → **More Actions → Group N Items** — a gray frame with a title, a note (hover the title to read it) and a collapse toggle (web and desktop app alike)
+- **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike
 
 ---
 
@@ -142,11 +142,11 @@ docker run -p 3000:3000 fewer
 - **React Flow v12** canvas with minimap + controls
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
-- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left — and the view re-fits to the whole graph when you switch, or after Organize
+- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left, and the view re-fits to the whole graph when you switch, or after Organize
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
-- **Tags** *(Pro)*: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Tags** *(Pro)*: assign named, colored tags to folders and files. Tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
 - **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
 - **Breadcrumb bar**: selected card's full path
 
@@ -199,9 +199,9 @@ docker run -p 3000:3000 fewer
 <summary><b>Import</b></summary>
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
-- **Symlink support**: on local-path imports, symbolic links import as link cards (link icon, `↷ target` badge, contrast connection with arrowhead) instead of vanishing — show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
-- **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts, CSV (Fewer export or your own spreadsheet — non-export CSVs get a column-mapping panel), Graphviz DOT (Fewer export or third-party), and archives — **the format is detected from the content**, not chosen: a chip reports the mode and what was found (`Auto: CSV`), and **Change** reveals the tiles to override it (Auto returns to detection, and stays highlighted while auto is in force — never the detected format's). Your override is kept for that file even as you keep editing it. Uploads are detected the same way, so a `.txt` full of JSON imports as JSON. For archives — `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and — via an on-demand WebAssembly libarchive — `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice. There is no separate "Archive" origin: picking an archive switches the File panel to archive mode. The folder-import **Look Inside Archives** option is unchanged.
-- **Look Inside Archives** (advanced): folder imports can also expand the archives they find, showing each archive's contents as part of the tree — nothing is extracted, the listing is read in place. Off by default; one level deep; depth limits and per-import ceilings apply.
+- **Symlink support**: on local-path imports, symbolic links import as link cards (link icon, `↷ target` badge, contrast connection with arrowhead) instead of vanishing: show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
+- **Import from File**: JSON export, ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts, CSV (Fewer export or your own spreadsheet: non-export CSVs get a column-mapping panel), Graphviz DOT (Fewer export or third-party), and archives: **the format is detected from the content**, not chosen: a chip reports the mode and what was found (`Auto: CSV`), and **Change** reveals the tiles to override it (Auto returns to detection, and stays highlighted while auto is in force: never the detected format's). Your override is kept for that file even as you keep editing it. Uploads are detected the same way, so a `.txt` full of JSON imports as JSON. For archives: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and: via an on-demand WebAssembly libarchive: `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice. There is no separate "Archive" origin: picking an archive switches the File panel to archive mode. The folder-import **Look Inside Archives** option is unchanged.
+- **Look Inside Archives** (advanced): folder imports can also expand the archives they find, showing each archive's contents as part of the tree: nothing is extracted, the listing is read in place. Off by default; one level deep; depth limits and per-import ceilings apply.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
 - **Progress feedback**: a long folder or archive import reports its current phase and a percentage on a progress bar, with a **Cancel** button while it runs
@@ -226,7 +226,7 @@ docker run -p 3000:3000 fewer
 
 - **File operations**: copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
-- **Import settings**: options are scoped to where the import comes from — folder and listing imports offer scan depth, hidden files, vendored dirs, extension filter, symlink handling and archive expansion, while a pasted or uploaded file imports exactly as given (only the dependency-folder filter and the display settings apply to it)
+- **Import settings**: options are scoped to where the import comes from: folder and listing imports offer scan depth, hidden files, vendored dirs, extension filter, symlink handling and archive expansion, while a pasted or uploaded file imports exactly as given (only the dependency-folder filter and the display settings apply to it)
 
 </details>
 
@@ -295,7 +295,7 @@ Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards,
 - [Docs](/docs): feature guides, tutorials, and technical references
 - [Blog](/blog): release notes, feature deep-dives, and behind-the-scenes stories
 
-**Docs & Blog are headless.** Blog posts and doc pages live in a Supabase `content_pages` table and are rendered at request time with a 60-second revalidate, so publishing a post or fixing a doc typo goes live in under a minute — no code release needed.
+**Docs & Blog are headless.** Blog posts and doc pages live in a Supabase `content_pages` table and are rendered at request time with a 60-second revalidate, so publishing a post or fixing a doc typo goes live in under a minute: no code release needed.
 
 To publish or edit:
 
@@ -303,7 +303,7 @@ To publish or edit:
 2. Insert a new row (or edit an existing one): `type` = `blog` or `docs`, `slug`, `title`, `description`, `content` (markdown body), plus `author`/`date`/`tags` for blog rows
 3. Set `published = true` → live within ~60 seconds
 
-Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is the source of record, but it is **not** what readers see — the app renders `content_pages` only. The repo copy is seeded into the table by `scripts/gen-seed-content.py`, which emits an idempotent `NNNN_content_pages_reseed.sql` migration that upserts every row (latest: `0049_content_pages_reseed.sql`). A markdown-only edit therefore reaches users after that migration is applied; editing the row in Studio goes live in ~60 seconds without one.
+Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is the source of record, but it is **not** what readers see: the app renders `content_pages` only. The repo copy is seeded into the table by `scripts/gen-seed-content.py`, which emits an idempotent `NNNN_content_pages_reseed.sql` migration that upserts every row (latest: `0049_content_pages_reseed.sql`). A markdown-only edit therefore reaches users after that migration is applied; editing the row in Studio goes live in ~60 seconds without one.
 
 ## How It Works
 
@@ -311,7 +311,7 @@ Writes go through the service role (RLS is public-read-only for published rows).
 User action → KeyboardShortcuts / ContextMenu → graphStore (Zustand) → React Flow re-render
 ```
 
-The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
+The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer: one buffer per panel view.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -379,7 +379,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Supabase (Postgres) — auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
+| Database  | Supabase (Postgres): auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 
@@ -398,7 +398,7 @@ src/
 > **OS integration is switched off in the web build.** The File System Access
 > directory picker, "Open File", and "Open in File Explorer" are gated behind
 > `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts` (all flags `false`), so they
-> are unavailable in every browser until a build flips them — see
+> are unavailable in every browser until a build flips them: see
 > [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
 > Folder import works everywhere through the `webkitdirectory` fallback.
 
@@ -408,7 +408,7 @@ src/
 
 **Q: Does fewer send my directory data anywhere?**
 
-A: Your directory is never uploaded — local import, editing, layout, and export run entirely in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
+A: Your directory is never uploaded. Local import, editing, layout and export all run in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
 
@@ -416,7 +416,7 @@ A: Yes. The standalone version is available at [app.fewer.directory](https://app
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
-A: Folder import works in every browser — Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only — and are currently switched off entirely in the web build (see the note above).
+A: Folder import works in every browser: Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only, and are currently switched off entirely in the web build (see the note above).
 
 **Q: How do I uninstall?**
 
@@ -428,7 +428,7 @@ A: No. Fewer works fully without one. Signing in (optional) unlocks saving graph
 
 **Q: Can I set my own avatar?**
 
-A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload — that keeps the app free of image storage without giving up identity in the toolbar.
+A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload, that keeps the app free of image storage without giving up identity in the toolbar.
 
 ---
 

@@ -14,7 +14,7 @@ Fewer lets you share graphs with anyone via a link. Two ways to share:
 2. Click **Generate Share Link**
 3. Click **Copy** to copy the link to your clipboard
 
-The link contains all cards and connections with their positions. Your own app settings (layout direction, connection style, theme, corner radius, card dimensions) are never taken from the graph — the graph always renders with the settings of whoever opens the link.
+The link contains all cards and connections with their positions. Your own app settings (layout direction, connection style, theme, corner radius, card dimensions) are never taken from the graph: the graph always renders with the settings of whoever opens the link.
 
 ### How it works
 
@@ -45,19 +45,19 @@ Invite-only links require the recipient to sign in with an invited email address
 ## Publish to the Community Gallery
 
 A **public** share can also be listed in Fewer's community gallery at
-[`/gallery`](https://fewer.directory/gallery) — a browsable, logged-out index of
+[`/gallery`](https://fewer.directory/gallery): a browsable, logged-out index of
 graphs other people have published.
 
 1. Open the **share** dialog for a saved graph and choose **Anyone with the link**
 2. Tick **List in the community gallery**
 3. Add a **title** (max 200 characters) and an optional **description** (max 1000)
-4. Click **Generate link** — the toast confirms it is live
+4. Click **Generate link**: the toast confirms it is live
 
 Publishing to the gallery is open to all signed-in users. If your profile is
 missing a **first name** or **username**, your gallery entry shows as
-"Anonymous" — add them in Settings → Account to show proper attribution.
-The gallery lists **metadata only**: title, description, card count, date,
-category, and author name — never the graph payload, which is only fetched
+"Anonymous"; add them in Settings → Account to show proper attribution.
+The gallery lists **metadata only** (title, description, card count, date,
+category, and author name), never the graph payload, which is only fetched
 when someone opens the share link. Each card also shows a monospace preview
 of the graph's root directory and its category tag. **Open in app** asks you
 to sign in first: signed-out visitors get the sign-in dialog, and the graph

@@ -4,7 +4,7 @@ import { AppShell } from "./AppShell";
 export const metadata: Metadata = {
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
-    "Explore any directory as an interactive graph — organise and group cards, keyboard-first navigation, custom themes, real file system integration, and 8 export formats (SVG, PNG, JSON, CSV, DOT, script, tree, .fwr).",
+    "Explore any directory as an interactive graph: organise and group cards, keyboard-first navigation, custom themes, real file system integration, and 8 export formats (SVG, PNG, JSON, CSV, DOT, script, tree, .fwr).",
 };
 
 /**

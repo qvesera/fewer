@@ -56,11 +56,11 @@ Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
 | Copy Paths      | Copies each selected card's full path to the clipboard, one per line                                                                                                                 |
-| Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step — each item keeps its sub-items                                                           |
+| Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
 
-Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
+Every batch action is one undoable history entry: Ctrl+Z reverts the whole batch at once.
 
 The canvas selection menu also offers **selection helpers** (under a "Select" heading) that replace the current selection rather than acting on it:
 
@@ -118,7 +118,7 @@ In Power User mode, right-click a folder for:
 > are restricted to localhost requests. Both actions are gated by
 > `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts`, where every flag defaults to
 > `false`; a native build that replaces these paths with OS commands flips them.
-> Importing folders from disk is unaffected — it uses the `webkitdirectory`
+> Importing folders from disk is unaffected: it uses the `webkitdirectory`
 > fallback in every browser.
 
 ## Groups
@@ -130,48 +130,48 @@ web app and the desktop app. A group is an annotation layer, not a folder: it
 never changes the tree, and layout, search, export and undo treat the cards
 exactly as they did before.
 
-- **Membership is explicit** — the cards you picked stay in the group when the
+- **Membership is explicit**: the cards you picked stay in the group when the
   layout moves them, so a re-layout never reshuffles who belongs where.
-- **Title** — double-click it (or focus it and press Enter) to rename.
-- **Note** — the note icon opens a small editor; hovering the title shows the
+- **Title**: double-click it (or focus it and press Enter) to rename.
+- **Note**: the note icon opens a small editor; hovering the title shows the
   note, and the icon is filled once one is set.
-- **Color** — right-click the frame's title bar → **Color…** opens the color
+- **Color**: right-click the frame's title bar → **Color…** opens the color
   picker: drag the picker or type a hex value, and **Reset to default** returns
   to slate. The border, fill and header tint to match, the colour saves with the
   graph, and one drag is a single undo step. **Done** or **Escape** closes it.
-- **Collapse** — the chevron hides the group's cards and shrinks the frame to a
+- **Collapse**: the chevron hides the group's cards and shrinks the frame to a
   pill where the cluster was; expanding brings the cards back, except any you
   hid yourself.
-- **The frame follows visibility** — the box hugs the cards the canvas actually
+- **The frame follows visibility**: the box hugs the cards the canvas actually
   shows, and its count reads **3 of 5 members** when some are hidden. Hide every
   member and the frame disappears with them (a collapsed group always keeps its
   pill); **Show All** or the Hidden Cards panel brings everything back at once.
-- **Select & move** — click the title bar to select the frame (it rings, and
+- **Select & move**: click the title bar to select the frame (it rings, and
   **each member card gets its own ring**, so you always see which cards belong
-  to it; card selection clears — the two are mutually exclusive). Shift+click
-  adds another frame. Drag the title bar to move every member card at once —
-  hidden ones included — and release records **one undo step**. **Delete**
+  to it; card selection clears; the two are mutually exclusive). Shift+click
+  adds another frame. Drag the title bar to move every member card at once:
+  hidden ones included, and release records **one undo step**. **Delete**
   ungroups the selected frames; **Escape** clears the selection or cancels a
   move in flight (positions snap back, nothing is recorded).
-- **Resize** — a selected frame grows eight handles; drag a corner or edge to
+- **Resize**: a selected frame grows eight handles; drag a corner or edge to
   **scale the whole arrangement**: the cards keep their size while their
   spacing (and the frame) grows or shrinks around the opposite corner/edge.
   Hold **Shift** for proportional scaling. Like moving, it is one undo step
-  and nothing extra is stored — the frame is always derived from its cards.
-- **Ungroup** — the × drops the frame and keeps the cards.
+  and nothing extra is stored: the frame is always derived from its cards.
+- **Ungroup**: the × drops the frame and keeps the cards.
 
 Right-clicking the title bar also opens the **group menu**: Rename…, Edit
 Note…, Color ▸, Collapse/Expand, **Select Members** (selects every card in the
 group at once), **Include N cards inside** (when a re-flow parked non-member
-cards fully inside the box — one click, one undo step, adds them to the group)
+cards fully inside the box: one click, one undo step, adds them to the group)
 and Ungroup.
 
-**Nesting** — a group can live inside another. From the group menu, **Move into
+**Nesting**: a group can live inside another. From the group menu, **Move into
 group ▸** picks a container (the list never offers the group itself or its own
 subgroups, so a cycle can't form), and **Move out of group** returns it to the
 top level. A parent's frame grows to hold its children's frames, moving or
 resizing a parent carries its whole subtree, and collapsing a parent hides every
-card beneath it — its children's frames disappear with it, so no orphan pills
+card beneath it: its children's frames disappear with it, so no orphan pills
 are left behind. Ungrouping a parent re-homes its children rather than deleting
 them.
 
@@ -180,7 +180,7 @@ re-opens, cards reappear) or a delete.
 
 ## Undo / Redo
 
-Every editing operation records an undo step — including card moves (drag a
+Every editing operation records an undo step, including card moves (drag a
 card, then **Ctrl+Z** to snap it back):
 
 - **Ctrl+Z**: undo

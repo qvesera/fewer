@@ -55,7 +55,7 @@ describe("formatUsage", () => {
   test("renders capped, unlimited, and failed-count labels", () => {
     expect(formatUsage(2, 3)).toBe("2 of 3");
     expect(formatUsage(12, 10)).toBe("12 of 10");
-    expect(formatUsage(-1, 3)).toBe("—");
+    expect(formatUsage(-1, 3)).toBe("-");
     expect(formatUsage(40, Infinity)).toBe("Unlimited");
   });
 });

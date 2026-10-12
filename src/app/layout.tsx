@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
-    "fewer turns any directory into an interactive graph you can explore, edit, organise and group — with 8 export formats, keyboard-first navigation, custom themes and real file system integration. Open source (AGPLv3), privacy-first.",
+    "fewer turns any directory into an interactive graph you can explore, edit, organise and group, with 8 export formats, keyboard-first navigation, custom themes and real file system integration. Open source (AGPLv3), privacy-first.",
   keywords: [
     "fewer",
     "directory visualization",

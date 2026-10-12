@@ -396,7 +396,7 @@ export function parseCSVGraph(text: string, mapping?: CsvColumnMap): TreeEntry {
   const map = mapping && isCsvMappingUsable(mapping) ? mapping : guessCsvMapping(headers);
   if (!isCsvMappingUsable(map)) {
     throw new Error(
-      "No name column found — pick which column holds the entry name before importing",
+      "No name column found: pick which column holds the entry name before importing",
     );
   }
 

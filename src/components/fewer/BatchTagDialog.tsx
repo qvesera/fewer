@@ -90,7 +90,7 @@ export function BatchTagDialog() {
           </div>
           <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
             {tags.length === 0 && !creating && (
-              <div className="px-2 py-1.5 text-[11px] text-muted-foreground">No tags yet — create one below.</div>
+              <div className="px-2 py-1.5 text-[11px] text-muted-foreground">No tags yet. Create one below.</div>
             )}
             {tags.map((tag) => {
               const { have, total } = counts(tag.id);

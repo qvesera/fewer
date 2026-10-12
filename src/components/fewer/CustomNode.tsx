@@ -489,7 +489,7 @@ function FolderContextMenu({
                       disabled
                       className="cursor-pointer opacity-50"
                       onSelect={() => {
-                        toast({ title: "Not available remotely", description: "This graph lives on the server — remote clients can't open folders locally.", variant: "destructive" });
+                        toast({ title: "Not available remotely", description: "This graph lives on the server: remote clients can't open folders locally.", variant: "destructive" });
                       }}
                     >
                       Open in File Explorer
@@ -969,7 +969,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
         isDimmed && "opacity-40",
         isHidden && "opacity-50 saturate-50",
       )}
-      title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
+      title={isHidden ? "Hidden from canvas: double-click the folder to zoom there" : undefined}
       onDoubleClick={(e) => {
         // Double-clicking a hidden child reveals it in this view (and zooms to
         // it); the visible children keep zooming into the node as before.

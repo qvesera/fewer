@@ -374,7 +374,7 @@ export function FewerApp() {
             s.setCustomTheme(json.theme.theme);
             s.setThemeMode("custom");
             window.history.replaceState(null, "", window.location.pathname);
-            toast({ title: "Theme applied", description: `"${json.theme.name}" is now your theme — saved as last used.` });
+            toast({ title: "Theme applied", description: `"${json.theme.name}" is now your theme, saved as last used.` });
           } catch { toast({ title: "Theme link error", description: "Could not load the theme from the server.", variant: "destructive" }); }
           return;
         }

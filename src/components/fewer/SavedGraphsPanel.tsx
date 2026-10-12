@@ -292,7 +292,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       {inShell && !getLibraryDir() && (
         <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
           <p className="text-[11px] text-muted-foreground/80">
-            Desktop builds keep graphs in a local Fewer Library folder — no account needed.
+            Desktop builds keep graphs in a local Fewer Library folder, no account needed.
           </p>
           <Button
             variant="outline"
@@ -833,7 +833,7 @@ function ShareGraphDialog({
           {access === "none" ? (
             <p className="text-[11px] text-muted-foreground/70">
               {existingId
-                ? "A share link still exists — use Stop sharing below to make it fully private."
+                ? "A share link still exists: use Stop sharing below to make it fully private."
                 : "This saved graph is private and visible only to you."}
             </p>
           ) : (

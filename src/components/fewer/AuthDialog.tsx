@@ -132,7 +132,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       if (!data.user) {
         toast({
           title: "Email already registered",
-          description: "An account with this email already exists — sign in instead.",
+          description: "An account with this email already exists. Sign in instead.",
           variant: "destructive",
         });
         switchMode("signin");
@@ -199,7 +199,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               : mode === "signup"
                 ? "Create an account to save directories across devices."
                 : mode === "magic"
-                  ? "Enter your email and we'll send you a one-tap sign-in link — no password needed."
+                  ? "Enter your email and we'll send you a one-tap sign-in link, no password needed."
                   : "Enter your email to receive a password reset link."}
           </DialogDescription>
         </DialogHeader>
