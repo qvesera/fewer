@@ -3903,7 +3903,7 @@ tasks:
   session_count: 1
 - id: "T-144"
   title: "Groups not retained on tab reload or in JSON/.fwr export"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -3950,6 +3950,52 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-12T11:21:32Z"
   notes: ["2026-10-12T11:22:13Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-146"
+  title: "Nested canvas groups (W4–W6): parentId model, recursive bounds, collapse cascade, transitive move/scale"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 780
+  estimate_basis: "cli"
+  issue: 414
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#414"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-12T12:07:55Z"
+  notes: ["2026-10-12T12:08:39Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-147"
+  title: "Groups as first-class layout units: expanded group lays its members out as a cluster (v0.10 epic; supersedes the W2 pill-slot reservation)"
+  status: "backlog"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-12T12:08:44Z"
+  notes: ["2026-10-12T12:09:23Z · From the groups plan: the W2 collapsed-pill slot reservation (shipped as T-140) is the cheap 80%; this epic is the full version — expanded groups become real layout clusters. It is also what makes nested layouts (T-146) feel intentional rather than incidental. Deferred post-v0.9; likely headline feature of v0.10."]
   sessions: []
   spent_min: 0
   session_count: 0
