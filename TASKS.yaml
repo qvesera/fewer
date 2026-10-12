@@ -4005,3 +4005,61 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-148"
+  title: "Pro/licensing is off by default in the desktop shell (one flag, no license UI, tier pinned to free) and the local graph library becomes free"
+  status: "triaged"
+  type: "feat"
+  area: "other"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-12T20:27:46Z"
+  notes: []
+  sessions:
+  - start: "2026-10-12T20:28:40Z"
+    end: "2026-10-12T20:49:26Z"
+    measured: true
+    note: "Licensing rail off by default: new licensing.ts (LICENSING_ENABLED build flag + pure shellTier) pins the desktop shell tier to free so a licence file and ?tier=pro are inert; visibleTabs drops the Settings License tab while off (param is testable in both states); SavedGraphsPanel loses every Pro-license gate (local library is free: MIN_TIER.localLibrary free); branding toggle, preview and licence copy stop promising sign-in/activation; docs (desktop.md Licensing rewritten), AGENTS.md, changelog, env-sync registry + .env.example. Tests: licensing.test, settingsModel tab matrix, tiers/verify expectations, Electron smoke asserts no License tab. Gates: lint 0, tsc 0, bun run test 1792+233 pass 0 fail, env:check ok."
+    proof: ["8b21dc3"]
+    effort: {commits: 1, files: 18, insertions: 158, deletions: 43}
+  spent_min: 21
+  session_count: 1
+- id: "T-149"
+  title: "Marketing home page refresh: stale facts (7→8 formats, nodes→cards), free-feature grid (groups, import breadth, gallery), SEO cleanup (/welcome duplicate, nav anchor, /app metadata), fresh demo screenshot"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-12T20:27:46Z"
+  notes: []
+  sessions:
+  - start: "2026-10-12T20:49:28Z"
+    end: "2026-10-12T21:17:30Z"
+    measured: true
+    note: "Home page refresh: MarketingHome feature grid rewritten around free features (canvas groups first, import breadth incl. archives/Internet Archive/CSV+DOT, export count fixed to 8, cards-not-nodes vocabulary, GitHub not generic Git) plus a learn-more row into docs; nav Features -> /#features; /welcome now redirects to / and left the sitemap (duplicate content); root layout + /app metadata drop the old tagline and stale 7-format claim (README too); public/demo.png regenerated (2516x1266, was Aug-12 and two canvas redesigns old) with repeatable scripts/marketing-shot.ts wired as package.json \"shot\" (gitignore whitelisted); new e2e/marketing.spec.ts pins counts/vocabulary/redirect. Gates: lint 0, tsc 0, bun run test 1792+233 0 fail, playwright full suite 36 passed, bun run build OK, changelog validate OK."
+    proof: ["251e611"]
+    effort: {commits: 1, files: 14, insertions: 152, deletions: 39}
+  spent_min: 28
+  session_count: 1
