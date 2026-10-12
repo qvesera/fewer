@@ -6,6 +6,8 @@ import { computeDisplayDepthHiddenIds, computeLargeFolderHiddenIds } from "./imp
 import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
+import { selectionBounds, viewportForBounds } from "./fitBounds";
+import type { Group } from "./groups";
 
 /** The store's own default when a reader is built from a partial state. */
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
@@ -82,6 +84,9 @@ export interface StoreReader {
   maxDisplayDepth: number;
   revealedRootIds: string[];
   tier: string;
+  /** Canvas groups + the group selection (T-143): Alt+F zooms to groups too. */
+  groups: Group[];
+  selectedGroupIds: string[];
 }
 
 /**
@@ -172,6 +177,8 @@ export function readShortcutStateFields(): (keyof StoreReader)[] {
     "maxDisplayDepth",
     "revealedRootIds",
     "tier",
+    "groups",
+    "selectedGroupIds",
   ];
 }
 
@@ -197,6 +204,8 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     maxDisplayDepth: s.maxDisplayDepth ?? 0,
     revealedRootIds: s.revealedRootIds ?? [],
     tier: s.tier ?? "guest",
+    groups: s.groups ?? [],
+    selectedGroupIds: s.selectedGroupIds ?? [],
   };
 }
 
@@ -230,6 +239,10 @@ export interface ShortcutCtx {
     setViewport(v: { x: number; y: number; zoom: number }, opts?: { duration?: number }): void;
     getEdges(): { id: string; selected?: boolean }[];
   };
+  /** Pane size of the canvas these shortcuts drive — `null` before mount.
+   *  Needed to center a bounds-based fit (T-143); only the toolbar path got
+   *  it for free, since it lives inside the canvas. */
+  canvasSize(): { width: number; height: number } | null;
   toast(opts: { title: string; description?: string; variant?: "destructive" }): void;
   localFs: typeof LOCAL_FS_FEATURES;
   openNodeFile(node: FewerNode, dataSource: string): Promise<boolean>;
@@ -272,13 +285,29 @@ export function buildKeyboardRules(): ShortcutRule[] {
     // Alt+R — organize
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "r"; },
             handle(e,ctx,_kc) { e.preventDefault(); const st=ctx.getState(); const before=st.nodes.length; st.organize(st.activeLeafId); if(before>0)ctx.toast({ title:"Graph organized" }); } },
-    // Alt+F — zoom to selection
+    // Alt+F — zoom to selection: the selected cards, the selected groups
+    // (frame box, or the pill box when collapsed), or both (T-143). Group
+    // selection is mutually exclusive with card selection, so keying off
+    // cards alone used to fit the WHOLE graph whenever a group was selected.
+    // Bounds are set directly — React Flow's fitView({nodes}) only sees
+    // measured nodes, and a collapsed group's members are hidden.
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "f" && !kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();
-        const s=ctx.getState().nodes.filter((n)=>ctx.getState().selectedNodeIds.includes(n.id));
-        ctx.reactFlow.fitView(s.length>0
-          ? { nodes:s.map((n)=>({id:n.id})), duration:600, padding:0.3 }
-          : { duration:600, padding:0.2 }); } },
+        const st = ctx.getState();
+        const bounds = selectionBounds({
+          nodes: st.nodes,
+          groups: st.groups,
+          selectedNodeIds: st.selectedNodeIds,
+          selectedGroupIds: st.selectedGroupIds,
+          activeLeafId: st.activeLeafId,
+          viewSettings: st.viewSettings,
+        });
+        const size = bounds ? ctx.canvasSize() : null;
+        if (bounds && size) {
+          ctx.reactFlow.setViewport(viewportForBounds(bounds, size), { duration: 600 });
+          return;
+        }
+        ctx.reactFlow.fitView({ duration: 600, padding: 0.2 }); } },
     // Alt+I — open import
     { test(_e,_ctx,kc) { return kc.alt && !kc.shift && kc.altKey === "i" && !kc.inEditable; },
       handle(e,_ctx,_kc) { e.preventDefault(); window.dispatchEvent(new CustomEvent(FEWER_IMPORT_FOLDER)); } },

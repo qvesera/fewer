@@ -309,7 +309,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   });
 
   const { onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll, seedSelectionForDrag, endSelectionDrag } = useCanvasSelection({
-    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId, pointerActiveRef,
+    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, pointerActiveRef,
   });
 
   // Drag handlers come after the selection hook: a drag seeds the store's
@@ -445,7 +445,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           close={closeMenu}
         />
       )}
-      {primary && <KeyboardShortcuts />}
+      {primary && <KeyboardShortcuts containerRef={containerRef} />}
     </div>
     </GraphViewProvider>
   );

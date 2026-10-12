@@ -168,6 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Group frames are measured against exactly what their canvas paints (derived layouts, per-view positions, collapsed-pill geometry), so a frame no longer drifts from its cards after Organize, a direction change, or on split canvases — the last of the sizing bugs.
 - Organize no longer re-flows cards on top of a collapsed group: a collapsed group's members now stay in the layout as a block, so the pill reserves its own space instead of drawing over cards that flowed into its old footprint. Ordinary hidden cards keep their frozen positions.
 - Collapsed group pill now sizes to its content — a long group name widens the pill instead of being cut off by the old static 240px width (now just the minimum floor) — and renaming a selected group no longer draws a second ring on top of the frame selection outline.
+- Zoom to selection (Alt+F and the crosshair button) now works for groups: with a group selected it centers the group frame — or the pill box when the group is collapsed — instead of silently fitting the whole graph. Cards and groups selected together fit their combined bounds, and per-view card positions are honored.
 
 ### Added
 

@@ -3872,3 +3872,32 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 163, deletions: 19}
   spent_min: 24
   session_count: 1
+- id: "T-143"
+  title: "Zoom to selection (Alt+F and the crosshair button) ignores selected groups — fits the whole graph instead of the group"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 408
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-12T08:11:54Z"
+  notes: ["2026-10-12T08:13:16Z · Both entries read selectedNodeIds only: toolbar fitToSelection (use-canvas-selection.ts) and the Alt+F rule (keyboardShortcuts.ts) — group selection is mutually exclusive with card selection, so the empty branch fits the whole graph. Fix: pure src/lib/fewer/fitBounds.ts — selectionBounds (union of selected cards boxes + selected groups boxes: groupBounds for expanded, groupPill for collapsed, per-view positions honored) + viewportForBounds (center-exact, padding 0.3, clamps 0.15..3 = GraphCanvas minZoom/maxZoom). Callers setViewport directly (no RF fitView — culled/hidden members are unmeasured). Keyboard ctx gains canvasSize() fed by a containerRef prop (KeyboardShortcuts mounts inside CanvasInner). StoreReader + toStoreReader + readShortcutStateFields gain groups/selectedGroupIds. Tests: fitBounds unit, Alt+F rule tests (group→setViewport, empty→fitView), e2e centering via button (expanded) and Alt+F key (collapsed)."]
+  sessions:
+  - start: "2026-10-12T08:16:44Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
