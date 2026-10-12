@@ -428,3 +428,67 @@ test("zoom to selection centers a selected group — toolbar button and Alt+F (T
   await expectCentered(header);
 });
 
+
+/** Create a group from the cards at `indices` (among large standalone cards).
+ *  Returns a stable locator keyed on the frame's group id. */
+async function createGroupFrom(page: Page, indices: number[]) {
+  const maxIdx = Math.max(...indices);
+  const ids = await page.locator(".react-flow__node").evaluateAll(
+    (els, count) =>
+      els
+        .filter((e) => (e as HTMLElement).getBoundingClientRect().height > 40)
+        .slice(0, count)
+        .map((e) => (e as HTMLElement).dataset.id),
+    maxIdx + 1,
+  );
+  expect(ids.length).toBeGreaterThanOrEqual(maxIdx + 1);
+  const chosen = indices.map((i) => page.locator(`[data-id="${ids[i]}"]`));
+  await chosen[0].click();
+  for (let k = 1; k < chosen.length; k++) {
+    await chosen[k].click({ modifiers: ["Shift"] });
+  }
+  const box = (await chosen[0].boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + 10, { button: "right" });
+  await page.getByRole("menuitem", { name: "More Actions" }).hover();
+  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click();
+  const frames = page.locator("[data-group-id]");
+  await expect(frames.first()).toBeVisible({ timeout: 10000 });
+  const gid = await frames.last().getAttribute("data-group-id");
+  return page.locator(`[data-group-id="${gid}"]`);
+}
+
+test("nesting: child frame sits inside the parent; collapsing the parent removes it", async ({ page }) => {
+  await openCanvas(page);
+  const parent = await createGroupFrom(page, [0, 1]);
+  const parentGid = (await parent.getAttribute("data-group-id"))!;
+  const child = await createGroupFrom(page, [2, 3]);
+  const childGid = (await child.getAttribute("data-group-id"))!;
+  expect(parentGid).not.toBe(childGid);
+  await expect(page.locator("[data-group-id]")).toHaveCount(2);
+
+  // Right-click the CHILD header → Move into group → the parent (the sole
+  // target with only two groups, both defaulting to the title "Group").
+  const childHeader = page.locator(`[data-group-header="${childGid}"]`);
+  const hb = (await childHeader.boundingBox())!;
+  await page.mouse.click(hb.x + hb.width / 2, hb.y + hb.height / 2, { button: "right" });
+  await page.getByRole("menuitem", { name: "Move into group" }).hover();
+  await page.getByRole("menuitem", { name: "Group", exact: true }).click();
+
+  // Nested: the parent frame must CONTAIN the child frame.
+  await page.waitForTimeout(300);
+  const pb = (await parent.boundingBox())!;
+  const cb = (await child.boundingBox())!;
+  expect(cb.x).toBeGreaterThanOrEqual(pb.x - 1);
+  expect(cb.y).toBeGreaterThanOrEqual(pb.y - 1);
+  expect(cb.x + cb.width).toBeLessThanOrEqual(pb.x + pb.width + 1);
+  expect(cb.y + cb.height).toBeLessThanOrEqual(pb.y + pb.height + 1);
+
+  // Collapse the parent → the child frame disappears (cascade, no orphan pill),
+  // while the parent's own pill remains.
+  await page
+    .locator(`[data-group-id="${parentGid}"]`)
+    .getByRole("button", { name: "Collapse group" })
+    .click();
+  await expect(page.locator(`[data-group-id="${childGid}"]`)).toHaveCount(0);
+  await expect(page.locator(`[data-group-id="${parentGid}"]`)).toBeVisible();
+});

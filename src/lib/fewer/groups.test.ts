@@ -6,7 +6,11 @@ import {
   GROUP_MIN_BOX,
   GROUP_PADDING,
   cardsInsideBox,
+  childGroups,
+  descendantGroupIds,
   groupBounds,
+  groupDepth,
+  groupFrameRects,
   groupsIndexOf,
   groupPill,
   handleAxes,
@@ -18,6 +22,8 @@ import {
   normalizeGroups,
   scaleFactorFor,
   scaleMemberPositions,
+  subtreeMemberIds,
+  wouldCreateCycle,
 } from "./groups";
 import type { Group } from "./groups";
 import type { FewerNode } from "./types";
@@ -171,6 +177,136 @@ describe("normalizeGroups", () => {
   });
 });
 
+describe("nesting model (W4)", () => {
+  const ids = new Set(["a", "b", "c", "d"]);
+  // P (root) → C → G, plus P and C also own cards directly.
+  const forest: Group[] = [
+    { id: "P", title: "P", note: "", memberIds: ["a"], parentId: undefined },
+    { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "P" },
+    { id: "G", title: "G", note: "", memberIds: ["c"], parentId: "C" },
+    { id: "S", title: "S", note: "", memberIds: ["d"], parentId: undefined },
+  ];
+
+  test("childGroups returns direct children only", () => {
+    expect(childGroups(forest, "P").map((g) => g.id)).toEqual(["C"]);
+    expect(childGroups(forest, "C").map((g) => g.id)).toEqual(["G"]);
+    expect(childGroups(forest, "G")).toEqual([]);
+    expect(childGroups(forest, "S")).toEqual([]);
+  });
+
+  test("descendantGroupIds is the transitive closure, excluding self", () => {
+    expect([...descendantGroupIds(forest, "P")].sort()).toEqual(["C", "G"]);
+    expect([...descendantGroupIds(forest, "C")]).toEqual(["G"]);
+    expect(descendantGroupIds(forest, "G").size).toBe(0);
+    expect(descendantGroupIds(forest, "S").size).toBe(0);
+    expect(descendantGroupIds(forest, "missing").size).toBe(0);
+  });
+
+  test("subtreeMemberIds unions own + descendant cards, no dupes, order stable", () => {
+    expect(subtreeMemberIds(forest, "P")).toEqual(["a", "b", "c"]);
+    expect(subtreeMemberIds(forest, "C")).toEqual(["b", "c"]);
+    expect(subtreeMemberIds(forest, "G")).toEqual(["c"]);
+    expect(subtreeMemberIds(forest, "S")).toEqual(["d"]);
+    expect(subtreeMemberIds(forest, "missing")).toEqual([]);
+  });
+
+  test("wouldCreateCycle: self, missing, and descendant targets are rejected", () => {
+    expect(wouldCreateCycle(forest, "P", "P")).toBe(true); // self
+    expect(wouldCreateCycle(forest, "P", "nope")).toBe(true); // missing
+    expect(wouldCreateCycle(forest, "P", "C")).toBe(true); // direct child
+    expect(wouldCreateCycle(forest, "P", "G")).toBe(true); // deep descendant
+    expect(wouldCreateCycle(forest, "C", "P")).toBe(false); // move up to ancestor — valid
+    expect(wouldCreateCycle(forest, "S", "P")).toBe(false); // unrelated — valid
+  });
+
+  describe("normalizeGroups repairs the parent links", () => {
+    test("preserves a valid parent", () => {
+      const out = normalizeGroups(forest, ids);
+      expect(out.find((g) => g.id === "C")?.parentId).toBe("P");
+      expect(out.find((g) => g.id === "G")?.parentId).toBe("C");
+      expect(out.find((g) => g.id === "P")?.parentId).toBeUndefined();
+    });
+
+    test("drops a dangling parent (parent group gone)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "ghost" },
+        ],
+        ids,
+      );
+      expect(out[0].parentId).toBeUndefined();
+    });
+
+    test("drops a self-parent", () => {
+      const out = normalizeGroups([{ id: "C", title: "C", note: "", memberIds: ["b"], parentId: "C" }], ids);
+      expect(out[0].parentId).toBeUndefined();
+    });
+
+    test("breaks a 2-node cycle so the result is a forest", () => {
+      const out = normalizeGroups(
+        [
+          { id: "A", title: "A", note: "", memberIds: ["a"], parentId: "B" },
+          { id: "B", title: "B", note: "", memberIds: ["b"], parentId: "A" },
+        ],
+        ids,
+      );
+      // Exactly one of the two links must be severed — no 2-cycle remains.
+      const a = out.find((g) => g.id === "A")!;
+      const b = out.find((g) => g.id === "B")!;
+      expect(!(a.parentId === "B" && b.parentId === "A")).toBe(true);
+      // And both survive (each still owns a card).
+      expect(out).toHaveLength(2);
+    });
+
+    test("breaks a longer cycle (A→B→C→A)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "A", title: "A", note: "", memberIds: ["a"], parentId: "C" },
+          { id: "B", title: "B", note: "", memberIds: ["b"], parentId: "A" },
+          { id: "C", title: "C", note: "", memberIds: ["c"], parentId: "B" },
+        ],
+        ids,
+      );
+      // Walk up from any node must terminate (no infinite loop) → forest holds.
+      const byId = new Map(out.map((g) => [g.id, g]));
+      for (const start of byId.keys()) {
+        const seen = new Set<string>();
+        let cur: string | undefined = start;
+        while (cur !== undefined) {
+          expect(seen.has(cur)).toBe(false);
+          seen.add(cur);
+          cur = byId.get(cur)?.parentId;
+        }
+      }
+      expect(out).toHaveLength(3);
+    });
+
+    test("keeps a parent that only contains subgroups (not dropped as empty)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "P", title: "P", note: "", memberIds: [], parentId: undefined },
+          { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "P" },
+        ],
+        ids,
+      );
+      expect(out.map((g) => g.id).sort()).toEqual(["C", "P"]);
+      expect(out.find((g) => g.id === "P")?.parentId).toBeUndefined();
+    });
+
+    test("still drops a truly empty group (no cards, no children)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "P", title: "P", note: "", memberIds: ["a"] },
+          { id: "E", title: "E", note: "", memberIds: ["ghost"], parentId: "P" },
+        ],
+        ids,
+      );
+      // E has no reachable cards and no children → dropped, even though it had a parent.
+      expect(out.map((g) => g.id)).toEqual(["P"]);
+    });
+  });
+});
+
 describe("normalizeGroupColor", () => {
   test("accepts six-digit hex and lowercases it", () => {
     expect(normalizeGroupColor("#A78BFA")).toBe("#a78bfa");
@@ -303,5 +439,92 @@ describe("cardsInsideBox (T-141)", () => {
     const hidden = node("ghost", 50, 50);
     expect(cardsInsideBox([hidden], BOX, [], new Set<string>())).toEqual([]);
     expect(cardsInsideBox([hidden], BOX, [], new Set(["ghost"]))).toEqual(["ghost"]);
+  });
+});
+
+describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
+  const painted = [
+    node("pa", 0, 0, 100, 50),     // P's own card
+    node("ca", 0, 300, 100, 50),   // C's own card (below)
+    node("ga", 0, 600, 100, 50),   // G's own card (grandchild, deeper)
+  ];
+
+  test("groupDepth counts ancestors (roots 0)", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+      { id: "S", title: "S", note: "", memberIds: [] },
+    ];
+    expect(groupDepth(gs, "P")).toBe(0);
+    expect(groupDepth(gs, "C")).toBe(1);
+    expect(groupDepth(gs, "G")).toBe(2);
+    expect(groupDepth(gs, "S")).toBe(0);
+  });
+
+  test("a childless group's rect equals groupBounds (no nesting side-effects)", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    expect(rects.get("P")).toEqual(groupBounds(painted, ["pa"])!);
+  });
+
+  test("a parent frame CONTAINS its child frame (padded), never overlapping", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    ];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    const p = rects.get("P")!;
+    const c = rects.get("C")!;
+    expect(p.x).toBeLessThanOrEqual(c.x);
+    expect(p.y).toBeLessThanOrEqual(c.y);
+    expect(p.x + p.width).toBeGreaterThanOrEqual(c.x + c.width);
+    expect(p.y + p.height).toBeGreaterThanOrEqual(c.y + c.height);
+    // The parent grew beyond its own card to fit the child (child is far below).
+    expect(p.height).toBeGreaterThan(groupBounds(painted, ["pa"])!.height);
+  });
+
+  test("paint order is parents-first (children render above)", () => {
+    const gs = [
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "S", title: "S", note: "", memberIds: ["ga"] },
+    ];
+    const { order } = groupFrameRects(gs, painted, painted);
+    expect(order.indexOf("P")).toBeLessThan(order.indexOf("C"));
+    expect(order.indexOf("C")).toBeLessThan(order.indexOf("G"));
+  });
+
+  test("a collapsed parent becomes a pill and SUPPRESSES its subtree", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"], collapsed: true },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+    ];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    expect(rects.has("C")).toBe(false); // orphan pill suppressed
+    expect(rects.has("G")).toBe(false);
+    expect(rects.has("P")).toBe(true);
+    expect(rects.get("P")!.width).toBe(COLLAPSED_PILL_WIDTH); // pill, not frame
+    expect(rects.get("P")!.height).toBe(COLLAPSED_PILL_HEIGHT);
+  });
+
+  test("an expanded parent with hidden own cards still frames visible children", () => {
+    // P's own card is not in the painted/visible set, but its child C is.
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    ];
+    const visible = new Set(["ca"]); // pa hidden
+    const { rects } = groupFrameRects(gs, painted, painted, visible);
+    expect(rects.has("C")).toBe(true);
+    expect(rects.has("P")).toBe(true); // P still draws around C
+  });
+
+  test("a group with nothing visible and no visible children is omitted", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const { rects } = groupFrameRects(gs, painted, painted, new Set(["other"]));
+    expect(rects.has("P")).toBe(false);
   });
 });

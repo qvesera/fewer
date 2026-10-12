@@ -13,7 +13,7 @@ import { ViewportPortal, useViewport } from "@xyflow/react";
 import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewScope } from "@/hooks/use-graph-view-context";
-import { COLLAPSED_PILL_HEIGHT, COLLAPSED_PILL_WIDTH, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, groupBounds, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, type GroupHandleId } from "@/lib/fewer/groups";
+import { COLLAPSED_PILL_HEIGHT, COLLAPSED_PILL_WIDTH, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, descendantGroupIds, groupBounds, groupFrameRects, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, subtreeMemberIds, type GroupBounds, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -25,6 +25,9 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,20 +104,43 @@ const gestureRef = {
 export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNode[] }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const { visibleIds } = useGraphViewScope();
+  // Collapsed pills anchor on the store's full list (hidden members), with this
+  // leaf's per-view positions overlaid — built once for every group (T-138).
+  const allNodes = useGraphStore((s) => s.nodes);
+  const leafPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
+
+  // Nesting (W5): compute every frame's rect here — parents contain children,
+  // a collapsed ancestor suppresses its subtree, and `order` paints parents
+  // first so children render above. One pass, then each frame just draws.
+  const { rects, order } = useMemo(() => {
+    const anchor = leafPositions
+      ? allNodes.map((n) => {
+          const p = leafPositions[n.id];
+          return p ? { ...n, position: p } : n;
+        })
+      : allNodes;
+    return groupFrameRects(groups, nodes, anchor, visibleIds);
+  }, [groups, nodes, allNodes, leafPositions, visibleIds]);
 
   if (groups.length === 0) return null;
   return (
     <ViewportPortal>
       <div className="pointer-events-none absolute left-0 top-0 h-0 w-0">
-        {groups.map((group) => (
-          <GroupFrame
-            key={group.id}
-            group={group}
-            nodes={nodes}
-            visible={visibleIds}
-            leafId={leafId}
-          />
-        ))}
+        {order.map((id) => {
+          const group = groups.find((g) => g.id === id);
+          const rect = rects.get(id);
+          if (!group || !rect) return null;
+          return (
+            <GroupFrame
+              key={id}
+              group={group}
+              nodes={nodes}
+              visible={visibleIds}
+              leafId={leafId}
+              rect={rect}
+            />
+          );
+        })}
       </div>
     </ViewportPortal>
   );
@@ -128,6 +154,7 @@ export function GroupFrame({
   nodes,
   visible,
   leafId,
+  rect,
 }: {
   group: Group;
   /** The canvas's PAINTED nodes (derived layout + per-view positions + pill
@@ -138,6 +165,10 @@ export function GroupFrame({
   visible: ReadonlySet<string>;
   /** The owning canvas, for routing gesture writes to the per-view map. */
   leafId?: string;
+  /** Nesting-aware frame rect from `GroupFrames` (parents contain children,
+   *  cascade applied). Falls back to a local single-group box when rendered
+   *  standalone (tests). */
+  rect?: GroupBounds;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -216,18 +247,24 @@ export function GroupFrame({
   // empty box (T-134 edge case) — and drawing nothing at all when none is
   // visible. Collapsed: anchor the pill on EVERY member, because collapse is
   // what hides them — visible-only bounds would delete the pill's own handle.
-  const visibleBounds = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
-  const allBounds = group.collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
-  const anchor = group.collapsed ? (allBounds ?? visibleBounds) : visibleBounds;
+  const allGroups = useGraphStore((s) => s.groups) ?? [];
+  const localVisible = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+  const localAll = group.collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
+  const localAnchor = group.collapsed ? (localAll ?? localVisible) : localVisible;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
-  const box = anchor && (group.collapsed ? groupPill(anchor) : anchor);
+  const localBox = localAnchor && (group.collapsed ? groupPill(localAnchor) : localAnchor);
+  // Nesting (W5): prefer the parent's cascade/containment-aware rect; the local
+  // single-group box is the fallback when this frame is rendered standalone.
+  const box = rect ?? localBox;
   // Non-members fully inside the box, offered by the group menu so membership
-  // and box can agree again (T-141). Primitives as deps: a drag re-render
-  // rebuilds `box`, but only a geometry or node change should recompute this.
+  // and box can agree again (T-141). Exclude the whole SUBTREE's cards so a
+  // parent never offers a card that already belongs to one of its children.
+  // Primitives as deps: a drag re-render rebuilds `box`, but only a geometry or
+  // node change should recompute this.
   const insideIds = useMemo(
-    () => (box ? cardsInsideBox(nodes, box, group.memberIds, visible) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- box identity churns per render; its primitives are the real inputs
-    [nodes, group.memberIds, visible, box?.x, box?.y, box?.width, box?.height],
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- box identity churns per render; its primitive fields are the real inputs
+    () => (box ? cardsInsideBox(nodes, box, subtreeMemberIds(allGroups, group.id), visible) : []),
+    [nodes, allGroups, group.id, group.memberIds, visible, box?.x, box?.y, box?.width, box?.height],
   );
   if (!box) return null;
 
@@ -291,7 +328,8 @@ export function GroupFrame({
     extra: Pick<FrameGesture, "startBox" | "origin" | "axes"> = {},
   ) => {
     const startPositions = new Map<string, { x: number; y: number }>();
-    const members = new Set(group.memberIds);
+    // Transitive (W5): moving a group moves its WHOLE subtree's cards.
+    const members = new Set(subtreeMemberIds(allGroups, group.id));
     // Effective positions: the painted array IS what this canvas shows, so the
     // members' start coords are their painted ones (T-138).
     for (const n of nodes) {
@@ -335,7 +373,7 @@ export function GroupFrame({
   const onHandlePointerDown = (id: GroupHandleId) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    const current = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
+    const current = groupBounds(nodes, subtreeMemberIds(allGroups, group.id), GROUP_PADDING, visible);
     if (!current) return; // nothing rendered → nothing to scale
     startGesture(e, "scale", {
       startBox: { width: current.width, height: current.height },
@@ -395,7 +433,7 @@ export function GroupFrame({
     // tagged with the leaf when the gesture wrote the per-view map, so undo
     // restores that map instead of the shared positions it never touched.
     const state = act();
-    const members = new Set(group.memberIds);
+    const members = new Set(subtreeMemberIds(allGroups, group.id));
     const leafPos = leafId ? state.viewSettings[leafId]?.positions : undefined;
     const moves = (state.nodes ?? [])
       .filter((n) => members.has(n.id))
@@ -666,6 +704,33 @@ export function GroupFrame({
               Include {plural(insideIds.length, "card")} inside
             </ContextMenuItem>
           )}
+          {/* Nesting (W6): move this group under another, or back to root.
+              Targets exclude self + descendants, so the move is always acyclic. */}
+          {(() => {
+            const descendants = descendantGroupIds(allGroups, group.id);
+            const targets = allGroups.filter((g) => g.id !== group.id && !descendants.has(g.id));
+            return (
+              <>
+                {targets.length > 0 && (
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>Move into group</ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="max-h-64 overflow-y-auto">
+                      {targets.map((t) => (
+                        <ContextMenuItem key={t.id} onSelect={() => act().setGroupParent(group.id, t.id)}>
+                          {t.title || "Untitled group"}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                )}
+                {group.parentId !== undefined && (
+                  <ContextMenuItem onSelect={() => act().setGroupParent(group.id, undefined)}>
+                    Move out of group
+                  </ContextMenuItem>
+                )}
+              </>
+            );
+          })()}
           <ContextMenuSeparator />
           <ContextMenuItem
             onSelect={() => act().removeGroup(group.id)}

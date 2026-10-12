@@ -2,7 +2,7 @@
 import type { StateCreator } from "zustand";
 import type { GraphState } from "./types";
 import type { Group } from "@/lib/fewer/groups";
-import { newGroup, normalizeGroupColor } from "@/lib/fewer/groups";
+import { newGroup, normalizeGroupColor, subtreeMemberIds, wouldCreateCycle } from "@/lib/fewer/groups";
 import type { ViewState } from "@/lib/fewer/types";
 import { captureViewState } from "./historySlice";
 
@@ -24,6 +24,9 @@ export type GroupsSliceCreator = StateCreator<
     /** Frame color: hex to set, or undefined to return to the default. */
     setGroupColor: (id: string, color?: string) => void;
     setGroupMembers: (id: string, memberIds: string[]) => void;
+    /** Nesting (W6): move a group under `parentId` (undefined = to root).
+     *  No-ops when it would create a cycle. One undo entry. */
+    setGroupParent: (id: string, parentId?: string) => void;
     removeGroup: (id: string) => void;
     /** Collapse hides the members; expand reveals them again, except any the
      *  user hid directly (independentlyHiddenIds) — same rule showSubtree uses. */
@@ -59,6 +62,12 @@ function commit(
 
 function mapGroup(groups: Group[], id: string, fn: (g: Group) => Group): Group[] {
   return groups.map((g) => (g.id === id ? fn(g) : g));
+}
+
+/** Drop `parentId` (move to root) without leaving an explicit `undefined`. */
+function stripParent(g: Group): Group {
+  const { parentId: _parent, ...rest } = g;
+  return rest;
 }
 
 export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
@@ -97,6 +106,22 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
       return { groups: mapGroup(groups, id, (g) => (g.memberIds === members ? g : { ...g, memberIds: members })) };
     }),
 
+  setGroupParent: (id, parentId) => {
+    const groups = (get().groups ?? []) as Group[];
+    const target = groups.find((g) => g.id === id);
+    if (!target) return;
+    // Undefined/to-root is always safe; otherwise refuse a cycle or a
+    // non-existent target (the W6 menu already filters, this is the guard).
+    // Guarded BEFORE commit so a refused move records no undo entry.
+    if (parentId !== undefined && wouldCreateCycle(groups, id, parentId)) return;
+    if (target.parentId === parentId) return;
+    commit(set, get, (current) => ({
+      groups: mapGroup((current.groups ?? []) as Group[], id, (g) =>
+        parentId === undefined ? stripParent(g) : { ...g, parentId },
+      ),
+    }));
+  },
+
   setGroupColor: (id, color) =>
     commit(set, get, (state) => {
       const groups = (state.groups ?? []) as Group[];
@@ -113,8 +138,15 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
   removeGroup: (id) =>
     commit(set, get, (state) => {
       const groups = (state.groups ?? []) as Group[];
-      if (!groups.some((g) => g.id === id)) return {};
-      return { groups: groups.filter((g) => g.id !== id) };
+      const target = groups.find((g) => g.id === id);
+      if (!target) return {};
+      // Orphan (W5): children SURVIVE ungrouping — re-link them to the removed
+      // group's own parent (root when it was a root group) instead of deleting.
+      return {
+        groups: groups
+          .filter((g) => g.id !== id)
+          .map((g) => (g.parentId === id ? { ...g, parentId: target.parentId } : g)),
+      };
     }),
 
   toggleGroupCollapsed: (id) => {
@@ -129,10 +161,13 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
       });
       const hidden = new Set((current.hiddenIds ?? []) as string[]);
       const keep = new Set((current.independentlyHiddenIds ?? []) as string[]);
+      // Cascade (W5): collapsing a group hides its WHOLE subtree — own cards +
+      // every descendant's cards — so no orphan cards float without a frame.
+      const subtree = subtreeMemberIds((current.groups ?? []) as Group[], id);
       if (collapsing) {
-        for (const m of group.memberIds) hidden.add(m);
+        for (const m of subtree) hidden.add(m);
       } else {
-        for (const m of group.memberIds) if (!keep.has(m)) hidden.delete(m);
+        for (const m of subtree) if (!keep.has(m)) hidden.delete(m);
       }
       return { groups, hiddenIds: [...hidden] };
     });
@@ -141,7 +176,8 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
   setGroupMemberPositions: (id, positions) => set((s) => {
     const group = ((s.groups ?? []) as Group[]).find((g) => g.id === id);
     if (!group) return {};
-    const members = new Set(group.memberIds);
+    // Transitive (W5): a group move/scale writes its WHOLE subtree's cards.
+    const members = new Set(subtreeMemberIds((s.groups ?? []) as Group[], id));
     let changed = false;
     const nodes = (s.nodes ?? []).map((n) => {
       const pos = members.has(n.id) ? positions[n.id] : undefined;

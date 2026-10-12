@@ -20,8 +20,13 @@ export interface Group {
   title: string;
   /** Free-text note shown on hover over the title (T-125). */
   note: string;
-  /** Explicit membership, in the order it was built. */
+  /** Explicit membership, in the order it was built. Always CARDS only — a
+   *  nested child group is referenced via `parentId`, never listed here. */
   memberIds: string[];
+  /** Nesting (W4): the id of the containing group. Absent = root-level group.
+   *  Cycles and dangling parents are repaired in `normalizeGroups`, so a
+   *  loaded graph is always a forest. */
+  parentId?: string;
   /** Collapsed groups hide their members and shrink to a title pill. */
   collapsed?: boolean;
   /** Frame color (hex). Absent = the default slate; dropped on load when
@@ -77,7 +82,7 @@ export function nodeRenderedSize(node: FewerNode): { w: number; h: number } {
  * pill lands where the cards were.
  */
 export function groupBounds(
-  nodes: FewerNode[],
+  nodes: readonly FewerNode[],
   memberIds: readonly string[],
   padding = GROUP_PADDING,
   visible?: ReadonlySet<string>,
@@ -178,12 +183,17 @@ export function normalizeGroupColor(color: unknown): string | undefined {
  */
 export function normalizeGroups(groups: readonly Group[] | undefined, nodeIds: ReadonlySet<string>): Group[] {
   if (!Array.isArray(groups)) return [];
-  const out: Group[] = [];
+
+  // Pass 1 — structural validation: keep the id, coerce title/note/color, drop
+  // card refs that don't exist, and carry a RAW parentId (never self). A group
+  // is kept even with zero own cards for now — a parent containing only
+  // subgroups is still a group.
+  const kept = new Map<string, Group>();
   for (const g of groups) {
     if (!g || typeof g.id !== "string" || !g.id) continue;
+    if (kept.has(g.id)) continue; // duplicate id — first wins
     const memberIds = dedupe(g.memberIds ?? []).filter((id) => nodeIds.has(id));
-    if (memberIds.length === 0) continue;
-    out.push({
+    kept.set(g.id, {
       id: g.id,
       title: (typeof g.title === "string" ? g.title : "").slice(0, 80) || "Untitled group",
       note: typeof g.note === "string" ? g.note : "",
@@ -193,9 +203,49 @@ export function normalizeGroups(groups: readonly Group[] | undefined, nodeIds: R
         return color ? { color } : {};
       })(),
       ...(g.collapsed ? { collapsed: true } : {}),
+      ...(typeof g.parentId === "string" && g.parentId && g.parentId !== g.id ? { parentId: g.parentId } : {}),
     });
   }
-  return out;
+
+  // Pass 2 — drop parentIds that don't point at a surviving group (dangling).
+  for (const node of kept.values()) {
+    if (node.parentId !== undefined && !kept.has(node.parentId)) delete node.parentId;
+  }
+
+  // Pass 3 — break any cycle by clearing the parentId of the first node we
+  // revisit walking up the chain, so a loaded graph is always a forest.
+  for (const start of kept.keys()) {
+    const path = new Set<string>();
+    let cur = start;
+    while (kept.has(cur)) {
+      if (path.has(cur)) {
+        delete kept.get(cur)!.parentId;
+        break;
+      }
+      path.add(cur);
+      const p = kept.get(cur)!.parentId;
+      if (p === undefined) break;
+      cur = p;
+    }
+  }
+
+  // Pass 4 — drop degenerate empty groups (no cards AND no children) to a fixed
+  // point: removing a childless empty group can leave its parent empty. A group
+  // with cards, or with surviving children, is always kept.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of [...kept.values()]) {
+      if (node.memberIds.length > 0) continue;
+      const hasChildren = [...kept.values()].some((c) => c.parentId === node.id);
+      if (!hasChildren) {
+        kept.delete(node.id);
+        changed = true;
+      }
+    }
+  }
+
+  return [...kept.values()];
 }
 
 /** id → group. */
@@ -216,6 +266,180 @@ export function membershipMap(groups: readonly Group[]): Map<string, string> {
     }
   }
   return owner;
+}
+
+// ── Nesting (W4) ────────────────────────────────────────────────────────────
+// A group may contain other groups through `parentId`, forming a forest.
+// Membership (`memberIds`) stays CARDS ONLY — a child group is linked by
+// `parentId`, so "everything a group owns" = its own cards + its descendants'
+// cards. `normalizeGroups` guarantees no cycles / dangling parents, so these
+// walks always terminate.
+
+/** Direct child groups of `id` (groups whose parentId === id). */
+export function childGroups(groups: readonly Group[], id: string): Group[] {
+  return groups.filter((g) => g.parentId === id);
+}
+
+/** Transitive closure of `id`'s descendant group ids (excludes `id` itself). */
+export function descendantGroupIds(groups: readonly Group[], id: string): Set<string> {
+  const out = new Set<string>();
+  const stack = childGroups(groups, id).map((g) => g.id);
+  while (stack.length > 0) {
+    const cur = stack.pop()!;
+    if (out.has(cur)) continue; // defensive: a cycle cannot survive normalize, but never hang
+    out.add(cur);
+    for (const c of childGroups(groups, cur)) stack.push(c.id);
+  }
+  return out;
+}
+
+/** All cards a group owns: its own members plus every descendant's members. */
+export function subtreeMemberIds(groups: readonly Group[], id: string): string[] {
+  const root = groups.find((g) => g.id === id);
+  if (!root) return [];
+  const out = [...root.memberIds];
+  const seen = new Set(root.memberIds);
+  for (const did of descendantGroupIds(groups, id)) {
+    const d = groups.find((g) => g.id === did);
+    if (!d) continue;
+    for (const m of d.memberIds) {
+      if (!seen.has(m)) {
+        seen.add(m);
+        out.push(m);
+      }
+    }
+  }
+  return out;
+}
+
+/** True when re-parenting `id` under `parentId` would BREAK the forest: the
+ *  target must exist, must not be `id`, and must not be a descendant of `id`. */
+export function wouldCreateCycle(groups: readonly Group[], id: string, parentId: string): boolean {
+  if (id === parentId) return true;
+  if (!groups.some((g) => g.id === parentId)) return true;
+  return descendantGroupIds(groups, id).has(parentId);
+}
+
+// ── Recursive frame geometry (W5) ───────────────────────────────────────────
+// A parent's frame must CONTAIN its children's frames (else they overlap), a
+// collapsed ancestor suppresses its whole subtree (no orphan pills), and
+// children paint ABOVE parents. All rects are in `groupBounds` space: the box
+// already includes the header strip at its top, so nesting works below it.
+
+/** Depth = number of ancestors (roots are 0). Drives paint order: parents first. */
+export function groupDepth(groups: readonly Group[], id: string): number {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  const seen = new Set<string>();
+  let depth = 0;
+  let cur = byId.get(id);
+  while (cur && cur.parentId && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const next = byId.get(cur.parentId);
+    if (!next) break;
+    depth++;
+    cur = next;
+  }
+  return depth;
+}
+
+function padRect(r: GroupBounds, p: number): GroupBounds {
+  return { x: r.x - p, y: r.y - p, width: r.width + p * 2, height: r.height + p * 2 };
+}
+
+function unionRect(a: GroupBounds, b: GroupBounds): GroupBounds {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+/**
+ * Final frame rect for every group that draws, nesting- and cascade-aware.
+ *
+ * - `painted` measures EXPANDED members (the canvas's painted array).
+ * - `anchor` measures COLLAPSED pills (store nodes + per-view positions, so
+ *   hidden members still anchor the pill where the cluster was).
+ * - A collapsed group becomes a pill over its whole SUBTREE's cards; its
+ *   descendants are suppressed (draw nothing).
+ * - A parent's rect contains each child's rect (padded) so frames never overlap.
+ * - Groups with nothing to draw are omitted; `order` is paint order (parents
+ *   before children, so children render above).
+ */
+export function groupFrameRects(
+  groups: readonly Group[],
+  painted: readonly FewerNode[],
+  anchor: readonly FewerNode[],
+  visible?: ReadonlySet<string>,
+): { rects: Map<string, GroupBounds>; order: string[] } {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
+
+  // Cascade: a group is suppressed when any ANCESTOR is collapsed.
+  const suppressed = new Set<string>();
+  const isSuppressed = (id: string): boolean => {
+    const seen = new Set<string>();
+    let cur = byId.get(id);
+    while (cur && cur.parentId && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      if (collapsed.has(cur.parentId)) return true;
+      const next = byId.get(cur.parentId);
+      if (!next) break;
+      cur = next;
+    }
+    return false;
+  };
+  for (const g of groups) if (isSuppressed(g.id)) suppressed.add(g.id);
+
+  const memo = new Map<string, GroupBounds | null>();
+  const rect = (id: string): GroupBounds | null => {
+    if (memo.has(id)) return memo.get(id)!;
+    const g = byId.get(id);
+    if (!g || suppressed.has(id)) {
+      memo.set(id, null);
+      return null;
+    }
+    let out: GroupBounds | null;
+    if (g.collapsed) {
+      // Anchor the pill on the whole subtree's cards (store coords — they're hidden).
+      const ids = subtreeMemberIds(groups, id);
+      const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
+      out = own ? groupPill(own) : null;
+    } else {
+      // Own content (header already reserved by groupBounds), minus the header
+      // so children union into the region BELOW the header.
+      const own = groupBounds(painted, g.memberIds, GROUP_PADDING, visible);
+      let content: GroupBounds | null = own
+        ? { x: own.x, y: own.y + GROUP_HEADER_HEIGHT, width: own.width, height: own.height - GROUP_HEADER_HEIGHT }
+        : null;
+      for (const c of childGroups(groups, id)) {
+        const cr = rect(c.id);
+        if (cr) {
+          const padded = padRect(cr, GROUP_PADDING);
+          content = content ? unionRect(content, padded) : padded;
+        }
+      }
+      out = content
+        ? { x: content.x, y: content.y - GROUP_HEADER_HEIGHT, width: content.width, height: content.height + GROUP_HEADER_HEIGHT }
+        : null;
+    }
+    memo.set(id, out);
+    return out;
+  };
+
+  const rects = new Map<string, GroupBounds>();
+  for (const g of groups) {
+    const r = rect(g.id);
+    if (r) rects.set(g.id, r);
+  }
+  const order = groups
+    .filter((g) => rects.has(g.id))
+    .map((g) => g.id)
+    .sort((a, b) => groupDepth(groups, a) - groupDepth(groups, b));
+  return { rects, order };
 }
 
 // ── Resize-by-scale (T-136) ────────────────────────────────────────────────
