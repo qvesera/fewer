@@ -132,6 +132,9 @@ interface LocalGraphSnapshot {
   nodes: FewerNode[];
   edges: FewerEdge[];
   tags: { id: string; label: string; color: string }[];
+  /** T-144: groups ride the reload cache like tags. Optional so a cache written
+   *  before T-144 still loads (it normalizes to []). */
+  groups?: Group[];
   dataSource: string | null;
   localRootPath: string | null;
 }
@@ -141,6 +144,7 @@ export function saveGraphLocal(snap: {
   nodes: FewerNode[];
   edges: FewerEdge[];
   tags: { id: string; label: string; color: string }[];
+  groups?: Group[];
   dataSource: string | null;
   localRootPath: string | null;
 }): void {
@@ -184,7 +188,13 @@ export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | n
       return null;
     }
     return {
-      data: { nodes: parsed.nodes, edges: parsed.edges, tags: parsed.tags ?? [], localRootPath: parsed.localRootPath ?? null },
+      data: {
+        nodes: parsed.nodes,
+        edges: parsed.edges,
+        tags: parsed.tags ?? [],
+        groups: parsed.groups ?? [],
+        localRootPath: parsed.localRootPath ?? null,
+      },
       dataSource: parsed.dataSource ?? null,
     };
   } catch {

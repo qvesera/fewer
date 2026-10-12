@@ -136,12 +136,22 @@ test("applySnapshot preserves saved edge list", () => {
 });
 
 // ─── saveGraphLocal / loadGraphLocal ──────────────────────────
-test("local save/load round-trips the graph and its dataSource", () => {
+test("local save/load round-trips the graph, its dataSource and its groups", () => {
   resetStore();
   saveGraphLocal({
     nodes: [folder("a", "A", 5, 7)],
     edges: [edge("a", "b")],
     tags: [{ id: "tag-1", label: "Important", color: "#f87171" }],
+    groups: [
+      {
+        id: "grp-1",
+        title: "Core",
+        note: "",
+        memberIds: ["a", "b"],
+        collapsed: false,
+        color: "#3b82f6",
+      },
+    ],
     dataSource: "sample",
     localRootPath: "/home/user/proj",
   });
@@ -153,7 +163,31 @@ test("local save/load round-trips the graph and its dataSource", () => {
   expect(loaded!.data.edges).toHaveLength(1);
   expect(loaded!.data.localRootPath).toBe("/home/user/proj");
   expect(loaded!.data.tags).toEqual([{ id: "tag-1", label: "Important", color: "#f87171" }]);
+  expect(loaded!.data.groups).toHaveLength(1);
+  expect(loaded!.data.groups![0].id).toBe("grp-1");
+  expect(loaded!.data.groups![0].memberIds).toEqual(["a", "b"]);
   expect(loaded!.dataSource).toBe("sample");
+});
+
+test("a cache written before groups existed (T-144) still loads, groups normalize to []", () => {
+  resetStore();
+  // A pre-T-144 payload: no `groups` key at all.
+  sessionStorage.setItem(
+    "fewer-graph",
+    JSON.stringify({
+      version: 1,
+      dataVersion: 2,
+      nodes: [folder("a", "A")],
+      edges: [],
+      tags: [],
+      dataSource: "sample",
+      localRootPath: null,
+    }),
+  );
+  const loaded = loadGraphLocal();
+  expect(loaded).not.toBeNull();
+  expect(loaded!.data.nodes).toHaveLength(1);
+  expect(loaded!.data.groups).toEqual([]);
 });
 
 test("saving an empty graph clears the cached key", () => {
