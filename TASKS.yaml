@@ -663,7 +663,7 @@ tasks:
   session_count: 7
 - id: "T-026"
   title: "CSV + Graphviz DOT import (export side already ships)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -1022,7 +1022,7 @@ tasks:
   session_count: 2
 - id: "T-039"
   title: "Native shell spike: Tauri vs Swift (compute-heavy workloads need native)"
-  status: "review"
+  status: "done"
   type: "research"
   area: "infra"
   tier: null
@@ -1944,7 +1944,7 @@ tasks:
   session_count: 0
 - id: "T-075"
   title: "Project board Status keeps being rewritten: sync-details re-writes every field on every run (189 writes for 0…"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
@@ -2002,7 +2002,7 @@ tasks:
   session_count: 1
 - id: "T-077"
   title: "Ledger row ids collide across branches, and an older copy reverts rows it never saw"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
@@ -2031,7 +2031,7 @@ tasks:
   session_count: 1
 - id: "T-078"
   title: "Splitting into two views breaks hydration: the navbar's Radix trigger ids differ between server and client"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -2066,7 +2066,7 @@ tasks:
   session_count: 2
 - id: "T-079"
   title: "Dragging a card without selecting it first loops into 'Maximum update depth exceeded' and crashes the canvas"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -2147,7 +2147,7 @@ tasks:
   session_count: 1
 - id: "T-082"
   title: "Re-fit the view to the whole graph after a layout-direction change or Organize"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: null
@@ -2228,7 +2228,7 @@ tasks:
   session_count: 1
 - id: "T-085"
   title: "Auto-detect the import format from content (drop format tiles, add chip + on-demand override)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -2263,7 +2263,7 @@ tasks:
   session_count: 2
 - id: "T-086"
   title: "[Fix] Import options silently filter explicit file imports, and the panel shows controls that cannot do anything"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "import"
   tier: null
@@ -2292,7 +2292,7 @@ tasks:
   session_count: 1
 - id: "T-087"
   title: "Tauri POC: measure IPC + native list_dir on Rust box"
-  status: "review"
+  status: "done"
   type: "research"
   area: "infra"
   tier: null
@@ -2344,7 +2344,7 @@ tasks:
   session_count: 0
 - id: "T-089"
   title: "Local graph library: Fewer Library dir format + FS adapter + panel swap"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2373,7 +2373,7 @@ tasks:
   session_count: 1
 - id: "T-090"
   title: "License gate: offline Ed25519 license file + tiers integration + signing script"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "infra"
   tier: null
@@ -2402,7 +2402,7 @@ tasks:
   session_count: 1
 - id: "T-091"
   title: "Native file UX: browse origin via list_dir + preview panel (image/PDF/text)"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "import"
   tier: null
@@ -3184,7 +3184,7 @@ tasks:
   session_count: 0
 - id: "T-119"
   title: "sync-details bare verb crashes after the first project item-add: the item-add path reassigns item_id (the name of the item_id() helper defined above), so the next row raises TypeError: 'str' object is not callable"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
