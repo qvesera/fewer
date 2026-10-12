@@ -4061,5 +4061,11 @@ tasks:
     note: "Home page refresh: MarketingHome feature grid rewritten around free features (canvas groups first, import breadth incl. archives/Internet Archive/CSV+DOT, export count fixed to 8, cards-not-nodes vocabulary, GitHub not generic Git) plus a learn-more row into docs; nav Features -> /#features; /welcome now redirects to / and left the sitemap (duplicate content); root layout + /app metadata drop the old tagline and stale 7-format claim (README too); public/demo.png regenerated (2516x1266, was Aug-12 and two canvas redesigns old) with repeatable scripts/marketing-shot.ts wired as package.json \"shot\" (gitignore whitelisted); new e2e/marketing.spec.ts pins counts/vocabulary/redirect. Gates: lint 0, tsc 0, bun run test 1792+233 0 fail, playwright full suite 36 passed, bun run build OK, changelog validate OK."
     proof: ["251e611"]
     effort: {commits: 1, files: 14, insertions: 152, deletions: 39}
-  spent_min: 28
-  session_count: 1
+  - start: "2026-10-12T22:23:03Z"
+    end: "2026-10-12T22:26:08Z"
+    measured: true
+    note: "Second session: em dashes removed from user-facing text and reworded, not just swapped. 62 targeted string rewrites across app UI + marketing, then docs (16 pages) and README swept with clause-aware rules; ~40 of the mechanical results were then re-edited by hand into natural sentences (double-colon run-ons, dangling clauses). Placeholder glyphs became -/None; export credit uses a middle dot. Deliberately untouched: code comments, test names, blog posts, historical changelog entries. Gates after the sweep: lint 0, tsc 0, bun run test 1792+233 0 fail, playwright app+marketing 21 passed, bun run build OK."
+    proof: ["f5a3c42"]
+    effort: {commits: 1, files: 55, insertions: 270, deletions: 274}
+  spent_min: 31
+  session_count: 2
