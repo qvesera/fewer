@@ -3874,7 +3874,7 @@ tasks:
   session_count: 1
 - id: "T-143"
   title: "Zoom to selection (Alt+F and the crosshair button) ignores selected groups — fits the whole graph instead of the group"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "ux"
   tier: 0
@@ -3887,17 +3887,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-12T08:11:54Z"
   notes: ["2026-10-12T08:13:16Z · Both entries read selectedNodeIds only: toolbar fitToSelection (use-canvas-selection.ts) and the Alt+F rule (keyboardShortcuts.ts) — group selection is mutually exclusive with card selection, so the empty branch fits the whole graph. Fix: pure src/lib/fewer/fitBounds.ts — selectionBounds (union of selected cards boxes + selected groups boxes: groupBounds for expanded, groupPill for collapsed, per-view positions honored) + viewportForBounds (center-exact, padding 0.3, clamps 0.15..3 = GraphCanvas minZoom/maxZoom). Callers setViewport directly (no RF fitView — culled/hidden members are unmeasured). Keyboard ctx gains canvasSize() fed by a containerRef prop (KeyboardShortcuts mounts inside CanvasInner). StoreReader + toStoreReader + readShortcutStateFields gain groups/selectedGroupIds. Tests: fitBounds unit, Alt+F rule tests (group→setViewport, empty→fitView), e2e centering via button (expanded) and Alt+F key (collapsed)."]
   sessions:
   - start: "2026-10-12T08:16:44Z"
-    end: null
+    end: "2026-10-12T08:36:59Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Both entries read selectedNodeIds only; group selection is mutually exclusive with card selection so a selected group fit the whole graph. New pure src/lib/fewer/fitBounds.ts: selectionBounds (union of selected card boxes + group frame/pill boxes, per-view positions honored) + viewportForBounds (center-exact, padding 0.3, clamps 0.15..3). Both callers now setViewport directly (RF fitView({nodes}) cannot see hidden/culled members); keyboard ctx gained canvasSize() fed by a containerRef prop (KeyboardShortcuts mounts inside CanvasInner). StoreReader/toStoreReader/readShortcutStateFields gained groups+selectedGroupIds. Gates: tsc 0, lint 0 errors, lib 1655 + components 233 green, build ok, groups e2e 13/13 (new test centers frame via the crosshair button and the collapsed pill via Alt+F after panning away)."
+    proof: ["31a7461"]
+    effort: {commits: 1, files: 11, insertions: 456, deletions: 15}
+  spent_min: 20
   session_count: 1
