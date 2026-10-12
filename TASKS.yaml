@@ -3955,14 +3955,14 @@ tasks:
   session_count: 0
 - id: "T-146"
   title: "Nested canvas groups (W4–W6): parentId model, recursive bounds, collapse cascade, transitive move/scale"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 1
   estimate_min: 780
   estimate_basis: "cli"
   issue: 414
-  pr: null
+  pr: 416
   internal: false
   milestone: null
   blocked_by: []
