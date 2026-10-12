@@ -3936,7 +3936,7 @@ tasks:
   type: "feat"
   area: "ux"
   tier: 1
-  estimate_min: 240
+  estimate_min: 480
   estimate_basis: "cli"
   issue: 413
   pr: null
@@ -3949,7 +3949,7 @@ tasks:
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-10-12T11:21:32Z"
-  notes: ["2026-10-12T11:22:13Z · adopted at intake from GitHub (open)"]
+  notes: ["2026-10-12T11:22:13Z · adopted at intake from GitHub (open)", "2026-10-12T17:15:45Z · Objective: make canvas groups + tags survive the Export panel's JSON/.fwr round-trip. VERIFIED FACTS: buildJsonExport (exportUtils.ts:149) emits a reduced payload (meta, stats, flattened nodes, id/source/target edges) with NO tags/groups and position ignored on import; exportJSON (:183) + exportFWR (:201) both use it; dispatcher exportGraph (:350) never threads tags/groups in. Import dialog (ImportOriginStep 'json', accept .json,.fwr) -> parseImportFile -> parseJSONGraph (parsers.ts:97) -> chunkTreeToGraph REGENERATES node ids (file-import-<uuid8>) and drops positions/tags/groups, so group membership cannot remap. A FIDELITY path already exists but only for double-click/Open-Recent/drop: openLocalGraph.ts -> parseGraphFile (localLibrary.ts) -> applySnapshot, full SavedGraphData, groups restored; desktop-library .fwr files already round-trip this way. SavedGraphData (savedGraphs.ts:18) = {dataVersion,nodes,edges,tags?,groups?,localRootPath?}, SNAPSHOT_VERSION=2, normalizeSnapshot repairs on load. DESIGN: (1) exportFWR writes a true SavedGraphData snapshot (full nodes incl data, edges, tags, groups, localRootPath) and exportGraph threads tags+groups; keep exportJSON structural for plain .json. (2) route full-snapshot .fwr imports through parseGraphFile+applySnapshot instead of parseJSONGraph; discriminator (tags/groups presence, dataVersion, or format_version bump) so a legacy reduced .fwr still imports structurally. (3) back-compat: do not regress plain .json; detectImportFormat currently classifies snapshots as json; .fwr has two independent writers today. TESTS: round-trip exportFWR->parseGraphFile->applySnapshot restores groups+tags+positions; legacy reduced .fwr still imports; pure discriminator test; e2e export->reimport keeps groups. OUT OF SCOPE: reload cache (T-144/#412 done), cloud/library persistence (works)."]
   sessions: []
   spent_min: 0
   session_count: 0
