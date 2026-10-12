@@ -3901,3 +3901,32 @@ tasks:
     effort: {commits: 1, files: 11, insertions: 456, deletions: 15}
   spent_min: 20
   session_count: 1
+- id: "T-144"
+  title: "Groups not retained on tab reload or in JSON/.fwr export"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 411
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#411"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-12T10:13:20Z"
+  notes: ["2026-10-12T10:17:40Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-10-12T10:18:05Z"
+    end: "2026-10-12T10:40:44Z"
+    measured: true
+    note: "Groups were dropped by the per-tab sessionStorage reload cache (LocalGraphSnapshot had no groups field, the write omitted it, the read returned none, and the dirty-check did not watch groups). Added groups to the cache payload + reader (optional, pre-T-144 caches normalize to []) and to the FewerApp dirty-check + save call. Regression tests: group round-trip + legacy-cache back-compat. JSON/.fwr export defer (separate task): that path is a reduced format and the Import dialog regenerates node ids, so group retention there is a larger change."
+    proof: ["70c9756"]
+    effort: {commits: 1, files: 4, insertions: 49, deletions: 3}
+  spent_min: 23
+  session_count: 1
