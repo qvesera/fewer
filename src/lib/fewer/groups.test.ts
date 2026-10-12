@@ -6,6 +6,8 @@ import {
   GROUP_MIN_BOX,
   GROUP_PADDING,
   cardsInsideBox,
+  childGroups,
+  descendantGroupIds,
   groupBounds,
   groupsIndexOf,
   groupPill,
@@ -18,6 +20,8 @@ import {
   normalizeGroups,
   scaleFactorFor,
   scaleMemberPositions,
+  subtreeMemberIds,
+  wouldCreateCycle,
 } from "./groups";
 import type { Group } from "./groups";
 import type { FewerNode } from "./types";
@@ -168,6 +172,136 @@ describe("normalizeGroups", () => {
     expect(out[0].title).toHaveLength(80);
     expect(out[0].note).toBe("readme");
     expect(out[0].collapsed).toBe(true);
+  });
+});
+
+describe("nesting model (W4)", () => {
+  const ids = new Set(["a", "b", "c", "d"]);
+  // P (root) → C → G, plus P and C also own cards directly.
+  const forest: Group[] = [
+    { id: "P", title: "P", note: "", memberIds: ["a"], parentId: undefined },
+    { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "P" },
+    { id: "G", title: "G", note: "", memberIds: ["c"], parentId: "C" },
+    { id: "S", title: "S", note: "", memberIds: ["d"], parentId: undefined },
+  ];
+
+  test("childGroups returns direct children only", () => {
+    expect(childGroups(forest, "P").map((g) => g.id)).toEqual(["C"]);
+    expect(childGroups(forest, "C").map((g) => g.id)).toEqual(["G"]);
+    expect(childGroups(forest, "G")).toEqual([]);
+    expect(childGroups(forest, "S")).toEqual([]);
+  });
+
+  test("descendantGroupIds is the transitive closure, excluding self", () => {
+    expect([...descendantGroupIds(forest, "P")].sort()).toEqual(["C", "G"]);
+    expect([...descendantGroupIds(forest, "C")]).toEqual(["G"]);
+    expect(descendantGroupIds(forest, "G").size).toBe(0);
+    expect(descendantGroupIds(forest, "S").size).toBe(0);
+    expect(descendantGroupIds(forest, "missing").size).toBe(0);
+  });
+
+  test("subtreeMemberIds unions own + descendant cards, no dupes, order stable", () => {
+    expect(subtreeMemberIds(forest, "P")).toEqual(["a", "b", "c"]);
+    expect(subtreeMemberIds(forest, "C")).toEqual(["b", "c"]);
+    expect(subtreeMemberIds(forest, "G")).toEqual(["c"]);
+    expect(subtreeMemberIds(forest, "S")).toEqual(["d"]);
+    expect(subtreeMemberIds(forest, "missing")).toEqual([]);
+  });
+
+  test("wouldCreateCycle: self, missing, and descendant targets are rejected", () => {
+    expect(wouldCreateCycle(forest, "P", "P")).toBe(true); // self
+    expect(wouldCreateCycle(forest, "P", "nope")).toBe(true); // missing
+    expect(wouldCreateCycle(forest, "P", "C")).toBe(true); // direct child
+    expect(wouldCreateCycle(forest, "P", "G")).toBe(true); // deep descendant
+    expect(wouldCreateCycle(forest, "C", "P")).toBe(false); // move up to ancestor — valid
+    expect(wouldCreateCycle(forest, "S", "P")).toBe(false); // unrelated — valid
+  });
+
+  describe("normalizeGroups repairs the parent links", () => {
+    test("preserves a valid parent", () => {
+      const out = normalizeGroups(forest, ids);
+      expect(out.find((g) => g.id === "C")?.parentId).toBe("P");
+      expect(out.find((g) => g.id === "G")?.parentId).toBe("C");
+      expect(out.find((g) => g.id === "P")?.parentId).toBeUndefined();
+    });
+
+    test("drops a dangling parent (parent group gone)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "ghost" },
+        ],
+        ids,
+      );
+      expect(out[0].parentId).toBeUndefined();
+    });
+
+    test("drops a self-parent", () => {
+      const out = normalizeGroups([{ id: "C", title: "C", note: "", memberIds: ["b"], parentId: "C" }], ids);
+      expect(out[0].parentId).toBeUndefined();
+    });
+
+    test("breaks a 2-node cycle so the result is a forest", () => {
+      const out = normalizeGroups(
+        [
+          { id: "A", title: "A", note: "", memberIds: ["a"], parentId: "B" },
+          { id: "B", title: "B", note: "", memberIds: ["b"], parentId: "A" },
+        ],
+        ids,
+      );
+      // Exactly one of the two links must be severed — no 2-cycle remains.
+      const a = out.find((g) => g.id === "A")!;
+      const b = out.find((g) => g.id === "B")!;
+      expect(!(a.parentId === "B" && b.parentId === "A")).toBe(true);
+      // And both survive (each still owns a card).
+      expect(out).toHaveLength(2);
+    });
+
+    test("breaks a longer cycle (A→B→C→A)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "A", title: "A", note: "", memberIds: ["a"], parentId: "C" },
+          { id: "B", title: "B", note: "", memberIds: ["b"], parentId: "A" },
+          { id: "C", title: "C", note: "", memberIds: ["c"], parentId: "B" },
+        ],
+        ids,
+      );
+      // Walk up from any node must terminate (no infinite loop) → forest holds.
+      const byId = new Map(out.map((g) => [g.id, g]));
+      for (const start of byId.keys()) {
+        const seen = new Set<string>();
+        let cur: string | undefined = start;
+        while (cur !== undefined) {
+          expect(seen.has(cur)).toBe(false);
+          seen.add(cur);
+          cur = byId.get(cur)?.parentId;
+        }
+      }
+      expect(out).toHaveLength(3);
+    });
+
+    test("keeps a parent that only contains subgroups (not dropped as empty)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "P", title: "P", note: "", memberIds: [], parentId: undefined },
+          { id: "C", title: "C", note: "", memberIds: ["b"], parentId: "P" },
+        ],
+        ids,
+      );
+      expect(out.map((g) => g.id).sort()).toEqual(["C", "P"]);
+      expect(out.find((g) => g.id === "P")?.parentId).toBeUndefined();
+    });
+
+    test("still drops a truly empty group (no cards, no children)", () => {
+      const out = normalizeGroups(
+        [
+          { id: "P", title: "P", note: "", memberIds: ["a"] },
+          { id: "E", title: "E", note: "", memberIds: ["ghost"], parentId: "P" },
+        ],
+        ids,
+      );
+      // E has no reachable cards and no children → dropped, even though it had a parent.
+      expect(out.map((g) => g.id)).toEqual(["P"]);
+    });
   });
 });
 
