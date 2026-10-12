@@ -3930,3 +3930,26 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 49, deletions: 3}
   spent_min: 23
   session_count: 1
+- id: "T-145"
+  title: "JSON/.fwr export should retain canvas groups (and tags) like saved graphs do"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 413
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#413"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-12T11:21:32Z"
+  notes: ["2026-10-12T11:22:13Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
