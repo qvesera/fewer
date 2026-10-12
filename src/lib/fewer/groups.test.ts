@@ -9,6 +9,8 @@ import {
   childGroups,
   descendantGroupIds,
   groupBounds,
+  groupDepth,
+  groupFrameRects,
   groupsIndexOf,
   groupPill,
   handleAxes,
@@ -437,5 +439,92 @@ describe("cardsInsideBox (T-141)", () => {
     const hidden = node("ghost", 50, 50);
     expect(cardsInsideBox([hidden], BOX, [], new Set<string>())).toEqual([]);
     expect(cardsInsideBox([hidden], BOX, [], new Set(["ghost"]))).toEqual(["ghost"]);
+  });
+});
+
+describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
+  const painted = [
+    node("pa", 0, 0, 100, 50),     // P's own card
+    node("ca", 0, 300, 100, 50),   // C's own card (below)
+    node("ga", 0, 600, 100, 50),   // G's own card (grandchild, deeper)
+  ];
+
+  test("groupDepth counts ancestors (roots 0)", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+      { id: "S", title: "S", note: "", memberIds: [] },
+    ];
+    expect(groupDepth(gs, "P")).toBe(0);
+    expect(groupDepth(gs, "C")).toBe(1);
+    expect(groupDepth(gs, "G")).toBe(2);
+    expect(groupDepth(gs, "S")).toBe(0);
+  });
+
+  test("a childless group's rect equals groupBounds (no nesting side-effects)", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    expect(rects.get("P")).toEqual(groupBounds(painted, ["pa"])!);
+  });
+
+  test("a parent frame CONTAINS its child frame (padded), never overlapping", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    ];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    const p = rects.get("P")!;
+    const c = rects.get("C")!;
+    expect(p.x).toBeLessThanOrEqual(c.x);
+    expect(p.y).toBeLessThanOrEqual(c.y);
+    expect(p.x + p.width).toBeGreaterThanOrEqual(c.x + c.width);
+    expect(p.y + p.height).toBeGreaterThanOrEqual(c.y + c.height);
+    // The parent grew beyond its own card to fit the child (child is far below).
+    expect(p.height).toBeGreaterThan(groupBounds(painted, ["pa"])!.height);
+  });
+
+  test("paint order is parents-first (children render above)", () => {
+    const gs = [
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "S", title: "S", note: "", memberIds: ["ga"] },
+    ];
+    const { order } = groupFrameRects(gs, painted, painted);
+    expect(order.indexOf("P")).toBeLessThan(order.indexOf("C"));
+    expect(order.indexOf("C")).toBeLessThan(order.indexOf("G"));
+  });
+
+  test("a collapsed parent becomes a pill and SUPPRESSES its subtree", () => {
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"], collapsed: true },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+      { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
+    ];
+    const { rects } = groupFrameRects(gs, painted, painted);
+    expect(rects.has("C")).toBe(false); // orphan pill suppressed
+    expect(rects.has("G")).toBe(false);
+    expect(rects.has("P")).toBe(true);
+    expect(rects.get("P")!.width).toBe(COLLAPSED_PILL_WIDTH); // pill, not frame
+    expect(rects.get("P")!.height).toBe(COLLAPSED_PILL_HEIGHT);
+  });
+
+  test("an expanded parent with hidden own cards still frames visible children", () => {
+    // P's own card is not in the painted/visible set, but its child C is.
+    const gs = [
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
+      { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    ];
+    const visible = new Set(["ca"]); // pa hidden
+    const { rects } = groupFrameRects(gs, painted, painted, visible);
+    expect(rects.has("C")).toBe(true);
+    expect(rects.has("P")).toBe(true); // P still draws around C
+  });
+
+  test("a group with nothing visible and no visible children is omitted", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const { rects } = groupFrameRects(gs, painted, painted, new Set(["other"]));
+    expect(rects.has("P")).toBe(false);
   });
 });

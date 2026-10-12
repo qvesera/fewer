@@ -82,7 +82,7 @@ export function nodeRenderedSize(node: FewerNode): { w: number; h: number } {
  * pill lands where the cards were.
  */
 export function groupBounds(
-  nodes: FewerNode[],
+  nodes: readonly FewerNode[],
   memberIds: readonly string[],
   padding = GROUP_PADDING,
   visible?: ReadonlySet<string>,
@@ -318,6 +318,128 @@ export function wouldCreateCycle(groups: readonly Group[], id: string, parentId:
   if (id === parentId) return true;
   if (!groups.some((g) => g.id === parentId)) return true;
   return descendantGroupIds(groups, id).has(parentId);
+}
+
+// ── Recursive frame geometry (W5) ───────────────────────────────────────────
+// A parent's frame must CONTAIN its children's frames (else they overlap), a
+// collapsed ancestor suppresses its whole subtree (no orphan pills), and
+// children paint ABOVE parents. All rects are in `groupBounds` space: the box
+// already includes the header strip at its top, so nesting works below it.
+
+/** Depth = number of ancestors (roots are 0). Drives paint order: parents first. */
+export function groupDepth(groups: readonly Group[], id: string): number {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  const seen = new Set<string>();
+  let depth = 0;
+  let cur = byId.get(id);
+  while (cur && cur.parentId && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const next = byId.get(cur.parentId);
+    if (!next) break;
+    depth++;
+    cur = next;
+  }
+  return depth;
+}
+
+function padRect(r: GroupBounds, p: number): GroupBounds {
+  return { x: r.x - p, y: r.y - p, width: r.width + p * 2, height: r.height + p * 2 };
+}
+
+function unionRect(a: GroupBounds, b: GroupBounds): GroupBounds {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+/**
+ * Final frame rect for every group that draws, nesting- and cascade-aware.
+ *
+ * - `painted` measures EXPANDED members (the canvas's painted array).
+ * - `anchor` measures COLLAPSED pills (store nodes + per-view positions, so
+ *   hidden members still anchor the pill where the cluster was).
+ * - A collapsed group becomes a pill over its whole SUBTREE's cards; its
+ *   descendants are suppressed (draw nothing).
+ * - A parent's rect contains each child's rect (padded) so frames never overlap.
+ * - Groups with nothing to draw are omitted; `order` is paint order (parents
+ *   before children, so children render above).
+ */
+export function groupFrameRects(
+  groups: readonly Group[],
+  painted: readonly FewerNode[],
+  anchor: readonly FewerNode[],
+  visible?: ReadonlySet<string>,
+): { rects: Map<string, GroupBounds>; order: string[] } {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
+
+  // Cascade: a group is suppressed when any ANCESTOR is collapsed.
+  const suppressed = new Set<string>();
+  const isSuppressed = (id: string): boolean => {
+    const seen = new Set<string>();
+    let cur = byId.get(id);
+    while (cur && cur.parentId && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      if (collapsed.has(cur.parentId)) return true;
+      const next = byId.get(cur.parentId);
+      if (!next) break;
+      cur = next;
+    }
+    return false;
+  };
+  for (const g of groups) if (isSuppressed(g.id)) suppressed.add(g.id);
+
+  const memo = new Map<string, GroupBounds | null>();
+  const rect = (id: string): GroupBounds | null => {
+    if (memo.has(id)) return memo.get(id)!;
+    const g = byId.get(id);
+    if (!g || suppressed.has(id)) {
+      memo.set(id, null);
+      return null;
+    }
+    let out: GroupBounds | null;
+    if (g.collapsed) {
+      // Anchor the pill on the whole subtree's cards (store coords — they're hidden).
+      const ids = subtreeMemberIds(groups, id);
+      const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
+      out = own ? groupPill(own) : null;
+    } else {
+      // Own content (header already reserved by groupBounds), minus the header
+      // so children union into the region BELOW the header.
+      const own = groupBounds(painted, g.memberIds, GROUP_PADDING, visible);
+      let content: GroupBounds | null = own
+        ? { x: own.x, y: own.y + GROUP_HEADER_HEIGHT, width: own.width, height: own.height - GROUP_HEADER_HEIGHT }
+        : null;
+      for (const c of childGroups(groups, id)) {
+        const cr = rect(c.id);
+        if (cr) {
+          const padded = padRect(cr, GROUP_PADDING);
+          content = content ? unionRect(content, padded) : padded;
+        }
+      }
+      out = content
+        ? { x: content.x, y: content.y - GROUP_HEADER_HEIGHT, width: content.width, height: content.height + GROUP_HEADER_HEIGHT }
+        : null;
+    }
+    memo.set(id, out);
+    return out;
+  };
+
+  const rects = new Map<string, GroupBounds>();
+  for (const g of groups) {
+    const r = rect(g.id);
+    if (r) rects.set(g.id, r);
+  }
+  const order = groups
+    .filter((g) => rects.has(g.id))
+    .map((g) => g.id)
+    .sort((a, b) => groupDepth(groups, a) - groupDepth(groups, b));
+  return { rects, order };
 }
 
 // ── Resize-by-scale (T-136) ────────────────────────────────────────────────

@@ -119,3 +119,76 @@ test("undo of a collapse both re-opens the frame and reveals the cards", () => {
   expect(state.hiddenIds).not.toContain("n1");
   expect(state.hiddenIds).not.toContain("n2");
 });
+
+// ── Nesting (W5/W6) ────────────────────────────────────────────────────────
+function seedNested() {
+  useGraphStore.getState().setGroups([
+    { id: "A", title: "A", note: "", memberIds: ["n1"] },
+    { id: "B", title: "B", note: "", memberIds: ["n2"], parentId: "A" },
+    { id: "C", title: "C", note: "", memberIds: ["n3"], parentId: "B" },
+  ]);
+}
+
+test("setGroupParent nests a group under another, one undo op", () => {
+  useGraphStore.getState().setGroups([
+    { id: "A", title: "A", note: "", memberIds: ["n1"] },
+    { id: "B", title: "B", note: "", memberIds: ["n2"] },
+  ]);
+  const before = useGraphStore.getState().past.length;
+  useGraphStore.getState().setGroupParent("A", "B");
+  const state = useGraphStore.getState();
+  expect(state.groups.find((g) => g.id === "A")?.parentId).toBe("B");
+  expect(state.past).toHaveLength(before + 1);
+  // Undo restores the root placement.
+  state.undo();
+  expect(useGraphStore.getState().groups.find((g) => g.id === "A")?.parentId).toBeUndefined();
+});
+
+test("setGroupParent refuses a cycle (ancestor under descendant) with NO undo entry", () => {
+  seedNested(); // A → B → C
+  const before = useGraphStore.getState().past.length;
+  useGraphStore.getState().setGroupParent("A", "C"); // C is A's descendant — cycle
+  const state = useGraphStore.getState();
+  expect(state.groups.find((g) => g.id === "A")?.parentId).toBeUndefined(); // unchanged
+  expect(state.past).toHaveLength(before); // refused move records nothing
+});
+
+test("setGroupParent to root clears parentId", () => {
+  seedNested();
+  useGraphStore.getState().setGroupParent("B", undefined);
+  expect(useGraphStore.getState().groups.find((g) => g.id === "B")?.parentId).toBeUndefined();
+});
+
+test("removeGroup orphans children to the grandparent (they survive)", () => {
+  seedNested(); // A → B → C
+  useGraphStore.getState().removeGroup("B");
+  const groups = useGraphStore.getState().groups;
+  expect(groups.find((g) => g.id === "B")).toBeUndefined(); // B gone
+  expect(groups.find((g) => g.id === "C")?.parentId).toBe("A"); // C re-linked to grandparent
+  expect(groups.find((g) => g.id === "A")).toBeDefined(); // A untouched
+});
+
+test("removeGroup of a root group makes its children root-level", () => {
+  useGraphStore.getState().setGroups([
+    { id: "A", title: "A", note: "", memberIds: ["n1"] },
+    { id: "B", title: "B", note: "", memberIds: ["n2"], parentId: "A" },
+  ]);
+  useGraphStore.getState().removeGroup("A");
+  expect(useGraphStore.getState().groups.find((g) => g.id === "B")?.parentId).toBeUndefined();
+});
+
+test("collapsing a parent hides its WHOLE subtree's cards; expand reveals them", () => {
+  seedNested();
+  useGraphStore.getState().toggleGroupCollapsed("A"); // A collapses
+  let hidden = useGraphStore.getState().hiddenIds;
+  expect(hidden).toContain("n1"); // A's own
+  expect(hidden).toContain("n2"); // child B's card
+  expect(hidden).toContain("n3"); // grandchild C's card
+  expect(useGraphStore.getState().groups.find((g) => g.id === "B")?.collapsed).toBeUndefined(); // B not force-collapsed
+
+  useGraphStore.getState().toggleGroupCollapsed("A"); // expand
+  hidden = useGraphStore.getState().hiddenIds;
+  expect(hidden).not.toContain("n1");
+  expect(hidden).not.toContain("n2");
+  expect(hidden).not.toContain("n3");
+});
