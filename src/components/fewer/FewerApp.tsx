@@ -448,6 +448,7 @@ export function FewerApp() {
       if (
         state.nodes === prev.nodes &&
         state.edges === prev.edges &&
+        state.groups === prev.groups &&
         state.dataSource === prev.dataSource &&
         state.localRootPath === prev.localRootPath
       ) {
@@ -456,7 +457,7 @@ export function FewerApp() {
       if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
       graphTimerRef.current = setTimeout(() => {
         const s = useGraphStore.getState();
-        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, dataSource: s.dataSource, localRootPath: s.localRootPath });
+        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, groups: s.groups ?? [], dataSource: s.dataSource, localRootPath: s.localRootPath });
       }, 500);
     });
     return () => {
