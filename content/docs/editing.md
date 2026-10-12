@@ -166,6 +166,15 @@ group at once), **Include N cards inside** (when a re-flow parked non-member
 cards fully inside the box — one click, one undo step, adds them to the group)
 and Ungroup.
 
+**Nesting** — a group can live inside another. From the group menu, **Move into
+group ▸** picks a container (the list never offers the group itself or its own
+subgroups, so a cycle can't form), and **Move out of group** returns it to the
+top level. A parent's frame grows to hold its children's frames, moving or
+resizing a parent carries its whole subtree, and collapsing a parent hides every
+card beneath it — its children's frames disappear with it, so no orphan pills
+are left behind. Ungrouping a parent re-homes its children rather than deleting
+them.
+
 Every group action is a single undo step: **Ctrl+Z** reverses a collapse (frame
 re-opens, cards reappear) or a delete.
 
