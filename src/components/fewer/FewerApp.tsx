@@ -30,6 +30,7 @@ import { isHost, hostFetchResponse, nativeTakePendingOpenFile } from "@/lib/fewe
 import { registerHostFetch } from "@/lib/fewer/netFetch";
 import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
+import { shellTier } from "@/lib/fewer/licensing";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
@@ -165,7 +166,11 @@ export function FewerApp() {
       // Standalone (T-100): no account exists in the shell, so the tier comes
       // from the offline license alone — never "guest" (which would also blank
       // the advanced UI). Web keeps the account ladder unchanged.
-      const tier = devTierOverride() ?? licensed ?? (isHost() ? "free" : tierOf(user, profile.plan));
+      // T-148: the licensing rail ships OFF, so the shell pins to "free" and
+      // neither a licence file nor `?tier=` can unlock Pro.
+      const tier = isHost()
+        ? shellTier(licensed, devTierOverride())
+        : devTierOverride() ?? tierOf(user, profile.plan);
     const prev = useGraphStore.getState().tier;
     useGraphStore.setState({
       tier,

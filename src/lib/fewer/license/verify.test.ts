@@ -93,9 +93,9 @@ describe("enterprise feature mask", () => {
     expect(featureDisabled({ ...payload, features: { localPreview: true } }, "localPreview")).toBe(false);
   });
 
-  test("desktop features sit at pro in MIN_TIER", () => {
+  test("the local library is free for everyone; the rest of the desktop rail still sits at pro (T-148)", () => {
     expect(can("localLibrary", "pro")).toBe(true);
-    expect(can("localLibrary", "free")).toBe(false);
+    expect(can("localLibrary", "free")).toBe(true);
     expect(can("localLibrary", "guest")).toBe(false);
     expect(can("nativeBrowse", "pro")).toBe(true);
     expect(can("localPreview", "pro")).toBe(true);

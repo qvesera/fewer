@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
 import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
 import { can } from "@/lib/fewer/tiers";
+import { isHost } from "@/lib/fewer/nativeShell";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -411,21 +412,27 @@ export function ExportPanel() {
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-            <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">Include fewer branding</Label>
-              <p className="text-xs text-muted-foreground">
-                {!canRemoveBranding
-                  ? "Signed out — exports carry the fewer watermark until you sign in."
-                  : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
-              </p>
+          {/* In the shell the branding control only appears once it can actually be
+              toggled: with the licensing rail off there is no sign-in and no
+              licence to remove the watermark with, so a disabled control (and its
+              "sign in" promise) would be a dead end (T-148). */}
+          {(canRemoveBranding || !isHost()) && (
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold">Include fewer branding</Label>
+                <p className="text-xs text-muted-foreground">
+                  {!canRemoveBranding
+                    ? "Signed out — exports carry the fewer watermark until you sign in."
+                    : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
+                </p>
+              </div>
+              <Switch
+                checked={includeBranding}
+                onCheckedChange={(v) => setSettings({ includeBranding: v })}
+                disabled={!canRemoveBranding}
+              />
             </div>
-            <Switch
-              checked={includeBranding}
-              onCheckedChange={(v) => setSettings({ includeBranding: v })}
-              disabled={!canRemoveBranding}
-            />
-          </div>
+          )}
 
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">

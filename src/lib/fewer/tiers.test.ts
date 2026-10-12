@@ -18,7 +18,10 @@ describe("canFor / SHELL_MIN_TIER (T-100)", () => {
   test("minTierFor applies the override only in the shell", () => {
     expect(minTierFor(false, "unbrandedExport")).toBe(MIN_TIER.unbrandedExport);
     expect(minTierFor(true, "unbrandedExport")).toBe("pro");
-    expect(minTierFor(true, "localLibrary")).toBe("pro");
+    // The local library is free everywhere (T-148): no shell override, no web gate.
+    expect(minTierFor(true, "localLibrary")).toBe("free");
+    expect(minTierFor(false, "localLibrary")).toBe("free");
+    expect(canFor(true, "localLibrary", "free")).toBe(true);
   });
 });
 

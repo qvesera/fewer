@@ -56,12 +56,14 @@ The theme editor saves named themes to your library as `.fwtheme` files. No sign
 
 ## Licensing
 
-The desktop app uses a **license key** instead of an account:
+The desktop app is **free as it stands**: canvas, layout, search, undo/redo,
+import, the local graph library (projects save to your own folder — no
+account), and watermarked exports all work out of the box.
 
-- Without a license the app runs in **free mode**: canvas, layout, search, undo/redo, import, and watermarked exports.
-- A license unlocks saved projects, docking, tags, custom themes, metrics, batch operations, version history, analytics, and unbranded exports.
-
-Activate a license from **Settings → License**. License checks are offline (Ed25519 signature verified on-device).
+Licence activation ships in a later release, together with the Pro extras it
+will unlock (unbranded exports, in-app file preview). **This build deliberately
+has no licence screen and no upgrade flow** — there is nothing to activate and
+nothing to buy yet, and the documentation will say so the day that changes.
 
 ## Updating
 

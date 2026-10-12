@@ -80,8 +80,11 @@ export const MIN_TIER: Record<Feature, Tier> = {
   tags: "pro",
   largeShareLinks: "pro",  // server: SHARE_FREE_MAX_CHARS threshold + planLimits.largeShareLinks
   savedThemes: "pro",
-  // Desktop offline: gated behind a desktop pro license (license gate, T-090).
-  localLibrary: "pro",
+  // Desktop offline: the library lives in the FREE standalone app (T-148) —
+  // a free build whose Save button demanded a licence you could not buy would
+  // read as broken, not as a paid tier. The licence rail keeps the rest
+  // (unbrandedExport below) when it switches on.
+  localLibrary: "free",
   nativeBrowse: "pro",
   localPreview: "pro",
 

@@ -52,8 +52,8 @@ export function LicensePanel() {
     return (
       <div className="space-y-3 p-1">
         <p className="text-sm text-muted-foreground">
-          No license activated. Desktop Pro features (local library, native browsing, preview)
-          are unlocked with a Fewer license file.
+          No license activated. Pro desktop features (unbranded exports, in-app
+          file preview) are unlocked with a Fewer license file.
         </p>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleActivate} disabled={busy}>
           <KeyRound className="h-3.5 w-3.5" />
