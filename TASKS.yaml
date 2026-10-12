@@ -3874,7 +3874,7 @@ tasks:
   session_count: 1
 - id: "T-143"
   title: "Zoom to selection (Alt+F and the crosshair button) ignores selected groups — fits the whole graph instead of the group"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
