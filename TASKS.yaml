@@ -3903,7 +3903,7 @@ tasks:
   session_count: 1
 - id: "T-144"
   title: "Groups not retained on tab reload or in JSON/.fwr export"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
