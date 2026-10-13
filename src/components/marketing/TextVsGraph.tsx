@@ -70,8 +70,8 @@ export function TextVsGraph() {
           style={{ gridArea: "1 / 1", transition: PANE_TRANSITION }}
           className={
             view === "graph"
-              ? "flex items-center opacity-100 translate-y-0"
-              : "pointer-events-none -translate-y-2 opacity-0"
+              ? "flex min-w-0 items-center opacity-100 translate-y-0"
+              : "pointer-events-none min-w-0 -translate-y-2 opacity-0"
           }
           aria-hidden={view !== "graph"}
         >

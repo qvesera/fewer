@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
   PREVIEW_CANVAS,
+  PREVIEW_FILE,
+  PREVIEW_FOLDER,
   PREVIEW_NODES,
   graphToTextLines,
   nodeBox,
+  nodeFileName,
+  previewChildren,
   previewEdgePaths,
+  previewPaths,
 } from "./marketingPreview";
 
 describe("marketingPreview", () => {
@@ -18,6 +23,24 @@ describe("marketingPreview", () => {
     }
   });
 
+  test("card dimensions are the product's, not a stylised miniature", () => {
+    // DEFAULT_FOLDER_* / DEFAULT_FILE_* in src/lib/fewer/layout.ts.
+    expect(PREVIEW_FOLDER).toEqual({ w: 240, h: 200 });
+    expect(PREVIEW_FILE).toEqual({ w: 220, h: 58 });
+  });
+
+  test("each folder is vertically centred on its children", () => {
+    for (const folder of PREVIEW_NODES.filter((n) => n.kind === "folder")) {
+      const kids = previewChildren(folder.id);
+      if (kids.length === 0) continue;
+      const top = Math.min(...kids.map((k) => nodeBox(k).y));
+      const bottom = Math.max(...kids.map((k) => nodeBox(k).y + nodeBox(k).h));
+      const folderBox = nodeBox(folder);
+      const folderMid = folderBox.y + folderBox.h / 2;
+      expect(Math.abs(folderMid - (top + bottom) / 2)).toBeLessThanOrEqual(1);
+    }
+  });
+
   test("parents are declared before use and every parent resolves", () => {
     const ids = new Set(PREVIEW_NODES.map((n) => n.id));
     for (const node of PREVIEW_NODES) {
@@ -25,6 +48,23 @@ describe("marketingPreview", () => {
     }
     const roots = PREVIEW_NODES.filter((n) => !n.parent);
     expect(roots).toHaveLength(1);
+  });
+
+  test("file nodes carry an extension and a category for their icon", () => {
+    for (const node of PREVIEW_NODES.filter((n) => n.kind === "file")) {
+      expect(node.extension).toBeTruthy();
+      expect(node.category).toBeTruthy();
+      expect(nodeFileName(node)).toBe(`${node.label}.${node.extension}`);
+    }
+    expect(nodeFileName(PREVIEW_NODES.find((n) => n.id === "pkg")!)).toBe("package.json");
+  });
+
+  test("previewPaths stacks labels the way the app prints data.path", () => {
+    const paths = previewPaths();
+    expect(paths.root).toBe("~/fewer");
+    expect(paths.src).toBe("~/fewer/src");
+    expect(paths.layout).toBe("~/fewer/src/layout.ts");
+    expect(paths.pkg).toBe("~/fewer/package.json");
   });
 
   test("graphToTextLines renders the tree shape of the same data", () => {
@@ -44,7 +84,6 @@ describe("marketingPreview", () => {
     const paths = previewEdgePaths();
     expect(paths).toHaveLength(PREVIEW_NODES.length - 1);
     for (const p of paths) expect(p.d.startsWith("M ")).toBe(true);
-    // A folder's edge leaves its right edge; a child's arrives at its left.
     const src = paths.find((p) => p.to === "layout");
     expect(src?.from).toBe("src");
   });

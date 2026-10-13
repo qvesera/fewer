@@ -34,7 +34,7 @@ export function MarketingHome() {
       <DotGrid />
 
       {/* Hero */}
-      <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_1fr] lg:pt-24">
+      <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1fr_1.15fr] lg:pt-24 bg-background/60">
         <div>
           <p
             className="mk-rise font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground"
@@ -72,13 +72,13 @@ export function MarketingHome() {
           </p>
         </div>
 
-        <div className="mk-rise" style={{ animationDelay: "200ms" }}>
+        <div className="mk-rise min-w-0" style={{ animationDelay: "200ms" }}>
           <HeroCanvas />
         </div>
       </section>
 
       {/* The comparison that explains the product in one gesture */}
-      <section id="compare" className="relative z-10 border-t border-border/40 py-20">
+      <section id="compare" className="relative z-10 border-t bg-background/60 border-border/40 py-20">
         <div className="mx-auto max-w-6xl px-6">
           <Reveal>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">

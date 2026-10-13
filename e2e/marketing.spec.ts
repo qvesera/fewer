@@ -57,7 +57,7 @@ test("the tree vs graph comparison switches views", async ({ page }) => {
   await expect(treePane).toContainText("└── package.json");
 
   await page.getByRole("button", { name: "fewer", exact: true }).click();
-  await expect(page.locator("#compare .mk-card").first()).toBeVisible();
+  await expect(page.locator("#compare [data-mk-node]").first()).toBeVisible();
 });
 
 test("/welcome redirects to the canonical home instead of duplicating it", async ({ page }) => {

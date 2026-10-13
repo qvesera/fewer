@@ -81,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Home page refresh: the export count is 8 formats (the .fwr document counts), the copy says cards instead of nodes and GitHub instead of a generic "Git repo", the feature grid leads with canvas groups and covers the real import story (archives read in place, Internet Archive, CSV/DOT) plus the community gallery, a fresh hero screenshot replaces the two-month-old one (regenerate any time with bun scripts/marketing-shot.ts), /welcome redirects to the canonical home instead of duplicating it in the sitemap, and the nav Features link stays on the page
 - No more em dashes in user-facing text: every string the product shows (toasts, dialogs, panel copy, tooltips) and every page the site serves (home, docs, README) reads in plain sentences, with the wording reworked rather than mechanically swapped wherever a straight substitution read badly
 - Marketing home page rebuilt: an interactive mini-canvas hero on the app's own dot grid, a tree-vs-graph comparison of the same folder, a collapsible group demo, a three-step how-it-works, and a dot-grid backdrop with a feathered pointer highlight
+- Home page preview cards are now the real canvas cards at their true size (same dimensions, header with path, inline children, item counts, category icons and formatted sizes), with animated dashed edges and a preview that scales to fit its container the way the canvas zooms
 
 ### Fixed
 

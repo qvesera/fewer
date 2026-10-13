@@ -620,7 +620,9 @@ html[data-shell] .react-flow__node > div {
   }
   .gm-edge-flow,
   .gm-node-fade-in,
-  .gm-progress-indeterminate {
+  .gm-progress-indeterminate,
+  .mk-edge-flow,
+  .mk-caret {
     animation: none !important;
   }
 }
@@ -897,18 +899,18 @@ html[data-shell] .react-flow__node > div {
   animation: mk-rise var(--dur-slow) var(--ease-enter) both;
 }
 
-/* Demo cards: the same lift the real canvas cards do, on the same pop curve.
-   Positioned by left/top %, so the transform never shifts layout. */
-.mk-card {
-  transition:
-    transform var(--dur) var(--ease-pop),
-    box-shadow var(--dur) var(--ease-enter),
-    border-color var(--dur) var(--ease-enter);
+/* Demo edges march the way the canvas's animated edges do (2px, dashed 5 5).
+   prefers-reduced-motion stops the march and leaves the dashes, which is what
+   the app does too. The preview cards reuse the app's own .gm-node-hover and
+   .shadow-node-* utilities instead of a marketing-only hover. */
+.mk-edge-flow {
+  stroke-dasharray: 5 5;
+  animation: mk-edge-flow 1s linear infinite;
 }
-.mk-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--fewer-select-ring);
-  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.5);
+@keyframes mk-edge-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
 }
 
 /* Blinking caret for the `tree` pane. */

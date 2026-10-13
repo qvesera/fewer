@@ -1,28 +1,17 @@
-import type { ComponentType } from "react";
-import { FileCode, FileJson, FileImage, FileText, FileArchive, FileSpreadsheet, FileVideo, File as FileIcon, FileType } from "lucide-react";
-import type { FileCategory } from "./types";
+import { Position } from "@xyflow/react";
+import type { FewerNode, FewerEdge } from "./types";
+import { childrenIndexOf, nodeIndexOf } from "./graphIndex";
 
-export const CATEGORY_ICON: Record<FileCategory, ComponentType<{ className?: string }>> = {
-  code: FileCode,
-  config: FileJson,
-  image: FileImage,
-  document: FileText,
-  archive: FileArchive,
-  data: FileSpreadsheet,
-  media: FileVideo,
-  binary: FileIcon,
-  text: FileType,
-};
+// CATEGORY_ICON and formatSize live in nodeVisuals.ts (no @xyflow/react import
+// there) so the marketing preview can use the same icons and sizes without
+// pulling the graph library into the landing page bundle. Re-exported here so
+// every existing import path keeps working.
+export { CATEGORY_ICON, formatSize } from "./nodeVisuals";
 
 /** Child badges count edges, not just existing/visible nodes. */
 export function folderChildCount(id: string, isFolder: boolean, edges: FewerEdge[]): number {
   return isFolder ? (childrenIndexOf(edges).get(id)?.length ?? 0) : 0;
 }
-
-
-import { Position } from "@xyflow/react";
-import type { FewerNode, FewerEdge } from "./types";
-import { childrenIndexOf, nodeIndexOf } from "./graphIndex";
 
 export function getHandlePositions(layoutDirection?: string): {
   source: Position;
@@ -40,13 +29,6 @@ export function getHandlePositions(layoutDirection?: string): {
     default:
       return { source: Position.Bottom, target: Position.Top };
   }
-}
-
-export function formatSize(bytes: number): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /** Map a dataSource prefix to a display label for "Open in provider". */
