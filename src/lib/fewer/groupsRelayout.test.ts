@@ -30,9 +30,13 @@ function edge(source: string, target: string): FewerEdge {
  */
 describe("collapsed groups reserve their block in the layout (T-140)", () => {
   beforeEach(() => {
+    // direction is GLOBAL store state and other suites (userSettings.test.ts)
+    // leave it at "LR" — bun's file order is not stable, so the layout this
+    // test asserts on has to pin it rather than trust whoever ran last (T-145).
     useGraphStore.setState({
       nodes: [], edges: [], hiddenIds: [], groups: [], viewSettings: {},
       searchQuery: "", categoryFilter: [], tags: [], past: [], future: [], leafHistories: {},
+      direction: "TB",
     });
   });
 

@@ -9,6 +9,10 @@ import type { ImportActionResult, OriginSource } from "./importFlow";
  * override) is exercised as composed. None of those three modules is imported
  * by another src test, which matters because bun's mock.module registry is
  * process-wide and would otherwise replace a real binding for a later file.
+ *
+ * The file origin's REAL action lives in `fileOriginImport.ts` (re-exported
+ * through this mocked path) precisely so its own suite can never see this spy
+ * (T-145).
  */
 const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({
   ok: true,

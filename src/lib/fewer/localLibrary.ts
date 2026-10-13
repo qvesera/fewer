@@ -117,20 +117,21 @@ export function slugify(name: string): string {
 }
 
 /** Graph file name: `<slug>-<id-prefix>.fwr` (T-101: Fewer graph documents).
- *  Id prefix keeps renames collision-free. Legacy `.json` libraries keep
- *  working — scanning accepts both extensions; new saves write `.fwr`. */
+ *  Id prefix keeps renames collision-free. New saves write `.fwr`, and only
+ *  `.fwr` is read back (T-145: no legacy `.json` library files). */
 export function graphFileName(id: string, name: string): string {
   return `${slugify(name)}-${id.slice(0, 8)}.fwr`;
 }
 
+/** Fewer graph documents only — a legacy `.json` copy is not a library file. */
 export function isGraphFile(name: string): boolean {
-  return name.endsWith(".fwr") || name.endsWith(".json");
+  return name.endsWith(".fwr");
 }
 
 /**
  * Rebuild a manifest by scanning the graphs dir (disk is the source of truth):
- * any folder of `.fwr` files — or legacy `.json` graph files — is a valid
- * library; files dropped in by hand appear without touching the manifest.
+ * any folder of `.fwr` files is a valid library; files dropped in by hand
+ * appear without touching the manifest.
  */
 export async function rebuildManifestFromGraphDir(fs: LibraryFs, root: string): Promise<LibraryManifest | null> {
   if (!fs.list) return null;
@@ -157,14 +158,42 @@ export function buildGraphFile(graph: SavedGraph): LibraryGraphFile {
   return { format_version: LIBRARY_FORMAT_VERSION, graph };
 }
 
+/** Is `data` a real snapshot (cards carry their payload) rather than a reduced
+ *  export row (T-145)? A pre-0.9 reduced `.fwr` fails this instead of loading
+ *  as blank cards — legacy documents are deliberately not read. */
+function isSnapshotData(data: SavedGraphData | undefined): boolean {
+  return (
+    !!data &&
+    Array.isArray(data.nodes) &&
+    data.nodes.every((n) => !!n && typeof n === "object" && !!n.data && typeof n.data === "object")
+  );
+}
+
 /** Parse a graph file. Throws on invalid JSON / wrong shape — callers surface it. */
 export function parseGraphFile(raw: string): SavedGraph {
   const parsed = JSON.parse(raw) as Partial<LibraryGraphFile>;
   const g = parsed?.graph;
-  if (!g || typeof g !== "object" || !g.id || !g.name || !g.data || !Array.isArray(g.data.nodes)) {
+  if (!g || typeof g !== "object" || !g.id || !g.name || !isSnapshotData(g.data)) {
     throw new Error("not a fewer library graph file");
   }
   return g as SavedGraph;
+}
+
+/**
+ * Fewer graph document (`.fwr`, or any payload carrying that envelope) →
+ * `{ name, data }`, or `null` when the bytes are not a snapshot document.
+ *
+ * The reader every fidelity path shares: double-click / Open Recent / drop,
+ * the desktop library, and the Import dialog's file origin (T-145). Pure — no
+ * store, no FS, no host bridge.
+ */
+export function parseGraphDocument(raw: string): { name: string; data: SavedGraphData } | null {
+  try {
+    const graph = parseGraphFile(raw);
+    return { name: graph.name, data: graph.data };
+  } catch {
+    return null;
+  }
 }
 
 export function buildManifest(graphs: SavedGraph[]): LibraryManifest {

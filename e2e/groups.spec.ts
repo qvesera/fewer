@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 /**
  * Canvas groups, end to end (T-132): create a group from a selection, then the
@@ -491,4 +492,68 @@ test("nesting: child frame sits inside the parent; collapsing the parent removes
     .click();
   await expect(page.locator(`[data-group-id="${childGid}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-group-id="${parentGid}"]`)).toBeVisible();
+});
+
+/**
+ * T-145: the `.fwr` export is a graph DOCUMENT, so the group survives the
+ * export → re-import round trip. The reimport runs on a canvas whose session
+ * cache was cleared, so the only way the frame can come back is the file.
+ */
+test("export → re-import (.fwr) restores the group from the document (T-145)", async ({ page }) => {
+  test.setTimeout(60_000); // export + download + reload + a 3-step import
+  await openCanvas(page);
+  await createGroup(page);
+
+  // Export as FWR — an advanced format, but MIN_TIER is free (this context is
+  // always signed out) so the tile is there.
+  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: /FWR/ }).click();
+  const [saved] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download" }).click(),
+  ]);
+  const body = await readFile((await saved.path())!, "utf8");
+
+  // The document itself carries the group — that is the whole point.
+  const doc = JSON.parse(body) as { graph: { data: { groups: { title: string }[] } } };
+  expect(doc.graph.data.groups).toHaveLength(1);
+
+  // Fresh canvas: the reload cache is the other path that could restore the
+  // group, and it must not be the one that does.
+  await page.addInitScript(() => sessionStorage.removeItem("fewer-graph"));
+  await page.reload();
+  await expect(page.locator(".react-flow__node")).toHaveCount(0);
+  await expect(page.locator("[data-group-id]")).toHaveCount(0);
+
+  // Import it through the File origin. The sidebar's Import button opens the
+  // same 3-step dialog as Alt+I (the shortcut needs canvas focus after a
+  // reload, the button never does).
+  await page.getByRole("button", { name: "Import", exact: true }).first().click();
+  // Scope to the import dialog by text that is present in EVERY step — the
+  // step-1 radiogroup disappears from the a11y tree once we move on.
+  const dialog = page
+    .getByRole("dialog")
+    .filter({ hasText: "does not store or upload any data" });
+  // The tile's accessible name carries the origin blurb, so match the prefix.
+  await dialog.getByRole("radio", { name: /^File\b/ }).click();
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "fewer-export.fwr",
+    mimeType: "application/json",
+    buffer: Buffer.from(body),
+  });
+  // A document lands whole, so step 3 reports what it restores instead of the
+  // scan/filter summary the other payloads show. Two Continues: Origin → Options
+  // → Import (step 2 replaces the filter panel with the document note).
+  const next = dialog.getByRole("button", { name: "Continue" });
+  await expect(next).toBeEnabled(); // the picked file has to finish reading first
+  await next.click();
+  await expect(dialog.getByText("nothing to configure here")).toBeVisible();
+  await next.click();
+  await expect(dialog.getByText("Cards, positions, tags, groups")).toBeVisible();
+  // Step 3's action button is "Browse" for every origin (it runs the import).
+  await dialog.getByRole("button", { name: "Browse" }).click();
+
+  await expect(page.locator("[data-group-id]")).toHaveCount(1, { timeout: 15000 });
+  // The frame is back over real cards, not an empty husk.
+  await expect(page.locator(".react-flow__node")).not.toHaveCount(0);
 });

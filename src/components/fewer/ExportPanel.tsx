@@ -86,8 +86,8 @@ const ADVANCED_FORMATS: {
   info: string;
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
-  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Use for programmatic processing or importing into other tools." },
-  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's portable graph document — save and share projects, import on desktop or web." },
+  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Structural export for programmatic use — re-import rebuilds the graph, and it carries no tags or groups." },
+  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's graph document — cards with positions, tags and groups exactly as saved. Re-import restores the whole graph on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
@@ -108,6 +108,8 @@ export function ExportPanel() {
   const sortKey = useGraphStore((s) => s.sortKey);
   const sortDir = useGraphStore((s) => s.sortDir);
   const tags = useGraphStore((s) => s.tags);
+  const groups = useGraphStore((s) => s.groups);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const viewSettings = useGraphStore((s) => s.viewSettings);
   const { nodes, edges, hiddenIds } = useGraphData();
   const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
@@ -273,6 +275,8 @@ export function ExportPanel() {
           cornerRadius,
           collapsedIds: imageGraph.collapsedIds,
           tags,
+          groups,
+          localRootPath,
           // Canvas handles follow the view's direction; edges must too.
           direction: resolved?.direction ?? direction,
         },
@@ -411,21 +415,26 @@ export function ExportPanel() {
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-            <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">Include fewer branding</Label>
-              <p className="text-xs text-muted-foreground">
-                {!canRemoveBranding
-                  ? "Signed out — exports carry the fewer watermark until you sign in."
-                  : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
-              </p>
+          {/* A `.fwr` document carries no meta/credit line (it is a document,
+              not an export payload), so the branding control would promise a
+              watermark it does not write — hide it there (T-145). */}
+          {settings.format !== "fwr" && (
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold">Include fewer branding</Label>
+                <p className="text-xs text-muted-foreground">
+                  {!canRemoveBranding
+                    ? "Signed out — exports carry the fewer watermark until you sign in."
+                    : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
+                </p>
+              </div>
+              <Switch
+                checked={includeBranding}
+                onCheckedChange={(v) => setSettings({ includeBranding: v })}
+                disabled={!canRemoveBranding}
+              />
             </div>
-            <Switch
-              checked={includeBranding}
-              onCheckedChange={(v) => setSettings({ includeBranding: v })}
-              disabled={!canRemoveBranding}
-            />
-          </div>
+          )}
 
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">

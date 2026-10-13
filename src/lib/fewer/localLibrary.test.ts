@@ -10,6 +10,7 @@ import {
   libraryManifestPath,
   manifestRemove,
   manifestUpsert,
+  parseGraphDocument,
   parseGraphFile,
   parseManifest,
   parseThemeFile,
@@ -204,11 +205,12 @@ describe("T-101: .fwr scanning + .fwtheme files", () => {
     };
   }
 
-  test("rebuildManifestFromGraphDir scans .fwr + legacy .json, skips junk", async () => {
+  test("rebuildManifestFromGraphDir scans .fwr files and skips everything else (incl. a legacy .json copy)", async () => {
     const good = buildGraphFile(savedGraphFrom("id-1", "Kept", data));
     const legacy = buildGraphFile(savedGraphFrom("id-2", "Legacy", data));
     const fs = memFsList({
       [libraryGraphPath(root, "kept-id-1.fwr")]: JSON.stringify(good),
+      // T-145: no backward JSON compatibility — a `.json` graph copy is not read.
       [libraryGraphPath(root, "legacy-id-2.json")]: JSON.stringify(legacy),
       [libraryGraphPath(root, "notes.txt")]: "junk",
       [libraryGraphPath(root, "broken.fwr")]: "{not json",
@@ -216,7 +218,24 @@ describe("T-101: .fwr scanning + .fwtheme files", () => {
     const man = await rebuildManifestFromGraphDir(fs, root);
     expect(man).not.toBeNull();
     const names = man!.graphs.map((g) => g.name).sort();
-    expect(names).toEqual(["Kept", "Legacy"]);
+    expect(names).toEqual(["Kept"]);
+  });
+
+  test("T-145: a reduced (pre-0.9) .fwr envelope is rejected, not loaded as blank cards", () => {
+    const reduced = JSON.stringify({
+      format_version: 1,
+      app: "fewer",
+      graph: {
+        id: "fwr_old",
+        name: "Old",
+        // The old reduced export: flat rows, no `data` payload per card.
+        data: { nodes: [{ id: "r", label: "proj", path: "proj", type: "folder", position: { x: 0, y: 0 } }], edges: [] },
+        created_at: "x",
+        updated_at: "x",
+      },
+    });
+    expect(() => parseGraphFile(reduced)).toThrow("not a fewer library graph file");
+    expect(parseGraphDocument(reduced)).toBeNull();
   });
 
   test("backend list() uses the scan when fs.list exists", async () => {

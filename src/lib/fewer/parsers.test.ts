@@ -102,9 +102,10 @@ test("JSON round-trip keeps file extensions (basename beats the stripped label)"
   expect(tree.children!.find((c) => c.name === "App.tsx")!.type).toBe("file");
 });
 
-test("parseJSONGraph unwraps a .fwr envelope ({format_version, app, graph})", () => {
-  // T-101: the desktop library + exportFWR write .fwr documents; the same
-  // JSON importer must accept them without a separate format.
+test("parseJSONGraph does NOT unwrap a .fwr envelope — documents are snapshots, not structure", () => {
+  // T-145: the T-101 envelope compatibility is gone on purpose. Reading a
+  // document structurally would mint fresh ids and orphan its group membership;
+  // documents go through parseGraphDocument + applySnapshot instead.
   const envelope = {
     format_version: 1,
     app: "fewer",
@@ -120,8 +121,7 @@ test("parseJSONGraph unwraps a .fwr envelope ({format_version, app, graph})", ()
       },
     },
   };
-  const tree = parseJSONGraph(JSON.stringify(envelope));
-  expect(tree.children!.find((c) => c.name === "App.tsx")!.type).toBe("file");
+  expect(() => parseJSONGraph(JSON.stringify(envelope))).toThrow("missing 'nodes' array");
 });
 
 describe("parseCSVGraph — our own export format", () => {
