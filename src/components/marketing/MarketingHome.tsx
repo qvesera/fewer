@@ -4,7 +4,6 @@ import { APP_URL } from "./MarketingLayout";
 import { buttonVariants } from "@/components/ui/button";
 import { Capabilities } from "./Capabilities";
 import { DotGrid } from "./DotGrid";
-import { HeroCanvas } from "./HeroCanvas";
 import { HowItWorks } from "./HowItWorks";
 import { Reveal } from "./Reveal";
 import { TextVsGraph } from "./TextVsGraph";
@@ -14,8 +13,8 @@ import { TrustStrip } from "./TrustStrip";
 /**
  * The marketing home page (T-150).
  *
- * Story order: what it is (hero, with the canvas itself reduced to a demo) →
- * the proof in one gesture (tree vs graph) → the illustration beat → how it
+ * Story order: what it is (hero) → the proof in one gesture (tree vs graph —
+ * the one place the sample graph appears) → the illustration beat → how it
  * works → what it does → what it costs you (nothing). Sections sit above the
  * fixed dot-grid backdrop, which is the same surface as the app canvas.
  *
@@ -34,8 +33,8 @@ export function MarketingHome() {
       <DotGrid />
 
       {/* Hero */}
-      <section className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1fr_1.15fr] lg:pt-24">
-        <div>
+      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20 pt-16 lg:pt-24">
+        <div className="max-w-3xl">
           <p
             className="mk-rise font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground"
             style={{ animationDelay: "0ms" }}
@@ -70,10 +69,6 @@ export function MarketingHome() {
           >
             drag · search · group · export · share
           </p>
-        </div>
-
-        <div className="mk-rise min-w-0" style={{ animationDelay: "200ms" }}>
-          <HeroCanvas />
         </div>
       </section>
 

@@ -49,6 +49,12 @@ test("the home page sits on the canvas dot grid", async ({ page }) => {
 test("the tree vs graph comparison switches views", async ({ page }) => {
   await page.goto("/");
 
+  // Exactly one copy of the sample graph on the page: the hero no longer
+  // renders a second instance beside this one.
+  await expect(
+    page.locator('[role="region"][aria-label="Sample project graph"]'),
+  ).toHaveCount(1);
+
   // Both panes stay mounted and stacked in one grid cell, so the container
   // height never jumps; the toggle only moves opacity.
   const treePane = page.locator("#compare pre");

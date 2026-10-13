@@ -29,19 +29,19 @@ const EXPORT_CHIPS = ["SVG", "PNG", "JSON", "CSV", "DOT", "sh", "txt", ".fwr"];
 const BULLETS = [
   {
     title: "Keyboard-first",
-    body: "Arrow keys through the tree, search across every card, and shortcuts for everything. No mouse required once you are in the flow.",
+    body: "Arrow keys through the tree, search across every card, and shortcuts for everything.",
   },
   {
     title: "Arrange and edit",
-    body: "Organize re-flows the tree on demand, Crown Shyness spaces sibling subtrees, and you add, rename or drag cards right on the canvas.",
+    body: "Organize re-flows the tree on demand, Crown Shyness spaces subtrees, and you edit right on the canvas.",
   },
   {
     title: "Connect and watch",
-    body: "Optional OAuth to GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps and Azure Blob, plus a daily digest when a watched public index changes.",
+    body: "Optional OAuth to GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps and Azure Blob, plus a daily digest when a watched index changes.",
   },
   {
     title: "Themes and a gallery",
-    body: "Tune every colour yourself or start from a preset, then open graphs and themes other people shared, straight into the app.",
+    body: "Tune every colour yourself or start from a preset, then open graphs and themes other people shared.",
   },
 ];
 
@@ -157,16 +157,18 @@ export function Capabilities() {
           />
         </div>
 
-        {/* The rest, as a list to scan rather than a grid to read. */}
+        {/* The rest, as one compact strip: a footnote under the cards, not a second 2x2 grid. */}
         <Reveal delay={90}>
-          <ul className="mt-12 grid gap-x-12 gap-y-6 lg:grid-cols-2">
-            {BULLETS.map((b) => (
-              <li key={b.title}>
-                <h3 className="text-sm font-semibold">{b.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{b.body}</p>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-6 rounded-xl border border-border/60 bg-card/30 p-5">
+            <ul className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+              {BULLETS.map((b) => (
+                <li key={b.title}>
+                  <h3 className="text-sm font-semibold">{b.title}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{b.body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Reveal>
 
         {/* The detail lives in the docs; the page only points at it. */}
