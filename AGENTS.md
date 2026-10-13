@@ -94,15 +94,18 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   tiers unchanged.
 - **Local-first stores** (T-101): graphs save as `.fwr` documents
   (`{format_version, app, graph}` — same shape `localLibrary.ts` always wrote,
-  new extension); legacy `.json` library files stay readable, and when the
-  host can `list_dir` the backend scans `graphs/` for `*.fwr` + `*.json` on
+  new extension); since T-145 only `.fwr` is read back (legacy `.json` copies
+  are not scanned), and when the
+  host can `list_dir` the backend scans `graphs/` for `*.fwr` on
   every list (disk is the source of truth; the manifest is a fallback for
   fakes/tests). Named themes live in `<library>/themes/<slug>.fwtheme`
   (`.fwtheme.json` tolerated) via a `ThemesBackend` swap in `themesData.ts`
   mirroring `graphsData.ts` — cloud rows on the web, files in the shell.
   First run creates `~/Documents/fewer` (`default_library_dir` host command,
   persisted via `libraryConfig`); Export gains a "Fewer graph (.fwr)" format
-  and Import accepts `.fwr` (the json parser unwraps envelopes). Tauri's
+  and Import accepts `.fwr` (T-145: the JSON parser no longer unwraps
+  envelopes — graph documents are parsed by `parseGraphDocument` and applied
+  whole, with groups, tags and positions). Tauri's
   handlers predate `default_library_dir` (Tauri parked) — parity is pending.
 - **host_fetch bridge** (T-102): URL + GitHub import work in the shell without
   our server — `netFetch.ts` (dependency-free seam; FewerApp registers

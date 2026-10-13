@@ -93,6 +93,12 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     set({
       nodes: laidFinal,
       edges: sortedEdges,
+      // setGraph REPLACES the whole graph, and every structural builder mints a
+      // fresh id space (file-import-…, refresh-…, uuid) — so group membership
+      // from the previous graph can never map onto these cards. Left in place,
+      // the frames describe ids that no longer exist (T-145: snapshots set their
+      // own groups immediately after, via applySnapshot).
+      groups: [],
       hiddenIds: idsToHide,
       categoryHiddenIds: catHiddenIds,
       graphVersion: state.graphVersion + 1,

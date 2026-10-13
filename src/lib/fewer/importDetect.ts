@@ -31,7 +31,10 @@ const TREE_GLYPHS = /[│├└─]/;
  *
  *  1. **json** — must be a graph, not just any JSON value: a parses-but-not-a-graph
  *     document falls through so the user gets a sensible parse instead of
- *     "Invalid JSON: missing 'nodes' array".
+ *     "Invalid JSON: missing 'nodes' array". Both shapes count — a raw export
+ *     payload (`{ nodes, … }`) and a Fewer graph document
+ *     (`{ format_version, app, graph: { data: { nodes, … } } }`); the importer
+ *     then picks fidelity vs structure from the payload itself (T-145).
  *  2. **dot** — Graphviz opens with a graph keyword at the top of the document
  *     and needs an edge; requiring both keeps prose mentioning "graph" from winning.
  *  3. **script** — `mkdir` lines, before csv so a comma inside a quoted path is
@@ -56,8 +59,12 @@ export function detectImportFormat(content: string): FileImportFormat {
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       const parsed: unknown = JSON.parse(trimmed);
+      const o =
+        parsed !== null && typeof parsed === "object"
+          ? (parsed as { nodes?: unknown; graph?: { data?: { nodes?: unknown } } })
+          : null;
       const hasNodes =
-        parsed !== null && typeof parsed === "object" && Array.isArray((parsed as { nodes?: unknown }).nodes);
+        !!o && (Array.isArray(o.nodes) || Array.isArray(o.graph?.data?.nodes));
       if (hasNodes) return "json";
     } catch {
       // Not JSON after all — fall through to the other detectors.

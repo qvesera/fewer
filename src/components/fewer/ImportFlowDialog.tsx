@@ -10,7 +10,7 @@
  * Only the import action changes per origin; steps 2 is identical everywhere.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ import {
 } from "@/lib/fewer/importFlow";
 import type { ImportOrigin, ImportProgress, OriginSource } from "@/lib/fewer/importFlow";
 import { runImport } from "@/lib/fewer/importAction";
+import { parseGraphDocument } from "@/lib/fewer/localLibrary";
 import { can } from "@/lib/fewer/tiers";
 
 type Step = 1 | 2 | 3;
@@ -108,6 +109,19 @@ export function ImportFlowDialog({
     ...useGraphStore.getState().importOptions,
   }));
   const [importing, setImporting] = useState(false);
+  // A Fewer graph document is a SNAPSHOT: it lands whole (ids, positions, tags,
+  // groups), so the scan/filter options cannot act on it. Parsed once per source
+  // change so the steps 2 and 3 panels never advertise controls that do nothing (T-145).
+  // ponytail: this re-parses the payload the origin step already parsed for
+  // detection (one extra JSON.parse per edit of a pasted file). The upgrade path
+  // is threading a `graphDocument` flag through OriginSource's change handlers.
+  const isGraphDocument = useMemo(
+    () =>
+      source.origin === "file" &&
+      source.kind === "text" &&
+      parseGraphDocument(source.content) !== null,
+    [source],
+  );
   const [actionError, setActionError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   // Bumped on every start and on every close, so a run that settles after the
@@ -315,14 +329,26 @@ function isEditableTarget(el: HTMLElement): boolean {
           </div>
 
           <div data-testid="import-options-panel" className={cn(step !== 2 && "hidden")}>
-            <ImportOptionsPanel
-              options={options}
-              onChange={(partial) =>
-                setOptions((prev) => ({ ...prev, ...partial }))
-              }
-              advancedFormats={advancedFormats}
-              scope={optionScopeFor(source)}
-            />
+            {/* A graph document is restored whole, so the filter controls would
+                promise things they cannot do — say so instead of showing them. */}
+            {isGraphDocument ? (
+              <div className="rounded-xl border border-primary/40 bg-primary/10 p-4 text-xs leading-relaxed text-foreground/85">
+                <p className="font-semibold">Fewer graph document</p>
+                <p className="mt-1 text-muted-foreground">
+                  Cards, positions, tags and groups are restored exactly as saved, so there is
+                  nothing to configure here.
+                </p>
+              </div>
+            ) : (
+              <ImportOptionsPanel
+                options={options}
+                onChange={(partial) =>
+                  setOptions((prev) => ({ ...prev, ...partial }))
+                }
+                advancedFormats={advancedFormats}
+                scope={optionScopeFor(source)}
+              />
+            )}
           </div>
 
           <div className={cn("space-y-3", step !== 3 && "hidden")}>
@@ -340,6 +366,8 @@ function isEditableTarget(el: HTMLElement): boolean {
                     {sourceLabel(source)}
                   </span>
                 </div>
+                {!isGraphDocument && (
+                <>
                 <div className="flex justify-between gap-3 border-b border-border/10 pb-1.5">
                   <span>Scan depth</span>
                   <span className="font-mono font-medium text-foreground/80">
@@ -368,6 +396,16 @@ function isEditableTarget(el: HTMLElement): boolean {
                       : "All (*)"}
                   </span>
                 </div>
+                </>
+                )}
+                {isGraphDocument && (
+                <div className="flex justify-between gap-3">
+                  <span>Restores</span>
+                  <span className="font-medium text-foreground/85">
+                    Cards, positions, tags, groups
+                  </span>
+                </div>
+                )}
               </div>
 
               {importing && (
@@ -397,9 +435,11 @@ function isEditableTarget(el: HTMLElement): boolean {
               )}
 
               <p className="text-[10px] leading-relaxed text-muted-foreground/70">
-                Pressing Import {origin === "folder"
+                {isGraphDocument
+                  ? "Pressing Import restores the graph document exactly as saved."
+                  : <>Pressing Import {origin === "folder"
                   ? "opens your folder picker, then builds the graph."
-                  : "builds the graph with the options above."}
+                  : "builds the graph with the options above."}</>}
               </p>
           </div>
         </div>

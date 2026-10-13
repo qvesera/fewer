@@ -52,6 +52,22 @@ test("renameGroup / setGroupNote / removeGroup mutate the group", () => {
   expect(useGraphStore.getState().groups).toHaveLength(0);
 });
 
+test("setGraph replaces the graph and drops the groups that described the old ids (T-145)", () => {
+  useGraphStore.getState().setGroups([{ id: "g-1", title: "Old", note: "", memberIds: ["n1"] }]);
+  useGraphStore.getState().setGraph(
+    [
+      { id: "fresh-1", type: "folder", position: { x: 0, y: 0 }, data: { label: "New", path: "/New", type: "folder" } },
+    ] as never,
+    [],
+    false,
+  );
+  // Structural builders mint fresh ids, so the old membership cannot map.
+  expect(useGraphStore.getState().groups).toEqual([]);
+  // A snapshot import sets its own groups immediately after (applySnapshot).
+  useGraphStore.getState().setGroups([{ id: "g-2", title: "New", note: "", memberIds: ["fresh-1"] }]);
+  expect(useGraphStore.getState().groups).toHaveLength(1);
+});
+
 test("setGroups replaces the list without an undo entry", () => {
   const before = useGraphStore.getState().past.length;
   useGraphStore.getState().setGroups([
