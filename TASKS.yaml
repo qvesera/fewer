@@ -4093,3 +4093,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 17, deletions: 11}
   spent_min: 44
   session_count: 5
+- id: "T-150"
+  title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-13T18:00:32Z"
+  notes: []
+  sessions:
+  - start: "2026-10-13T18:03:47Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

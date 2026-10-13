@@ -42,6 +42,8 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
+The public home page at [fewer.directory](https://fewer.directory) is the same idea as a landing page: it runs the dot grid the canvas uses, compares `tree` output with the graph side by side, and links straight into the app.
+
 **Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
 the Pro surface (split views, docking, tags) without a Pro account. `?tier=free` and
 `?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
