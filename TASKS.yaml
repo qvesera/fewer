@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4127,10 +4127,10 @@ tasks:
     proof: ["81ad582", "#421"]
     effort: {commits: 1, files: 11, insertions: 443, deletions: 160}
   - start: "2026-10-13T20:32:47Z"
-    end: null
+    end: "2026-10-13T20:55:04Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 91
+    note: "Third session (visual polish from review feedback): preview graph's horizontal scrollbar hidden ([scrollbar-width:none] + webkit hidden, scroll still works below 520px); per-section bg-background/60 veils removed from hero/compare/TrustStrip and all border-t section rules dropped, so the fixed dot grid reads at one uniform strength; .mk-dotgrid layer at opacity 0.6 (full token alpha read too loud un-veiled). Gates: lint 0, tsc 0, bun run test 233 pass 0 fail, changelog validate OK. Visually checked in dark + light via Playwright on the dev server."
+    proof: ["de9c35b", "#421"]
+    effort: {commits: 1, files: 8, insertions: 20, deletions: 8}
+  spent_min: 113
   session_count: 3
