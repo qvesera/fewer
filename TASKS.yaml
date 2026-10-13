@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4133,10 +4133,10 @@ tasks:
     proof: ["de9c35b", "#421"]
     effort: {commits: 1, files: 8, insertions: 20, deletions: 8}
   - start: "2026-10-13T20:59:41Z"
-    end: null
+    end: "2026-10-13T21:05:36Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 113
+    note: "Capabilities consistency pass: uniform 150px centered visual bands, equal card heights, inline group-frame toggle, lg bullets, left learn-more"
+    proof: ["68c8054", "#421"]
+    effort: {commits: 1, files: 4, insertions: 32, deletions: 19}
+  spent_min: 119
   session_count: 4
