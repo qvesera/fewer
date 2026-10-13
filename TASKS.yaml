@@ -4042,7 +4042,7 @@ tasks:
   session_count: 1
 - id: "T-149"
   title: "Marketing home page refresh: stale facts (7→8 formats, nodes→cards), free-feature grid (groups, import breadth, gallery), SEO cleanup (/welcome duplicate, nav anchor, /app metadata), fresh demo screenshot"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 1
