@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Shapes } from "lucide-react";
+import { ChevronDown, FileText, Shapes } from "lucide-react";
 
 const MEMBERS = ["editing.md", "import-export.md", "shortcuts.md"];
 
@@ -25,7 +25,13 @@ export function GroupDemo() {
           color: "var(--fewer-group-text)",
         }}
       >
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-expanded={!collapsed}
+          aria-controls="group-demo-members"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex w-full cursor-pointer items-center gap-2 text-left"
+        >
           <Shapes className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fewer-group-icon)" }} aria-hidden="true" />
           <span className="truncate font-mono text-[11px] font-medium">docs</span>
           <span
@@ -34,8 +40,17 @@ export function GroupDemo() {
           >
             {collapsed ? "3 cards" : "group"}
           </span>
-        </div>
+          <ChevronDown
+            className="h-3.5 w-3.5 shrink-0 transition-transform duration-300"
+            style={{
+              color: "var(--fewer-group-icon)",
+              transform: collapsed ? "rotate(-90deg)" : "none",
+            }}
+            aria-hidden="true"
+          />
+        </button>
         <ul
+          id="group-demo-members"
           className="grid gap-1.5 overflow-hidden transition-all duration-300"
           style={{
             maxHeight: collapsed ? 0 : 110,
@@ -68,15 +83,6 @@ export function GroupDemo() {
           ))}
         </ul>
       </div>
-
-      <button
-        type="button"
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed((c) => !c)}
-        className="mt-3 cursor-pointer self-start rounded-md border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
-      >
-        {collapsed ? "Expand the group" : "Collapse the group"}
-      </button>
     </div>
   );
 }

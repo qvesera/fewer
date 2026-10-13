@@ -80,7 +80,7 @@ function StoryShell({
   return (
     <Reveal delay={delay}>
       <article className="flex h-full flex-col rounded-xl border border-border/60 bg-card/50 p-6">
-        <div className="mb-6 flex min-h-[150px] flex-1 items-center">{visual}</div>
+        <div className="mb-6 flex h-[150px] items-center justify-center">{visual}</div>
         <h3 className="font-semibold">{title}</h3>
         <p className="mt-2 text-sm text-muted-foreground">{body}</p>
       </article>
@@ -113,7 +113,7 @@ export function Capabilities() {
             title="Visualize any source"
             body="Import from your disk, a pasted ASCII tree, JSON, CSV or DOT, a GitHub repo, a crawled file index, an Internet Archive item, or an archive read straight from the dialog, without unpacking anything."
             visual={
-              <ul className="flex flex-wrap gap-2">
+              <ul className="flex flex-wrap justify-center gap-2">
                 {IMPORT_CHIPS.map((label) => (
                   <Chip key={label}>{label}</Chip>
                 ))}
@@ -125,7 +125,7 @@ export function Capabilities() {
             title="Export in 8 formats"
             body="The .fwr graph document round-trips cards, positions, tags and groups exactly as you saved them; the rest are for everything else you already use."
             visual={
-              <ul className="flex flex-wrap gap-2">
+              <ul className="flex flex-wrap justify-center gap-2">
                 {EXPORT_CHIPS.map((label) => (
                   <Chip key={label} accent={label === ".fwr"}>
                     {label}
@@ -159,7 +159,7 @@ export function Capabilities() {
 
         {/* The rest, as a list to scan rather than a grid to read. */}
         <Reveal delay={90}>
-          <ul className="mt-12 grid gap-x-12 gap-y-6 sm:grid-cols-2">
+          <ul className="mt-12 grid gap-x-12 gap-y-6 lg:grid-cols-2">
             {BULLETS.map((b) => (
               <li key={b.title}>
                 <h3 className="text-sm font-semibold">{b.title}</h3>
@@ -171,7 +171,7 @@ export function Capabilities() {
 
         {/* The detail lives in the docs; the page only points at it. */}
         <Reveal delay={180}>
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
+          <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
             {LEARN_MORE.map((l) => (
               <Link
                 key={l.href}

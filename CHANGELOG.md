@@ -83,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Marketing home page rebuilt: an interactive mini-canvas hero on the app's own dot grid, a tree-vs-graph comparison of the same folder, a collapsible group demo, a three-step how-it-works, and a dot-grid backdrop with a feathered pointer highlight
 - Home page preview cards are now the real canvas cards at their true size (same dimensions, header with path, inline children, item counts, category icons and formatted sizes), with animated dashed edges and a preview that scales to fit its container the way the canvas zooms
 - Home page polish: preview graph scrollbar hidden, dot-grid backdrop at a uniform 60% opacity across every section (per-section background veils removed), and section separator lines dropped.
+- Marketing home polish: the four capability cards are all the same height with centered 150px visual bands (chips centered, learn-more row left-aligned, bullets switch to two columns with the cards), the group demo toggles from its own frame header instead of a loose button, section veils and rules are gone so the dot grid runs unbroken at 60% opacity, and the hero preview hides its scrollbar
 
 ### Fixed
 
