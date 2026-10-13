@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4108,17 +4108,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-13T18:00:32Z"
   notes: []
   sessions:
   - start: "2026-10-13T18:03:47Z"
-    end: null
+    end: "2026-10-13T18:54:06Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Home page rebuilt as an interactive page that shows the product. Hero is a live mini-canvas built from the same --fewer-* card tokens and the canvas dot values (24px gap, 1.5px); one marketingPreview.ts tree feeds both the hero and the tree-vs-graph toggle, and its bezier edge geometry has 4 unit tests. Sections: the comparison toggle, an illustration band that renders only once public/reorg-graph.svg exists (brief in design-system/fewer/ILLUSTRATION.md), a 3-step how-it-works, 4 capability stories with the rest as scan-friendly bullets (the strings the e2e pins live here), and a trust strip that replaces the two long prose sections. Backdrop is a fixed CSS dot layer plus a masked glow that lerps after the pointer, gated on touch and reduced motion, self-stopping when it settles; motion tokens --ease-enter/--ease-pop/--dur-fast/slow and a data-reveal system with a noscript fallback. Footer 3 to 2 columns, MASTER.md typography corrected to the shipped Geist fonts, e2e/marketing.spec.ts gains dot-grid and toggle pins. Gates: lint 0, tsc 0, bun run test 1796+12+233 0 fail, playwright full suite 38 passed against a NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1 production build (the 16 earlier failures were the tier-query suites hitting a build without that flag), build OK, changelog validate OK. Checked visually at 1440 and 375 in both themes; below 520px the preview scrolls instead of truncating names."
+    proof: ["db769c4"]
+    effort: {commits: 1, files: 22, insertions: 1498, deletions: 256}
+  spent_min: 50
   session_count: 1
