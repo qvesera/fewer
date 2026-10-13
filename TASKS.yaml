@@ -4036,7 +4036,7 @@ tasks:
   session_count: 1
 - id: "T-149"
   title: "Marketing home page refresh: stale facts (7→8 formats, nodes→cards), free-feature grid (groups, import breadth, gallery), SEO cleanup (/welcome duplicate, nav anchor, /app metadata), fresh demo screenshot"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4073,5 +4073,11 @@ tasks:
     note: "Third session: the Unreleased changelog notes swept with the same clause-aware rules (88 em dashes -> 0); released-version sections and blog posts left as historical record. changelog validate OK."
     proof: ["4b31d1e"]
     effort: {commits: 1, files: 1, insertions: 72, deletions: 72}
+  - start: "2026-10-13T11:02:40Z"
+    end: "2026-10-13T11:03:08Z"
+    measured: true
+    note: "Fourth session (post-rebase touch-up): the branch was rebuilt onto origin/dev so PR 420 carries T-148/T-149 only (T-145 stays on its own branch and PR 419). Conflicts during that rebase were resolved as dev content plus this PR intent with the em-dash rules applied, which left one nested dash in the README archive bullet; fixed in 44383a5. Gates on the rebased branch: lint 0, tsc 0, bun run test 1779+233 0 fail, docs+README+Unreleased em dashes 0."
+    proof: ["44383a5"]
+    effort: {commits: 1, files: 1, insertions: 1, deletions: 1}
   spent_min: 31
-  session_count: 3
+  session_count: 4
