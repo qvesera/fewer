@@ -17,7 +17,7 @@ const POINTS = [
 
 export function TrustStrip() {
   return (
-    <section className="relative z-10 border-t border-border/40 bg-background/60 py-20">
+    <section className="relative z-10 py-20">
       <div className="mx-auto max-w-6xl px-6">
         <Reveal>
           <div className="flex flex-col items-center gap-6 text-center">

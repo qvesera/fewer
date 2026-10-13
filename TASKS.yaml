@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4126,5 +4126,11 @@ tasks:
     note: "Follow-up session: the preview is now the product, not a miniature. Cards use the real layout.ts dimensions (240x200 / 220x58) at 1:1 in a design-space box that is zoomed to fit its container (ResizeObserver + CSS zoom; below 520px it scrolls rather than truncating names), with the app card shell: folder header with icon tile, name, ~/path and chevron, inline child rows carrying counts and sizes, the N ITEMS footer, the Empty folder state, file cards with the category icon and .ext · size sub-line, and handle dots on the edges. Hover reuses .gm-node-hover and .shadow-node-folder/-file. Edges march at 2px dashed 5 5 (mk-edge-flow) and stop under prefers-reduced-motion like the canvas. CATEGORY_ICON and formatSize moved to nodeVisuals.ts with nodeDisplay re-exporting them, so the marketing tree no longer depends on nodeDisplay or its @xyflow/react import; min-w-0 was added to the hero and pane grid items because the 860px design box otherwise inflated its column and overflowed the hero. Reverted two unexplained bg-background/60 edits found in the worktree (not part of this work, not shipped). Gates: lint 0, tsc 0, bun run test 1800+12+233 0 fail, playwright 38 passed on the committed tree against a NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1 production build, SSR emits 14 cards and 12 edges across both panes."
     proof: ["81ad582", "#421"]
     effort: {commits: 1, files: 11, insertions: 443, deletions: 160}
+  - start: "2026-10-13T20:32:47Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 91
-  session_count: 2
+  session_count: 3

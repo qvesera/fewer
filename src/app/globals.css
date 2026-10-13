@@ -831,6 +831,11 @@ html[data-shell] .react-flow__node > div {
   background-image: radial-gradient(var(--marketing-dot) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
 }
+/* Softer than the raw token — the un-veiled page reads too loud at full
+   alpha (T-150 follow-up). */
+.mk-dotgrid {
+  opacity: 0.6;
+}
 /* The glow layer is the same dots at a stronger colour, revealed through a
    soft radial mask that lerps after the pointer (written as --mk-x/--mk-y by
    DotGrid.tsx). A brightness() filter would whiten the light-mode dots, so

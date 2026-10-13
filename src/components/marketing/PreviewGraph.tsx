@@ -273,7 +273,7 @@ export function PreviewGraph({
   return (
     <div
       ref={ref}
-      className={`overflow-x-auto ${className ?? ""}`}
+      className={`overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
       tabIndex={0}
       role="region"
       aria-label="Sample project graph"
