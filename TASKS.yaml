@@ -4042,7 +4042,7 @@ tasks:
   session_count: 1
 - id: "T-149"
   title: "Marketing home page refresh: stale facts (7→8 formats, nodes→cards), free-feature grid (groups, import breadth, gallery), SEO cleanup (/welcome duplicate, nav anchor, /app metadata), fresh demo screenshot"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4086,10 +4086,10 @@ tasks:
     proof: ["44383a5"]
     effort: {commits: 1, files: 1, insertions: 1, deletions: 1}
   - start: "2026-10-13T15:05:15Z"
-    end: null
+    end: "2026-10-13T15:18:40Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 31
+    note: "Fifth session: resolved the PR 420 conflicts after T-145 (#419) merged into dev. Merged origin/dev into the branch; four conflicts (ExportPanel, CHANGELOG, README, desktop.md) resolved as both intents preserved: dev's T-145 wording with the em-dash rules applied, plus T-148's shell branding gate (both conditions, both comments) and this branch's colon wording. Then eight T-145 doc lines that auto-merged with em dashes were reworded by hand (desktop.md x2, import-export.md x6) so docs+README are back to 0. Gates after the merge: lint 0, tsc 0, bun run test 1792+233 0 fail, playwright 36 passed (incl. the T-145 .fwr round-trip), validate-commits PASS, validate-merge PASS, task:validate OK."
+    proof: ["160e9ca"]
+    effort: {commits: 1, files: 3, insertions: 17, deletions: 11}
+  spent_min: 44
   session_count: 5
