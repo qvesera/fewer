@@ -187,8 +187,8 @@ Auto-generated files (thumbnails, item tiles, `_meta.xml`) are filtered out. Eve
 
 Supported formats:
 
-- **Fewer graph document** (`.fwr`): a saved/exported project — restored whole, with its card ids, positions, tags and groups
-- **JSON**: a Fewer JSON export (structural — the graph is rebuilt from it)
+- **Fewer graph document** (`.fwr`): a saved or exported project, restored whole with its card ids, positions, tags and groups
+- **JSON**: a Fewer JSON export (structural: the graph is rebuilt from it)
 - **ASCII tree**: `tree` command output
 - **Shell/batch script**: `mkdir -p` output
 - **CSV**: previous Fewer export, or your own spreadsheet
@@ -238,7 +238,7 @@ Notes:
 | -------------- | ---------- | ----------------------------------------------- |
 | SVG            | `.svg`     | Vector, documentation, presentations            |
 | PNG            | `.png`     | Raster, slides, social media                    |
-| Fewer graph    | `.fwr`     | Save/share a project — restores the whole graph |
+| Fewer graph    | `.fwr`     | Save/share a project (restores the whole graph) |
 | JSON           | `.json`    | Structural data, re-import, other tools         |
 | CSV            | `.csv`     | Tabular, spreadsheets, re-import                |
 | DOT            | `.dot`     | Graphviz rendering, re-import                   |
@@ -251,20 +251,20 @@ The two formats carry different promises:
 
 - **FWR (`.fwr`)** is a *graph document*: the same snapshot Fewer's own save
   writes, holding every card with its id and position plus the graph's **tags**
-  and **canvas groups**. Importing one restores the graph exactly as it was —
+  and **canvas groups**. Importing one restores the graph exactly as it was,
   and because a document lands whole, the import options (depth, filters,
   extensions) do not apply to it; the import dialog says so instead of offering
   them.
 - **JSON (`.json`)** is the *reduced structural export*: cards, connections and
   positions, nothing that maps by card id. Re-importing it rebuilds the graph
-  from its structure, so **tags and groups are not in it** — use FWR when you
-  want the graph back, JSON when you want the data.
+  from its structure, so **tags and groups are not in it**. Use FWR when you
+  want the graph back and JSON when you want the data.
 
 Fewer graph documents written before this format carried tags and groups (a
 reduced payload inside the same envelope) are **no longer read**: importing one
 fails with a clear error rather than loading blank cards. Export the graph again
 as `.fwr` to get the current format. A library folder of old `.json` copies is
-likewise not scanned — the desktop library reads `.fwr` files only.
+likewise not scanned: the desktop library reads `.fwr` files only.
 
 ### Export Selected
 
