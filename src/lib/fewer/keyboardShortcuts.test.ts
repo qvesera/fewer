@@ -239,7 +239,7 @@ describe("Shift+H with the auto-hide filter on", () => {
       expect(a.showAll).toBe(true);
       expect(a.setShowFiles).toBe(true);
       expect(a.toast?.title).toBe("Nothing to unhide");
-      expect(a.toast?.description).toBe("12 cards stayed hidden — the auto-hide filter still applies");
+      expect(a.toast?.description).toBe("12 cards stayed hidden: the auto-hide filter still applies");
     } finally {
       useGraphStore.setState(useGraphStore.getInitialState(), true);
     }

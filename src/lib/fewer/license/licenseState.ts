@@ -88,7 +88,7 @@ export async function activateLicense(): Promise<ActivateResult> {
     status.state === "expired"
       ? "This license has expired."
       : status.state === "invalid"
-        ? "Signature invalid — not a license issued by Fewer."
+        ? "Signature invalid: not a license issued by Fewer."
         : "Could not read that file.";
   return { ok: false, status, error };
 }

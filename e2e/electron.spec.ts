@@ -142,6 +142,9 @@ test.describe("Electron shell", () => {
 
     // Settings → Help → Report an Issue opens the shared dialog.
     await window.locator('button[title="Settings"]').click();
+    // T-148: the licensing rail ships OFF, so a packaged build offers no path
+    // to Pro — no License tab, no activation flow, no upgrade copy.
+    expect(await window.getByRole("tab", { name: "License" }).count()).toBe(0);
     await window.getByRole("tab", { name: "Help" }).click();
     await window.getByRole("button", { name: "Report an Issue" }).click();
     await expect(window.getByRole("dialog")).toContainText("Report a Bug");

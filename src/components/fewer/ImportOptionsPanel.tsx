@@ -219,7 +219,7 @@ export function ImportOptionsPanel({
                 <div className="space-y-0.5">
                   <Label className="text-xs font-medium">Symlinks</Label>
                   <p className="text-xs text-muted-foreground">
-                    Local-path imports only — browser folder picks can&apos;t detect links.
+                    Local-path imports only: browser folder picks can&apos;t detect links.
                   </p>
                 </div>
               </div>

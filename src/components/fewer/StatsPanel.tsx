@@ -115,7 +115,7 @@ export function StatsPanel() {
                 <button
                   key={cat}
                   onClick={() => toggleCategoryFilter(cat)}
-                  title={active ? `${meta.label} — click to remove from filter` : `Add ${meta.label} to filter`}
+                  title={active ? `${meta.label}: click to remove from filter` : `Add ${meta.label} to filter`}
                   className={cn(
                     "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
                     active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",
@@ -170,7 +170,7 @@ export function StatsPanel() {
                 <button
                   key={tag.id}
                   onClick={() => toggleTagFilter(tag.id)}
-                  title={active ? `Showing only "${tag.label}" — click to clear` : `Show only "${tag.label}" cards`}
+                  title={active ? `Showing only "${tag.label}": click to clear` : `Show only "${tag.label}" cards`}
                   className={cn(
                     "block w-full space-y-1 rounded-md p-1 text-left transition-colors",
                     active ? "bg-primary/10 ring-1 ring-inset ring-primary/40" : "hover:bg-muted/40",

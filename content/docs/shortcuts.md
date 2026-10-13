@@ -56,7 +56,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **-**      | Zoom out                                                                |
 | **0**      | Reset zoom to 100%                                                      |
 | **Ctrl+L** | Cycle layout direction (Top→Bottom, Left→Right, Bottom→Top, Right→Left) |
-| **Alt+F**  | Zoom to selection (cards or groups — frame or pill)                      |
+| **Alt+F**  | Zoom to selection (cards or groups: frame or pill)                      |
 | **Alt+R**  | Organize graph                                                           |
 | **Alt+↑**  | Move focused sidebar section up (drag grip or Alt+↑/↓)                   |
 | **Alt+↓**  | Move focused sidebar section down (drag grip or Alt+↑/↓)                 |
@@ -74,7 +74,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **Alt+I** | Open import dialog (choose folder / file / URL / cloud source) |
 | **Alt+O** | Open selected folder in file explorer (disabled in the web build) |
 
-> **Alt+O is disabled in the shipped web build** — it needs the server-side OS
+> **Alt+O is disabled in the shipped web build**: it needs the server-side OS
 > opener gated by `LOCAL_FS_FEATURES.openInOs` (`src/lib/fewer/features.ts`).
 
 ## Reference
@@ -88,7 +88,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | Gesture            | Action                                             |
 | ------------------ | -------------------------------------------------- |
 | **Drag (canvas)**  | Pan the canvas                                     |
-| **Shift+drag**     | Box-select cards — adds to the existing selection  |
+| **Shift+drag**     | Box-select cards: adds to the existing selection  |
 
 ## Tips
 

@@ -88,6 +88,8 @@ scripts/*
 !scripts/vendor-libarchive.ts
 # the desktop static-export build (see package.json build:desktop)
 !scripts/build-desktop.sh
+# the marketing hero screenshot tool (see package.json shot)
+!scripts/marketing-shot.ts
 lighthouse/*
 .clinerules/*
 

@@ -266,16 +266,28 @@ describe("visibleTabs", () => {
 
   // ─── desktop shell (T-099): no account/cloud surfaces ────────────────
 
-  it("shell tabs drop account/watched/cloud and keep license (T-099)", () => {
+  it("shell tabs drop account/watched/cloud, and have no License tab while the rail is off (T-099/T-148)", () => {
     expect(
       visibleTabs({ tier: "free", isMobile: false, advancedMode: false, inShell: true }),
+    ).toEqual(["about", "appearance", "advanced", "help"]);
+  });
+
+  it("the License tab comes back only when the licensing rail is on", () => {
+    expect(
+      visibleTabs({
+        tier: "free",
+        isMobile: false,
+        advancedMode: false,
+        inShell: true,
+        licensing: true,
+      }),
     ).toEqual(["about", "appearance", "license", "advanced", "help"]);
   });
 
   it("shell mobile guest hides advanced like web, still no account tabs", () => {
     expect(
       visibleTabs({ tier: "guest", isMobile: true, advancedMode: false, inShell: true }),
-    ).toEqual(["about", "appearance", "license", "help"]);
+    ).toEqual(["about", "appearance", "help"]);
   });
 
   it("web tabs are unchanged when inShell is absent", () => {

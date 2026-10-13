@@ -14,7 +14,7 @@ The rest of these Terms spell out the details, but here is the summary:
 
 - Fewer is a browser-based directory graph visualizer. Your data stays local unless you save or share it.
 - It is **free**, **open source** ([AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)), and you can run your own copy.
-- The service is provided **"as is"** — we aim for reliability but make no guarantees and have limited liability.
+- The service is provided **"as is"**: we aim for reliability but make no guarantees and have limited liability.
 - We keep your data to a minimum, don't sell it, and you keep full ownership of everything you create.
 - Disputes start with a human conversation, not a courtroom. If you have a problem, tell us first.
 
@@ -91,7 +91,7 @@ To the maximum extent permitted by law, fewer and its operators shall not be lia
 
 ## 11. Indemnification
 
-You agree to indemnify and hold harmless fewer and its operators from and against claims brought by third parties that arise out of your violation of these Terms or your misuse of the Service, subject to our prompt notice to you of any such claim and our reasonable cooperation. This clause is limited to third-party claims caused by your breach — it does not require you to cover losses caused by our own negligence or unrelated faults.
+You agree to indemnify and hold harmless fewer and its operators from and against claims brought by third parties that arise out of your violation of these Terms or your misuse of the Service, subject to our prompt notice to you of any such claim and our reasonable cooperation. This clause is limited to third-party claims caused by your breach: it does not require you to cover losses caused by our own negligence or unrelated faults.
 
 ## 12. Suspension and Termination
 
@@ -102,7 +102,7 @@ You agree to indemnify and hold harmless fewer and its operators from and agains
 ## 13. Changes to These Terms
 
 - We may update these Terms from time to time. We will update the "Last updated" date at the top and post a notice of material changes on the Service.
-- **No retroactive surprises.** Material changes apply only to your future use and take effect on the date stated in the notice — they do not apply retroactively to activity before that date.
+- **No retroactive surprises.** Material changes apply only to your future use and take effect on the date stated in the notice: they do not apply retroactively to activity before that date.
 - **Continued use is not a silent yes.** We will not treat continued use alone as acceptance of a material change where the law or fairness requires your explicit consent; in such cases we will ask for it.
 - For non-material (e.g., grammatical or clarifying) changes, we will update the date without a separate notice.
 

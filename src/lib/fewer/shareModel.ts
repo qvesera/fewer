@@ -117,11 +117,11 @@ export function inviteEmailHtml(inviterEmail: string, graphName: string, link: s
     intro: `${inviterEmail} shared "${graphName}" with you on fewer.`,
     body: "",
     cta: { text: "Open the graph", href: link },
-    footnote: "This link is private — don't forward it. It works without an account.",
+    footnote: "This link is private: don't forward it. It works without an account.",
   });
 }
 
 /** Plain-text body of the invite email. */
 export function inviteEmailText(inviterEmail: string, graphName: string, link: string): string {
-  return `${inviterEmail} invited you to view "${graphName}" on fewer.\n\nOpen the graph: ${link}\n\nThis link is private — don't forward it.`;
+  return `${inviterEmail} invited you to view "${graphName}" on fewer.\n\nOpen the graph: ${link}\n\nThis link is private: don't forward it.`;
 }

@@ -52,7 +52,7 @@ interface HostBridge {
  */
 export function hostInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const noHost = (): Promise<never> =>
-    Promise.reject(new Error(`not running inside a desktop shell (no host bridge) — command "${cmd}"`));
+    Promise.reject(new Error(`not running inside a desktop shell (no host bridge); command "${cmd}"`));
   if (typeof window === "undefined") return noHost();
   const w = window as unknown as HostBridge;
   const bridges: Array<{ present: boolean; invoke?: Invoke; name: string }> = [

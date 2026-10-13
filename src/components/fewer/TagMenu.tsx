@@ -60,7 +60,7 @@ export function TagMenu({
       <ContextMenuSubContent className="w-52">
         {tags.length === 0 && !creating && (
           <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-            No tags yet — create one below.
+            No tags yet. Create one below.
           </div>
         )}
         {tags.map((tag) => {

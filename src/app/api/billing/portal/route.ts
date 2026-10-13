@@ -25,7 +25,7 @@ export async function POST() {
   const customerId = profile?.stripe_customer_id ?? null;
   if (!customerId) {
     return NextResponse.json(
-      { error: "No billing account yet — upgrade to Pro first." },
+      { error: "No billing account yet: upgrade to Pro first." },
       { status: 400 },
     );
   }

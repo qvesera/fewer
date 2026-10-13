@@ -58,8 +58,8 @@ The `build:netlify` script skips the standalone output step (Netlify handles its
 
 Fewer splits its public surface across two domains on the same Netlify site, and the app lives at a sub-path:
 
-- **`fewer.directory`** — the marketing homepage, privacy policy, docs, and blog. Visiting `/` on any host serves this page (`src/app/page.tsx`); the visitor does **not** need to sign in.
-- **`app.fewer.directory`** — the interactive app. The app itself lives at **`/app`** (`src/app/app/page.tsx`); `app.fewer.directory` and the Netlify `.app` subdomain redirect their root to `/app` (Netlify redirect rules with a `Host` header condition), so the app domain lands directly on the app.
+- **`fewer.directory`**: the marketing homepage, privacy policy, docs, and blog. Visiting `/` on any host serves this page (`src/app/page.tsx`); the visitor does **not** need to sign in.
+- **`app.fewer.directory`**: the interactive app. The app itself lives at **`/app`** (`src/app/app/page.tsx`); `app.fewer.directory` and the Netlify `.app` subdomain redirect their root to `/app` (Netlify redirect rules with a `Host` header condition), so the app domain lands directly on the app.
 
 In Netlify, add `app.fewer.directory` (and optionally `www.fewer.directory`) as **domain aliases** on the same site; with Netlify DNS the records and TLS are provisioned automatically. The `NEXT_PUBLIC_APP_URL` env var (used for OAuth callbacks at `/api/cloud/callback` and share links) must point at the **app** origin: `https://app.fewer.directory`.
 
@@ -88,7 +88,7 @@ A few features reach outside the browser tab: **Open in File Explorer**
 (**Alt+O**), **Open File** (**Enter**), dragging a folder from your OS onto the
 canvas (import on an empty canvas, expand-from-disk otherwise), and the File
 System Access directory picker. They depend on server-side OS openers
-(`/api/open-folder`, `/api/open-file`, `/api/list-directory` — all restricted to
+(`/api/open-folder`, `/api/open-file`, `/api/list-directory`: all restricted to
 localhost requests) or on browser APIs that do not exist in every webview, so
 they are **switched off by default** in `src/lib/fewer/features.ts`:
 
@@ -105,7 +105,7 @@ export const LOCAL_FS_FEATURES = {
 Set a flag to `true` and rebuild to restore that feature (useful for a
 self-hosted instance you access over localhost, or a native/Tauri build that
 replaces the OS openers with native commands). These are **build-time constants,
-not environment variables** — nothing to add to `.env`.
+not environment variables**: nothing to add to `.env`.
 
 Folder import itself is never gated: it uses the legacy `webkitdirectory` picker,
 which works in every browser and webview. The same applies to file/URL/cloud
@@ -147,7 +147,7 @@ Accounts, saved graphs, crawl caching, and server-backed share links use **Supab
 > - **Prod** `SUPABASE_SERVICE_ROLE_KEY` → Netlify env (accounts, watch digest, account deletion).
 > - **Dev** `SUPABASE_SERVICE_ROLE_KEY` → only your local `.env.local` (never commit it) or the non-prod deploy environment.
 >
-> Both projects need their own dashboard auth settings (Email provider, confirm-email, Site URL + redirect URLs) — the values below are production-specific.
+> Both projects need their own dashboard auth settings (Email provider, confirm-email, Site URL + redirect URLs): the values below are production-specific.
 
 ### Production go-live checklist
 
@@ -155,7 +155,7 @@ One-time settings to verify before real users arrive:
 
 1. **Supabase dashboard → Authentication → Providers → Email**: make sure **Email** is enabled (it is the only sign-in provider).
 2. **Supabase dashboard → Authentication → Sign In / Up**: turn on **Confirm email** so new accounts must verify their address (blocks fake sign-ups). The app's sign-up dialog already prompts "Check your email".
-3. **Supabase dashboard → Authentication → URL Configuration**: set **Site URL** to your production app origin (e.g. `https://app.fewer.directory`) and add your origin + `https://app.fewer.directory/auth/callback` to **Redirect URLs** — required for password-reset and email-confirmation links.
+3. **Supabase dashboard → Authentication → URL Configuration**: set **Site URL** to your production app origin (e.g. `https://app.fewer.directory`) and add your origin + `https://app.fewer.directory/auth/callback` to **Redirect URLs**: required for password-reset and email-confirmation links.
 4. **Netlify env vars**: linking the Netlify ⇄ Supabase integration sets `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` automatically. Add the rest manually: `NEXT_PUBLIC_APP_URL` (production origin, used in emailed links), `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `CONNECTIONS_ENCRYPTION_KEY` (`openssl rand -base64 32`), and the per-provider OAuth keys below.
 5. **Run migrations on the hosted project**: `supabase link --project-ref <ref>` then `supabase db push`, so hardening migrations (e.g. `0012_harden_share_rls.sql`) are applied before launch.
 6. **Verify invite-only sharing in an incognito window**: open an invite link signed out → 403 + sign-in prompt → sign in as the invited email → the graph loads.
@@ -187,7 +187,7 @@ Watching file indexes and emailing daily change digests uses **Resend** for emai
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-side only) so the nightly job can read every user's watchlist |
 | `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` route (manual/debug trigger) |
 
-The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts` — crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables — same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
+The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts`: crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables: same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
 
 ### Email Templates
 
@@ -201,14 +201,14 @@ All outbound emails (auth flows + digest + invite) share one shell defined in `s
 3. Paste each file's content into the corresponding template (Confirmation, Magic Link, Reset Password, Change Email, Invite, Reauthentication).
 4. Set subjects to match the generated filenames.
 
-**Optional — custom SMTP (recommended):** Enable custom SMTP in Dashboard → Authentication → Email → SMTP Settings, pointing at your Resend SMTP credentials. This makes auth emails come from your domain instead of `noreply@mail.app.supabase.io`, matching the digest/invite sender.
+**Optional: custom SMTP (recommended):** Enable custom SMTP in Dashboard → Authentication → Email → SMTP Settings, pointing at your Resend SMTP credentials. This makes auth emails come from your domain instead of `noreply@mail.app.supabase.io`, matching the digest/invite sender.
 
-## Billing (Stripe) — off by default
+## Billing (Stripe): off by default
 
 Self-serve Pro checkout, the billing portal, and the Stripe webhook all sit behind
 a feature flag and ship **disabled**: while `BILLING_ENABLED=false`, every
 `/api/billing/*` route returns 503 and the client hides the upgrade UI, so plans
-are assigned directly in the database (`profiles.plan` — seed the tier table with
+are assigned directly in the database (`profiles.plan`: seed the tier table with
 `python3 scripts/gen-seed-plans.py`; the Plans docs page stays unpublished while
 billing is untested).
 
@@ -217,9 +217,9 @@ billing is untested).
 | `BILLING_ENABLED` | Server-side gate for `/api/billing/*`. Keep `false` until checkout is tested end to end |
 | `NEXT_PUBLIC_BILLING_ENABLED` | Client-side gate: hides upgrade UI while off. Must match `BILLING_ENABLED` |
 | `STRIPE_SECRET_KEY` | Server-side Stripe key (`sk_test_…` in dev). Only read when billing is enabled |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/billing/webhook` (`whsec_…` — from `stripe listen` in dev) |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `POST /api/billing/webhook` (`whsec_…`: from `stripe listen` in dev) |
 | `STRIPE_PRO_PRICE_ID` | Recurring monthly price ID of the "fewer Pro" product (`price_…`) |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Accepted but unused — every Stripe call is server-side |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Accepted but unused: every Stripe call is server-side |
 
 **Never grant plan changes through the client.** `profiles.plan` and
 `stripe_customer_id` are service-role-only columns; migrations `0022`/`0026` keep
@@ -265,7 +265,7 @@ https://your-domain.com/api/cloud/callback   (prod)
 All four Microsoft-backed providers use a single Azure AD app.
 
 1. Go to [Azure Portal](https://portal.azure.com) → **App registrations → New registration**.
-2. **Supported account types**: choose **"Any Entra ID Tenant + Personal Microsoft accounts"** (the `common` tenant). This allows both personal OneDrive accounts and work/school accounts (SharePoint, Azure DevOps, Azure Blob). If you only need your own organization, "Single tenant" also works — set `MICROSOFT_TENANT` to your tenant ID instead of `common`.
+2. **Supported account types**: choose **"Any Entra ID Tenant + Personal Microsoft accounts"** (the `common` tenant). This allows both personal OneDrive accounts and work/school accounts (SharePoint, Azure DevOps, Azure Blob). If you only need your own organization, "Single tenant" also works: set `MICROSOFT_TENANT` to your tenant ID instead of `common`.
 3. Set the **Redirect URI** to a **Web** platform: `https://your-domain.com/api/cloud/callback`.
 4. Under **Certificates & secrets → New client secret**, create one and copy it.
 5. Under **API permissions → Add a permission → Microsoft Graph → Delegated**, add:
@@ -285,11 +285,11 @@ All four Microsoft-backed providers use a single Azure AD app.
 
 **"Could not grant admin consent. Your organization does not have a subscription (or service principal) for: Microsoft Graph, Azure DevOps, Azure Storage"**
 
-This is expected on free/personal Entra tenants — they have no Azure DevOps org or Azure Storage subscription, so those service principals can't exist.
+This is expected on free/personal Entra tenants: they have no Azure DevOps org or Azure Storage subscription, so those service principals can't exist.
 
 Fix:
 1. **Remove** the Azure DevOps and Azure Storage API permissions from the registration. They're only needed with real Azure resources.
-2. **Skip "Grant admin consent"** — it's optional for delegated scopes. Consent happens at first sign-in.
+2. **Skip "Grant admin consent"**: it's optional for delegated scopes. Consent happens at first sign-in.
 3. Keep only `User.Read` + `Files.Read` for personal OneDrive. Drop `Files.Read.All` / `Sites.Read.All` if they also fail consent.
 
 Account-type reality check:

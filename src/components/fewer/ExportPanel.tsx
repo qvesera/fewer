@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
 import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
 import { can } from "@/lib/fewer/tiers";
+import { isHost } from "@/lib/fewer/nativeShell";
 
 const BASIC_FORMATS: {
   value: ExportSettings["format"];
@@ -86,8 +87,8 @@ const ADVANCED_FORMATS: {
   info: string;
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
-  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Structural export for programmatic use — re-import rebuilds the graph, and it carries no tags or groups." },
-  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's graph document — cards with positions, tags and groups exactly as saved. Re-import restores the whole graph on desktop or web." },
+  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Structural export for programmatic use: re-import rebuilds the graph, and it carries no tags or groups." },
+  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's graph document: cards with positions, tags and groups exactly as saved. Re-import restores the whole graph on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
@@ -417,14 +418,18 @@ export function ExportPanel() {
 
           {/* A `.fwr` document carries no meta/credit line (it is a document,
               not an export payload), so the branding control would promise a
-              watermark it does not write — hide it there (T-145). */}
-          {settings.format !== "fwr" && (
+              watermark it does not write; hide it there (T-145).
+              In the shell the control only appears once it can actually be
+              toggled: with the licensing rail off there is no sign-in and no
+              licence to remove the watermark with, so a disabled control (and
+              its "sign in" promise) would be a dead end (T-148). */}
+          {settings.format !== "fwr" && (canRemoveBranding || !isHost()) && (
             <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
               <div className="space-y-0.5">
                 <Label className="text-xs font-semibold">Include fewer branding</Label>
                 <p className="text-xs text-muted-foreground">
                   {!canRemoveBranding
-                    ? "Signed out — exports carry the fewer watermark until you sign in."
+                    ? "Signed out: exports carry the fewer watermark until you sign in."
                     : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
                 </p>
               </div>

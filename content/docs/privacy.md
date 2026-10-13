@@ -16,15 +16,15 @@ Fewer is a browser-based tool that turns directory structures into interactive g
 - **We do not sell your data.** We do not run ads, and we do not track you across the Internet.
 - **We collect almost nothing unless you sign in.** Optional features (accounts, saving across devices, share links, email invites, and email digests) involve a small, clearly described set of data. When you don't use them, we handle almost none of your personal information.
 - **You are in control.** You can export your data, delete any saved graph, unsubscribe from any email, or delete your account at any time.
-- **You can stop at any moment.** Close the tab and everything that only lives in your browser disappears. Server-side data you delete is removed promptly — account deletion completes within 7 days (a grace window that lets you cancel by signing back in; see "Deletion requests" below).
+- **You can stop at any moment.** Close the tab and everything that only lives in your browser disappears. Server-side data you delete is removed promptly: account deletion completes within 7 days (a grace window that lets you cancel by signing back in; see "Deletion requests" below).
 
-If a section ever surprises you, tell us — we would rather make the policy clearer than surprise you.
+If a section ever surprises you, tell us: we would rather make the policy clearer than surprise you.
 
 ## About Fewer
 
 This Privacy Policy explains how fewer ("we", "our", or "us") handles information when you use the fewer web application and related services (together, the "Service"). The interactive app lives at [app.fewer.directory](https://app.fewer.directory). The homepage and public site are at [fewer.directory](https://fewer.directory).
 
-Fewer is open source, licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html). Because the code is public, anyone can verify how the product actually behaves — including what it does and does not collect.
+Fewer is open source, licensed under the [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html). Because the code is public, anyone can verify how the product actually behaves, including what it does and does not collect.
 
 By using the Service, you agree to the practices described in this policy.
 
@@ -60,7 +60,7 @@ Because fewer is a client-side application, we collect very little. What we hand
 
 ### Data from Optional Connected Services
 
-- **Cloud connections.** If you opt in to connect a third-party service (GitHub, Google, Microsoft — covering OneDrive, SharePoint, Azure DevOps, and Azure Blob), we access those services on your behalf through OAuth, but only to list and import the trees you request. We use the minimum access needed for the task. Access tokens are encrypted at rest before storage and tied to your account. The contents of your connected accounts are not stored.
+- **Cloud connections.** If you opt in to connect a third-party service (GitHub, Google, Microsoft: covering OneDrive, SharePoint, Azure DevOps, and Azure Blob), we access those services on your behalf through OAuth, but only to list and import the trees you request. We use the minimum access needed for the task. Access tokens are encrypted at rest before storage and tied to your account. The contents of your connected accounts are not stored.
 
 ## 3. Who We Share Your Data With
 
@@ -98,12 +98,12 @@ We do **not** use your data to build profiles of you, to target advertising, or 
 - **Encryption at rest.** Saved data is stored on encrypted infrastructure. Cloud access tokens are individually encrypted at rest.
 - **Access controls.** Saved graphs are private to your account and protected by row-level security except where you deliberately share them.
 - **How long we keep data.** We keep data only as long as needed for the purpose it was collected.
-- **Account + saved graphs.** While your account is active; when you request deletion, removed within 7 days (a grace window lets you cancel by signing back in — data is permanently purged when it lapses).
+- **Account + saved graphs.** While your account is active; when you request deletion, removed within 7 days (a grace window lets you cancel by signing back in; data is permanently purged when it lapses).
 - **Share links.** Until you delete the link.
 - **Email invites.** The recipient's email and one-time token are kept only long enough to deliver and validate the invite.
 - **Service logs.** Retained under our hosting provider's schedule, never used for advertising.
 
-No internet transmission or electronic storage is ever 100% secure, so we cannot guarantee absolute security — but we take reasonable, industry-standard measures.
+No internet transmission or electronic storage is ever 100% secure, so we cannot guarantee absolute security, but we take reasonable, industry-standard measures.
 
 ## 6. Data Transfer Across Borders
 
@@ -111,7 +111,7 @@ Your information may be stored and processed in a different country from your ow
 
 ## 7. Your Rights and Controls
 
-Depending on where you live — including under India's Digital Personal Data Protection Act (DPDP Act) 2023, the GDPR, UK GDPR, Brazil's LGPD, California's CCPA/CPRA, and similar laws — you may have the right to:
+Depending on where you live (including under India's Digital Personal Data Protection Act (DPDP Act) 2023, the GDPR, UK GDPR, Brazil's LGPD, California's CCPA/CPRA, and similar laws), you may have the right to:
 
 - **Access** a copy of the personal data we hold about you.
 - **Correct** inaccurate data.
@@ -138,7 +138,7 @@ Fewer is not directed at children under the age of 13 (or the applicable minimum
 
 Optional cloud connections (GitHub, Google, Microsoft) work strictly on your initiation:
 
-- We only fetch directory listings from the service you connect — we never search or download the contents of your accounts wholesale.
+- We only fetch directory listings from the service you connect: we never search or download the contents of your accounts wholesale.
 - Tokens are encrypted at rest and can be revoked at any time by disconnecting.
 - Disconnecting a connected service revokes the stored token so it can no longer be used.
 - Disconnecting does not delete data you already imported; that data stays under your control.
@@ -153,9 +153,9 @@ If we change what data we collect or how we handle it, we will update this page 
 
 ## 12. Contact Us
 
-Questions, requests, or concerns are welcome — we would rather you tell us than wonder.
+Questions, requests, or concerns are welcome: we would rather you tell us than wonder.
 
 - **GitHub:** open an issue on the [fewer repository](https://github.com/qvesera/fewer) or message the maintainers.
-- **Email / security:** for privacy-specific requests, use a GitHub issue marked private/security — do not paste sensitive personal data into a public thread; [SECURITY.md](https://github.com/qvesera/fewer/blob/main/SECURITY.md) has guidance.
+- **Email / security:** for privacy-specific requests, use a GitHub issue marked private/security, and do not paste sensitive personal data into a public thread; [SECURITY.md](https://github.com/qvesera/fewer/blob/main/SECURITY.md) has guidance.
 
 We will respond to privacy requests as promptly as the law requires and aim to do better. If you are unsatisfied with our response, and it applies to you, you may also contact your local data-protection authority.

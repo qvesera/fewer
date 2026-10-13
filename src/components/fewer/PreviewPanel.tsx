@@ -13,6 +13,7 @@ import { nativeFsReadBytes } from "@/lib/fewer/nativeShell";
 import { openNodeFile } from "@/lib/fewer/folderSync";
 import { useGraphStore } from "@/store/graphStore";
 import { can } from "@/lib/fewer/tiers";
+import { LICENSING_ENABLED } from "@/lib/fewer/licensing";
 
 export function PreviewPanel() {
   const { target, closePreview } = usePreviewStore();
@@ -81,7 +82,9 @@ export function PreviewPanel() {
         <div className="min-h-[200px] flex-1 overflow-auto flex items-center justify-center">
           {!licensed ? (
             <p className="text-sm text-muted-foreground text-center px-4">
-              File preview is a Pro feature. Activate a Fewer license in Settings → License.
+              {LICENSING_ENABLED
+                ? "File preview is a Pro feature. Activate a Fewer license in Settings → License."
+                : "File preview isn't available in this build. Open the file in your system app instead."}
             </p>
           ) : loading ? (
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -92,7 +95,7 @@ export function PreviewPanel() {
           ) : kind === "pdf" && objectUrl ? (
             <object data={objectUrl} type="application/pdf" className="w-full h-[65vh]">
               <p className="text-sm text-muted-foreground p-4">
-                PDF preview unavailable in this webview — use “Open” to view it in your system app.
+                PDF preview unavailable in this webview: use “Open” to view it in your system app.
               </p>
             </object>
           ) : kind === "text" && text !== null ? (

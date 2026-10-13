@@ -66,7 +66,7 @@ export async function runArchiveImport(
       const cap = MAX_ARCHIVE_ENTRIES.toLocaleString();
       notes.unshift({
         title: "Archive listing truncated",
-        description: `The archive holds more than ${cap} entries — the first ${cap} were imported.`,
+        description: `The archive holds more than ${cap} entries: the first ${cap} were imported.`,
       });
     }
 

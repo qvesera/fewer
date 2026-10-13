@@ -357,7 +357,7 @@ function AccountTab() {
                 maxLength={100}
               />
               <p className="text-[11px] text-muted-foreground/70">
-                Letters, numbers, underscores &amp; dots — no "@".
+                Letters, numbers, underscores &amp; dots, no "@".
               </p>
             </div>
           </div>
@@ -470,7 +470,7 @@ function AccountTab() {
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground/80">Email</span>
               <span className="font-medium text-foreground/80 flex items-center gap-1">
-                {user.email ?? "—"}
+                {user.email ?? "-"}
                 {user.email_confirmed_at ? (
                   <span className="text-emerald-600 dark:text-emerald-400">✓ Verified</span>
                 ) : (
@@ -543,7 +543,7 @@ function AccountTab() {
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Change Email</span>
               <span className="text-[11px] text-muted-foreground/70">
-                Current: {user.email ?? "—"}
+                Current: {user.email ?? "-"}
               </span>
             </div>
           </div>
@@ -581,7 +581,7 @@ function AccountTab() {
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Delete account</span>
               <span className="text-[11px] text-muted-foreground/70">
-                Schedules permanent removal in 7 days — sign in again to cancel
+                Schedules permanent removal in 7 days; sign in again to cancel
               </span>
             </div>
           </div>
@@ -888,7 +888,7 @@ function AppearanceTab() {
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             Controls how siblings are ordered within each folder. Sort keys
-            apply recursively and re-layout the whole graph immediately — the new
+            apply recursively and re-layout the whole graph immediately; the new
             order is saved with your other preferences and remembered next time
             you open the app (it does not travel with a saved graph). Folder
             size uses the value recorded when the graph was imported; if a
@@ -936,7 +936,7 @@ function AppearanceTab() {
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground/70">
             {edgeAnimatedSelectedOnly
-              ? "Only the connections along the selected cards' path to the root animate — in the chosen dashed/dotted pattern. All other connections follow the Connection Styling controls above."
+              ? "Only the connections along the selected cards' path to the root animate, in the chosen dashed/dotted pattern. All other connections follow the Connection Styling controls above."
               : "Turn this on to animate just the selection path; every other connection follows the Connection Styling controls above."}
           </p>
         </div>
@@ -1148,7 +1148,7 @@ function AdvancedTab() {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
-                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches — wider gaps around larger, deeper branch clusters. 0 disables it, 1 is the usual spacing, and the response curves upward from there: 2 is clearly looser and 3 opens the tree right up, which is where the range is capped — 3 is as loose as the layout gets.</p>
+                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches, with wider gaps around larger, deeper branch clusters. 0 disables it, 1 is the usual spacing, and the response curves upward from there: 2 is clearly looser and 3 opens the tree right up, which is as loose as the layout gets.</p>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80">
                 <EditableNumber value={shynessPreview} onCommit={(v) => setShynessScale(v)} labelFn={(v) => `${v.toFixed(1)}×`} />

@@ -29,7 +29,6 @@ import {
 } from "@/lib/fewer/graphsData";
 import { getLibraryDir } from "@/lib/fewer/libraryConfig";
 import { isHost } from "@/lib/fewer/nativeShell";
-import { can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import {
   buildShareRequestBody,
@@ -91,8 +90,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [backend, setBackend] = useState<GraphsBackend>(() => getGraphsBackend());
   const localMode = backend.local;
   const inShell = isHost();
-  // Library saves are a desktop Pro feature (license gate, T-090).
-  const libraryLicensed = can("localLibrary", tier);
+  // The local library is free (T-148): no licence gate on saving.
 
   const loadGraphs = useCallback(async () => {
     // Shell with no library dir chosen yet (T-099): nothing to list — the
@@ -153,10 +151,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       toast({ title: "Choose a library folder", description: "Use the folder prompt in Your Directories to pick where graphs are saved." });
       return;
     }
-    if (localMode && !libraryLicensed) {
-      toast({ title: "Pro license required", description: "Activate a Fewer license in Settings → License to save graphs to the local library.", variant: "destructive" });
-      return;
-    }
     if (!localMode && tier === "guest") return onRequireAuth();
     const updating = saveTarget !== "new";
     // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
@@ -193,10 +187,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const openSaveDialog = () => {
-    if (localMode && !libraryLicensed) {
-      toast({ title: "Pro license required", description: "Activate a Fewer license in Settings → License to save graphs to the local library.", variant: "destructive" });
-      return;
-    }
     if (!localMode && tier === "guest") return onRequireAuth();
     if (nodes.length === 0) {
       toast({ title: "Nothing to save", description: "Add cards to your canvas first." });
@@ -299,10 +289,10 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       </Button>
 
       {/* Desktop library location (T-089): pick the local Fewer Library folder */}
-      {inShell && !getLibraryDir() && libraryLicensed && (
+      {inShell && !getLibraryDir() && (
         <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
           <p className="text-[11px] text-muted-foreground/80">
-            Desktop builds keep graphs in a local Fewer Library folder — no account needed.
+            Desktop builds keep graphs in a local Fewer Library folder, no account needed.
           </p>
           <Button
             variant="outline"
@@ -318,11 +308,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
       {localMode && (
         <p className="px-1 text-[10px] text-muted-foreground/60 truncate" title={getLibraryDir()}>
           Library: {getLibraryDir()}
-        </p>
-      )}
-      {inShell && !getLibraryDir() && !libraryLicensed && (
-        <p className="px-1 text-[11px] text-muted-foreground/70">
-          Local graph saving needs a Fewer Pro license — Settings → License.
         </p>
       )}
 
@@ -848,7 +833,7 @@ function ShareGraphDialog({
           {access === "none" ? (
             <p className="text-[11px] text-muted-foreground/70">
               {existingId
-                ? "A share link still exists — use Stop sharing below to make it fully private."
+                ? "A share link still exists: use Stop sharing below to make it fully private."
                 : "This saved graph is private and visible only to you."}
             </p>
           ) : (

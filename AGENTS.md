@@ -80,11 +80,18 @@ The desktop app is a **static export** (`out/`) loaded by an Electron shell —
   save/share/gallery/URL-import/watch/history/billing) — one map, no scattered
   checks. External http(s) links open in the system browser
   (`webContents.setWindowOpenHandler`).
-- **Standalone tier model** (T-100): shell tier = `devOverride ?? (licensed ?
-  'pro' : 'free')` — **never `guest`** (that would blank advanced UI);
-  `SHELL_MIN_TIER`/`canFor()` in tiers.ts apply shell-only overrides (e.g.
-  `unbrandedExport` → license); settings are localStorage-only (`isHost()`
-  guards both `/api/settings` fetches). Web tiers unchanged.
+- **Standalone tier model** (T-100, revised by T-148): the shell tier comes
+  from `shellTier(licensed, devOverride())` in `licensing.ts` — **never
+  `guest`** (that would blank advanced UI). The `NEXT_PUBLIC_LICENSING_ENABLED`
+  build switch ships **off**: the shell tier is pinned to `free`, so a
+  `.fewerlicense` file and `?tier=pro` are both inert, the License tab in
+  Settings does not exist, and no copy offers an upgrade path — a free build
+  offers no path to Pro at all (flip it only for a build paired with a
+  purchase path that works in every market). The local graph library is
+  **free** everywhere (T-148); `SHELL_MIN_TIER`/`canFor()` in tiers.ts still
+  apply shell-only overrides (e.g. `unbrandedExport` → license); settings are
+  localStorage-only (`isHost()` guards both `/api/settings` fetches). Web
+  tiers unchanged.
 - **Local-first stores** (T-101): graphs save as `.fwr` documents
   (`{format_version, app, graph}` — same shape `localLibrary.ts` always wrote,
   new extension); since T-145 only `.fwr` is read back (legacy `.json` copies

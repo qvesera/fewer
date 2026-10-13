@@ -408,7 +408,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           } else if (stillHidden > 0) {
             ctx.toast({
               title: "Nothing to unhide",
-              description: `${pluralizeCount(stillHidden, "card")} stayed hidden — the auto-hide filter still applies`,
+              description: `${pluralizeCount(stillHidden, "card")} stayed hidden: the auto-hide filter still applies`,
             });
           }
           ctx.setShowFiles(true);

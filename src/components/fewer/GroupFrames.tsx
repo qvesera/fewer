@@ -606,7 +606,7 @@ export function GroupFrame({
               </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs whitespace-pre-wrap text-left">
-              {group.note || "No note yet — click the note icon to add one"}
+              {group.note || "No note yet: click the note icon to add one"}
             </TooltipContent>
           </Tooltip>
         )}

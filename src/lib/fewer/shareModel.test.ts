@@ -132,7 +132,7 @@ describe("shareResponseBody", () => {
 describe("invite email bodies", () => {
   it("the text body embeds inviter, graph and token link", () => {
     expect(inviteEmailText("me@x.org", "My Graph", "https://app/#i:tok")).toBe(
-      'me@x.org invited you to view "My Graph" on fewer.\n\nOpen the graph: https://app/#i:tok\n\nThis link is private — don\'t forward it.',
+      'me@x.org invited you to view "My Graph" on fewer.\n\nOpen the graph: https://app/#i:tok\n\nThis link is private: don\'t forward it.',
     );
   });
 

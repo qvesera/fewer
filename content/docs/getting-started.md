@@ -56,7 +56,7 @@ After import, you'll see:
 
 ## Reload Persistence
 
-The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph — including card positions and edits — without re-importing. No account needed. Clearing the canvas removes the cache.
+The graph on your canvas is cached locally, so refreshing or reopening the app brings back the last graph, including card positions and edits, without re-importing. No account needed. Clearing the canvas removes the cache.
 
 ## Keyboard Navigation
 
@@ -84,7 +84,7 @@ Fewer works fully without an account. If you'd like to save your directories to 
 <!-- shell:on -->
 ## In the Desktop App
 
-Fewer on the desktop is fully local — no account, no sign-in, nothing in a top navbar to click. Saved projects live in `~/Documents/fewer`; see the [Fewer Desktop App](/docs/desktop) guide.
+Fewer on the desktop is fully local: no account, no sign-in, nothing in a top navbar to click. Saved projects live in `~/Documents/fewer`; see the [Fewer Desktop App](/docs/desktop) guide.
 <!-- /shell:on -->
 
 ## What's Next
