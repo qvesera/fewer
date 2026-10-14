@@ -4144,5 +4144,11 @@ tasks:
     note: "home density pass: one sample graph (hero deleted, swatches moved into #compare header), capabilities bullets collapsed into one 4-across footnote strip, e2e region-count guard"
     proof: ["3a4c5b3", "#421"]
     effort: {commits: 1, files: 7, insertions: 93, deletions: 101}
-  spent_min: 126
-  session_count: 5
+  - start: "2026-10-14T10:42:02Z"
+    end: "2026-10-14T12:54:48Z"
+    measured: true
+    note: "Follow-up sessions on the review feedback. The canvas became the home page's hero: full-bleed on the dot grid, headline and CTAs in a compact bar, the tree/fewer toggle and accent swatches moved into a floating View panel in the app's panel chrome, and one feature at a time explained in an inspector panel with a title bar and a close button. Twelve features anchored to real cards with micro-proofs (mkdir script, group frame, batch action list, find/replace rows, key chips, spacing slider, import/export chips, digest row, share rows, tag ring), grouped in a two-tier rail (Arrange & edit / Watch & connect / Look & share) with the longer sentence on the label tooltip. The auto-tour and its pause control are gone: nothing advances without the reader, and at rest the graph is whole (nothing dimmed, no pin pressed). Privacy and open source sections restored in the new design language; HowItWorks, Capabilities, TrustStrip, TextVsGraph and the never-rendering TransformationBand deleted (~250 words of prose). marketingFeatures.ts is a pure catalog with tests for copy budgets, tier honesty (Tags is Pro and wears a badge, never a purchase path), pin geometry and contrast; the demo tree gains three children under docs so the watch story is not on an empty folder. Fixed along the way: full-bleed overflow from an auto-width grid (grid-cols-1), pin stack pitch in screen px, light-theme dim opacity, dismiss that hover could not undo. Gates: lint 0, tsc 0, bun run test 233 pass 0 fail, playwright marketing 9 pass, build OK, changelog validate OK. Visual check at 1440/1024/768/375 in both themes."
+    proof: ["e386cd8"]
+    effort: {commits: 1, files: 20, insertions: 1592, deletions: 619}
+  spent_min: 259
+  session_count: 6
