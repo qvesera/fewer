@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronRight, FileText, Folder, Sparkles } from "lucide-react";
 import { CATEGORY_ICON, formatSize } from "@/lib/fewer/nodeVisuals";
 import type { PreviewPin } from "@/lib/fewer/marketingFeatures";
 import {
-  PREVIEW_CANVAS,
   PREVIEW_FILE,
   PREVIEW_FOLDER,
   PREVIEW_MIN_WIDTH,
-  PREVIEW_NODES,
+  previewLayout,
   nodeBox,
   nodeFileName,
   previewChildren,
@@ -30,6 +29,10 @@ import {
  * way the canvas does when you zoom out. Below PREVIEW_MIN_WIDTH the box stops
  * shrinking and the wrapper scrolls, because shrinking further would only
  * produce unreadable card names.
+ *
+ * The positions come from previewLayout(shyness), so the Crown Shyness dial in
+ * the callout is a real control: moving it re-flows the demo tree on the
+ * canvas, with the product's own curve, and the box grows to fit the result.
  *
  * Edges march with the canvas's animated-edge look (2px, dashed, `mk-edge-flow`
  * in globals.css); prefers-reduced-motion stops the march and leaves the dashes,
@@ -170,6 +173,7 @@ function ChildRow({ child, childCount }: { child: PreviewNode; childCount: numbe
 
 function FolderCard({
   node,
+  nodes,
   path,
   paths,
   counts,
@@ -177,13 +181,14 @@ function FolderCard({
   onActivate,
 }: {
   node: PreviewNode;
+  nodes: PreviewNode[];
   path: string;
   paths: Record<string, string>;
   counts: Record<string, number>;
   state: NodeState;
   onActivate?: (via: "hover" | "click") => void;
 }) {
-  const kids = previewChildren(node.id);
+  const kids = previewChildren(node.id, nodes);
   const box = nodeBox(node);
   return (
     <div
@@ -324,7 +329,7 @@ function FileCard({
 }
 
 export function PreviewGraph({
-  nodes = PREVIEW_NODES,
+  shyness = 1,
   accent,
   className,
   pins,
@@ -334,7 +339,8 @@ export function PreviewGraph({
   onActivateNode,
   onActivatePin,
 }: {
-  nodes?: PreviewNode[];
+  /** The Crown Shyness dial the callout holds; 1 is the default layout. */
+  shyness?: number;
   accent?: string;
   className?: string;
   /** Hotspot pins, laid out by previewPins(). Rendered in container px. */
@@ -348,7 +354,8 @@ export function PreviewGraph({
   onActivateNode?: (nodeId: string, via: "hover" | "click") => void;
   onActivatePin?: (pinId: string, via: "hover" | "click" | "focus") => void;
 }) {
-  const { ref, zoom } = useFitZoom(PREVIEW_CANVAS.w);
+  const { nodes, canvas } = useMemo(() => previewLayout(shyness), [shyness]);
+  const { ref, zoom } = useFitZoom(canvas.w);
 
   const style: CSSProperties & Record<string, string> = {};
   if (accent) style["--mk-accent"] = accent;
@@ -374,8 +381,8 @@ export function PreviewGraph({
         className="relative mx-auto"
         style={{
           ...style,
-          width: PREVIEW_CANVAS.w * zoom,
-          height: PREVIEW_CANVAS.h * zoom,
+          width: canvas.w * zoom,
+          height: canvas.h * zoom,
         }}
       >
         {/* Cards and edges live in the product's pixel space and are scaled by
@@ -383,13 +390,13 @@ export function PreviewGraph({
         <div
           className="absolute left-0 top-0"
           style={{
-            width: PREVIEW_CANVAS.w,
-            height: PREVIEW_CANVAS.h,
+            width: canvas.w,
+            height: canvas.h,
             zoom,
           }}
         >
           <svg
-            viewBox={`0 0 ${PREVIEW_CANVAS.w} ${PREVIEW_CANVAS.h}`}
+            viewBox={`0 0 ${canvas.w} ${canvas.h}`}
             className="absolute inset-0 h-full w-full"
             aria-hidden="true"
           >
@@ -414,6 +421,7 @@ export function PreviewGraph({
               <FolderCard
                 key={node.id}
                 node={node}
+                nodes={nodes}
                 path={paths[node.id] ?? node.label}
                 paths={paths}
                 counts={counts}

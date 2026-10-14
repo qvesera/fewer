@@ -1,19 +1,30 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Marketing home page guards (T-149, T-150, hotspot follow-up): the page makes
+ * Marketing home page guards (T-149, T-150, hotspot follow-ups): the page makes
  * claims about the product, and those claims drift the way the changelog does -
  * the format count, the vocabulary, and the one canonical URL all silently went
  * stale before. Cheap assertions, one page load each.
  *
- * The feature copy moved out of the capability cards and into the playground's
- * callouts, which show one feature at a time. So the copy guards below click
- * the chip that shows a feature first: the guarantee is the same ("the page
- * says 8, says cards, says GitHub"), only the route to it changed.
+ * The feature copy lives in the playground's inspector, which shows one feature
+ * at a time, so the copy guards below click the chip that shows a feature
+ * first. The tour that walks those features on a timer is part of the page now,
+ * so anything that asserts a specific feature parks it first - and the tour's
+ * own guarantees (it moves, it stops when asked, it stays out of the way) have
+ * tests of their own.
  */
+
+/** Park the tour so an assertion cannot be raced by its next tick. */
+async function parkTheTour(page: import("@playwright/test").Page) {
+  await page.locator('[data-mk-tour="pause"]').click();
+}
 
 test("the home page states the current product", async ({ page }) => {
   await page.goto("/");
+  // Waiting for the tour button is also waiting for hydration: the button is
+  // server-rendered, but only the client decides whether it reads pause or
+  // play, and a click that lands before that is a click into nothing.
+  await parkTheTour(page);
 
   // The nav's Features link stays on the canonical page (it used to hop to
   // the duplicate at /welcome).
@@ -76,9 +87,30 @@ test("the tree vs graph comparison switches views", async ({ page }) => {
   await expect(page.locator("#compare [data-mk-node]").first()).toBeVisible();
 });
 
+test("the tree pane is the canvas's twin, not a stray text block", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+
+  // The tree sits under its own caption, centred in the same box the canvas
+  // occupies - it used to be a bare <pre> pinned to the left edge of a
+  // full-bleed row, with the hidden graph's height left empty beside it.
+  await page.getByRole("button", { name: "tree", exact: true }).click();
+  const caption = page.getByText("The same folder, as text");
+  await expect(caption).toBeVisible();
+
+  const pre = page.locator("#compare pre");
+  const captionBox = await caption.boundingBox();
+  const preBox = await pre.boundingBox();
+  // Same column: the caption and the tree text share a left edge.
+  expect(Math.abs(preBox!.x - captionBox!.x)).toBeLessThan(4);
+  // And that column is inside the page container, not at the viewport edge.
+  expect(preBox!.x).toBeGreaterThan(16);
+});
+
 test("hovering a pin reveals its feature", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
+  await parkTheTour(page);
 
   // Hovering a pin on the graph shows that feature in the callout.
   await page.locator('[data-mk-pin="tags"]').hover();
@@ -88,34 +120,122 @@ test("hovering a pin reveals its feature", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("nothing on the page advances without the reader", async ({ page }) => {
+test("the tour advances on its own, and the pause button stops it", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
 
-  // A tour that rewrote the callout on idle is what forced a pause control
-  // onto the page. The callout must stay put for longer than any old tour
-  // interval while nobody touches it.
   const callout = page.locator("[data-mk-callout]");
   const first = await callout.getAttribute("data-mk-callout");
-  await page.waitForTimeout(4500);
+
+  // It walks the catalogue without being asked ...
+  await expect
+    .poll(async () => callout.getAttribute("data-mk-callout"), { timeout: 15000 })
+    .not.toBe(first);
+
+  // ... and stops for good the moment the reader parks it.
+  await parkTheTour(page);
+  const parked = await callout.getAttribute("data-mk-callout");
+  await page.waitForTimeout(6500);
+  await expect(callout).toHaveAttribute("data-mk-callout", parked!);
+  await expect(page.locator('[data-mk-tour="play"]')).toBeVisible();
+});
+
+test("the tour never starts under prefers-reduced-motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+
+  const callout = page.locator("[data-mk-callout]");
+  const first = await callout.getAttribute("data-mk-callout");
+  await page.waitForTimeout(6500);
   await expect(callout).toHaveAttribute("data-mk-callout", first!);
+
+  // The pause button is not decoration: asking for it by hand still works,
+  // which is why it is not hidden under reduced motion.
+  await page.locator('[data-mk-tour="play"]').click();
+  await expect
+    .poll(async () => callout.getAttribute("data-mk-callout"), { timeout: 15000 })
+    .not.toBe(first);
+});
+
+test("the tour leaves the tree pane alone", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+
+  await page.getByRole("button", { name: "tree", exact: true }).click();
+  await page.waitForTimeout(6500);
+  await expect(page.getByRole("button", { name: "tree", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator("#compare pre")).toContainText("└── package.json");
+});
+
+test("the arrows step through the features, and wrap", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+  await parkTheTour(page);
+
+  const callout = page.locator("[data-mk-callout]");
+  const first = await callout.getAttribute("data-mk-callout");
+
+  await page.locator('[data-mk-cycle="next"]').click();
+  await expect(callout).not.toHaveAttribute("data-mk-callout", first!);
+
+  await page.locator('[data-mk-cycle="prev"]').click();
+  await expect(callout).toHaveAttribute("data-mk-callout", first!);
+
+  // Backwards past the first feature wraps to the last one in the catalogue.
+  await page.locator('[data-mk-cycle="prev"]').click();
+  await expect(callout).toHaveAttribute("data-mk-callout", "tags");
+});
+
+test("the Crown Shyness dial re-flows the demo canvas", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+  // Park first: that waits for hydration, so the chip click below cannot land
+  // on a button whose handlers are not attached yet.
+  await parkTheTour(page);
+  await page.locator('[data-mk-chip="organize"]').click();
+
+  // A control in a proof has to actually do something: the dial is the app's
+  // own Slider, and moving it re-lays out the cards behind it.
+  const card = page.locator('[data-mk-node="pkg"]');
+  const before = await card.boundingBox();
+  expect(before).not.toBeNull();
+
+  const thumb = page.locator("[data-mk-shyness] [role='slider']");
+  await thumb.focus();
+  await thumb.press("End");
+
+  await expect(page.locator("[data-mk-shyness-readout]")).toHaveText("3.0×");
+  await expect.poll(async () => (await card.boundingBox())!.y).toBeGreaterThan(before!.y);
+  // The re-flow slides the rail under the parked pointer, and the browser fires
+  // a hover for it. The card stays on Organize rather than following whatever
+  // happens to land beneath the pointer.
+  await expect(page.locator("[data-mk-callout]")).toHaveAttribute(
+    "data-mk-callout",
+    "organize",
+  );
 });
 
 test("gated features are badged, not sold", async ({ page }) => {
   await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+  await parkTheTour(page);
 
   // Tags are Pro (MIN_TIER.tags). The badge explains the gate; there is no
-  // purchase path to offer while billing is off.
+  // purchase path to offer while billing is off, so the inspector does not
+  // link out at all - it used to offer a "Try it" that only read the docs.
   await page.locator('[data-mk-chip="tags"]').click();
   await expect(page.getByTitle("Needs a signed-in Pro account")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Try it" })).toHaveAttribute(
-    "href",
-    "/docs/graph-features#tags-pro",
-  );
+  await expect(page.locator('[data-mk-callout="tags"] a')).toHaveCount(0);
 });
 
 test("a chip drives the callout the same way a pin does", async ({ page }) => {
   await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+  await parkTheTour(page);
   await page.locator('[data-mk-chip="organize"]').click();
   await expect(page.locator('[data-mk-callout="organize"]')).toBeVisible();
   await expect(
@@ -134,10 +254,22 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   // "Launch the app" appears in the hero, the navbar, the footer and here.
   await expect(page.getByRole("link", { name: "Launch the app" }).last()).toBeVisible();
 
+  // The two closing sections share one rhythm now: same container, same
+  // heading scale, both centred on the same dot grid (no tinted band behind
+  // only one of them).
+  const privacy = page.getByRole("heading", { name: "Your data stays yours" });
+  const openSource = page.getByRole("heading", { name: "Open source" });
+  expect((await privacy.boundingBox())!.x).toBe((await openSource.boundingBox())!.x);
+  expect((await privacy.boundingBox())!.height).toBe((await openSource.boundingBox())!.height);
+
   // Reveal hides content until it is scrolled into view. Being in the DOM is
-  // not the same as being readable, so this waits for every section to have
-  // actually revealed itself after a scroll.
-  await page.getByRole("heading", { name: "Open source" }).scrollIntoViewIfNeeded();
+  // not the same as being readable, so this visits every revealed block - the
+  // way a reader gets to them - and then waits for all of them to have
+  // actually revealed themselves.
+  const reveals = page.locator("[data-reveal]");
+  for (let i = 0; i < (await reveals.count()); i += 1) {
+    await reveals.nth(i).scrollIntoViewIfNeeded();
+  }
   await page.waitForFunction(() =>
     [...document.querySelectorAll("[data-reveal]")].every(
       (el) => el.getAttribute("data-reveal") === "1",

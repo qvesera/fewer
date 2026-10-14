@@ -61,8 +61,11 @@ describe("marketingFeatures", () => {
     const gated = MARKETING_FEATURES.filter((f) => f.tier === "pro").map((f) => f.id);
     expect(gated).toEqual(["tags"]);
     for (const feature of MARKETING_FEATURES) {
-      expect(feature.href.startsWith("/docs/")).toBe(true);
-      expect(feature.href).not.toContain("/docs/plans");
+      // There is no per-feature link any more, so the guard is the copy: a
+      // feature must never hint at a purchase path that does not exist while
+      // billing is off.
+      const copy = `${feature.chip} ${feature.headline} ${feature.line}`;
+      expect(copy).not.toMatch(/docs\/plans|pricing|upgrade|buy/i);
     }
   });
 

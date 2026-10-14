@@ -9,13 +9,14 @@ import { Reveal } from "./Reveal";
  * carried, kept because "free software you can read" is the argument the rest
  * of the page's privacy claims rest on. Same two buttons, same one line.
  *
- * The veil is the one place the page breaks the uniform dot grid: the band is
- * centred prose, and without a surface behind it it floats rather than closes.
- * A tint, not a rule - T-150 dropped section rules on purpose.
+ * It no longer wears a tinted band that Privacy, directly above it, did not:
+ * the two sections share one rhythm (centred heading, action, content) on the
+ * same dot grid, which is what makes them read as one closing chapter. A tint
+ * behind only one of them is the thing that made them look unrelated.
  */
 export function OpenSourceSection() {
   return (
-    <section className="relative z-10 bg-card/20 py-20">
+    <section className="relative z-10 py-20">
       <div className="mx-auto max-w-6xl px-6 text-center">
         <Reveal>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Open source</h2>

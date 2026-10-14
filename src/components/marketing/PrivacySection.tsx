@@ -10,9 +10,11 @@ import { Reveal } from "./Reveal";
  * the house style rule (T-149).
  *
  * What changed is the shape: the section used to be a paragraph plus a column
- * of six sentences, which reads as a wall. It is now a grid of six short
- * claims, scannable in one pass, and the paragraph is gone - the six points
- * already say everything it said.
+ * of six sentences, which reads as a wall, and then a left heading column
+ * beside a grid, which left a tall empty gutter next to Open source's centred
+ * band below it. It is now the same rhythm as that band - centred heading,
+ * centred action, content underneath - so the two closing sections read as one
+ * chapter rather than two components that happened to land together.
  */
 const PRIVACY_POINTS = [
   "Runs locally in your browser, so your directory contents stay on your device by default.",
@@ -26,15 +28,15 @@ const PRIVACY_POINTS = [
 export function PrivacySection() {
   return (
     <section className="relative z-10 py-20">
-      <div className="mx-auto max-w-6xl px-6 grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+      <div className="mx-auto max-w-6xl px-6 text-center">
         <Reveal>
-          <div className="flex h-full flex-col items-start justify-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Your data stays yours
-            </h2>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Your data stays yours
+          </h2>
+          <div className="mt-8 flex justify-center">
             <Link
               href="/privacy"
-              className={`${buttonVariants({ variant: "default", size: "lg" })} mt-8`}
+              className={buttonVariants({ variant: "default", size: "lg" })}
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               Read the Privacy Policy
@@ -43,11 +45,11 @@ export function PrivacySection() {
         </Reveal>
 
         <Reveal delay={90}>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PRIVACY_POINTS.map((point) => (
               <li
                 key={point}
-                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 p-4 text-sm text-foreground/90"
+                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 p-4 text-left text-sm text-foreground/90"
               >
                 <ShieldCheck
                   className="mt-0.5 h-4 w-4 shrink-0"

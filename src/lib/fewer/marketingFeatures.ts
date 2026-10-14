@@ -2,9 +2,14 @@
  * The feature catalogue behind the home page's hotspot playground (T-150).
  *
  * One source of truth for three views of the same story: the pins drawn on the
- * demo graph, the chip rail under it, and the auto-tour's schedule. It lives in
- * a pure module (no React, no DOM) so the copy limits and the pin geometry are
+ * demo graph, the chip rail under it, and the tour's schedule. It lives in a
+ * pure module (no React, no DOM) so the copy limits and the pin geometry are
  * unit-testable, the way `marketingPreview.ts` is.
+ *
+ * No per-feature link: a card whose only action was "Try it" took the reader
+ * to a docs page, which is the one thing the word "try" does not mean. The
+ * card's actions are the tour, the arrows and the proof itself - which is
+ * where the docs pointer belongs anyway (the hero keeps "Read the docs").
  *
  * Copy discipline is part of the contract, not a style preference: the page is
  * read in five seconds, so `line` is capped at 12 words and `headline` at 6.
@@ -52,8 +57,6 @@ export interface MarketingFeature {
    * contrast between the cards a feature touches and the rest.
    */
   on: string[];
-  /** Where "Try it" points. Docs anchors only; the app has no deep links. */
-  href: string;
   /** Gated feature: rendered with a Pro badge and no purchase path. */
   tier?: "pro";
 }
@@ -67,7 +70,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "shell",
     anchor: "root",
     on: ["root", "src", "docs"],
-    href: "/docs/import-export#export-formats",
   },
   {
     id: "groups",
@@ -77,7 +79,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "group",
     anchor: "src",
     on: ["src", "docs"],
-    href: "/docs/editing#groups",
   },
   {
     id: "batch",
@@ -87,7 +88,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "batch",
     anchor: "src",
     on: ["layout", "types", "readme", "pkg"],
-    href: "/docs/editing#batch-actions",
   },
   {
     id: "rename",
@@ -97,7 +97,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "rename",
     anchor: "layout",
     on: ["layout", "types"],
-    href: "/docs/editing#batch-actions",
   },
   {
     id: "keyboard",
@@ -107,7 +106,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "keys",
     anchor: "docs",
     on: ["docs", "doc-editing", "doc-watch", "doc-import"],
-    href: "/docs/shortcuts",
   },
   {
     id: "organize",
@@ -117,7 +115,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "layout",
     anchor: "root",
     on: ["root", "src", "layout", "types", "docs", "doc-editing", "doc-watch", "doc-import", "readme", "pkg"],
-    href: "/docs/graph-features#layout-engine",
   },
   {
     id: "import",
@@ -127,7 +124,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "import",
     anchor: "root",
     on: ["root"],
-    href: "/docs/import-export",
   },
   {
     id: "export",
@@ -137,7 +133,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "export",
     anchor: "pkg",
     on: ["pkg"],
-    href: "/docs/import-export#export-formats",
   },
   {
     id: "watch",
@@ -147,7 +142,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "watch",
     anchor: "doc-watch",
     on: ["doc-watch"],
-    href: "/docs/watch",
   },
   {
     id: "themes",
@@ -157,7 +151,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "themes",
     anchor: "readme",
     on: ["readme"],
-    href: "/docs/theming",
   },
   {
     id: "share",
@@ -167,7 +160,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "share",
     anchor: "root",
     on: ["root"],
-    href: "/docs/sharing",
   },
   {
     id: "tags",
@@ -177,7 +169,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     proof: "tags",
     anchor: "types",
     on: ["types"],
-    href: "/docs/graph-features#tags-pro",
     tier: "pro",
   },
 ];
