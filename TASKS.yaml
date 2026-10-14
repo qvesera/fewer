@@ -4160,7 +4160,7 @@ tasks:
   session_count: 7
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4192,10 +4192,10 @@ tasks:
     proof: ["f08f06d"]
     effort: {commits: 1, files: 3, insertions: 15, deletions: 6}
   - start: "2026-10-14T19:15:32Z"
-    end: null
+    end: "2026-10-14T21:15:17Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 34
+    note: "Redesigned the home demo graph as the feature index itself (option B): catalogue derives the tree, anchor map deleted, ring-always marker, group sub-lines; all gates green (tsc, lint, 1810 unit, 14 e2e, build)"
+    proof: ["d076f94"]
+    effort: {commits: 1, files: 10, insertions: 288, deletions: 286}
+  spent_min: 154
   session_count: 3
