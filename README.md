@@ -42,7 +42,7 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
 
-The public home page at [fewer.directory](https://fewer.directory) is the same idea as a landing page: it runs the dot grid the canvas uses, compares `tree` output with the graph side by side, and links straight into the app.
+The public home page at [fewer.directory](https://fewer.directory) is the same idea as a landing page: the canvas is the hero, sitting on the dot grid the app draws, and every card carries a pin for a feature it demonstrates - plan a structure and export it as a shell script, group and batch-rename cards, watch a public index, theme and share it. Hover a card or use the feature rail to see each one; the `tree` vs `fewer` toggle is still there, in a floating View panel.
 
 **Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
 the Pro surface (split views, docking, tags) without a Pro account. `?tier=free` and

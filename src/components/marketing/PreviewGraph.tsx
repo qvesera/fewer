@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ChevronRight, FileText, Folder } from "lucide-react";
+import { ChevronRight, FileText, Folder, Sparkles } from "lucide-react";
 import { CATEGORY_ICON, formatSize } from "@/lib/fewer/nodeVisuals";
+import type { PreviewPin } from "@/lib/fewer/marketingFeatures";
 import {
   PREVIEW_CANVAS,
   PREVIEW_FILE,
@@ -33,7 +34,59 @@ import {
  * Edges march with the canvas's animated-edge look (2px, dashed, `mk-edge-flow`
  * in globals.css); prefers-reduced-motion stops the march and leaves the dashes,
  * same as the app.
+ *
+ * The hotspot overlay (T-150 follow-up): cards accept an `onActivate` and a
+ * dim/active state so the playground can highlight a subtree and quiet the
+ * rest, and pins are drawn from `previewPins()` in CONTAINER pixels (design
+ * coordinate x the live zoom), outside the zoomed box - a pin inside it would
+ * be scaled to an unusable dot, and CSS zoom would scale the button twice.
  */
+
+/** Brightness of one card in the demo, driven by the active hotspot. */
+type NodeState = "active" | "dim" | "idle";
+
+const NODE_STATE_CLASS: Record<NodeState, string> = {
+  active: "mk-node-active",
+  dim: "mk-node-dim",
+  idle: "",
+};
+
+/** Screen px between two pins on the same card (pins are 28px). */
+const PIN_PITCH = 32;
+
+/**
+ * Pins in screen pixels: x from the catalog, y stacked down the middle of the
+ * anchored card at a FIXED pitch. The pitch has to be in screen space - a
+ * design-space pitch gets multiplied by the fit zoom, and on a narrow column
+ * that collapses four pins into one pile.
+ */
+function layoutPins(pins: PreviewPin[], nodes: PreviewNode[], zoom: number) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const groups = new Map<string, PreviewPin[]>();
+  for (const pin of pins) {
+    const group = groups.get(pin.nodeId);
+    if (group) group.push(pin);
+    else groups.set(pin.nodeId, [pin]);
+  }
+
+  const placed: { id: string; label: string; x: number; y: number }[] = [];
+  for (const group of groups.values()) {
+    const node = byId.get(group[0].nodeId);
+    if (!node) continue;
+    const box = nodeBox(node);
+    const centreY = (box.y + box.h / 2) * zoom;
+    group.forEach((pin, i) => {
+      const offset = (i - (group.length - 1) / 2) * PIN_PITCH;
+      placed.push({
+        id: pin.id,
+        label: pin.label,
+        x: Math.round(pin.x * zoom),
+        y: Math.round(centreY + offset),
+      });
+    });
+  }
+  return placed;
+}
 
 /** Design-space -> container fit. Caps at 1:1; never blows the cards up. */
 function useFitZoom(designWidth: number) {
@@ -120,18 +173,24 @@ function FolderCard({
   path,
   paths,
   counts,
+  state,
+  onActivate,
 }: {
   node: PreviewNode;
   path: string;
   paths: Record<string, string>;
   counts: Record<string, number>;
+  state: NodeState;
+  onActivate?: (via: "hover" | "click") => void;
 }) {
   const kids = previewChildren(node.id);
   const box = nodeBox(node);
   return (
     <div
       data-mk-node={node.id}
-      className="gm-node-hover absolute flex flex-col overflow-hidden rounded-2xl border backdrop-blur-xl shadow-node-folder"
+      onPointerEnter={() => onActivate?.("hover")}
+      onClick={() => onActivate?.("click")}
+      className={`gm-node-hover absolute flex flex-col overflow-hidden rounded-2xl border backdrop-blur-xl shadow-node-folder ${NODE_STATE_CLASS[state]}`}
       style={{
         left: box.x,
         top: box.y,
@@ -205,13 +264,25 @@ function FolderCard({
   );
 }
 
-function FileCard({ node, path }: { node: PreviewNode; path: string }) {
+function FileCard({
+  node,
+  path,
+  state,
+  onActivate,
+}: {
+  node: PreviewNode;
+  path: string;
+  state: NodeState;
+  onActivate?: (via: "hover" | "click") => void;
+}) {
   const box = nodeBox(node);
   const Icon = CATEGORY_ICON[node.category ?? "text"] ?? FileText;
   return (
     <div
       data-mk-node={node.id}
-      className="gm-node-hover absolute flex items-center gap-3 rounded-xl border backdrop-blur-xl shadow-node-file"
+      onPointerEnter={() => onActivate?.("hover")}
+      onClick={() => onActivate?.("click")}
+      className={`gm-node-hover absolute flex items-center gap-3 rounded-xl border backdrop-blur-xl shadow-node-file ${NODE_STATE_CLASS[state]}`}
       style={{
         left: box.x,
         top: box.y,
@@ -256,10 +327,26 @@ export function PreviewGraph({
   nodes = PREVIEW_NODES,
   accent,
   className,
+  pins,
+  activePinId,
+  activeIds,
+  dimOthers = false,
+  onActivateNode,
+  onActivatePin,
 }: {
   nodes?: PreviewNode[];
   accent?: string;
   className?: string;
+  /** Hotspot pins, laid out by previewPins(). Rendered in container px. */
+  pins?: PreviewPin[];
+  /** The pin to draw pressed. */
+  activePinId?: string | null;
+  /** Node ids (anchors + descendants) to keep bright while dimmed. */
+  activeIds?: string[] | null;
+  /** Dim everything that is not in `activeIds`. Off = plain demo graph. */
+  dimOthers?: boolean;
+  onActivateNode?: (nodeId: string, via: "hover" | "click") => void;
+  onActivatePin?: (pinId: string, via: "hover" | "click" | "focus") => void;
 }) {
   const { ref, zoom } = useFitZoom(PREVIEW_CANVAS.w);
 
@@ -270,6 +357,10 @@ export function PreviewGraph({
   const counts: Record<string, number> = {};
   for (const node of nodes) if (node.parent) counts[node.parent] = (counts[node.parent] ?? 0) + 1;
 
+  const active = new Set(dimOthers ? (activeIds ?? []) : []);
+  const stateOf = (id: string): NodeState =>
+    !dimOthers ? "idle" : active.has(id) ? "active" : "dim";
+
   return (
     <div
       ref={ref}
@@ -279,45 +370,91 @@ export function PreviewGraph({
       aria-label="Sample project graph"
     >
       <div
+        data-mk-canvas
         className="relative mx-auto"
         style={{
           ...style,
-          width: PREVIEW_CANVAS.w,
-          height: PREVIEW_CANVAS.h,
-          zoom,
+          width: PREVIEW_CANVAS.w * zoom,
+          height: PREVIEW_CANVAS.h * zoom,
         }}
       >
-        <svg
-          viewBox={`0 0 ${PREVIEW_CANVAS.w} ${PREVIEW_CANVAS.h}`}
-          className="absolute inset-0 h-full w-full"
-          aria-hidden="true"
+        {/* Cards and edges live in the product's pixel space and are scaled by
+            CSS zoom, exactly as the canvas scales on zoom out. */}
+        <div
+          className="absolute left-0 top-0"
+          style={{
+            width: PREVIEW_CANVAS.w,
+            height: PREVIEW_CANVAS.h,
+            zoom,
+          }}
         >
-          {previewEdgePaths(nodes).map((edge) => (
-            <path
-              key={`${edge.from}-${edge.to}`}
-              className="mk-edge-flow"
-              d={edge.d}
-              fill="none"
-              strokeWidth={2}
-              strokeLinecap="round"
-              style={{ stroke: "var(--mk-accent, var(--fewer-edge))" }}
-            />
-          ))}
-        </svg>
+          <svg
+            viewBox={`0 0 ${PREVIEW_CANVAS.w} ${PREVIEW_CANVAS.h}`}
+            className="absolute inset-0 h-full w-full"
+            aria-hidden="true"
+          >
+            {previewEdgePaths(nodes).map((edge) => {
+              const quiet = dimOthers && !active.has(edge.from) && !active.has(edge.to);
+              return (
+                <path
+                  key={`${edge.from}-${edge.to}`}
+                  className={`mk-edge-flow${quiet ? " mk-node-dim" : ""}`}
+                  d={edge.d}
+                  fill="none"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  style={{ stroke: "var(--mk-accent, var(--fewer-edge))" }}
+                />
+              );
+            })}
+          </svg>
 
-        {nodes.map((node) =>
-          node.kind === "folder" ? (
-            <FolderCard
-              key={node.id}
-              node={node}
-              path={paths[node.id] ?? node.label}
-              paths={paths}
-              counts={counts}
-            />
-          ) : (
-            <FileCard key={node.id} node={node} path={paths[node.id] ?? node.label} />
-          ),
-        )}
+          {nodes.map((node) =>
+            node.kind === "folder" ? (
+              <FolderCard
+                key={node.id}
+                node={node}
+                path={paths[node.id] ?? node.label}
+                paths={paths}
+                counts={counts}
+                state={stateOf(node.id)}
+                onActivate={(via) => onActivateNode?.(node.id, via)}
+              />
+            ) : (
+              <FileCard
+                key={node.id}
+                node={node}
+                path={paths[node.id] ?? node.label}
+                state={stateOf(node.id)}
+                onActivate={(via) => onActivateNode?.(node.id, via)}
+              />
+            ),
+          )}
+        </div>
+
+        {/* Pins sit OUTSIDE the zoomed box: a design-space pin would be scaled
+            by zoom into an unreadable dot, and the button with it. Container
+            pixels keep them a constant size whatever the fit zoom is. */}
+        {layoutPins(pins ?? [], nodes, zoom).map((pin) => {
+          const pressed = pin.id === activePinId;
+          return (
+            <button
+              key={pin.id}
+              type="button"
+              data-mk-pin={pin.id}
+              aria-pressed={pressed}
+              aria-label={pin.label}
+              title={pin.label}
+              onPointerEnter={() => onActivatePin?.(pin.id, "hover")}
+              onFocus={() => onActivatePin?.(pin.id, "focus")}
+              onClick={() => onActivatePin?.(pin.id, "click")}
+              className={`mk-pin absolute${pressed ? " mk-pin-on" : ""}`}
+              style={{ left: pin.x, top: pin.y }}
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

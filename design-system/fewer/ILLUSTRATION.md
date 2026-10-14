@@ -1,5 +1,10 @@
 # Illustration brief — "The pile and the map"
 
+> **Status: not used.** `TransformationBand.tsx` (the only consumer of this
+> asset) was deleted when the home page's canvas became the hero: the graph now
+> shows the transformation this illustration was meant to sell. The brief stays
+> as art direction if a hand-drawn piece is ever wanted elsewhere.
+
 > Art direction only. The illustration is hand-drawn (no AI generation, no
 > stock) and ships as `public/reorg-graph.svg`. Until that file exists,
 > `TransformationBand.tsx` renders nothing — the band appears by itself the

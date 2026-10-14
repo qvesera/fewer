@@ -50,7 +50,13 @@ export const PREVIEW_NODES: PreviewNode[] = [
   { id: "src", label: "src", kind: "folder", parent: "root", x: 320, y: 8 },
   { id: "layout", label: "layout", kind: "file", parent: "src", x: 640, y: 40, category: "code", extension: "ts", size: 4300 },
   { id: "types", label: "types", kind: "file", parent: "src", x: 640, y: 118, category: "code", extension: "ts", size: 1850 },
-  { id: "docs", label: "docs", kind: "folder", parent: "root", x: 320, y: 228 },
+  // docs carries children because it carries two hotspots: an empty folder
+  // card renders "Empty folder" next to a watch story about its contents,
+  // which is the demo contradicting itself in one glance.
+  { id: "docs", label: "docs", kind: "folder", parent: "root", x: 320, y: 237 },
+  { id: "doc-editing", label: "editing", kind: "file", parent: "docs", x: 640, y: 250, category: "document", extension: "md", size: 8400 },
+  { id: "doc-watch", label: "watch", kind: "file", parent: "docs", x: 640, y: 308, category: "document", extension: "md", size: 2600 },
+  { id: "doc-import", label: "import-export", kind: "file", parent: "docs", x: 640, y: 366, category: "document", extension: "md", size: 12100 },
   { id: "readme", label: "README", kind: "file", parent: "root", x: 320, y: 448, category: "document", extension: "md", size: 6100 },
   { id: "pkg", label: "package", kind: "file", parent: "root", x: 320, y: 526, category: "config", extension: "json", size: 2150 },
 ];

@@ -75,6 +75,9 @@ describe("marketingPreview", () => {
       "│   ├── layout.ts",
       "│   └── types.ts",
       "├── docs/",
+      "│   ├── editing.md",
+      "│   ├── watch.md",
+      "│   └── import-export.md",
       "├── README.md",
       "└── package.json",
     ]);
