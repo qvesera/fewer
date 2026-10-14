@@ -4150,5 +4150,11 @@ tasks:
     note: "Follow-up sessions on the review feedback. The canvas became the home page's hero: full-bleed on the dot grid, headline and CTAs in a compact bar, the tree/fewer toggle and accent swatches moved into a floating View panel in the app's panel chrome, and one feature at a time explained in an inspector panel with a title bar and a close button. Twelve features anchored to real cards with micro-proofs (mkdir script, group frame, batch action list, find/replace rows, key chips, spacing slider, import/export chips, digest row, share rows, tag ring), grouped in a two-tier rail (Arrange & edit / Watch & connect / Look & share) with the longer sentence on the label tooltip. The auto-tour and its pause control are gone: nothing advances without the reader, and at rest the graph is whole (nothing dimmed, no pin pressed). Privacy and open source sections restored in the new design language; HowItWorks, Capabilities, TrustStrip, TextVsGraph and the never-rendering TransformationBand deleted (~250 words of prose). marketingFeatures.ts is a pure catalog with tests for copy budgets, tier honesty (Tags is Pro and wears a badge, never a purchase path), pin geometry and contrast; the demo tree gains three children under docs so the watch story is not on an empty folder. Fixed along the way: full-bleed overflow from an auto-width grid (grid-cols-1), pin stack pitch in screen px, light-theme dim opacity, dismiss that hover could not undo. Gates: lint 0, tsc 0, bun run test 233 pass 0 fail, playwright marketing 9 pass, build OK, changelog validate OK. Visual check at 1440/1024/768/375 in both themes."
     proof: ["e386cd8"]
     effort: {commits: 1, files: 20, insertions: 1592, deletions: 619}
-  spent_min: 259
-  session_count: 6
+  - start: "2026-10-14T14:04:39Z"
+    end: "2026-10-14T15:27:58Z"
+    measured: true
+    note: "T-150 follow-up on PR 421: derived demo-graph geometry (no clipping, no stacking), live Crown Shyness dial re-flowing the canvas, feature tour with pause/play (parks under reduced motion/off-screen/tree pane/hidden tab), arrows, no X and no dead Try it link, View toolbar above the canvas, unified Privacy/Open source sections, hover-only-when-the-pointer-moved guard, README + changelog, marketing e2e rewritten (14 passing)"
+    proof: ["724a033"]
+    effort: {commits: 1, files: 13, insertions: 832, deletions: 308}
+  spent_min: 342
+  session_count: 7
