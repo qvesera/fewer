@@ -7,12 +7,12 @@ import {
   SIBLING_GAP,
   graphToTextLines,
   nodeBox,
-  nodeFileName,
   previewChildren,
   previewEdgePaths,
   previewLayout,
   previewPaths,
 } from "./marketingPreview";
+import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "./marketingFeatures";
 
 // The layouts the Crown Shyness proof can drive: 1 is the default, 3 the top
 // of the dial (the same range layout.ts's shynessScale takes).
@@ -64,11 +64,12 @@ describe("marketingPreview", () => {
       }
     }
 
-    // The gap between the root's first two children is the dial's own readout:
-    // 20px at the default, wider every stop after it, and the box grows with it.
+    // The gap between the root's first two children (the first two group
+    // folders) is the dial's own readout: 20px at the default, wider every
+    // stop after it, and the box grows with it.
     const gapOf = (layout: ReturnType<typeof previewLayout>) => {
-      const [src, docs] = previewChildren("root", layout.nodes);
-      return nodeBox(docs).y - (nodeBox(src).y + nodeBox(src).h);
+      const [first, second] = previewChildren("root", layout.nodes);
+      return nodeBox(second).y - (nodeBox(first).y + nodeBox(first).h);
     };
     const gaps = layouts.map(gapOf);
     expect(gaps[0]).toBeGreaterThanOrEqual(SIBLING_GAP - 1);
@@ -112,36 +113,44 @@ describe("marketingPreview", () => {
     expect(roots).toHaveLength(1);
   });
 
-  test("file nodes carry an extension and a category for their icon", () => {
+  test("feature cards carry only what the type allows - no invented file metadata", () => {
+    // PreviewNode has no extension/size/category at all (TS enforces that);
+    // this pins the runtime shape too, and the labels: every file card is a
+    // chip, not a filename.
+    const chips = new Set(MARKETING_FEATURES.map((f) => f.chip));
     for (const node of PREVIEW_NODES.filter((n) => n.kind === "file")) {
-      expect(node.extension).toBeTruthy();
-      expect(node.category).toBeTruthy();
-      expect(nodeFileName(node)).toBe(`${node.label}.${node.extension}`);
+      expect(Object.keys(node).sort()).toEqual(["id", "kind", "label", "parent", "x", "y"]);
+      expect(chips.has(node.label)).toBe(true);
     }
-    expect(nodeFileName(PREVIEW_NODES.find((n) => n.id === "pkg")!)).toBe("package.json");
   });
 
   test("previewPaths stacks labels the way the app prints data.path", () => {
     const paths = previewPaths();
     expect(paths.root).toBe("~/fewer");
-    expect(paths.src).toBe("~/fewer/src");
-    expect(paths.layout).toBe("~/fewer/src/layout.ts");
-    expect(paths.pkg).toBe("~/fewer/package.json");
+    expect(paths.arrange).toBe("~/fewer/Arrange & edit");
+    expect(paths.plan).toBe("~/fewer/Arrange & edit/Plan first");
+    expect(paths.tags).toBe("~/fewer/Look & share/Tags");
   });
 
-  test("graphToTextLines renders the tree shape of the same data", () => {
+  test("graphToTextLines renders the catalogue as the same tree", () => {
     const lines = graphToTextLines();
     expect(lines).toEqual([
       "./fewer",
-      "├── src/",
-      "│   ├── layout.ts",
-      "│   └── types.ts",
-      "├── docs/",
-      "│   ├── editing.md",
-      "│   ├── watch.md",
-      "│   └── import-export.md",
-      "├── README.md",
-      "└── package.json",
+      "├── Arrange & edit/",
+      "│   ├── Plan first",
+      "│   ├── Canvas groups",
+      "│   ├── Batch actions",
+      "│   ├── Wildcard rename",
+      "│   ├── Organize",
+      "│   └── Keyboard-first",
+      "├── Watch & connect/",
+      "│   ├── Import anything",
+      "│   ├── Watch a URL",
+      "│   └── Export in 8 formats",
+      "└── Look & share/",
+      "    ├── Themes",
+      "    ├── Share and save",
+      "    └── Tags",
     ]);
   });
 
@@ -149,7 +158,7 @@ describe("marketingPreview", () => {
     const paths = previewEdgePaths();
     expect(paths).toHaveLength(PREVIEW_NODES.length - 1);
     for (const p of paths) expect(p.d.startsWith("M ")).toBe(true);
-    const src = paths.find((p) => p.to === "layout");
-    expect(src?.from).toBe("src");
+    const plan = paths.find((p) => p.to === "plan");
+    expect(plan?.from).toBe("arrange");
   });
 });

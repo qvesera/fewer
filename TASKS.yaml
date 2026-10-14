@@ -4160,7 +4160,7 @@ tasks:
   session_count: 7
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4177,7 +4177,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-14T17:02:31Z"
-  notes: ["2026-10-14T18:04:38Z · follow-up session: centre the tree view's caption and tree text in the pane (block was centred, text hugged the column's left edge)"]
+  notes: ["2026-10-14T18:04:38Z · follow-up session: centre the tree view's caption and tree text in the pane (block was centred, text hugged the column's left edge)", "2026-10-14T19:16:45Z · follow-up pass (user review): selection redesign - anchor/on map claimed package.json demonstrates Export-in-8-formats, meaningless. Demo graph becomes the feature index: derived from MARKETING_FEATURES/CATEGORIES (node id = feature id), tag removed, ring always on active card, folders = categories]"]
   sessions:
   - start: "2026-10-14T17:22:45Z"
     end: "2026-10-14T17:49:56Z"
@@ -4191,5 +4191,11 @@ tasks:
     note: "Follow-up session: centred the tree view caption + tree text as one column on the canvas axis (items-center on the block, pre capped at max-w-full so it still scrolls), tree lines stay left-aligned inside the block so the box-drawing columns do not stagger. e2e tree-pane test now compares centre lines (caption vs pre <4px, pre vs canvas axis <6px). Gates: tsc 0, lint 0, bun test src 1810 pass, build ok, playwright marketing 14/14, changelog validate ok."
     proof: ["f08f06d"]
     effort: {commits: 1, files: 3, insertions: 15, deletions: 6}
+  - start: "2026-10-14T19:15:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 34
-  session_count: 2
+  session_count: 3

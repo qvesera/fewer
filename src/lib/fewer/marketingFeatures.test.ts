@@ -3,6 +3,7 @@ import {
   CHIP_MAX_WORDS,
   HEADLINE_MAX_WORDS,
   LINE_MAX_WORDS,
+  MARKETING_CATEGORIES,
   MARKETING_FEATURES,
   wordCount,
 } from "./marketingFeatures";
@@ -18,11 +19,29 @@ const E2E_PHRASES: Record<string, string> = {
 };
 
 describe("marketingFeatures", () => {
-  test("every anchor resolves to a real card in the demo tree", () => {
-    const ids = new Set(PREVIEW_NODES.map((n) => n.id));
-    for (const feature of MARKETING_FEATURES) {
-      expect(ids.has(feature.anchor)).toBe(true);
-    }
+  test("the demo graph is the catalogue: ids match in both directions", () => {
+    // The graph is DERIVED from this catalogue (marketingPreview.ts), so the
+    // coupling is structural - but the derivation and the bijection are worth
+    // pinning: a feature with no card, or a card with no feature, means the
+    // canvas and the rail have drifted apart.
+    const files = PREVIEW_NODES.filter((n) => n.kind === "file");
+    expect(new Set(files.map((n) => n.id))).toEqual(new Set(MARKETING_FEATURES.map((f) => f.id)));
+    const folders = PREVIEW_NODES.filter((n) => n.kind === "folder" && n.id !== "root");
+    expect(new Set(folders.map((n) => n.id))).toEqual(new Set(MARKETING_CATEGORIES.map((c) => c.id)));
+  });
+
+  test("every category lists its features, and every feature is listed once", () => {
+    // Set equality, not order: the tour walks MARKETING_FEATURES order while
+    // the rail and the graph walk category order, and the two have never been
+    // the same sequence (that is a display choice, not drift).
+    const listed = MARKETING_CATEGORIES.flatMap((c) => c.features);
+    expect(new Set(listed)).toEqual(new Set(MARKETING_FEATURES.map((f) => f.id)));
+    expect(new Set(listed).size).toBe(listed.length);
+    // Category ids are node ids too: they must not collide with feature ids,
+    // or a folder card and a file card would share one identity on the canvas.
+    const categoryIds = MARKETING_CATEGORIES.map((c) => c.id);
+    const featureIds = new Set(MARKETING_FEATURES.map((f) => f.id));
+    expect(categoryIds.filter((id) => featureIds.has(id))).toEqual([]);
   });
 
   test("ids and chip labels are unique", () => {
@@ -71,19 +90,5 @@ describe("marketingFeatures", () => {
   test("each feature demonstrates a different proof", () => {
     const kinds = MARKETING_FEATURES.map((f) => f.proof);
     expect(new Set(kinds).size).toBe(kinds.length);
-  });
-
-  test("every hotspot lights a real card, and nearly all create contrast", () => {
-    const ids = new Set(PREVIEW_NODES.map((n) => n.id));
-    for (const feature of MARKETING_FEATURES) {
-      expect(feature.on.length).toBeGreaterThan(0);
-      for (const id of feature.on) expect(ids.has(id)).toBe(true);
-    }
-    // The playground's whole idea is contrast between the cards a feature
-    // touches and the rest. A hotspot that lights every card would look like
-    // nothing happened; Organize is the single deliberate exception, because
-    // re-flowing the tree IS the whole tree.
-    const flat = MARKETING_FEATURES.filter((f) => f.on.length === PREVIEW_NODES.length);
-    expect(flat.map((f) => f.id)).toEqual(["organize"]);
   });
 });

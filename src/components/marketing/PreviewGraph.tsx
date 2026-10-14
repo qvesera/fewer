@@ -2,14 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronRight, FileText, Folder } from "lucide-react";
-import { CATEGORY_ICON, formatSize } from "@/lib/fewer/nodeVisuals";
 import {
   PREVIEW_FILE,
   PREVIEW_FOLDER,
   PREVIEW_MIN_WIDTH,
   previewLayout,
   nodeBox,
-  nodeFileName,
   previewChildren,
   previewEdgePaths,
   previewPaths,
@@ -17,11 +15,17 @@ import {
 } from "@/lib/fewer/marketingPreview";
 
 /**
- * The demo graph (T-150). These are the product's cards, not a stylised
- * miniature: same dimensions (240x200 / 220x58), same shell classes, same
- * tokens, same icon set, same `N items` footer and `.ext · size` sub-line,
- * reusing the app's own .gm-node-hover / .shadow-node-* utilities so hover
- * behaves the way it does on the canvas.
+ * The demo graph (T-150, reworked T-151). These are the product's cards, not
+ * a stylised miniature: same dimensions (240x200 / 220x58), same shell classes,
+ * same tokens, same `N items` footer, reusing the app's own .gm-node-hover /
+ * .shadow-node-* utilities so hover behaves the way it does on the canvas.
+ *
+ * The graph IS the feature catalogue: a folder card per rail group, a file
+ * card per feature, card id = feature id (see marketingPreview.ts for why).
+ * A feature card's sub-line names its group the way a real card's sub-line
+ * carries metadata - these cards are features, so `.ext · size` would be
+ * invented file data and the one honest thing to print is where the card
+ * lives.
  *
  * The whole box is laid out in the product's pixel space and then `zoom`ed to
  * fit its container, so every proportion (and the text) scales together the
@@ -37,14 +41,13 @@ import {
  * in globals.css); prefers-reduced-motion stops the march and leaves the dashes,
  * same as the app.
  *
- * The hotspot overlay (T-150 follow-up): cards accept an `onActivate` and a
- * dim/active state so the playground can highlight a subtree and quiet the
- * rest, and exactly one card wears the feature the callout is telling as a
- * small tag in its own corner. Inside the card, so it scales with the box like
- * the rest of the text - and never a dozen markers competing for the eye.
+ * The active marker: the card whose feature the callout is telling wears the
+ * product's own active outline (mk-node-active) at all times - there is no
+ * second marker, because the card's name already IS the feature. Once the
+ * reader engages, everything else dims, and the ring is what stays readable.
  */
 
-/** Brightness of one card in the demo, driven by the active hotspot. */
+/** Brightness of one card in the demo, driven by the active feature. */
 type NodeState = "active" | "dim" | "idle";
 
 const NODE_STATE_CLASS: Record<NodeState, string> = {
@@ -52,10 +55,6 @@ const NODE_STATE_CLASS: Record<NodeState, string> = {
   dim: "mk-node-dim",
   idle: "",
 };
-
-/** The one marker on the demo canvas: the feature the callout is telling. */
-const TAG_CLASS =
-  "truncate rounded-full bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase leading-none tracking-[0.12em] text-primary-foreground";
 
 /** Design-space -> container fit. Caps at 1:1; never blows the cards up. */
 function useFitZoom(designWidth: number) {
@@ -111,7 +110,7 @@ function HandleDots() {
 /** A child row inside a folder card — the app's ChildEntry, minus its menus. */
 function ChildRow({ child, childCount }: { child: PreviewNode; childCount: number }) {
   const isFolder = child.kind === "folder";
-  const Icon = isFolder ? Folder : CATEGORY_ICON[child.category ?? "text"];
+  const Icon = isFolder ? Folder : FileText;
   return (
     <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs">
       <Icon
@@ -120,16 +119,18 @@ function ChildRow({ child, childCount }: { child: PreviewNode; childCount: numbe
         aria-hidden="true"
       />
       <span className="truncate" style={{ color: "var(--fewer-text)" }}>
-        {nodeFileName(child)}
+        {child.label}
       </span>
-      <span
-        className="ml-auto shrink-0 tabular-nums text-[10px]"
-        style={{ color: "var(--fewer-text-subtle)" }}
-      >
-        {isFolder ? `${childCount} ${childCount === 1 ? "item" : "items"}` : formatSize(child.size ?? 0)}
-      </span>
+      {isFolder && (
+        <span
+          className="ml-auto shrink-0 tabular-nums text-[10px]"
+          style={{ color: "var(--fewer-text-subtle)" }}
+        >
+          {childCount} {childCount === 1 ? "item" : "items"}
+        </span>
+      )}
       <ChevronRight
-        className="h-3 w-3 shrink-0 opacity-60"
+        className={`h-3 w-3 shrink-0 opacity-60 ${isFolder ? "" : "ml-auto"}`}
         style={{ color: "var(--fewer-text-subtle)" }}
         aria-hidden="true"
       />
@@ -141,20 +142,15 @@ function FolderCard({
   node,
   nodes,
   path,
-  paths,
   counts,
   state,
-  tag,
   onActivate,
 }: {
   node: PreviewNode;
   nodes: PreviewNode[];
   path: string;
-  paths: Record<string, string>;
   counts: Record<string, number>;
   state: NodeState;
-  /** The active feature, when this card is the one it is anchored to. */
-  tag?: { id: string; label: string } | null;
   onActivate?: (via: "hover" | "click") => void;
 }) {
   const kids = previewChildren(node.id, nodes);
@@ -232,11 +228,6 @@ function FolderCard({
         <span className="shrink-0">
           {kids.length} {kids.length === 1 ? "item" : "items"}
         </span>
-        {tag && (
-          <span data-mk-tag={tag.id} className={`${TAG_CLASS} max-w-[60%]`} aria-hidden="true">
-            {tag.label}
-          </span>
-        )}
       </div>
       <HandleDots />
     </div>
@@ -246,19 +237,18 @@ function FolderCard({
 function FileCard({
   node,
   path,
+  group,
   state,
-  tag,
   onActivate,
 }: {
   node: PreviewNode;
   path: string;
+  /** The parent group's label: the one honest sub-line a feature card has. */
+  group?: string;
   state: NodeState;
-  /** The active feature, when this card is the one it is anchored to. */
-  tag?: { id: string; label: string } | null;
   onActivate?: (via: "hover" | "click") => void;
 }) {
   const box = nodeBox(node);
-  const Icon = CATEGORY_ICON[node.category ?? "text"] ?? FileText;
   return (
     <div
       data-mk-node={node.id}
@@ -277,7 +267,7 @@ function FileCard({
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
         style={{ color: "var(--fewer-file-icon)" }}
       >
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <FileText className="h-5 w-5" aria-hidden="true" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <span
@@ -285,30 +275,18 @@ function FileCard({
           style={{ color: "var(--fewer-file-text)" }}
           title={path}
         >
-          {nodeFileName(node)}
+          {node.label}
         </span>
-        <div
-          className="flex items-center gap-2 text-[10px] uppercase tracking-wider"
-          style={{ color: "var(--fewer-file-subtle-text)" }}
-        >
-          <span className="shrink-0">{node.extension ? `.${node.extension}` : "file"}</span>
-          {node.size ? (
-            <>
-              <span className="opacity-50">·</span>
-              <span className="shrink-0">{formatSize(node.size)}</span>
-            </>
-          ) : null}
-        </div>
+        {group && (
+          <span
+            className="truncate text-[10px] uppercase tracking-wider"
+            style={{ color: "var(--fewer-file-subtle-text)" }}
+            title={path}
+          >
+            {group}
+          </span>
+        )}
       </div>
-      {tag && (
-        <span
-          data-mk-tag={tag.id}
-          className={`${TAG_CLASS} absolute bottom-1.5 right-1.5 max-w-[calc(100%-1rem)]`}
-          aria-hidden="true"
-        >
-          {tag.label}
-        </span>
-      )}
       <HandleDots />
     </div>
   );
@@ -318,8 +296,7 @@ export function PreviewGraph({
   shyness = 1,
   accent,
   className,
-  activeTag,
-  activeIds,
+  activeId,
   dimOthers = false,
   onActivateNode,
 }: {
@@ -328,13 +305,12 @@ export function PreviewGraph({
   accent?: string;
   className?: string;
   /**
-   * The feature the callout is telling, with the card it is anchored to: that
-   * one card wears the tag, and only that one.
+   * The feature the callout is telling: that card wears the active ring at
+   * all times - even before the reader engages - so the inspector and the
+   * canvas never disagree about what is on screen. One id, one card.
    */
-  activeTag?: { id: string; nodeId: string; label: string } | null;
-  /** Node ids (anchors + descendants) to keep bright while dimmed. */
-  activeIds?: string[] | null;
-  /** Dim everything that is not in `activeIds`. Off = plain demo graph. */
+  activeId?: string | null;
+  /** Dim everything that is not `activeId`. Off = plain, whole demo graph. */
   dimOthers?: boolean;
   onActivateNode?: (nodeId: string, via: "hover" | "click") => void;
 }) {
@@ -345,12 +321,12 @@ export function PreviewGraph({
   if (accent) style["--mk-accent"] = accent;
 
   const paths = previewPaths(nodes);
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   const counts: Record<string, number> = {};
   for (const node of nodes) if (node.parent) counts[node.parent] = (counts[node.parent] ?? 0) + 1;
 
-  const active = new Set(dimOthers ? (activeIds ?? []) : []);
   const stateOf = (id: string): NodeState =>
-    !dimOthers ? "idle" : active.has(id) ? "active" : "dim";
+    id === activeId ? "active" : dimOthers ? "dim" : "idle";
 
   return (
     <div
@@ -358,7 +334,7 @@ export function PreviewGraph({
       className={`overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
       tabIndex={0}
       role="region"
-      aria-label="Sample project graph"
+      aria-label="Feature index"
     >
       <div
         data-mk-canvas
@@ -385,7 +361,8 @@ export function PreviewGraph({
             aria-hidden="true"
           >
             {previewEdgePaths(nodes).map((edge) => {
-              const quiet = dimOthers && !active.has(edge.from) && !active.has(edge.to);
+              const quiet =
+                dimOthers && edge.from !== activeId && edge.to !== activeId;
               return (
                 <path
                   key={`${edge.from}-${edge.to}`}
@@ -407,10 +384,8 @@ export function PreviewGraph({
                 node={node}
                 nodes={nodes}
                 path={paths[node.id] ?? node.label}
-                paths={paths}
                 counts={counts}
                 state={stateOf(node.id)}
-                tag={activeTag?.nodeId === node.id ? activeTag : null}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ) : (
@@ -418,8 +393,8 @@ export function PreviewGraph({
                 key={node.id}
                 node={node}
                 path={paths[node.id] ?? node.label}
+                group={node.parent ? byId.get(node.parent)?.label : undefined}
                 state={stateOf(node.id)}
-                tag={activeTag?.nodeId === node.id ? activeTag : null}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ),

@@ -1,10 +1,11 @@
 /**
  * The feature catalogue behind the home page's hotspot playground (T-150).
  *
- * One source of truth for three views of the same story: the feature tag worn
- * by the demo graph's current card, the chip rail under it, and the tour's
- * schedule. It lives in a pure module (no React, no DOM) so the copy limits are
- * unit-testable, the way `marketingPreview.ts` is.
+ * One source of truth for three views of the same story: the demo graph's
+ * cards (a feature id IS its card id, so the canvas cannot drift from the
+ * catalogue), the chip rail under it, and the tour's schedule. It lives in a
+ * pure module (no React, no DOM) so the copy limits are unit-testable, the way
+ * `marketingPreview.ts` is.
  *
  * No per-feature link: a card whose only action was "Try it" took the reader
  * to a docs page, which is the one thing the word "try" does not mean. The
@@ -37,7 +38,7 @@ export type ProofKind =
   | "tags";
 
 export interface MarketingFeature {
-  /** Stable id: pins, chips and callouts key on it. */
+  /** Stable id: the demo graph's card, the chip and the callout key on it. */
   id: string;
   /** 1-4 words. Lives on the chip rail, so it is always visible. */
   chip: string;
@@ -46,15 +47,6 @@ export interface MarketingFeature {
   /** One sentence, 12 words or fewer. The whole body copy of the feature. */
   line: string;
   proof: ProofKind;
-  /** A node id in PREVIEW_NODES: the card this feature is demonstrated on. */
-  anchor: string;
-  /**
-   * The cards the feature lights up; everything else dims. Deliberately not
-   * "the anchor's subtree": a hotspot anchored on the root folder would then
-   * highlight the whole graph, and the point of the playground is the
-   * contrast between the cards a feature touches and the rest.
-   */
-  on: string[];
   /** Gated feature: rendered with a Pro badge and no purchase path. */
   tier?: "pro";
 }
@@ -66,8 +58,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Plan it, then build it",
     line: "Sketch the tree, export it as a script that makes the folders.",
     proof: "shell",
-    anchor: "root",
-    on: ["root", "src", "docs"],
   },
   {
     id: "groups",
@@ -75,8 +65,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Canvas groups",
     line: "Box cards into a titled frame, then collapse it to one pill.",
     proof: "group",
-    anchor: "src",
-    on: ["src", "docs"],
   },
   {
     id: "batch",
@@ -84,8 +72,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Select many, act once",
     line: "Rename, copy, cut, duplicate, move, unparent, hide or delete them together.",
     proof: "batch",
-    anchor: "src",
-    on: ["layout", "types", "readme", "pkg"],
   },
   {
     id: "rename",
@@ -93,8 +79,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Rename the whole selection",
     line: "Find a pattern, keep what it matched, replace the rest.",
     proof: "rename",
-    anchor: "layout",
-    on: ["layout", "types"],
   },
   {
     id: "keyboard",
@@ -102,8 +86,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Keyboard-first",
     line: "Arrow keys walk the tree; search across every card.",
     proof: "keys",
-    anchor: "docs",
-    on: ["docs", "doc-editing", "doc-watch", "doc-import"],
   },
   {
     id: "organize",
@@ -111,8 +93,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "One key re-flows the tree",
     line: "Organize re-lays it out; Crown Shyness gives branches room to breathe.",
     proof: "layout",
-    anchor: "root",
-    on: ["root", "src", "layout", "types", "docs", "doc-editing", "doc-watch", "doc-import", "readme", "pkg"],
   },
   {
     id: "import",
@@ -120,8 +100,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Nine ways in",
     line: "Disk, an archive, a URL, or a GitHub repo. No unpacking.",
     proof: "import",
-    anchor: "root",
-    on: ["root"],
   },
   {
     id: "export",
@@ -129,8 +107,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Export in 8 formats",
     line: "The .fwr document reopens exactly; the rest are for everything else.",
     proof: "export",
-    anchor: "pkg",
-    on: ["pkg"],
   },
   {
     id: "watch",
@@ -138,8 +114,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "It tells you when it changes",
     line: "Watch a public index and get a daily email digest.",
     proof: "watch",
-    anchor: "doc-watch",
-    on: ["doc-watch"],
   },
   {
     id: "themes",
@@ -147,8 +121,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Your graph, your colours",
     line: "Eighteen presets, or tune every colour yourself and share it.",
     proof: "themes",
-    anchor: "readme",
-    on: ["readme"],
   },
   {
     id: "share",
@@ -156,8 +128,6 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "A link, and a way back",
     line: "Compress a small graph into the URL, or save it with history.",
     proof: "share",
-    anchor: "root",
-    on: ["root"],
   },
   {
     id: "tags",
@@ -165,9 +135,48 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "Colour-code any card",
     line: "Dot a card, then filter the graph to just those.",
     proof: "tags",
-    anchor: "types",
-    on: ["types"],
     tier: "pro",
+  },
+];
+
+/**
+ * The three rail groups AND the demo graph's three folders - one list, so the
+ * canvas tree, the `tree` pane and the chip rail can never disagree about the
+ * grouping. `features` is display order; the graph derives a folder card per
+ * group with a file card per feature beneath it, id = feature id.
+ *
+ * The third group's id is `look`, not `share`: the feature `share` already
+ * owns that id, and on the graph the two would be sibling cards.
+ */
+export interface MarketingCategory {
+  /** Stable id: the folder card's id on the demo graph. */
+  id: string;
+  /** 2-3 words, rendered as the rail heading and the folder card's name. */
+  label: string;
+  /** The hover-only sentence under the heading. */
+  tip: string;
+  /** Feature ids, in display order. */
+  features: string[];
+}
+
+export const MARKETING_CATEGORIES: MarketingCategory[] = [
+  {
+    id: "arrange",
+    label: "Arrange & edit",
+    tip: "Sketch the structure first, box cards into groups, rename forty at once, and re-flow the layout without leaving the keyboard.",
+    features: ["plan", "groups", "batch", "rename", "organize", "keyboard"],
+  },
+  {
+    id: "connect",
+    label: "Watch & connect",
+    tip: "Pull a tree from disk, a URL, a repo or an archive, watch a public index for changes, and take the graph back out in eight formats.",
+    features: ["import", "watch", "export"],
+  },
+  {
+    id: "look",
+    label: "Look & share",
+    tip: "Recolour the canvas from a preset or by hand, share it as a link, and colour-code cards with tags.",
+    features: ["themes", "share", "tags"],
   },
 ];
 

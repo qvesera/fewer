@@ -39,7 +39,7 @@ test("the home page states the current product", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: /interactive graph/i }),
   ).toBeVisible();
 
-  // 8 export formats since the .fwr document shipped (T-145). Chips and pins
+  // 8 export formats since the .fwr document shipped (T-145). Chips and cards
   // share a label by design, so the chip is addressed by its data attribute.
   await page.locator('[data-mk-chip="export"]').click();
   await expect(page.getByRole("heading", { level: 2, name: "Export in 8 formats" })).toBeVisible();
@@ -70,9 +70,9 @@ test("the home page sits on the canvas dot grid", async ({ page }) => {
 test("the tree vs graph comparison switches views", async ({ page }) => {
   await page.goto("/");
 
-  // Exactly one copy of the sample graph on the page.
+  // Exactly one copy of the feature index on the page.
   await expect(
-    page.locator('[role="region"][aria-label="Sample project graph"]'),
+    page.locator('[role="region"][aria-label="Feature index"]'),
   ).toHaveCount(1);
 
   // Both panes stay mounted and stacked in one grid cell, so the container
@@ -81,7 +81,7 @@ test("the tree vs graph comparison switches views", async ({ page }) => {
   const treePane = page.locator("#compare pre");
   await page.getByRole("button", { name: "tree", exact: true }).click();
   await expect(treePane).toHaveCSS("opacity", "1");
-  await expect(treePane).toContainText("└── package.json");
+  await expect(treePane).toContainText("└── Tags");
 
   await page.getByRole("button", { name: "fewer", exact: true }).click();
   await expect(page.locator("#compare [data-mk-node]").first()).toBeVisible();
@@ -111,25 +111,31 @@ test("the tree pane is the canvas's twin, not a stray text block", async ({ page
   expect(preBox!.x).toBeGreaterThan(16);
 });
 
-test("a card reveals its feature, and only the active card is marked", async ({ page }) => {
+test("a feature card reveals its feature, and only that card is ringed", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
   await parkTheTour(page);
 
-  // One marker on the canvas, never a dozen: the feature the callout is
-  // telling, worn by the card it is anchored to.
-  const tag = page.locator("[data-mk-tag]");
-  await expect(tag).toHaveCount(1);
+  // One marker on the canvas, never a dozen: the card whose id IS the
+  // feature id wears the active ring, even before the reader engages - the
+  // callout and the canvas always name the same thing.
+  const ring = page.locator("[data-mk-node].mk-node-active");
+  await expect(ring).toHaveCount(1);
 
-  // Hovering a card shows that feature in the callout, and the tag goes with it.
-  await page.locator('[data-mk-node="types"]').hover();
+  // Hovering a feature card shows exactly that feature in the callout, and
+  // the ring follows - identity, not an anchor map.
+  await page.locator('[data-mk-node="tags"]').hover();
   await expect(page.locator('[data-mk-callout="tags"]')).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Colour-code any card" }),
   ).toBeVisible();
-  await expect(tag).toHaveCount(1);
-  await expect(tag).toHaveAttribute("data-mk-tag", "tags");
-  await expect(page.locator('[data-mk-node="types"] [data-mk-tag="tags"]')).toHaveCount(1);
+  await expect(ring).toHaveCount(1);
+  await expect(page.locator('[data-mk-node="tags"].mk-node-active')).toHaveCount(1);
+
+  // Folder cards are structure: hovering one changes nothing.
+  await page.locator('[data-mk-node="connect"]').hover();
+  await expect(page.locator('[data-mk-callout="tags"]')).toBeVisible();
+  await expect(page.locator('[data-mk-node="tags"].mk-node-active')).toHaveCount(1);
 });
 
 test("the tour advances on its own, and the pause button stops it", async ({ page }) => {
@@ -150,8 +156,8 @@ test("the tour advances on its own, and the pause button stops it", async ({ pag
   await page.waitForTimeout(6500);
   await expect(callout).toHaveAttribute("data-mk-callout", parked!);
   await expect(page.locator('[data-mk-tour="play"]')).toBeVisible();
-  // The canvas points at the same feature the whole time: one tag, on that card.
-  await expect(page.locator("[data-mk-tag]")).toHaveCount(1);
+  // The canvas points at the same feature the whole time: one ring, on that card.
+  await expect(page.locator("[data-mk-node].mk-node-active")).toHaveCount(1);
 });
 
 test("the tour never starts under prefers-reduced-motion", async ({ page }) => {
@@ -182,7 +188,7 @@ test("the tour leaves the tree pane alone", async ({ page }) => {
     "aria-pressed",
     "true",
   );
-  await expect(page.locator("#compare pre")).toContainText("└── package.json");
+  await expect(page.locator("#compare pre")).toContainText("└── Tags");
 });
 
 test("the arrows step through the features, and wrap", async ({ page }) => {
@@ -213,8 +219,9 @@ test("the Crown Shyness dial re-flows the demo canvas", async ({ page }) => {
   await page.locator('[data-mk-chip="organize"]').click();
 
   // A control in a proof has to actually do something: the dial is the app's
-  // own Slider, and moving it re-lays out the cards behind it.
-  const card = page.locator('[data-mk-node="pkg"]');
+  // own Slider, and moving it re-lays out the cards behind it. The last card
+  // sits below every gap the dial opens, so it must move down.
+  const card = page.locator('[data-mk-node="tags"]');
   const before = await card.boundingBox();
   expect(before).not.toBeNull();
 
@@ -246,7 +253,7 @@ test("gated features are badged, not sold", async ({ page }) => {
   await expect(page.locator('[data-mk-callout="tags"] a')).toHaveCount(0);
 });
 
-test("a chip drives the callout the same way a pin does", async ({ page }) => {
+test("a chip drives the callout the same way a card does", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
   await parkTheTour(page);

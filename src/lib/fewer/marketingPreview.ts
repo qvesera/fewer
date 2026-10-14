@@ -1,17 +1,27 @@
 /**
  * The demo tree behind the marketing home page (T-150, revised).
  *
- * One source of truth for BOTH views of the same folder: the hero canvas and
- * the `tree` pane, so the two can never disagree about the data they show off.
- * Pure module (no React) so the layout rules, the paths and the edge geometry
- * are unit-testable.
+ * One source of truth for BOTH views of the same data: the hero canvas and
+ * the `tree` pane, so the two can never disagree. Pure module (no React) so
+ * the layout rules, the paths and the edge geometry are unit-testable.
+ *
+ * The tree IS the feature catalogue (T-151 follow-up): a folder card per
+ * MARKETING_CATEGORIES group, a file card per MARKETING_FEATURES feature, and
+ * the card's id IS the feature's id. The earlier version modelled a sample
+ * project (`src/`, `docs/`, `package.json`) and then asserted - through an
+ * anchor map - that package.json "demonstrates" exporting, which was a
+ * relationship the graph never had. Deriving the graph from the catalogue
+ * makes the relationship structural: hovering a card activates that feature
+ * because they are the same id, and the rail, the canvas and the tree pane
+ * all read one list.
  *
  * The cards are the product's own dimensions (DEFAULT_FOLDER_WIDTH/HEIGHT and
  * DEFAULT_FILE_WIDTH/HEIGHT from src/lib/fewer/layout.ts) and the positions
- * are DERIVED, not hand-placed: one sibling gap, one level gap, every parent centred on its
- * children. Hand-placed coords had drifted apart - the three `docs` children
- * were stacked with no gap at all while `src`'s had 20px, and the last card
- * sat flush against the box edge where its own outline got clipped.
+ * are DERIVED, not hand-placed: one sibling gap, one level gap, every parent
+ * centred on its children. Hand-placed coords had drifted apart - the three
+ * `docs` children were stacked with no gap at all while `src`'s had 20px, and
+ * the last card sat flush against the box edge where its own outline got
+ * clipped.
  *
  * The layout takes the Crown Shyness dial (1 = default, up to 3) and scales
  * the SIBLING axis with the product's own curve (effectiveShynessScale from
@@ -26,8 +36,14 @@
  */
 
 import { effectiveShynessScale } from "./layout";
-import type { FileCategory } from "./types";
+import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "./marketingFeatures";
 
+/**
+ * The graph's data shape: the product's node fields that actually exist here.
+ * No `extension`, `size` or `category` - these cards are features, not files,
+ * and inventing file metadata for them would be the same lie the anchor map
+ * told with a prettier face.
+ */
 export interface PreviewNode {
   id: string;
   label: string;
@@ -37,12 +53,6 @@ export interface PreviewNode {
   x: number;
   /** Derived top coord in the canvas box. */
   y: number;
-  /** Drives the icon through CATEGORY_ICON, exactly like a real file card. */
-  category?: FileCategory;
-  /** Files store the stem and the extension separately, like `data.label` + `data.extension`. */
-  extension?: string;
-  /** Bytes; rendered through formatSize() like a real file card. */
-  size?: number;
 }
 
 /** The product's real card dimensions (src/lib/fewer/layout.ts), not scaled. */
@@ -67,25 +77,23 @@ interface PreviewSpec {
   label: string;
   kind: "folder" | "file";
   parent: string | null;
-  category?: FileCategory;
-  extension?: string;
-  size?: number;
 }
 
+/**
+ * Derived from the catalogue: root folder, one folder per rail group, one
+ * file card per feature (id = feature id, label = chip). The non-null
+ * assertions are load-bearing - a category naming an unknown feature fails
+ * here at module load, and marketingFeatures.test.ts pins the bijection.
+ */
 const PREVIEW_SPECS: PreviewSpec[] = [
   { id: "root", label: "fewer", kind: "folder", parent: null },
-  { id: "src", label: "src", kind: "folder", parent: "root" },
-  { id: "layout", label: "layout", kind: "file", parent: "src", category: "code", extension: "ts", size: 4300 },
-  { id: "types", label: "types", kind: "file", parent: "src", category: "code", extension: "ts", size: 1850 },
-  // docs carries children because it carries two hotspots: an empty folder
-  // card renders "Empty folder" next to a watch story about its contents,
-  // which is the demo contradicting itself in one glance.
-  { id: "docs", label: "docs", kind: "folder", parent: "root" },
-  { id: "doc-editing", label: "editing", kind: "file", parent: "docs", category: "document", extension: "md", size: 8400 },
-  { id: "doc-watch", label: "watch", kind: "file", parent: "docs", category: "document", extension: "md", size: 2600 },
-  { id: "doc-import", label: "import-export", kind: "file", parent: "docs", category: "document", extension: "md", size: 12100 },
-  { id: "readme", label: "README", kind: "file", parent: "root", category: "document", extension: "md", size: 6100 },
-  { id: "pkg", label: "package", kind: "file", parent: "root", category: "config", extension: "json", size: 2150 },
+  ...MARKETING_CATEGORIES.flatMap((group) => [
+    { id: group.id, label: group.label, kind: "folder" as const, parent: "root" },
+    ...group.features.map((featureId) => {
+      const feature = MARKETING_FEATURES.find((f) => f.id === featureId)!;
+      return { id: feature.id, label: feature.chip, kind: "file" as const, parent: group.id };
+    }),
+  ]),
 ];
 
 function cardSize(kind: "folder" | "file") {
@@ -96,12 +104,13 @@ function cardSize(kind: "folder" | "file") {
  * Lay the demo tree out at one Crown Shyness setting.
  *
  * Columns are fixed per depth, siblings stack down a single gap, every parent
- * is centred on the span of its children, and the whole block is pushed down so
- * its top sits CANVAS_PAD from the box edge. A parent's extent is its own card
- * OR its children's span, whichever is taller: a 200px folder with three 58px
- * children stacks 215px tall and overhangs it by a few px, and that extent is
- * what the next sibling has to clear - which is why no two cards can ever
- * touch, whatever the dial says.
+ * is centred on its children's CARDS (the product centres a parent over the
+ * child positions too - childrenCenter in layout.ts), and the whole block is
+ * pushed down so its top sits CANVAS_PAD from the box edge. A parent's extent
+ * for CLEARING is its own card OR its children's subtree, whichever reaches
+ * further: a 200px folder whose children spill below it still reserves that
+ * spill for the next sibling, which is why no two cards can ever touch,
+ * whatever the dial says.
  */
 export function previewLayout(
   shyness = 1,
@@ -143,22 +152,31 @@ export function previewLayout(
       return { top, bottom: cursor };
     }
     const start = cursor;
-    let top = Infinity;
-    let bottom = -Infinity;
+    let subTop = Infinity;
+    let subBottom = -Infinity;
+    let cardTop = Infinity;
+    let cardBottom = -Infinity;
     kids.forEach((kid, i) => {
       if (i > 0) cursor += rowGap;
       const span = place(kid);
-      top = Math.min(top, span.top);
-      bottom = Math.max(bottom, span.bottom);
+      subTop = Math.min(subTop, span.top);
+      subBottom = Math.max(subBottom, span.bottom);
+      // Centre on the child's CARD, like the product does (childrenCenter in
+      // layout.ts), not on its subtree extent: a folder whose children spill
+      // well past its own 200px would otherwise drag the parent off the line
+      // the reader sees as "centred".
+      const kidTop = ys.get(kid.id)!;
+      cardTop = Math.min(cardTop, kidTop);
+      cardBottom = Math.max(cardBottom, kidTop + cardSize(kid.kind).h);
     });
-    const parentTop = (top + bottom) / 2 - h / 2;
+    const parentTop = (cardTop + cardBottom) / 2 - h / 2;
     ys.set(spec.id, parentTop);
+    // The next sibling still clears the WHOLE subtree (children included),
+    // not just the cards: a folder's children may hang past its card.
     const extent = {
-      top: Math.min(start, top, parentTop),
-      bottom: Math.max(cursor, bottom, parentTop + h),
+      top: Math.min(start, subTop, parentTop),
+      bottom: Math.max(cursor, subBottom, parentTop + h),
     };
-    // The next sibling clears the WHOLE subtree, not just its children: a
-    // parent's card may hang below the stack it is centred on.
     cursor = extent.bottom;
     return extent;
   };
@@ -181,12 +199,6 @@ export function previewLayout(
 export const PREVIEW_LAYOUT = previewLayout();
 export const PREVIEW_NODES: PreviewNode[] = PREVIEW_LAYOUT.nodes;
 export const PREVIEW_CANVAS = PREVIEW_LAYOUT.canvas;
-
-/** File labels carry their extension separately, the way the app stores them. */
-export function nodeFileName(node: PreviewNode): string {
-  if (node.kind !== "file") return node.label;
-  return node.extension ? `${node.label}.${node.extension}` : node.label;
-}
 
 export interface PreviewBox {
   x: number;
@@ -214,10 +226,9 @@ export function previewPaths(nodes: PreviewNode[] = PREVIEW_NODES): Record<strin
   const paths: Record<string, string> = {};
   const resolve = (node: PreviewNode): string => {
     if (paths[node.id]) return paths[node.id];
-    const name = nodeFileName(node);
     paths[node.id] = node.parent
-      ? `${resolve(byId.get(node.parent)!)}/${name}`
-      : `~/${name}`;
+      ? `${resolve(byId.get(node.parent)!)}/${node.label}`
+      : `~/${node.label}`;
     return paths[node.id];
   };
   for (const node of nodes) resolve(node);
@@ -264,13 +275,13 @@ export function graphToTextLines(nodes: PreviewNode[] = PREVIEW_NODES): string[]
     const kids = previewChildren(parent.id, nodes);
     kids.forEach((kid, i) => {
       const last = i === kids.length - 1;
-      lines.push(`${prefix}${last ? "└── " : "├── "}${nodeFileName(kid)}${kid.kind === "folder" ? "/" : ""}`);
+      lines.push(`${prefix}${last ? "└── " : "├── "}${kid.label}${kid.kind === "folder" ? "/" : ""}`);
       if (kid.kind === "folder") emit(kid, prefix + (last ? "    " : "│   "));
     });
   };
 
   for (const root of nodes.filter((n) => !n.parent)) {
-    lines.push(`./${nodeFileName(root)}`);
+    lines.push(`./${root.label}`);
     emit(root, "");
   }
   return lines;

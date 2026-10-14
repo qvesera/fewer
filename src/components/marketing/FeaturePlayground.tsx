@@ -7,12 +7,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { APP_URL } from "./MarketingLayout";
 import { useDevice } from "@/hooks/use-device";
 import { graphToTextLines } from "@/lib/fewer/marketingPreview";
-import { MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
+import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
 import { PreviewGraph } from "./PreviewGraph";
 import { FeatureProof } from "./FeatureProof";
 
 /**
- * The hero AND the feature story (T-150 follow-up, fourth pass).
+ * The hero AND the feature story (T-150 follow-up, fourth pass; selection
+ * reworked T-151).
  *
  * The canvas is the page: on the same dot grid the app draws, with no browser
  * chrome and no card around it, in the same column as the headline, the
@@ -21,8 +22,14 @@ import { FeatureProof } from "./FeatureProof";
  * toggle and the accent swatches) above the canvas, and an inspector panel
  * below it with the feature's name in the title bar.
  *
+ * The graph and the catalogue are one thing: a card's id IS the feature id
+ * (marketingPreview.ts derives the tree from this catalogue), so activating a
+ * card is `activate(nodeId)` - no anchor map asserting that some sample-project
+ * file "demonstrates" a feature it has nothing to do with. Folder cards are
+ * structure: they hold the group's features and activate nothing.
+ *
  * One feature at a time, in that inspector. It advances two ways: the reader
- * (pin, card, chip, or the arrows in the title bar) and the tour, which walks
+ * (file card, chip, or the arrows in the title bar) and the tour, which walks
  * the catalogue every TOUR_MS while it can be seen and nobody has touched
  * anything. The pause button is real - and the tour starts parked under
  * prefers-reduced-motion, where anything that moves on its own is the wrong
@@ -56,28 +63,6 @@ const SWATCHES = [
   { name: "Amber", value: "#ffbf00" },
   { name: "Orange", value: "#ff8c00" },
 ];
-
-/** Rail groups. Concrete product words; each tip is the hover-only sentence. */
-const CATEGORIES = [
-  {
-    id: "arrange",
-    label: "Arrange & edit",
-    tip: "Sketch the structure first, box cards into groups, rename forty at once, and re-flow the layout without leaving the keyboard.",
-    features: ["plan", "groups", "batch", "rename", "organize", "keyboard"],
-  },
-  {
-    id: "connect",
-    label: "Watch & connect",
-    tip: "Pull a tree from disk, a URL, a repo or an archive, watch a public index for changes, and take the graph back out in eight formats.",
-    features: ["import", "watch", "export"],
-  },
-  {
-    id: "share",
-    label: "Look & share",
-    tip: "Recolour the canvas from a preset or by hand, share it as a link, and colour-code cards with tags.",
-    features: ["themes", "share", "tags"],
-  },
-] as const;
 
 type View = "tree" | "graph";
 
@@ -139,7 +124,8 @@ export function FeaturePlayground() {
   const [shyness, setShyness] = useState(1);
   /**
    * Whether the reader has touched anything yet. At rest the graph is whole:
-   * nothing dimmed, no pin pressed. Loading straight into a dimmed state made
+   * nothing dimmed (the active ring still marks the feature on screen, but a
+   * ring is a mark, not a mood). Loading straight into a dimmed state made
    * the page look like it was already half-hovered, which is the one thing a
    * demo graph must not look like before anyone touches it.
    */
@@ -172,7 +158,7 @@ export function FeaturePlayground() {
   const featureIndex = MARKETING_FEATURES.indexOf(feature);
 
   /**
-   * Every activation lights its hotspot and restarts the tour's clock, so a
+   * Every activation selects that feature and restarts the tour's clock, so a
    * feature the reader just picked always gets a full quiet interval. Hover
    * never steals the view - a pointer crossing the canvas must not undo a
    * deliberate "show me the tree" - while a click, a focus or the tour's own
@@ -368,7 +354,8 @@ export function FeaturePlayground() {
 
           {/* Both panes stay mounted and stacked in one grid cell, so the height
               never jumps; the toggle only moves opacity. `invisible` keeps the
-              hidden pane out of the tab order now that it holds pins.
+              hidden pane out of the tab order now that it holds interactive
+              cards.
               grid-cols-1 is minmax(0, 1fr): an auto column would size to the
               design box and drag the whole page wider than the viewport. */}
           <div id="compare" className="relative mt-3 grid grid-cols-1">
@@ -411,22 +398,14 @@ export function FeaturePlayground() {
                 className="w-full"
                 accent={accent}
                 shyness={shyness}
-                activeTag={{ id: feature.id, nodeId: feature.anchor, label: feature.chip }}
-                activeIds={feature.on}
+                activeId={feature.id}
                 dimOthers={engaged && view === "graph"}
                 onActivateNode={(nodeId, via) => {
-                  // A card can demonstrate several features (the root folder
-                  // carries four). Hover shows the first, so the reveal is
-                  // immediate; a click walks the rest - and the tag the card
-                  // wears is what tells a reader there is more behind it.
-                  const anchored = MARKETING_FEATURES.filter((f) => f.anchor === nodeId);
-                  if (anchored.length === 0) return;
-                  if (via === "hover") {
-                    activate(anchored[0].id, via);
-                    return;
-                  }
-                  const i = anchored.findIndex((f) => f.id === activeId);
-                  activate(anchored[(i + 1) % anchored.length].id, via);
+                  // The card id IS the feature id, so activation is a lookup
+                  // by identity. Folder cards (root and the three groups) are
+                  // structure, not features, and activate nothing.
+                  if (!MARKETING_FEATURES.some((f) => f.id === nodeId)) return;
+                  activate(nodeId, via);
                 }}
               />
             </div>
@@ -512,7 +491,7 @@ export function FeaturePlayground() {
               group's longer sentence lives on its label's tooltip, so the page
               never has to spell it out in the main flow. */}
           <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-            {CATEGORIES.map((category) => (
+            {MARKETING_CATEGORIES.map((category) => (
               <div key={category.id}>
                 <h3
                   className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
@@ -558,8 +537,9 @@ export function FeaturePlayground() {
           </div>
 
           <p className="mt-6 font-mono text-xs text-muted-foreground">
-            {isTouch ? "Tap a card." : "Hover a card."} Every one is a feature.
-            Step through them with the arrows, or let the tour run.
+            {isTouch ? "Tap a file card." : "Hover a file card."} Every one is
+            a feature; the folders group them. Step through them with the
+            arrows, or let the tour run.
           </p>
         </div>
       </div>
