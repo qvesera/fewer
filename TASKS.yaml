@@ -4201,30 +4201,30 @@ tasks:
   session_count: 3
 - id: "T-152"
   title: "Home Themes feature links to the gallery themes tab"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 421
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-14T21:49:04Z"
   notes: []
   sessions:
   - start: "2026-10-14T21:51:07Z"
-    end: null
+    end: "2026-10-14T22:40:45Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Themes proof links to /gallery?tab=themes; gallery tab is URL-addressable both ways; shell-gated link; e2e + docs + changelog; all gates green (tsc, lint, 1810 unit, 15 e2e, build)"
+    proof: ["dfd21da"]
+    effort: {commits: 1, files: 9, insertions: 136, deletions: 34}
+  spent_min: 50
   session_count: 1
