@@ -4160,7 +4160,7 @@ tasks:
   session_count: 7
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
