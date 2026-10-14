@@ -15,17 +15,16 @@ import {
 } from "@/lib/fewer/marketingPreview";
 
 /**
- * The demo graph (T-150, reworked T-151). These are the product's cards, not
- * a stylised miniature: same dimensions (240x200 / 220x58), same shell classes,
+ * The demo graph (T-150, reworked T-151, T-154). The folder cards are the
+ * product's own 240x200; the file cards are single-line (name only, 220x44) -
+ * shorter than the product's two-line 220x58 because these cards carry no
+ * metadata sub-line: printing the parent folder's name under a card that
+ * already sits in that folder tells the reader nothing. Same shell classes,
  * same tokens, same `N items` footer, reusing the app's own .gm-node-hover /
  * .shadow-node-* utilities so hover behaves the way it does on the canvas.
  *
  * The graph IS the feature catalogue: a folder card per rail group, a file
  * card per feature, card id = feature id (see marketingPreview.ts for why).
- * A feature card's sub-line names its group the way a real card's sub-line
- * carries metadata - these cards are features, so `.ext · size` would be
- * invented file data and the one honest thing to print is where the card
- * lives.
  *
  * The whole box is laid out in the product's pixel space and then `zoom`ed to
  * fit its container, so every proportion (and the text) scales together the
@@ -44,7 +43,10 @@ import {
  * The active marker: the card whose feature the callout is telling wears the
  * product's own active outline (mk-node-active) at all times - there is no
  * second marker, because the card's name already IS the feature. Once the
- * reader engages, everything else dims, and the ring is what stays readable.
+ * reader engages, everything else dims - except the structure the reader
+ * needs to keep their place: the root folder and the active card's own
+ * parent folder stay fully saturated (T-154), so the path from the root to
+ * the highlighted feature never disappears behind the focus effect.
  */
 
 /** Brightness of one card in the demo, driven by the active feature. */
@@ -237,14 +239,11 @@ function FolderCard({
 function FileCard({
   node,
   path,
-  group,
   state,
   onActivate,
 }: {
   node: PreviewNode;
   path: string;
-  /** The parent group's label: the one honest sub-line a feature card has. */
-  group?: string;
   state: NodeState;
   onActivate?: (via: "hover" | "click") => void;
 }) {
@@ -254,7 +253,7 @@ function FileCard({
       data-mk-node={node.id}
       onPointerEnter={() => onActivate?.("hover")}
       onClick={() => onActivate?.("click")}
-      className={`gm-node-hover absolute flex items-center gap-3 rounded-xl border backdrop-blur-xl shadow-node-file ${NODE_STATE_CLASS[state]}`}
+      className={`gm-node-hover absolute flex items-center gap-2.5 rounded-xl border backdrop-blur-xl shadow-node-file ${NODE_STATE_CLASS[state]}`}
       style={{
         left: box.x,
         top: box.y,
@@ -264,29 +263,18 @@ function FileCard({
       }}
     >
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+        className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
         style={{ color: "var(--fewer-file-icon)" }}
       >
-        <FileText className="h-5 w-5" aria-hidden="true" />
+        <FileText className="h-4 w-4" aria-hidden="true" />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          className="truncate text-sm font-semibold"
-          style={{ color: "var(--fewer-file-text)" }}
-          title={path}
-        >
-          {node.label}
-        </span>
-        {group && (
-          <span
-            className="truncate text-[10px] uppercase tracking-wider"
-            style={{ color: "var(--fewer-file-subtle-text)" }}
-            title={path}
-          >
-            {group}
-          </span>
-        )}
-      </div>
+      <span
+        className="min-w-0 flex-1 truncate pr-3 text-sm font-semibold"
+        style={{ color: "var(--fewer-file-text)" }}
+        title={path}
+      >
+        {node.label}
+      </span>
       <HandleDots />
     </div>
   );
@@ -325,8 +313,17 @@ export function PreviewGraph({
   const counts: Record<string, number> = {};
   for (const node of nodes) if (node.parent) counts[node.parent] = (counts[node.parent] ?? 0) + 1;
 
-  const stateOf = (id: string): NodeState =>
-    id === activeId ? "active" : dimOthers ? "dim" : "idle";
+  // The structure that keeps the reader oriented never dims (T-154): the root
+  // and the active card's own parent folder stay fully saturated, so the path
+  // from the top of the tree to the highlighted feature is always legible.
+  // Folder cards are structure - they activate nothing - so their saturation
+  // cannot steal the focus the ring marks.
+  const activeParent = activeId ? byId.get(activeId)?.parent ?? null : null;
+  const keptNodes = new Set(
+    nodes.filter((n) => n.kind === "folder" && (!n.parent || n.id === activeParent)).map((n) => n.id),
+  );
+  const stateOf = (node: PreviewNode): NodeState =>
+    node.id === activeId ? "active" : dimOthers && !keptNodes.has(node.id) ? "dim" : "idle";
 
   return (
     <div
@@ -361,8 +358,15 @@ export function PreviewGraph({
             aria-hidden="true"
           >
             {previewEdgePaths(nodes).map((edge) => {
+              // An edge stays lit when it touches the ring or the kept
+              // structure (root / active parent), so the whole path from the
+              // top of the tree to the active card reads as one line.
               const quiet =
-                dimOthers && edge.from !== activeId && edge.to !== activeId;
+                dimOthers &&
+                edge.from !== activeId &&
+                edge.to !== activeId &&
+                !keptNodes.has(edge.from) &&
+                !keptNodes.has(edge.to);
               return (
                 <path
                   key={`${edge.from}-${edge.to}`}
@@ -385,7 +389,7 @@ export function PreviewGraph({
                 nodes={nodes}
                 path={paths[node.id] ?? node.label}
                 counts={counts}
-                state={stateOf(node.id)}
+                state={stateOf(node)}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ) : (
@@ -393,8 +397,7 @@ export function PreviewGraph({
                 key={node.id}
                 node={node}
                 path={paths[node.id] ?? node.label}
-                group={node.parent ? byId.get(node.parent)?.label : undefined}
-                state={stateOf(node.id)}
+                state={stateOf(node)}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ),

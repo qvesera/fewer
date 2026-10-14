@@ -86,10 +86,13 @@ describe("marketingPreview", () => {
     }
   });
 
-  test("card dimensions are the product's, not a stylised miniature", () => {
-    // DEFAULT_FOLDER_* / DEFAULT_FILE_* in src/lib/fewer/layout.ts.
+  test("card dimensions: folders are the product's, files are single-line", () => {
+    // Folder cards: DEFAULT_FOLDER_* in src/lib/fewer/layout.ts. File cards
+    // keep the product's width but drop to one line (T-154) - the demo card
+    // carries its name and no metadata sub-line, so the second row would be
+    // padding around a single line of text.
     expect(PREVIEW_FOLDER).toEqual({ w: 240, h: 200 });
-    expect(PREVIEW_FILE).toEqual({ w: 220, h: 58 });
+    expect(PREVIEW_FILE).toEqual({ w: 220, h: 44 });
   });
 
   test("each folder is vertically centred on its children", () => {
@@ -145,8 +148,8 @@ describe("marketingPreview", () => {
       "│   └── Organize",
       "├── Watch & connect/",
       "│   ├── Import anything",
-      "│   ├── Watch a URL",
-      "│   └── Export in 8 formats",
+      "│   ├── Export in 8 formats",
+      "│   └── Watch a URL",
       "└── Look & share/",
       "    ├── Themes",
       "    ├── Share and save",

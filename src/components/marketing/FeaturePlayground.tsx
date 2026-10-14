@@ -526,14 +526,6 @@ export function FeaturePlayground() {
                         ].join(" ")}
                       >
                         {item.chip}
-                        {item.tier === "pro" && (
-                          <span
-                            aria-hidden="true"
-                            className="ml-1.5 rounded border px-1 text-[10px] uppercase tracking-wider opacity-80"
-                          >
-                            Pro
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -541,12 +533,6 @@ export function FeaturePlayground() {
               </div>
             ))}
           </div>
-
-          <p className="mt-6 font-mono text-xs text-muted-foreground">
-            {isTouch ? "Tap a file card." : "Hover a file card."} Every one is
-            a feature; the folders group them. Step through them with the
-            arrows, or let the tour run.
-          </p>
         </div>
       </div>
     </section>

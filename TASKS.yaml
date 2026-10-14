@@ -4257,3 +4257,32 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 43, deletions: 8}
   spent_min: 13
   session_count: 1
+- id: "T-154"
+  title: "Preview canvas: slimmer file cards, folders stay saturated"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 40
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T23:18:22Z"
+  notes: []
+  sessions:
+  - start: "2026-10-14T23:20:58Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

@@ -170,7 +170,7 @@ export const MARKETING_CATEGORIES: MarketingCategory[] = [
     id: "connect",
     label: "Watch & connect",
     tip: "Pull a tree from disk, a URL, a repo or an archive, watch a public index for changes, and take the graph back out in eight formats.",
-    features: ["import", "watch", "export"],
+    features: ["import", "export", "watch"],
   },
   {
     id: "look",

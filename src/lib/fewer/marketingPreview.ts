@@ -15,13 +15,16 @@
  * because they are the same id, and the rail, the canvas and the tree pane
  * all read one list.
  *
- * The cards are the product's own dimensions (DEFAULT_FOLDER_WIDTH/HEIGHT and
- * DEFAULT_FILE_WIDTH/HEIGHT from src/lib/fewer/layout.ts) and the positions
- * are DERIVED, not hand-placed: one sibling gap, one level gap, every parent
- * centred on its children. Hand-placed coords had drifted apart - the three
- * `docs` children were stacked with no gap at all while `src`'s had 20px, and
- * the last card sat flush against the box edge where its own outline got
- * clipped.
+ * The cards keep the product's look (same shell, tokens and proportions): the
+ * folder cards are the product's own DEFAULT_FOLDER_WIDTH/HEIGHT (240x200),
+ * the file cards are 220 wide like DEFAULT_FILE_WIDTH but a single line tall
+ * (44, vs the product's 58) - a demo feature card carries its name and
+ * nothing else, and a two-line card holding one line was just padding (T-154).
+ * The positions are DERIVED, not hand-placed: one sibling gap, one level gap,
+ * every parent centred on its children. Hand-placed coords had drifted apart -
+ * the three `docs` children were stacked with no gap at all while `src`'s had
+ * 20px, and the last card sat flush against the box edge where its own outline
+ * got clipped.
  *
  * The layout takes the Crown Shyness dial (1 = default, up to 3) and scales
  * the SIBLING axis with the product's own curve (effectiveShynessScale from
@@ -55,9 +58,9 @@ export interface PreviewNode {
   y: number;
 }
 
-/** The product's real card dimensions (src/lib/fewer/layout.ts), not scaled. */
+/** Folder cards are the product's; file cards are single-line (see header). */
 export const PREVIEW_FOLDER = { w: 240, h: 200 } as const;
-export const PREVIEW_FILE = { w: 220, h: 58 } as const;
+export const PREVIEW_FILE = { w: 220, h: 44 } as const;
 
 /** Below this rendered width the box stops shrinking and scrolls instead. */
 export const PREVIEW_MIN_WIDTH = 520;
@@ -142,6 +145,8 @@ export function previewLayout(
 
   const ys = new Map<string, number>();
   let cursor = 0;
+  const subtreeIds = (id: string): string[] =>
+    childrenOf(id).flatMap((kid) => [kid.id, ...subtreeIds(kid.id)]);
   const place = (spec: PreviewSpec): { top: number; bottom: number } => {
     const kids = childrenOf(spec.id);
     const { h } = cardSize(spec.kind);
@@ -170,12 +175,25 @@ export function previewLayout(
       cardBottom = Math.max(cardBottom, kidTop + cardSize(kid.kind).h);
     });
     const parentTop = (cardTop + cardBottom) / 2 - h / 2;
-    ys.set(spec.id, parentTop);
+    // A folder taller than its children block (3 single-line cards = 172 vs
+    // the card's 200) would centre by floating ABOVE its slot - and the next
+    // sibling's card then lands inside this one's gap. When that happens, move
+    // the whole placed subtree down with the card instead: centring holds, the
+    // card starts at its slot, and the sibling gap stays a real gap (T-154).
+    let shift = 0;
+    if (parentTop < start) {
+      shift = start - parentTop;
+      for (const id of subtreeIds(spec.id)) ys.set(id, ys.get(id)! + shift);
+      subTop += shift;
+      subBottom += shift;
+      cursor += shift;
+    }
+    ys.set(spec.id, parentTop + shift);
     // The next sibling still clears the WHOLE subtree (children included),
     // not just the cards: a folder's children may hang past its card.
     const extent = {
-      top: Math.min(start, subTop, parentTop),
-      bottom: Math.max(cursor, subBottom, parentTop + h),
+      top: Math.min(start, subTop, parentTop + shift),
+      bottom: Math.max(cursor, subBottom, parentTop + shift + h),
     };
     cursor = extent.bottom;
     return extent;
