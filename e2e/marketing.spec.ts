@@ -107,17 +107,25 @@ test("the tree pane is the canvas's twin, not a stray text block", async ({ page
   expect(preBox!.x).toBeGreaterThan(16);
 });
 
-test("hovering a pin reveals its feature", async ({ page }) => {
+test("a card reveals its feature, and only the active card is marked", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
   await parkTheTour(page);
 
-  // Hovering a pin on the graph shows that feature in the callout.
-  await page.locator('[data-mk-pin="tags"]').hover();
+  // One marker on the canvas, never a dozen: the feature the callout is
+  // telling, worn by the card it is anchored to.
+  const tag = page.locator("[data-mk-tag]");
+  await expect(tag).toHaveCount(1);
+
+  // Hovering a card shows that feature in the callout, and the tag goes with it.
+  await page.locator('[data-mk-node="types"]').hover();
   await expect(page.locator('[data-mk-callout="tags"]')).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: "Colour-code any card" }),
   ).toBeVisible();
+  await expect(tag).toHaveCount(1);
+  await expect(tag).toHaveAttribute("data-mk-tag", "tags");
+  await expect(page.locator('[data-mk-node="types"] [data-mk-tag="tags"]')).toHaveCount(1);
 });
 
 test("the tour advances on its own, and the pause button stops it", async ({ page }) => {
@@ -138,6 +146,8 @@ test("the tour advances on its own, and the pause button stops it", async ({ pag
   await page.waitForTimeout(6500);
   await expect(callout).toHaveAttribute("data-mk-callout", parked!);
   await expect(page.locator('[data-mk-tour="play"]')).toBeVisible();
+  // The canvas points at the same feature the whole time: one tag, on that card.
+  await expect(page.locator("[data-mk-tag]")).toHaveCount(1);
 });
 
 test("the tour never starts under prefers-reduced-motion", async ({ page }) => {

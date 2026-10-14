@@ -89,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page carries the privacy and open source sections again: 'Your data stays yours' with its six statements as a scannable grid plus the Read the Privacy Policy button, and the closing 'Open source' band with View on GitHub and Launch the app.
 - The home page's feature card no longer closes with an X or sends you to a docs page when you press Try it: it carries a play/pause for the feature tour (which walks all twelve features every 5 seconds, parks itself under reduced motion, in the tree pane and when the tab is hidden), arrows to step through them by hand, and a Crown Shyness dial that is now the app's own slider - dragging it re-flows the demo tree on the canvas behind the card
 - On the home page the canvas controls moved out of a panel floating at the right edge of the window into a View toolbar above the canvas, in the same column as the headline and the feature card; the tree view is now a captioned block sitting exactly where the canvas does instead of stray text at the left edge of the page, and the feature card's contents are padded and capped so long proof rows wrap instead of running under the border
+- The home page's demo canvas dropped its twelve pinging sparkle pins - they stacked four deep on the root card and sat right on top of the connectors - for one small tag naming the feature the card is telling: it sits on that feature's card only, and moves with the tour, so the canvas always points at exactly one story
 
 ### Fixed
 

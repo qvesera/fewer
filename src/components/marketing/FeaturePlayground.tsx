@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { APP_URL } from "./MarketingLayout";
 import { useDevice } from "@/hooks/use-device";
 import { graphToTextLines } from "@/lib/fewer/marketingPreview";
-import { MARKETING_FEATURES, previewPins } from "@/lib/fewer/marketingFeatures";
+import { MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
 import { PreviewGraph } from "./PreviewGraph";
 import { FeatureProof } from "./FeatureProof";
 
@@ -37,7 +37,6 @@ import { FeatureProof } from "./FeatureProof";
  */
 
 const TREE_LINES = graphToTextLines();
-const PINS = previewPins();
 
 const PANE_TRANSITION =
   "opacity var(--dur-slow) var(--ease-enter), transform var(--dur-slow) var(--ease-enter)";
@@ -408,15 +407,14 @@ export function FeaturePlayground() {
                 className="w-full"
                 accent={accent}
                 shyness={shyness}
-                pins={PINS}
-                activePinId={engaged ? feature.id : null}
+                activeTag={{ id: feature.id, nodeId: feature.anchor, label: feature.chip }}
                 activeIds={feature.on}
                 dimOthers={engaged && view === "graph"}
                 onActivateNode={(nodeId, via) => {
-                  // A card can carry several hotspots (the root folder carries
-                  // four). Hover shows the first, so the reveal is immediate;
-                  // a click walks the rest, which is how a reader reaches the
-                  // ones whose pins are easy to miss.
+                  // A card can demonstrate several features (the root folder
+                  // carries four). Hover shows the first, so the reveal is
+                  // immediate; a click walks the rest - and the tag the card
+                  // wears is what tells a reader there is more behind it.
                   const anchored = MARKETING_FEATURES.filter((f) => f.anchor === nodeId);
                   if (anchored.length === 0) return;
                   if (via === "hover") {
@@ -426,7 +424,6 @@ export function FeaturePlayground() {
                   const i = anchored.findIndex((f) => f.id === activeId);
                   activate(anchored[(i + 1) % anchored.length].id, via);
                 }}
-                onActivatePin={(id, via) => activate(id, via)}
               />
             </div>
           </div>
@@ -557,7 +554,7 @@ export function FeaturePlayground() {
           </div>
 
           <p className="mt-6 font-mono text-xs text-muted-foreground">
-            {isTouch ? "Tap a card or a pin." : "Hover a card or a pin."} Every one is a feature.
+            {isTouch ? "Tap a card." : "Hover a card."} Every one is a feature.
             Step through them with the arrows, or let the tour run.
           </p>
         </div>

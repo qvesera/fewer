@@ -1,9 +1,9 @@
 /**
  * The feature catalogue behind the home page's hotspot playground (T-150).
  *
- * One source of truth for three views of the same story: the pins drawn on the
- * demo graph, the chip rail under it, and the tour's schedule. It lives in a
- * pure module (no React, no DOM) so the copy limits and the pin geometry are
+ * One source of truth for three views of the same story: the feature tag worn
+ * by the demo graph's current card, the chip rail under it, and the tour's
+ * schedule. It lives in a pure module (no React, no DOM) so the copy limits are
  * unit-testable, the way `marketingPreview.ts` is.
  *
  * No per-feature link: a card whose only action was "Try it" took the reader
@@ -20,8 +20,6 @@
  * render a non-interactive badge - never a purchase path that does not exist
  * (`/docs/plans` is hidden while BILLING_ENABLED is off).
  */
-
-import { PREVIEW_CANVAS, PREVIEW_NODES, nodeBox, type PreviewNode } from "./marketingPreview";
 
 /** The micro-proof the callout renders. Mapped to a component in FeatureProof. */
 export type ProofKind =
@@ -182,64 +180,3 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export interface PreviewPin {
-  /** The feature this pin belongs to. */
-  id: string;
-  nodeId: string;
-  /** Accessible name and tooltip: the feature's chip label. */
-  label: string;
-  /**
-   * Design-space x of the pin centre: the card's own edge, so the pin reads as
-   * a badge ON the card rather than a dot floating beside it. Right edge when
-   * there is room to the right, left edge at the canvas edge (`layout`,
-   * `types` and the docs children).
-   *
-   * Y is deliberately absent - pins are stacked in SCREEN pixels by
-   * PreviewGraph, because a design-space pitch scaled by the fit zoom would
-   * collapse into one pile on a narrow column.
-   */
-  x: number;
-}
-
-/**
- * Pin x positions in design space, one per feature: down the right edge of the
- * anchored card, or its left when the card's right edge already touches the
- * canvas (`layout`, `types`), so a pin never lands outside the box the preview
- * zooms to fit. Several features on one card share that x and are stacked by
- * the renderer.
- *
- * ponytail: hand-placed rule, not a solver - the demo tree is seven cards and
- * static. Revisit if it ever grows past one screen.
- */
-export function previewPins(
-  features: MarketingFeature[] = MARKETING_FEATURES,
-  nodes: PreviewNode[] = PREVIEW_NODES,
-): PreviewPin[] {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const pins: PreviewPin[] = [];
-
-  for (const [anchor, group] of groupByAnchor(features)) {
-    const node = byId.get(anchor);
-    if (!node) continue;
-    const box = nodeBox(node);
-    const onRight = box.x + box.w + 40 <= PREVIEW_CANVAS.w;
-    const x = onRight ? box.x + box.w : box.x;
-    for (const feature of group) {
-      pins.push({ id: feature.id, nodeId: anchor, label: feature.chip, x });
-    }
-  }
-
-  return pins;
-}
-
-function groupByAnchor(
-  features: MarketingFeature[],
-): [string, MarketingFeature[]][] {
-  const groups = new Map<string, MarketingFeature[]>();
-  for (const feature of features) {
-    const list = groups.get(feature.anchor);
-    if (list) list.push(feature);
-    else groups.set(feature.anchor, [feature]);
-  }
-  return [...groups.entries()];
-}

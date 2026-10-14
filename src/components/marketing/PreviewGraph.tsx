@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ChevronRight, FileText, Folder, Sparkles } from "lucide-react";
+import { ChevronRight, FileText, Folder } from "lucide-react";
 import { CATEGORY_ICON, formatSize } from "@/lib/fewer/nodeVisuals";
-import type { PreviewPin } from "@/lib/fewer/marketingFeatures";
 import {
   PREVIEW_FILE,
   PREVIEW_FOLDER,
@@ -40,9 +39,9 @@ import {
  *
  * The hotspot overlay (T-150 follow-up): cards accept an `onActivate` and a
  * dim/active state so the playground can highlight a subtree and quiet the
- * rest, and pins are drawn from `previewPins()` in CONTAINER pixels (design
- * coordinate x the live zoom), outside the zoomed box - a pin inside it would
- * be scaled to an unusable dot, and CSS zoom would scale the button twice.
+ * rest, and exactly one card wears the feature the callout is telling as a
+ * small tag in its own corner. Inside the card, so it scales with the box like
+ * the rest of the text - and never a dozen markers competing for the eye.
  */
 
 /** Brightness of one card in the demo, driven by the active hotspot. */
@@ -54,42 +53,9 @@ const NODE_STATE_CLASS: Record<NodeState, string> = {
   idle: "",
 };
 
-/** Screen px between two pins on the same card (pins are 28px). */
-const PIN_PITCH = 32;
-
-/**
- * Pins in screen pixels: x from the catalog, y stacked down the middle of the
- * anchored card at a FIXED pitch. The pitch has to be in screen space - a
- * design-space pitch gets multiplied by the fit zoom, and on a narrow column
- * that collapses four pins into one pile.
- */
-function layoutPins(pins: PreviewPin[], nodes: PreviewNode[], zoom: number) {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const groups = new Map<string, PreviewPin[]>();
-  for (const pin of pins) {
-    const group = groups.get(pin.nodeId);
-    if (group) group.push(pin);
-    else groups.set(pin.nodeId, [pin]);
-  }
-
-  const placed: { id: string; label: string; x: number; y: number }[] = [];
-  for (const group of groups.values()) {
-    const node = byId.get(group[0].nodeId);
-    if (!node) continue;
-    const box = nodeBox(node);
-    const centreY = (box.y + box.h / 2) * zoom;
-    group.forEach((pin, i) => {
-      const offset = (i - (group.length - 1) / 2) * PIN_PITCH;
-      placed.push({
-        id: pin.id,
-        label: pin.label,
-        x: Math.round(pin.x * zoom),
-        y: Math.round(centreY + offset),
-      });
-    });
-  }
-  return placed;
-}
+/** The one marker on the demo canvas: the feature the callout is telling. */
+const TAG_CLASS =
+  "truncate rounded-full bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase leading-none tracking-[0.12em] text-primary-foreground";
 
 /** Design-space -> container fit. Caps at 1:1; never blows the cards up. */
 function useFitZoom(designWidth: number) {
@@ -178,6 +144,7 @@ function FolderCard({
   paths,
   counts,
   state,
+  tag,
   onActivate,
 }: {
   node: PreviewNode;
@@ -186,6 +153,8 @@ function FolderCard({
   paths: Record<string, string>;
   counts: Record<string, number>;
   state: NodeState;
+  /** The active feature, when this card is the one it is anchored to. */
+  tag?: { id: string; label: string } | null;
   onActivate?: (via: "hover" | "click") => void;
 }) {
   const kids = previewChildren(node.id, nodes);
@@ -260,9 +229,14 @@ function FolderCard({
           color: "var(--fewer-folder-subtle-text)",
         }}
       >
-        <span>
+        <span className="shrink-0">
           {kids.length} {kids.length === 1 ? "item" : "items"}
         </span>
+        {tag && (
+          <span data-mk-tag={tag.id} className={`${TAG_CLASS} max-w-[60%]`} aria-hidden="true">
+            {tag.label}
+          </span>
+        )}
       </div>
       <HandleDots />
     </div>
@@ -273,11 +247,14 @@ function FileCard({
   node,
   path,
   state,
+  tag,
   onActivate,
 }: {
   node: PreviewNode;
   path: string;
   state: NodeState;
+  /** The active feature, when this card is the one it is anchored to. */
+  tag?: { id: string; label: string } | null;
   onActivate?: (via: "hover" | "click") => void;
 }) {
   const box = nodeBox(node);
@@ -323,6 +300,15 @@ function FileCard({
           ) : null}
         </div>
       </div>
+      {tag && (
+        <span
+          data-mk-tag={tag.id}
+          className={`${TAG_CLASS} absolute bottom-1.5 right-1.5 max-w-[calc(100%-1rem)]`}
+          aria-hidden="true"
+        >
+          {tag.label}
+        </span>
+      )}
       <HandleDots />
     </div>
   );
@@ -332,27 +318,25 @@ export function PreviewGraph({
   shyness = 1,
   accent,
   className,
-  pins,
-  activePinId,
+  activeTag,
   activeIds,
   dimOthers = false,
   onActivateNode,
-  onActivatePin,
 }: {
   /** The Crown Shyness dial the callout holds; 1 is the default layout. */
   shyness?: number;
   accent?: string;
   className?: string;
-  /** Hotspot pins, laid out by previewPins(). Rendered in container px. */
-  pins?: PreviewPin[];
-  /** The pin to draw pressed. */
-  activePinId?: string | null;
+  /**
+   * The feature the callout is telling, with the card it is anchored to: that
+   * one card wears the tag, and only that one.
+   */
+  activeTag?: { id: string; nodeId: string; label: string } | null;
   /** Node ids (anchors + descendants) to keep bright while dimmed. */
   activeIds?: string[] | null;
   /** Dim everything that is not in `activeIds`. Off = plain demo graph. */
   dimOthers?: boolean;
   onActivateNode?: (nodeId: string, via: "hover" | "click") => void;
-  onActivatePin?: (pinId: string, via: "hover" | "click" | "focus") => void;
 }) {
   const { nodes, canvas } = useMemo(() => previewLayout(shyness), [shyness]);
   const { ref, zoom } = useFitZoom(canvas.w);
@@ -426,6 +410,7 @@ export function PreviewGraph({
                 paths={paths}
                 counts={counts}
                 state={stateOf(node.id)}
+                tag={activeTag?.nodeId === node.id ? activeTag : null}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ) : (
@@ -434,35 +419,12 @@ export function PreviewGraph({
                 node={node}
                 path={paths[node.id] ?? node.label}
                 state={stateOf(node.id)}
+                tag={activeTag?.nodeId === node.id ? activeTag : null}
                 onActivate={(via) => onActivateNode?.(node.id, via)}
               />
             ),
           )}
         </div>
-
-        {/* Pins sit OUTSIDE the zoomed box: a design-space pin would be scaled
-            by zoom into an unreadable dot, and the button with it. Container
-            pixels keep them a constant size whatever the fit zoom is. */}
-        {layoutPins(pins ?? [], nodes, zoom).map((pin) => {
-          const pressed = pin.id === activePinId;
-          return (
-            <button
-              key={pin.id}
-              type="button"
-              data-mk-pin={pin.id}
-              aria-pressed={pressed}
-              aria-label={pin.label}
-              title={pin.label}
-              onPointerEnter={() => onActivatePin?.(pin.id, "hover")}
-              onFocus={() => onActivatePin?.(pin.id, "focus")}
-              onClick={() => onActivatePin?.(pin.id, "click")}
-              className={`mk-pin absolute${pressed ? " mk-pin-on" : ""}`}
-              style={{ left: pin.x, top: pin.y }}
-            >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          );
-        })}
       </div>
     </div>
   );

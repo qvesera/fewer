@@ -969,65 +969,6 @@ html[data-shell] .react-flow__node > div {
   outline-offset: 2px;
 }
 
-/* Hotspot pins. They live OUTSIDE the zoomed demo box, so these px are real
-   screen px at any fit zoom - a design-space pin would scale into an unreadable
-   dot. The ping is the page's only invitation to hover; reduced motion stops it
-   (the global rule above collapses the animation, which lands on the resting
-   opacity 0). */
-.mk-pin {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  transform: translate(-50%, -50%);
-  /* A tinted border and a shadow, so the pin still reads as a control when it
-     sits on a card in the LIGHT theme, where a plain --border on --card is a
-     1px line of near-identical greys. */
-  border: 1px solid color-mix(in srgb, var(--border) 55%, var(--fewer-folder-icon));
-  border-radius: 9999px;
-  background: var(--card);
-  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.45);
-  color: var(--fewer-folder-icon);
-  cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease-enter),
-    border-color var(--dur-fast) var(--ease-enter),
-    color var(--dur-fast) var(--ease-enter);
-}
-.mk-pin::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border: 1px solid var(--fewer-folder-icon);
-  border-radius: 9999px;
-  opacity: 0;
-  animation: mk-pin-ping 2.6s var(--ease-enter) infinite;
-}
-.mk-pin:hover {
-  border-color: var(--fewer-folder-icon);
-}
-.mk-pin-on {
-  background: var(--primary);
-  border-color: transparent;
-  color: var(--primary-foreground);
-}
-.mk-pin-on::after {
-  animation: none;
-}
-@keyframes mk-pin-ping {
-  0% {
-    opacity: 0.45;
-    transform: scale(0.85);
-  }
-  70%,
-  100% {
-    opacity: 0;
-    transform: scale(1.5);
-  }
-}
-
 /* App furniture on the marketing page: the panel chrome the product's dialogs
    and side panels carry (border, translucent surface, title bar with the grip
    handle). The point is that the canvas controls and the feature inspector

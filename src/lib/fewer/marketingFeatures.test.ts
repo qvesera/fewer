@@ -4,10 +4,9 @@ import {
   HEADLINE_MAX_WORDS,
   LINE_MAX_WORDS,
   MARKETING_FEATURES,
-  previewPins,
   wordCount,
 } from "./marketingFeatures";
-import { PREVIEW_CANVAS, PREVIEW_NODES, nodeBox } from "./marketingPreview";
+import { PREVIEW_NODES } from "./marketingPreview";
 
 // The phrases e2e/marketing.spec.ts pins. Asserted here too, so a copy edit
 // fails in the fast suite instead of in the browser.
@@ -72,43 +71,6 @@ describe("marketingFeatures", () => {
   test("each feature demonstrates a different proof", () => {
     const kinds = MARKETING_FEATURES.map((f) => f.proof);
     expect(new Set(kinds).size).toBe(kinds.length);
-  });
-
-  test("one pin per feature, inside the canvas", () => {
-    const pins = previewPins();
-    expect(pins).toHaveLength(MARKETING_FEATURES.length);
-    expect(new Set(pins.map((p) => p.id)).size).toBe(pins.length);
-    for (const pin of pins) {
-      expect(pin.x).toBeGreaterThanOrEqual(0);
-      expect(pin.x).toBeLessThanOrEqual(PREVIEW_CANVAS.w);
-      expect(pin.label).toBeTruthy();
-    }
-  });
-
-  test("pins sit on the card's right edge, or its left at the canvas edge", () => {
-    const pins = previewPins();
-    const root = nodeBox(PREVIEW_NODES.find((n) => n.id === "root")!);
-    for (const pin of pins.filter((p) => p.nodeId === "root")) {
-      expect(pin.x).toBe(root.x + root.w);
-    }
-
-    // layout.ts starts at x=640 with a 220px card: its right edge IS the
-    // canvas edge, so its pin sits on its left edge instead.
-    const layout = nodeBox(PREVIEW_NODES.find((n) => n.id === "layout")!);
-    for (const pin of pins.filter((p) => p.nodeId === "layout")) {
-      expect(pin.x).toBe(layout.x);
-    }
-  });
-
-  test("no card carries more hotspots than its edge can stack", () => {
-    // PreviewGraph stacks a card's pins 32 SCREEN px apart, and the shortest
-    // card is 58px tall, so four is the most any one card may carry.
-    const perCard = new Map<string, number>();
-    for (const pin of previewPins()) {
-      perCard.set(pin.nodeId, (perCard.get(pin.nodeId) ?? 0) + 1);
-    }
-    for (const count of perCard.values()) expect(count).toBeLessThanOrEqual(4);
-    expect(perCard.get("root")).toBe(4);
   });
 
   test("every hotspot lights a real card, and nearly all create contrast", () => {
