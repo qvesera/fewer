@@ -4228,3 +4228,32 @@ tasks:
     effort: {commits: 1, files: 9, insertions: 136, deletions: 34}
   spent_min: 50
   session_count: 1
+- id: "T-153"
+  title: "Home hero: large centred headline as the first read"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T22:52:12Z"
+  notes: []
+  sessions:
+  - start: "2026-10-14T22:52:12Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

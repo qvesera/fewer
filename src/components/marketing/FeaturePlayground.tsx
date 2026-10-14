@@ -263,36 +263,42 @@ export function FeaturePlayground() {
   const tourRunning = playing && inView && tabVisible && view === "graph";
 
   return (
-    <section id="features" ref={sectionRef} className="relative z-10 pb-16 pt-6 lg:pt-8">
+    <section id="features" ref={sectionRef} className="relative z-10 pb-16 pt-10 lg:pt-16">
       {/* One column for the whole playground: headline, canvas, inspector, rail.
           Nothing floats out to a viewport edge, and the tree pane lands exactly
           where the canvas does. */}
       <div className="mx-auto max-w-6xl px-6">
-        <div className="max-w-2xl">
+        {/* The headline is the first thing a reader lands on: hero scale
+            (bigger than the pre-redesign hero), centred, with the canvas
+            waiting underneath. */}
+        <div className="mx-auto max-w-4xl text-center">
           <p
-            className="mk-rise font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground"
+            className="mk-rise font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-sm"
             style={{ animationDelay: "0ms" }}
           >
             Directory to graph, in the browser
           </p>
           <h1
-            className="mk-rise mt-3 text-2xl font-bold leading-[1.12] tracking-tight sm:text-3xl lg:text-4xl"
+            className="mk-rise mt-4 text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl"
             style={{ animationDelay: "80ms" }}
           >
             Turn any directory into an interactive graph
           </h1>
           <p
-            className="mk-rise mt-3 max-w-xl text-base text-muted-foreground sm:text-lg"
+            className="mk-rise mx-auto mt-5 max-w-2xl text-lg text-muted-foreground sm:text-xl"
             style={{ animationDelay: "160ms" }}
           >
             Point it at a folder. Get a map you can drag, search and export.
           </p>
-          <div className="mk-rise mt-5 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
-            <Link href={APP_URL} className={buttonVariants({ variant: "default" })}>
+          <div
+            className="mk-rise mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+            style={{ animationDelay: "240ms" }}
+          >
+            <Link href={APP_URL} className={buttonVariants({ variant: "default", size: "lg" })}>
               Launch the app
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/docs" className={buttonVariants({ variant: "outline" })}>
+            <Link href="/docs" className={buttonVariants({ variant: "outline", size: "lg" })}>
               Read the docs
             </Link>
           </div>
