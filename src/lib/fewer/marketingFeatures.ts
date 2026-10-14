@@ -164,7 +164,7 @@ export const MARKETING_CATEGORIES: MarketingCategory[] = [
     id: "arrange",
     label: "Arrange & edit",
     tip: "Sketch the structure first, box cards into groups, rename forty at once, and re-flow the layout without leaving the keyboard.",
-    features: ["plan", "groups", "batch", "rename", "organize", "keyboard"],
+    features: ["plan", "groups", "batch", "rename", "keyboard", "organize"],
   },
   {
     id: "connect",

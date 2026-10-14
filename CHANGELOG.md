@@ -230,6 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Groups are selectable and movable: click a group's title bar to select it (Shift+click adds another), drag it to move every member card as one undo step, and press Delete to ungroup. Escape clears the selection or cancels a move in progress.
 - Selected group frames can be resized: drag a corner or edge handle to scale the whole arrangement: the cards keep their size while their spacing scales (hold Shift for proportions). One undo step, nothing extra persisted.
 - Canvas groups can now nest: a group can live inside another (Move into group / Move out of group in the frame menu). A parent frame grows to contain its children, moving/resizing a parent carries its whole subtree, collapsing a parent hides every card beneath it (children's frames disappear with it), and ungrouping a parent re-homes its children instead of deleting them.
+- The home page's Themes feature now links straight to the community gallery's themes tab (/gallery?tab=themes), where Apply tries a theme on the whole page; the gallery's Graphs/Themes toggle is reflected in the URL, so either view is linkable and shareable
 
 ### Performance
 

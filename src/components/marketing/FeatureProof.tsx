@@ -1,6 +1,9 @@
-import { BellRing, FileText, History, Link2, Shapes } from "lucide-react";
+import { ArrowRight, BellRing, FileText, History, Link2, Shapes } from "lucide-react";
+import Link from "next/link";
 import { Slider } from "@/components/ui/slider";
 import { GroupDemo } from "./GroupDemo";
+import { isDesktopExport } from "@/lib/content/exportMode";
+import { isHost } from "@/lib/fewer/nativeShell";
 import type { ProofKind } from "@/lib/fewer/marketingFeatures";
 
 /**
@@ -13,9 +16,11 @@ import type { ProofKind } from "@/lib/fewer/marketingFeatures";
  * a proof that needs explaining would be one more wall of text.
  *
  * A control in a proof has to actually do something: the group frame collapses
- * the way the product collapses a group, and the Crown Shyness dial is the
- * app's own Slider driving previewLayout() on the canvas behind it. A control
- * that only looks live is worse than no control.
+ * the way the product collapses a group, the Crown Shyness dial is the
+ * app's own Slider driving previewLayout() on the canvas behind it, and the
+ * theme chips are a real link to the gallery's themes tab, where Apply
+ * restyles an entire page - the one place a theme can actually be tried.
+ * A control that only looks live is worse than no control.
  *
  * `Record<ProofKind, …>` on purpose: adding a feature to the catalogue without
  * a proof for it fails the build here and the test in
@@ -219,28 +224,44 @@ mkdir -p docs`}
       </span>
     </div>
   ),
-  themes: () => (
-    <div className="flex items-center gap-3">
-      {[
-        { background: "var(--fewer-file-bg)", borderColor: "var(--fewer-file-border)" },
-        {
-          background: "var(--muted)",
-          borderColor: "var(--fewer-folder-border)",
-        },
-      ].map((vars, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-2 rounded-xl border px-3 py-2"
-          style={vars}
-        >
-          <Shapes className="h-4 w-4" style={{ color: "var(--fewer-folder-icon)" }} aria-hidden="true" />
-          <span className="font-mono text-[11px]" style={{ color: "var(--fewer-file-text)" }}>
-            theme-{i + 1}
-          </span>
-        </div>
-      ))}
-    </div>
-  ),
+  themes: () => {
+    const chips = (
+      <div className="flex items-center gap-3">
+        {[
+          { background: "var(--fewer-file-bg)", borderColor: "var(--fewer-file-border)" },
+          {
+            background: "var(--muted)",
+            borderColor: "var(--fewer-folder-border)",
+          },
+        ].map((vars, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 rounded-xl border px-3 py-2"
+            style={vars}
+          >
+            <Shapes className="h-4 w-4" style={{ color: "var(--fewer-folder-icon)" }} aria-hidden="true" />
+            <span className="font-mono text-[11px]" style={{ color: "var(--fewer-file-text)" }}>
+              theme-{i + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+    // The gallery is a web-only surface (no /api in the desktop export), so
+    // the chips are a link only where the destination exists - the same gate
+    // MarketingLayout uses to hide the Gallery nav item (T-104).
+    if (isDesktopExport() || isHost()) return chips;
+    return (
+      <Link
+        href="/gallery?tab=themes"
+        aria-label="Open the community theme gallery and try a theme on this page"
+        className="flex w-fit cursor-pointer items-center gap-3 transition-opacity hover:opacity-75"
+      >
+        {chips}
+        <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "var(--muted-foreground)" }} aria-hidden="true" />
+      </Link>
+    );
+  },
   share: () => (
     <ul className="flex w-full max-w-[260px] flex-col gap-2">
       <li

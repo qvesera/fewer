@@ -264,6 +264,37 @@ test("a chip drives the callout the same way a card does", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("the themes proof links to the gallery's themes tab, and the tab is in the URL", async ({
+  page,
+}) => {
+  // The one proof that leaves the page: a theme can only be tried where an
+  // Apply button restyles a whole document, which is the gallery.
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+  await parkTheTour(page);
+  await page.locator('[data-mk-chip="themes"]').click();
+  await expect(page.locator('[data-mk-callout="themes"]')).toBeVisible();
+
+  const link = page.getByRole("link", {
+    name: "Open the community theme gallery and try a theme on this page",
+  });
+  await expect(link).toHaveAttribute("href", "/gallery?tab=themes");
+  await link.click();
+
+  // Landed on the themes tab, not the graphs default.
+  await page.waitForURL("**/gallery?tab=themes");
+  await expect(page.getByRole("button", { name: "Themes" })).toBeVisible();
+  await expect(page.getByLabel("Search themes or authors")).toBeVisible();
+
+  // The tab is part of the URL in both directions: toggling rewrites it, so
+  // the current view is always a shareable link.
+  await page.getByRole("button", { name: "Graphs" }).click();
+  await expect(page).toHaveURL(/\/gallery$/);
+  await page.getByRole("button", { name: "Themes" }).click();
+  await expect(page).toHaveURL(/tab=themes/);
+  await expect(page.getByLabel("Search themes or authors")).toBeVisible();
+});
+
 test("privacy and open source sections are on the page", async ({ page }) => {
   await page.goto("/");
 

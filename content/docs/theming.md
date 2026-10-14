@@ -129,7 +129,10 @@ Folder and file cards each have separate text controls:
 
 Custom themes saved to your account can be published to the community gallery at
 [`/gallery`](https://fewer.directory/gallery): a browsable, logged-out index with
-theme and author search, built next to the graph gallery.
+theme and author search, built next to the graph gallery. The themes tab is
+directly linkable at [`/gallery?tab=themes`](https://fewer.directory/gallery?tab=themes)
+(the home page's Themes feature points there), and its Apply button tries a
+theme on the whole gallery page — the fastest way to see a theme before saving it.
 
 **Publishing** (must be signed in, and saved themes are a Pro feature):
 

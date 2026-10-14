@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 import { ThemeGallerySection } from "@/components/marketing/ThemeGallerySection";
 import { GraphGallerySection } from "@/components/marketing/GraphGallerySection";
@@ -11,6 +11,23 @@ type GalleryTab = "graphs" | "themes";
 
 export default function GalleryPage() {
   const [tab, setTab] = useState<GalleryTab>("graphs");
+
+  // The tab is part of the URL (/gallery?tab=themes) so it is a real link
+  // target - the home page's Themes proof points here. Read after mount: the
+  // page is statically prerendered, so `window` does not exist at build time.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted === "themes" || wanted === "graphs") setTab(wanted);
+  }, []);
+
+  /** Tab changes rewrite the URL, so the current view is always shareable. */
+  const selectTab = (next: GalleryTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === "graphs") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url);
+  };
 
   return (
     <MarketingLayout>
@@ -28,7 +45,7 @@ export default function GalleryPage() {
           <Button
             variant={tab === "graphs" ? "default" : "outline"}
             size="sm"
-            onClick={() => setTab("graphs")}
+            onClick={() => selectTab("graphs")}
             className="cursor-pointer gap-1.5"
           >
             <FolderTree className="h-4 w-4" />
@@ -37,7 +54,7 @@ export default function GalleryPage() {
           <Button
             variant={tab === "themes" ? "default" : "outline"}
             size="sm"
-            onClick={() => setTab("themes")}
+            onClick={() => selectTab("themes")}
             className="cursor-pointer gap-1.5"
           >
             <Palette className="h-4 w-4" />
