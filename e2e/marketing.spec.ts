@@ -101,9 +101,13 @@ test("the tree pane is the canvas's twin, not a stray text block", async ({ page
   const pre = page.locator("#compare pre");
   const captionBox = await caption.boundingBox();
   const preBox = await pre.boundingBox();
-  // Same column: the caption and the tree text share a left edge.
-  expect(Math.abs(preBox!.x - captionBox!.x)).toBeLessThan(4);
-  // And that column is inside the page container, not at the viewport edge.
+  const centre = (box: { x: number; width: number }) => box.x + box.width / 2;
+  // Centred as one block: the caption and the tree text share a centre line.
+  expect(Math.abs(centre(preBox!) - centre(captionBox!))).toBeLessThan(4);
+  // That line is the canvas's own axis - the twin, not a stray column beside it.
+  const canvasBox = await page.locator("[data-mk-canvas]").boundingBox();
+  expect(Math.abs(centre(preBox!) - centre(canvasBox!))).toBeLessThan(6);
+  // And the block is inside the page container, not at the viewport edge.
   expect(preBox!.x).toBeGreaterThan(16);
 });
 

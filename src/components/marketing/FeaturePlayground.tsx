@@ -382,12 +382,16 @@ export function FeaturePlayground() {
               aria-hidden={view !== "tree"}
             >
               {/* The same folder, as text: a captioned block the same size as
-                  the canvas it swaps with, not a stray <pre> at a page edge. */}
-              <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-3 px-1">
+                  the canvas it swaps with, not a stray <pre> at a page edge.
+                  `items-center` shrinks each child to its own text and centres
+                  it, so the block reads as one centred column - the pre keeps
+                  its lines left-aligned inside it, or the tree's │ columns
+                  would stagger. */}
+              <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-3 px-1">
                 <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   The same folder, as text
                 </span>
-                <pre className="m-0 overflow-x-auto font-mono text-[13px] leading-6 text-muted-foreground">
+                <pre className="m-0 max-w-full overflow-x-auto font-mono text-[13px] leading-6 text-muted-foreground">
                   {TREE_LINES.join("\n")}
                   <span className="mk-caret ml-0.5" aria-hidden="true" />
                 </pre>
