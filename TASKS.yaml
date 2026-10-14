@@ -4230,30 +4230,30 @@ tasks:
   session_count: 1
 - id: "T-153"
   title: "Home hero: large centred headline as the first read"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 30
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 421
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-14T22:52:12Z"
   notes: []
   sessions:
   - start: "2026-10-14T22:52:12Z"
-    end: null
+    end: "2026-10-14T23:05:34Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Hero headline to text-7xl centred, lg buttons, rebalanced padding; 1810 unit + 15 e2e + build green"
+    proof: ["f967009"]
+    effort: {commits: 1, files: 2, insertions: 43, deletions: 8}
+  spent_min: 13
   session_count: 1
