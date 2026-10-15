@@ -263,7 +263,7 @@ export function FeaturePlayground() {
   const tourRunning = playing && inView && tabVisible && view === "graph";
 
   return (
-    <section id="features" ref={sectionRef} className="relative z-10 pb-16 pt-10 lg:pt-16">
+    <section id="features" ref={sectionRef} className="relative z-10 pb-12 pt-10 lg:pt-16">
       {/* One column for the whole playground: headline, canvas, inspector, rail.
           Nothing floats out to a viewport edge, and the tree pane lands exactly
           where the canvas does. */}
@@ -435,11 +435,7 @@ export function FeaturePlayground() {
           {/* The inspector: one feature at a time, in the app's panel chrome.
               No close button - a dismissed card is a demo with nothing to say -
               and no link that promises an action it cannot perform. */}
-          <div
-            data-mk-callout={feature.id}
-            aria-live={tourRunning ? "off" : "polite"}
-            className="mk-panel mt-8 overflow-hidden"
-          >
+          <div className="mk-panel mt-8 overflow-hidden">
             <div className="mk-panel-bar">
               <GripDots />
               <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Feature</span>
@@ -489,7 +485,14 @@ export function FeaturePlayground() {
               </div>
             </div>
 
-            <div className="grid gap-5 px-5 py-4 sm:gap-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_336px] lg:items-center">
+            {/* The live region is the card's copy only - the bar above and the
+                rail below are chrome and buttons. Twelve chips re-announcing
+                themselves on every tour tick would be noise, not news. */}
+            <div
+              data-mk-callout={feature.id}
+              aria-live={tourRunning ? "off" : "polite"}
+              className="grid gap-5 px-5 py-4 sm:gap-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_336px] lg:items-center"
+            >
               <div className="min-w-0">
                 <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   {MARKETING_CATEGORIES.find((c) => c.features.includes(feature.id))?.label}
@@ -514,47 +517,52 @@ export function FeaturePlayground() {
                 />
               </div>
             </div>
-          </div>
 
-          {/* The rail: what it does, in three groups of concrete chips. Each
-              group's longer sentence lives on its label's tooltip, so the page
-              never has to spell it out in the main flow. */}
-          <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-            {MARKETING_CATEGORIES.map((category) => (
-              <div key={category.id}>
-                <h3
-                  className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
-                  title={category.tip}
-                >
-                  {category.label}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {category.features.map((id) => {
-                    const item = MARKETING_FEATURES.find((f) => f.id === id)!;
-                    const pressed = item.id === feature.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        data-mk-chip={item.id}
-                        aria-pressed={pressed}
-                        onClick={() => activate(item.id, "click")}
-                        onMouseEnter={() => activate(item.id, "hover")}
-                        onFocus={() => activate(item.id, "focus")}
-                        className={[
-                          "shrink-0 cursor-pointer rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors duration-200",
-                          pressed
-                            ? "border-transparent bg-primary text-primary-foreground"
-                            : "border-border/60 text-muted-foreground hover:text-foreground",
-                        ].join(" ")}
-                      >
-                        {item.chip}
-                      </button>
-                    );
-                  })}
+            {/* The rail is the card's footer band: it takes the body's own
+                inset, so the group headings line up with the headline instead
+                of hanging on the card's border - and nothing floats under the
+                card. Each group's longer sentence stays on its label tooltip,
+                so the page still never has to spell it out in the main flow. */}
+            {/* Uneven columns, in chip order: Arrange has six chips and the
+                others three, so 1.5/1.25/1 keeps each group to two rows at
+                most instead of stranding the first column a row taller. */}
+            <div className="grid gap-x-8 gap-y-5 border-t border-border/60 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1.5fr_1.25fr_1fr]">
+              {MARKETING_CATEGORIES.map((category) => (
+                <div key={category.id}>
+                  <h3
+                    className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+                    title={category.tip}
+                  >
+                    {category.label}
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {category.features.map((id) => {
+                      const item = MARKETING_FEATURES.find((f) => f.id === id)!;
+                      const pressed = item.id === feature.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          data-mk-chip={item.id}
+                          aria-pressed={pressed}
+                          onClick={() => activate(item.id, "click")}
+                          onMouseEnter={() => activate(item.id, "hover")}
+                          onFocus={() => activate(item.id, "focus")}
+                          className={[
+                            "shrink-0 cursor-pointer rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors duration-200",
+                            pressed
+                              ? "border-transparent bg-primary text-primary-foreground"
+                              : "border-border/60 text-muted-foreground hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {item.chip}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

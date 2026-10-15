@@ -323,9 +323,13 @@ export function FeatureProof({
 }: { kind: ProofKind; shyness: number; onShyness: (value: number) => void }) {
   return (
     // Capped so a wide proof wraps INSIDE its slot instead of being clipped by
-    // the panel edge: the grid gives this column 320px at lg, and the column
-    // itself collapses to whatever room is left below that.
-    <div className="flex h-[150px] w-full min-w-0 max-w-[320px] items-center justify-center overflow-hidden">
+    // the panel edge: the grid gives this column 336px at lg, and the column
+    // itself collapses to whatever room is left below that. 112px is the
+    // tallest proof at that width (the group demo, ~106px) - measured per
+    // feature, not by eye, so the band never clips and the panel never jumps
+    // between features. Below sm the cell is full width, where the nine import
+    // chips wrap to four rows and need the old 150.
+    <div className="flex h-[150px] w-full min-w-0 max-w-[320px] items-center justify-center overflow-hidden sm:h-[112px]">
       {PROOFS[kind]({ shyness, onShyness })}
     </div>
   );

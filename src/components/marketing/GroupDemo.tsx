@@ -17,7 +17,7 @@ export function GroupDemo() {
   return (
     <div className="flex h-full flex-col justify-center">
       <div
-        className="border px-3 py-2 transition-all duration-300"
+        className="border px-2.5 py-1.5 transition-all duration-300"
         style={{
           background: "var(--fewer-group-bg)",
           borderColor: "var(--fewer-group-border)",
@@ -51,10 +51,12 @@ export function GroupDemo() {
         </button>
         <ul
           id="group-demo-members"
-          className="grid gap-1.5 overflow-hidden transition-all duration-300"
+          className="grid gap-1 overflow-hidden transition-all duration-300"
           style={{
-            maxHeight: collapsed ? 0 : 110,
-            marginTop: collapsed ? 0 : 8,
+            // Cap = the expanded content height, so the collapse animation
+            // has a value to animate from and nothing is ever clipped.
+            maxHeight: collapsed ? 0 : 84,
+            marginTop: collapsed ? 0 : 6,
             opacity: collapsed ? 0 : 1,
           }}
           aria-hidden={collapsed}
@@ -62,7 +64,7 @@ export function GroupDemo() {
           {MEMBERS.map((name) => (
             <li
               key={name}
-              className="flex items-center gap-1.5 rounded-md border px-2 py-1"
+              className="flex items-center gap-1.5 rounded-md border px-2 py-0.5"
               style={{
                 background: "var(--fewer-file-bg)",
                 borderColor: "var(--fewer-file-border)",
