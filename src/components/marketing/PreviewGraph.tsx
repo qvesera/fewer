@@ -46,7 +46,11 @@ import {
  * reader engages, everything else dims - except the structure the reader
  * needs to keep their place: the root folder and the active card's own
  * parent folder stay fully saturated (T-154), so the path from the root to
- * the highlighted feature never disappears behind the focus effect.
+ * the highlighted feature never disappears behind the focus effect. The
+ * hierarchy reads as light (T-158): an ambient accent glow lives behind the
+ * active card in design space, the root carries a faint halo of its own, and
+ * the active card's handle dots ping - all decorative, all parked by the
+ * global reduced-motion rule the marching edges already obey.
  */
 
 /** Brightness of one card in the demo, driven by the active feature. */
@@ -97,7 +101,7 @@ function HandleDots() {
         <span
           key={side}
           aria-hidden="true"
-          className="absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full border-2"
+          className="mk-handle absolute top-1/2 h-2 w-2 -translate-y-1/2 rounded-full border-2"
           style={{
             ...(side === "left" ? { left: -4 } : { right: -4 }),
             borderColor: "rgba(255, 255, 255, 0.6)",
@@ -162,7 +166,7 @@ function FolderCard({
       data-mk-node={node.id}
       onPointerEnter={() => onActivate?.("hover")}
       onClick={() => onActivate?.("click")}
-      className={`gm-node-hover absolute flex flex-col overflow-hidden rounded-2xl border backdrop-blur-xl shadow-node-folder ${NODE_STATE_CLASS[state]}`}
+      className={`gm-node-hover absolute flex flex-col overflow-hidden rounded-2xl border backdrop-blur-xl shadow-node-folder ${NODE_STATE_CLASS[state]} ${node.parent ? "" : "mk-node-root"}`}
       style={{
         left: box.x,
         top: box.y,
@@ -324,6 +328,8 @@ export function PreviewGraph({
   );
   const stateOf = (node: PreviewNode): NodeState =>
     node.id === activeId ? "active" : dimOthers && !keptNodes.has(node.id) ? "dim" : "idle";
+  const activeNode = activeId ? byId.get(activeId) : undefined;
+  const activeBox = activeNode ? nodeBox(activeNode) : undefined;
 
   return (
     <div
@@ -352,6 +358,26 @@ export function PreviewGraph({
             zoom,
           }}
         >
+        {/* Ambient glow behind the active card (T-158): the accent that picks
+            the ring also lights the air around it. Decorative and pointer
+            transparent, and it lives in design space so it moves with the
+            card and scales with the canvas zoom. */}
+        {activeBox && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute rounded-full"
+            style={{
+              left: activeBox.x + activeBox.w / 2 - 170,
+              top: activeBox.y + activeBox.h / 2 - 170,
+              width: 340,
+              height: 340,
+              background:
+                "radial-gradient(closest-side, color-mix(in srgb, var(--mk-accent, var(--fewer-folder-icon)) 16%, transparent), transparent)",
+              filter: "blur(48px)",
+            }}
+          />
+        )}
+
           <svg
             viewBox={`0 0 ${canvas.w} ${canvas.h}`}
             className="absolute inset-0 h-full w-full"

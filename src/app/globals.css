@@ -953,12 +953,14 @@ html[data-shell] .react-flow__node > div {
 }
 .mk-node-dim {
   /* Light theme needs more presence than dark at the same opacity: a dimmed
-     card on near-white reads as deleted, not as quiet. */
-  opacity: 0.38;
+     card on near-white reads as deleted, not as quiet. Non-active leaves sit
+     slightly deeper than before (T-158) so the kept structure reads as depth,
+     not as a second subject. */
+  opacity: 0.32;
   filter: saturate(0.3);
 }
 .dark .mk-node-dim {
-  opacity: 0.24;
+  opacity: 0.2;
 }
 /* Outline, not box-shadow: the cards' own .shadow-node-* shadows own box-shadow,
    and the canvas uses the same outline trick (.gm-highlight-ring) for the same
@@ -967,6 +969,52 @@ html[data-shell] .react-flow__node > div {
 .mk-node-active:hover {
   outline: 2px solid var(--mk-accent, var(--fewer-folder-icon));
   outline-offset: 2px;
+}
+/* The root is the one folder that never dims (T-154) and reads as the graph's
+   anchor (T-158): a faint accent-tinted halo, deliberately lighter than the
+   active ring so the two never compete. Outline only - the card's own
+   shadow-node-* owns box-shadow. */
+.mk-node-root,
+.mk-node-root:hover {
+  outline: 1px solid color-mix(in srgb, var(--fewer-folder-icon) 45%, transparent);
+  outline-offset: 1px;
+}
+/* The active card's connectable dots breathe the same accent the ring marks.
+   The global reduced-motion rule parks this exactly as it parks the marching
+   edges - one resting state, not a second animation policy. */
+@keyframes mk-port-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mk-accent, var(--fewer-folder-icon)) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.mk-node-active .mk-handle {
+  animation: mk-port-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The hero canvas wears the app window's own clothes (T-158): a frosted
+   chassis with a title bar, an inner top highlight, and a deep shadow tinted
+   by the chosen accent - the accent that recolours the cards also lights the
+   air under the window. */
+.mk-chassis {
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 24px 60px -28px color-mix(in srgb, var(--mk-accent, var(--primary)) 45%, transparent),
+    0 16px 40px -24px rgb(0 0 0 / 0.45);
+}
+.mk-chassis-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 65%, transparent);
 }
 
 /* App furniture on the marketing page: the panel chrome the product's dialogs

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { APP_URL } from "./MarketingLayout";
@@ -15,12 +15,12 @@ import { FeatureProof } from "./FeatureProof";
  * The hero AND the feature story (T-150 follow-up, fourth pass; selection
  * reworked T-151).
  *
- * The canvas is the page: on the same dot grid the app draws, with no browser
- * chrome and no card around it, in the same column as the headline, the
- * inspector and the rail - so nothing is stranded at a viewport edge. Its two
- * controls are furniture the app itself has: a View toolbar (the tree/fewer
- * toggle and the accent swatches) above the canvas, and an inspector panel
- * below it with the feature's name in the title bar.
+ * The canvas is the page: on the same dot grid the app draws, inside a frosted
+ * window chassis (T-158) whose title bar holds the View controls, in the same
+ * column as the headline, the inspector and the rail - so nothing is stranded
+ * at a viewport edge. The chassis is the product's own furniture, not browser
+ * chrome: both panes (graph and tree text) live in it, so the toggle reads as
+ * one window showing the folder two ways.
  *
  * The graph and the catalogue are one thing: a card's id IS the feature id
  * (marketingPreview.ts derives the tree from this catalogue), so activating a
@@ -304,11 +304,18 @@ export function FeaturePlayground() {
           </div>
         </div>
 
-        <div className="mt-8">
-          {/* The View toolbar: the app's own controls, in the app's own chrome,
-              above the thing they control. */}
+        {/* The chassis (T-158): the canvas wears the app window's own clothes
+            - frosted glass, a title bar holding the View controls, an inner
+            top highlight and a deep shadow that samples the chosen accent.
+            Both panes live inside it, so tree and graph read as two views of
+            one window rather than two components swapped on the page. */}
+        <div
+          className="mk-chassis mt-8 overflow-hidden rounded-2xl"
+          style={accent ? ({ "--mk-accent": accent } as CSSProperties & Record<string, string>) : undefined}
+        >
+          {/* The View controls, in the window's title bar. */}
           <div
-            className="mk-panel flex flex-wrap items-center gap-3 px-3 py-2"
+            className="mk-chassis-bar flex-wrap"
             role="group"
             aria-label="View"
           >
@@ -364,7 +371,7 @@ export function FeaturePlayground() {
               cards.
               grid-cols-1 is minmax(0, 1fr): an auto column would size to the
               design box and drag the whole page wider than the viewport. */}
-          <div id="compare" className="relative mt-3 grid grid-cols-1">
+          <div id="compare" className="relative grid grid-cols-1">
             <div
               style={{ gridArea: "1 / 1", transition: PANE_TRANSITION }}
               className={
@@ -380,7 +387,7 @@ export function FeaturePlayground() {
                   it, so the block reads as one centred column - the pre keeps
                   its lines left-aligned inside it, or the tree's │ columns
                   would stagger. */}
-              <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-3 px-1">
+              <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-3 px-6 py-10">
                 <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                   The same folder, as text
                 </span>
@@ -401,7 +408,7 @@ export function FeaturePlayground() {
               aria-hidden={view !== "graph"}
             >
               <PreviewGraph
-                className="w-full"
+                className="w-full p-2"
                 accent={accent}
                 shyness={shyness}
                 activeId={feature.id}
