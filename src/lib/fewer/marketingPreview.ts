@@ -254,6 +254,26 @@ export function previewPaths(nodes: PreviewNode[] = PREVIEW_NODES): Record<strin
 }
 
 /**
+ * Ids on the path from `activeId` up to the root, inclusive: the one chain of
+ * cards the reader is following (T-160). The demo's edge renderer lights only
+ * the connections between them, so a folder the path passes through cannot
+ * drag all of its own connections bright with it.
+ */
+export function previewPathIds(
+  activeId: string | null | undefined,
+  nodes: PreviewNode[] = PREVIEW_NODES,
+): Set<string> {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const ids = new Set<string>();
+  let node: PreviewNode | undefined = activeId ? byId.get(activeId) : undefined;
+  while (node) {
+    ids.add(node.id);
+    node = node.parent ? byId.get(node.parent) : undefined;
+  }
+  return ids;
+}
+
+/**
  * Bezier edges from a parent's right edge to a child's left edge — the same
  * routing React Flow uses (getBezierPath), controls at 40% of the gap.
  */

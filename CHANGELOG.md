@@ -192,6 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page's demo graph no longer clips the bottom card or stacks cards on top of each other: its positions come from one sibling gap, one level gap and a clearance around the box, instead of hand-placed numbers that had drifted - the three docs cards used to sit flush while src's had a gap, and the last card's outline was cut off at the canvas edge
 - On the home page, re-flowing the demo canvas or scrolling it no longer switches the feature card to whatever chip or card slid underneath the pointer: a hover only counts as the reader's choice when the pointer actually moved
 - Home demo canvas: a hover that lands on a folder card no longer leaves the hover authorisation armed, so a layout shift under the parked pointer cannot activate an unrelated feature; the feature-card e2e approaches the folder from off the cards (a swept pointer activates what it crosses)
+- Home demo canvas: only the connections on the active card's own path (root -> its group -> the ringed card) stay lit once the reader engages, instead of every connection a kept folder owns - the group folder no longer fans out all six of its edges at once
 
 ### Added
 

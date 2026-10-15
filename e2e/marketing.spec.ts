@@ -132,6 +132,11 @@ test("a feature card reveals its feature, and only that card is ringed", async (
   await expect(ring).toHaveCount(1);
   await expect(page.locator('[data-mk-node="tags"].mk-node-active')).toHaveCount(1);
 
+  // Only the connections on the way to the ringed card stay lit once the
+  // reader engages: the two edges of that card's own chain (root -> its group
+  // -> it), not every edge its kept group folder happens to own (T-160).
+  await expect(page.locator("path.mk-edge-flow:not(.mk-node-dim)")).toHaveCount(2);
+
   // Folder cards are structure: hovering one changes nothing. Approach it from
   // off the cards, because a pointer swept between two cards legitimately
   // activates whatever it crosses - Playwright moves the mouse in steps, a

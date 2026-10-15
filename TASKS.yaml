@@ -4443,3 +4443,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 69, deletions: 55}
   spent_min: 100
   session_count: 2
+- id: "T-160"
+  title: "Preview canvas: only the selected card's connection stays lit"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T15:53:19Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T15:54:03Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

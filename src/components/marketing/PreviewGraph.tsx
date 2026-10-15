@@ -11,6 +11,7 @@ import {
   previewChildren,
   previewEdgePaths,
   previewPaths,
+  previewPathIds,
   type PreviewNode,
 } from "@/lib/fewer/marketingPreview";
 
@@ -47,10 +48,14 @@ import {
  * needs to keep their place: the root folder and the active card's own
  * parent folder stay fully saturated (T-154), so the path from the root to
  * the highlighted feature never disappears behind the focus effect. The
- * hierarchy reads as light (T-158): an ambient accent glow lives behind the
- * active card in design space, the root carries a faint halo of its own, and
- * the active card's handle dots ping - all decorative, all parked by the
- * global reduced-motion rule the marching edges already obey.
+ * connections follow the same rule one step further (T-160): only the edges
+ * ON that path stay lit, because saturation is a property of the cards - a
+ * kept folder used to keep every edge it owned bright, fanning out to all of
+ * its children at once. The hierarchy reads as light (T-158): an ambient
+ * accent glow lives behind the active card in design space, the root carries
+ * a faint halo of its own, and the active card's handle dots ping - all
+ * decorative, all parked by the global reduced-motion rule the marching
+ * edges already obey.
  */
 
 /** Brightness of one card in the demo, driven by the active feature. */
@@ -329,6 +334,11 @@ export function PreviewGraph({
   const stateOf = (node: PreviewNode): NodeState =>
     node.id === activeId ? "active" : dimOthers && !keptNodes.has(node.id) ? "dim" : "idle";
   const activeNode = activeId ? byId.get(activeId) : undefined;
+  // The connections the ringed card keeps lit (T-160): only the chain from it
+  // up to the root, never every edge a kept folder happens to own - touching
+  // the kept structure used to leave all six of that folder's connections
+  // bright at once.
+  const litIds = previewPathIds(activeId, nodes);
   const activeBox = activeNode ? nodeBox(activeNode) : undefined;
 
   return (
@@ -384,15 +394,11 @@ export function PreviewGraph({
             aria-hidden="true"
           >
             {previewEdgePaths(nodes).map((edge) => {
-              // An edge stays lit when it touches the ring or the kept
-              // structure (root / active parent), so the whole path from the
-              // top of the tree to the active card reads as one line.
-              const quiet =
-                dimOthers &&
-                edge.from !== activeId &&
-                edge.to !== activeId &&
-                !keptNodes.has(edge.from) &&
-                !keptNodes.has(edge.to);
+              // An edge stays lit only when BOTH of its ends sit on the lit
+              // chain (root -> active parent -> ringed card), so the path from
+              // the top of the tree to the active card reads as one line and
+              // nothing else does (T-160).
+              const quiet = dimOthers && !(litIds.has(edge.from) && litIds.has(edge.to));
               return (
                 <path
                   key={`${edge.from}-${edge.to}`}

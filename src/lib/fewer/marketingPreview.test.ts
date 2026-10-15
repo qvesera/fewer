@@ -10,6 +10,7 @@ import {
   previewChildren,
   previewEdgePaths,
   previewLayout,
+  previewPathIds,
   previewPaths,
 } from "./marketingPreview";
 import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "./marketingFeatures";
@@ -163,5 +164,23 @@ describe("marketingPreview", () => {
     for (const p of paths) expect(p.d.startsWith("M ")).toBe(true);
     const plan = paths.find((p) => p.to === "plan");
     expect(plan?.from).toBe("arrange");
+  });
+
+  test("previewPathIds is exactly the chain whose edges stay lit (T-160)", () => {
+    // One chain per active card: itself, then every ancestor to the root -
+    // never the siblings, which is what let a kept folder keep all of its own
+    // connections bright before.
+    expect([...previewPathIds("organize")]).toEqual(["organize", "arrange", "root"]);
+    expect([...previewPathIds("arrange")]).toEqual(["arrange", "root"]);
+    expect([...previewPathIds("root")]).toEqual(["root"]);
+    expect(previewPathIds("nope").size).toBe(0);
+    expect(previewPathIds(null).size).toBe(0);
+    expect(previewPathIds(undefined).size).toBe(0);
+
+    // Against the real edges: two of the fifteen stay lit for a feature card,
+    // and the six-wide fan-out beside the chain is not among them.
+    const lit = previewPathIds("organize");
+    const litEdges = previewEdgePaths().filter((e) => lit.has(e.from) && lit.has(e.to));
+    expect(litEdges.map((e) => `${e.from}->${e.to}`)).toEqual(["root->arrange", "arrange->organize"]);
   });
 });
