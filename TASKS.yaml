@@ -4346,30 +4346,30 @@ tasks:
   session_count: 1
 - id: "T-157"
   title: "Feature playground: spent hover authorisation on ignored folder hovers (e2e flake fix)"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "ux"
   tier: 0
   estimate_min: 30
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 421
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-15T09:39:54Z"
   notes: []
   sessions:
   - start: "2026-10-15T09:40:27Z"
-    end: null
+    end: "2026-10-15T10:15:19Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Hover authorisation spent on ignored folder hovers + e2e approaches folder from off the cards; pointerover trace diagnosis; 4/4 full-file e2e green (was ~50% fail); 1708 unit + tsc + lint + build green"
+    proof: ["1325258"]
+    effort: {commits: 1, files: 4, insertions: 47, deletions: 3}
+  spent_min: 35
   session_count: 1
