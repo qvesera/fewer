@@ -4317,7 +4317,7 @@ tasks:
   session_count: 1
 - id: "T-156"
   title: "Home privacy: bento right column - hero claim, sandbox schematic, stat badges"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
