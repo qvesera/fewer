@@ -306,13 +306,22 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   // "Launch the app" appears in the hero, the navbar, the footer and here.
   await expect(page.getByRole("link", { name: "Launch the app" }).last()).toBeVisible();
 
-  // The two closing sections share one rhythm now: same container, same
-  // heading scale, both centred on the same dot grid (no tinted band behind
-  // only one of them).
+  // The privacy section is a split (T-155): heading + intro + action in the
+  // left column, the six claims stacked one per row in the right. Pin the
+  // split - left heading, cards to its right - rather than the old centred
+  // rhythm it used to share with Open source.
   const privacy = page.getByRole("heading", { name: "Your data stays yours" });
-  const openSource = page.getByRole("heading", { name: "Open source" });
-  expect((await privacy.boundingBox())!.x).toBe((await openSource.boundingBox())!.x);
-  expect((await privacy.boundingBox())!.height).toBe((await openSource.boundingBox())!.height);
+  const claim = page.getByRole("listitem").filter({ hasText: "No selling your data" });
+  const claimBox = await claim.boundingBox();
+  expect(claimBox).not.toBeNull();
+  expect((await privacy.boundingBox())!.x).toBeLessThan(claimBox!.x);
+  // Every claim shares one left edge: one column, not a wrapping grid.
+  const boxes = await page.getByRole("listitem").evaluateAll((els) =>
+    els
+      .filter((el) => el.closest("section")?.querySelector("h2")?.textContent === "Your data stays yours")
+      .map((el) => (el as HTMLElement).getBoundingClientRect().x),
+  );
+  expect(new Set(boxes).size).toBe(1);
 
   // Reveal hides content until it is scrolled into view. Being in the DOM is
   // not the same as being readable, so this visits every revealed block - the

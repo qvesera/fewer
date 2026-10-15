@@ -92,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page's demo canvas IS the feature index: a folder card for each of the three rail groups and a file card for each of the twelve features, with the card's id as the feature's id - so hovering a card tells exactly that feature, because they are the same thing, not because an anchor map claims `package.json` "demonstrates" exporting. The twelve pinging sparkle pins and the single feature tag that replaced them are both gone; the one marker left is the app's own active outline on the current feature's card, and once the reader engages, everything else dims. The `tree` pane shows the same catalogue as text
 - The home page's tree view centres its caption and tree text in the pane instead of hugging the left of the centred column - the block now reads as one centred column on the same axis as the canvas, with the tree's own columns still aligned
 - Home demo canvas: feature cards are single-line (no redundant folder sub-line), and the root plus the active card's parent folder stay fully saturated while the rest dims, so the folder structure is always readable
+- Home privacy section: split layout - heading, intro and policy action in a left column, the six claims stacked one per row at reading size on the right
 
 ### Fixed
 

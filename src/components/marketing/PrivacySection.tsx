@@ -4,17 +4,17 @@ import { buttonVariants } from "@/components/ui/button";
 import { Reveal } from "./Reveal";
 
 /**
- * Privacy (T-150 follow-up). The claims are the ones the pre-redesign page
- * made, kept word for word because they are trust statements a reader should be
- * able to check against /privacy; only the em dashes became commas, which is
- * the house style rule (T-149).
+ * Privacy (T-150 follow-up, layout reworked T-155). The claims are the ones
+ * the pre-redesign page made, kept word for word because they are trust
+ * statements a reader should be able to check against /privacy; only the em
+ * dashes became commas, which is the house style rule (T-149).
  *
- * What changed is the shape: the section used to be a paragraph plus a column
- * of six sentences, which reads as a wall, and then a left heading column
- * beside a grid, which left a tall empty gutter next to Open source's centred
- * band below it. It is now the same rhythm as that band - centred heading,
- * centred action, content underneath - so the two closing sections read as one
- * chapter rather than two components that happened to land together.
+ * The shape is the mock's split: a left column holding the heading, a short
+ * intro paragraph and the policy action, beside a right column that stacks
+ * the six claims one per row at reading size (15px, two lines each) - one
+ * shield per line instead of a centred 3-across grid that broke each claim
+ * into short widow lines. Left-aligned; the centred-rhythm version (T-150
+ * follow-up) put the heading on the page axis, which the split needs gone.
  */
 const PRIVACY_POINTS = [
   "Runs locally in your browser, so your directory contents stay on your device by default.",
@@ -28,12 +28,17 @@ const PRIVACY_POINTS = [
 export function PrivacySection() {
   return (
     <section className="relative z-10 py-20">
-      <div className="mx-auto max-w-6xl px-6 text-center">
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
         <Reveal>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Your data stays yours
           </h2>
-          <div className="mt-8 flex justify-center">
+          <p className="mt-5 max-w-md text-base text-muted-foreground sm:text-lg">
+            fewer is designed around a simple principle: your directory data stays yours. Signing
+            in or connecting a cloud account is entirely optional, and when you do, we only use
+            what you explicitly ask for.
+          </p>
+          <div className="mt-8">
             <Link
               href="/privacy"
               className={buttonVariants({ variant: "default", size: "lg" })}
@@ -45,11 +50,11 @@ export function PrivacySection() {
         </Reveal>
 
         <Reveal delay={90}>
-          <ul className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="flex flex-col gap-3">
             {PRIVACY_POINTS.map((point) => (
               <li
                 key={point}
-                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 p-4 text-left text-sm text-foreground/90"
+                className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 p-4 text-left text-[15px] leading-relaxed text-foreground/90"
               >
                 <ShieldCheck
                   className="mt-0.5 h-4 w-4 shrink-0"
