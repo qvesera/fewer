@@ -4375,30 +4375,30 @@ tasks:
   session_count: 1
 - id: "T-158"
   title: "Home hero: canvas chassis, ambient accent glow, node hierarchy"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 421
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-15T10:18:27Z"
   notes: []
   sessions:
   - start: "2026-10-15T10:18:46Z"
-    end: null
+    end: "2026-10-15T10:56:10Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Chassis + hero centerpiece shipped: frosted .mk-chassis with View title bar, ambient accent glow, root halo, port pings, deeper dim; restored SandboxDiagram accidentally swept by the commit; e2e 15/15 x2"
+    proof: ["37d4fe4"]
+    effort: {commits: 1, files: 7, insertions: 142, deletions: 30}
+  spent_min: 37
   session_count: 1
