@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { APP_URL } from "./MarketingLayout";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useDevice } from "@/hooks/use-device";
 import { graphToTextLines } from "@/lib/fewer/marketingPreview";
 import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
@@ -13,14 +10,16 @@ import { FeatureProof } from "./FeatureProof";
 
 /**
  * The hero AND the feature story (T-150 follow-up, fourth pass; selection
- * reworked T-151).
+ * reworked T-151; the hero moved out into HeroRotator in T-161).
  *
- * The canvas is the page: on the same dot grid the app draws, inside a frosted
- * window chassis (T-158) whose title bar holds the View controls, in the same
- * column as the headline, the inspector and the rail - so nothing is stranded
- * at a viewport edge. The chassis is the product's own furniture, not browser
- * chrome: both panes (graph and tree text) live in it, so the toggle reads as
- * one window showing the folder two ways.
+ * The headline is now the screen above this one: this section opens on the
+ * demo, so a reader arrives at the canvas rather than reading past it. What
+ * stays here is the product's own furniture - on the same dot grid the app
+ * draws, inside a frosted window chassis (T-158) whose title bar holds the
+ * View controls, in the same column as the inspector and the rail - so
+ * nothing is stranded at a viewport edge. The chassis is the product's own
+ * furniture, not browser chrome: both panes (graph and tree text) live in
+ * it, so the toggle reads as one window showing the folder two ways.
  *
  * The graph and the catalogue are one thing: a card's id IS the feature id
  * (marketingPreview.ts derives the tree from this catalogue), so activating a
@@ -37,7 +36,7 @@ import { FeatureProof } from "./FeatureProof";
  * aria-live takes over so keyboard and screen-reader users get the same card a
  * sighted reader parked.
  *
- * The rail is grouped by what the product calls things ("Arrange & edit", not
+ * The rail is grouped by what the product calls things ("Shape it", not
  * "Capabilities"), each group one short row of chips with its longer sentence
  * as the title tooltip: three words per feature to skim, the sentence on
  * demand, and nothing to read to use the page.
@@ -263,45 +262,26 @@ export function FeaturePlayground() {
   const tourRunning = playing && inView && tabVisible && view === "graph";
 
   return (
-    <section id="features" ref={sectionRef} className="relative z-10 pb-12 pt-10 lg:pt-16">
-      {/* One column for the whole playground: headline, canvas, inspector, rail.
-          Nothing floats out to a viewport edge, and the tree pane lands exactly
-          where the canvas does. */}
+    <section
+      id="features"
+      ref={sectionRef}
+      className="relative z-10 scroll-mt-[var(--mk-header-h)] pb-12 pt-14"
+    >
+      {/* One column for the whole playground: canvas, inspector, rail. Nothing
+          floats out to a viewport edge, and the tree pane lands exactly where
+          the canvas does. The headline is one screen above (T-161), so this
+          opens with a sentence that names what the reader is looking at - it
+          is the phrase the hero deliberately does not use, kept here for the
+          reader who came looking for it. */}
       <div className="mx-auto max-w-6xl px-6">
-        {/* The headline is the first thing a reader lands on: hero scale
-            (bigger than the pre-redesign hero), centred, with the canvas
-            waiting underneath. */}
-        <div className="mx-auto max-w-4xl text-center">
-          <p
-            className="mk-rise font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground sm:text-sm"
-            style={{ animationDelay: "0ms" }}
-          >
-            Directory to graph, in the browser
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Everything fewer does
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            A folder opened as an interactive graph: hover a card, or use the rail below, to
+            read each feature.
           </p>
-          <h1
-            className="mk-rise mt-4 text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl"
-            style={{ animationDelay: "80ms" }}
-          >
-            Turn any directory into an interactive graph
-          </h1>
-          <p
-            className="mk-rise mx-auto mt-5 max-w-2xl text-lg text-muted-foreground sm:text-xl"
-            style={{ animationDelay: "160ms" }}
-          >
-            Point it at a folder. Get a map you can drag, search and export.
-          </p>
-          <div
-            className="mk-rise mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
-            style={{ animationDelay: "240ms" }}
-          >
-            <Link href={APP_URL} className={buttonVariants({ variant: "default", size: "lg" })}>
-              Launch the app
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link href="/docs" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              Read the docs
-            </Link>
-          </div>
         </div>
 
         {/* The chassis (T-158): the canvas wears the app window's own clothes
@@ -486,7 +466,7 @@ export function FeaturePlayground() {
             </div>
 
             {/* The live region is the card's copy only - the bar above and the
-                rail below are chrome and buttons. Twelve chips re-announcing
+                rail below are chrome and buttons. Ten chips re-announcing
                 themselves on every tour tick would be noise, not news. */}
             <div
               data-mk-callout={feature.id}
@@ -523,10 +503,10 @@ export function FeaturePlayground() {
                 of hanging on the card's border - and nothing floats under the
                 card. Each group's longer sentence stays on its label tooltip,
                 so the page still never has to spell it out in the main flow. */}
-            {/* Uneven columns, in chip order: Arrange has six chips and the
-                others three, so 1.5/1.25/1 keeps each group to two rows at
-                most instead of stranding the first column a row taller. */}
-            <div className="grid gap-x-8 gap-y-5 border-t border-border/60 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1.5fr_1.25fr_1fr]">
+            {/* Three groups, three or four chips each: even columns keep every
+                group to one or two rows, and the longest group ("Shape it",
+                four) sets how many. */}
+            <div className="grid gap-x-8 gap-y-5 border-t border-border/60 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
               {MARKETING_CATEGORIES.map((category) => (
                 <div key={category.id}>
                   <h3

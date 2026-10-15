@@ -1,11 +1,23 @@
 /**
- * The feature catalogue behind the home page's hotspot playground (T-150).
+ * The feature catalogue behind the home page's chip rail and demo graph
+ * (T-150, rewritten T-161 for a first-time reader).
  *
  * One source of truth for three views of the same story: the demo graph's
  * cards (a feature id IS its card id, so the canvas cannot drift from the
  * catalogue), the chip rail under it, and the tour's schedule. It lives in a
  * pure module (no React, no DOM) so the copy limits are unit-testable, the way
  * `marketingPreview.ts` is.
+ *
+ * Ten features, in three groups, chosen for a newcomer rather than a feature
+ * list: what the folder does (see), what you can do to it (shape), and what
+ * you keep (keep). `batch` and `rename` became one `edit` because they are
+ * one story, and `tags` and `export` left the rail because the page has one
+ * screen of room and a first-time reader has one question per group.
+ *
+ * The copy rule that drove T-161: a card a reader can act on is worth more
+ * than a card that sounds impressive. So the words are what the app calls
+ * things ("cards", never "nodes"), no jargon the product has not earned yet
+ * ("Crown Shyness", "wildcard"), and a plain verb first.
  *
  * No per-feature link: a card whose only action was "Try it" took the reader
  * to a docs page, which is the one thing the word "try" does not mean. The
@@ -19,23 +31,23 @@
  * Tier honesty: the site is the free-first build (T-148 shipped the licence
  * rail off), so a feature whose MIN_TIER is `pro` must carry `tier: "pro"` and
  * render a non-interactive badge - never a purchase path that does not exist
- * (`/docs/plans` is hidden while BILLING_ENABLED is off).
+ * (`/docs/plans` is hidden while BILLING_ENABLED is off). No feature on the
+ * rail is gated today.
  */
 
 /** The micro-proof the callout renders. Mapped to a component in FeatureProof. */
 export type ProofKind =
   | "shell"
   | "group"
-  | "batch"
-  | "rename"
+  | "edit"
   | "keys"
   | "layout"
   | "import"
-  | "export"
+  | "find"
   | "watch"
   | "themes"
-  | "share"
-  | "tags";
+  | "share";
+
 
 export interface MarketingFeature {
   /** Stable id: the demo graph's card, the chip and the callout key on it. */
@@ -53,89 +65,74 @@ export interface MarketingFeature {
 
 export const MARKETING_FEATURES: MarketingFeature[] = [
   {
-    id: "plan",
-    chip: "Plan first",
-    headline: "Plan it, then build it",
-    line: "Sketch the tree, export it as a script that makes the folders.",
-    proof: "shell",
+    id: "import",
+    chip: "Open anything",
+    headline: "Any folder, any link",
+    line: "A folder, a zip, a URL or a GitHub repo, no unpacking.",
+    proof: "import",
   },
   {
-    id: "groups",
-    chip: "Canvas groups",
-    headline: "Canvas groups",
-    line: "Box cards into a titled frame, then collapse it to one pill.",
-    proof: "group",
-  },
-  {
-    id: "batch",
-    chip: "Batch actions",
-    headline: "Select many, act once",
-    line: "Rename, copy, cut, duplicate, move, unparent, hide or delete them together.",
-    proof: "batch",
-  },
-  {
-    id: "rename",
-    chip: "Wildcard rename",
-    headline: "Rename the whole selection",
-    line: "Find a pattern, keep what it matched, replace the rest.",
-    proof: "rename",
+    id: "search",
+    chip: "Search everything",
+    headline: "Find any file by name",
+    line: "Jump straight to it, even the ones inside a zip.",
+    proof: "find",
   },
   {
     id: "keyboard",
     chip: "Keyboard-first",
-    headline: "Keyboard-first",
-    line: "Arrow keys walk the tree; search across every card.",
+    headline: "No mouse needed",
+    line: "Arrow keys walk the tree; every action has a shortcut.",
     proof: "keys",
+  },
+  {
+    id: "plan",
+    chip: "Plan ahead",
+    headline: "Sketch it before you build it",
+    line: "Draw the folders you want, export a script that makes them.",
+    proof: "shell",
+  },
+  {
+    id: "groups",
+    chip: "Groups & notes",
+    headline: "Box files into groups",
+    line: "Group related files, add a note, collapse the box.",
+    proof: "group",
+  },
+  {
+    id: "edit",
+    chip: "Batch edit",
+    headline: "Change many at once",
+    line: "Rename, move, copy or delete a whole selection together.",
+    proof: "edit",
   },
   {
     id: "organize",
     chip: "Organize",
-    headline: "One key re-flows the tree",
-    line: "Organize re-lays it out; Crown Shyness gives branches room to breathe.",
+    headline: "One click re-lays it out",
+    line: "The spacing dial gives crowded branches room to breathe.",
     proof: "layout",
   },
   {
-    id: "import",
-    chip: "Import anything",
-    headline: "Nine ways in",
-    line: "Disk, an archive, a URL, or a GitHub repo. No unpacking.",
-    proof: "import",
-  },
-  {
-    id: "export",
-    chip: "Export in 8 formats",
-    headline: "Export in 8 formats",
-    line: "The .fwr document reopens exactly; the rest are for everything else.",
-    proof: "export",
+    id: "share",
+    chip: "Save & share",
+    headline: "Come back to it anywhere",
+    line: "Sign in to save across devices, or just send a link.",
+    proof: "share",
   },
   {
     id: "watch",
-    chip: "Watch a URL",
-    headline: "It tells you when it changes",
-    line: "Watch a public index and get a daily email digest.",
+    chip: "Watch for changes",
+    headline: "It emails you when it changes",
+    line: "Watch a public folder and get a daily digest.",
     proof: "watch",
   },
   {
     id: "themes",
     chip: "Themes",
-    headline: "Your graph, your colours",
-    line: "Eighteen presets, or tune every colour yourself and share it.",
+    headline: "Make it yours",
+    line: "Eighteen presets, or pick every colour yourself.",
     proof: "themes",
-  },
-  {
-    id: "share",
-    chip: "Share and save",
-    headline: "A link, and a way back",
-    line: "Compress a small graph into the URL, or save it with history.",
-    proof: "share",
-  },
-  {
-    id: "tags",
-    chip: "Tags",
-    headline: "Colour-code any card",
-    line: "Dot a card, then filter the graph to just those.",
-    proof: "tags",
-    tier: "pro",
   },
 ];
 
@@ -145,8 +142,8 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
  * grouping. `features` is display order; the graph derives a folder card per
  * group with a file card per feature beneath it, id = feature id.
  *
- * The third group's id is `look`, not `share`: the feature `share` already
- * owns that id, and on the graph the two would be sibling cards.
+ * A category id must never be a feature id: on the graph the two would be
+ * sibling cards sharing one identity, and the test pins it.
  */
 export interface MarketingCategory {
   /** Stable id: the folder card's id on the demo graph. */
@@ -161,22 +158,22 @@ export interface MarketingCategory {
 
 export const MARKETING_CATEGORIES: MarketingCategory[] = [
   {
-    id: "arrange",
-    label: "Arrange & edit",
-    tip: "Sketch the structure first, box cards into groups, rename forty at once, and re-flow the layout without leaving the keyboard.",
-    features: ["plan", "groups", "batch", "rename", "keyboard", "organize"],
+    id: "see",
+    label: "See your files",
+    tip: "Open a folder, an archive, a link or a repo, search everything inside it at once, and never reach for the mouse.",
+    features: ["import", "search", "keyboard"],
   },
   {
-    id: "connect",
-    label: "Watch & connect",
-    tip: "Pull a tree from disk, a URL, a repo or an archive, watch a public index for changes, and take the graph back out in eight formats.",
-    features: ["import", "export", "watch"],
+    id: "shape",
+    label: "Shape it",
+    tip: "Sketch the structure first, box files into groups with a note, change a whole selection at once, and re-flow the layout.",
+    features: ["plan", "groups", "edit", "organize"],
   },
   {
-    id: "look",
-    label: "Look & share",
-    tip: "Recolour the canvas from a preset or by hand, share it as a link, and colour-code cards with tags.",
-    features: ["themes", "share", "tags"],
+    id: "keep",
+    label: "Keep & share",
+    tip: "Save a graph and reopen it on another device, watch a public folder for changes, and recolour the canvas.",
+    features: ["share", "watch", "themes"],
   },
 ];
 

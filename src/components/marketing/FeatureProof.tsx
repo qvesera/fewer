@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, FileText, History, Link2, Shapes } from "lucide-react";
+import { ArrowRight, BellRing, History, Link2, Search, Shapes } from "lucide-react";
 import Link from "next/link";
 import { Slider } from "@/components/ui/slider";
 import { GroupDemo } from "./GroupDemo";
@@ -51,8 +51,6 @@ const IMPORT_CHIPS = [
   "GitHub",
 ];
 
-const EXPORT_CHIPS = ["SVG", "PNG", "JSON", "CSV", "DOT", "sh", "txt", ".fwr"];
-
 const BATCH_ACTIONS = [
   "Rename…",
   "Copy",
@@ -97,19 +95,6 @@ function ChipRow({
   );
 }
 
-/** A mono line of the shape `from → to`, the way a find/replace preview reads. */
-function RenameRow({ from, to }: { from: string; to: string }) {
-  return (
-    <li className="flex items-center gap-2 font-mono text-[11px]">
-      <span style={{ color: "var(--fewer-file-subtle-text)" }}>{from}</span>
-      <span aria-hidden="true" style={{ color: "var(--muted-foreground)" }}>
-        →
-      </span>
-      <span style={{ color: "var(--fewer-file-text)" }}>{to}</span>
-    </li>
-  );
-}
-
 const PROOFS: Record<ProofKind, (proof: ProofProps) => React.ReactNode> = {
   shell: () => (
     <figure
@@ -130,19 +115,37 @@ mkdir -p docs`}
     </figure>
   ),
   group: () => <GroupDemo />,
-  batch: () => <ChipRow items={BATCH_ACTIONS} />,
-  rename: () => (
-    <ul className="flex flex-col gap-1.5">
-      <RenameRow from="Button.tsx" to="Button.jsx" />
-      <RenameRow from="Card.tsx" to="Card.jsx" />
-      <RenameRow from="Layout.tsx" to="Layout.jsx" />
-      <li
-        className="mt-1 font-mono text-[10px]"
-        style={{ color: "var(--muted-foreground)" }}
-      >
-        find *.tsx · replace *.jsx · 40 files
-      </li>
-    </ul>
+  edit: () => <ChipRow items={BATCH_ACTIONS} />,
+  // The one proof that shows an archive without unpacking it: the second hit
+  // came out of a zip, and the app never opened it as a folder.
+  find: () => (
+    <div
+      className="flex w-full max-w-[280px] flex-col gap-2 rounded-lg border p-3"
+      style={{ borderColor: "var(--border)", background: "var(--card)" }}
+    >
+      <div className="flex items-center gap-2 font-mono text-[11px]">
+        <Search
+          className="h-3.5 w-3.5 shrink-0"
+          style={{ color: "var(--fewer-folder-icon)" }}
+          aria-hidden="true"
+        />
+        <span style={{ color: "var(--foreground)" }}>logo</span>
+        <span className="ml-auto" style={{ color: "var(--muted-foreground)" }}>
+          3 matches
+        </span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {["brand/logo.svg", "photos.zip › logo.svg"].map((path) => (
+          <li
+            key={path}
+            className="truncate rounded-md border px-2 py-0.5 font-mono text-[10px]"
+            style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
+          >
+            {path}
+          </li>
+        ))}
+      </ul>
+    </div>
   ),
   keys: () => (
     <ul className="flex flex-wrap items-center justify-center gap-2">
@@ -199,7 +202,6 @@ mkdir -p docs`}
     </div>
   ),
   import: () => <ChipRow items={IMPORT_CHIPS} />,
-  export: () => <ChipRow items={EXPORT_CHIPS} accent={(label) => label === ".fwr"} />,
   watch: () => (
     <div
       className="flex w-full max-w-[280px] flex-col gap-2 rounded-lg border p-3"
@@ -279,40 +281,6 @@ mkdir -p docs`}
         v4 · 2 hours ago
       </li>
     </ul>
-  ),
-  tags: () => (
-    <div className="flex flex-col items-center gap-2">
-      {/* Hard-edged segments, one per tag, the way the canvas draws a ring. */}
-      <div
-        className="rounded-xl p-[3px]"
-        style={{
-          background:
-            "conic-gradient(#f87171 0 33.3%, #22d3ee 33.3% 66.6%, #a3e635 66.6% 100%)",
-        }}
-        aria-hidden="true"
-      >
-        <div
-          className="flex items-center gap-2 rounded-[9px] border px-3 py-2"
-          style={{ background: "var(--fewer-file-bg)", borderColor: "var(--fewer-file-border)" }}
-        >
-          <FileText className="h-4 w-4" style={{ color: "var(--fewer-file-icon)" }} />
-          <span className="font-mono text-[11px]" style={{ color: "var(--fewer-file-text)" }}>
-            types.ts
-          </span>
-        </div>
-      </div>
-      <div className="flex items-center gap-1.5" aria-hidden="true">
-        {["#f87171", "#22d3ee", "#a3e635"].map((c) => (
-          <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-        ))}
-        <span
-          className="rounded-md border px-1.5 font-mono text-[10px]"
-          style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
-        >
-          +2
-        </span>
-      </div>
-    </div>
   ),
 };
 

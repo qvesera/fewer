@@ -97,7 +97,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
               <span className="text-base font-bold tracking-tight">fewer</span>
             </Link>
             <p className="mt-3 text-sm text-muted-foreground max-w-xs">
-              Turn any directory into an interactive graph you can explore, edit, and export.
+              Open a folder and see everything inside it, all at once.
             </p>
           </div>
 

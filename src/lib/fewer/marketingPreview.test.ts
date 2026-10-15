@@ -131,30 +131,28 @@ describe("marketingPreview", () => {
   test("previewPaths stacks labels the way the app prints data.path", () => {
     const paths = previewPaths();
     expect(paths.root).toBe("~/fewer");
-    expect(paths.arrange).toBe("~/fewer/Arrange & edit");
-    expect(paths.plan).toBe("~/fewer/Arrange & edit/Plan first");
-    expect(paths.tags).toBe("~/fewer/Look & share/Tags");
+    expect(paths.see).toBe("~/fewer/See your files");
+    expect(paths.plan).toBe("~/fewer/Shape it/Plan ahead");
+    expect(paths.themes).toBe("~/fewer/Keep & share/Themes");
   });
 
   test("graphToTextLines renders the catalogue as the same tree", () => {
     const lines = graphToTextLines();
     expect(lines).toEqual([
       "./fewer",
-      "├── Arrange & edit/",
-      "│   ├── Plan first",
-      "│   ├── Canvas groups",
-      "│   ├── Batch actions",
-      "│   ├── Wildcard rename",
-      "│   ├── Keyboard-first",
+      "├── See your files/",
+      "│   ├── Open anything",
+      "│   ├── Search everything",
+      "│   └── Keyboard-first",
+      "├── Shape it/",
+      "│   ├── Plan ahead",
+      "│   ├── Groups & notes",
+      "│   ├── Batch edit",
       "│   └── Organize",
-      "├── Watch & connect/",
-      "│   ├── Import anything",
-      "│   ├── Export in 8 formats",
-      "│   └── Watch a URL",
-      "└── Look & share/",
-      "    ├── Themes",
-      "    ├── Share and save",
-      "    └── Tags",
+      "└── Keep & share/",
+      "    ├── Save & share",
+      "    ├── Watch for changes",
+      "    └── Themes",
     ]);
   });
 
@@ -163,24 +161,24 @@ describe("marketingPreview", () => {
     expect(paths).toHaveLength(PREVIEW_NODES.length - 1);
     for (const p of paths) expect(p.d.startsWith("M ")).toBe(true);
     const plan = paths.find((p) => p.to === "plan");
-    expect(plan?.from).toBe("arrange");
+    expect(plan?.from).toBe("shape");
   });
 
   test("previewPathIds is exactly the chain whose edges stay lit (T-160)", () => {
     // One chain per active card: itself, then every ancestor to the root -
     // never the siblings, which is what let a kept folder keep all of its own
     // connections bright before.
-    expect([...previewPathIds("organize")]).toEqual(["organize", "arrange", "root"]);
-    expect([...previewPathIds("arrange")]).toEqual(["arrange", "root"]);
+    expect([...previewPathIds("organize")]).toEqual(["organize", "shape", "root"]);
+    expect([...previewPathIds("see")]).toEqual(["see", "root"]);
     expect([...previewPathIds("root")]).toEqual(["root"]);
     expect(previewPathIds("nope").size).toBe(0);
     expect(previewPathIds(null).size).toBe(0);
     expect(previewPathIds(undefined).size).toBe(0);
 
-    // Against the real edges: two of the fifteen stay lit for a feature card,
-    // and the six-wide fan-out beside the chain is not among them.
+    // Against the real edges: two of the thirteen stay lit for a feature card,
+    // and the four-wide fan-out beside the chain is not among them.
     const lit = previewPathIds("organize");
     const litEdges = previewEdgePaths().filter((e) => lit.has(e.from) && lit.has(e.to));
-    expect(litEdges.map((e) => `${e.from}->${e.to}`)).toEqual(["root->arrange", "arrange->organize"]);
+    expect(litEdges.map((e) => `${e.from}->${e.to}`)).toEqual(["root->shape", "shape->organize"]);
   });
 });

@@ -13,9 +13,10 @@ import { PREVIEW_NODES } from "./marketingPreview";
 // fails in the fast suite instead of in the browser.
 const E2E_PHRASES: Record<string, string> = {
   import: "a GitHub repo",
-  keyboard: "search across every card",
-  export: "Export in 8 formats",
-  groups: "Canvas groups",
+  search: "Find any file by name",
+  groups: "Box files into groups",
+  keyboard: "every action has a shortcut",
+  organize: "One click re-lays it out",
 };
 
 describe("marketingFeatures", () => {
@@ -74,10 +75,11 @@ describe("marketingFeatures", () => {
   });
 
   test("gated features are marked and no copy points at a purchase path", () => {
-    // MIN_TIER.tags is pro and the licence rail ships off (T-148), so tags is
-    // the one advertised feature that must carry the Pro badge.
+    // Nothing on the rail is gated today (T-161 cut tags, the one Pro
+    // feature), so the honest answer is an empty list. The badge itself stays
+    // in the inspector: the next gated feature gets it for free.
     const gated = MARKETING_FEATURES.filter((f) => f.tier === "pro").map((f) => f.id);
-    expect(gated).toEqual(["tags"]);
+    expect(gated).toEqual([]);
     for (const feature of MARKETING_FEATURES) {
       // There is no per-feature link any more, so the guard is the copy: a
       // feature must never hint at a purchase path that does not exist while

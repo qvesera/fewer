@@ -3,9 +3,9 @@ import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 import { MarketingHome } from "@/components/marketing/MarketingHome";
 
 export const metadata: Metadata = {
-  title: "fewer | Turn any directory into an interactive graph",
+  title: "fewer | See everything inside any folder, at once",
   description:
-    "fewer turns any file system into an interactive graph you can explore, edit, organise and group, and export in 8 formats, including the .fwr graph document. Runs entirely in your browser. Open source (AGPLv3), keyboard-first, privacy-first.",
+    "Open a folder and see everything inside it at once: search it (even inside a zip), plan a structure, group and rename files in bulk, and export it. Fewer turns any directory into an interactive graph. Runs entirely in your browser. Open source (AGPLv3), privacy-first.",
 };
 
 /**
