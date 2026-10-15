@@ -4474,14 +4474,14 @@ tasks:
   session_count: 1
 - id: "T-161"
   title: "Home copy pass: plain-language rotating hero (scroll-armed), full-height hero section, ten-feature rail in newcomer words"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "ux"
   tier: 2
   estimate_min: 300
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 421
   internal: true
   milestone: null
   blocked_by: []
