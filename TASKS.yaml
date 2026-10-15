@@ -4474,7 +4474,7 @@ tasks:
   session_count: 1
 - id: "T-161"
   title: "Home copy pass: plain-language rotating hero (scroll-armed), full-height hero section, ten-feature rail in newcomer words"
-  status: "review"
+  status: "triaged"
   type: "docs"
   area: "ux"
   tier: 2
@@ -4505,5 +4505,11 @@ tasks:
     note: "Follow-up: Lenis eased scroll on the home page (native for touch + reduced motion), hero carousel starts on load instead of on first scroll, prev/next arrows with wrap, and a countdown bar in the active dot driven by HERO_ROTATE_MS via a re-keyed span. Gates: tsc, lint, bun test 233/233, build, playwright marketing 22/22."
     proof: ["f161759"]
     effort: {commits: 1, files: 10, insertions: 255, deletions: 86}
-  spent_min: 73
-  session_count: 2
+  - start: "2026-10-15T18:59:23Z"
+    end: "2026-10-15T19:51:22Z"
+    measured: true
+    note: "Round 3: timer fills left-to-right and freezes with the clock (interval banks the remainder, bar uses animation-play-state, no re-key); hover/focus no longer gate the rotation (starts on load, stops only on pause/view/tab/reduced-motion); first scroll event that leaves the top glides to #features under the header, detected from scroll so every input method matches. Also diagnosed: a leftover next-server held :3000 so Playwright reused a stale build (killed it; fresh build verified by BUILD_ID mtime). Gates: tsc, lint, bun test 233/233, build, playwright marketing 23/23."
+    proof: ["98d4f60"]
+    effort: {commits: 1, files: 7, insertions: 198, deletions: 87}
+  spent_min: 125
+  session_count: 3
