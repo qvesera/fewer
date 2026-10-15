@@ -4474,7 +4474,7 @@ tasks:
   session_count: 1
 - id: "T-161"
   title: "Home copy pass: plain-language rotating hero (scroll-armed), full-height hero section, ten-feature rail in newcomer words"
-  status: "review"
+  status: "triaged"
   type: "docs"
   area: "ux"
   tier: 2
@@ -4499,5 +4499,11 @@ tasks:
     note: "Hero split into its own full-height screen with four scroll-armed rotating messages (HeroRotator + marketingHero copy module), catalogue rewritten to ten plain-language features with a new search proof, e2e repinned and extended, metadata/README/changelog updated. Gates: lint, tsc, bun test 233/233, build, playwright marketing 20/20."
     proof: ["264b075"]
     effort: {commits: 1, files: 15, insertions: 751, deletions: 316}
-  spent_min: 41
-  session_count: 1
+  - start: "2026-10-15T17:51:46Z"
+    end: "2026-10-15T18:23:48Z"
+    measured: true
+    note: "Follow-up: Lenis eased scroll on the home page (native for touch + reduced motion), hero carousel starts on load instead of on first scroll, prev/next arrows with wrap, and a countdown bar in the active dot driven by HERO_ROTATE_MS via a re-keyed span. Gates: tsc, lint, bun test 233/233, build, playwright marketing 22/22."
+    proof: ["f161759"]
+    effort: {commits: 1, files: 10, insertions: 255, deletions: 86}
+  spent_min: 73
+  session_count: 2
