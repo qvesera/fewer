@@ -7,7 +7,7 @@ import { HERO_ROTATE_MS } from "../src/lib/fewer/marketingHero";
  * changelog does - the format count, the vocabulary, and the one canonical URL
  * all silently went stale before. Cheap assertions, one page load each.
  *
- * The hero is its own screen now (T-161): four messages on a clock, one h1
+ * The hero is its own screen now (T-161): five messages on a clock, one h1
  * exposed at a time, arrows and dots to drive it, and a timer bar inside the
  * active dot. Its guarantees (it starts without being asked, the arrows and
  * dots step and wrap, the pause parks it AND freezes that bar, reduced motion
@@ -113,7 +113,7 @@ test("the hero dots step by hand, and the current message is marked", async ({ p
   await page.goto("/");
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
 
-  const dot2 = page.getByRole("button", { name: "Message 2 of 4" });
+  const dot2 = page.getByRole("button", { name: /Message 2 of \d+/ });
   await dot2.click();
   await expect(dot2).toHaveAttribute("aria-current", "true");
   await expect(page.locator('[data-mk-hero-slide="find"]')).toHaveAttribute("data-active", "1");
@@ -223,7 +223,7 @@ test("the hero advances on its own, and the pause stops it", async ({ page }) =>
   // On the clock from the moment the page is, and still in view: the hero is
   // a full screen, so nothing has to happen for it to run. Nothing else
   // gates it either - no hover, no focus, no scroll - which is the whole
-  // point of having four messages: they are seen without being asked for.
+  // point of having five messages: they are seen without being asked for.
   await expect(page.locator("[data-mk-hero-state]")).toHaveAttribute(
     "data-mk-hero-state",
     "running",
@@ -252,7 +252,7 @@ test("the hero never rotates under prefers-reduced-motion", async ({ page }) => 
   // Lenis out - eased scrolling IS motion, so the page stays native.
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
   await expect(page.locator("html")).not.toHaveClass(/lenis/);
-  await page.getByRole("button", { name: "Message 2 of 4" }).click();
+  await page.getByRole("button", { name: /Message 2 of \d+/ }).click();
   await expect(page.locator('[data-mk-hero-slide="find"]')).toHaveAttribute("data-active", "1");
 });
 

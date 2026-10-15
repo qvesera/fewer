@@ -8,12 +8,17 @@ import {
 } from "./marketingHero";
 
 describe("marketingHero", () => {
-  test("there are four messages, and their ids are unique", () => {
-    // Four is the number the rotator was designed around: one per job the
-    // product does, and the dots below the hero are sized for exactly four.
-    expect(HERO_SLIDES).toHaveLength(4);
+  test("there are five messages, and their ids are unique", () => {
+    // Five is the number of jobs the product does, and the dots below the hero
+    // are sized for exactly five too.
+    expect(HERO_SLIDES).toHaveLength(5);
     const ids = HERO_SLIDES.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("no kicker or line repeats, so no slide feels copy-pasted", () => {
+    expect(new Set(HERO_SLIDES.map((s) => s.kicker)).size).toBe(HERO_SLIDES.length);
+    expect(new Set(HERO_SLIDES.map((s) => s.line)).size).toBe(HERO_SLIDES.length);
   });
 
   test("copy stays inside the reading budget", () => {

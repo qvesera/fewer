@@ -9,8 +9,9 @@
  * The audience rule for this copy: a newcomer who does not want a graph. No
  * slide may mention one - the word "graph" now lives in the metadata, the
  * section lead-in and the docs, where a reader who already knows what they
- * want can find it. The four slides are the four jobs the product does: see
- * everything, find one thing, understand a folder, fix a mess.
+ * want can find it. The five slides are the five jobs the product does: see
+ * everything, find one thing, understand a folder, fix a mess, and watch a
+ * folder for changes.
  *
  * Copy discipline is part of the contract: kicker <= 6 words, headline <= 8,
  * line <= 20, no em dashes (the house style since T-149), and no two slides

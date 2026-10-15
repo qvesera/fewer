@@ -910,7 +910,7 @@ html.lenis body {
   overflow: hidden;
 }
 
-/* The hero's four messages crossfade in place (T-161): one grid cell holds
+/* The hero's five messages crossfade in place (T-161): one grid cell holds
    them all, so a swap cannot move the buttons under it, and the cell is as
    tall as the tallest message. The hidden ones are opacity-0 here and
    aria-hidden in the markup, so exactly one message is on screen and one is

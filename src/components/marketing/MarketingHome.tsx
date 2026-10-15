@@ -10,7 +10,7 @@ import { SmoothScroll } from "./SmoothScroll";
  * into a hero screen and a demo screen in T-161).
  *
  * Order: the promise owns the first screen on its own (T-161), so a first
- * read is four sentences and nothing else -> the graph IS the feature list
+ * read is five sentences and nothing else -> the graph IS the feature list
  * in the section below (the demo cards inside a window chassis whose title
  * bar holds the View controls, one feature at a time in an inspector panel)
  * -> what it costs you: privacy, then open source, in the same centred rhythm
@@ -20,7 +20,7 @@ import { SmoothScroll } from "./SmoothScroll";
  * on the first scroll and the page re-centers the promise when the reader
  * comes back up. That first scroll is a jump: SmoothScroll.tsx takes the one
  * opening gesture and lands the reader on #features, then hands scrolling
- * back to the page. Its four messages start their clock as soon as the page
+ * back to the page. Its five messages start their clock as soon as the page
  * does, and are always in the HTML: a crawler and a no-JS reader get all four,
  * while a prefers-reduced-motion reader gets the first one, parked. Scrolling
  * itself is eased by Lenis (SmoothScroll.tsx), home page only, and falls back

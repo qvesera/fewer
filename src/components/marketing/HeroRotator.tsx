@@ -13,12 +13,13 @@ import {
 import { APP_URL } from "./MarketingLayout";
 
 /**
- * The hero: one screen of promise, four ways of saying it, on a clock (T-161,
+ * The hero: one screen of promise, five ways of saying it, on a clock (T-161,
  * follow-up for the smooth-scroll pass).
  *
- * Why four messages and not one: the product does four jobs (see a folder,
- * find a file, understand it, fix a mess) and no single sentence a newcomer can
- * parse does all four. One slot, four stops, HERO_ROTATE_MS each. The clock
+ * Why five messages and not one: the product does five jobs (see a folder,
+ * find a file, understand it, fix a mess and watch a folder for changes) and no
+ * single sentence a newcomer can parse does all five. One slot, five stops,
+ * HERO_ROTATE_MS each. The clock
  * starts as soon as the page does, so a reader who never touches anything
  * still sees all four - and the bar inside the active dot drains for exactly
  * as long as the message has left.
@@ -34,7 +35,7 @@ import { APP_URL } from "./MarketingLayout";
  *  - Everything that moves it is a real control: dots to jump to a message,
  *    arrows to step through them, a toggle to park it.
  *
- * The four messages live in ONE grid cell, so the cell is as tall as the
+ * The five messages live in ONE grid cell, so the cell is as tall as the
  * tallest one and a swap never moves the buttons under it. Only the active
  * message is visible; the rest are `aria-hidden`, which means exactly one
  * heading is on screen and one is announced. Each message is its own <h1> so
