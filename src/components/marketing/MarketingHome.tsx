@@ -3,6 +3,7 @@ import { FeaturePlayground } from "./FeaturePlayground";
 import { HeroRotator } from "./HeroRotator";
 import { OpenSourceSection } from "./OpenSourceSection";
 import { PrivacySection } from "./PrivacySection";
+import { SmoothScroll } from "./SmoothScroll";
 
 /**
  * The marketing home page (T-150, revised by the review follow-ups; split
@@ -17,9 +18,11 @@ import { PrivacySection } from "./PrivacySection";
  *
  * The hero is a full viewport minus the sticky header, so the canvas arrives
  * on the first scroll and the page re-centers the promise when the reader
- * comes back up. Its four messages wait for that scroll before they move at
- * all, which is also the version a crawler, a no-JS reader and a
- * prefers-reduced-motion reader all get.
+ * comes back up. Its four messages start their clock as soon as the page
+ * does, and are always in the HTML: a crawler and a no-JS reader get all four,
+ * while a prefers-reduced-motion reader gets the first one, parked. Scrolling
+ * itself is eased by Lenis (SmoothScroll.tsx), home page only, and falls back
+ * to native scroll under prefers-reduced-motion or on a touch screen.
  *
  * The illustration band that used to sit between the sections is gone: it
  * rendered nothing until `public/reorg-graph.svg` existed, and the canvas now
@@ -31,6 +34,7 @@ import { PrivacySection } from "./PrivacySection";
  * is off the page or on the other pane, and carry a real pause button; the
  * ping, the marching edges and the glow's ring all stop under
  * prefers-reduced-motion too, through the one global rule.
+
  *
  * The hero's headings do NOT carry the phrase "interactive graph": T-161's
  * rule is that a newcomer does not want a graph, they want the folder to
@@ -49,6 +53,7 @@ export function MarketingHome() {
         <style>{`[data-reveal]{opacity:1!important;transform:none!important;filter:none!important}`}</style>
       </noscript>
 
+      <SmoothScroll />
       <DotGrid />
       <HeroRotator />
       <FeaturePlayground />

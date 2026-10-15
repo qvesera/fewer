@@ -893,12 +893,30 @@ html[data-shell] .react-flow__node > div {
   }
 }
 
+/* Lenis (home page only, see SmoothScroll.tsx): the four rules the library
+   needs. It drives the real window scroll, so nothing here changes what is
+   scrollable - only how a wheel or a trackpad reaches its target. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
 /* The hero's four messages crossfade in place (T-161): one grid cell holds
    them all, so a swap cannot move the buttons under it, and the cell is as
    tall as the tallest message. The hidden ones are opacity-0 here and
    aria-hidden in the markup, so exactly one message is on screen and one is
-   announced. The hero itself never animates on first paint - the rotation
-   waits for the reader's first scroll, which is what makes it polite. */
+   announced. The first message is simply there on first paint - no rise, no
+   blur, nothing to wait for; after that the only motion the hero asks for is
+   the crossfade its own clock pays for. */
 .mk-hero-slide {
   transition:
     opacity var(--dur-slow) var(--ease-enter),
@@ -911,6 +929,32 @@ html[data-shell] .react-flow__node > div {
 .mk-hero-slide[data-active="1"] {
   opacity: 1;
   transform: none;
+}
+
+/* The countdown inside the active hero dot: a bar that empties for exactly as
+   long as its message holds, so "how long is left" is readable without a
+   number. `--hero-hold` comes from HERO_ROTATE_MS in the markup, which is the
+   same constant the JS clock waits on. The span is re-keyed on every clock
+   tick (see HeroRotator), so a pause-and-resume restarts both together rather
+   than leaving a bar that emptied while nothing was running. */
+@keyframes mk-hero-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.mk-hero-timer {
+  transform-origin: left center;
+  animation: mk-hero-timer var(--hero-hold) linear forwards;
+}
+/* Nothing is timed under reduced motion: the rotation is parked, so the bar
+   would only be a moving thing nobody asked for. Hidden, not zeroed. */
+@media (prefers-reduced-motion: reduce) {
+  .mk-hero-timer {
+    display: none;
+  }
 }
 
 /* Demo edges march the way the canvas's animated edges do (2px, dashed 5 5).

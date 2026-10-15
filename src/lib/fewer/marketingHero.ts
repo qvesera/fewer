@@ -1,11 +1,10 @@
 /**
- * The home page's hero promise (T-161).
+ * The home page's hero promise (T-161, follow-up).
  *
- * Four messages, one slot: the page opens on the first one and only starts
- * rotating once the reader has scrolled, so nothing moves while they are
- * still reading the promise. `HeroRotator.tsx` owns the behaviour; this module
- * owns the copy, in a pure file so the limits are unit-testable the same way
- * `marketingFeatures.ts` is.
+ * Four messages, one slot: the page opens on the first one and rotates on its
+ * own, so the reader who does nothing still sees all four. `HeroRotator.tsx`
+ * owns the behaviour; this module owns the copy, in a pure file so the limits
+ * are unit-testable the same way `marketingFeatures.ts` is.
  *
  * The audience rule for this copy: a newcomer who does not want a graph. No
  * slide may mention one - the word "graph" now lives in the metadata, the
@@ -66,17 +65,11 @@ export const HEADLINE_MAX_WORDS = 8;
 export const LINE_MAX_WORDS = 20;
 
 /**
- * How long a message holds. One constant on purpose: 20s is a one-character
- * change, and so is a faster stop if the tour ever reads as slow.
+ * How long a message holds, and how long the dot under it drains for. One
+ * constant feeding both - the countdown reads it as a CSS custom property, so
+ * the bar and the clock cannot disagree. 20s is a one-character change.
  */
 export const HERO_ROTATE_MS = 15000;
-
-/**
- * The first scroll that arms the rotation. Below this the page is still
- * where the reader landed it, so the hero stays on message one. 16px is past
- * the browser's own scroll-on-click noise but before any real reading.
- */
-export const HERO_ARM_SCROLL_PX = 16;
 
 /** Words the test counts against. Re-exported so the test imports one place. */
 export { wordCount };

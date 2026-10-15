@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { HERO_ROTATE_MS } from "../src/lib/fewer/marketingHero";
 
 /**
  * Marketing home page guards (T-149, T-150, hotspot follow-ups, T-161): the
@@ -6,11 +7,13 @@ import { test, expect } from "@playwright/test";
  * changelog does - the format count, the vocabulary, and the one canonical URL
  * all silently went stale before. Cheap assertions, one page load each.
  *
- * The hero is its own screen now (T-161): four rotating messages, one h1 in the
- * DOM at a time, and a rotation that waits for the reader's first scroll. Its
- * guarantees (first paint is still, the dots step, the pause parks it, reduced
- * motion parks it, the demo arrives on the scroll) have tests of their own, and
- * they run BEFORE anything that scrolls, because a scroll is what arms it.
+ * The hero is its own screen now (T-161): four messages on a clock, one h1
+ * exposed at a time, arrows and dots to drive it, and a countdown bar inside
+ * the active dot. Its guarantees (it starts without being asked, the arrows
+ * and dots step and wrap, the pause parks it, reduced motion parks it and
+ * turns Lenis off, the demo arrives on the scroll) have tests of their own,
+ * and the ones that only ever read the hero run BEFORE anything scrolls:
+ * scrolling changes what is in view, and Lenis eases every scroll here.
  *
  * The feature copy lives in the playground's inspector, which shows one feature
  * at a time, so the copy guards below click the chip that shows a feature
@@ -116,33 +119,71 @@ test("the hero dots step by hand, and the current message is marked", async ({ p
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "0");
 });
 
-test("the hero waits for a scroll before it moves on its own", async ({ page }) => {
+test("the hero starts on its own, and the page scrolls smoothly", async ({ page }) => {
   await page.goto("/");
   const state = page.locator("[data-mk-hero-state]");
 
-  // Nothing armed yet: the reader has not left the first screen.
-  await expect(state).toHaveAttribute("data-mk-hero-state", "idle");
-
-  // The first real scroll arms it, and it only runs where it can be seen.
-  await page.mouse.move(4, 4);
-  await page.mouse.wheel(0, 300);
+  // No scroll and no click: the clock is already running, so a reader who
+  // never touches anything still sees all four messages.
   await expect(state).toHaveAttribute("data-mk-hero-state", "running");
 
-  // Away from the hero, and it goes quiet again.
+  // Lenis is installed on this page, so the trip down to the demo is eased
+  // rather than jumped. It drives the real window scroll, not a wrapper div.
+  await expect(page.locator("html")).toHaveClass(/lenis/);
+
+  // Away from the hero, and it goes quiet again: nothing runs off-screen.
+  await page.mouse.move(4, 4);
   await page.mouse.wheel(0, 4000);
   await expect(state).toHaveAttribute("data-mk-hero-state", "idle");
 });
 
+test("the arrows step through the messages and wrap", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
+
+  await page.locator('[data-mk-hero-step="next"]').click();
+  await expect(page.locator('[data-mk-hero-slide="find"]')).toHaveAttribute("data-active", "1");
+
+  await page.locator('[data-mk-hero-step="prev"]').click();
+  await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
+
+  // Backwards past the first message wraps to the last one, like the tour.
+  await page.locator('[data-mk-hero-step="prev"]').click();
+  await expect(page.locator('[data-mk-hero-slide="fix"]')).toHaveAttribute("data-active", "1");
+});
+
+test("the active dot counts down the message it belongs to", async ({ page }) => {
+  await page.goto("/");
+  const bar = page.locator("[data-mk-hero-timer]");
+  await expect(bar).toHaveCount(1);
+
+  // It is a real animation, and its length is the same constant the JS clock
+  // waits on - the CSS reads it from the markup, so the two cannot drift.
+  const style = await bar.evaluate((el) => {
+    const computed = getComputedStyle(el);
+    return { name: computed.animationName, duration: computed.animationDuration };
+  });
+  expect(style.name).toContain("mk-hero-timer");
+  expect(style.duration).toBe(`${HERO_ROTATE_MS / 1000}s`);
+
+  // And it moves: less of the dot is filled a beat later than it was.
+  const widthAtStart = (await bar.boundingBox())!.width;
+  await page.waitForTimeout(1200);
+  const widthLater = (await page.locator("[data-mk-hero-timer]").boundingBox())!.width;
+  expect(widthLater).toBeLessThan(widthAtStart);
+});
+
 test("the hero advances on its own, and the pause stops it", async ({ page }) => {
   await page.goto("/");
-  await page.mouse.move(4, 4);
-  // Armed, and still on screen: the hero is a full screen, so a small scroll
-  // leaves it in view for the clock to run.
-  await page.mouse.wheel(0, 200);
+  // On the clock from the moment the page is, and still in view: the hero is
+  // a full screen, so nothing has to happen for it to run.
   await expect(page.locator("[data-mk-hero-state]")).toHaveAttribute(
     "data-mk-hero-state",
     "running",
   );
+  // Nothing reads it while it runs: the mouse stays out of the way, or the
+  // hover gate would be doing the pausing instead of the button below.
+  await page.mouse.move(4, 4);
 
   const second = page.locator('[data-mk-hero-slide="find"]');
 
@@ -160,12 +201,13 @@ test("the hero never rotates under prefers-reduced-motion", async ({ page }) => 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await page.mouse.move(4, 4);
-  await page.mouse.wheel(0, 200);
   await page.waitForTimeout(6500);
 
   // The preference parks it rather than removing it: the dots are still a
-  // real control, the way the feature tour's play button is.
+  // real control, the way the feature tour's play button is. It also keeps
+  // Lenis out - eased scrolling IS motion, so the page stays native.
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
+  await expect(page.locator("html")).not.toHaveClass(/lenis/);
   await page.getByRole("button", { name: "Message 2 of 4" }).click();
   await expect(page.locator('[data-mk-hero-slide="find"]')).toHaveAttribute("data-active", "1");
 });
