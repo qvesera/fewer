@@ -4317,7 +4317,7 @@ tasks:
   session_count: 1
 - id: "T-156"
   title: "Home privacy: bento right column - hero claim, sandbox schematic, stat badges"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4342,8 +4342,14 @@ tasks:
     note: "Privacy bento: hero claim + sandbox schematic + 3 mono stat badges + compact rows; mobile stacks; 1708 unit + 14/15 e2e (:114 pre-existing flake) + build green; screenshots desktop light/dark + mobile"
     proof: ["202bc29"]
     effort: {commits: 1, files: 4, insertions: 194, deletions: 25}
-  spent_min: 23
-  session_count: 1
+  - start: "2026-10-15T14:19:23Z"
+    end: "2026-10-15T15:06:43Z"
+    measured: true
+    note: "Privacy right column rebuilt as a 2-col bento at xl (hero claim spans both with the shield centred against it, auth claim with a display word, cloud/trackers/digests paired, hosting-log footnote full width, 3 mono stat badges as a divided band), split gated to xl with the left column middle-aligned (centreDelta 0), SandboxDiagram deleted; e2e pins rewritten for two-edge grid + centring + verbatim claims, changelog collapsed to one bullet. Gates: lint 0, tsc 0, bun test 233 pass, marketing e2e 15 pass, build OK, changelog validate OK."
+    proof: ["b3aea9d"]
+    effort: {commits: 1, files: 3, insertions: 178, deletions: 157}
+  spent_min: 70
+  session_count: 2
 - id: "T-157"
   title: "Feature playground: spent hover authorisation on ignored folder hovers (e2e flake fix)"
   status: "review"
