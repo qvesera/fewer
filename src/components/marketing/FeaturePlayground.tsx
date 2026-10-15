@@ -489,29 +489,37 @@ export function FeaturePlayground() {
               </div>
             </div>
 
-            <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+            <div className="grid gap-5 px-5 py-4 sm:gap-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_336px] lg:items-center">
               <div className="min-w-0">
-                <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  {MARKETING_CATEGORIES.find((c) => c.features.includes(feature.id))?.label}
+                </span>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
                   {feature.headline}
                 </h2>
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">{feature.line}</p>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{feature.line}</p>
               </div>
 
-              <FeatureProof
-                kind={feature.proof}
-                shyness={shyness}
-                onShyness={(value) => {
-                  setShyness(value);
-                  setTourToken((token) => token + 1);
-                }}
-              />
+              {/* The proof gets its own framed cell: without the rule the
+                  150px band (sized by the tallest proof) reads as dead air
+                  beside a two-line block. */}
+              <div className="lg:border-l lg:border-border/60 lg:pl-6">
+                <FeatureProof
+                  kind={feature.proof}
+                  shyness={shyness}
+                  onShyness={(value) => {
+                    setShyness(value);
+                    setTourToken((token) => token + 1);
+                  }}
+                />
+              </div>
             </div>
           </div>
 
           {/* The rail: what it does, in three groups of concrete chips. Each
               group's longer sentence lives on its label's tooltip, so the page
               never has to spell it out in the main flow. */}
-          <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
             {MARKETING_CATEGORIES.map((category) => (
               <div key={category.id}>
                 <h3

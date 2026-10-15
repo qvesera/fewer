@@ -95,6 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Home privacy section: split layout - heading, intro and policy action in a left column, the six claims stacked one per row at reading size on the right
 - Home privacy section: the right column is a bento - the primary local-first claim gets a hero card with a sandbox schematic, three mono stat badges (0 trackers, local, AGPLv3) carry the short version, the rest are compact rows
 - The interactive hero canvas now sits inside a frosted window chassis whose title bar holds the View controls, with an ambient accent glow behind the active card, a halo on the graph's root folder, port pings on the active card, and deeper dimming of the cards you're not reading.
+- The home page's feature inspector is tighter: less padding, a mono group kicker above the headline, and the feature proof in its own framed column, so the card no longer reads as a two-line block marooned in empty space. The chip rail hangs closer off the panel.
 
 ### Fixed
 
