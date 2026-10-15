@@ -55,6 +55,12 @@ export const HERO_SLIDES: HeroSlide[] = [
     headline: "Take control of a messy folder",
     line: "See it all at once, then rename, group, move or delete in bulk. Nothing gets unpacked.",
   },
+  {
+    id: "watch",
+    kicker: "Keep an eye on a folder",
+    headline: "Get told when a folder changes",
+    line: "Point it at a public folder and we email you when something is added or removed.",
+  },
 ];
 
 /** The trust line, which never rotates: a promise that changes is not one. */
@@ -69,7 +75,7 @@ export const LINE_MAX_WORDS = 20;
  * constant feeding both - the countdown reads it as a CSS custom property, so
  * the bar and the clock cannot disagree. 20s is a one-character change.
  */
-export const HERO_ROTATE_MS = 15000;
+export const HERO_ROTATE_MS = 10000;
 
 /** Words the test counts against. Re-exported so the test imports one place. */
 export { wordCount };
