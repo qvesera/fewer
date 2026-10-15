@@ -1,22 +1,34 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { Ban, BellRing, Cloud, ScrollText, ShieldCheck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Reveal } from "./Reveal";
 
 /**
- * Privacy (T-150 follow-up; split T-155; bento T-156). The claims are the ones
- * the pre-redesign page made, kept word for word because they are trust
- * statements a reader should be able to check against /privacy; only the em
- * dashes became commas, which is the house style rule (T-149).
+ * Privacy (T-150 follow-up; split T-155; bento T-156, rebuilt). The claims are
+ * the ones the pre-redesign page made, kept word for word because they are
+ * trust statements a reader should be able to check against /privacy; only the
+ * em dashes became commas, which is the house style rule (T-149).
  *
- * The shape is the mock's split - heading, intro and the policy action in a
- * left column - and the right column is a bento rather than six identical
- * rows: the primary reassurance gets a hero card with a schematic of the
- * local sandbox (nothing crosses the browser boundary), three mono stat
- * badges carry the short version (0 trackers, local, AGPLv3 - each checkable
- * in /privacy or LICENSE), and the remaining claims are compact rows
- * underneath. The stats decorate promises the page already makes; they add
+ * Shape: heading, intro and the policy action in a left column, vertically
+ * CENTRED against the bento beside it (xl:items-center) - the two blocks read
+ * as one band instead of a top-aligned column floating beside a stack. The
+ * bento is a two column card grid: the local-first claim spans both beside
+ * its shield, the authentication claim gets a display word and pairs with the
+ * cloud claim, the tracker and digest statements pair next, the hosting-log
+ * line spans both columns as the footnote strip it is, and the mono stat
+ * badges - 0 trackers, local, AGPLv3, each checkable in /privacy or LICENSE -
+ * close it as a band. Every card takes the same inset so one left edge and
+ * one right edge come out of the bento, never a ragged one.
+ *
+ * The schematic the hero card used to carry is gone: it repeated the sentence
+ * beside it and read as clip art, and so is the one-line mono strip that
+ * briefly replaced it - the hero is the sentence paired with its shield, and
+ * nothing else. The stats decorate promises the page already makes; they add
  * no new one.
+ *
+ * The split moves at xl, not lg: below that the section stacks, so the cards
+ * keep a readable measure instead of squeezing to ~220px at 1024.
  */
 
 const HERO_POINT =
@@ -29,6 +41,9 @@ const CLAIM_POINTS = [
   "Hosting operates on standard server logs only.",
 ];
 
+/** The six statements, in display order. Destructured: each card is bespoke. */
+const [ACCOUNT, CLOUD, TRACKERS, DIGESTS, LOGS] = CLAIM_POINTS;
+
 /** Sources: no trackers / local processing are /privacy; the licence is LICENSE. */
 const PRIVACY_STATS = [
   { value: "0", label: "trackers, ads, telemetry" },
@@ -36,87 +51,30 @@ const PRIVACY_STATS = [
   { value: "AGPLv3", label: "verify the source" },
 ];
 
-/**
- * The local sandbox, drawn from tokens: a dashed browser boundary with two
- * graph cards inside and one egress arrow struck at the wall. Decorative -
- * the claim beside it says the same thing in words, so this is aria-hidden.
- */
-function SandboxDiagram({ className }: { className?: string }) {
+/** The bento's shared chrome: an icon chip and a mono kicker on one line. */
+function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <svg
-      viewBox="0 0 150 104"
-      className={`h-[88px] w-[132px] shrink-0 ${className ?? ""}`}
-      aria-hidden="true"
-    >
-      {/* Window chrome: the boundary IS the browser. */}
-      <circle cx="10" cy="7" r="2.2" fill="var(--muted-foreground)" opacity="0.5" />
-      <circle cx="18" cy="7" r="2.2" fill="var(--muted-foreground)" opacity="0.5" />
-      <circle cx="26" cy="7" r="2.2" fill="var(--muted-foreground)" opacity="0.5" />
-      <text x="36" y="10" fontSize="7.5" fontFamily="monospace" fill="var(--muted-foreground)">
-        browser
-      </text>
-      <rect
-        x="1"
-        y="15"
-        width="116"
-        height="87"
-        rx="8"
-        fill="none"
-        stroke="var(--border)"
-        strokeDasharray="4 3"
-      />
-      {/* A folder card and a file card, connected the way the canvas draws. */}
-      <rect
-        x="12"
-        y="30"
-        width="46"
-        height="18"
-        rx="5"
-        fill="var(--fewer-folder-bg)"
-        stroke="var(--fewer-folder-border)"
-      />
-      <rect
-        x="72"
-        y="66"
-        width="34"
-        height="16"
-        rx="5"
-        fill="var(--fewer-file-bg)"
-        stroke="var(--fewer-file-border)"
-      />
-      <path
-        d="M 58 42 C 66 42 64 74 72 74"
-        fill="none"
-        stroke="var(--mk-accent, var(--fewer-edge))"
-        strokeWidth="1.5"
-        strokeDasharray="3 2.5"
-      />
-      {/* The egress that never happens: the arrow stops at the wall, struck. */}
-      <path
-        d="M 92 26 L 146 26"
-        fill="none"
-        stroke="var(--muted-foreground)"
-        strokeWidth="1.5"
-        opacity="0.7"
-      />
-      <path d="M 141 22 L 146 26 L 141 30" fill="none" stroke="var(--muted-foreground)" strokeWidth="1.5" opacity="0.7" />
-      <path
-        d="M 113 20 L 121 32 M 121 20 L 113 32"
-        stroke="var(--fewer-file-icon)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <text x="99" y="42" fontSize="6.5" fontFamily="monospace" fill="var(--muted-foreground)">
-        no egress
-      </text>
-    </svg>
+    <div className="flex items-center gap-2">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30"
+        style={{ color: "var(--fewer-file-icon)" }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {children}
+      </span>
+    </div>
   );
 }
+
+const CLAIM = "mt-3 text-sm leading-relaxed text-foreground/90";
 
 export function PrivacySection() {
   return (
     <section className="relative z-10 py-20">
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+      <div className="mx-auto grid max-w-6xl gap-10 px-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:items-center xl:gap-16">
         <Reveal>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Your data stays yours
@@ -138,62 +96,83 @@ export function PrivacySection() {
         </Reveal>
 
         <Reveal delay={90}>
-          <div className="flex flex-col gap-3">
-            {/* The hero claim: the primary reassurance, bigger, with the
-                sandbox drawn beside it. Same words as always - the picture
-                only shows what the sentence already promises. */}
-            <ul>
-              <li
-                data-mk-privacy-hero
-                className="flex flex-col gap-3 rounded-xl border border-border bg-card/70 p-4 text-left text-base leading-relaxed text-foreground sm:flex-row sm:items-start sm:gap-4 sm:p-5 sm:text-lg"
+          {/* One list of six statements in five cards: hierarchy instead of
+              six identical rows, and every card on the bento's two edges. */}
+          <ul className="grid gap-3 sm:grid-cols-2">
+            <li
+              data-mk-privacy-hero
+              className="rounded-xl border border-border bg-card/70 p-5 text-left sm:col-span-2"
+            >
+              {/* Shield centred against the whole two-line block: items-center
+                  drops its middle on the paragraph's middle, so it reads as
+                  one unit with the sentence rather than pinned to line one. */}
+              <div className="flex items-center gap-3 sm:gap-4">
+                <ShieldCheck
+                  className="h-4 w-4 shrink-0 sm:h-5 sm:w-5"
+                  style={{ color: "var(--fewer-file-icon)" }}
+                  aria-hidden="true"
+                />
+                <span
+                  data-mk-privacy-headline
+                  className="text-lg font-semibold leading-snug text-foreground sm:text-xl"
+                >
+                  {HERO_POINT}
+                </span>
+              </div>
+            </li>
+
+            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Account required
+              </span>
+              <p className="mt-1 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+                ZERO
+              </p>
+              <p className={CLAIM}>{ACCOUNT}</p>
+            </li>
+
+            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+              <CardLabel icon={<Cloud className="h-3.5 w-3.5" />}>Cloud connections</CardLabel>
+              <p className={CLAIM}>{CLOUD}</p>
+            </li>
+
+            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+              <CardLabel icon={<Ban className="h-3.5 w-3.5" />}>Trackers, ads, telemetry</CardLabel>
+              <p className={CLAIM}>{TRACKERS}</p>
+            </li>
+
+            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+              <CardLabel icon={<BellRing className="h-3.5 w-3.5" />}>Watch digests</CardLabel>
+              <p className={CLAIM}>{DIGESTS}</p>
+            </li>
+
+            {/* The shortest statement spans both columns: a footnote strip is
+                what a hosting-log line reads as - a half-width card would
+                leave a hole beside it. */}
+            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left sm:col-span-2">
+              <CardLabel icon={<ScrollText className="h-3.5 w-3.5" />}>Server logs</CardLabel>
+              <p className={CLAIM}>{LOGS}</p>
+            </li>
+          </ul>
+
+          {/* The short version, in mono: each badge is a claim the page
+              already makes, checkable in /privacy or LICENSE. Cell padding
+              matches the cards so the first value sits on their left edge. */}
+          <div className="mt-3 grid grid-cols-3 rounded-xl border border-border/60 bg-card/40">
+            {PRIVACY_STATS.map((stat) => (
+              <div
+                key={stat.value}
+                data-mk-privacy-stat
+                className="flex flex-col gap-0.5 border-l border-border/60 p-5 first:border-l-0"
               >
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <ShieldCheck
-                    className="mt-1 h-4 w-4 shrink-0 sm:h-5 sm:w-5"
-                    style={{ color: "var(--fewer-file-icon)" }}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 font-medium">{HERO_POINT}</span>
-                </div>
-                <SandboxDiagram className="self-start sm:self-auto" />
-              </li>
-            </ul>
-
-            {/* The short version, in mono: each badge is a claim the page
-                already makes, checkable in /privacy or LICENSE. */}
-            <div className="grid grid-cols-3 gap-3">
-              {PRIVACY_STATS.map((stat) => (
-                <div
-                  key={stat.value}
-                  data-mk-privacy-stat
-                  className="flex flex-col gap-0.5 rounded-xl border border-border/60 bg-card/50 p-3"
-                >
-                  <span className="font-mono text-sm font-semibold tabular-nums text-foreground sm:text-base">
-                    {stat.value}
-                  </span>
-                  <span className="text-[10px] uppercase leading-snug tracking-wider text-muted-foreground">
-                    {stat.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* The remaining claims, compact. */}
-            <ul className="flex flex-col gap-3">
-              {CLAIM_POINTS.map((point) => (
-                <li
-                  key={point}
-                  className="flex items-start gap-3 rounded-xl border border-border/60 bg-card/50 px-4 py-3 text-left text-sm leading-relaxed text-foreground/90"
-                >
-                  <ShieldCheck
-                    className="mt-0.5 h-4 w-4 shrink-0"
-                    style={{ color: "var(--fewer-file-icon)" }}
-                    aria-hidden="true"
-                  />
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
+                <span className="font-mono text-sm font-semibold tabular-nums text-foreground sm:text-base">
+                  {stat.value}
+                </span>
+                <span className="text-[10px] uppercase leading-snug tracking-wider text-muted-foreground">
+                  {stat.label}
+                </span>
+              </div>
+            ))}
           </div>
         </Reveal>
       </div>

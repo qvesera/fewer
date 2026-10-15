@@ -313,27 +313,71 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Launch the app" }).last()).toBeVisible();
 
   // The privacy section is a split (T-155) with a bento right column (T-156):
-  // heading + intro + action left; on the right one hero claim with a
-  // schematic, three mono stat badges, then the compact claim rows. Pin the
-  // hierarchy - the hero claim reads larger than a compact row - and the
-  // badges, rather than the old centred rhythm.
+  // heading + intro + action left, centred against the bento; on the right a
+  // two-column card grid - one hero claim, four claim cards, a full-width
+  // footnote card, then three mono stat badges. Pin the split, the bento's
+  // two edges (never a ragged one), the centring, and the type hierarchy.
   const privacy = page.getByRole("heading", { name: "Your data stays yours" });
   const claim = page.getByRole("listitem").filter({ hasText: "No selling your data" });
   const claimBox = await claim.boundingBox();
   expect(claimBox).not.toBeNull();
   expect((await privacy.boundingBox())!.x).toBeLessThan(claimBox!.x);
-  // Every claim shares one left edge: one column, not a wrapping grid.
-  const boxes = await page.getByRole("listitem").evaluateAll((els) =>
+  // Every card lands on one of the bento's two column edges - six cards on a
+  // two-edge grid, no lone column and no ragged right.
+  const edges = await page.getByRole("listitem").evaluateAll((els) =>
     els
-      .filter((el) => el.closest("section")?.querySelector("h2")?.textContent === "Your data stays yours")
-      .map((el) => (el as HTMLElement).getBoundingClientRect().x),
+      .filter(
+        (el) =>
+          el.closest("section")?.querySelector("h2")?.textContent === "Your data stays yours",
+      )
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.right)];
+      }),
   );
-  expect(new Set(boxes).size).toBe(1);
-  // The hero claim outranks the compact rows in type size.
-  const hero = page.locator("[data-mk-privacy-hero] span");
-  const heroSize = await hero.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  const rowSize = await claim.locator("span").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-  expect(heroSize).toBeGreaterThan(rowSize);
+  expect(edges.length).toBe(6);
+  expect(edges.every(([left, right]) => right > left)).toBe(true);
+  expect(new Set(edges.map(([left]) => left)).size).toBeLessThanOrEqual(2);
+  expect(new Set(edges.map(([, right]) => right)).size).toBeLessThanOrEqual(2);
+  // The hero spans both columns; a claim card sits on one.
+  const heroBox = await page.locator("[data-mk-privacy-hero]").boundingBox();
+  expect(heroBox!.width).toBeGreaterThan(claimBox!.width);
+  // On a split viewport the heading block is centred against the bento;
+  // stacked, it sits above - so only the split shape gets the centring pin.
+  const centreDelta = await page.evaluate(() => {
+    const h2 = [...document.querySelectorAll("h2")].find(
+      (el) => el.textContent === "Your data stays yours",
+    );
+    if (!h2) return null;
+    const left = (h2.parentElement as HTMLElement).getBoundingClientRect();
+    const grid = h2.parentElement!.parentElement as HTMLElement;
+    if (getComputedStyle(grid).gridTemplateColumns.split(" ").length < 2) return "stacked";
+    const right = (grid.querySelector("ul")!.parentElement as HTMLElement).getBoundingClientRect();
+    return Math.abs(left.top + left.height / 2 - (right.top + right.height / 2));
+  });
+  expect(
+    centreDelta === "stacked" || (typeof centreDelta === "number" && centreDelta < 24),
+  ).toBe(true);
+  // The hero claim outranks a claim card in type size.
+  const heroSize = await page
+    .locator("[data-mk-privacy-headline]")
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const cardSize = await claim
+    .locator("p")
+    .first()
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(heroSize).toBeGreaterThan(cardSize);
+  // The statements are trust copy: present word for word, never paraphrased.
+  for (const statement of [
+    "Runs locally in your browser, so your directory contents stay on your device by default.",
+    "No account required. Sign in is optional, and only used for saved graphs and sharing across devices.",
+    "Optional cloud connections are scoped: we fetch only the trees you ask for, and never store your connected account's contents.",
+    "No selling your data, no advertising trackers, no hidden telemetry.",
+    "Watch digests are opt-in; we only store the public URLs you add and email changes you requested.",
+    "Hosting operates on standard server logs only.",
+  ]) {
+    await expect(page.getByText(statement, { exact: true })).toBeVisible();
+  }
   // The short version: three mono stat badges.
   await expect(page.locator("[data-mk-privacy-stat]")).toHaveCount(3);
   await expect(page.getByText("AGPLv3", { exact: true })).toBeVisible();
