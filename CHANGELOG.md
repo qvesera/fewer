@@ -93,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page's tree view centres its caption and tree text in the pane instead of hugging the left of the centred column - the block now reads as one centred column on the same axis as the canvas, with the tree's own columns still aligned
 - Home demo canvas: feature cards are single-line (no redundant folder sub-line), and the root plus the active card's parent folder stay fully saturated while the rest dims, so the folder structure is always readable
 - Home privacy section: split layout - heading, intro and policy action in a left column, the six claims stacked one per row at reading size on the right
+- Home privacy section: the right column is a bento - the primary local-first claim gets a hero card with a sandbox schematic, three mono stat badges (0 trackers, local, AGPLv3) carry the short version, the rest are compact rows
 
 ### Fixed
 

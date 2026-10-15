@@ -306,10 +306,11 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   // "Launch the app" appears in the hero, the navbar, the footer and here.
   await expect(page.getByRole("link", { name: "Launch the app" }).last()).toBeVisible();
 
-  // The privacy section is a split (T-155): heading + intro + action in the
-  // left column, the six claims stacked one per row in the right. Pin the
-  // split - left heading, cards to its right - rather than the old centred
-  // rhythm it used to share with Open source.
+  // The privacy section is a split (T-155) with a bento right column (T-156):
+  // heading + intro + action left; on the right one hero claim with a
+  // schematic, three mono stat badges, then the compact claim rows. Pin the
+  // hierarchy - the hero claim reads larger than a compact row - and the
+  // badges, rather than the old centred rhythm.
   const privacy = page.getByRole("heading", { name: "Your data stays yours" });
   const claim = page.getByRole("listitem").filter({ hasText: "No selling your data" });
   const claimBox = await claim.boundingBox();
@@ -322,6 +323,14 @@ test("privacy and open source sections are on the page", async ({ page }) => {
       .map((el) => (el as HTMLElement).getBoundingClientRect().x),
   );
   expect(new Set(boxes).size).toBe(1);
+  // The hero claim outranks the compact rows in type size.
+  const hero = page.locator("[data-mk-privacy-hero] span");
+  const heroSize = await hero.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const rowSize = await claim.locator("span").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(heroSize).toBeGreaterThan(rowSize);
+  // The short version: three mono stat badges.
+  await expect(page.locator("[data-mk-privacy-stat]")).toHaveCount(3);
+  await expect(page.getByText("AGPLv3", { exact: true })).toBeVisible();
 
   // Reveal hides content until it is scrolled into view. Being in the DOM is
   // not the same as being readable, so this visits every revealed block - the
