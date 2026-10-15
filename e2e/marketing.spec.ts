@@ -132,7 +132,13 @@ test("a feature card reveals its feature, and only that card is ringed", async (
   await expect(ring).toHaveCount(1);
   await expect(page.locator('[data-mk-node="tags"].mk-node-active')).toHaveCount(1);
 
-  // Folder cards are structure: hovering one changes nothing.
+  // Folder cards are structure: hovering one changes nothing. Approach it from
+  // off the cards, because a pointer swept between two cards legitimately
+  // activates whatever it crosses - Playwright moves the mouse in steps, a
+  // real mouse sweeps too - and the straight line from the tags card to this
+  // folder passes over the Themes card, which would change the callout on the
+  // way. The headline is above the canvas and has no activation handlers.
+  await page.getByRole("heading", { level: 1, name: /interactive graph/i }).hover();
   await page.locator('[data-mk-node="connect"]').hover();
   await expect(page.locator('[data-mk-callout="tags"]')).toBeVisible();
   await expect(page.locator('[data-mk-node="tags"].mk-node-active')).toHaveCount(1);

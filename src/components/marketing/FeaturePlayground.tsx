@@ -409,8 +409,16 @@ export function FeaturePlayground() {
                 onActivateNode={(nodeId, via) => {
                   // The card id IS the feature id, so activation is a lookup
                   // by identity. Folder cards (root and the three groups) are
-                  // structure, not features, and activate nothing.
-                  if (!MARKETING_FEATURES.some((f) => f.id === nodeId)) return;
+                  // structure, not features, and activate nothing. The hover
+                  // still happened though, so the authorisation it carried is
+                  // spent here: leaving it armed lets the next synthetic
+                  // pointerover (a layout shift under a parked pointer, the
+                  // exact case the authorisation exists to filter) activate
+                  // whatever card happens to land under the cursor.
+                  if (!MARKETING_FEATURES.some((f) => f.id === nodeId)) {
+                    if (via === "hover") hoverAuthorised.current = false;
+                    return;
+                  }
                   activate(nodeId, via);
                 }}
               />
