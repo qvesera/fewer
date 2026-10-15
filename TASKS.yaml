@@ -4404,14 +4404,14 @@ tasks:
   session_count: 1
 - id: "T-159"
   title: "Tighten the feature playground inspector spacing"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
   issue: 423
-  pr: null
+  pr: 421
   internal: false
   milestone: null
   blocked_by: []
