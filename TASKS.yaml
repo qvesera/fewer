@@ -4402,3 +4402,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 142, deletions: 30}
   spent_min: 37
   session_count: 1
+- id: "T-159"
+  title: "Tighten the feature playground inspector spacing"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 423
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#423"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T11:38:36Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T11:43:52Z"
+    end: "2026-10-15T12:25:56Z"
+    measured: true
+    note: "Playground inspector spacing fixed (commit e20a91a). Measured before/after with a throwaway playwright harness on the dev server: panel 241->225px, content block 69->49px below the bar (mono group kicker added above the headline so the 150px proof band - sized by the Canvas groups demo, measured 150px - stops reading as dead air), proof cell framed with lg:border-l + pl-6 and column 320->336 to pay for it, paragraph cap max-w-xl->2xl, rail mt-8 gap-y-6 -> mt-6 gap-y-5. No proof clips at any width (per-feature inner-height scan 1440/1024). Gates: lint 0, tsc 0, unit+component 233 pass 0 fail, playwright marketing 15/15, build OK, changelog validate OK. Visual: 1440/1024/768/375 x dark+light. Pending: privacy bento redesign (T-156 layout) - user reviewing screenshots first."
+    proof: ["e20a91a"]
+    effort: {commits: 1, files: 2, insertions: 21, deletions: 12}
+  spent_min: 42
+  session_count: 1
