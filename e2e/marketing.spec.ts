@@ -8,12 +8,13 @@ import { HERO_ROTATE_MS } from "../src/lib/fewer/marketingHero";
  * all silently went stale before. Cheap assertions, one page load each.
  *
  * The hero is its own screen now (T-161): four messages on a clock, one h1
- * exposed at a time, arrows and dots to drive it, and a countdown bar inside
- * the active dot. Its guarantees (it starts without being asked, the arrows
- * and dots step and wrap, the pause parks it, reduced motion parks it and
- * turns Lenis off, the demo arrives on the scroll) have tests of their own,
- * and the ones that only ever read the hero run BEFORE anything scrolls:
- * scrolling changes what is in view, and Lenis eases every scroll here.
+ * exposed at a time, arrows and dots to drive it, and a timer bar inside the
+ * active dot. Its guarantees (it starts without being asked, the arrows and
+ * dots step and wrap, the pause parks it AND freezes that bar, reduced motion
+ * parks it and turns Lenis off, the first scroll lands on the demo) have tests
+ * of their own, and the ones that only ever read the hero run BEFORE anything
+ * scrolls: scrolling changes what is in view, and Lenis eases every scroll
+ * here.
  *
  * The feature copy lives in the playground's inspector, which shows one feature
  * at a time, so the copy guards below click the chip that shows a feature
@@ -127,14 +128,43 @@ test("the hero starts on its own, and the page scrolls smoothly", async ({ page 
   // never touches anything still sees all four messages.
   await expect(state).toHaveAttribute("data-mk-hero-state", "running");
 
-  // Lenis is installed on this page, so the trip down to the demo is eased
-  // rather than jumped. It drives the real window scroll, not a wrapper div.
+  // Lenis is installed on this page, so scrolling is eased rather than
+  // jumped - it drives the real window scroll, not a wrapper div. Where the
+  // first scroll goes is the next test: that gesture is the page's own.
   await expect(page.locator("html")).toHaveClass(/lenis/);
+});
 
-  // Away from the hero, and it goes quiet again: nothing runs off-screen.
+test("the first scroll takes the reader straight to the demo", async ({ page }) => {
+  await page.goto("/");
+  expect(await page.evaluate(() => window.scrollY)).toBeLessThan(40);
+
   await page.mouse.move(4, 4);
+  await page.mouse.wheel(0, 120);
+
+  // One gesture is the whole trip: the playground lands under the header, at
+  // the same offset the nav's anchor jump uses.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const demo = document.getElementById("features");
+          if (!demo) return 9999;
+          const header = Number.parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue("--mk-header-h"),
+          );
+          return Math.abs(demo.getBoundingClientRect().top - header);
+        }),
+      { timeout: 5000 },
+    )
+    .toBeLessThan(6);
+
+  // After that it is an ordinary page again: the second scroll just scrolls,
+  // and the hero, now above the fold, parks its clock.
   await page.mouse.wheel(0, 4000);
-  await expect(state).toHaveAttribute("data-mk-hero-state", "idle");
+  await expect(page.locator("[data-mk-hero-state]")).toHaveAttribute(
+    "data-mk-hero-state",
+    "idle",
+  );
 });
 
 test("the arrows step through the messages and wrap", async ({ page }) => {
@@ -152,7 +182,7 @@ test("the arrows step through the messages and wrap", async ({ page }) => {
   await expect(page.locator('[data-mk-hero-slide="fix"]')).toHaveAttribute("data-active", "1");
 });
 
-test("the active dot counts down the message it belongs to", async ({ page }) => {
+test("the active dot's timer fills with the message, and pauses with it", async ({ page }) => {
   await page.goto("/");
   const bar = page.locator("[data-mk-hero-timer]");
   await expect(bar).toHaveCount(1);
@@ -166,24 +196,38 @@ test("the active dot counts down the message it belongs to", async ({ page }) =>
   expect(style.name).toContain("mk-hero-timer");
   expect(style.duration).toBe(`${HERO_ROTATE_MS / 1000}s`);
 
-  // And it moves: less of the dot is filled a beat later than it was.
-  const widthAtStart = (await bar.boundingBox())!.width;
+  // It travels towards the change (left to right): more of the dot is filled
+  // a beat later than there was to begin with. The bar starts empty, so the
+  // first box is legitimately zero pixels - wait for ink, then measure.
+  const boxOf = async () => (await bar.boundingBox())?.width ?? 0;
+  await expect.poll(boxOf).toBeGreaterThan(0);
+  const firstWidth = await boxOf();
+  await page.waitForTimeout(800);
+  expect(await boxOf()).toBeGreaterThan(firstWidth);
+
+  // Pausing freezes it exactly where it is: the bar is part of the clock, not
+  // a decoration the button forgot about, and resuming picks up the remainder
+  // instead of starting the message over.
+  await page.locator('[data-mk-hero="pause"]').click();
+  await expect.poll(() => bar.evaluate((el) => getComputedStyle(el).animationPlayState)).toContain(
+    "paused",
+  );
+  const frozenWidth = await boxOf();
   await page.waitForTimeout(1200);
-  const widthLater = (await page.locator("[data-mk-hero-timer]").boundingBox())!.width;
-  expect(widthLater).toBeLessThan(widthAtStart);
+  expect(Math.abs((await boxOf()) - frozenWidth)).toBeLessThan(1);
+  await expect(bar).toHaveCount(1);
 });
 
 test("the hero advances on its own, and the pause stops it", async ({ page }) => {
   await page.goto("/");
   // On the clock from the moment the page is, and still in view: the hero is
-  // a full screen, so nothing has to happen for it to run.
+  // a full screen, so nothing has to happen for it to run. Nothing else
+  // gates it either - no hover, no focus, no scroll - which is the whole
+  // point of having four messages: they are seen without being asked for.
   await expect(page.locator("[data-mk-hero-state]")).toHaveAttribute(
     "data-mk-hero-state",
     "running",
   );
-  // Nothing reads it while it runs: the mouse stays out of the way, or the
-  // hover gate would be doing the pausing instead of the button below.
-  await page.mouse.move(4, 4);
 
   const second = page.locator('[data-mk-hero-slide="find"]');
 

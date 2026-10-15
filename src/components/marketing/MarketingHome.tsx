@@ -18,7 +18,9 @@ import { SmoothScroll } from "./SmoothScroll";
  *
  * The hero is a full viewport minus the sticky header, so the canvas arrives
  * on the first scroll and the page re-centers the promise when the reader
- * comes back up. Its four messages start their clock as soon as the page
+ * comes back up. That first scroll is a jump: SmoothScroll.tsx takes the one
+ * opening gesture and lands the reader on #features, then hands scrolling
+ * back to the page. Its four messages start their clock as soon as the page
  * does, and are always in the HTML: a crawler and a no-JS reader get all four,
  * while a prefers-reduced-motion reader gets the first one, parked. Scrolling
  * itself is eased by Lenis (SmoothScroll.tsx), home page only, and falls back

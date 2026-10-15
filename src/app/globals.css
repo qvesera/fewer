@@ -931,18 +931,19 @@ html.lenis body {
   transform: none;
 }
 
-/* The countdown inside the active hero dot: a bar that empties for exactly as
-   long as its message holds, so "how long is left" is readable without a
-   number. `--hero-hold` comes from HERO_ROTATE_MS in the markup, which is the
-   same constant the JS clock waits on. The span is re-keyed on every clock
-   tick (see HeroRotator), so a pause-and-resume restarts both together rather
-   than leaving a bar that emptied while nothing was running. */
+/* The timer inside the active hero dot: a bar that FILLS for exactly as long
+   as its message holds, so the end of the bar is the moment it changes - the
+   tip travels left to right, and the empty part is the time still left.
+   `--hero-hold` comes from HERO_ROTATE_MS in the markup, which is the same
+   constant the JS clock waits on. The span is re-keyed on every clock tick
+   (see HeroRotator), so a pause-and-resume restarts both together rather than
+   leaving a bar that ran while nothing was running. */
 @keyframes mk-hero-timer {
   from {
-    transform: scaleX(1);
+    transform: scaleX(0);
   }
   to {
-    transform: scaleX(0);
+    transform: scaleX(1);
   }
 }
 .mk-hero-timer {

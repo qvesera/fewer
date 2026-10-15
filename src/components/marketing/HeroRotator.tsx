@@ -24,15 +24,15 @@ import { APP_URL } from "./MarketingLayout";
  * as long as the message has left.
  *
  * The rules that make an automatic rotation polite:
- *  - It only runs where it can be seen (in view, tab in front), never under
- *    prefers-reduced-motion, and not while the pointer or the keyboard is
- *    inside it - the feature tour's own gates, so the two rotations on one
- *    page behave the same.
+ *  - It runs from page load, and only stops where it should: out of view,
+ *    with the tab in the back, under prefers-reduced-motion, or when the
+ *    reader presses pause. Hovering or focusing it does NOT pause it - a
+ *    reader who leaves the pointer parked on the message must not stall it.
+ *  - Stopping is a real pause, not a restart: the interval keeps the time it
+ *    had left (`remainingRef`), the timer bar is paused by the same flag, so
+ *    resuming continues both from the same fraction instead of starting over.
  *  - Everything that moves it is a real control: dots to jump to a message,
- *    arrows to step through them, a toggle to park it. Nothing here is
- *    hover-only, and nothing is timed while it is parked - the countdown is
- *    re-keyed on every clock tick, so a pause and its resume restart the bar
- *    together with the interval instead of leaving an emptied one.
+ *    arrows to step through them, a toggle to park it.
  *
  * The four messages live in ONE grid cell, so the cell is as tall as the
  * tallest one and a swap never moves the buttons under it. Only the active
@@ -51,13 +51,10 @@ export function HeroRotator() {
   const [playing, setPlaying] = useState(true);
   const [inView, setInView] = useState(true);
   const [tabVisible, setTabVisible] = useState(true);
-  /** Hover or focus inside the hero: stop while someone is actually reading. */
-  const [reading, setReading] = useState(false);
-  /**
-   * Bumped every time the interval is scheduled. The countdown bar is keyed on
-   * it, so bar and clock always describe the same window of time.
-   */
-  const [clock, setClock] = useState(0);
+  /** Milliseconds still owed on the message on screen. Written on every stop. */
+  const remainingRef = useRef(HERO_ROTATE_MS);
+  /** When the current window of time opened, so a stop can bank the rest. */
+  const startedAtRef = useRef(0);
   const { hasReducedMotion } = useDevice();
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -81,25 +78,40 @@ export function HeroRotator() {
     return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
-  const running = playing && inView && tabVisible && !reading && !hasReducedMotion;
+  const running = playing && inView && tabVisible && !hasReducedMotion;
 
-  // The clock: one message per interval, and every gate that turns it off
-  // starts the next interval over, so nothing is cut in half by a hover. The
-  // countdown bar is keyed on `clock`, bumped here, so bar and interval always
-  // describe the same window - a resume restarts both.
+  // The clock. A stop banks the time it had left instead of discarding it, so
+  // pausing (the button, the tab, the viewport) resumes exactly where the
+  // message was - and so does the bar, which is paused by this same flag and
+  // never re-keyed while a message is on screen. `done` keeps the completion
+  // from being mistaken for a stop: the next message gets a full hold.
   useEffect(() => {
     if (!running) return;
-    setClock((tick) => tick + 1);
-    const timer = setTimeout(
-      () => setIndex((current) => (current + 1) % HERO_SLIDES.length),
-      HERO_ROTATE_MS,
-    );
-    return () => clearTimeout(timer);
+    let done = false;
+    startedAtRef.current = Date.now();
+    const timer = setTimeout(() => {
+      done = true;
+      remainingRef.current = HERO_ROTATE_MS;
+      setIndex((current) => (current + 1) % HERO_SLIDES.length);
+    }, remainingRef.current);
+    return () => {
+      clearTimeout(timer);
+      if (done) return;
+      remainingRef.current = Math.max(
+        16,
+        remainingRef.current - (Date.now() - startedAtRef.current),
+      );
+    };
   }, [running, index]);
 
-  /** Jump to a message; wraps, so the arrows can step past either end. */
+  /**
+   * Jump to a message; wraps, so the arrows can step past either end. A new
+   * message is a new hold: the clock behind it starts full again.
+   */
   const goTo = (next: number) => {
-    setIndex((next + HERO_SLIDES.length) % HERO_SLIDES.length);
+    const target = (next + HERO_SLIDES.length) % HERO_SLIDES.length;
+    if (target !== index) remainingRef.current = HERO_ROTATE_MS;
+    setIndex(target);
   };
 
   return (
@@ -108,13 +120,7 @@ export function HeroRotator() {
       id="hero"
       className="relative z-10 flex min-h-[calc(100svh_-_var(--mk-header-h))] items-center py-16"
     >
-      <div
-        className="mx-auto w-full max-w-4xl px-6 text-center"
-        onPointerEnter={() => setReading(true)}
-        onPointerLeave={() => setReading(false)}
-        onFocus={() => setReading(true)}
-        onBlur={() => setReading(false)}
-      >
+      <div className="mx-auto w-full max-w-4xl px-6 text-center">
         {/* The messages. aria-live follows the inspector's rule: the page is
             silent while it moves itself, and speaks once a reader takes over. */}
         <div
@@ -149,8 +155,10 @@ export function HeroRotator() {
         {/* The controls. Arrows step, dots jump, the toggle parks the clock:
             the rotation is always the reader's to stop, which is the whole
             reason it is allowed to start on its own. The active dot carries
-            the countdown - a bar that empties for exactly as long as the
-            message has left, restarted by `clock` whenever the interval is. */}
+            the timer: a bar that fills for exactly as long as the message
+            holds, and that is PAUSED - not merely finished - whenever the
+            clock is, so what is on screen and what the reader asked for
+            never disagree. */}
         <div
           role="group"
           aria-label="Messages"
@@ -184,11 +192,21 @@ export function HeroRotator() {
               >
                 {i === index && (
                   <span
-                    key={`${i}:${clock}`}
                     data-mk-hero-timer=""
                     aria-hidden="true"
                     className="mk-hero-timer absolute inset-0 rounded-full bg-primary"
-                    style={{ "--hero-hold": `${HERO_ROTATE_MS}ms` } as CSSProperties}
+                    style={
+                      {
+                        "--hero-hold": `${HERO_ROTATE_MS}ms`,
+                        // The bar is part of the clock, not decoration: it is
+                        // mounted by the message it belongs to (so every
+                        // message starts a fresh bar) and paused by this same
+                        // flag, which means it resumes where it stopped rather
+                        // than starting over. The interval keeps the same
+                        // remainder, so the two stay in step.
+                        animationPlayState: running ? "running" : "paused",
+                      } as CSSProperties
+                    }
                   />
                 )}
               </button>
@@ -237,7 +255,7 @@ export function HeroRotator() {
             out. Nothing in the hero animates on first paint either - T-161
             asked for a still first screen, and the rotation waits for the
             scroll. */}
-        <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-xl text-sm font-bold text-muted-foreground">
           {HERO_TRUST_LINE}
         </p>
       </div>
