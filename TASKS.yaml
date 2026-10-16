@@ -4571,3 +4571,32 @@ tasks:
     effort: {commits: 1, files: 5, insertions: 175, deletions: 17}
   spent_min: 37
   session_count: 1
+- id: "T-171"
+  title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 20
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T22:17:26Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T22:17:45Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
