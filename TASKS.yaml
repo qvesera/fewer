@@ -4515,14 +4515,14 @@ tasks:
   session_count: 3
 - id: "T-162"
   title: "Show Children does not restore individually-hidden file cards (toast fires, cards stay hidden)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "visibility"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
   issue: 424
-  pr: null
+  pr: 425
   internal: false
   milestone: null
   blocked_by: []
