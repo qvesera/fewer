@@ -4661,11 +4661,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T17:50:31Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-16T19:08:59Z"
+    end: "2026-10-16T19:12:03Z"
+    measured: true
+    note: "Docs + changelog: editing.md collapse bullets (per-view, not undoable, reveal expands), undo paragraph, shortcuts.md Shift+H row; two changelog entries (fixed + changed). Gates: build 0, changelog validate OK."
+    proof: ["bfa49ea"]
+    effort: {commits: 1, files: 3, insertions: 14, deletions: 7}
+  spent_min: 3
+  session_count: 1
