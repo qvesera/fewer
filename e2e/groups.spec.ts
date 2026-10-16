@@ -244,6 +244,25 @@ test("header buttons work after selecting: collapse, expand, ungroup (T-137)", a
   await expect(cards[0]).toBeVisible();
 });
 
+test("Reveal All (⇧H) expands a collapsed group — no pill over live cards (T-167)", async ({ page }) => {
+  await openCanvas(page);
+  const { cards } = await createGroup(page);
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(cards[0]).toBeHidden();
+  const pill = page.locator("[data-pill-shell]");
+  await expect(pill).toBeVisible();
+
+  // Since T-164 the COLLAPSE is what hides the cards (per-view state, not a
+  // hiddenIds write), so the reveal has to OPEN the group: the pill becomes the
+  // frame again and the cards come back — never a pill over live cards, and
+  // never a silent no-op.
+  await page.keyboard.press("Shift+H");
+  await expect(cards[0]).toBeVisible();
+  await expect(cards[1]).toBeVisible();
+  await expect(pill).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Collapse group" })).toBeVisible();
+});
+
 test("after a card drag (per-view map), the group moves the CARDS with the frame (T-137)", async ({ page }) => {
   await openCanvas(page);
   // Drag a card FIRST — that seeds this canvas's per-view positions map, the

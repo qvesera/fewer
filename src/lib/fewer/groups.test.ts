@@ -9,6 +9,7 @@ import {
   childGroups,
   collapsedGroupMembers,
   descendantGroupIds,
+  groupsOpenedByReveal,
   groupBounds,
   groupDepth,
   groupFrameRects,
@@ -581,5 +582,30 @@ describe("collapsedGroupMembers (T-164)", () => {
     const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
     const { rects } = groupFrameRects(gs, painted, painted, new Set(["other"]));
     expect(rects.has("P")).toBe(false);
+  });
+});
+
+describe("groupsOpenedByReveal (T-167)", () => {
+  const gs = [
+    { id: "P", title: "P", note: "", memberIds: ["pa"] },
+    { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    { id: "S", title: "S", note: "", memberIds: ["sa"] },
+  ];
+
+  test("a revealed member opens its group, and a nested one opens the suppressing ancestor too", () => {
+    expect(groupsOpenedByReveal(gs, ["P"], ["pa"])).toEqual([]);
+    // "ca" is in BOTH subtrees (C's own and ancestor P's cascade) — both pills
+    // must become frames or the frame would still be suppressed.
+    expect(groupsOpenedByReveal(gs, ["P", "C"], ["ca"])).toEqual([]);
+  });
+
+  test("a reveal that misses every collapsed group is a no-op (null)", () => {
+    expect(groupsOpenedByReveal(gs, ["P"], ["sa"])).toBeNull(); // another group's card
+    expect(groupsOpenedByReveal(gs, ["P"], [])).toBeNull();
+    expect(groupsOpenedByReveal(gs, [], ["pa"])).toBeNull();
+  });
+
+  test("dead collapsed ids are left alone", () => {
+    expect(groupsOpenedByReveal(gs, ["P", "ghost"], ["pa"])).toEqual(["ghost"]);
   });
 });

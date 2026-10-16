@@ -234,3 +234,73 @@ test("a collapsed CHILD stays collapsed when its parent expands (each entry hide
   expect(hidden).not.toContain("n1"); // A's own card is back
   expect(hidden).toEqual(expect.arrayContaining(["n2", "n3"])); // B's subtree still hidden
 });
+
+// ── Reveal opens the group (T-167) ─────────────────────────────────────────
+
+/** This leaf's collapsed-group list (defaults to empty). */
+function collapsedIds(leafId: string): string[] {
+  return useGraphStore.getState().viewSettings[leafId]?.collapsedGroupIds ?? [];
+}
+
+test("Reveal All after collapse expands the group — the reported bug (T-167)", () => {
+  useGraphStore.setState({ activeLeafId: "leaf-1" });
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().showAll(); // the Hidden panel button / ⇧H
+  expect(collapsedIds("leaf-1")).toEqual([]);
+  expect(resolvedHidden("leaf-1")).toEqual([]);
+});
+
+test("showNode on a card hidden ONLY by the collapse opens the group instead of no-opping", () => {
+  useGraphStore.setState({ activeLeafId: "leaf-1" });
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().showNode("n2"); // in no hide set — the group is the hiding
+  expect(collapsedIds("leaf-1")).toEqual([]);
+});
+
+test("the Hidden panel eye (revealInView) on a collapsed member opens the group", () => {
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().revealInView("leaf-1", "n1");
+  expect(collapsedIds("leaf-1")).toEqual([]);
+  expect(resolvedHidden("leaf-1")).toEqual([]);
+});
+
+test("eyeRevealForLeaf opens the group when the card hides only by collapse", () => {
+  const id = useGraphStore.getState().addGroup(["n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().eyeRevealForLeaf("leaf-1", "n2");
+  expect(collapsedIds("leaf-1")).toEqual([]);
+});
+
+test("Show Children opens the group when a descendant is a member", () => {
+  useGraphStore.setState({
+    edges: [{ id: "e1", source: "n1", target: "n2" }] as never,
+    activeLeafId: "leaf-1",
+  });
+  const id = useGraphStore.getState().addGroup(["n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().showSubtreeForLeaf("leaf-1", "n1");
+  expect(collapsedIds("leaf-1")).toEqual([]);
+});
+
+test("Reveal All opens only the TARGET view's groups — another pane keeps its collapse", () => {
+  useGraphStore.setState({ activeLeafId: "leaf-1" });
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-2", id);
+  useGraphStore.getState().showAll();
+  expect(collapsedIds("leaf-1")).toEqual([]); // the reveal ran here
+  expect(collapsedIds("leaf-2")).toEqual([id]); // the other pane is untouched
+});
+
+test("undo of the reveal does not re-collapse the group (collapse is view-only)", () => {
+  useGraphStore.setState({ activeLeafId: "leaf-1" });
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().showNode("n2");
+  expect(collapsedIds("leaf-1")).toEqual([]);
+  useGraphStore.getState().undo(); // undoes the reveal op, not the view state
+  expect(collapsedIds("leaf-1")).toEqual([]); // the frame stays a frame
+});

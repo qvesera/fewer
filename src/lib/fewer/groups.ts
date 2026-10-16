@@ -411,6 +411,34 @@ export function collapsedGroupMembers(
   return out;
 }
 
+/**
+ * Groups a reveal gesture has to OPEN (T-167): every group in `collapsedIds`
+ * whose SUBTREE contains one of the revealed ids. A collapsed group is a pill
+ * INSTEAD of its members' cards, so the moment a gesture wants a member on
+ * canvas the pill has to become a frame — in this view only (collapse is
+ * per-view since T-164), and ancestors open too (a nested pill would still
+ * suppress the frame). Null when nothing intersects, so a reveal that never
+ * touched a collapsed group stays a no-op write.
+ */
+export function groupsOpenedByReveal(
+  groups: readonly Group[],
+  collapsedIds: readonly string[],
+  revealedIds: Iterable<string>,
+): string[] | null {
+  if (collapsedIds.length === 0) return null;
+  const revealed = revealedIds instanceof Set ? revealedIds : new Set(revealedIds);
+  if (revealed.size === 0) return null;
+  const byId = groupsIndexOf(groups);
+  const kept = collapsedIds.filter((id) => {
+    const g = byId.get(id);
+    // A dead id (group deleted or loaded away) is inert — leave it alone;
+    // this gesture's business is the cards it reveals.
+    if (!g) return true;
+    return !subtreeMemberIds(groups, id).some((m) => revealed.has(m));
+  });
+  return kept.length === collapsedIds.length ? null : kept;
+}
+
 export function groupFrameRects(
   groups: readonly Group[],
   painted: readonly FewerNode[],
