@@ -48,6 +48,17 @@ describe("selectionBounds", () => {
     expect(b.x).toBe(-GROUP_PADDING); // still anchored at the cluster corner
   });
 
+  test("a collapsed group's pill box follows the layout direction (T-163)", () => {
+    const collapsed = { ...GROUP, collapsed: true };
+    const pill = { width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
+    // Cluster: x ∈ [0, 440], y ∈ [0, 60] — the pill sits GROUP_PADDING past
+    // the flow-start edge on the primary axis, top-left on the cross axis.
+    const bt = selectionBounds(state({ groups: [collapsed], selectedGroupIds: ["g1"], direction: "BT" }))!;
+    expect(bt).toEqual({ x: -GROUP_PADDING, y: 60 + GROUP_PADDING, ...pill });
+    const rl = selectionBounds(state({ groups: [collapsed], selectedGroupIds: ["g1"], direction: "RL" }))!;
+    expect(rl).toEqual({ x: 440 + GROUP_PADDING, y: -GROUP_PADDING - GROUP_HEADER_HEIGHT, ...pill });
+  });
+
   test("cards and groups union into one box", () => {
     const far = { id: "n3", position: { x: 1000, y: 500 }, style: { width: 100, height: 40 } } as unknown as FewerNode;
     const b = selectionBounds(

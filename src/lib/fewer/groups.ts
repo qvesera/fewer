@@ -10,7 +10,7 @@
  * Pure module: no store, no React, no DOM. Node/edge/position lookups all take
  * `nodes` as an argument, so the rules are testable without a graph store.
  */
-import type { FewerNode } from "./types";
+import type { FewerNode, LayoutDirection } from "./types";
 
 /** One group: a title, a note, and the node ids it owns. */
 export interface Group {
@@ -56,9 +56,24 @@ export interface GroupBounds {
   height: number;
 }
 
-/** Geometry of a collapsed group: a fixed-size pill at the cluster's corner. */
-export function groupPill(bounds: GroupBounds): GroupBounds {
-  return { x: bounds.x, y: bounds.y, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
+/**
+ * Geometry of a collapsed group: a fixed-size pill at the cluster's flow-START
+ * corner — placement follows the layout direction instead of always reading as
+ * top-bottom:
+ *
+ * - TB / LR → top-left corner (unchanged, the historical default),
+ * - BT      → the far corner below the cluster (flow starts at the bottom),
+ * - RL      → the far corner past the cluster's right (flow starts at the right).
+ *
+ * `bounds` is `groupBounds` output (padded cluster, header reserved above), so
+ * the far corner sits exactly `GROUP_PADDING` past the CARDS' edge on the
+ * primary axis. The cross-axis corner stays at the cluster's start (top for
+ * BT/RL), matching TB's top-left convention.
+ */
+export function groupPill(bounds: GroupBounds, direction: LayoutDirection = "TB"): GroupBounds {
+  const x = direction === "RL" ? bounds.x + bounds.width : bounds.x;
+  const y = direction === "BT" ? bounds.y + bounds.height : bounds.y;
+  return { x, y, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
 }
 
 /** Rendered size of a card. React Flow reports the real size in `measured`,
@@ -363,8 +378,9 @@ function unionRect(a: GroupBounds, b: GroupBounds): GroupBounds {
  * - `painted` measures EXPANDED members (the canvas's painted array).
  * - `anchor` measures COLLAPSED pills (store nodes + per-view positions, so
  *   hidden members still anchor the pill where the cluster was).
- * - A collapsed group becomes a pill over its whole SUBTREE's cards; its
- *   descendants are suppressed (draw nothing).
+ * - A collapsed group becomes a pill over its whole SUBTREE's cards, anchored
+ *   at the layout direction's flow-start corner; its descendants are suppressed
+ *   (draw nothing).
  * - A parent's rect contains each child's rect (padded) so frames never overlap.
  * - Groups with nothing to draw are omitted; `order` is paint order (parents
  *   before children, so children render above).
@@ -374,6 +390,7 @@ export function groupFrameRects(
   painted: readonly FewerNode[],
   anchor: readonly FewerNode[],
   visible?: ReadonlySet<string>,
+  direction: LayoutDirection = "TB",
 ): { rects: Map<string, GroupBounds>; order: string[] } {
   const byId = new Map(groups.map((g) => [g.id, g]));
   const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
@@ -407,7 +424,7 @@ export function groupFrameRects(
       // Anchor the pill on the whole subtree's cards (store coords — they're hidden).
       const ids = subtreeMemberIds(groups, id);
       const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
-      out = own ? groupPill(own) : null;
+      out = own ? groupPill(own, direction) : null;
     } else {
       // Own content (header already reserved by groupBounds), minus the header
       // so children union into the region BELOW the header.

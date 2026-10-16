@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ViewportPortal, useViewport } from "@xyflow/react";
 import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
-import { useGraphViewScope } from "@/hooks/use-graph-view-context";
+import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view-context";
 import { COLLAPSED_PILL_HEIGHT, COLLAPSED_PILL_WIDTH, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, descendantGroupIds, groupBounds, groupFrameRects, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, subtreeMemberIds, type GroupBounds, type GroupHandleId } from "@/lib/fewer/groups";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
@@ -103,7 +103,7 @@ const gestureRef = {
  */
 export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNode[] }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
-  const { visibleIds } = useGraphViewScope();
+  const { visibleIds, direction } = useGraphViewScope();
   // Collapsed pills anchor on the store's full list (hidden members), with this
   // leaf's per-view positions overlaid — built once for every group (T-138).
   const allNodes = useGraphStore((s) => s.nodes);
@@ -119,8 +119,8 @@ export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNo
           return p ? { ...n, position: p } : n;
         })
       : allNodes;
-    return groupFrameRects(groups, nodes, anchor, visibleIds);
-  }, [groups, nodes, allNodes, leafPositions, visibleIds]);
+    return groupFrameRects(groups, nodes, anchor, visibleIds, direction);
+  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction]);
 
   if (groups.length === 0) return null;
   return (
@@ -184,6 +184,10 @@ export function GroupFrame({
   // Live viewport: the gestures convert screen deltas to flow coordinates with
   // it (a drag or scale must land where the pointer is at any zoom/pan).
   const { x: vpX, y: vpY, zoom } = useViewport();
+  // Layout direction for the collapsed pill's anchor corner (T-163). The hook
+  // is context-safe: rendered standalone in tests (no provider) it reads "TB",
+  // the historical top-left placement.
+  const direction = useGraphViewDirection();
 
   // The painted array only contains VISIBLE members — but a collapsed group's
   // pill must anchor on every member (collapse is what hides them, and
@@ -252,7 +256,7 @@ export function GroupFrame({
   const localAll = group.collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
   const localAnchor = group.collapsed ? (localAll ?? localVisible) : localVisible;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
-  const localBox = localAnchor && (group.collapsed ? groupPill(localAnchor) : localAnchor);
+  const localBox = localAnchor && (group.collapsed ? groupPill(localAnchor, direction) : localAnchor);
   // Nesting (W5): prefer the parent's cascade/containment-aware rect; the local
   // single-group box is the fallback when this frame is rendered standalone.
   const box = rect ?? localBox;

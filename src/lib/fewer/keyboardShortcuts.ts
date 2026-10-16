@@ -301,6 +301,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           selectedGroupIds: st.selectedGroupIds,
           activeLeafId: st.activeLeafId,
           viewSettings: st.viewSettings,
+          direction: st.direction,
         });
         const size = bounds ? ctx.canvasSize() : null;
         if (bounds && size) {

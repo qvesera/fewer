@@ -120,6 +120,18 @@ describe("groupPill", () => {
       height: COLLAPSED_PILL_HEIGHT,
     });
   });
+
+  test("anchors at the layout direction's flow-start corner (T-163)", () => {
+    const bounds = { x: 40, y: 60, width: 900, height: 400 };
+    const size = { width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
+    // TB / LR keep the historical top-left anchor (default direction included).
+    expect(groupPill(bounds, "TB")).toEqual({ x: 40, y: 60, ...size });
+    expect(groupPill(bounds, "LR")).toEqual({ x: 40, y: 60, ...size });
+    // BT: far corner below the cluster — bounds.bottom = cards' bottom + GROUP_PADDING.
+    expect(groupPill(bounds, "BT")).toEqual({ x: 40, y: 460, ...size });
+    // RL: far corner past the cluster's right — bounds.right = cards' right + GROUP_PADDING.
+    expect(groupPill(bounds, "RL")).toEqual({ x: 940, y: 60, ...size });
+  });
 });
 
 describe("newGroup", () => {
@@ -508,6 +520,20 @@ describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
     expect(rects.has("P")).toBe(true);
     expect(rects.get("P")!.width).toBe(COLLAPSED_PILL_WIDTH); // pill, not frame
     expect(rects.get("P")!.height).toBe(COLLAPSED_PILL_HEIGHT);
+  });
+
+  test("a collapsed pill follows the layout direction (T-163)", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"], collapsed: true }];
+    const bounds = groupBounds(painted, ["pa"])!;
+    // Default direction: top-left pill, exactly as before.
+    expect(groupFrameRects(gs, painted, painted).rects.get("P")).toEqual(groupPill(bounds));
+    // BT anchors below the cluster, RL past its right edge.
+    expect(groupFrameRects(gs, painted, painted, undefined, "BT").rects.get("P")).toEqual(
+      groupPill(bounds, "BT"),
+    );
+    expect(groupFrameRects(gs, painted, painted, undefined, "RL").rects.get("P")).toEqual(
+      groupPill(bounds, "RL"),
+    );
   });
 
   test("an expanded parent with hidden own cards still frames visible children", () => {

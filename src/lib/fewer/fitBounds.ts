@@ -1,4 +1,4 @@
-import type { FewerNode } from "./types";
+import type { FewerNode, LayoutDirection } from "./types";
 import type { Group } from "./groups";
 import { groupBounds, groupPill, nodeRenderedSize, type GroupBounds } from "./groups";
 
@@ -24,6 +24,10 @@ export interface SelectionState {
   selectedGroupIds: readonly string[];
   activeLeafId?: string | null;
   viewSettings?: Readonly<Record<string, { positions?: Readonly<Record<string, { x: number; y: number }>> }>>;
+  /** Layout direction — only the COLLAPSED pill box consults it (the pill
+   *  anchors at the flow-start corner, T-163). Absent = TB, the historical
+   *  top-left placement. */
+  direction?: LayoutDirection;
 }
 
 /**
@@ -77,7 +81,7 @@ export function selectionBounds(state: SelectionState): GroupBounds | null {
     // the user selected. `null` = members are gone from the store entirely.
     const bounds = groupBounds(state.nodes as FewerNode[], g.memberIds, undefined, undefined, viewMap);
     if (!bounds) continue;
-    add(g.collapsed ? groupPill(bounds) : bounds);
+    add(g.collapsed ? groupPill(bounds, state.direction) : bounds);
   }
 
   if (!found) return null;
