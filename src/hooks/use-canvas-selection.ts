@@ -4,7 +4,6 @@ import type { OnSelectionChangeParams } from "@xyflow/react";
 
 import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer/canvasSelection";
 import { selectionBounds, viewportForBounds } from "@/lib/fewer/fitBounds";
-import type { FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
@@ -42,6 +41,11 @@ export interface CanvasSelectionDeps {
   containerRef: { current: HTMLDivElement | null };
   leafId?: string | null;
   /**
+   * IDs of nodes visible in the current view — select-all is scoped to these,
+   * not every node in the store (which may span multiple leaves/views).
+   */
+  visibleNodeIds: string[];
+  /**
    * True while a pointer gesture is live in this canvas (CanvasInner tracks it).
    * React Flow's selection subscription is advisory — see onSelectionChange.
    */
@@ -58,7 +62,7 @@ export interface CanvasSelectionDeps {
  * loop. That effect handles both RF-edge highlighting and store-edge sync on
  * every selection / graphVersion / theme change instead.
  */
-export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, pointerActiveRef }: CanvasSelectionDeps): CanvasSelectionHandlers {
+export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, visibleNodeIds, pointerActiveRef }: CanvasSelectionDeps): CanvasSelectionHandlers {
   // What React Flow selected when the live drag began. A drag must keep its
   // highlight: until the store has this view's own selection, the canvas paints
   // the dragged card unselected on its next push, React Flow reports an empty
@@ -201,11 +205,12 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
   }, [fitView, setViewport, containerRef]);
 
   const selectAll = useCallback(() => {
-    // The canvas stamps the `selected` flags from the id list, so selecting
-    // everything is just the id list — no node array rewrite.
-    const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
-    useGraphStore.setState({ selectedNodeIds: ids });
-  }, []);
+    // Select everything visible in the current view — scoped to visibleNodeIds
+    // rather than every node in the store (which may span multiple leaves).
+    // Uses the store action (not raw setState) so it mirrors into
+    // leafSelections[activeLeafId] and bumps selectionVersion for repaint.
+    setSelectedNodeIds(visibleNodeIds);
+  }, [setSelectedNodeIds, visibleNodeIds]);
 
   return {
     onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll,

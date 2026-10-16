@@ -351,7 +351,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
     // Ctrl/Cmd+A — select all
     { test(_e,_ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="a"&&!kc.inEditable; },
       handle(e,ctx,_kc) { e.preventDefault();const st=ctx.getState();
-        ctx.setSelectedNodeIds(st.nodes.map((n)=>n.id));ctx.reactFlow.setNodes((prev)=>prev.map((n)=>({...n,selected:true})));}},
+        const ids = st.nodes.filter((n)=>!st.hiddenIds.includes(n.id)).map((n)=>n.id);ctx.setSelectedNodeIds(ids);ctx.reactFlow.setNodes((prev)=>prev.map((n)=>({...n,selected:ids.includes(n.id)})));}},
     // Ctrl/Cmd+C — copy
     { test(_e,ctx,kc) { return kc.mod&&!kc.alt&&_e.key.toLowerCase()==="c"&&!kc.inEditable&&ctx.getState().selectedNodeIds.length>0; },
       handle(e,ctx,_kc) { e.preventDefault();const ids=ctx.getState().selectedNodeIds;

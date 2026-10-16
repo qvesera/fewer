@@ -311,8 +311,13 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
   });
 
+  // Leaf-aware select-all scope: only nodes visible in THIS view, not every
+  // node in the store (which spans multiple leaves).
+  const visibleNodeIds = useMemo(() => visibleNodes.map((n) => n.id), [visibleNodes]);
+
   const { onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll, seedSelectionForDrag, endSelectionDrag } = useCanvasSelection({
     setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, pointerActiveRef,
+    visibleNodeIds,
   });
 
   // Drag handlers come after the selection hook: a drag seeds the store's
