@@ -21,6 +21,17 @@ import { Reveal } from "./Reveal";
  * close it as a band. Every card takes the same inset so one left edge and
  * one right edge come out of the bento, never a ragged one.
  *
+ * Every claim tile carries only its title until it is engaged - hovered, or
+ * focused from the keyboard - so six sentences read as a legend of promises,
+ * and the claim a tile names then opens as a panel that FLOATS under it: the
+ * tile grid keeps its heights, so neither the bento nor the centred heading
+ * beside it ever moves. The open/closed rule lives inside @media (hover:
+ * hover) in globals.css, never in the markup: a touch screen has no pointer
+ * to leave, so there the panel sits in the flow and the claim is visible from
+ * the start, and crawlers and screen readers get the copy either way. The
+ * hero claim and the stat band are never collapsed - they are the section's
+ * lead sentence and its values, not tiles.
+ *
  * The schematic the hero card used to carry is gone: it repeated the sentence
  * beside it and read as clip art, and so is the one-line mono strip that
  * briefly replaced it - the hero is the sentence paired with its shield, and
@@ -69,7 +80,41 @@ function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode })
   );
 }
 
-const CLAIM = "mt-3 text-sm leading-relaxed text-foreground/90";
+const CLAIM = "text-sm leading-relaxed text-foreground/90";
+
+/** A bento tile: its title is always on, its claim floats below on hover. */
+function ClaimCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <li
+      data-mk-privacy-card
+      tabIndex={0}
+      className={`mk-claim-card relative rounded-xl border border-border/60 bg-card/50 p-5 text-left transition-colors duration-200 hover:border-border ${className}`}
+    >
+      {children}
+    </li>
+  );
+}
+
+/**
+ * The claim panel: in flow where there is no hover to spend, a floating card
+ * under its tile everywhere else, so the bento never changes height.
+ */
+function Claim({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-mk-privacy-claim
+      className="mk-claim mt-3 rounded-xl border border-border/60 bg-card p-4 shadow-lg"
+    >
+      <p className={CLAIM}>{children}</p>
+    </div>
+  );
+}
 
 export function PrivacySection() {
   return (
@@ -121,38 +166,38 @@ export function PrivacySection() {
               </div>
             </li>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+            <ClaimCard>
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 Account required
               </span>
               <p className="mt-1 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
                 ZERO
               </p>
-              <p className={CLAIM}>{ACCOUNT}</p>
-            </li>
+              <Claim>{ACCOUNT}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+            <ClaimCard>
               <CardLabel icon={<Cloud className="h-3.5 w-3.5" />}>Cloud connections</CardLabel>
-              <p className={CLAIM}>{CLOUD}</p>
-            </li>
+              <Claim>{CLOUD}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+            <ClaimCard>
               <CardLabel icon={<Ban className="h-3.5 w-3.5" />}>Trackers, ads, telemetry</CardLabel>
-              <p className={CLAIM}>{TRACKERS}</p>
-            </li>
+              <Claim>{TRACKERS}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
+            <ClaimCard>
               <CardLabel icon={<BellRing className="h-3.5 w-3.5" />}>Watch digests</CardLabel>
-              <p className={CLAIM}>{DIGESTS}</p>
-            </li>
+              <Claim>{DIGESTS}</Claim>
+            </ClaimCard>
 
             {/* The shortest statement spans both columns: a footnote strip is
                 what a hosting-log line reads as - a half-width card would
                 leave a hole beside it. */}
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left sm:col-span-2">
+            <ClaimCard className="sm:col-span-2">
               <CardLabel icon={<ScrollText className="h-3.5 w-3.5" />}>Server logs</CardLabel>
-              <p className={CLAIM}>{LOGS}</p>
-            </li>
+              <Claim>{LOGS}</Claim>
+            </ClaimCard>
           </ul>
 
           {/* The short version, in mono: each badge is a claim the page

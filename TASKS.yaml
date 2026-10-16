@@ -4542,3 +4542,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 23, deletions: 1}
   spent_min: 16
   session_count: 1
+- id: "T-170"
+  title: "Home privacy bento: claim cards show title only, claim revealed on hover"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T21:38:34Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T21:38:55Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

@@ -867,6 +867,41 @@ html[data-shell] .react-flow__node > div {
   opacity: 1;
 }
 
+/* ── Privacy claim tiles (T-170) ──────────────────────────────────────────────
+   The bento's tiles show only their title until they are engaged - hovered or
+   focused - so the section reads as a legend of promises, and the claim a tile
+   names then opens as a panel that FLOATS under it. Nothing in the page is
+   sized by that reveal: the bento is centred against its heading, so any
+   height it gained re-centred the whole band (the jarring resize). The base
+   rules are deliberately empty of state - where there is no hover to spend (a
+   touch screen, a no-JS reader) the panel sits in the flow with its claim,
+   and only @media (hover: hover) lifts it out and hides it, so the markup
+   never hides copy. The panel is a descendant of its tile, so a pointer that
+   slides onto it keeps the tile hovered and cannot dangle over the tile
+   below; opacity rides the same --dur/--ease-enter as the rest of the
+   marketing layer, and the global reduced-motion rule makes it instant. */
+@media (hover: hover) {
+  .mk-claim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition:
+      opacity var(--dur) var(--ease-enter),
+      transform var(--dur) var(--ease-enter);
+  }
+  .mk-claim-card:hover .mk-claim,
+  .mk-claim-card:focus-within .mk-claim {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
 /* ── Reveal on scroll ────────────────────────────────────────────────────────
    Hidden until observed; the reduced-motion block below and the <noscript>
    style in MarketingHome.tsx both force the resting state, so the page never
