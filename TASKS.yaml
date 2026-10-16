@@ -4557,17 +4557,23 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T17:50:30Z"
-  notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  notes: ["2026-10-16T18:37:53Z · Scope grew and absorbed T-165 + T-166: the model cutover is atomic — the T-140 relayout reservation removal and the GroupFrames/fitBounds/useActiveLeaf consumer switch cannot compile or stay green without it. Their content landed in commit 976ded1; the two rows are folded here as wontfix."]
+  sessions:
+  - start: "2026-10-16T17:52:13Z"
+    end: "2026-10-16T18:38:41Z"
+    measured: true
+    note: "Atomic cutover (absorbed T-165/T-166): Group.collapsed retired; per-leaf ViewSettings.collapsedGroupIds; members derive into the leaf's effective hidden via collapsedGroupMembers; toggleGroupCollapsedForLeaf (view-only, not undoable, persists via _persistLayout); groupFrameRects takes a collapsedIds set; relayout's T-140 reserved block removed (falls out of the model); GroupFrames/fitBounds/useActiveLeaf/GraphCanvas read the leaf's set; legacy .fwr collapsed flag stripped on load. Gates: tsc 0, lint 0, bun run test 1827+12+233 green (8 new tests)."
+    proof: ["976ded1"]
+    effort: {commits: 1, files: 17, insertions: 341, deletions: 163}
+  spent_min: 46
+  session_count: 1
 - id: "T-165"
   title: "Move T-140's collapsed-group layout reservation into the per-view derivation"
-  status: "triaged"
+  status: "wontfix"
   type: "refactor"
   area: "layout"
   tier: 0
@@ -4584,13 +4590,13 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T17:50:30Z"
-  notes: []
+  notes: ["2026-10-16T18:37:53Z · Folded into T-164 (atomic cutover): relayout's reserved-set block removed and groupsRelayout.test.ts reshaped in commit 976ded1."]
   sessions: []
   spent_min: 0
   session_count: 0
 - id: "T-166"
   title: "GroupFrames, fit bounds and export read the leaf's collapsed-group set"
-  status: "triaged"
+  status: "wontfix"
   type: "refactor"
   area: "ux"
   tier: 0
@@ -4607,7 +4613,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T17:50:30Z"
-  notes: []
+  notes: ["2026-10-16T18:37:53Z · Folded into T-164 (atomic cutover): GroupFrames reads the leaf's collapsed set, fitBounds resolves the active leaf's set, useActiveLeaf/GraphCanvas pass groups to the resolver in commit 976ded1."]
   sessions: []
   spent_min: 0
   session_count: 0
