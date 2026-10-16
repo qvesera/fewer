@@ -4573,7 +4573,7 @@ tasks:
   session_count: 1
 - id: "T-171"
   title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "ux"
   tier: 0
@@ -4586,17 +4586,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T22:17:26Z"
   notes: []
   sessions:
   - start: "2026-10-16T22:17:45Z"
-    end: null
+    end: "2026-10-16T22:18:15Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
+    note: "The wrap pin asserted data-mk-hero-slide=fix while marketingHero.ts carries five slides with watch last (fix is fourth). Reproduced against a baseline build of origin/dev with my two source files stashed: the component was never broken, the expectation went stale when the fifth slide landed, which is what has had the E2E job red on dev (runs 38872787602 and 38955258511 both fail only on marketing.spec:170). One-line fix plus the comment naming why; test passes (1.2s). No changelog entry - test-only, no user impact."
+    proof: ["d1bb47f", "1568233"]
+    effort: {commits: 2, files: 2, insertions: 32, deletions: 1}
   spent_min: 0
   session_count: 1
