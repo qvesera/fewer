@@ -200,7 +200,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Home demo canvas: only the connections on the active card's own path (root -> its group -> the ringed card) stay lit once the reader engages, instead of every connection a kept folder owns - the group folder no longer fans out all six of its edges at once
 - Show Children on a folder now restores file cards you hid individually (previously the toast reported them restored but they stayed hidden, because individually-hidden cards live in the per-leaf individual hide layer that Show Children never cleared).
 - Collapsed group pill follows the layout direction: it anchors at the flow-start corner of the cluster (below the cluster for bottom-to-top, past its right edge for right-to-left) instead of always top-left, on the canvas and in zoom-to-selection
-- Revealing cards that a collapsed group was hiding now expands the group instead of leaving the pill over live cards — or silently doing nothing. Every reveal path opens the groups whose subtrees it touches: Reveal All and Shift+H, the Hidden Cards panel eye and per-row reveals, Show Children, single-card reveals and search reveals
+- Revealing cards that a collapsed group was hiding now expands the group instead of leaving the pill over live cards — or silently doing nothing. Every reveal path opens the groups whose subtrees it touches: Reveal All and Shift+H, the Hidden Cards panel eye and per-row reveals, Show Children, single-card reveals and search reveals. A single-card reveal is scoped: only the card you asked for comes back and the group's other members stay hidden in the Hidden Cards panel until you press the group's chevron, which is the one gesture that reveals the whole cluster
 
 ### Added
 

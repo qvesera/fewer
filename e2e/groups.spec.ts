@@ -43,9 +43,9 @@ async function standaloneCards(page: Page) {
   return ids.map((id) => page.locator(`[data-id="${id}"]`));
 }
 
+
 /** Select two cards and create a group from the multi-selection menu. */
-async function createGroup(page: Page) {
-  const [a, b] = await standaloneCards(page);
+async function createGroupFromCards(page: Page, a: ReturnType<typeof page.locator>, b: ReturnType<typeof page.locator>) {
   await a.click();
   await b.click({ modifiers: ["Shift"] });
   await expect(page.locator(".react-flow__node.selected")).toHaveCount(2);
@@ -62,6 +62,12 @@ async function createGroup(page: Page) {
   const frame = page.locator("[data-group-id]").first();
   await expect(frame).toBeVisible({ timeout: 10000 });
   return { frame, cards: [a, b] };
+}
+
+/** Select two cards and create a group from the multi-selection menu. */
+async function createGroup(page: Page) {
+  const [a, b] = await standaloneCards(page);
+  return createGroupFromCards(page, a, b);
 }
 
 const groupHeader = (page: Page) => page.locator("[data-group-header]").first();
@@ -261,6 +267,82 @@ test("Reveal All (⇧H) expands a collapsed group — no pill over live cards (T
   await expect(cards[1]).toBeVisible();
   await expect(pill).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Collapse group" })).toBeVisible();
+});
+
+test("revealing ONE card of a collapsed group opens the frame but keeps the siblings hidden (T-169)", async ({ page }) => {
+  await openCanvas(page);
+  // The reload cache is written debounced after Load Sample — wait for it so
+  // the peer pair can be computed from the real edges.
+  await page.waitForFunction(() => sessionStorage.getItem("fewer-graph") !== null);
+  // Two folders that are NEITHER ancestor nor descendant of each other — an
+  // ancestor pair would make a subtree reveal legitimately un-hide both (its
+  // targets include the whole subtree), which is not what this test is about.
+  const peers = await page.evaluate(() => {
+    const raw = sessionStorage.getItem("fewer-graph");
+    if (!raw) return null;
+    // Only rendered CARDS are groupable (child rows are 13px and not all cache
+    // folders paint as cards at this depth).
+    const rendered = new Set(
+      Array.from(document.querySelectorAll<HTMLElement>(".react-flow__node"))
+        .filter((e) => e.getBoundingClientRect().height > 40)
+        .map((e) => e.dataset.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const g = JSON.parse(raw);
+    const edges: { source: string; target: string }[] = g.edges ?? [];
+    const children = new Map<string, string[]>();
+    for (const e of edges) children.set(e.source, [...(children.get(e.source) ?? []), e.target]);
+    const descendants = (id: string) => {
+      const out = new Set<string>();
+      const q = [...(children.get(id) ?? [])];
+      while (q.length) {
+        const x = q.pop()!;
+        if (out.has(x)) continue;
+        out.add(x);
+        q.push(...(children.get(x) ?? []));
+      }
+      return out;
+    };
+    const folders = (g.nodes as { id: string; data: { type: string } }[]).filter(
+      (n) => n.data?.type === "folder" && rendered.has(n.id),
+    );
+    for (const a of folders) {
+      for (const b of folders) {
+        if (a.id === b.id) continue;
+        if (descendants(a.id).has(b.id) || descendants(b.id).has(a.id)) continue;
+        return { a: a.id, b: b.id };
+      }
+    }
+    return null;
+  });
+  expect(peers).not.toBeNull();
+  const a = page.locator(`[data-id="${peers!.a}"]`);
+  const b = page.locator(`[data-id="${peers!.b}"]`);
+  const { cards } = await createGroupFromCards(page, a, b);
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(cards[0]).toBeHidden();
+  await expect(cards[1]).toBeHidden();
+
+  // The Hidden Cards panel (open by default) lists both members — as folder
+  // rows, so the eye reads "Show subtree". Reveal ONE: the frame must come
+  // back, but only the asked-for card — the sibling stays in the panel.
+  await page.getByRole("button", { name: "Show subtree" }).first().click();
+  // The parked sibling keeps the panel's badge at 1 — the reveal is scoped.
+  await expect(page.getByRole("button", { name: /Hidden Cards/ })).toContainText("1");
+  // Poll, don't sample: the reveal is a store write + canvas re-render.
+  await expect
+    .poll(async () => Number(await cards[0].isVisible()) + Number(await cards[1].isVisible()))
+    .toBe(1); // exactly one came back
+  await expect(page.locator("[data-pill-shell]")).toHaveCount(0); // a frame, not a pill
+  await expect(page.getByRole("button", { name: "Collapse group" })).toBeVisible();
+
+  // The chevron is the one gesture that reveals the WHOLE cluster.
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(cards[0]).toBeHidden();
+  await expect(cards[1]).toBeHidden();
+  await page.getByRole("button", { name: "Expand group" }).click();
+  await expect(cards[0]).toBeVisible();
+  await expect(cards[1]).toBeVisible();
 });
 
 test("after a card drag (per-view map), the group moves the CARDS with the frame (T-137)", async ({ page }) => {

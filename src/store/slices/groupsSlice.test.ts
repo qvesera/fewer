@@ -257,6 +257,9 @@ test("showNode on a card hidden ONLY by the collapse opens the group instead of 
   useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
   useGraphStore.getState().showNode("n2"); // in no hide set — the group is the hiding
   expect(collapsedIds("leaf-1")).toEqual([]);
+  // T-169: only the asked-for card comes back; the sibling is PARKED (still in
+  // the panel, eye-revealable), not revealed along with it.
+  expect(resolvedHidden("leaf-1")).toEqual(["n1"]);
 });
 
 test("the Hidden panel eye (revealInView) on a collapsed member opens the group", () => {
@@ -264,7 +267,7 @@ test("the Hidden panel eye (revealInView) on a collapsed member opens the group"
   useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
   useGraphStore.getState().revealInView("leaf-1", "n1");
   expect(collapsedIds("leaf-1")).toEqual([]);
-  expect(resolvedHidden("leaf-1")).toEqual([]);
+  expect(resolvedHidden("leaf-1")).toEqual(["n2"]); // the sibling stays hidden (T-169)
 });
 
 test("eyeRevealForLeaf opens the group when the card hides only by collapse", () => {
@@ -303,4 +306,37 @@ test("undo of the reveal does not re-collapse the group (collapse is view-only)"
   expect(collapsedIds("leaf-1")).toEqual([]);
   useGraphStore.getState().undo(); // undoes the reveal op, not the view state
   expect(collapsedIds("leaf-1")).toEqual([]); // the frame stays a frame
+});
+
+// ── Single reveal parks the siblings (T-169) ────────────────────────────────
+
+test("a single-card reveal parks the SIBLINGS: only the asked-for card comes back (T-169)", () => {
+  const id = useGraphStore.getState().addGroup(["n1", "n2", "n3"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().revealInView("leaf-1", "n1");
+  expect(collapsedIds("leaf-1")).toEqual([]); // the frame is back
+  expect(resolvedHidden("leaf-1")).toEqual(["n2", "n3"]); // siblings stay hidden
+  // The parked set lives in the leaf's layers keyed by group, so the eye takes
+  // them one by one — and each of those is its own scoped reveal.
+  useGraphStore.getState().eyeRevealForLeaf("leaf-1", "n2");
+  expect(resolvedHidden("leaf-1")).toEqual(["n3"]);
+});
+
+test("the chevron expand is the 'reveal the whole cluster' gesture: it releases the parked set (T-169)", () => {
+  const id = useGraphStore.getState().addGroup(["n1", "n2", "n3"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  useGraphStore.getState().showNode("n2"); // single reveal: opens, parks n1+n3
+  expect(resolvedHidden("leaf-1")).toEqual(["n1", "n3"]);
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id); // collapse again
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id); // chevron expand
+  expect(resolvedHidden("leaf-1")).toEqual([]); // the whole cluster is back
+});
+
+test("a single reveal in a nested group parks every opened group's other members (T-169)", () => {
+  seedNested(); // A[n1] → B[n2] → C[n3]
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "A");
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "B");
+  useGraphStore.getState().revealInView("leaf-1", "n2"); // a card of B
+  expect(collapsedIds("leaf-1")).toEqual([]); // both pills became frames
+  expect(resolvedHidden("leaf-1")).toEqual(["n1", "n3"]); // A's own + C's card parked
 });

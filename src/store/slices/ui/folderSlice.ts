@@ -5,7 +5,7 @@ import { getDescendants } from "@/lib/fewer/validation";
 import { emptyHideLayers, type HideLayers } from "@/lib/fewer/viewState";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { planReveal } from "../graph/reveal";
-import { openedCollapsedGroupsForLeaf, revealLeafId, withCollapsedGroupIds } from "../graph/revealGroups";
+import { openedCollapsedGroupsForLeaf, parkInLayers, revealLeafId, withGroupReveal } from "../graph/revealGroups";
 
 /** Seed-on-write helper: first call captures the effective global hidden into the leaf's individual layer. */
 const seedLayers = (leaf: GraphState["viewSettings"][string] | undefined, globalHidden: string[]): HideLayers =>
@@ -123,7 +123,7 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     if (!layers) {
       if (opened) {
         set({
-          viewSettings: withCollapsedGroupIds(s.viewSettings, opened.leafId, opened.collapsedGroupIds),
+          viewSettings: withGroupReveal(s.viewSettings, opened),
           graphVersion: s.graphVersion + 1,
         });
         get()._persistLayout();
@@ -135,9 +135,12 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     // invisible to showNode, so without this a later auto-hide reconcile (folder
     // refresh, threshold change) could re-hide it.
     set({ revealedRootIds: [...new Set([...s.revealedRootIds, id])] });
+    // Release the eye's own card first, then park the group's OTHER members
+    // (T-169): opening the pill must not double as "reveal the whole cluster".
+    const released = releaseIdFromLayers(layers, id);
     withLeaf(set, get, leafId, {
       ...leaf,
-      hideLayers: releaseIdFromLayers(layers, id),
+      hideLayers: opened && opened.leafId === leafId ? parkInLayers(released, opened.park) : released,
       ...(opened && opened.leafId === leafId ? { collapsedGroupIds: opened.collapsedGroupIds } : {}),
     });
     get().relayoutIfAuto();
@@ -192,8 +195,9 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
       settingsChanged = true;
     }
     if (opened) {
-      const base = nextViewSettings[opened.leafId] ?? {};
-      nextViewSettings = { ...nextViewSettings, [opened.leafId]: { ...base, collapsedGroupIds: opened.collapsedGroupIds } };
+      // Opens the group AND parks its unrevealed members (T-169) in this leaf —
+      // the revealed cards are targets, never parked.
+      nextViewSettings = withGroupReveal(nextViewSettings, opened);
       settingsChanged = true;
     }
     set({
@@ -246,14 +250,17 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
       const individual = layers.individual.filter((id) => !descendantSet.has(id));
       withLeaf(set, get, leafId, {
         ...leaf,
-        hideLayers: { ...layers, subtrees, individual, filesBulkExempt },
         // Show Children also opens a collapsed group holding the folder or one
-        // of its descendants (T-167) — same write, same gesture.
+        // of its descendants (T-167) — same write, same gesture — and parks the
+        // group's OTHER members (T-169) so only the asked-for cards come back.
+        hideLayers: opened && opened.leafId === leafId
+          ? parkInLayers({ ...layers, subtrees, individual, filesBulkExempt }, opened.park)
+          : { ...layers, subtrees, individual, filesBulkExempt },
         ...(opened && opened.leafId === leafId ? { collapsedGroupIds: opened.collapsedGroupIds } : {}),
       });
     } else if (opened) {
       set({
-        viewSettings: withCollapsedGroupIds(s.viewSettings, opened.leafId, opened.collapsedGroupIds),
+        viewSettings: withGroupReveal(s.viewSettings, opened),
         graphVersion: s.graphVersion + 1,
       });
       get()._persistLayout();

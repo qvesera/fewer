@@ -1,6 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "../types";
+import { releaseParkedGroup } from "../graph/revealGroups";
 
 export type CollapseSliceCreator = StateCreator<
   GraphState,
@@ -44,11 +45,21 @@ export const createCollapseSlice: CollapseSliceCreator = (set, get) => ({
     set((st) => {
       const leaf = st.viewSettings[leafId] ?? {};
       const current = leaf.collapsedGroupIds ?? [];
-      const next = current.includes(groupId)
-        ? current.filter((id) => id !== groupId)
-        : [...current, groupId];
+      const collapsing = !current.includes(groupId);
+      const next = collapsing ? [...current, groupId] : current.filter((id) => id !== groupId);
+      // A partial reveal parks the group's unrevealed members under the group id
+      // (T-169). Collapsing re-hides the members by derivation, and the chevron
+      // expand is the explicit "reveal the whole cluster" gesture — so both drop
+      // the parked set on their way through.
+      const layers = leaf.hideLayers;
+      const hideLayers = layers?.subtrees[groupId]
+        ? releaseParkedGroup(st.viewSettings, leafId, groupId)[leafId]!.hideLayers
+        : layers;
       return {
-        viewSettings: { ...st.viewSettings, [leafId]: { ...leaf, collapsedGroupIds: next } },
+        viewSettings: {
+          ...st.viewSettings,
+          [leafId]: { ...leaf, collapsedGroupIds: next, ...(hideLayers !== layers ? { hideLayers } : {}) },
+        },
         graphVersion: st.graphVersion + 1,
       };
     });

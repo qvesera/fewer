@@ -149,7 +149,10 @@ exactly as they did before.
   pill); **Show All**, the Hidden Cards panel or **Shift+H** brings everything
   back at once — and any reveal that returns a collapsed group's cards (the
   panel's eye, **Show Children**, a single card) expands that group in this
-  view, so a pill never sits over live cards.
+  view, so a pill never sits over live cards. A single-card reveal is scoped:
+  only the card you asked for comes back — the group's other members stay in
+  the Hidden Cards panel (revealing them one by one) until you press the
+  group's chevron, which reveals the whole cluster.
 - **Select & move**: click the title bar to select the frame (it rings, and
   **each member card gets its own ring**, so you always see which cards belong
   to it; card selection clears; the two are mutually exclusive). Shift+click

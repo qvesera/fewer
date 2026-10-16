@@ -10,15 +10,16 @@ import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
 import { collectShowSubtrees, walkSubtreeReveal, reconcileAutoHide } from "./reveal";
-import { openedCollapsedGroupsForLeaf, withCollapsedGroupIds } from "./revealGroups";
+import { openedCollapsedGroupsForLeaf, withGroupReveal, type GroupRevealPatch } from "./revealGroups";
 
 function commitShow(
   set: (p: any) => void,
   get: () => GraphState,
   toShow: Set<string>,
   clearIndie: boolean,
-  /** The groups this gesture opened (T-167) — merged into the same write. */
-  opened: { leafId: string; collapsedGroupIds: string[] } | null = null,
+  /** The groups this gesture opened (T-167), and what it parked (T-169) —
+   *  merged into the same write. */
+  opened: GroupRevealPatch | null = null,
 ): void {
   const shown = (ids: string[]) => ids.filter((h) => !toShow.has(h));
   const before = captureViewState(get());
@@ -29,7 +30,7 @@ function commitShow(
   set({
     hiddenIds: shown(get().hiddenIds),
     ...(clearIndie ? { independentlyHiddenIds: shown(get().independentlyHiddenIds) } : {}),
-    ...(opened ? { viewSettings: withCollapsedGroupIds(get().viewSettings, opened.leafId, opened.collapsedGroupIds) } : {}),
+    ...(opened ? { viewSettings: withGroupReveal(get().viewSettings, opened) } : {}),
     autoHiddenIds: shown(get().autoHiddenIds),
     // Register the exemption: the auto-hide reconciler re-hides every
     // non-exempt child of an over-threshold folder, so a reveal that does NOT
@@ -103,7 +104,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     if (!before.hiddenIds.includes(id)) {
       if (opened) {
         set({
-          viewSettings: withCollapsedGroupIds(get().viewSettings, opened.leafId, opened.collapsedGroupIds),
+          viewSettings: withGroupReveal(get().viewSettings, opened),
           graphVersion: get().graphVersion + 1,
         });
         get()._persistLayout();
@@ -120,7 +121,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       // as a child of an over-threshold folder — the canvas double-click reveal
       // that a sidebar reveal used to undo.
       revealedRootIds: [...new Set([...s.revealedRootIds, id])],
-      ...(opened ? { viewSettings: withCollapsedGroupIds(s.viewSettings, opened.leafId, opened.collapsedGroupIds) } : {}),
+      ...(opened ? { viewSettings: withGroupReveal(s.viewSettings, opened) } : {}),
       graphVersion: s.graphVersion + 1,
     }));
     if (opened) get()._persistLayout();
@@ -132,7 +133,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     if (!hiddenIds.includes(id)) {
       if (opened) {
         set({
-          viewSettings: withCollapsedGroupIds(get().viewSettings, opened.leafId, opened.collapsedGroupIds),
+          viewSettings: withGroupReveal(get().viewSettings, opened),
           graphVersion: get().graphVersion + 1,
         });
         get()._persistLayout();
@@ -151,7 +152,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     const before = captureViewState(get());
     const after = { ...before, hiddenIds: before.hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: before.independentlyHiddenIds.filter((h) => !toShow.has(h)) };
     get().pushOp(viewStateOp(before, after));
-    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], revealedRootIds: [...new Set([...get().revealedRootIds, ...toShow])], ...(opened ? { viewSettings: withCollapsedGroupIds(get().viewSettings, opened.leafId, opened.collapsedGroupIds) } : {}), graphVersion: get().graphVersion + 1 });
+    set({ hiddenIds: hiddenIds.filter((h) => !toShow.has(h)), independentlyHiddenIds: independentlyHiddenIds.filter((h) => !toShow.has(h)), autoHiddenIds: autoHiddenIds.filter((h) => !toShow.has(h)), revealedFromHidden: [...new Set([...revealedFromHidden, ...toShow])], revealedRootIds: [...new Set([...get().revealedRootIds, ...toShow])], ...(opened ? { viewSettings: withGroupReveal(get().viewSettings, opened) } : {}), graphVersion: get().graphVersion + 1 });
     if (opened) get()._persistLayout();
     get().relayoutIfAuto();
   },
@@ -170,7 +171,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     if (toShow.size === 0) {
       if (opened) {
         set({
-          viewSettings: withCollapsedGroupIds(get().viewSettings, opened.leafId, opened.collapsedGroupIds),
+          viewSettings: withGroupReveal(get().viewSettings, opened),
           graphVersion: get().graphVersion + 1,
         });
         get()._persistLayout();

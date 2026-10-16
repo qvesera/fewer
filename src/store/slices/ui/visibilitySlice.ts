@@ -4,7 +4,7 @@ import type { GraphState } from "../types";
 import { getDescendants } from "@/lib/fewer/validation";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { collectRevealableFileIds, applyRevealLimits } from "./revealHelpers";
-import { revealLeafId, withCollapsedGroupIds } from "../graph/revealGroups";
+import { revealLeafId, withGroupReveal } from "../graph/revealGroups";
 import type { FileCategory } from "@/lib/fewer/types";
 
 export type VisibilitySliceCreator = StateCreator<
@@ -107,7 +107,7 @@ export const createVisibilitySlice: VisibilitySliceCreator = (set, get) => ({
       categoryFilter: [],
       categoryHiddenIds: [],
       graphVersion: st.graphVersion + 1,
-      ...(opensGroups ? { viewSettings: withCollapsedGroupIds(st.viewSettings, leaf!, []) } : {}),
+      ...(opensGroups ? { viewSettings: withGroupReveal(st.viewSettings, { leafId: leaf!, collapsedGroupIds: [], park: [] }) } : {}),
     }));
     if (opensGroups) get()._persistLayout();
   },
