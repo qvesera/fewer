@@ -148,7 +148,6 @@ test("local save/load round-trips the graph, its dataSource and its groups", () 
         title: "Core",
         note: "",
         memberIds: ["a", "b"],
-        collapsed: false,
         color: "#3b82f6",
       },
     ],

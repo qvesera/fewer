@@ -1,5 +1,6 @@
 import { test, expect, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
+import { resolveViewSettings, type ResolvedViewSettings } from "@/lib/fewer/viewState";
 
 function resetStore() {
   useGraphStore.setState({
@@ -15,9 +16,22 @@ function resetStore() {
     groups: [],
     hiddenIds: [],
     independentlyHiddenIds: [],
+    viewSettings: {},
     past: [],
     future: [],
   });
+}
+
+const DEFAULTS = {
+  showFiles: true, minimapHidden: false, edgeStyle: "bezier", edgeAnimated: false,
+  edgeAnimatedSelectedOnly: false, edgeStrokeStyle: "solid", edgeWidth: 2,
+  direction: "TB", hiddenIds: [],
+} as unknown as ResolvedViewSettings;
+
+/** What THIS leaf actually hides — a collapsed group's members derive in. */
+function resolvedHidden(leafId: string): string[] {
+  const s = useGraphStore.getState();
+  return resolveViewSettings(s.viewSettings, leafId, DEFAULTS, s.hiddenIds, [], s.groups).hiddenIds;
 }
 
 beforeEach(() => resetStore());
@@ -77,26 +91,42 @@ test("setGroups replaces the list without an undo entry", () => {
   expect(useGraphStore.getState().past).toHaveLength(before); // load path, not an edit
 });
 
-test("collapse hides the members; expand reveals them", () => {
+test("collapse is PER-VIEW state: the leaf's list flips, nothing is written to hiddenIds (T-164)", () => {
   const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
-  useGraphStore.getState().toggleGroupCollapsed(id);
-  expect(useGraphStore.getState().groups[0].collapsed).toBe(true);
-  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1", "n2"]));
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  let state = useGraphStore.getState();
+  expect(state.viewSettings["leaf-1"]?.collapsedGroupIds).toEqual([id]);
+  expect(state.hiddenIds).toEqual([]); // hidden-ness derives, never stored
+  expect(state.groups[0]).not.toHaveProperty("collapsed");
+  // ...and the members ARE hidden for that leaf, through the resolver.
+  expect(resolvedHidden("leaf-1")).toEqual(expect.arrayContaining(["n1", "n2"]));
 
-  useGraphStore.getState().toggleGroupCollapsed(id);
-  expect(useGraphStore.getState().groups[0].collapsed).toBeUndefined();
-  expect(useGraphStore.getState().hiddenIds).not.toContain("n1");
-  expect(useGraphStore.getState().hiddenIds).not.toContain("n2");
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  state = useGraphStore.getState();
+  expect(state.viewSettings["leaf-1"]?.collapsedGroupIds).toEqual([]);
+  expect(resolvedHidden("leaf-1")).toEqual([]);
 });
 
-test("expand never reveals a card the user hid directly", () => {
-  useGraphStore.setState({ independentlyHiddenIds: ["n2"] });
+test("collapse is per-view: another leaf still paints the members", () => {
   const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
-  useGraphStore.getState().toggleGroupCollapsed(id); // hides both
-  useGraphStore.getState().toggleGroupCollapsed(id); // expand
-  const { hiddenIds } = useGraphStore.getState();
-  expect(hiddenIds).not.toContain("n1");
-  expect(hiddenIds).toContain("n2"); // independently hidden stays hidden
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  expect(resolvedHidden("leaf-2")).toEqual([]);
+});
+
+test("a card the user hid directly stays hidden through collapse + expand", () => {
+  useGraphStore.setState({ hiddenIds: ["n2"], independentlyHiddenIds: ["n2"] });
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  expect(resolvedHidden("leaf-1")).toEqual(expect.arrayContaining(["n1", "n2"]));
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  expect(resolvedHidden("leaf-1")).toEqual(["n2"]); // n1 back; n2's own hide wins
+});
+
+test("collapse records no undo entry (view-only, like folder collapse)", () => {
+  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
+  const before = useGraphStore.getState().past.length;
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", id);
+  expect(useGraphStore.getState().past).toHaveLength(before);
 });
 
 test("setGroupColor sets a hex color, normalizes it, and clears back to default", () => {
@@ -124,17 +154,8 @@ test("undo of an add removes the group, redo restores it", () => {
   expect(groups[0].id).toBe(id);
 });
 
-test("undo of a collapse both re-opens the frame and reveals the cards", () => {
-  const id = useGraphStore.getState().addGroup(["n1", "n2"], "Cluster")!;
-  useGraphStore.getState().toggleGroupCollapsed(id);
-  expect(useGraphStore.getState().hiddenIds).toEqual(expect.arrayContaining(["n1"]));
-
-  useGraphStore.getState().undo(); // undo the collapse only
-  const state = useGraphStore.getState();
-  expect(state.groups[0].collapsed).toBeUndefined();
-  expect(state.hiddenIds).not.toContain("n1");
-  expect(state.hiddenIds).not.toContain("n2");
-});
+// Collapse is per-view state (T-164): there is no undo for it, exactly like
+// folder collapse — the toggle writes viewSettings and records no history op.
 
 // ── Nesting (W5/W6) ────────────────────────────────────────────────────────
 function seedNested() {
@@ -193,18 +214,23 @@ test("removeGroup of a root group makes its children root-level", () => {
   expect(useGraphStore.getState().groups.find((g) => g.id === "B")?.parentId).toBeUndefined();
 });
 
-test("collapsing a parent hides its WHOLE subtree's cards; expand reveals them", () => {
+test("a collapsed parent hides its WHOLE subtree in that view; expand re-shows them", () => {
   seedNested();
-  useGraphStore.getState().toggleGroupCollapsed("A"); // A collapses
-  let hidden = useGraphStore.getState().hiddenIds;
-  expect(hidden).toContain("n1"); // A's own
-  expect(hidden).toContain("n2"); // child B's card
-  expect(hidden).toContain("n3"); // grandchild C's card
-  expect(useGraphStore.getState().groups.find((g) => g.id === "B")?.collapsed).toBeUndefined(); // B not force-collapsed
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "A");
+  expect(resolvedHidden("leaf-1")).toEqual(expect.arrayContaining(["n1", "n2", "n3"]));
+  // B is not force-collapsed: a nested collapse is its own per-view entry.
+  expect(useGraphStore.getState().viewSettings["leaf-1"]?.collapsedGroupIds).toEqual(["A"]);
 
-  useGraphStore.getState().toggleGroupCollapsed("A"); // expand
-  hidden = useGraphStore.getState().hiddenIds;
-  expect(hidden).not.toContain("n1");
-  expect(hidden).not.toContain("n2");
-  expect(hidden).not.toContain("n3");
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "A");
+  expect(resolvedHidden("leaf-1")).toEqual([]);
+});
+
+test("a collapsed CHILD stays collapsed when its parent expands (each entry hides its own subtree)", () => {
+  seedNested();
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "A");
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "B");
+  useGraphStore.getState().toggleGroupCollapsedForLeaf("leaf-1", "A"); // expand parent only
+  const hidden = resolvedHidden("leaf-1");
+  expect(hidden).not.toContain("n1"); // A's own card is back
+  expect(hidden).toEqual(expect.arrayContaining(["n2", "n3"])); // B's subtree still hidden
 });

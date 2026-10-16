@@ -27,8 +27,6 @@ export interface Group {
    *  Cycles and dangling parents are repaired in `normalizeGroups`, so a
    *  loaded graph is always a forest. */
   parentId?: string;
-  /** Collapsed groups hide their members and shrink to a title pill. */
-  collapsed?: boolean;
   /** Frame color (hex). Absent = the default slate; dropped on load when
    *  malformed, so a hand-edited `.fwr` cannot paint an invalid border. */
   color?: string;
@@ -217,7 +215,6 @@ export function normalizeGroups(groups: readonly Group[] | undefined, nodeIds: R
         const color = normalizeGroupColor(g.color);
         return color ? { color } : {};
       })(),
-      ...(g.collapsed ? { collapsed: true } : {}),
       ...(typeof g.parentId === "string" && g.parentId && g.parentId !== g.id ? { parentId: g.parentId } : {}),
     });
   }
@@ -385,15 +382,47 @@ function unionRect(a: GroupBounds, b: GroupBounds): GroupBounds {
  * - Groups with nothing to draw are omitted; `order` is paint order (parents
  *   before children, so children render above).
  */
+/** Identity-stable "nothing collapsed" default for `groupFrameRects`. */
+const EMPTY_COLLAPSED: ReadonlySet<string> = new Set();
+
+/**
+ * Cards hidden by THIS set of collapsed groups — the union of each group's
+ * whole subtree (W5 cascade: collapsing a group hides its nested groups' cards
+ * too). A leaf's effective hidden derives from it (T-164), so the pill and the
+ * hidden set can never disagree the way the old stored `collapsed` flag plus a
+ * hiddenIds write did.
+ */
+export function collapsedGroupMembers(
+  groups: readonly Group[],
+  collapsedIds: ReadonlySet<string> | readonly string[],
+): string[] {
+  const ids = collapsedIds instanceof Set ? collapsedIds : new Set(collapsedIds);
+  if (ids.size === 0) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const g of groups) {
+    if (!ids.has(g.id)) continue;
+    for (const m of subtreeMemberIds(groups, g.id)) {
+      if (seen.has(m)) continue;
+      seen.add(m);
+      out.push(m);
+    }
+  }
+  return out;
+}
+
 export function groupFrameRects(
   groups: readonly Group[],
   painted: readonly FewerNode[],
   anchor: readonly FewerNode[],
   visible?: ReadonlySet<string>,
   direction: LayoutDirection = "TB",
+  /** Which groups THIS view has collapsed — per-leaf since T-164, so the pure
+   *  pass takes it instead of reading a flag off the group (whose collapse is
+   *  no longer stored on the group at all). */
+  collapsedIds: ReadonlySet<string> = EMPTY_COLLAPSED,
 ): { rects: Map<string, GroupBounds>; order: string[] } {
   const byId = new Map(groups.map((g) => [g.id, g]));
-  const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
 
   // Cascade: a group is suppressed when any ANCESTOR is collapsed.
   const suppressed = new Set<string>();
@@ -402,7 +431,7 @@ export function groupFrameRects(
     let cur = byId.get(id);
     while (cur && cur.parentId && !seen.has(cur.id)) {
       seen.add(cur.id);
-      if (collapsed.has(cur.parentId)) return true;
+      if (collapsedIds.has(cur.parentId)) return true;
       const next = byId.get(cur.parentId);
       if (!next) break;
       cur = next;
@@ -420,7 +449,7 @@ export function groupFrameRects(
       return null;
     }
     let out: GroupBounds | null;
-    if (g.collapsed) {
+    if (collapsedIds.has(g.id)) {
       // Anchor the pill on the whole subtree's cards (store coords — they're hidden).
       const ids = subtreeMemberIds(groups, id);
       const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);

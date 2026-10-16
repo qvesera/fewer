@@ -439,7 +439,9 @@ test("Alt+F on a COLLAPSED group zooms into the pill box", () => {
       withActions(
         toStoreReader({
           ...ALT_F_STATE,
-          groups: [{ ...ALT_F_STATE.groups[0], collapsed: true }],
+          // Collapse is per-view state (T-164): the ACTIVE leaf's set decides.
+          activeLeafId: "leaf-1",
+          viewSettings: { "leaf-1": { collapsedGroupIds: ["g1"] } },
           selectedGroupIds: ["g1"],
         }),
         a,

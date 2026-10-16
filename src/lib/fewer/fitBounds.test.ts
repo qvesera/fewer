@@ -42,21 +42,35 @@ describe("selectionBounds", () => {
   });
 
   test("a collapsed group contributes the PILL box, not the member cluster", () => {
-    const b = selectionBounds(state({ groups: [{ ...GROUP, collapsed: true }], selectedGroupIds: ["g1"] }))!;
+    // Collapse is per-view state (T-164): the ACTIVE leaf's set says so.
+    const b = selectionBounds(
+      state({ selectedGroupIds: ["g1"], activeLeafId: "leaf-1", viewSettings: { "leaf-1": { collapsedGroupIds: ["g1"] } } }),
+    )!;
     expect(b.width).toBe(COLLAPSED_PILL_WIDTH);
     expect(b.height).toBe(COLLAPSED_PILL_HEIGHT);
     expect(b.x).toBe(-GROUP_PADDING); // still anchored at the cluster corner
   });
 
   test("a collapsed group's pill box follows the layout direction (T-163)", () => {
-    const collapsed = { ...GROUP, collapsed: true };
+    const vs = { "leaf-1": { collapsedGroupIds: ["g1"] } };
     const pill = { width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT };
     // Cluster: x ∈ [0, 440], y ∈ [0, 60] — the pill sits GROUP_PADDING past
     // the flow-start edge on the primary axis, top-left on the cross axis.
-    const bt = selectionBounds(state({ groups: [collapsed], selectedGroupIds: ["g1"], direction: "BT" }))!;
+    const bt = selectionBounds(state({ selectedGroupIds: ["g1"], direction: "BT", activeLeafId: "leaf-1", viewSettings: vs }))!;
     expect(bt).toEqual({ x: -GROUP_PADDING, y: 60 + GROUP_PADDING, ...pill });
-    const rl = selectionBounds(state({ groups: [collapsed], selectedGroupIds: ["g1"], direction: "RL" }))!;
+    const rl = selectionBounds(state({ selectedGroupIds: ["g1"], direction: "RL", activeLeafId: "leaf-1", viewSettings: vs }))!;
     expect(rl).toEqual({ x: 440 + GROUP_PADDING, y: -GROUP_PADDING - GROUP_HEADER_HEIGHT, ...pill });
+  });
+
+  test("collapse is per-view: another leaf's collapsed set does not shrink this view's box", () => {
+    const b = selectionBounds(
+      state({
+        selectedGroupIds: ["g1"],
+        activeLeafId: "leaf-1", // this view has NOT collapsed it
+        viewSettings: { "leaf-2": { collapsedGroupIds: ["g1"] } },
+      }),
+    )!;
+    expect(b.width).toBe(440 + GROUP_PADDING * 2); // the frame box, not the pill
   });
 
   test("cards and groups union into one box", () => {

@@ -23,10 +23,13 @@ function edge(source: string, target: string): FewerEdge {
 }
 
 /**
- * T-140: a collapsed group's members are hidden, but their BLOCK must stay in
- * the layout. Relayout used to exclude every hidden node, so the members froze
- * at stale coordinates while visible cards re-flowed into that space — and the
- * group pill (the union of those stale positions) drew over the cards.
+ * T-140/T-164: a collapsed group's members must stay part of the tree layout,
+ * or visible cards re-flow into their block and the group pill (the union of
+ * those positions) draws over them. Before T-164 the members lived in
+ * hiddenIds and relayout needed a reserved-set filter to keep them in the
+ * layout; since T-164 collapse is per-leaf view state and they are never
+ * globally hidden at all, so the reservation falls out of the model — these
+ * tests pin that.
  */
 describe("collapsed groups reserve their block in the layout (T-140)", () => {
   beforeEach(() => {
@@ -40,20 +43,24 @@ describe("collapsed groups reserve their block in the layout (T-140)", () => {
     });
   });
 
-  test("relayout re-places a collapsed group's members with the tree, not at stale coords", () => {
+  test("a collapsed group's members are not globally hidden, so relayout lays them with the tree", () => {
     useGraphStore.setState({
       nodes: [folder("root", 0, 0), folder("a", 0, 200), folder("b", 5000, 5000), folder("c", 6000, 5000)],
       edges: [edge("root", "a"), edge("root", "b"), edge("root", "c")],
-      hiddenIds: ["b", "c"],
-      groups: [{ id: "g-1", title: "", note: "", memberIds: ["b", "c"], collapsed: true }],
+      // T-164: collapse is per-leaf state; it never writes hiddenIds, so the
+      // members ride the tree layout unconditionally.
+      hiddenIds: [],
+      viewSettings: { "leaf-1": { collapsedGroupIds: ["g-1"] } },
+      groups: [{ id: "g-1", title: "", note: "", memberIds: ["b", "c"] }],
     });
     useGraphStore.getState().relayout();
     const s = useGraphStore.getState();
+    expect(s.hiddenIds).toEqual([]); // the model invariant itself
     const a = s.nodes.find((n) => n.id === "a")!;
     const b = s.nodes.find((n) => n.id === "b")!;
-    // Excluded nodes keep their coords verbatim — that was the bug. The block
-    // must move with the tree: its members land on their depth layer, next to
-    // their siblings, so the pill sits on reserved space instead of cards.
+    // The block moves with the tree: its members land on their depth layer,
+    // next to their siblings, so the pill sits on reserved space instead of
+    // cards that re-flowed into the hole.
     expect(b.position).not.toEqual({ x: 5000, y: 5000 });
     expect(b.position.y).toBe(a.position.y); // same depth layer (TB layout)
     expect(Math.abs(b.position.x - a.position.x)).toBeLessThan(600);

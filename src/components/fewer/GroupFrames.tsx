@@ -108,6 +108,9 @@ export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNo
   // leaf's per-view positions overlaid — built once for every group (T-138).
   const allNodes = useGraphStore((s) => s.nodes);
   const leafPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
+  // Collapse is per-view state on the leaf (T-164): read the same way positions
+  // are — the raw leafId, never the scope's "primary" fallback label.
+  const collapsedGroupIds = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.collapsedGroupIds : undefined));
 
   // Nesting (W5): compute every frame's rect here — parents contain children,
   // a collapsed ancestor suppresses its subtree, and `order` paints parents
@@ -119,8 +122,8 @@ export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNo
           return p ? { ...n, position: p } : n;
         })
       : allNodes;
-    return groupFrameRects(groups, nodes, anchor, visibleIds, direction);
-  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction]);
+    return groupFrameRects(groups, nodes, anchor, visibleIds, direction, new Set(collapsedGroupIds ?? []));
+  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction, collapsedGroupIds]);
 
   if (groups.length === 0) return null;
   return (
@@ -196,14 +199,18 @@ export function GroupFrame({
   // where one exists, so hidden members keep their per-view coords (T-138).
   const allNodes = useGraphStore((s) => s.nodes);
   const leafPositions = useGraphStore((s) => (leafId ? s.viewSettings[leafId]?.positions : undefined));
+  // Collapse is per-view state on the leaf (T-164) — the same read as positions.
+  const collapsed = useGraphStore((s) =>
+    leafId ? (s.viewSettings[leafId]?.collapsedGroupIds ?? []).includes(group.id) : false,
+  );
   const anchorNodes = useMemo(() => {
-    if (!group.collapsed) return nodes;
+    if (!collapsed) return nodes;
     const members = new Set(group.memberIds);
     return allNodes.map((n) => {
       const p = members.has(n.id) ? leafPositions?.[n.id] : undefined;
       return p ? { ...n, position: p } : n;
     });
-  }, [group.collapsed, group.memberIds, allNodes, leafPositions, nodes]);
+  }, [collapsed, group.memberIds, allNodes, leafPositions, nodes]);
 
   // Group keyboard (T-135) — one listener per mounted frame, every handler
   // reads live state, so with several groups the first one to act wins and the
@@ -253,10 +260,10 @@ export function GroupFrame({
   // what hides them — visible-only bounds would delete the pill's own handle.
   const allGroups = useGraphStore((s) => s.groups) ?? [];
   const localVisible = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
-  const localAll = group.collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
-  const localAnchor = group.collapsed ? (localAll ?? localVisible) : localVisible;
+  const localAll = collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
+  const localAnchor = collapsed ? (localAll ?? localVisible) : localVisible;
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
-  const localBox = localAnchor && (group.collapsed ? groupPill(localAnchor, direction) : localAnchor);
+  const localBox = localAnchor && (collapsed ? groupPill(localAnchor, direction) : localAnchor);
   // Nesting (W5): prefer the parent's cascade/containment-aware rect; the local
   // single-group box is the fallback when this frame is rendered standalone.
   const box = rect ?? localBox;
@@ -284,14 +291,14 @@ export function GroupFrame({
   // inside a static 240px (T-142).
   const headerStyle = tinted
     ? {
-        height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
-        minWidth: group.collapsed ? COLLAPSED_PILL_WIDTH : undefined,
+        height: collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
+        minWidth: collapsed ? COLLAPSED_PILL_WIDTH : undefined,
         borderColor: `${accent}55`,
         background: `${accent}22`,
       }
     : {
-        height: group.collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
-        minWidth: group.collapsed ? COLLAPSED_PILL_WIDTH : undefined,
+        height: collapsed ? COLLAPSED_PILL_HEIGHT : GROUP_HEADER_HEIGHT,
+        minWidth: collapsed ? COLLAPSED_PILL_WIDTH : undefined,
       };
 
   const act = () => useGraphStore.getState();
@@ -475,7 +482,7 @@ export function GroupFrame({
         // Collapsed: width is CONTENT-DRIVEN (T-142) — max-content off the
         // header, with the header's own min-width as the floor. box.width stays
         // the anchor geometry (groupPill) for anything that needs a box.
-        group.collapsed
+        collapsed
           ? { left: box.x, top: box.y, width: "max-content", height: box.height }
           : { left: box.x, top: box.y, width: box.width, height: box.height }
       }
@@ -485,7 +492,7 @@ export function GroupFrame({
       {/* The gray area — inert, so cards inside it stay draggable/selectable.
           Collapsed there is no area: the pill itself IS the frame (T-139), and
           a second coincident box under it doubles the selection outline. */}
-      {!group.collapsed && (
+      {!collapsed && (
         <div
           className={`${tinted ? "absolute inset-0 rounded-2xl border" : "absolute inset-0 rounded-2xl border border-border/50 bg-muted/35"}${isSelected ? " gm-selected-ring" : ""}`}
           style={frameStyle}
@@ -495,7 +502,7 @@ export function GroupFrame({
       {/* Member outlines (T-141): hovering or selecting the frame rings each
           member card — the box says "which cards are mine" without needing to
           enclose them, which explicit membership makes impossible to promise. */}
-      {(isSelected || hovered) && !group.collapsed && (
+      {(isSelected || hovered) && !collapsed && (
         <>
           {nodes
             .filter((n) => group.memberIds.includes(n.id) && visible.has(n.id))
@@ -523,11 +530,11 @@ export function GroupFrame({
         <ContextMenuTrigger asChild>
           <div
             data-group-header={group.id}
-            data-pill-shell={group.collapsed ? "" : undefined}
+            data-pill-shell={collapsed ? "" : undefined}
             // Grab affordance: the header moves the whole cluster, the title
             // text keeps its own cursor-text.
             className={
-              group.collapsed
+              collapsed
                 ? `pointer-events-auto nodrag nopan relative flex h-full w-max cursor-grab items-center gap-1.5 rounded-xl border px-2 backdrop-blur-xl shadow-node-folder active:cursor-grabbing${tinted ? "" : " bg-fewer-group-bg border-fewer-group-border"}${isSelected ? " gm-selected-ring" : ""}`
                 : tinted
                   ? `pointer-events-auto nodrag nopan absolute left-0 right-0 top-0 flex cursor-grab items-center gap-1 rounded-t-2xl border-b px-2 active:cursor-grabbing${isSelected ? " gm-selected-ring" : ""}`
@@ -543,19 +550,21 @@ export function GroupFrame({
           >
         <button
           type="button"
-          onClick={() => useGraphStore.getState().toggleGroupCollapsed(group.id)}
-          title={group.collapsed ? "Expand group" : "Collapse group"}
-          aria-label={group.collapsed ? "Expand group" : "Collapse group"}
+          onClick={() => {
+            if (leafId) useGraphStore.getState().toggleGroupCollapsedForLeaf(leafId, group.id);
+          }}
+          title={collapsed ? "Expand group" : "Collapse group"}
+          aria-label={collapsed ? "Expand group" : "Collapse group"}
           className={
-            group.collapsed
+            collapsed
               ? "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-fewer-group-subtle-text transition-colors hover:bg-fewer-group-subtle-text/10"
               : "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
           }
         >
-          {group.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
 
-        {group.collapsed && (
+        {collapsed && (
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fewer-group-icon/10 text-fewer-group-icon">
             <Boxes className="h-4 w-4" />
           </span>
@@ -570,7 +579,7 @@ export function GroupFrame({
             // so an input ring stacks on the selection ring — a double-ring bug
             // (T-142). The selection outline IS the focus indicator here; the
             // input only rings when the frame itself is not selected.
-            className={`min-w-0 flex-1 rounded-md bg-transparent px-1 font-semibold outline-none${isSelected ? "" : " ring-1 ring-primary/60"}${group.collapsed ? " text-sm text-fewer-group-text" : " text-xs text-foreground"}`}
+            className={`min-w-0 flex-1 rounded-md bg-transparent px-1 font-semibold outline-none${isSelected ? "" : " ring-1 ring-primary/60"}${collapsed ? " text-sm text-fewer-group-text" : " text-xs text-foreground"}`}
             onBlur={(e) => {
               useGraphStore.getState().renameGroup(group.id, e.target.value);
               setEditing(false);
@@ -601,7 +610,7 @@ export function GroupFrame({
                 // Collapsed, the span is pure content — no flex/truncate — so
                 // the pill hugs the real name and long titles widen it (T-142).
                 className={
-                  group.collapsed
+                  collapsed
                     ? "cursor-text whitespace-nowrap rounded-sm text-sm font-semibold text-fewer-group-text outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
                     : "min-w-0 flex-1 cursor-text truncate px-1 text-xs font-semibold text-foreground outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
                 }
@@ -619,7 +628,7 @@ export function GroupFrame({
             hidden BY the collapse, so "0 of 2 members" read as a bug (T-139).
             "Members", not "cards": a re-flow can park non-member cards inside
             the box, and only members belong to the group (T-141). */}
-        {group.collapsed ? (
+        {collapsed ? (
           <span className="shrink-0 text-[10px] uppercase tracking-wider text-fewer-group-subtle-text">
             {plural(group.memberIds.length, "member")}
           </span>
@@ -684,8 +693,12 @@ export function GroupFrame({
           >
             Color…
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => act().toggleGroupCollapsed(group.id)}>
-            {group.collapsed ? "Expand" : "Collapse"}
+          <ContextMenuItem
+            onSelect={() => {
+              if (leafId) act().toggleGroupCollapsedForLeaf(leafId, group.id);
+            }}
+          >
+            {collapsed ? "Expand" : "Collapse"}
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={() =>
@@ -824,7 +837,7 @@ export function GroupFrame({
       {/* Resize handles (T-136): selected, expanded frames only. Each is its
           own pointer target — dragging one scales the arrangement around the
           handle's origin (cards keep their size). */}
-      {isSelected && !group.collapsed &&
+      {isSelected && !collapsed &&
         GROUP_HANDLES.map((h) => (
           <div
             key={h}

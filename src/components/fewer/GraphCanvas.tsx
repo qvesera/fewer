@@ -127,6 +127,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
   const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  // Collapsed groups (T-164): a view's effective hidden derives a group's
+  // members from its collapsed set, so the resolver needs the group list.
+  const groups = useGraphStore((s) => s.groups);
 
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -148,8 +151,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
       direction, hiddenIds, collapsedFolderIds: [],
-    }, hiddenIds, fileIds),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds],
+    }, hiddenIds, fileIds, groups),
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds, groups],
   );
 
   const isDark = themeModeGlobal === "dark";

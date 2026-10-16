@@ -7,6 +7,7 @@ import {
   GROUP_PADDING,
   cardsInsideBox,
   childGroups,
+  collapsedGroupMembers,
   descendantGroupIds,
   groupBounds,
   groupDepth,
@@ -178,14 +179,17 @@ describe("normalizeGroups", () => {
     expect(out[0].memberIds).toEqual(["a", "b"]);
   });
 
-  test("clamps the title, keeps note and collapsed", () => {
+  test("clamps the title, keeps note and DROPS the legacy collapsed flag", () => {
+    // `.fwr` documents written before T-164 carry `collapsed`; collapse is
+    // per-view state on the leaf now, so the flag loads as "expanded" and the
+    // key is stripped rather than resurrected on the group.
     const out = normalizeGroups(
-      [{ id: "g-1", title: "x".repeat(500), note: "readme", memberIds: ["a"], collapsed: true }],
+      [{ id: "g-1", title: "x".repeat(500), note: "readme", memberIds: ["a"], collapsed: true } as unknown as Group],
       ids,
     );
     expect(out[0].title).toHaveLength(80);
     expect(out[0].note).toBe("readme");
-    expect(out[0].collapsed).toBe(true);
+    expect(out[0]).not.toHaveProperty("collapsed");
   });
 });
 
@@ -510,11 +514,12 @@ describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
 
   test("a collapsed parent becomes a pill and SUPPRESSES its subtree", () => {
     const gs = [
-      { id: "P", title: "P", note: "", memberIds: ["pa"], collapsed: true },
+      { id: "P", title: "P", note: "", memberIds: ["pa"] },
       { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
       { id: "G", title: "G", note: "", memberIds: ["ga"], parentId: "C" },
     ];
-    const { rects } = groupFrameRects(gs, painted, painted);
+    // Collapse is the caller's set now (T-164), not a flag on the group.
+    const { rects } = groupFrameRects(gs, painted, painted, undefined, "TB", new Set(["P"]));
     expect(rects.has("C")).toBe(false); // orphan pill suppressed
     expect(rects.has("G")).toBe(false);
     expect(rects.has("P")).toBe(true);
@@ -523,15 +528,16 @@ describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
   });
 
   test("a collapsed pill follows the layout direction (T-163)", () => {
-    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"], collapsed: true }];
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const collapsed = new Set(["P"]);
     const bounds = groupBounds(painted, ["pa"])!;
     // Default direction: top-left pill, exactly as before.
-    expect(groupFrameRects(gs, painted, painted).rects.get("P")).toEqual(groupPill(bounds));
+    expect(groupFrameRects(gs, painted, painted, undefined, "TB", collapsed).rects.get("P")).toEqual(groupPill(bounds));
     // BT anchors below the cluster, RL past its right edge.
-    expect(groupFrameRects(gs, painted, painted, undefined, "BT").rects.get("P")).toEqual(
+    expect(groupFrameRects(gs, painted, painted, undefined, "BT", collapsed).rects.get("P")).toEqual(
       groupPill(bounds, "BT"),
     );
-    expect(groupFrameRects(gs, painted, painted, undefined, "RL").rects.get("P")).toEqual(
+    expect(groupFrameRects(gs, painted, painted, undefined, "RL", collapsed).rects.get("P")).toEqual(
       groupPill(bounds, "RL"),
     );
   });
@@ -547,6 +553,29 @@ describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
     expect(rects.has("C")).toBe(true);
     expect(rects.has("P")).toBe(true); // P still draws around C
   });
+
+describe("collapsedGroupMembers (T-164)", () => {
+  const gs = [
+    { id: "P", title: "P", note: "", memberIds: ["pa"] },
+    { id: "C", title: "C", note: "", memberIds: ["ca"], parentId: "P" },
+    { id: "S", title: "S", note: "", memberIds: ["sa"] },
+  ];
+
+  test("unions each collapsed group's whole subtree (W5 cascade)", () => {
+    expect(collapsedGroupMembers(gs, new Set(["P"]))).toEqual(["pa", "ca"]);
+    expect(collapsedGroupMembers(gs, ["S"])).toEqual(["sa"]);
+  });
+
+  test("an empty collapsed set hides nothing, and a dangling id is inert", () => {
+    expect(collapsedGroupMembers(gs, new Set<string>())).toEqual([]);
+    expect(collapsedGroupMembers(gs, ["ghost"])).toEqual([]);
+    expect(collapsedGroupMembers([], new Set(["P"]))).toEqual([]);
+  });
+
+  test("two collapsed groups sharing a subtree do not double-count", () => {
+    expect(collapsedGroupMembers(gs, new Set(["P", "C"]))).toEqual(["pa", "ca"]);
+  });
+});
 
   test("a group with nothing visible and no visible children is omitted", () => {
     const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];

@@ -526,4 +526,26 @@ describe("withCollapsedPillGeometry", () => {
     expect(out[0]!.style?.height).toBe(COLLAPSED_PILL_HEIGHT);
     expect(out[0]!.measured?.height).toBe(240);
   });
+
+describe("per-view collapsed groups (T-164)", () => {
+  const GROUPS = [{ id: "g-1", title: "G", note: "", memberIds: ["a", "b"] }];
+
+  test("a leaf's collapsed group members join its effective hidden set", () => {
+    const vs = { "leaf-1": { collapsedGroupIds: ["g-1"] } };
+    expect(resolveViewSettings(vs, "leaf-1", GLOBAL, [], [], GROUPS).hiddenIds).toEqual(["a", "b"]);
+    // Another view is untouched: collapse is per-leaf.
+    expect(resolveViewSettings(vs, "leaf-2", GLOBAL, [], [], GROUPS).hiddenIds).toEqual([]);
+    // A leaf with no collapse keeps the historical identity: no merge, no copy.
+    expect(resolveViewSettings(vs, "leaf-3", GLOBAL, ["x"], [], GROUPS).hiddenIds).toEqual(["x"]);
+  });
+
+  test("parseViewSettings round-trips collapsedGroupIds and drops garbage", () => {
+    const parsed = parseViewSettings({
+      "leaf-1": { collapsedGroupIds: ["g-1", 42, null] },
+      "leaf-2": { collapsedGroupIds: "nope" },
+    });
+    expect(parsed["leaf-1"]?.collapsedGroupIds).toEqual(["g-1"]);
+    expect(parsed["leaf-2"]).toBeUndefined();
+  });
+});
 });
