@@ -37,16 +37,28 @@ function renderFrame(
     group?: Group;
     nodes?: FewerNode[];
     leafId?: string;
+    /** Collapse is per-view state (T-164): stamp the leaf's collapsed set. */
+    collapsed?: boolean;
   } = {},
 ) {
+  const group = props.group ?? GROUP;
+  const leafId = props.leafId ?? (props.collapsed ? "leaf-1" : undefined);
+  if (props.collapsed) {
+    useGraphStore.setState({
+      viewSettings: {
+        ...useGraphStore.getState().viewSettings,
+        [leafId!]: { collapsedGroupIds: [group.id] },
+      },
+    });
+  }
   return render(
     <ReactFlowProvider>
       <TooltipProvider>
         <GroupFrame
-          group={props.group ?? GROUP}
+          group={group}
           nodes={props.nodes ?? NODES}
           visible={props.visible ?? new Set(["n1", "n2"])}
-          leafId={props.leafId}
+          leafId={leafId}
         />
       </TooltipProvider>
     </ReactFlowProvider>,
@@ -94,7 +106,7 @@ describe("GroupFrame visibility (T-134)", () => {
     // own handle and make collapsing undo-only.
     const { container } = renderFrame({
       visible: new Set<string>(),
-      group: { ...GROUP, collapsed: true },
+      collapsed: true,
     });
     expect(container.querySelector("[data-group-id]")).toBeTruthy();
     expect(screen.getByText("Assets")).toBeTruthy();
@@ -256,7 +268,7 @@ describe("GroupFrame resize-scale (T-136)", () => {
   });
 
   test("a collapsed selected frame renders no handles (the pill has no layout to scale)", () => {
-    renderFrame({ group: { ...GROUP, collapsed: true } });
+    renderFrame({ collapsed: true });
     select();
     expect(document.querySelector("[data-group-handle]")).toBeNull();
   });
@@ -414,14 +426,18 @@ describe("GroupFrame per-view positions (T-137)", () => {
   });
 
   test("the header buttons keep their click (capture is deferred past the threshold)", () => {
-    renderFrame();
+    useGraphStore.setState({ groups: [GROUP] });
+    renderFrame({ leafId: "leaf-1" });
     // A press on the header selects the group but must not break the buttons
     // inside it — pointerdown-era capture retargeted the click away from them
     // and killed collapse/note/× in every real browser (T-137).
     fireEvent.pointerDown(headerEl(), { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
     fireEvent.pointerUp(headerEl(), { pointerId: 1 });
     fireEvent.click(screen.getByLabelText("Collapse group"));
-    expect(useGraphStore.getState().groups[0]?.collapsed).toBe(true);
+    // Per-view state (T-164): the LEAF's collapsed list flips; the group list
+    // and hiddenIds are untouched — the members' hidden-ness derives from it.
+    expect(useGraphStore.getState().viewSettings["leaf-1"]?.collapsedGroupIds).toEqual(["g-1"]);
+    expect(useGraphStore.getState().hiddenIds).toEqual([]);
   });
 });
 
@@ -482,7 +498,7 @@ describe("GroupFrame pill styling (T-139)", () => {
   });
 
   test("the collapsed pill carries the card shell, not the old toolbar strip", () => {
-    renderFrame({ group: { ...GROUP, collapsed: true } });
+    renderFrame({ collapsed: true });
     const shell = document.querySelector("[data-pill-shell]") as HTMLElement;
     // Same design language as a collapsed folder card: rounded-xl shell,
     // backdrop blur, node shadow, group theme tokens — plus an icon tile.
@@ -496,7 +512,7 @@ describe("GroupFrame pill styling (T-139)", () => {
 
   test("the pill reads \"2 members\", never \"0 of 2 members\"", () => {
     // Every member is hidden BY the collapse — "0 of 2 members" read as a bug.
-    renderFrame({ group: { ...GROUP, collapsed: true }, visible: new Set<string>() });
+    renderFrame({ collapsed: true, visible: new Set<string>() });
     expect(screen.getByText("2 members")).toBeTruthy();
     expect(screen.queryByText(/0 of/)).toBeNull();
   });
@@ -547,7 +563,7 @@ describe("Collapsed pill sizing + rename ring (T-142)", () => {
   test("the pill's width is content-driven with the constant only as a floor", () => {
     // The static 240px cut long names off (T-142). The root sizes to its
     // in-flow header (max-content); the header carries the floor as min-width.
-    const { container } = renderFrame({ group: { ...GROUP, collapsed: true } });
+    const { container } = renderFrame({ collapsed: true });
     const pill = container.querySelector("[data-group-id]") as HTMLElement;
     expect(pill.style.width).toBe("max-content");
     expect((document.querySelector("[data-group-header]") as HTMLElement).style.minWidth).toBe(
@@ -557,7 +573,7 @@ describe("Collapsed pill sizing + rename ring (T-142)", () => {
 
   test("a long name renders in full — no truncate on the collapsed title", () => {
     const title = "Brand-system-2026-and-beyond final archive";
-    renderFrame({ group: { ...GROUP, title, collapsed: true } });
+    renderFrame({ collapsed: true, group: { ...GROUP, title } });
     const span = screen.getByText(title);
     expect(span.className).not.toContain("truncate");
     expect(span.className).toContain("whitespace-nowrap");
@@ -567,13 +583,13 @@ describe("Collapsed pill sizing + rename ring (T-142)", () => {
     // The click that opens the editor also selects the frame, so an input ring
     // stacked on the selection ring — the reported double ring (T-142).
     useGraphStore.setState({ selectedGroupIds: ["g-1"] });
-    renderFrame({ group: { ...GROUP, collapsed: true } });
+    renderFrame({ collapsed: true });
     fireEvent.doubleClick(screen.getByText("Assets"));
     expect(screen.getByLabelText("Group title").className).not.toContain("ring-1");
   });
 
   test("the rename input keeps its ring when the frame is NOT selected", () => {
-    renderFrame({ group: { ...GROUP, collapsed: true } });
+    renderFrame({ collapsed: true });
     fireEvent.doubleClick(screen.getByText("Assets"));
     expect(screen.getByLabelText("Group title").className).toContain("ring-1 ring-primary/60");
   });
@@ -581,7 +597,7 @@ describe("Collapsed pill sizing + rename ring (T-142)", () => {
   test("a mouse click on the title draws no focus ring (focus-visible only)", () => {
     // outline-none on the span; the class list must not carry a plain `ring-*`
     // or `outline` style that a click would trigger — only focus-visible:*.
-    renderFrame({ group: { ...GROUP, collapsed: true } });
+    renderFrame({ collapsed: true });
     const span = screen.getByText("Assets");
     expect(span.className).toContain("focus-visible:ring-1");
     expect(span.className.split(" ").filter((c) => /^ring-|^outline-[0-9]/.test(c))).toEqual([]);

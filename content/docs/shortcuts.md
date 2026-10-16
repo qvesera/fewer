@@ -29,7 +29,7 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 | **Ctrl+Z**             | Undo last action                 |
 | **Ctrl+Shift+Z / Ctrl+Y** | Redo last action              |
 | **H**                  | Hide selected cards              |
-| **Shift+H**            | Show all cards                   |
+| **Shift+H**            | Show all cards (also expands collapsed groups)  |
 | **Alt+S**              | Save current graph (signed in)   |
 | **Enter**              | Focus the folder's first child; opens the selected file when OS integration is enabled |
 

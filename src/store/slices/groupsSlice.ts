@@ -28,9 +28,8 @@ export type GroupsSliceCreator = StateCreator<
      *  No-ops when it would create a cycle. One undo entry. */
     setGroupParent: (id: string, parentId?: string) => void;
     removeGroup: (id: string) => void;
-    /** Collapse hides the members; expand reveals them again, except any the
-     *  user hid directly (independentlyHiddenIds) — same rule showSubtree uses. */
-    toggleGroupCollapsed: (id: string) => void;
+    /** Collapse is per-view state on the leaf, not a flag on the group (T-164):
+     *  see `toggleGroupCollapsedForLeaf` in the collapse slice. */
     /** Live-drag write (T-135): move the group's member cards to exact
      *  positions. No history — the header gesture records ONE move-positions
      *  op on release via recordDragMoves. Positions are absolute (from the
@@ -46,9 +45,9 @@ function snapshot(state: GraphState): ViewState {
 
 /**
  * Apply one group mutation and record exactly one undo entry carrying the full
- * before/after view state. Collapsing also rewrites `hiddenIds`, which the same
- * snapshot restores, so undo of a collapse both reopens the frame and reveals
- * the cards — no second op, no ordering hazard.
+ * before/after view state. Card visibility is no longer part of a group op at
+ * all (T-164: collapse is per-view state on the leaf), so the snapshot is the
+ * group list alone.
  */
 function commit(
   set: (partial: Partial<GraphState>) => void,
@@ -148,30 +147,6 @@ export const createGroupsSlice: GroupsSliceCreator = (set, get) => ({
           .map((g) => (g.parentId === id ? { ...g, parentId: target.parentId } : g)),
       };
     }),
-
-  toggleGroupCollapsed: (id) => {
-    const state = get();
-    const group = ((state.groups ?? []) as Group[]).find((g) => g.id === id);
-    if (!group) return;
-    const collapsing = !group.collapsed;
-    commit(set, get, (current) => {
-      const groups = mapGroup((current.groups ?? []) as Group[], id, (g) => {
-        const { collapsed: _expanded, ...rest } = g;
-        return collapsing ? { ...rest, collapsed: true } : rest;
-      });
-      const hidden = new Set((current.hiddenIds ?? []) as string[]);
-      const keep = new Set((current.independentlyHiddenIds ?? []) as string[]);
-      // Cascade (W5): collapsing a group hides its WHOLE subtree — own cards +
-      // every descendant's cards — so no orphan cards float without a frame.
-      const subtree = subtreeMemberIds((current.groups ?? []) as Group[], id);
-      if (collapsing) {
-        for (const m of subtree) hidden.add(m);
-      } else {
-        for (const m of subtree) if (!keep.has(m)) hidden.delete(m);
-      }
-      return { groups, hiddenIds: [...hidden] };
-    });
-  },
 
   setGroupMemberPositions: (id, positions) => set((s) => {
     const group = ((s.groups ?? []) as Group[]).find((g) => g.id === id);

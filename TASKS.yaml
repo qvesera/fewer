@@ -4542,3 +4542,194 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 23, deletions: 1}
   spent_min: 16
   session_count: 1
+- id: "T-163"
+  title: "Collapsed group pill ignores layout direction (always anchors top-left as if TB)"
+  status: "review"
+  type: "fix"
+  area: "layout"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 426
+  pr: 427
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#426"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T12:37:11Z"
+  notes: ["2026-10-16T12:37:11Z · groupPill anchors top-left unconditionally (groups.ts); thread scope.direction through GroupFrames, groupFrameRects and selectionBounds; BT/RL anchor at the far corner"]
+  sessions:
+  - start: "2026-10-16T12:37:32Z"
+    end: "2026-10-16T12:46:09Z"
+    measured: true
+    note: "groupPill takes a layout direction and anchors the collapsed pill at the flow-start corner (BT below, RL right of the cluster; TB/LR unchanged); direction threaded through GroupFrames scope + groupFrameRects + selectionBounds (zoom-to-selection). Gates: lint 0, tsc 0, src 1819 + electron 12 + components 233 green, build ok, groups e2e 15/15."
+    proof: ["2fa90e6"]
+    effort: {commits: 1, files: 10, insertions: 109, deletions: 15}
+  spent_min: 9
+  session_count: 1
+- id: "T-164"
+  title: "Per-leaf group collapse: view state, effective-hidden resolution, persistence"
+  status: "review"
+  type: "refactor"
+  area: "layout"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: null
+  pr: 427
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T17:50:30Z"
+  notes: ["2026-10-16T18:37:53Z · Scope grew and absorbed T-165 + T-166: the model cutover is atomic — the T-140 relayout reservation removal and the GroupFrames/fitBounds/useActiveLeaf consumer switch cannot compile or stay green without it. Their content landed in commit 976ded1; the two rows are folded here as wontfix."]
+  sessions:
+  - start: "2026-10-16T17:52:13Z"
+    end: "2026-10-16T18:38:41Z"
+    measured: true
+    note: "Atomic cutover (absorbed T-165/T-166): Group.collapsed retired; per-leaf ViewSettings.collapsedGroupIds; members derive into the leaf's effective hidden via collapsedGroupMembers; toggleGroupCollapsedForLeaf (view-only, not undoable, persists via _persistLayout); groupFrameRects takes a collapsedIds set; relayout's T-140 reserved block removed (falls out of the model); GroupFrames/fitBounds/useActiveLeaf/GraphCanvas read the leaf's set; legacy .fwr collapsed flag stripped on load. Gates: tsc 0, lint 0, bun run test 1827+12+233 green (8 new tests)."
+    proof: ["976ded1"]
+    effort: {commits: 1, files: 17, insertions: 341, deletions: 163}
+  spent_min: 46
+  session_count: 1
+- id: "T-165"
+  title: "Move T-140's collapsed-group layout reservation into the per-view derivation"
+  status: "wontfix"
+  type: "refactor"
+  area: "layout"
+  tier: 0
+  estimate_min: 150
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T17:50:30Z"
+  notes: ["2026-10-16T18:37:53Z · Folded into T-164 (atomic cutover): relayout's reserved-set block removed and groupsRelayout.test.ts reshaped in commit 976ded1."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-166"
+  title: "GroupFrames, fit bounds and export read the leaf's collapsed-group set"
+  status: "wontfix"
+  type: "refactor"
+  area: "ux"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T17:50:30Z"
+  notes: ["2026-10-16T18:37:53Z · Folded into T-164 (atomic cutover): GroupFrames reads the leaf's collapsed set, fitBounds resolves the active leaf's set, useActiveLeaf/GraphCanvas pass groups to the resolver in commit 976ded1."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-167"
+  title: "Revealing a collapsed group's cards expands the group (per-view reveal invariant)"
+  status: "review"
+  type: "fix"
+  area: "visibility"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: null
+  pr: 427
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T17:50:31Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T18:38:43Z"
+    end: "2026-10-16T19:08:27Z"
+    measured: true
+    note: "Reveal invariant: groupsOpenedByReveal (pure) + revealLeafId/openedCollapsedGroupsForLeaf/withCollapsedGroupIds seam helpers; every reveal path opens the groups whose subtrees it touches (showNode/showAncestors/showSubtree(s)/commitShow/showAll in visibilitySlice, revealInView/eyeRevealForLeaf/showSubtreeForLeaf), Reveal All opens every collapsed group in the TARGET view only, ⇧H fires showAll even when only collapse hides (shiftHOutcome counts those members for the toast). Gates: tsc 0, lint 0, bun run test 1839+12+233, groups e2e 16/16 incl. new ⇧H test."
+    proof: ["435944d"]
+    effort: {commits: 1, files: 10, insertions: 383, deletions: 26}
+  spent_min: 30
+  session_count: 1
+- id: "T-168"
+  title: "Docs + changelog for per-view group collapse and reveal-expands behavior"
+  status: "review"
+  type: "docs"
+  area: "docs"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 427
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T17:50:31Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T19:08:59Z"
+    end: "2026-10-16T19:12:03Z"
+    measured: true
+    note: "Docs + changelog: editing.md collapse bullets (per-view, not undoable, reveal expands), undo paragraph, shortcuts.md Shift+H row; two changelog entries (fixed + changed). Gates: build 0, changelog validate OK."
+    proof: ["bfa49ea"]
+    effort: {commits: 1, files: 3, insertions: 14, deletions: 7}
+  spent_min: 3
+  session_count: 1
+- id: "T-169"
+  title: "Revealing one card of a collapsed group must not reveal its siblings (park them per-view)"
+  status: "review"
+  type: "fix"
+  area: "visibility"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: 427
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T19:55:17Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T19:55:17Z"
+    end: "2026-10-16T20:43:00Z"
+    measured: true
+    note: "Scoped reveal (T-169): openedCollapsedGroupsForLeaf now returns a park list — every member of an OPENED group that the gesture did not reveal is parked under hideLayers.subtrees[groupId] via parkInLayers/withGroupReveal, so it stays hidden, stays listed in the Hidden panel and is eye-revealable one by one; the chevron expand (toggleGroupCollapsedForLeaf) releases the parked set, keeping 'chevron = reveal the whole cluster'. Show All/⇧H still open everything (no park). Debug journey: the e2e failure was the TEST shape (sample's grouped pair was an ancestor chain, so the subtree reveal legitimately included both) — peers are now computed from the graph cache intersected with rendered cards. Gates: tsc 0, bun run test 1846+12+233 0 fail, lint 0, groups e2e 17/17 incl. the new panel-flow test, changelog validate OK."
+    proof: ["f83a133"]
+    effort: {commits: 1, files: 9, insertions: 267, deletions: 48}
+  spent_min: 48
+  session_count: 1
