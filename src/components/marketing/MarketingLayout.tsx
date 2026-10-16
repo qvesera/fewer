@@ -90,68 +90,70 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
       {/* Footer — hidden in the shell export (T-104): marketing links dead-end */}
       {!shell && (
       <footer className="relative z-10 border-t border-border/40 bg-background/95">
-        <div className="mx-auto max-w-6xl px-6 py-10 grid gap-10 md:grid-cols-3">
+        <div className="mx-auto max-w-6xl px-6 py-10 grid gap-10 md:grid-cols-2">
           <div>
             <Link href="/" className="flex items-center gap-2">
               <img src="/logo_flat.svg" alt="fewer logo" className="h-7 w-7" />
               <span className="text-base font-bold tracking-tight">fewer</span>
             </Link>
             <p className="mt-3 text-sm text-muted-foreground max-w-xs">
-              Turn any directory into an interactive graph you can explore, edit, and export.
+              Open a folder and see everything inside it, all at once.
             </p>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Product
-            </h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li>
-                <Link href={APP_URL} className="text-foreground/80 hover:text-foreground">
-                  Launch the app
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs" className="text-foreground/80 hover:text-foreground">
-                  Documentation
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="text-foreground/80 hover:text-foreground">
-                  Blog
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <div className="grid gap-8 sm:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Product
+              </h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link href={APP_URL} className="text-foreground/80 hover:text-foreground">
+                    Launch the app
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/docs" className="text-foreground/80 hover:text-foreground">
+                    Documentation
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog" className="text-foreground/80 hover:text-foreground">
+                    Blog
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Legal &amp; Source
-            </h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li>
-                <Link href="/privacy" className="flex items-center gap-1.5 text-foreground/80 hover:text-foreground">
-                  <ShieldCheck className="h-4 w-4" />
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs/terms" className="text-foreground/80 hover:text-foreground">
-                  Terms of Use
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/qvesera/fewer"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
-                >
-                  <Github className="h-4 w-4" />
-                  GitHub · AGPLv3
-                </a>
-              </li>
-            </ul>
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Legal &amp; Source
+              </h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link href="/privacy" className="flex items-center gap-1.5 text-foreground/80 hover:text-foreground">
+                    <ShieldCheck className="h-4 w-4" />
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/docs/terms" className="text-foreground/80 hover:text-foreground">
+                    Terms of Use
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/qvesera/fewer"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-foreground/80 hover:text-foreground"
+                  >
+                    <Github className="h-4 w-4" />
+                    GitHub · AGPLv3
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 

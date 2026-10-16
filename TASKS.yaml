@@ -4093,3 +4093,423 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 17, deletions: 11}
   spent_min: 44
   session_count: 5
+- id: "T-150"
+  title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-13T18:00:32Z"
+  notes: []
+  sessions:
+  - start: "2026-10-13T18:03:47Z"
+    end: "2026-10-13T18:54:06Z"
+    measured: true
+    note: "Home page rebuilt as an interactive page that shows the product. Hero is a live mini-canvas built from the same --fewer-* card tokens and the canvas dot values (24px gap, 1.5px); one marketingPreview.ts tree feeds both the hero and the tree-vs-graph toggle, and its bezier edge geometry has 4 unit tests. Sections: the comparison toggle, an illustration band that renders only once public/reorg-graph.svg exists (brief in design-system/fewer/ILLUSTRATION.md), a 3-step how-it-works, 4 capability stories with the rest as scan-friendly bullets (the strings the e2e pins live here), and a trust strip that replaces the two long prose sections. Backdrop is a fixed CSS dot layer plus a masked glow that lerps after the pointer, gated on touch and reduced motion, self-stopping when it settles; motion tokens --ease-enter/--ease-pop/--dur-fast/slow and a data-reveal system with a noscript fallback. Footer 3 to 2 columns, MASTER.md typography corrected to the shipped Geist fonts, e2e/marketing.spec.ts gains dot-grid and toggle pins. Gates: lint 0, tsc 0, bun run test 1796+12+233 0 fail, playwright full suite 38 passed against a NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1 production build (the 16 earlier failures were the tier-query suites hitting a build without that flag), build OK, changelog validate OK. Checked visually at 1440 and 375 in both themes; below 520px the preview scrolls instead of truncating names."
+    proof: ["db769c4"]
+    effort: {commits: 1, files: 22, insertions: 1498, deletions: 256}
+  - start: "2026-10-13T19:16:01Z"
+    end: "2026-10-13T19:56:34Z"
+    measured: true
+    note: "Follow-up session: the preview is now the product, not a miniature. Cards use the real layout.ts dimensions (240x200 / 220x58) at 1:1 in a design-space box that is zoomed to fit its container (ResizeObserver + CSS zoom; below 520px it scrolls rather than truncating names), with the app card shell: folder header with icon tile, name, ~/path and chevron, inline child rows carrying counts and sizes, the N ITEMS footer, the Empty folder state, file cards with the category icon and .ext · size sub-line, and handle dots on the edges. Hover reuses .gm-node-hover and .shadow-node-folder/-file. Edges march at 2px dashed 5 5 (mk-edge-flow) and stop under prefers-reduced-motion like the canvas. CATEGORY_ICON and formatSize moved to nodeVisuals.ts with nodeDisplay re-exporting them, so the marketing tree no longer depends on nodeDisplay or its @xyflow/react import; min-w-0 was added to the hero and pane grid items because the 860px design box otherwise inflated its column and overflowed the hero. Reverted two unexplained bg-background/60 edits found in the worktree (not part of this work, not shipped). Gates: lint 0, tsc 0, bun run test 1800+12+233 0 fail, playwright 38 passed on the committed tree against a NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1 production build, SSR emits 14 cards and 12 edges across both panes."
+    proof: ["81ad582", "#421"]
+    effort: {commits: 1, files: 11, insertions: 443, deletions: 160}
+  - start: "2026-10-13T20:32:47Z"
+    end: "2026-10-13T20:55:04Z"
+    measured: true
+    note: "Third session (visual polish from review feedback): preview graph's horizontal scrollbar hidden ([scrollbar-width:none] + webkit hidden, scroll still works below 520px); per-section bg-background/60 veils removed from hero/compare/TrustStrip and all border-t section rules dropped, so the fixed dot grid reads at one uniform strength; .mk-dotgrid layer at opacity 0.6 (full token alpha read too loud un-veiled). Gates: lint 0, tsc 0, bun run test 233 pass 0 fail, changelog validate OK. Visually checked in dark + light via Playwright on the dev server."
+    proof: ["de9c35b", "#421"]
+    effort: {commits: 1, files: 8, insertions: 20, deletions: 8}
+  - start: "2026-10-13T20:59:41Z"
+    end: "2026-10-13T21:05:36Z"
+    measured: true
+    note: "Capabilities consistency pass: uniform 150px centered visual bands, equal card heights, inline group-frame toggle, lg bullets, left learn-more"
+    proof: ["68c8054", "#421"]
+    effort: {commits: 1, files: 4, insertions: 32, deletions: 19}
+  - start: "2026-10-13T22:39:40Z"
+    end: "2026-10-13T22:46:14Z"
+    measured: true
+    note: "home density pass: one sample graph (hero deleted, swatches moved into #compare header), capabilities bullets collapsed into one 4-across footnote strip, e2e region-count guard"
+    proof: ["3a4c5b3", "#421"]
+    effort: {commits: 1, files: 7, insertions: 93, deletions: 101}
+  - start: "2026-10-14T10:42:02Z"
+    end: "2026-10-14T12:54:48Z"
+    measured: true
+    note: "Follow-up sessions on the review feedback. The canvas became the home page's hero: full-bleed on the dot grid, headline and CTAs in a compact bar, the tree/fewer toggle and accent swatches moved into a floating View panel in the app's panel chrome, and one feature at a time explained in an inspector panel with a title bar and a close button. Twelve features anchored to real cards with micro-proofs (mkdir script, group frame, batch action list, find/replace rows, key chips, spacing slider, import/export chips, digest row, share rows, tag ring), grouped in a two-tier rail (Arrange & edit / Watch & connect / Look & share) with the longer sentence on the label tooltip. The auto-tour and its pause control are gone: nothing advances without the reader, and at rest the graph is whole (nothing dimmed, no pin pressed). Privacy and open source sections restored in the new design language; HowItWorks, Capabilities, TrustStrip, TextVsGraph and the never-rendering TransformationBand deleted (~250 words of prose). marketingFeatures.ts is a pure catalog with tests for copy budgets, tier honesty (Tags is Pro and wears a badge, never a purchase path), pin geometry and contrast; the demo tree gains three children under docs so the watch story is not on an empty folder. Fixed along the way: full-bleed overflow from an auto-width grid (grid-cols-1), pin stack pitch in screen px, light-theme dim opacity, dismiss that hover could not undo. Gates: lint 0, tsc 0, bun run test 233 pass 0 fail, playwright marketing 9 pass, build OK, changelog validate OK. Visual check at 1440/1024/768/375 in both themes."
+    proof: ["e386cd8"]
+    effort: {commits: 1, files: 20, insertions: 1592, deletions: 619}
+  - start: "2026-10-14T14:04:39Z"
+    end: "2026-10-14T15:27:58Z"
+    measured: true
+    note: "T-150 follow-up on PR 421: derived demo-graph geometry (no clipping, no stacking), live Crown Shyness dial re-flowing the canvas, feature tour with pause/play (parks under reduced motion/off-screen/tree pane/hidden tab), arrows, no X and no dead Try it link, View toolbar above the canvas, unified Privacy/Open source sections, hover-only-when-the-pointer-moved guard, README + changelog, marketing e2e rewritten (14 passing)"
+    proof: ["724a033"]
+    effort: {commits: 1, files: 13, insertions: 832, deletions: 308}
+  spent_min: 342
+  session_count: 7
+- id: "T-151"
+  title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 422
+  pr: 421
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T17:02:31Z"
+  notes: ["2026-10-14T18:04:38Z · follow-up session: centre the tree view's caption and tree text in the pane (block was centred, text hugged the column's left edge)", "2026-10-14T19:16:45Z · follow-up pass (user review): selection redesign - anchor/on map claimed package.json demonstrates Export-in-8-formats, meaningless. Demo graph becomes the feature index: derived from MARKETING_FEATURES/CATEGORIES (node id = feature id), tag removed, ring always on active card, folders = categories]"]
+  sessions:
+  - start: "2026-10-14T17:22:45Z"
+    end: "2026-10-14T17:49:56Z"
+    measured: true
+    note: "Replaced the twelve sparkle pins on the home page demo canvas with a single active-feature tag worn by the card the callout is telling (folder footer / file corner, inside the zoomed box so it scales with the cards). Pins removed end to end: previewPins + PreviewPin, layoutPins/PIN_PITCH, .mk-pin/.mk-pin-on/mk-pin-ping CSS, three pin unit tests. Caption, README and changelog updated; e2e asserts exactly one tag, that it follows a card hover, and stays single across a tour tick. Gates: tsc 0, lint 0, bun test src 1810 pass, bun run test (all stages) green, build ok, playwright marketing 14/14, changelog validate ok."
+    proof: ["a5601a0"]
+    effort: {commits: 1, files: 8, insertions: 62, deletions: 252}
+  - start: "2026-10-14T18:03:33Z"
+    end: "2026-10-14T18:10:49Z"
+    measured: true
+    note: "Follow-up session: centred the tree view caption + tree text as one column on the canvas axis (items-center on the block, pre capped at max-w-full so it still scrolls), tree lines stay left-aligned inside the block so the box-drawing columns do not stagger. e2e tree-pane test now compares centre lines (caption vs pre <4px, pre vs canvas axis <6px). Gates: tsc 0, lint 0, bun test src 1810 pass, build ok, playwright marketing 14/14, changelog validate ok."
+    proof: ["f08f06d"]
+    effort: {commits: 1, files: 3, insertions: 15, deletions: 6}
+  - start: "2026-10-14T19:15:32Z"
+    end: "2026-10-14T21:15:17Z"
+    measured: true
+    note: "Redesigned the home demo graph as the feature index itself (option B): catalogue derives the tree, anchor map deleted, ring-always marker, group sub-lines; all gates green (tsc, lint, 1810 unit, 14 e2e, build)"
+    proof: ["d076f94"]
+    effort: {commits: 1, files: 10, insertions: 288, deletions: 286}
+  spent_min: 154
+  session_count: 3
+- id: "T-152"
+  title: "Home Themes feature links to the gallery themes tab"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T21:49:04Z"
+  notes: []
+  sessions:
+  - start: "2026-10-14T21:51:07Z"
+    end: "2026-10-14T22:40:45Z"
+    measured: true
+    note: "Themes proof links to /gallery?tab=themes; gallery tab is URL-addressable both ways; shell-gated link; e2e + docs + changelog; all gates green (tsc, lint, 1810 unit, 15 e2e, build)"
+    proof: ["dfd21da"]
+    effort: {commits: 1, files: 9, insertions: 136, deletions: 34}
+  spent_min: 50
+  session_count: 1
+- id: "T-153"
+  title: "Home hero: large centred headline as the first read"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T22:52:12Z"
+  notes: []
+  sessions:
+  - start: "2026-10-14T22:52:12Z"
+    end: "2026-10-14T23:05:34Z"
+    measured: true
+    note: "Hero headline to text-7xl centred, lg buttons, rebalanced padding; 1810 unit + 15 e2e + build green"
+    proof: ["f967009"]
+    effort: {commits: 1, files: 2, insertions: 43, deletions: 8}
+  spent_min: 13
+  session_count: 1
+- id: "T-154"
+  title: "Preview canvas: slimmer file cards, folders stay saturated"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 40
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-14T23:18:22Z"
+  notes: []
+  sessions:
+  - start: "2026-10-14T23:20:58Z"
+    end: "2026-10-14T23:49:29Z"
+    measured: true
+    note: "Single-line file cards (h 58->44, group sub-line dropped), root+parent folders+their edges never dim; subtree shift fixes sibling-gap bug; 1708 unit + 15 e2e + build green; screenshot verified"
+    proof: ["f201320"]
+    effort: {commits: 1, files: 7, insertions: 109, deletions: 69}
+  spent_min: 29
+  session_count: 1
+- id: "T-155"
+  title: "Home privacy section: mockup layout + type scale"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T07:32:52Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T07:33:17Z"
+    end: "2026-10-15T09:08:41Z"
+    measured: true
+    note: "Privacy split layout (left heading/intro/CTA, right stacked claims at 15px); e2e pin rewritten; 1708 unit + 14/15 e2e (marketing.spec:114 pre-existing flake) + build green"
+    proof: ["ec2efb1"]
+    effort: {commits: 1, files: 4, insertions: 64, deletions: 20}
+  spent_min: 95
+  session_count: 1
+- id: "T-156"
+  title: "Home privacy: bento right column - hero claim, sandbox schematic, stat badges"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T09:10:11Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T09:12:49Z"
+    end: "2026-10-15T09:36:11Z"
+    measured: true
+    note: "Privacy bento: hero claim + sandbox schematic + 3 mono stat badges + compact rows; mobile stacks; 1708 unit + 14/15 e2e (:114 pre-existing flake) + build green; screenshots desktop light/dark + mobile"
+    proof: ["202bc29"]
+    effort: {commits: 1, files: 4, insertions: 194, deletions: 25}
+  - start: "2026-10-15T14:19:23Z"
+    end: "2026-10-15T15:06:43Z"
+    measured: true
+    note: "Privacy right column rebuilt as a 2-col bento at xl (hero claim spans both with the shield centred against it, auth claim with a display word, cloud/trackers/digests paired, hosting-log footnote full width, 3 mono stat badges as a divided band), split gated to xl with the left column middle-aligned (centreDelta 0), SandboxDiagram deleted; e2e pins rewritten for two-edge grid + centring + verbatim claims, changelog collapsed to one bullet. Gates: lint 0, tsc 0, bun test 233 pass, marketing e2e 15 pass, build OK, changelog validate OK."
+    proof: ["b3aea9d"]
+    effort: {commits: 1, files: 3, insertions: 178, deletions: 157}
+  spent_min: 70
+  session_count: 2
+- id: "T-157"
+  title: "Feature playground: spent hover authorisation on ignored folder hovers (e2e flake fix)"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T09:39:54Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T09:40:27Z"
+    end: "2026-10-15T10:15:19Z"
+    measured: true
+    note: "Hover authorisation spent on ignored folder hovers + e2e approaches folder from off the cards; pointerover trace diagnosis; 4/4 full-file e2e green (was ~50% fail); 1708 unit + tsc + lint + build green"
+    proof: ["1325258"]
+    effort: {commits: 1, files: 4, insertions: 47, deletions: 3}
+  spent_min: 35
+  session_count: 1
+- id: "T-158"
+  title: "Home hero: canvas chassis, ambient accent glow, node hierarchy"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T10:18:27Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T10:18:46Z"
+    end: "2026-10-15T10:56:10Z"
+    measured: true
+    note: "Chassis + hero centerpiece shipped: frosted .mk-chassis with View title bar, ambient accent glow, root halo, port pings, deeper dim; restored SandboxDiagram accidentally swept by the commit; e2e 15/15 x2"
+    proof: ["37d4fe4"]
+    effort: {commits: 1, files: 7, insertions: 142, deletions: 30}
+  spent_min: 37
+  session_count: 1
+- id: "T-159"
+  title: "Tighten the feature playground inspector spacing"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 423
+  pr: 421
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#423"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T11:38:36Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T11:43:52Z"
+    end: "2026-10-15T12:25:56Z"
+    measured: true
+    note: "Playground inspector spacing fixed (commit e20a91a). Measured before/after with a throwaway playwright harness on the dev server: panel 241->225px, content block 69->49px below the bar (mono group kicker added above the headline so the 150px proof band - sized by the Canvas groups demo, measured 150px - stops reading as dead air), proof cell framed with lg:border-l + pl-6 and column 320->336 to pay for it, paragraph cap max-w-xl->2xl, rail mt-8 gap-y-6 -> mt-6 gap-y-5. No proof clips at any width (per-feature inner-height scan 1440/1024). Gates: lint 0, tsc 0, unit+component 233 pass 0 fail, playwright marketing 15/15, build OK, changelog validate OK. Visual: 1440/1024/768/375 x dark+light. Pending: privacy bento redesign (T-156 layout) - user reviewing screenshots first."
+    proof: ["e20a91a"]
+    effort: {commits: 1, files: 2, insertions: 21, deletions: 12}
+  - start: "2026-10-15T12:53:33Z"
+    end: "2026-10-15T13:51:36Z"
+    measured: true
+    note: "Round 2 (commits e20a91a + 8f867fc): root-caused the rail padding - the chip rail sat outside the card so it took the container edge as its left edge (0 inset vs the body's 24; measured insetDelta -24 -> 0). Rail moved INSIDE .mk-panel as a footer band on the body's inset (border-t, same px-5 py-4 sm:px-6), section pb-16 -> pb-12, footer columns 1.5fr/1.25fr/1fr so every group holds <=2 rows (card 336 -> 304px). aria-live/data-mk-callout narrowed from the panel root to the body's copy so the 12 chips never announce (guard: callout contains no chip). Proof band 150 -> sm:112 with the Canvas groups demo tightened to 106 (py-2->py-1.5, rows py-1->py-0.5, gap-1.5->gap-1, maxHeight 110->84); below sm it keeps 150 because the 9 import chips wrap to 130px. Body p-5/p-6 -> px-5 py-4 + mono group kicker + max-w-2xl + framed proof column: body 241 -> 187px. Fluid 1680px container tried and REVERTED on request - gutters had shrunk from 168px to ~110 and the composition read unpadded; back to the original max-w-6xl. Gates: lint 0, tsc 0, unit+component 233 pass 0 fail, playwright marketing 15/15, build OK, changelog validate OK. Visual: 1440/1024/375 x dark+light, per-feature fit scan clip-free. SandboxDiagram deletion left in the working tree untouched (restored from HEAD before the container experiment)."
+    proof: ["8f867fc", "#421"]
+    effort: {commits: 1, files: 4, insertions: 69, deletions: 55}
+  spent_min: 100
+  session_count: 2
+- id: "T-160"
+  title: "Preview canvas: only the selected card's connection stays lit"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T15:53:19Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T15:54:03Z"
+    end: "2026-10-15T16:04:57Z"
+    measured: true
+    note: "Edge lit rule moved from 'touches the kept structure' to 'both ends on the active card's ancestor chain' (new previewPathIds in marketingPreview.ts); unit test pins the lit edge set (2 of 15), e2e counts lit edges after hover (2); lint/tsc/1811 unit + 233 component + build + 15 marketing e2e green"
+    proof: ["13f8b0d", "#421"]
+    effort: {commits: 1, files: 6, insertions: 93, deletions: 13}
+  spent_min: 11
+  session_count: 1
+- id: "T-161"
+  title: "Home copy pass: plain-language rotating hero (scroll-armed), full-height hero section, ten-feature rail in newcomer words"
+  status: "review"
+  type: "docs"
+  area: "ux"
+  tier: 2
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: null
+  pr: 421
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-15T16:38:55Z"
+  notes: []
+  sessions:
+  - start: "2026-10-15T16:40:02Z"
+    end: "2026-10-15T17:21:08Z"
+    measured: true
+    note: "Hero split into its own full-height screen with four scroll-armed rotating messages (HeroRotator + marketingHero copy module), catalogue rewritten to ten plain-language features with a new search proof, e2e repinned and extended, metadata/README/changelog updated. Gates: lint, tsc, bun test 233/233, build, playwright marketing 20/20."
+    proof: ["264b075"]
+    effort: {commits: 1, files: 15, insertions: 751, deletions: 316}
+  - start: "2026-10-15T17:51:46Z"
+    end: "2026-10-15T18:23:48Z"
+    measured: true
+    note: "Follow-up: Lenis eased scroll on the home page (native for touch + reduced motion), hero carousel starts on load instead of on first scroll, prev/next arrows with wrap, and a countdown bar in the active dot driven by HERO_ROTATE_MS via a re-keyed span. Gates: tsc, lint, bun test 233/233, build, playwright marketing 22/22."
+    proof: ["f161759"]
+    effort: {commits: 1, files: 10, insertions: 255, deletions: 86}
+  - start: "2026-10-15T18:59:23Z"
+    end: "2026-10-15T19:51:22Z"
+    measured: true
+    note: "Round 3: timer fills left-to-right and freezes with the clock (interval banks the remainder, bar uses animation-play-state, no re-key); hover/focus no longer gate the rotation (starts on load, stops only on pause/view/tab/reduced-motion); first scroll event that leaves the top glides to #features under the header, detected from scroll so every input method matches. Also diagnosed: a leftover next-server held :3000 so Playwright reused a stale build (killed it; fresh build verified by BUILD_ID mtime). Gates: tsc, lint, bun test 233/233, build, playwright marketing 23/23."
+    proof: ["98d4f60"]
+    effort: {commits: 1, files: 7, insertions: 198, deletions: 87}
+  spent_min: 125
+  session_count: 3

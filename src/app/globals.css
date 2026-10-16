@@ -620,7 +620,9 @@ html[data-shell] .react-flow__node > div {
   }
   .gm-edge-flow,
   .gm-node-fade-in,
-  .gm-progress-indeterminate {
+  .gm-progress-indeterminate,
+  .mk-edge-flow,
+  .mk-caret {
     animation: none !important;
   }
 }
@@ -775,3 +777,317 @@ html[data-shell] .react-flow__node > div {
   pointer-events: none;
   z-index: 0;
 }
+.gm-canvas-aurora-3 {
+  position: absolute;
+  top: 25%;
+  right: 12%;
+  width: 30%;
+  height: 40%;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.04;
+  background: radial-gradient(circle, rgba(255, 0, 255, 0.5), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Marketing home — motion tokens, canvas dot backdrop, reveal system (T-150) */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Entrance is expo-out; --ease-aurora (above) stays the exit curve and
+     --ease-pop reuses the handle curve so hover feedback feels native to the
+     app. Durations sit inside the design system's 150-300ms band. */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur: 200ms;
+  --dur-slow: 280ms;
+  /* The marketing header is py-3 around a 32px row (the logo is h-8, the sm
+     button is h-8), plus its 1px border. The hero subtracts it so the first
+     screen is the promise alone, and #features subtracts it again so the
+     nav's anchor jump cannot land the demo under the header. Move the
+     header's padding and this number has to move with it. */
+  --mk-header-h: 57px;
+  /* Same values as the canvas dot colour in use-canvas-theme-colors.ts. */
+  --marketing-dot: rgba(100, 116, 139, 0.2);
+  --marketing-dot-glow: rgba(71, 85, 105, 0.45);
+}
+.dark {
+  --marketing-dot: rgba(173, 181, 189, 0.18);
+  --marketing-dot-glow: rgba(226, 232, 240, 0.5);
+}
+
+/* Fixed backdrop behind the marketing home only. Mirrors the canvas
+   <Background variant="Dots" gap={24} size={1.5}> so the page reads as the
+   same surface as the app. Both layers are inert; only the glow layer ever
+   repaints, and only while the pointer is moving. */
+.mk-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.mk-dotgrid,
+.mk-dotglow {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--marketing-dot) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+/* Softer than the raw token — the un-veiled page reads too loud at full
+   alpha (T-150 follow-up). */
+.mk-dotgrid {
+  opacity: 0.6;
+}
+/* The glow layer is the same dots at a stronger colour, revealed through a
+   soft radial mask that lerps after the pointer (written as --mk-x/--mk-y by
+   DotGrid.tsx). A brightness() filter would whiten the light-mode dots, so
+   the stronger colour is a separate token. */
+.mk-dotglow {
+  background-image: radial-gradient(var(--marketing-dot-glow) 1.5px, transparent 1.5px);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-enter);
+  -webkit-mask-image: radial-gradient(
+    170px circle at var(--mk-x, -300px) var(--mk-y, -300px),
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    transparent 72%
+  );
+  mask-image: radial-gradient(
+    170px circle at var(--mk-x, -300px) var(--mk-y, -300px),
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    transparent 72%
+  );
+}
+.mk-dotglow[data-on="1"] {
+  opacity: 1;
+}
+
+/* ── Reveal on scroll ────────────────────────────────────────────────────────
+   Hidden until observed; the reduced-motion block below and the <noscript>
+   style in MarketingHome.tsx both force the resting state, so the page never
+   depends on JS to be readable. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(4px);
+}
+[data-reveal="1"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition:
+    opacity var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms),
+    transform var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms),
+    filter var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Lenis (home page only, see SmoothScroll.tsx): the four rules the library
+   needs. It drives the real window scroll, so nothing here changes what is
+   scrollable - only how a wheel or a trackpad reaches its target. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* The hero's five messages crossfade in place (T-161): one grid cell holds
+   them all, so a swap cannot move the buttons under it, and the cell is as
+   tall as the tallest message. The hidden ones are opacity-0 here and
+   aria-hidden in the markup, so exactly one message is on screen and one is
+   announced. The first message is simply there on first paint - no rise, no
+   blur, nothing to wait for; after that the only motion the hero asks for is
+   the crossfade its own clock pays for. */
+.mk-hero-slide {
+  transition:
+    opacity var(--dur-slow) var(--ease-enter),
+    transform var(--dur-slow) var(--ease-enter);
+}
+.mk-hero-slide[data-active="0"] {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.mk-hero-slide[data-active="1"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The timer inside the active hero dot: a bar that FILLS for exactly as long
+   as its message holds, so the end of the bar is the moment it changes - the
+   tip travels left to right, and the empty part is the time still left.
+   `--hero-hold` comes from HERO_ROTATE_MS in the markup, which is the same
+   constant the JS clock waits on. The span is re-keyed on every clock tick
+   (see HeroRotator), so a pause-and-resume restarts both together rather than
+   leaving a bar that ran while nothing was running. */
+@keyframes mk-hero-timer {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.mk-hero-timer {
+  transform-origin: left center;
+  animation: mk-hero-timer var(--hero-hold) linear forwards;
+}
+/* Nothing is timed under reduced motion: the rotation is parked, so the bar
+   would only be a moving thing nobody asked for. Hidden, not zeroed. */
+@media (prefers-reduced-motion: reduce) {
+  .mk-hero-timer {
+    display: none;
+  }
+}
+
+/* Demo edges march the way the canvas's animated edges do (2px, dashed 5 5).
+   prefers-reduced-motion stops the march and leaves the dashes, which is what
+   the app does too. The preview cards reuse the app's own .gm-node-hover and
+   .shadow-node-* utilities instead of a marketing-only hover. */
+.mk-edge-flow {
+  stroke-dasharray: 5 5;
+  animation: mk-edge-flow 1s linear infinite;
+}
+@keyframes mk-edge-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Blinking caret for the `tree` pane. */
+@keyframes mk-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+}
+.mk-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+  background: currentColor;
+  opacity: 0.7;
+  animation: mk-caret 1.1s steps(1, end) infinite;
+}
+
+/* ── Marketing hotspot playground (T-150 follow-up) ──────────────────────────── */
+
+/* Demo cards brighten or quiet as the active hotspot changes. Restated here
+   because .gm-node-hover already owns box-shadow/filter for the hover lift, and
+   a second `transition` on the same element would replace it instead of adding
+   to it. Only the preview cards carry [data-mk-node]. */
+[data-mk-node] {
+  transition:
+    opacity var(--dur) var(--ease-enter),
+    filter var(--dur) var(--ease-enter),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mk-node-dim {
+  /* Light theme needs more presence than dark at the same opacity: a dimmed
+     card on near-white reads as deleted, not as quiet. Non-active leaves sit
+     slightly deeper than before (T-158) so the kept structure reads as depth,
+     not as a second subject. */
+  opacity: 0.32;
+  filter: saturate(0.3);
+}
+.dark .mk-node-dim {
+  opacity: 0.2;
+}
+/* Outline, not box-shadow: the cards' own .shadow-node-* shadows own box-shadow,
+   and the canvas uses the same outline trick (.gm-highlight-ring) for the same
+   reason. */
+.mk-node-active,
+.mk-node-active:hover {
+  outline: 2px solid var(--mk-accent, var(--fewer-folder-icon));
+  outline-offset: 2px;
+}
+/* The root is the one folder that never dims (T-154) and reads as the graph's
+   anchor (T-158): a faint accent-tinted halo, deliberately lighter than the
+   active ring so the two never compete. Outline only - the card's own
+   shadow-node-* owns box-shadow. */
+.mk-node-root,
+.mk-node-root:hover {
+  outline: 1px solid color-mix(in srgb, var(--fewer-folder-icon) 45%, transparent);
+  outline-offset: 1px;
+}
+/* The active card's connectable dots breathe the same accent the ring marks.
+   The global reduced-motion rule parks this exactly as it parks the marching
+   edges - one resting state, not a second animation policy. */
+@keyframes mk-port-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mk-accent, var(--fewer-folder-icon)) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.mk-node-active .mk-handle {
+  animation: mk-port-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The hero canvas wears the app window's own clothes (T-158): a frosted
+   chassis with a title bar, an inner top highlight, and a deep shadow tinted
+   by the chosen accent - the accent that recolours the cards also lights the
+   air under the window. */
+.mk-chassis {
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 24px 60px -28px color-mix(in srgb, var(--mk-accent, var(--primary)) 45%, transparent),
+    0 16px 40px -24px rgb(0 0 0 / 0.45);
+}
+.mk-chassis-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 65%, transparent);
+}
+
+/* App furniture on the marketing page: the panel chrome the product's dialogs
+   and side panels carry (border, translucent surface, title bar with the grip
+   handle). The point is that the canvas controls and the feature inspector
+   read as parts of the app rather than as page UI wrapped around a screenshot. */
+.mk-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 32px -16px rgb(0 0 0 / 0.35);
+}
+.mk-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
