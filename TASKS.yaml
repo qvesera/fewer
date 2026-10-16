@@ -4515,7 +4515,7 @@ tasks:
   session_count: 3
 - id: "T-163"
   title: "Collapsed group pill ignores layout direction (always anchors top-left as if TB)"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "layout"
   tier: 0
@@ -4528,17 +4528,17 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#426"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T12:37:11Z"
   notes: ["2026-10-16T12:37:11Z · groupPill anchors top-left unconditionally (groups.ts); thread scope.direction through GroupFrames, groupFrameRects and selectionBounds; BT/RL anchor at the far corner"]
   sessions:
   - start: "2026-10-16T12:37:32Z"
-    end: null
+    end: "2026-10-16T12:46:09Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "groupPill takes a layout direction and anchors the collapsed pill at the flow-start corner (BT below, RL right of the cluster; TB/LR unchanged); direction threaded through GroupFrames scope + groupFrameRects + selectionBounds (zoom-to-selection). Gates: lint 0, tsc 0, src 1819 + electron 12 + components 233 green, build ok, groups e2e 15/15."
+    proof: ["2fa90e6"]
+    effort: {commits: 1, files: 10, insertions: 109, deletions: 15}
+  spent_min: 9
   session_count: 1
