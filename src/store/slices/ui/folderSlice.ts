@@ -197,7 +197,14 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
       const filesBulkExempt = layers.filesBulkActive
         ? [...new Set([...layers.filesBulkExempt, ...fileIdSet(s, descendants)])]
         : layers.filesBulkExempt;
-      withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, subtrees, filesBulkExempt } });
+      // Show Children must also win over per-node individual hides within this
+      // folder: hiding individual file cards writes to `individual` (not
+      // `subtrees[folderId]`), so without releasing the folder's descendants from
+      // there the cards stay hidden even though the context menu offered to show
+      // them (it reads the effective hidden set, which includes `individual`).
+      const descendantSet = new Set(descendants);
+      const individual = layers.individual.filter((id) => !descendantSet.has(id));
+      withLeaf(set, get, leafId, { ...leaf, hideLayers: { ...layers, subtrees, individual, filesBulkExempt } });
     }
     // Files may also be hidden GLOBALLY (no leaf, or a leaf seeded from a global
     // "Show Files" off state) — the folder's hidden descendants live in hiddenIds,

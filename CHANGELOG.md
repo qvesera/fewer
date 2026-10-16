@@ -197,6 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - On the home page, re-flowing the demo canvas or scrolling it no longer switches the feature card to whatever chip or card slid underneath the pointer: a hover only counts as the reader's choice when the pointer actually moved
 - Home demo canvas: a hover that lands on a folder card no longer leaves the hover authorisation armed, so a layout shift under the parked pointer cannot activate an unrelated feature; the feature-card e2e approaches the folder from off the cards (a swept pointer activates what it crosses)
 - Home demo canvas: only the connections on the active card's own path (root -> its group -> the ringed card) stay lit once the reader engages, instead of every connection a kept folder owns - the group folder no longer fans out all six of its edges at once
+- Show Children on a folder now restores file cards you hid individually (previously the toast reported them restored but they stayed hidden, because individually-hidden cards live in the per-leaf individual hide layer that Show Children never cleared).
 
 ### Added
 

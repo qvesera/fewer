@@ -220,6 +220,20 @@ describe("folderSlice (per-leaf hide layers)", () => {
     expect(s().hiddenIds).toContain("sibling");
   });
 
+  it("showSubtreeForLeaf releases individually-hidden descendants of the folder", () => {
+    // Hide individual file cards of the folder (writes to `individual`, not
+    // `subtrees[folderId]`) — the regression case where the toast fired but the
+    // cards stayed hidden.
+    s().hideForLeaf("leaf1", ["inner1", "inner2"]);
+    expect(s().viewSettings["leaf1"].hideLayers!.individual).toEqual(expect.arrayContaining(["inner1", "inner2"]));
+    s().showSubtreeForLeaf("leaf1", "outer");
+    const layers = s().viewSettings["leaf1"].hideLayers!;
+    expect(layers.individual).not.toContain("inner1");
+    expect(layers.individual).not.toContain("inner2");
+    // The parent folder's own hide state is untouched — only its descendants are released.
+    expect(layers.individual).not.toContain("outer");
+  });
+
   it("setFilesBulkForLeaf toggles bulk layer; revealAllForLeaf clears all", () => {
     s().setFilesBulkForLeaf("leaf1", true);
     expect(s().viewSettings["leaf1"].hideLayers!.filesBulkActive).toBe(true);
