@@ -98,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page feature rail is rewritten in plain language for a first-time reader and trimmed from twelve features to ten, grouped as See your files, Shape it and Keep & share: Search everything (including files still inside a zip) and Save & share (sign in to reopen graphs on another device) are new, Batch actions and Wildcard rename merge into Batch edit, and export and tags move off the rail so the 8-format and Pro-tag claims now live in the README and the page metadata
 - Home page title and meta description are rewritten for a newcomer: the promise is what the folder does for you, and the phrase "interactive graph" stays in the description, the demo section's lead-in and the docs rather than in the hero
 - The home page scrolls with Lenis (smooth wheel and trackpad easing on the marketing pages only, native for touch and under prefers-reduced-motion), the hero carousel starts its clock on load instead of waiting for a scroll, and the first scroll takes the reader straight to the feature playground, and its controls gained prev/next arrows plus a timer bar inside the active dot that fills over the same 15 seconds the message holds and freezes with the clock
+- Group collapse is now per-view state, mirroring folded folders: collapsing hides the cards only in that view (other panel views keep the frame), Ctrl+Z no longer reverses a collapse (the other group actions still are undoable), and saved .fwr documents no longer carry the collapse flag — a document saved before this loads with every group expanded. A collapsed child group also survives its parent expanding
 
 ### Fixed
 
@@ -198,6 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Home demo canvas: a hover that lands on a folder card no longer leaves the hover authorisation armed, so a layout shift under the parked pointer cannot activate an unrelated feature; the feature-card e2e approaches the folder from off the cards (a swept pointer activates what it crosses)
 - Home demo canvas: only the connections on the active card's own path (root -> its group -> the ringed card) stay lit once the reader engages, instead of every connection a kept folder owns - the group folder no longer fans out all six of its edges at once
 - Collapsed group pill follows the layout direction: it anchors at the flow-start corner of the cluster (below the cluster for bottom-to-top, past its right edge for right-to-left) instead of always top-left, on the canvas and in zoom-to-selection
+- Revealing cards that a collapsed group was hiding now expands the group instead of leaving the pill over live cards — or silently doing nothing. Every reveal path opens the groups whose subtrees it touches: Reveal All and Shift+H, the Hidden Cards panel eye and per-row reveals, Show Children, single-card reveals and search reveals
 
 ### Added
 

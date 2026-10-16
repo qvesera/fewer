@@ -139,13 +139,17 @@ exactly as they did before.
   picker: drag the picker or type a hex value, and **Reset to default** returns
   to slate. The border, fill and header tint to match, the colour saves with the
   graph, and one drag is a single undo step. **Done** or **Escape** closes it.
-- **Collapse**: the chevron hides the group's cards and shrinks the frame to a
-  pill where the cluster was; expanding brings the cards back, except any you
-  hid yourself.
+- **Collapse**: the chevron hides the group's cards **in this view** and shrinks
+  the frame to a pill where the cluster was; expanding brings the cards back,
+  except any you hid yourself. Collapse is per-view state — other panel views
+  keep showing the frame — and, like a folded folder, it is not an undo step.
 - **The frame follows visibility**: the box hugs the cards the canvas actually
   shows, and its count reads **3 of 5 members** when some are hidden. Hide every
   member and the frame disappears with them (a collapsed group always keeps its
-  pill); **Show All** or the Hidden Cards panel brings everything back at once.
+  pill); **Show All**, the Hidden Cards panel or **Shift+H** brings everything
+  back at once — and any reveal that returns a collapsed group's cards (the
+  panel's eye, **Show Children**, a single card) expands that group in this
+  view, so a pill never sits over live cards.
 - **Select & move**: click the title bar to select the frame (it rings, and
   **each member card gets its own ring**, so you always see which cards belong
   to it; card selection clears; the two are mutually exclusive). Shift+click
@@ -175,8 +179,9 @@ card beneath it: its children's frames disappear with it, so no orphan pills
 are left behind. Ungrouping a parent re-homes its children rather than deleting
 them.
 
-Every group action is a single undo step: **Ctrl+Z** reverses a collapse (frame
-re-opens, cards reappear) or a delete.
+Every group action is a single undo step — rename, note, colour, membership,
+**Ungroup**, delete: **Ctrl+Z** reverses it. Collapse is the exception: it is
+per-view state, like a folded folder, so it is not recorded and not undone.
 
 ## Undo / Redo
 
