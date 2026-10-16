@@ -4632,14 +4632,20 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-16T17:50:31Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-16T18:38:43Z"
+    end: "2026-10-16T19:08:27Z"
+    measured: true
+    note: "Reveal invariant: groupsOpenedByReveal (pure) + revealLeafId/openedCollapsedGroupsForLeaf/withCollapsedGroupIds seam helpers; every reveal path opens the groups whose subtrees it touches (showNode/showAncestors/showSubtree(s)/commitShow/showAll in visibilitySlice, revealInView/eyeRevealForLeaf/showSubtreeForLeaf), Reveal All opens every collapsed group in the TARGET view only, ⇧H fires showAll even when only collapse hides (shiftHOutcome counts those members for the toast). Gates: tsc 0, lint 0, bun run test 1839+12+233, groups e2e 16/16 incl. new ⇧H test."
+    proof: ["435944d"]
+    effort: {commits: 1, files: 10, insertions: 383, deletions: 26}
+  spent_min: 30
+  session_count: 1
 - id: "T-168"
   title: "Docs + changelog for per-view group collapse and reveal-expands behavior"
   status: "triaged"
