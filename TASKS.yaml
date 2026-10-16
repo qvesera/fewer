@@ -4544,14 +4544,14 @@ tasks:
   session_count: 1
 - id: "T-164"
   title: "Per-leaf group collapse: view state, effective-hidden resolution, persistence"
-  status: "triaged"
+  status: "review"
   type: "refactor"
   area: "layout"
   tier: 0
   estimate_min: 180
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 427
   internal: true
   milestone: null
   blocked_by: []
@@ -4619,14 +4619,14 @@ tasks:
   session_count: 0
 - id: "T-167"
   title: "Revealing a collapsed group's cards expands the group (per-view reveal invariant)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "visibility"
   tier: 0
   estimate_min: 240
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 427
   internal: true
   milestone: null
   blocked_by: []
@@ -4648,14 +4648,14 @@ tasks:
   session_count: 1
 - id: "T-168"
   title: "Docs + changelog for per-view group collapse and reveal-expands behavior"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "docs"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 427
   internal: true
   milestone: null
   blocked_by: []
