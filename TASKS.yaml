@@ -4706,14 +4706,14 @@ tasks:
   session_count: 1
 - id: "T-169"
   title: "Revealing one card of a collapsed group must not reveal its siblings (park them per-view)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "visibility"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 427
   internal: true
   milestone: null
   blocked_by: []
