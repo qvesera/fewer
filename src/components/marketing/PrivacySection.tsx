@@ -21,16 +21,23 @@ import { Reveal } from "./Reveal";
  * close it as a band. Every card takes the same inset so one left edge and
  * one right edge come out of the bento, never a ragged one.
  *
- * The cards say everything at once. Three passes at making the claim a
- * hover-revealed thing were tried and each cost more than it bought: growing
- * the card re-centred the whole band (the bento is centred against its
- * heading, so any growth moved the heading column too), a floating panel
- * covered the card below it, and fading the claim out left every card half
- * empty behind its title. So the claim sits under its kicker at rest, and the
- * bento is scaled up instead - a 6-unit inset, 16px claims, 11px kickers and
- * a display word one step larger - so a card reads as a statement rather than
- * a label waiting for a pointer. The only hover affordance left is the border
- * brightening, which costs nothing and hides nothing.
+ * Each tile is two states of one fixed box. At rest the TITLE - kicker and,
+ * on the display card, its word - is out of the flow and centred, set one
+ * size up, alone in the card. Engaged (hovered, or focused from the
+ * keyboard), it slides to the top, steps down to its markup size, and the
+ * claim fades in underneath it where the card reserved its slot. Nothing is
+ * ever sized by the reveal: the claim keeps its space in the layout in both
+ * states, so the bento's height - and, it being centred against its heading,
+ * the whole band - cannot move. All of it runs on one timing
+ * (--mk-reveal-dur over the house --ease-aurora curve), so the slide, the
+ * step-down and the fade land together.
+ *
+ * That state machine lives inside @media (hover: hover) in globals.css,
+ * never in the markup: a touch screen has no pointer to leave, so there the
+ * title sits at the top and the claim is visible from the start, and
+ * crawlers and screen readers get the copy either way. The hero claim and the
+ * stat band are never withheld - they are the section's lead sentence and its
+ * values, not tiles.
  *
  * The schematic the hero card used to carry is gone: it repeated the sentence
  * beside it and read as clip art, and so is the one-line mono strip that
@@ -73,7 +80,7 @@ function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode })
       >
         {icon}
       </span>
-      <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+      <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
         {children}
       </span>
     </div>
@@ -84,8 +91,48 @@ function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode })
 const CARD =
   "rounded-xl border border-border/60 bg-card/50 p-6 text-left transition-colors duration-200 hover:border-border";
 
-/** A claim sits under its kicker at the same scale on every card. */
-const CLAIM = "mt-4 text-base leading-relaxed text-foreground/90";
+/** A claim sits under its title's reserved slot, at one scale everywhere. */
+const CLAIM = "text-base leading-relaxed text-foreground/90";
+
+/**
+ * A claim card: the title is absolutely placed (centred at rest, at the top
+ * when engaged) and the claim, in flow, is what gives the card its height -
+ * so the card is the same size in both states.
+ */
+function ClaimCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <li
+      data-mk-privacy-card
+      tabIndex={0}
+      className={`mk-claim-card relative ${CARD} ${className}`}
+    >
+      {children}
+    </li>
+  );
+}
+
+/** A tile's title: kicker (and display word) as one block the reveal moves. */
+function TileTitle({ children }: { children: ReactNode }) {
+  return <div className="mk-tile-title">{children}</div>;
+}
+
+/**
+ * A tile's claim: always in the layout - its padding is the slot the title
+ * tops out into - and only ever faded by the reveal, never moved.
+ */
+function Claim({ children }: { children: ReactNode }) {
+  return (
+    <p data-mk-privacy-claim className={`mk-claim ${CLAIM}`}>
+      {children}
+    </p>
+  );
+}
 
 export function PrivacySection() {
   return (
@@ -137,38 +184,48 @@ export function PrivacySection() {
               </div>
             </li>
 
-            <li data-mk-privacy-card className={CARD}>
-              <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
-                Account required
-              </span>
-              <p className="mt-1 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-                ZERO
-              </p>
-              <p data-mk-privacy-claim className={CLAIM}>{ACCOUNT}</p>
-            </li>
+            <ClaimCard className="mk-claim-card--display">
+              <TileTitle>
+                <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Account required
+                </span>
+                <p className="mk-tile-display mt-1 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+                  ZERO
+                </p>
+              </TileTitle>
+              <Claim>{ACCOUNT}</Claim>
+            </ClaimCard>
 
-            <li data-mk-privacy-card className={CARD}>
-              <CardLabel icon={<Cloud className="h-4 w-4" />}>Cloud connections</CardLabel>
-              <p data-mk-privacy-claim className={CLAIM}>{CLOUD}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<Cloud className="h-4 w-4" />}>Cloud connections</CardLabel>
+              </TileTitle>
+              <Claim>{CLOUD}</Claim>
+            </ClaimCard>
 
-            <li data-mk-privacy-card className={CARD}>
-              <CardLabel icon={<Ban className="h-4 w-4" />}>Trackers, ads, telemetry</CardLabel>
-              <p data-mk-privacy-claim className={CLAIM}>{TRACKERS}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<Ban className="h-4 w-4" />}>Trackers, ads, telemetry</CardLabel>
+              </TileTitle>
+              <Claim>{TRACKERS}</Claim>
+            </ClaimCard>
 
-            <li data-mk-privacy-card className={CARD}>
-              <CardLabel icon={<BellRing className="h-4 w-4" />}>Watch digests</CardLabel>
-              <p data-mk-privacy-claim className={CLAIM}>{DIGESTS}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<BellRing className="h-4 w-4" />}>Watch digests</CardLabel>
+              </TileTitle>
+              <Claim>{DIGESTS}</Claim>
+            </ClaimCard>
 
             {/* The shortest statement spans both columns: a footnote strip is
                 what a hosting-log line reads as - a half-width card would
                 leave a hole beside it. */}
-            <li data-mk-privacy-card className={`${CARD} sm:col-span-2`}>
-              <CardLabel icon={<ScrollText className="h-4 w-4" />}>Server logs</CardLabel>
-              <p data-mk-privacy-claim className={CLAIM}>{LOGS}</p>
-            </li>
+            <ClaimCard className="sm:col-span-2">
+              <TileTitle>
+                <CardLabel icon={<ScrollText className="h-4 w-4" />}>Server logs</CardLabel>
+              </TileTitle>
+              <Claim>{LOGS}</Claim>
+            </ClaimCard>
           </ul>
 
           {/* The short version, in mono: each badge is a claim the page

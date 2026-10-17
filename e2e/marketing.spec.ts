@@ -583,13 +583,57 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     .first()
     .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(heroSize).toBeGreaterThan(cardSize);
-  // The statements are trust copy: present word for word, never paraphrased,
-  // and on the card at rest. Three passes at a hover-revealed claim (grow in
-  // place, a floating panel, a fade under a centred title) each either moved
-  // the band or hid the copy behind a pointer, so the cards say everything:
-  // five claim tiles, each with its sentence already on it.
-  await expect(page.locator("[data-mk-privacy-card]")).toHaveCount(5);
-  await expect(page.locator("[data-mk-privacy-claim]")).toHaveCount(5);
+  // The statements are trust copy: present word for word, never paraphrased -
+  // and withheld from view until the tile is engaged (hovered, or focused from
+  // the keyboard), which is the design: the title alone at rest, centred and
+  // one size up; engaged, it tops out, steps down and the claim fades in
+  // beneath it, all on one timing. Where there is no hover to spend (touch)
+  // the claim is visible from the start, so @media (hover: hover) owns the
+  // hiding and the markup never hides copy. Pin all of it: five tiles, five
+  // claims, closed at rest, open on hover and on focus, and the card's own
+  // height identical in both states - the title's slot is reserved, so the
+  // band, centred against its heading, cannot move.
+  const tiles = page.locator("[data-mk-privacy-card]");
+  await expect(tiles).toHaveCount(5);
+  const tileClaims = page.locator("[data-mk-privacy-claim]");
+  await expect(tileClaims).toHaveCount(5);
+  await expect(tileClaims.first()).toHaveCSS("opacity", "0");
+  const titleShape = (i: number) =>
+    tiles.nth(i).evaluate((el) => {
+      const t = el.querySelector(".mk-tile-title")!;
+      const kicker = t.querySelector(".mk-tile-kicker")!;
+      const cs = getComputedStyle(el);
+      const edge = parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
+      const c = el.getBoundingClientRect();
+      const r = t.getBoundingClientRect();
+      return {
+        centre: (r.top + r.height / 2) - (c.top + c.height / 2),
+        topPad: r.top - c.top - edge,
+        cardH: c.height,
+        kickerFs: parseFloat(getComputedStyle(kicker).fontSize),
+      };
+    });
+  const atRest = await titleShape(0);
+  expect(Math.abs(atRest.centre)).toBeLessThanOrEqual(1);
+  await tiles.first().hover();
+  await expect(tileClaims.first()).toHaveCSS("opacity", "1");
+  // The reveal runs on one longer curve (400ms), so the shape is polled: the
+  // end state, not a frame of the transition, is what the pin is about.
+  await expect
+    .poll(async () => Math.abs((await titleShape(0)).topPad))
+    .toBeLessThanOrEqual(1);
+  await expect
+    .poll(async () => (await titleShape(0)).kickerFs)
+    .toBeLessThan(atRest.kickerFs);
+  const hovered = await titleShape(0);
+  expect(Math.round(hovered.cardH)).toBe(Math.round(atRest.cardH));
+  await tiles.nth(1).focus();
+  await expect(tileClaims.nth(1)).toHaveCSS("opacity", "1");
+  await expect
+    .poll(async () => Math.abs((await titleShape(1)).topPad))
+    .toBeLessThanOrEqual(1);
+  const focused = await titleShape(1);
+  expect(Math.round(focused.cardH)).toBe(Math.round(atRest.cardH));
 
   for (const statement of [
     "Runs locally in your browser, so your directory contents stay on your device by default.",
@@ -599,7 +643,16 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     "Watch digests are opt-in; we only store the public URLs you add and email changes you requested.",
     "Hosting operates on standard server logs only.",
   ]) {
-    await expect(page.getByText(statement, { exact: true })).toBeVisible();
+    const line = page.getByText(statement, { exact: true });
+    // The hero claim is always on; every tile claim is one hover away, so
+    // read it back from the tile itself the way a reader does.
+    const tile = line.locator("xpath=ancestor::li[@data-mk-privacy-card]");
+    if ((await tile.count()) > 0) {
+      await tile.hover();
+      await expect(line).toHaveCSS("opacity", "1");
+    } else {
+      await expect(line).toBeVisible();
+    }
   }
   // The short version: three mono stat badges.
   await expect(page.locator("[data-mk-privacy-stat]")).toHaveCount(3);
