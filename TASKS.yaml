@@ -4544,7 +4544,7 @@ tasks:
   session_count: 1
 - id: "T-170"
   title: "Home privacy bento: claim cards show title only, claim revealed on hover"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4575,8 +4575,14 @@ tasks:
     note: "Follow-up session (review feedback: the floating panel was not liked, and the grow-in-place before it was jarring): the claim is back in the layout at all times and only opacity is toggled inside @media (hover: hover), so nothing moves - pinned by the bento-shape e2e (height + gap to the stat band). Tiles now carry flex justify-center so a card centres its stack: the cloud card used to strand its title at the top next to the taller ZERO card. The panel chrome, absolute positioning, z-index, pointer-events and the e2e blur/mouse-move workarounds are all gone; the statement loop now pins opacity 1 after each tile hover instead of visibility. Gates: tsc 0, lint 0, bun run test 0 fail, marketing e2e 23/23 on a fresh prod build, changelog validate OK; dark-theme screenshots checked at 1440 (rest + hover)."
     proof: ["b4ff325"]
     effort: {commits: 1, files: 4, insertions: 46, deletions: 65}
-  spent_min: 54
-  session_count: 2
+  - start: "2026-10-17T08:48:17Z"
+    end: "2026-10-17T19:47:51Z"
+    measured: true
+    note: "Third pass, and the reveal loses: grow-in-place re-centred the band, the floating panel covered the card below, the centred-title fade left every card half empty - so the claim now sits under its kicker at rest, always, and the bento is scaled up into the room that frees (p-6 inset, 16px claims, 11px kickers on an h-8 chip, text-4xl/5xl display word, bigger stat badges). Kicker tracking 0.18em -> 0.1em so Trackers/ads/telemetry holds one line at 11px in the xl split (measured 194px in the 205px it has). All mk-claim/mk-tile CSS deleted; e2e keeps the five-tile/five-claim pins and reads all six statements back at rest. Gates: tsc 0, lint 0, bun run test 0 fail, marketing e2e 23/23 on a fresh prod build (the first-scroll test flaked once in a full run and passed on re-run - the known timing flake, CI retries it), changelog validate OK; dark-theme screenshots at 700 and 1440 checked against the mock."
+    proof: ["6137624"]
+    effort: {commits: 1, files: 4, insertions: 56, deletions: 142}
+  spent_min: 714
+  session_count: 3
 - id: "T-171"
   title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
   status: "review"
