@@ -867,27 +867,6 @@ html[data-shell] .react-flow__node > div {
   opacity: 1;
 }
 
-/* ── Privacy claim tiles (T-170) ──────────────────────────────────────────────
-   The bento's tiles carry their claim in the layout at all times and fade it
-   in while the tile is engaged - hovered or focused from the keyboard. The
-   space is reserved rather than animated: a grid row is as tall as its tallest
-   card, so anything that grew on hover grew the row, and the bento (centred
-   against its heading) grew with it. Only opacity moves. The fade is what
-   hides the claim, never the markup: @media (hover: hover) owns it, so where
-   there is no hover to spend (a touch screen, a no-JS reader) the claim is
-   visible from the start, and the global reduced-motion rule makes the swap
-   instant. */
-@media (hover: hover) {
-  .mk-claim {
-    opacity: 0;
-    transition: opacity var(--dur) var(--ease-enter);
-  }
-  .mk-claim-card:hover .mk-claim,
-  .mk-claim-card:focus-within .mk-claim {
-    opacity: 1;
-  }
-}
-
 /* ── Reveal on scroll ────────────────────────────────────────────────────────
    Hidden until observed; the reduced-motion block below and the <noscript>
    style in MarketingHome.tsx both force the resting state, so the page never

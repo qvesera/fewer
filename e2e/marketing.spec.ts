@@ -583,39 +583,13 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     .first()
     .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(heroSize).toBeGreaterThan(cardSize);
-  // The statements are trust copy: present word for word, never paraphrased.
-  // The tiles fade their claim in when they are engaged - hovered, or focused
-  // from the keyboard - and where there is no hover to spend (touch) the claim
-  // is visible from the start, so @media (hover: hover) owns the fade and the
-  // markup never hides copy. Pin all four halves: five tiles start faded, hover
-  // and focus each light their own claim, and lighting one moves the bento by
-  // not a pixel - its space is reserved, and the bento is centred against its
-  // heading, so a single pixel of growth there would jump the whole band.
-  // Measured as the bento's own height and its gap to the stat band: the
-  // Reveal entrance is a transform on the block that holds both, so every rect
-  // it moves moves by the same amount - a difference there would be layout.
-  const tiles = page.locator("[data-mk-privacy-card]");
-  await expect(tiles).toHaveCount(5);
-  const tileClaims = page.locator("[data-mk-privacy-claim]");
-  await expect(tileClaims).toHaveCount(5);
-  await expect(tileClaims.first()).toHaveCSS("opacity", "0");
-  const bentoShape = () =>
-    page.evaluate(() => {
-      const ul = document.querySelector("[data-mk-privacy-hero]")!.parentElement!;
-      const stat = document.querySelector("[data-mk-privacy-stat]")!;
-      const u = ul.getBoundingClientRect();
-      return {
-        height: Math.round(u.height),
-        gap: Math.round(stat.getBoundingClientRect().top - u.bottom),
-      };
-    });
-  const before = await bentoShape();
-  await tiles.first().hover();
-  await expect(tileClaims.first()).toHaveCSS("opacity", "1");
-  await tiles.nth(1).focus();
-  await expect(tileClaims.nth(1)).toHaveCSS("opacity", "1");
-  const after = await bentoShape();
-  expect(after).toEqual(before);
+  // The statements are trust copy: present word for word, never paraphrased,
+  // and on the card at rest. Three passes at a hover-revealed claim (grow in
+  // place, a floating panel, a fade under a centred title) each either moved
+  // the band or hid the copy behind a pointer, so the cards say everything:
+  // five claim tiles, each with its sentence already on it.
+  await expect(page.locator("[data-mk-privacy-card]")).toHaveCount(5);
+  await expect(page.locator("[data-mk-privacy-claim]")).toHaveCount(5);
 
   for (const statement of [
     "Runs locally in your browser, so your directory contents stay on your device by default.",
@@ -625,16 +599,7 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     "Watch digests are opt-in; we only store the public URLs you add and email changes you requested.",
     "Hosting operates on standard server logs only.",
   ]) {
-    const line = page.getByText(statement, { exact: true });
-    // The hero claim is always on; every tile claim is one hover away, so
-    // read it back from the tile itself the way a reader does.
-    const tile = line.locator("xpath=ancestor::li[@data-mk-privacy-card]");
-    if ((await tile.count()) > 0) {
-      await tile.hover();
-      await expect(line).toHaveCSS("opacity", "1");
-    } else {
-      await expect(line).toBeVisible();
-    }
+    await expect(page.getByText(statement, { exact: true })).toBeVisible();
   }
   // The short version: three mono stat badges.
   await expect(page.locator("[data-mk-privacy-stat]")).toHaveCount(3);
