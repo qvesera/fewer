@@ -584,16 +584,16 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(heroSize).toBeGreaterThan(cardSize);
   // The statements are trust copy: present word for word, never paraphrased.
-  // The tiles only spend their claim when they are engaged - hovered, or
-  // focused from the keyboard - and where there is no hover to spend (touch)
-  // the panel sits in its flow with the claim, so @media (hover: hover) owns
-  // the open state and the markup never hides copy. Pin all four halves: five
-  // tiles start closed, hover and focus each open their own panel, and opening
-  // one moves the bento by not a pixel (it is centred against its heading, so
-  // a single pixel of growth there would jump the whole band). Measured as the
-  // bento's own height and its gap to the stat band: the Reveal entrance is a
-  // transform on the block that holds both, so every rect it moves moves by
-  // the same amount - a difference there would be layout, nothing else.
+  // The tiles fade their claim in when they are engaged - hovered, or focused
+  // from the keyboard - and where there is no hover to spend (touch) the claim
+  // is visible from the start, so @media (hover: hover) owns the fade and the
+  // markup never hides copy. Pin all four halves: five tiles start faded, hover
+  // and focus each light their own claim, and lighting one moves the bento by
+  // not a pixel - its space is reserved, and the bento is centred against its
+  // heading, so a single pixel of growth there would jump the whole band.
+  // Measured as the bento's own height and its gap to the stat band: the
+  // Reveal entrance is a transform on the block that holds both, so every rect
+  // it moves moves by the same amount - a difference there would be layout.
   const tiles = page.locator("[data-mk-privacy-card]");
   await expect(tiles).toHaveCount(5);
   const tileClaims = page.locator("[data-mk-privacy-claim]");
@@ -614,10 +614,6 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   await expect(tileClaims.first()).toHaveCSS("opacity", "1");
   await tiles.nth(1).focus();
   await expect(tileClaims.nth(1)).toHaveCSS("opacity", "1");
-  // A focused tile holds its panel open (that is the keyboard reveal), and the
-  // panel covers the tile below it - so drop focus before walking the tiles
-  // with the pointer, the way a reader arrives by mouse.
-  await tiles.nth(1).blur();
   const after = await bentoShape();
   expect(after).toEqual(before);
 
@@ -631,16 +627,14 @@ test("privacy and open source sections are on the page", async ({ page }) => {
   ]) {
     const line = page.getByText(statement, { exact: true });
     // The hero claim is always on; every tile claim is one hover away, so
-    // read it back from the tile itself the way a reader does. Clear the
-    // pointer first: an open panel covers the tile below it, and a teleport
-    // onto a covered tile is reported as an intercepted hover (a reader's
-    // pointer simply un-hovers the tile above on the way over).
+    // read it back from the tile itself the way a reader does.
     const tile = line.locator("xpath=ancestor::li[@data-mk-privacy-card]");
     if ((await tile.count()) > 0) {
-      await page.mouse.move(0, 0);
       await tile.hover();
+      await expect(line).toHaveCSS("opacity", "1");
+    } else {
+      await expect(line).toBeVisible();
     }
-    await expect(line).toBeVisible();
   }
   // The short version: three mono stat badges.
   await expect(page.locator("[data-mk-privacy-stat]")).toHaveCount(3);

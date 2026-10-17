@@ -21,16 +21,18 @@ import { Reveal } from "./Reveal";
  * close it as a band. Every card takes the same inset so one left edge and
  * one right edge come out of the bento, never a ragged one.
  *
- * Every claim tile carries only its title until it is engaged - hovered, or
- * focused from the keyboard - so six sentences read as a legend of promises,
- * and the claim a tile names then opens as a panel that FLOATS under it: the
- * tile grid keeps its heights, so neither the bento nor the centred heading
- * beside it ever moves. The open/closed rule lives inside @media (hover:
- * hover) in globals.css, never in the markup: a touch screen has no pointer
- * to leave, so there the panel sits in the flow and the claim is visible from
- * the start, and crawlers and screen readers get the copy either way. The
- * hero claim and the stat band are never collapsed - they are the section's
- * lead sentence and its values, not tiles.
+ * Every claim tile carries its claim in the layout and fades it in when the
+ * tile is engaged - hovered, or focused from the keyboard - so the bento
+ * never changes height: a grid row is as tall as its tallest card, and the
+ * whole band is centred against its heading, so any growth re-centred it.
+ * The space a claim keeps is also why each tile centres its stack
+ * (flex justify-center): a short claim's card would otherwise strand its
+ * title at the top beside a taller neighbour. The fade lives inside
+ * @media (hover: hover) in globals.css, never in the markup: a touch screen
+ * has no pointer to leave, so there the claim is visible from the start, and
+ * crawlers and screen readers get the copy either way. The hero claim and the
+ * stat band are never faded - they are the section's lead sentence and its
+ * values, not tiles.
  *
  * The schematic the hero card used to carry is gone: it repeated the sentence
  * beside it and read as clip art, and so is the one-line mono strip that
@@ -82,7 +84,7 @@ function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode })
 
 const CLAIM = "text-sm leading-relaxed text-foreground/90";
 
-/** A bento tile: its title is always on, its claim floats below on hover. */
+/** A bento tile: its claim is always in the layout, faded in on hover. */
 function ClaimCard({
   children,
   className = "",
@@ -94,7 +96,7 @@ function ClaimCard({
     <li
       data-mk-privacy-card
       tabIndex={0}
-      className={`mk-claim-card relative rounded-xl border border-border/60 bg-card/50 p-5 text-left transition-colors duration-200 hover:border-border ${className}`}
+      className={`mk-claim-card flex flex-col justify-center rounded-xl border border-border/60 bg-card/50 p-5 text-left transition-colors duration-200 hover:border-border ${className}`}
     >
       {children}
     </li>
@@ -102,17 +104,16 @@ function ClaimCard({
 }
 
 /**
- * The claim panel: in flow where there is no hover to spend, a floating card
- * under its tile everywhere else, so the bento never changes height.
+ * A tile's claim: it keeps its space at all times (a grid row is as tall as
+ * its tallest card, so a claim that grew on hover grew the row) and is only
+ * faded in while the tile is engaged. Plain text inside the card - nothing
+ * floats, so the row below never has to move or be covered.
  */
 function Claim({ children }: { children: ReactNode }) {
   return (
-    <div
-      data-mk-privacy-claim
-      className="mk-claim mt-3 rounded-xl border border-border/60 bg-card p-4 shadow-lg"
-    >
-      <p className={CLAIM}>{children}</p>
-    </div>
+    <p data-mk-privacy-claim className={`mk-claim mt-3 ${CLAIM}`}>
+      {children}
+    </p>
   );
 }
 
