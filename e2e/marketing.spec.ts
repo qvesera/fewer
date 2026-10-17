@@ -178,8 +178,10 @@ test("the arrows step through the messages and wrap", async ({ page }) => {
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
 
   // Backwards past the first message wraps to the last one, like the tour.
+  // The last slide is `watch`: `fix` is fourth of five (marketingHero.ts), and
+  // this assertion has been stale - and the E2E job red - since it changed.
   await page.locator('[data-mk-hero-step="prev"]').click();
-  await expect(page.locator('[data-mk-hero-slide="fix"]')).toHaveAttribute("data-active", "1");
+  await expect(page.locator('[data-mk-hero-slide="watch"]')).toHaveAttribute("data-active", "1");
 });
 
 test("the active dot's timer fills with the message, and pauses with it", async ({ page }) => {
@@ -581,7 +583,14 @@ test("privacy and open source sections are on the page", async ({ page }) => {
     .first()
     .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(heroSize).toBeGreaterThan(cardSize);
-  // The statements are trust copy: present word for word, never paraphrased.
+  // The statements are trust copy: present word for word, never paraphrased,
+  // and on the card at rest. Three passes at a hover-revealed claim (grow in
+  // place, a floating panel, a fade under a centred title) each either moved
+  // the band or hid the copy behind a pointer, so the cards say everything:
+  // five claim tiles, each with its sentence already on it.
+  await expect(page.locator("[data-mk-privacy-card]")).toHaveCount(5);
+  await expect(page.locator("[data-mk-privacy-claim]")).toHaveCount(5);
+
   for (const statement of [
     "Runs locally in your browser, so your directory contents stay on your device by default.",
     "No account required. Sign in is optional, and only used for saved graphs and sharing across devices.",
