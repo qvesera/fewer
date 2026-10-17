@@ -4544,7 +4544,7 @@ tasks:
   session_count: 1
 - id: "T-170"
   title: "Home privacy bento: claim cards show title only, claim revealed on hover"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4587,8 +4587,14 @@ tasks:
     note: "Verification pass over the third design (the cards say everything up front, scaled up - committed as 6137624 during an interruption that also lost this session record). Re-measured the kicker fit after the type step-up: at 0.14em tracking TRACKERS ADS TELEMETRY needed 205px in the 205px the xl split gives it and wrapped, so tracking went 0.18em -> 0.1em (194px) - that fix is inside 6137624. Re-ran every gate on the final tree: tsc 0, lint 0, bun run test 1827+12+233 0 fail, marketing e2e 23/23 on a fresh production build, changelog validate OK; dark-theme screenshots at 700 (stacked) and 1440 (split) checked against the mock - claims at rest, kickers on one line, no dead space. PR #428 retitled to the final design."
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
-  spent_min: 715
-  session_count: 4
+  - start: "2026-10-17T21:06:05Z"
+    end: "2026-10-17T21:34:24Z"
+    measured: true
+    note: "Restored the reveal the 6137624 interruption dropped, on top of the scaled-up chrome: TileTitle is absolute again - centred and one size up at rest (kicker 12px/0.06em, ZERO 60/48px), sliding to the top and stepping down (11px/0.08em, 48/36px) while the claim fades into its reserved slot (padding-top calc(--mk-title-h + 1rem); 2rem label row / 5.5rem display block). Timing as chosen in review: 400ms over --ease-aurora on all three properties, reduced-motion instant, @media (hover: hover) keeps touch/no-JS showing everything. Measured at 1440 and 700: title centre delta 0 at rest, topPad 0 engaged, gap 16 under the title, claim opacity 0 -> 1, card heights byte-identical (258/202/124) - the band cannot move. Kicker rest size picked by measurement: 13px wrapped Trackers ads telemetry in the xl split, 12px/0.06em = 197px of 205px. Gates: tsc 0, lint 0, bun run test 1827+12+233 0 fail, marketing e2e 23/23 on a fresh prod build (tabIndex restored on the card - the keyboard reveal had lost its tab stop in the rewrite), changelog rewritten to the reveal + validate OK; rest/hover screenshots at 700 and 1440 checked. Also caught: the dev server was serving stale globals.css mid-edit (5.1rem vs 5.5rem on disk) - all final numbers above are from the build."
+    proof: ["dc01c17"]
+    effort: {commits: 1, files: 4, insertions: 257, deletions: 47}
+  spent_min: 743
+  session_count: 5
 - id: "T-171"
   title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
   status: "review"
