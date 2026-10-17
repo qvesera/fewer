@@ -4544,7 +4544,7 @@ tasks:
   session_count: 1
 - id: "T-170"
   title: "Home privacy bento: claim cards show title only, claim revealed on hover"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
