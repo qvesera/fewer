@@ -34,7 +34,7 @@ export function useGraphViewScope(): GraphViewScope {
 }
 
 /** Returns the direction from context (stable for CustomNode — no re-render on scope change). */
-export function useGraphViewDirection(): string {
+export function useGraphViewDirection(): LayoutDirection {
   const ctx = useContext(GraphViewContext);
   return ctx?.direction ?? "TB";
 }

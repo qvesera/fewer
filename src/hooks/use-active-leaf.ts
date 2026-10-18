@@ -30,6 +30,9 @@ export function useActiveLeaf(): ActiveLeafResult | null {
   const directionGlobal = useGraphStore((s) => s.direction);
   const hiddenIds = useGraphStore((s) => s.hiddenIds);
   const nodes = useGraphStore((s) => s.nodes);
+  // Collapsed groups (T-164): the effective hidden list derives a group's
+  // members from this view's collapsed set, so the resolver needs the list.
+  const groups = useGraphStore((s) => s.groups);
 
   // Its own memo: this id list feeds the hide-layer union, and a fresh array
   // here would defeat the hidden-set identity the consumers rely on.
@@ -52,12 +55,12 @@ export function useActiveLeaf(): ActiveLeafResult | null {
       direction: directionGlobal,
       hiddenIds,
       collapsedFolderIds: [],
-    }, hiddenIds, fileIds);
+    }, hiddenIds, fileIds, groups);
   }, [
     leafId, viewSettingsMap,
     showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal,
     edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal,
-    directionGlobal, hiddenIds, fileIds,
+    directionGlobal, hiddenIds, fileIds, groups,
   ]);
 
   // Content-stable, so consumers (the Hidden Cards panel) don't rebuild their

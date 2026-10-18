@@ -52,7 +52,13 @@ function seed(hiddenIds: string[]) {
 }
 
 beforeEach(() => toast.mockClear());
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  // The store is a singleton shared by every suite in the run; the seed() above
+  // writes real hiddenIds into it. Hand the pristine state back, or the next
+  // file inherits this test's hidden set.
+  useGraphStore.setState({ ...initial });
+});
 
 describe("HiddenNodesPanel", () => {
   test("renders nothing when no card is hidden", () => {

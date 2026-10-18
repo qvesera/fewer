@@ -4,6 +4,7 @@ import type { GraphState } from "../types";
 import { getDescendants } from "@/lib/fewer/validation";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { collectRevealableFileIds, applyRevealLimits } from "./revealHelpers";
+import { revealLeafId, withGroupReveal } from "../graph/revealGroups";
 import type { FileCategory } from "@/lib/fewer/types";
 
 export type VisibilitySliceCreator = StateCreator<
@@ -84,11 +85,31 @@ export const createVisibilitySlice: VisibilitySliceCreator = (set, get) => ({
   },
 
   showAll: () => {
-    const before = captureViewState(get());
-    if (before.hiddenIds.length === 0 && before.categoryFilter.length === 0) return;
-    const after = { ...before, hiddenIds: [], categoryFilter: [] as FileCategory[], categoryHiddenIds: [] };
-    get().pushOp(viewStateOp(before, after));
-    set((s) => ({ hiddenIds: [], independentlyHiddenIds: [], autoHiddenIds: [], revealedRootIds: [], categoryFilter: [], categoryHiddenIds: [], graphVersion: s.graphVersion + 1 }));
+    const s = get();
+    const before = captureViewState(s);
+    // Reveal All opens EVERY collapsed group in the target view (T-167): a
+    // pill hides cards, and "reveal everything" means them — even when the
+    // hide sets are already empty because the cards hide by derivation (the
+    // per-view collapse, T-164). Other panes keep their own collapse.
+    const leaf = revealLeafId(s);
+    const collapsed = leaf ? s.viewSettings[leaf]?.collapsedGroupIds : undefined;
+    const opensGroups = Boolean(leaf && collapsed?.length);
+    if (before.hiddenIds.length === 0 && before.categoryFilter.length === 0 && !opensGroups) return;
+    if (before.hiddenIds.length > 0 || before.categoryFilter.length > 0) {
+      const after = { ...before, hiddenIds: [], categoryFilter: [] as FileCategory[], categoryHiddenIds: [] };
+      get().pushOp(viewStateOp(before, after));
+    }
+    set((st) => ({
+      hiddenIds: [],
+      independentlyHiddenIds: [],
+      autoHiddenIds: [],
+      revealedRootIds: [],
+      categoryFilter: [],
+      categoryHiddenIds: [],
+      graphVersion: st.graphVersion + 1,
+      ...(opensGroups ? { viewSettings: withGroupReveal(st.viewSettings, { leafId: leaf!, collapsedGroupIds: [], park: [] }) } : {}),
+    }));
+    if (opensGroups) get()._persistLayout();
   },
 
   setShowFiles: (show) => {

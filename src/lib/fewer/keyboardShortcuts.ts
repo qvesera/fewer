@@ -7,7 +7,7 @@ import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
 import { selectionBounds, viewportForBounds } from "./fitBounds";
-import type { Group } from "./groups";
+import { collapsedGroupMembers, type Group } from "./groups";
 
 /** The store's own default when a reader is built from a partial state. */
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
@@ -127,18 +127,27 @@ function leafHiddenIds(vs: ViewSettings, allFileIds: string[]): Set<string> {
  */
 export function shiftHOutcome(
   st: Pick<StoreReader, "hiddenIds" | "nodes" | "edges" | "activeLeafId" | "viewSettings"
-    | "autoHideThreshold" | "maxDisplayDepth" | "revealedRootIds">,
+    | "autoHideThreshold" | "maxDisplayDepth" | "revealedRootIds" | "groups">,
 ): { restored: number; stillHidden: number } {
   const fileIds = st.nodes.filter((n) => n.data.type === "file").map((n) => n.id);
   const hiddenNow = new Set<string>(st.hiddenIds);
+  let collapsedHere = 0;
   if (st.activeLeafId) {
     const leafVs = st.viewSettings[st.activeLeafId];
-    if (leafVs) for (const id of leafHiddenIds(leafVs, fileIds)) hiddenNow.add(id);
+    if (leafVs) {
+      for (const id of leafHiddenIds(leafVs, fileIds)) hiddenNow.add(id);
+      // Per-view collapsed groups (T-164) hide their members the same way, and
+      // Reveal All opens those pills too (T-167) — so they count as restored.
+      const collapsed = leafVs.collapsedGroupIds ?? [];
+      for (const id of collapsedGroupMembers(st.groups, collapsed)) hiddenNow.add(id);
+      collapsedHere = collapsed.length;
+    }
   }
 
-  // `showAll` runs only when something was hidden globally, and it clears the
-  // revealed-root exemptions the auto-hide skips.
-  const exemptions = new Set(st.hiddenIds.length > 0 ? [] : st.revealedRootIds);
+  // `showAll` runs when something was hidden globally OR only by this view's
+  // collapsed groups, and it clears the revealed-root exemptions the auto-hide
+  // skips.
+  const exemptions = new Set(st.hiddenIds.length > 0 || collapsedHere > 0 ? [] : st.revealedRootIds);
   const reHidden = new Set<string>([
     ...computeLargeFolderHiddenIds(st.nodes, st.edges, st.autoHideThreshold, exemptions),
     ...computeDisplayDepthHiddenIds(st.nodes, st.maxDisplayDepth),
@@ -301,6 +310,7 @@ export function buildKeyboardRules(): ShortcutRule[] {
           selectedGroupIds: st.selectedGroupIds,
           activeLeafId: st.activeLeafId,
           viewSettings: st.viewSettings,
+          direction: st.direction,
         });
         const size = bounds ? ctx.canvasSize() : null;
         if (bounds && size) {
@@ -396,8 +406,15 @@ export function buildKeyboardRules(): ShortcutRule[] {
             autoHideThreshold: st.autoHideThreshold,
             maxDisplayDepth: st.maxDisplayDepth,
             revealedRootIds: st.revealedRootIds,
+            groups: st.groups,
           });
-          if (st.hiddenIds.length > 0) ctx.showAll();
+          // Also run when the only thing hiding cards is this view's collapsed
+          // group (T-164): nothing sits in hiddenIds, but Reveal All still has
+          // to open the pills (T-167).
+          const leafCollapsed = st.activeLeafId
+            ? (st.viewSettings[st.activeLeafId]?.collapsedGroupIds?.length ?? 0)
+            : 0;
+          if (st.hiddenIds.length > 0 || leafCollapsed > 0) ctx.showAll();
           if (restored > 0) {
             ctx.toast({
               title: "Unhid all cards",

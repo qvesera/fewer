@@ -14,6 +14,7 @@ import {
   type LayoutDirection,
 } from "./types";
 import { layoutGraphContour, type LayoutOptions } from "./layout";
+import { collapsedGroupMembers, type Group } from "./groups";
 
 // ── Types ──
 
@@ -33,6 +34,11 @@ export interface ViewSettings {
   hideLayers?: HideLayers;
   /** Per-leaf collapsed folder ids — descendants are pruned from this leaf's canvas. */
   collapsedFolderIds?: string[];
+  /** Per-leaf collapsed GROUP ids (T-164). The members' hidden-ness derives
+   *  from this list (see `resolveViewSettings`), never written into hiddenIds,
+   *  so the pill and the hidden set cannot drift apart — and a reveal that
+   *  brings the cards back can reopen the group in this view only. */
+  collapsedGroupIds?: string[];
   minimapHidden?: boolean;
   edgeStyle?: EdgeStyle;
   edgeAnimated?: boolean;
@@ -387,6 +393,7 @@ export function resolveViewSettings(
   global: ResolvedViewSettings,
   globalHiddenIds?: string[],
   allFileIds?: string[],
+  groups?: readonly Group[],
 ): ResolvedViewSettings {
   const vs: ViewSettings = leafId && byLeaf[leafId] ? byLeaf[leafId] : {};
   const hidden = computeEffectiveHidden(
@@ -394,6 +401,14 @@ export function resolveViewSettings(
     vs.hideLayers,
     allFileIds ?? [],
   );
+  // A collapsed group's members hide HERE too (T-164): derived from the leaf's
+  // collapsed set — like collapsedFolderIds — instead of a hiddenIds write, so
+  // collapse is per-view and "reveal" can reopen the group by editing one list.
+  // Fast path: the union only runs for a view that actually collapses a group.
+  const groupHidden = vs.collapsedGroupIds?.length
+    ? collapsedGroupMembers(groups ?? [], vs.collapsedGroupIds)
+    : [];
+  const merged = groupHidden.length > 0 ? [...new Set([...hidden, ...groupHidden])] : hidden;
   return {
     showFiles: !vs.hideLayers?.filesBulkActive && global.showFiles,
     minimapHidden: pick(vs.minimapHidden, global.minimapHidden),
@@ -404,7 +419,7 @@ export function resolveViewSettings(
     edgeWidth: pick(vs.edgeWidth, global.edgeWidth),
     direction: pick(vs.direction, global.direction),
     positions: vs.positions,
-    hiddenIds: hidden,
+    hiddenIds: merged,
     // Shared empty list, not a fresh `[]`: a view with no collapsed folder must
     // not hand every consumer a new array identity each time this runs — the
     // canvas re-resolves it on every drag frame, and the collapsed ids are a dep
@@ -478,6 +493,7 @@ function collectViewSettings(raw: unknown): ViewSettings {
     if (typeof obj[field] === type) out[field] = obj[field];
   }
   if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
+  if (Array.isArray(obj.collapsedGroupIds)) out.collapsedGroupIds = stringIds(obj.collapsedGroupIds);
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   migrateLegacyHideLayers(out, obj);
   return out as ViewSettings;
