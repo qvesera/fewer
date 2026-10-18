@@ -4882,30 +4882,30 @@ tasks:
   session_count: 1
 - id: "T-173"
   title: "Brand identity: OG card, canonical mark, dead Toolbar"
-  status: "in-progress"
+  status: "review"
   type: "task"
   area: "ux"
   tier: 0
   estimate_min: 240
   estimate_basis: "cli"
   issue: 430
-  pr: null
+  pr: 431
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-18T17:45:09Z"
   notes: []
   sessions:
   - start: "2026-10-18T17:59:27Z"
-    end: null
+    end: "2026-10-18T18:25:59Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Brand identity: OG card (public/og.png 1200x630, scripts/og-card.ts, metadataBase + openGraph/twitter in app metadata), brandAssets drift guard (SVG exporter paths, email base64 == logo-192.png - comment corrected, icon sizes, OG size), FEWER_HOME_URL default fewer.direct -> fewer.directory, dead Toolbar.tsx + barrel export removed. Gates: tsc 0, lint 0, bun run test 0 fail (brandAssets 3/3), build OK, marketing e2e OG test green (24 tests, known pre-existing first-scroll flake), validate-merge clean."
+    proof: ["665a39c", "#431"]
+    effort: {commits: 1, files: 15, insertions: 253, deletions: 210}
+  spent_min: 27
   session_count: 1
