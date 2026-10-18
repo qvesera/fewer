@@ -4790,8 +4790,14 @@ tasks:
     note: "Restored the reveal the 6137624 interruption dropped, on top of the scaled-up chrome: TileTitle is absolute again - centred and one size up at rest (kicker 12px/0.06em, ZERO 60/48px), sliding to the top and stepping down (11px/0.08em, 48/36px) while the claim fades into its reserved slot (padding-top calc(--mk-title-h + 1rem); 2rem label row / 5.5rem display block). Timing as chosen in review: 400ms over --ease-aurora on all three properties, reduced-motion instant, @media (hover: hover) keeps touch/no-JS showing everything. Measured at 1440 and 700: title centre delta 0 at rest, topPad 0 engaged, gap 16 under the title, claim opacity 0 -> 1, card heights byte-identical (258/202/124) - the band cannot move. Kicker rest size picked by measurement: 13px wrapped Trackers ads telemetry in the xl split, 12px/0.06em = 197px of 205px. Gates: tsc 0, lint 0, bun run test 1827+12+233 0 fail, marketing e2e 23/23 on a fresh prod build (tabIndex restored on the card - the keyboard reveal had lost its tab stop in the rewrite), changelog rewritten to the reveal + validate OK; rest/hover screenshots at 700 and 1440 checked. Also caught: the dev server was serving stale globals.css mid-edit (5.1rem vs 5.5rem on disk) - all final numbers above are from the build."
     proof: ["dc01c17"]
     effort: {commits: 1, files: 4, insertions: 257, deletions: 47}
-  spent_min: 743
-  session_count: 5
+  - start: "2026-10-18T12:10:06Z"
+    end: "2026-10-18T12:28:41Z"
+    measured: true
+    note: "Merged origin/dev (post-#427) into #428. Conflicts: CHANGELOG (union: dev's per-view collapse bullet + the two branch bullets) and TASKS.yaml (append-union: dev's T-163..T-169 + branch's T-170..T-172, 168 rows, validate-merge clean). Semantic conflict found by test: T-169's badge pin getByName(/Hidden Cards/) now also matches T-172's About Hidden Cards info tip -> strict-mode fail; pin scopes to [data-section-id=hidden] [role=button][aria-expanded]. Gates: lint 0, tsc 0, bun run test 237/237, build 0, groups+marketing e2e 40/40, changelog+migrations validate OK."
+    proof: ["053aa65"]
+    effort: {commits: 1, files: 1, insertions: 6, deletions: 1}
+  spent_min: 762
+  session_count: 6
 - id: "T-171"
   title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
   status: "review"
