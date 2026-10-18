@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "./InfoTip";
 
 /**
  * Open state of the enclosing CollapsibleSection, for a body that would rather
@@ -30,6 +31,7 @@ export function CollapsibleSection({
   badge,
   forceOpen,
   dragHandleProps,
+  info,
   children,
 }: {
   title: string;
@@ -39,6 +41,8 @@ export function CollapsibleSection({
   forceOpen?: number;
   /** When provided, renders a grip handle before the chevron for drag-to-dock/reorder. */
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement | HTMLDivElement>;
+  /** A sentence explaining the section, shown on hover/focus of an info icon (T-172). */
+  info?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -55,13 +59,18 @@ export function CollapsibleSection({
       ref={sectionRef} 
       className="w-full min-w-0 max-w-full shrink-0 overflow-hidden rounded-xl border border-border/30 bg-card/10 transition-colors duration-200 hover:border-border/60 focus-within:border-border/80"
     >
+      {/* The header splits so the info tip (T-172) is a sibling of the
+          disclosure button, not another thing nested inside it: the clickable
+          area keeps every child it had - grip, chevron, icon, title, badge -
+          and the tip only sits inside the section's own padding. */}
+      <div className="flex items-center">
       <div
         role="button"
         tabIndex={0}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
+        className="flex flex-1 min-w-0 items-center gap-2 p-3 h-auto text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors rounded-xl outline-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 justify-start"
       >
         {dragHandleProps && (
           <button
@@ -82,6 +91,12 @@ export function CollapsibleSection({
             {badge}
           </span>
         )}
+      </div>
+      {info && (
+        <div className="shrink-0 pr-2.5">
+          <InfoTip label={title}>{info}</InfoTip>
+        </div>
+      )}
       </div>
       <div
         className={cn(

@@ -94,3 +94,28 @@ describe("Sidebar rendering", () => {
     expect(screen.queryByText("Clear canvas?")).toBeNull();
   });
 });
+
+describe("Sidebar info tips (T-173)", () => {
+  test("every always-visible section carries an About tip", () => {
+    renderSidebar();
+    for (const title of ["File & Actions", "Your Directories", "Layout", "Connections & Style"]) {
+      expect(screen.getByRole("button", { name: `About ${title}` })).toBeDefined();
+    }
+  });
+
+  test("focusing a tip shows its sentence and leaves the section closed", async () => {
+    renderSidebar();
+    // Connections & Style starts folded, unlike Layout, so the assertion can
+    // prove the tip opens nothing.
+    const tip = screen.getByRole("button", { name: "About Connections & Style" });
+    const disclosure = screen.getByRole("button", { name: "Connections & Style" });
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+
+    act(() => tip.focus());
+    const content = await screen.findByRole("tooltip");
+    expect(content.textContent).toContain("solid, dashed or dotted");
+
+    // The tip is a sibling of the disclosure, so engaging it opens nothing.
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  });
+});
