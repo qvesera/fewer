@@ -4624,3 +4624,32 @@ tasks:
     effort: {commits: 2, files: 2, insertions: 32, deletions: 1}
   spent_min: 0
   session_count: 1
+- id: "T-172"
+  title: "Info tooltips on sidebar sections and settings rows"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-17T23:25:59Z"
+  notes: []
+  sessions:
+  - start: "2026-10-17T23:26:53Z"
+    end: "2026-10-18T08:39:34Z"
+    measured: true
+    note: "Info tooltips on sidebar sections and settings rows: shared InfoTip (real button, min-hit, About label, aria-describedby id, and its own TooltipProvider so it renders in panels and tests alike), CollapsibleSection.info rendered as a sibling of the disclosure so hovering a tip opens no section, all seven sidebar sections wired (File & Actions, Your Directories, Layout, Connections & Style, Tags, Graph Analytics, Hidden Cards), and thirteen settings explainers moved out of the panel into tips with the sentences kept as sr-only plus aria-describedby - Profile, Username, plan limits, Delete account, Sibling Sort, Connection Motion, Minimap position, Layout Policy (group footnote plus Max Depth, Auto-hide Limit, Crown Shyness, Auto-relayout) and Canvas Navigation; live status text stays visible on purpose. Tooltip layer z-50 -> z-[70] so it clears the settings dialog. Component tests 237 pass (two new Sidebar, two new Settings); the new e2e flow needed two locator fixes - Layout ships defaultOpen so the still-closed pin uses Connections & Style, and the section header accessible name carries its drag label so it is found by data-section-id - and passes against the dev server; tsc 0, lint 0, changelog bullet added (no docs page quotes the moved sentences). Also landed 932f614, the reviewers own ellipsis cleanup in the FeatureProof batch-actions list, in this session so it rides with the PR."
+    proof: ["932f614", "3cf1f57"]
+    effort: {commits: 2, files: 10, insertions: 369, deletions: 70}
+  spent_min: 553
+  session_count: 1
