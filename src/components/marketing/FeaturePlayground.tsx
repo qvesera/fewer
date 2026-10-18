@@ -130,10 +130,20 @@ function BarButton({
  * The geometry comes from compareSquiggle.ts - verbatim from
  * public/squiggle.svg, pinned by its test - and the box keeps the asset's own
  * ratio (w-[150px] h-auto), so the drawing is not letterboxed inside it.
+ * `hintRef` is how the parent watches this box: the draw is armed by the
+ * annotation itself being on screen, never by the section merely touching
+ * the fold.
  */
-export function CompareAnnotation({ entered }: { entered: boolean }) {
+export function CompareAnnotation({
+  entered,
+  hintRef,
+}: {
+  entered: boolean;
+  hintRef?: React.Ref<HTMLDivElement>;
+}) {
   return (
     <div
+      ref={hintRef}
       data-mk-compare-hint
       className="pointer-events-none absolute -top-6 left-4 z-10 select-none sm:left-48"
       style={{ color: "var(--fewer-folder-icon)" }}
@@ -196,9 +206,13 @@ export function FeaturePlayground() {
   /** Bumped by every reader activation: the quiet clock starts again from it. */
   const [tourToken, setTourToken] = useState(0);
   const [inView, setInView] = useState(false);
-  /** One-way: the section has been on screen at least once, so the coach
-   *  mark's arrow draws exactly once and never re-animates on re-entry. */
+  /** One-way: the section has been on screen at least once. The squiggle's
+   *  own node (below) decides when the draw starts; this stays one-way so it
+   *  never replays. */
   const [entered, setEntered] = useState(false);
+  /** The annotation's DOM node, handed to the observer below (a callback ref,
+   *  so it survives mount/unmount as the reader flips views). */
+  const [hintNode, setHintNode] = useState<HTMLDivElement | null>(null);
   const [tabVisible, setTabVisible] = useState(true);
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -258,17 +272,42 @@ export function FeaturePlayground() {
     const el = sectionRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
       setInView(true);
-      setEntered(true);
       return;
     }
-    const io = new IntersectionObserver((entries) => {
-      const visible = entries.some((entry) => entry.isIntersecting);
-      setInView(visible);
-      if (visible) setEntered(true);
-    });
+    const io = new IntersectionObserver((entries) =>
+      setInView(entries.some((entry) => entry.isIntersecting)),
+    );
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  /**
+   * The squiggle draws when the reader is AT the comparison, not when the
+   * section first peeks over the fold: the hero fills the screen, so a
+   * section-level observer fires during the scroll itself and the ~2.3s draw
+   * was finished by the time the glide landed. The annotation box is the
+   * trigger - 90% of it inside the fold (minus a bottom margin, so hugging
+   * the edge does not count) means the reader is here - and it fires once,
+   * then unobserves, so scrolling away and back cannot replay it.
+   */
+  useEffect(() => {
+    if (!hintNode) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setEntered(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setEntered(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.9, rootMargin: "0px 0px -6% 0px" },
+    );
+    io.observe(hintNode);
+    return () => io.disconnect();
+  }, [hintNode]);
 
   // Real movement authorises a hover: pointermove, pointerdown, and pointerover
   // only when its coordinates differ from the last ones seen. A layout shift
@@ -440,7 +479,9 @@ export function FeaturePlayground() {
                   `seenGraph` retires it for the rest of the visit once the
                   reader has compared. The pane's own `invisible` hides it
                   with everything else when the graph is up. */}
-              {view === "tree" && !seenGraph && <CompareAnnotation entered={entered} />}
+              {view === "tree" && !seenGraph && (
+                <CompareAnnotation entered={entered} hintRef={setHintNode} />
+              )}
               {/* The same folder, as text: a captioned block the same size as
                   the canvas it swaps with, not a stray <pre> at a page edge.
                   `items-center` shrinks each child to its own text and centres

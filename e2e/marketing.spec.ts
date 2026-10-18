@@ -305,15 +305,27 @@ test("the tree vs graph comparison switches views", async ({ page }) => {
   await expect(hint).toHaveCount(0);
 });
 
+/**
+ * Bring the annotation to the middle of the viewport. The draw is armed by
+ * the annotation box itself (threshold 0.9, bottom 6% of the fold excluded),
+ * so a section-level scroll could leave it a few pixels short - scroll the
+ * node the observer actually watches.
+ */
+async function scrollHintIntoView(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    document.querySelector("[data-mk-compare-hint]")?.scrollIntoView({ block: "center" });
+  });
+}
+
 test("the compare squiggle draws, and retires after the comparison", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#features").scrollIntoViewIfNeeded();
+  await scrollHintIntoView(page);
 
   const hint = page.locator("[data-mk-compare-hint]");
   const squiggle = page.locator(".mk-squiggle");
 
   // It is the annotation the toggle's glow belongs to: the copy is real text,
-  // and the drawn attribute flips when the section lands on screen.
+  // and the drawn attribute flips when the annotation itself lands on screen.
   await expect(hint).toContainText("see the difference!");
   await expect(squiggle).toHaveAttribute("data-drawn", "1");
 
@@ -324,6 +336,24 @@ test("the compare squiggle draws, and retires after the comparison", async ({ pa
   await page.getByRole("button", { name: "tree", exact: true }).click();
   await expect(page.locator("#compare pre")).toBeVisible();
   await expect(hint).toHaveCount(0);
+});
+
+test("the squiggle waits for the reader before drawing", async ({ page }) => {
+  await page.goto("/");
+  const hint = page.locator("[data-mk-compare-hint]");
+  const squiggle = page.locator(".mk-squiggle");
+
+  // At the hero the annotation may graze the fold, but the reader is a whole
+  // screen away: the ~2.3s draw must not run out before they arrive. (It
+  // used to - the section-level observer fired on the first scroll pixel.)
+  await expect(hint).toHaveCount(1);
+  await page.waitForTimeout(2500);
+  await expect(squiggle).toHaveAttribute("data-drawn", "0");
+
+  // Reaching the comparison arms it, one-way: a later scroll away and back
+  // cannot replay it (entered never goes back to false).
+  await scrollHintIntoView(page);
+  await expect(squiggle).toHaveAttribute("data-drawn", "1");
 });
 
 test("the tree pane is the canvas's twin, not a stray text block", async ({ page }) => {

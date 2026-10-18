@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "review"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4168,8 +4168,20 @@ tasks:
     note: "Hook session for the close-out commit: tsc 0, lint 0, bun test 237/237, build OK, playwright marketing 24/24, changelog validate OK. Commit 480979a."
     proof: ["480979a"]
     effort: {commits: 1, files: 6, insertions: 209, deletions: 19}
-  spent_min: 445
-  session_count: 9
+  - start: "2026-10-18T17:00:07Z"
+    end: "2026-10-18T17:08:43Z"
+    measured: true
+    note: "Squiggle drift fix: inlined copy was an older Inkscape revision than public/squiggle.svg (tail, first control point, arrowhead arm, viewBox). Geometry moved to compareSquiggle.ts constants read by CompareAnnotation, asset ratio via w-150 h-auto, drift test parses the public file (negative check: 1-digit edit fails, revert passes). Gates: tsc 0, lint 0, bun run test 0 fail, build OK, playwright marketing 23/24 (known pre-existing first-scroll flake, identical on clean dev), visual 1440 dark+light, tip on fewer."
+    proof: ["2a5827f"]
+    effort: {commits: 1, files: 3, insertions: 95, deletions: 9}
+  - start: "2026-10-18T17:13:28Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 454
+  session_count: 11
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
   status: "review"
