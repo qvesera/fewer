@@ -81,6 +81,11 @@ beforeEach(() => {
     // list (hidden members aren't in the painted prop), so every describe needs
     // the store populated, not just the nodes prop (T-138).
     nodes: NODES.map((n) => ({ ...n })),
+    // bun runs every component suite in ONE process, so the zustand singleton
+    // carries the previous file's seeds (HiddenNodesPanel hides ["sub","deep",
+    // "a"] and restores nothing). Clear the hidden set or the per-view collapse
+    // pin below reads the leak, not the product.
+    hiddenIds: [],
     groups: [],
     viewSettings: {},
     selectedNodeIds: [],
