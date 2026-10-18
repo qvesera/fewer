@@ -191,6 +191,7 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
       selectedGroupIds: st.selectedGroupIds,
       activeLeafId: st.activeLeafId,
       viewSettings: st.viewSettings,
+      direction: st.direction,
     });
     const el = containerRef.current;
     if (!bounds || !el || el.clientWidth === 0) {

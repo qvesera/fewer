@@ -178,8 +178,10 @@ test("the arrows step through the messages and wrap", async ({ page }) => {
   await expect(page.locator('[data-mk-hero-slide="see"]')).toHaveAttribute("data-active", "1");
 
   // Backwards past the first message wraps to the last one, like the tour.
+  // The last slide is `watch`: `fix` is fourth of five (marketingHero.ts), and
+  // this assertion has been stale - and the E2E job red - since it changed.
   await page.locator('[data-mk-hero-step="prev"]').click();
-  await expect(page.locator('[data-mk-hero-slide="fix"]')).toHaveAttribute("data-active", "1");
+  await expect(page.locator('[data-mk-hero-slide="watch"]')).toHaveAttribute("data-active", "1");
 });
 
 test("the active dot's timer fills with the message, and pauses with it", async ({ page }) => {

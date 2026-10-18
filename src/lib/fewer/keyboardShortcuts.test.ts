@@ -164,6 +164,7 @@ describe("shiftHOutcome", () => {
     autoHideThreshold: 10,
     maxDisplayDepth: 0,
     revealedRootIds: [] as string[],
+    groups: [] as any[],
   };
 
   test("nothing hidden → nothing restored, nothing still hidden", () => {
@@ -193,6 +194,16 @@ describe("shiftHOutcome", () => {
     expect(shiftHOutcome({ ...base, nodes, edges, hiddenIds: [], revealedRootIds: ["n0"] }))
       // The auto-hide would cover all 12; n0 is exempt, but nothing was hidden to
       // restore, so both numbers stay at zero.
+      .toEqual({ restored: 0, stillHidden: 0 });
+  });
+
+  test("cards hidden only by the active leaf's collapsed group count as restored (T-167)", () => {
+    const groups = [{ id: "g1", title: "G", note: "", memberIds: ["a", "b"] }];
+    const viewSettings = { leaf1: { collapsedGroupIds: ["g1"] } } as any;
+    expect(shiftHOutcome({ ...base, groups, activeLeafId: "leaf1", viewSettings, hiddenIds: [] }))
+      .toEqual({ restored: 2, stillHidden: 0 });
+    // Another leaf's collapse does not count for this view.
+    expect(shiftHOutcome({ ...base, groups, activeLeafId: "leaf2", viewSettings, hiddenIds: [] }))
       .toEqual({ restored: 0, stillHidden: 0 });
   });
 });
@@ -274,6 +285,28 @@ describe("Shift+H with the auto-hide filter on", () => {
       const a = run();
       expect(a.revealAllForLeaf).toBe("leaf1");
       // Union of the two sets → 1, not the old sum of 2.
+      expect(a.toast?.description).toBe("1 card restored");
+    } finally {
+      useGraphStore.setState(useGraphStore.getInitialState(), true);
+    }
+  });
+
+  test("Shift+H runs showAll even when the only hiding is the leaf's collapsed group (T-167)", () => {
+    useGraphStore.setState({
+      nodes: [folder("root", "root"), file("f1")],
+      edges: [{ id: "e1", source: "root", target: "f1" } as any],
+      autoHideThreshold: 10,
+      revealedRootIds: [],
+      hiddenIds: [],
+      groups: [{ id: "g1", title: "G", note: "", memberIds: ["f1"] }],
+      activeLeafId: "leaf1",
+      viewSettings: { leaf1: { collapsedGroupIds: ["g1"] } },
+    } as any);
+    try {
+      const a = run();
+      // Nothing is in hiddenIds, yet the press must still open the pill (the
+      // collapse is what hides the cards, per-view since T-164).
+      expect(a.showAll).toBe(true);
       expect(a.toast?.description).toBe("1 card restored");
     } finally {
       useGraphStore.setState(useGraphStore.getInitialState(), true);
@@ -439,7 +472,9 @@ test("Alt+F on a COLLAPSED group zooms into the pill box", () => {
       withActions(
         toStoreReader({
           ...ALT_F_STATE,
-          groups: [{ ...ALT_F_STATE.groups[0], collapsed: true }],
+          // Collapse is per-view state (T-164): the ACTIVE leaf's set decides.
+          activeLeafId: "leaf-1",
+          viewSettings: { "leaf-1": { collapsedGroupIds: ["g1"] } },
           selectedGroupIds: ["g1"],
         }),
         a,

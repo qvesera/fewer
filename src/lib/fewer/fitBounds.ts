@@ -1,4 +1,4 @@
-import type { FewerNode } from "./types";
+import type { FewerNode, LayoutDirection } from "./types";
 import type { Group } from "./groups";
 import { groupBounds, groupPill, nodeRenderedSize, type GroupBounds } from "./groups";
 
@@ -23,7 +23,16 @@ export interface SelectionState {
   selectedNodeIds: readonly string[];
   selectedGroupIds: readonly string[];
   activeLeafId?: string | null;
-  viewSettings?: Readonly<Record<string, { positions?: Readonly<Record<string, { x: number; y: number }>> }>>;
+  viewSettings?: Readonly<Record<string, {
+    positions?: Readonly<Record<string, { x: number; y: number }>>;
+    /** This view's collapsed group ids (T-164): a collapsed group's pill box is
+     *  the fit target here, not its (hidden) member cluster. */
+    collapsedGroupIds?: readonly string[];
+  }>>;
+  /** Layout direction — only the COLLAPSED pill box consults it (the pill
+   *  anchors at the flow-start corner, T-163). Absent = TB, the historical
+   *  top-left placement. */
+  direction?: LayoutDirection;
 }
 
 /**
@@ -46,6 +55,11 @@ export function selectionBounds(state: SelectionState): GroupBounds | null {
     ? state.viewSettings?.[state.activeLeafId]?.positions
     : undefined;
   const viewMap = viewPositions ? new Map(Object.entries(viewPositions)) : undefined;
+  // Collapse is per-view (T-164): the ACTIVE view's collapsed set decides which
+  // selected groups contribute their pill box instead of the member cluster.
+  const collapsedGroupIds = state.activeLeafId
+    ? state.viewSettings?.[state.activeLeafId]?.collapsedGroupIds
+    : undefined;
 
   let minX = Infinity;
   let minY = Infinity;
@@ -77,7 +91,7 @@ export function selectionBounds(state: SelectionState): GroupBounds | null {
     // the user selected. `null` = members are gone from the store entirely.
     const bounds = groupBounds(state.nodes as FewerNode[], g.memberIds, undefined, undefined, viewMap);
     if (!bounds) continue;
-    add(g.collapsed ? groupPill(bounds) : bounds);
+    add(collapsedGroupIds?.includes(g.id) ? groupPill(bounds, state.direction) : bounds);
   }
 
   if (!found) return null;
