@@ -4095,14 +4095,14 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
-  pr: 421
+  pr: 429
   internal: true
   milestone: null
   blocked_by: []
@@ -4156,8 +4156,32 @@ tasks:
     note: "T-150 follow-up on PR 421: derived demo-graph geometry (no clipping, no stacking), live Crown Shyness dial re-flowing the canvas, feature tour with pause/play (parks under reduced motion/off-screen/tree pane/hidden tab), arrows, no X and no dead Try it link, View toolbar above the canvas, unified Privacy/Open source sections, hover-only-when-the-pointer-moved guard, README + changelog, marketing e2e rewritten (14 passing)"
     proof: ["724a033"]
     effort: {commits: 1, files: 13, insertions: 832, deletions: 308}
-  spent_min: 342
-  session_count: 7
+  - start: "2026-10-18T13:43:17Z"
+    end: "2026-10-18T15:16:56Z"
+    measured: true
+    note: "Tree-first marketing demo: view defaults to tree, hand-drawn squiggle (inlined from public/squiggle.svg, pathLength=1 dash draw on first view, reduced-motion static, 1270ms) points at the View toggle with see the difference, ungrep -c '<<<<<<<\\|>>>>>>>' TASKS.yaml || echo NO_MARKERS; grep -n 'id: T-16[2-8]' TASKS.yaml; bun run task:validate 2>&1 | tail -3 retires after first comparison; tour runs on both panes. e2e repinned for tree default + squiggle draw/retire; parkTheTour opens the graph pane. Gates: tsc 0, lint 0, bun test 237/237, build OK, playwright marketing 24/24, changelog validate OK."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-10-18T15:24:36Z"
+    end: "2026-10-18T15:33:26Z"
+    measured: true
+    note: "Hook session for the close-out commit: tsc 0, lint 0, bun test 237/237, build OK, playwright marketing 24/24, changelog validate OK. Commit 480979a."
+    proof: ["480979a"]
+    effort: {commits: 1, files: 6, insertions: 209, deletions: 19}
+  - start: "2026-10-18T17:00:07Z"
+    end: "2026-10-18T17:08:43Z"
+    measured: true
+    note: "Squiggle drift fix: inlined copy was an older Inkscape revision than public/squiggle.svg (tail, first control point, arrowhead arm, viewBox). Geometry moved to compareSquiggle.ts constants read by CompareAnnotation, asset ratio via w-150 h-auto, drift test parses the public file (negative check: 1-digit edit fails, revert passes). Gates: tsc 0, lint 0, bun run test 0 fail, build OK, playwright marketing 23/24 (known pre-existing first-scroll flake, identical on clean dev), visual 1440 dark+light, tip on fewer."
+    proof: ["2a5827f"]
+    effort: {commits: 1, files: 3, insertions: 95, deletions: 9}
+  - start: "2026-10-18T17:13:28Z"
+    end: "2026-10-18T17:20:01Z"
+    measured: true
+    note: "Squiggle timing: draw armed by the annotation box (threshold 0.9, rootMargin bottom -6%, one-shot) instead of section-level isIntersecting, so the 2.3s draw plays after the reader arrives instead of during the glide; toggle nudge follows. e2e: helper scrolls the observed node; new 'waits for the reader' test pins drawn=0 at hero after 2500ms, 1 after arrival. Gates: tsc 0, lint 0, bun run test 0 fail, build OK, playwright marketing 24/25 (known pre-existing first-scroll flake), live check: hero drawn=0, arrival drawn=1, mid-draw screenshot."
+    proof: ["a3ab099"]
+    effort: {commits: 1, files: 3, insertions: 98, deletions: 15}
+  spent_min: 461
+  session_count: 11
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
   status: "review"

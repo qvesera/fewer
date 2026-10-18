@@ -5,6 +5,12 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useDevice } from "@/hooks/use-device";
 import { graphToTextLines } from "@/lib/fewer/marketingPreview";
 import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
+import {
+  SQUIGGLE_HEAD_PATH,
+  SQUIGGLE_LOOP_PATH,
+  SQUIGGLE_TRANSFORM,
+  SQUIGGLE_VIEW_BOX,
+} from "./compareSquiggle";
 import { PreviewGraph } from "./PreviewGraph";
 import { FeatureProof } from "./FeatureProof";
 
@@ -111,8 +117,73 @@ function BarButton({
   );
 }
 
+/**
+ * The comparison's annotation: the reader's hand-drawn squiggle
+ * (public/squiggle.svg, inlined so the strokes can draw themselves) pointing
+ * up at the View toggle, with the sentence beside it as real text. Decorative
+ * and pointer-transparent - it teaches by pointing, the toggle is the control.
+ * The loop draws first and the arrowhead lands after it, the first time the
+ * section is on screen (one-way `entered`, so scrolling away and back cannot
+ * replay it); under prefers-reduced-motion it is simply drawn. Below sm there
+ * is no room beside the toggle to point at, so only the sentence shows.
+ *
+ * The geometry comes from compareSquiggle.ts - verbatim from
+ * public/squiggle.svg, pinned by its test - and the box keeps the asset's own
+ * ratio (w-[150px] h-auto), so the drawing is not letterboxed inside it.
+ * `hintRef` is how the parent watches this box: the draw is armed by the
+ * annotation itself being on screen, never by the section merely touching
+ * the fold.
+ */
+export function CompareAnnotation({
+  entered,
+  hintRef,
+}: {
+  entered: boolean;
+  hintRef?: React.Ref<HTMLDivElement>;
+}) {
+  return (
+    <div
+      ref={hintRef}
+      data-mk-compare-hint
+      className="pointer-events-none absolute -top-6 left-4 z-10 select-none sm:left-48"
+      style={{ color: "var(--fewer-folder-icon)" }}
+    >
+      <div className="flex items-center gap-2">
+        <svg
+          className="mk-squiggle hidden w-[150px] shrink-0 sm:block h-auto"
+          viewBox={SQUIGGLE_VIEW_BOX}
+          data-drawn={entered ? "1" : "0"}
+          aria-hidden="true"
+        >
+          <g transform={SQUIGGLE_TRANSFORM}>
+            <path pathLength={1} d={SQUIGGLE_LOOP_PATH} />
+            <path pathLength={1} d={SQUIGGLE_HEAD_PATH} />
+          </g>
+        </svg>
+        <span
+          className="font-mono text-[12px] font-semibold"
+          style={{ transform: "rotate(-2deg)" }}
+        >
+          see the difference!
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function FeaturePlayground() {
-  const [view, setView] = useState<View>("graph");
+  /**
+   * The demo opens on the text pane: the comparison is the point, so a
+   * reader arrives on the ordinary `tree` their files already print as. The
+   * coach mark (rendered inside the tree pane, gone once the reader has seen
+   * the graph - `seenGraph`) is what invites the switch.
+   */
+  const [view, setView] = useState<View>("tree");
+  /** One-way: the reader has been to the graph at least once this visit. */
+  const [seenGraph, setSeenGraph] = useState(false);
+  useEffect(() => {
+    if (view === "graph") setSeenGraph(true);
+  }, [view]);
   const [accent, setAccent] = useState<string | undefined>(undefined);
   const [activeId, setActiveId] = useState<string>(MARKETING_FEATURES[0].id);
   /**
@@ -135,6 +206,13 @@ export function FeaturePlayground() {
   /** Bumped by every reader activation: the quiet clock starts again from it. */
   const [tourToken, setTourToken] = useState(0);
   const [inView, setInView] = useState(false);
+  /** One-way: the section has been on screen at least once. The squiggle's
+   *  own node (below) decides when the draw starts; this stays one-way so it
+   *  never replays. */
+  const [entered, setEntered] = useState(false);
+  /** The annotation's DOM node, handed to the observer below (a callback ref,
+   *  so it survives mount/unmount as the reader flips views). */
+  const [hintNode, setHintNode] = useState<HTMLDivElement | null>(null);
   const [tabVisible, setTabVisible] = useState(true);
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -186,8 +264,10 @@ export function FeaturePlayground() {
     [activeId, activate],
   );
 
-  // The tour only runs where it can be seen: in view, on the graph pane, with
-  // the tab in front, and never under prefers-reduced-motion.
+  // The tour only runs where it can be seen: in view, with the tab in front,
+  // and never under prefers-reduced-motion. It is not gated on the graph pane
+  // - the inspector below cycles on the tree pane too, and it is what still
+  // names each feature while the text view is up.
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
@@ -200,6 +280,34 @@ export function FeaturePlayground() {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  /**
+   * The squiggle draws when the reader is AT the comparison, not when the
+   * section first peeks over the fold: the hero fills the screen, so a
+   * section-level observer fires during the scroll itself and the ~2.3s draw
+   * was finished by the time the glide landed. The annotation box is the
+   * trigger - 90% of it inside the fold (minus a bottom margin, so hugging
+   * the edge does not count) means the reader is here - and it fires once,
+   * then unobserves, so scrolling away and back cannot replay it.
+   */
+  useEffect(() => {
+    if (!hintNode) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setEntered(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setEntered(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.9, rootMargin: "0px 0px -6% 0px" },
+    );
+    io.observe(hintNode);
+    return () => io.disconnect();
+  }, [hintNode]);
 
   // Real movement authorises a hover: pointermove, pointerdown, and pointerover
   // only when its coordinates differ from the last ones seen. A layout shift
@@ -250,16 +358,16 @@ export function FeaturePlayground() {
   }, []);
 
   useEffect(() => {
-    if (!playing || !inView || !tabVisible || view !== "graph") return;
+    if (!playing || !inView || !tabVisible) return;
     const timer = setTimeout(() => {
       const index = MARKETING_FEATURES.findIndex((f) => f.id === activeId);
       setActiveId(MARKETING_FEATURES[(index + 1) % MARKETING_FEATURES.length].id);
       setEngaged(true);
     }, TOUR_MS);
     return () => clearTimeout(timer);
-  }, [playing, inView, tabVisible, view, activeId, tourToken]);
+  }, [playing, inView, tabVisible, activeId, tourToken]);
 
-  const tourRunning = playing && inView && tabVisible && view === "graph";
+  const tourRunning = playing && inView && tabVisible;
 
   return (
     <section
@@ -304,7 +412,12 @@ export function FeaturePlayground() {
             <div
               role="group"
               aria-label="Choose a view"
-              className="inline-flex rounded-lg border border-border/60 bg-muted/30 p-1"
+              className={[
+                "inline-flex rounded-lg border border-border/60 bg-muted/30 p-1",
+                // The toggle glows once when the section lands on screen, to
+                // pull the eye to the control the coach mark is about.
+                entered && !seenGraph ? "mk-compare-nudge" : "",
+              ].join(" ")}
             >
               <button
                 type="button"
@@ -361,6 +474,14 @@ export function FeaturePlayground() {
               }
               aria-hidden={view !== "tree"}
             >
+              {/* The squiggle points up into the title bar from the pane
+                  itself, so it lives on the pane, not in the centred column -
+                  `seenGraph` retires it for the rest of the visit once the
+                  reader has compared. The pane's own `invisible` hides it
+                  with everything else when the graph is up. */}
+              {view === "tree" && !seenGraph && (
+                <CompareAnnotation entered={entered} hintRef={setHintNode} />
+              )}
               {/* The same folder, as text: a captioned block the same size as
                   the canvas it swaps with, not a stray <pre> at a page edge.
                   `items-center` shrinks each child to its own text and centres
