@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4175,12 +4175,12 @@ tasks:
     proof: ["2a5827f"]
     effort: {commits: 1, files: 3, insertions: 95, deletions: 9}
   - start: "2026-10-18T17:13:28Z"
-    end: null
+    end: "2026-10-18T17:20:01Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 454
+    note: "Squiggle timing: draw armed by the annotation box (threshold 0.9, rootMargin bottom -6%, one-shot) instead of section-level isIntersecting, so the 2.3s draw plays after the reader arrives instead of during the glide; toggle nudge follows. e2e: helper scrolls the observed node; new 'waits for the reader' test pins drawn=0 at hero after 2500ms, 1 after arrival. Gates: tsc 0, lint 0, bun run test 0 fail, build OK, playwright marketing 24/25 (known pre-existing first-scroll flake), live check: hero drawn=0, arrival drawn=1, mid-draw screenshot."
+    proof: ["a3ab099"]
+    effort: {commits: 1, files: 3, insertions: 98, deletions: 15}
+  spent_min: 461
   session_count: 11
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
