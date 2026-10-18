@@ -21,6 +21,24 @@ import { Reveal } from "./Reveal";
  * close it as a band. Every card takes the same inset so one left edge and
  * one right edge come out of the bento, never a ragged one.
  *
+ * Each tile is two states of one fixed box. At rest the TITLE - kicker and,
+ * on the display card, its word - is out of the flow and centred, set one
+ * size up, alone in the card. Engaged (hovered, or focused from the
+ * keyboard), it slides to the top, steps down to its markup size, and the
+ * claim fades in underneath it where the card reserved its slot. Nothing is
+ * ever sized by the reveal: the claim keeps its space in the layout in both
+ * states, so the bento's height - and, it being centred against its heading,
+ * the whole band - cannot move. All of it runs on one timing
+ * (--mk-reveal-dur over the house --ease-aurora curve), so the slide, the
+ * step-down and the fade land together.
+ *
+ * That state machine lives inside @media (hover: hover) in globals.css,
+ * never in the markup: a touch screen has no pointer to leave, so there the
+ * title sits at the top and the claim is visible from the start, and
+ * crawlers and screen readers get the copy either way. The hero claim and the
+ * stat band are never withheld - they are the section's lead sentence and its
+ * values, not tiles.
+ *
  * The schematic the hero card used to carry is gone: it repeated the sentence
  * beside it and read as clip art, and so is the one-line mono strip that
  * briefly replaced it - the hero is the sentence paired with its shield, and
@@ -54,22 +72,67 @@ const PRIVACY_STATS = [
 /** The bento's shared chrome: an icon chip and a mono kicker on one line. */
 function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30"
         style={{ color: "var(--fewer-file-icon)" }}
         aria-hidden="true"
       >
         {icon}
       </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
         {children}
       </span>
     </div>
   );
 }
 
-const CLAIM = "mt-3 text-sm leading-relaxed text-foreground/90";
+/** A claim card's chrome: one inset for every card, and the hover hint. */
+const CARD =
+  "rounded-xl border border-border/60 bg-card/50 p-6 text-left transition-colors duration-200 hover:border-border";
+
+/** A claim sits under its title's reserved slot, at one scale everywhere. */
+const CLAIM = "text-base leading-relaxed text-foreground/90";
+
+/**
+ * A claim card: the title is absolutely placed (centred at rest, at the top
+ * when engaged) and the claim, in flow, is what gives the card its height -
+ * so the card is the same size in both states.
+ */
+function ClaimCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <li
+      data-mk-privacy-card
+      tabIndex={0}
+      className={`mk-claim-card relative ${CARD} ${className}`}
+    >
+      {children}
+    </li>
+  );
+}
+
+/** A tile's title: kicker (and display word) as one block the reveal moves. */
+function TileTitle({ children }: { children: ReactNode }) {
+  return <div className="mk-tile-title">{children}</div>;
+}
+
+/**
+ * A tile's claim: always in the layout - its padding is the slot the title
+ * tops out into - and only ever faded by the reveal, never moved.
+ */
+function Claim({ children }: { children: ReactNode }) {
+  return (
+    <p data-mk-privacy-claim className={`mk-claim ${CLAIM}`}>
+      {children}
+    </p>
+  );
+}
 
 export function PrivacySection() {
   return (
@@ -98,77 +161,87 @@ export function PrivacySection() {
         <Reveal delay={90}>
           {/* One list of six statements in five cards: hierarchy instead of
               six identical rows, and every card on the bento's two edges. */}
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="grid gap-4 sm:grid-cols-2">
             <li
               data-mk-privacy-hero
-              className="rounded-xl border border-border bg-card/70 p-5 text-left sm:col-span-2"
+              className="rounded-xl border border-border bg-card/70 p-6 text-left sm:col-span-2"
             >
               {/* Shield centred against the whole two-line block: items-center
                   drops its middle on the paragraph's middle, so it reads as
                   one unit with the sentence rather than pinned to line one. */}
               <div className="flex items-center gap-3 sm:gap-4">
                 <ShieldCheck
-                  className="h-4 w-4 shrink-0 sm:h-5 sm:w-5"
+                  className="h-5 w-5 shrink-0 sm:h-6 sm:w-6"
                   style={{ color: "var(--fewer-file-icon)" }}
                   aria-hidden="true"
                 />
                 <span
                   data-mk-privacy-headline
-                  className="text-lg font-semibold leading-snug text-foreground sm:text-xl"
+                  className="text-xl font-semibold leading-snug text-foreground sm:text-2xl"
                 >
                   {HERO_POINT}
                 </span>
               </div>
             </li>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                Account required
-              </span>
-              <p className="mt-1 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                ZERO
-              </p>
-              <p className={CLAIM}>{ACCOUNT}</p>
-            </li>
+            <ClaimCard className="mk-claim-card--display">
+              <TileTitle>
+                <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Account required
+                </span>
+                <p className="mk-tile-display mt-1 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+                  ZERO
+                </p>
+              </TileTitle>
+              <Claim>{ACCOUNT}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
-              <CardLabel icon={<Cloud className="h-3.5 w-3.5" />}>Cloud connections</CardLabel>
-              <p className={CLAIM}>{CLOUD}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<Cloud className="h-4 w-4" />}>Cloud connections</CardLabel>
+              </TileTitle>
+              <Claim>{CLOUD}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
-              <CardLabel icon={<Ban className="h-3.5 w-3.5" />}>Trackers, ads, telemetry</CardLabel>
-              <p className={CLAIM}>{TRACKERS}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<Ban className="h-4 w-4" />}>Trackers, ads, telemetry</CardLabel>
+              </TileTitle>
+              <Claim>{TRACKERS}</Claim>
+            </ClaimCard>
 
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left">
-              <CardLabel icon={<BellRing className="h-3.5 w-3.5" />}>Watch digests</CardLabel>
-              <p className={CLAIM}>{DIGESTS}</p>
-            </li>
+            <ClaimCard>
+              <TileTitle>
+                <CardLabel icon={<BellRing className="h-4 w-4" />}>Watch digests</CardLabel>
+              </TileTitle>
+              <Claim>{DIGESTS}</Claim>
+            </ClaimCard>
 
             {/* The shortest statement spans both columns: a footnote strip is
                 what a hosting-log line reads as - a half-width card would
                 leave a hole beside it. */}
-            <li className="rounded-xl border border-border/60 bg-card/50 p-5 text-left sm:col-span-2">
-              <CardLabel icon={<ScrollText className="h-3.5 w-3.5" />}>Server logs</CardLabel>
-              <p className={CLAIM}>{LOGS}</p>
-            </li>
+            <ClaimCard className="sm:col-span-2">
+              <TileTitle>
+                <CardLabel icon={<ScrollText className="h-4 w-4" />}>Server logs</CardLabel>
+              </TileTitle>
+              <Claim>{LOGS}</Claim>
+            </ClaimCard>
           </ul>
 
           {/* The short version, in mono: each badge is a claim the page
               already makes, checkable in /privacy or LICENSE. Cell padding
               matches the cards so the first value sits on their left edge. */}
-          <div className="mt-3 grid grid-cols-3 rounded-xl border border-border/60 bg-card/40">
+          <div className="mt-4 grid grid-cols-3 rounded-xl border border-border/60 bg-card/40">
             {PRIVACY_STATS.map((stat) => (
               <div
                 key={stat.value}
                 data-mk-privacy-stat
-                className="flex flex-col gap-0.5 border-l border-border/60 p-5 first:border-l-0"
+                className="flex flex-col gap-1 border-l border-border/60 p-6 first:border-l-0"
               >
-                <span className="font-mono text-sm font-semibold tabular-nums text-foreground sm:text-base">
+                <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
                   {stat.value}
                 </span>
-                <span className="text-[10px] uppercase leading-snug tracking-wider text-muted-foreground">
+                <span className="text-[11px] uppercase leading-snug tracking-wider text-muted-foreground">
                   {stat.label}
                 </span>
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { useActiveLeaf } from "@/hooks/use-active-leaf";
 import {
@@ -54,6 +55,27 @@ import {
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
+import { InfoTip } from "./InfoTip";
+
+/**
+ * A setting's help (T-172): the sentence that used to sit under the control
+ * now lives in the info icon beside the row, and stays in the DOM as sr-only
+ * text, so de-cluttering the panel never de-clutters it away from a screen
+ * reader - aria-describedby points at this same id, and the reading order
+ * still picks it up on the way to the control.
+ */
+function Hint({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return (
+    <>
+      <span id={id} className="sr-only">
+        {children}
+      </span>
+      <InfoTip label={label} id={id} side="left" className="self-center">
+        {children}
+      </InfoTip>
+    </>
+  );
+}
 import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeEditorDialog, Logo, CloudPanel } from ".";
@@ -313,10 +335,12 @@ function AccountTab() {
               <User2 className="h-4 w-4" />
             </div>
             <div>
-              <span className="text-sm font-semibold text-foreground">Profile</span>
-              <span className="block text-[11px] text-muted-foreground/70">
-                Your name and username, stored with your account
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-semibold text-foreground">Profile</span>
+                <Hint id="hint-profile" label="Profile">
+                  Your name and username, stored with your account
+                </Hint>
+              </div>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -345,9 +369,14 @@ function AccountTab() {
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="profile-username" className="text-xs font-medium text-muted-foreground">
-                Username
-              </Label>
+              <div className="flex items-center gap-1">
+                <Label htmlFor="profile-username" className="text-xs font-medium text-muted-foreground">
+                  Username
+                </Label>
+                <Hint id="hint-username" label="Username">
+                  Letters, numbers, underscores &amp; dots, no "@".
+                </Hint>
+              </div>
               <Input
                 id="profile-username"
                 value={username}
@@ -355,10 +384,8 @@ function AccountTab() {
                 placeholder="ada"
                 autoComplete="username"
                 maxLength={100}
+                aria-describedby="hint-username"
               />
-              <p className="text-[11px] text-muted-foreground/70">
-                Letters, numbers, underscores &amp; dots, no "@".
-              </p>
             </div>
           </div>
           <div className="mt-3 flex justify-end">
@@ -386,14 +413,16 @@ function AccountTab() {
                 <CreditCard className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-medium text-foreground">
-                  {planLabel}
-                </span>
-                <span className="text-[11px] text-muted-foreground/70">
-                  {billingEnabledUi && plan !== "free"
-                    ? "Update card, view invoices, or cancel anytime"
-                    : "Tier limits apply to saved graphs, history, watches, and sharing"}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-medium text-foreground">
+                    {planLabel}
+                  </span>
+                  <Hint id="hint-plan" label={planLabel}>
+                    {billingEnabledUi && plan !== "free"
+                      ? "Update card, view invoices, or cancel anytime"
+                      : "Tier limits apply to saved graphs, history, watches, and sharing"}
+                  </Hint>
+                </div>
               </div>
             </div>
             {billingEnabledUi ? (
@@ -579,10 +608,12 @@ function AccountTab() {
               <Trash2 className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground">Delete account</span>
-              <span className="text-[11px] text-muted-foreground/70">
-                Schedules permanent removal in 7 days; sign in again to cancel
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium text-foreground">Delete account</span>
+                <Hint id="hint-delete-account" label="Delete account">
+                  Schedules permanent removal in 7 days; sign in again to cancel
+                </Hint>
+              </div>
             </div>
           </div>
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -860,6 +891,16 @@ function AppearanceTab() {
           <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             Sibling Sort
           </Label>
+          <span className="ml-auto flex items-center">
+            <Hint id="hint-sibling-sort" label="Sibling Sort">
+              Controls how siblings are ordered within each folder. Sort keys apply
+              recursively and re-layout the whole graph immediately; the new order is
+              saved with your other preferences and remembered next time you open the
+              app (it does not travel with a saved graph). Folder size uses the value
+              recorded when the graph was imported; if a folder's size wasn't reported,
+              it sorts last in ascending order.
+            </Hint>
+          </span>
         </div>
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="space-y-1.5">
@@ -886,14 +927,6 @@ function AppearanceTab() {
               onValueChange={(v) => setSortDir(v as SortDir)}
             />
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Controls how siblings are ordered within each folder. Sort keys
-            apply recursively and re-layout the whole graph immediately; the new
-            order is saved with your other preferences and remembered next time
-            you open the app (it does not travel with a saved graph). Folder
-            size uses the value recorded when the graph was imported; if a
-            folder's size wasn't reported, it sorts last in ascending order.
-          </p>
         </div>
       </div>
 
@@ -904,6 +937,13 @@ function AppearanceTab() {
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Connection Motion
             </Label>
+            <span className="ml-auto flex items-center">
+              <Hint id="hint-connection-motion" label="Connection Motion">
+                {edgeAnimatedSelectedOnly
+                  ? "Only the connections along the selected cards' path to the root animate, in the chosen dashed/dotted pattern. All other connections follow the Connection Styling controls above."
+                  : "Turn this on to animate just the selection path; every other connection follows the Connection Styling controls above."}
+              </Hint>
+            </span>
           </div>
           <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -934,11 +974,6 @@ function AppearanceTab() {
               />
             </div>
           )}
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            {edgeAnimatedSelectedOnly
-              ? "Only the connections along the selected cards' path to the root animate, in the chosen dashed/dotted pattern. All other connections follow the Connection Styling controls above."
-              : "Turn this on to animate just the selection path; every other connection follows the Connection Styling controls above."}
-          </p>
         </div>
       </div>
       )}
@@ -998,7 +1033,13 @@ function MinimapControls() {
       {showMiniMap && (
         <>
           <div className="space-y-2">
-            <Label className="text-[11px] text-muted-foreground font-medium">Position</Label>
+            <div className="flex items-center gap-1">
+              <Label className="text-[11px] text-muted-foreground font-medium">Position</Label>
+              <Hint id="hint-minimap-position" label="Position">
+                Custom position is pinned in place and only moves when you adjust the
+                X / Y sliders above.
+              </Hint>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {positions.map((pos) => {
                 const active = miniMapPosition === pos.value;
@@ -1062,7 +1103,6 @@ function MinimapControls() {
                   step={5}
                 />
               </div>
-              <p className="pt-1 text-[11px] text-muted-foreground/70">Custom position is pinned in place and only moves when you adjust the X / Y sliders above.</p>
             </>
           )}
         </>
@@ -1109,12 +1149,23 @@ function AdvancedTab() {
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               Layout Policy
             </Label>
+            <span className="ml-auto flex items-center">
+              <Hint id="hint-layout-policy" label="Layout Policy">
+                Max Depth and Auto-hide apply immediately. Crown Shyness re-runs the
+                layout as soon as you release the slider (or commit a typed value).
+                Changing it clears the current view's manual card positions, since those
+                were spaced for the old intensity. Organize and Sort always re-flow,
+                whatever Auto-relayout is set to.
+              </Hint>
+            </span>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center gap-1">
                 <Label className="text-xs font-medium text-foreground">Max Depth</Label>
-                <p className="text-[11px] text-muted-foreground/70">Hide cards deeper than this level.</p>
+                <Hint id="hint-max-depth" label="Max Depth">
+                  Hide cards deeper than this level.
+                </Hint>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80">
                 <EditableNumber value={maxDisplayDepth} onCommit={(v) => setMaxDisplayDepth(v)} labelFn={(v) => (v === 0 ? "Unlimited" : `${v} lvl`)} />
@@ -1130,9 +1181,11 @@ function AdvancedTab() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center gap-1">
                 <Label className="text-xs font-medium text-foreground">Auto-hide Limit</Label>
-                <p className="text-[11px] text-muted-foreground/70">Auto-collapse folders with more than this number of items.</p>
+                <Hint id="hint-auto-hide" label="Auto-hide Limit">
+                  Auto-collapse folders with more than this number of items.
+                </Hint>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>
             </div>
@@ -1146,9 +1199,14 @@ function AdvancedTab() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center gap-1">
                 <Label className="text-xs font-medium text-foreground">Crown Shyness</Label>
-                <p className="text-[11px] text-muted-foreground/70">Extra spacing between sibling branches, with wider gaps around larger, deeper branch clusters. 0 disables it, 1 is the usual spacing, and the response curves upward from there: 2 is clearly looser and 3 opens the tree right up, which is as loose as the layout gets.</p>
+                <Hint id="hint-crown-shyness" label="Crown Shyness">
+                  Extra spacing between sibling branches, with wider gaps around larger,
+                  deeper branch clusters. 0 disables it, 1 is the usual spacing, and the
+                  response curves upward from there: 2 is clearly looser and 3 opens the
+                  tree right up, which is as loose as the layout gets.
+                </Hint>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80">
                 <EditableNumber value={shynessPreview} onCommit={(v) => setShynessScale(v)} labelFn={(v) => `${v.toFixed(1)}×`} />
@@ -1165,18 +1223,21 @@ function AdvancedTab() {
             />
           </div>
           <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <Label className="text-xs font-medium text-foreground">Auto-relayout</Label>
-              <p className="text-[11px] text-muted-foreground/70">
-                Re-flow the tree when you hide or show cards and collapse folders. Turn this off to keep
-                the current arrangement through those actions, and re-flow when you choose.
-              </p>
+            <Label className="min-w-0 text-xs font-medium text-foreground">Auto-relayout</Label>
+            <div className="flex shrink-0 items-center gap-2">
+              <Switch
+                checked={autoRelayout}
+                onCheckedChange={setAutoRelayout}
+                aria-label="Auto-relayout"
+                aria-describedby="hint-auto-relayout"
+              />
+              <Hint id="hint-auto-relayout" label="Auto-relayout">
+                Re-flow the tree when you hide or show cards and collapse folders. Turn
+                this off to keep the current arrangement through those actions, and
+                re-flow when you choose.
+              </Hint>
             </div>
-            <Switch checked={autoRelayout} onCheckedChange={setAutoRelayout} className="shrink-0" aria-label="Auto-relayout" />
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            Max Depth and Auto-hide apply immediately. Crown Shyness re-runs the layout as soon as you release the slider (or commit a typed value). Changing it clears the current view's manual card positions, since those were spaced for the old intensity. Organize and Sort always re-flow, whatever Auto-relayout is set to.
-          </p>
         </div>
       )}
 
@@ -1187,6 +1248,13 @@ function AdvancedTab() {
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               Canvas Navigation
             </Label>
+            <span className="ml-auto flex items-center">
+              <Hint id="hint-canvas-nav" label="Canvas Navigation">
+                {scrollAction === "zoom"
+                  ? "The mouse wheel zooms the canvas directly; hold Ctrl (⌘) and scroll to pan."
+                  : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
+              </Hint>
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <Label className="text-xs font-medium text-foreground">Scroll to Zoom</Label>
@@ -1194,13 +1262,9 @@ function AdvancedTab() {
               checked={scrollAction === "zoom"}
               onCheckedChange={(zoom) => setScrollAction(zoom ? "zoom" : "pan")}
               aria-label="Scroll to Zoom"
+              aria-describedby="hint-canvas-nav"
             />
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-            {scrollAction === "zoom"
-              ? "The mouse wheel zooms the canvas directly; hold Ctrl (⌘) and scroll to pan."
-              : "The mouse wheel pans the canvas vertically; hold Ctrl (⌘) and scroll to zoom."}
-          </p>
         </div>
       )}
 

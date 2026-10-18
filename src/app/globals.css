@@ -867,6 +867,106 @@ html[data-shell] .react-flow__node > div {
   opacity: 1;
 }
 
+/* ── Privacy claim tiles (T-170) ──────────────────────────────────────────────
+   Two states of one fixed box. The TITLE (TileTitle) is taken out of the flow
+   and placed absolutely, so it can be CENTRED in its card at rest - set one
+   size up, alone on the card - and slide to the top when the tile is engaged
+   (hovered, or focused from the keyboard), stepping down to the size in the
+   markup as it goes. The claim, in flow, never moves: its padding-top is the
+   slot the title tops out into (--mk-title-h, one value per title shape), and
+   it only ever fades. That is why nothing here can resize the card, and the
+   bento - centred against its heading - cannot re-centre itself.
+
+   One timing for the whole reveal: --mk-reveal-dur over the house
+   --ease-aurora in-out curve (deliberately above the 150-300ms band - this is
+   a card-sized move, and --ease-enter's expo snap read as abrupt), so the
+   slide, the type step-down and the fade travel together. The global
+   reduced-motion rule makes them instant.
+
+   The centred/held-back state lives inside @media (hover: hover): where there
+   is no hover to spend (a touch screen, a no-JS reader) the title sits at the
+   top and the claim is visible from the start, so the markup never hides copy
+   from a crawler or a reader without a pointer. */
+.mk-claim-card {
+  --mk-title-h: 2rem; /* the CardLabel row: an h-8 icon chip */
+  --mk-reveal-dur: 400ms;
+}
+.mk-claim-card--display {
+  /* The kicker + ZERO block, measured engaged: 81px at sm+ - set a hair above
+     so the claim lands under it with the same 16px the label cards get. */
+  --mk-title-h: 5.5rem;
+}
+.mk-tile-title {
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  top: 1.5rem;
+}
+.mk-claim {
+  padding-top: calc(var(--mk-title-h) + 1rem);
+}
+@media (hover: hover) {
+  /* Rest: centred and set one size up - the title is the whole card. */
+  .mk-tile-title {
+    top: 50%;
+    transform: translateY(-50%);
+    transition:
+      top var(--mk-reveal-dur) var(--ease-aurora),
+      transform var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-claim {
+    opacity: 0;
+    transition: opacity var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  /* Real font-size, not a transform: the type re-flows instead of being
+     stretched, and the title is absolutely placed, so its own height change
+     cannot touch the card. The kicker's rest size is the largest that holds
+     one line in the xl split (12px/0.06em = ~197px of the 205px it has there;
+     13px wrapped the Trackers kicker), so it reads one size up while the
+     display word carries the big step. */
+  .mk-tile-kicker {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    transition:
+      font-size var(--mk-reveal-dur) var(--ease-aurora),
+      letter-spacing var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-tile-display {
+    font-size: 3rem;
+    transition: font-size var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-claim-card:hover .mk-tile-kicker,
+  .mk-claim-card:focus-within .mk-tile-kicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .mk-claim-card:hover .mk-tile-display,
+  .mk-claim-card:focus-within .mk-tile-display {
+    font-size: 2.25rem;
+  }
+  /* Engaged: the title tops out (its slot starts right under it) and the
+     claim lights up. */
+  .mk-claim-card:hover .mk-tile-title,
+  .mk-claim-card:focus-within .mk-tile-title {
+    top: 1.5rem;
+    transform: translateY(0);
+  }
+  .mk-claim-card:hover .mk-claim,
+  .mk-claim-card:focus-within .mk-claim {
+    opacity: 1;
+  }
+  /* sm+: the display word keeps its step with the markup, in both states. */
+  @media (min-width: 640px) {
+    .mk-tile-display {
+      font-size: 3.75rem;
+    }
+    .mk-claim-card:hover .mk-tile-display,
+    .mk-claim-card:focus-within .mk-tile-display {
+      font-size: 3rem;
+    }
+  }
+}
+
 /* ── Reveal on scroll ────────────────────────────────────────────────────────
    Hidden until observed; the reduced-motion block below and the <noscript>
    style in MarketingHome.tsx both force the resting state, so the page never

@@ -174,7 +174,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   if (!dockedIds.has("file")) {
     sections.file = (
-      <CollapsibleSection title="File & Actions" icon={HardDrive} defaultOpen {...dragProps("file")}>
+      <CollapsibleSection
+        title="File & Actions"
+        icon={HardDrive}
+        defaultOpen
+        info="Import a folder, an archive, a link or a GitHub repo, add a single file or folder card by hand, clear the canvas, or reopen a recent folder."
+        {...dragProps("file")}
+      >
         <div className="space-y-2.5 w-full min-w-0">
           <Button className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10" onClick={onOpenDirectory}>
             <FolderOpen className="h-4 w-4 shrink-0" />
@@ -223,7 +229,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   if (can("savedGraphs", tier) && !dockedIds.has("directories")) {
     sections.directories = (
       <div ref={dirRef} data-section-id="directories">
-        <CollapsibleSection title="Your Directories" icon={FolderOpen} defaultOpen forceOpen={savedGraphsExpandTrigger} {...dragProps("directories")}>
+        <CollapsibleSection
+          title="Your Directories"
+          icon={FolderOpen}
+          defaultOpen
+          forceOpen={savedGraphsExpandTrigger}
+          info="Your saved graphs: save the current canvas here, then reopen, rename, share or delete a saved graph later."
+          {...dragProps("directories")}
+        >
           <SavedGraphsPanel onRequireAuth={onRequireAuth} />
         </CollapsibleSection>
       </div>
@@ -232,7 +245,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   if (!dockedIds.has("layout")) {
     sections.layout = (
-      <CollapsibleSection title="Layout" icon={SlidersHorizontal} defaultOpen {...dragProps("layout")}>
+      <CollapsibleSection
+        title="Layout"
+        icon={SlidersHorizontal}
+        defaultOpen
+        info="How the tree flows: vertical (top to bottom), horizontal (left to right), upward or reverse. Organize re-runs the layout with the spacing you have set."
+        {...dragProps("layout")}
+      >
         <div className="flex flex-col gap-3 w-full min-w-0">
           <LayoutPicker
             direction={activeLeaf?.resolved.direction ?? direction}
@@ -250,7 +269,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   if (!dockedIds.has("edges")) {
     sections.edges = (
-      <CollapsibleSection title="Connections & Style" icon={Spline} defaultOpen={false} {...dragProps("edges")}>
+      <CollapsibleSection
+        title="Connections & Style"
+        icon={Spline}
+        defaultOpen={false}
+        info="How connections are drawn: solid, dashed or dotted."
+        {...dragProps("edges")}
+      >
         <div className="flex flex-col gap-3 w-full min-w-0">
           <div className="space-y-1.5 w-full min-w-0">
             <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
@@ -263,7 +288,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
 
   if (can("tags", tier) && !dockedIds.has("tags") && nodes.length > 0) {
     sections.tags = (
-      <CollapsibleSection title="Tags" icon={TagIcon} badge={tags.length > 0 ? String(tags.length) : undefined} defaultOpen={false} {...dragProps("tags")}>
+      <CollapsibleSection
+        title="Tags"
+        icon={TagIcon}
+        badge={tags.length > 0 ? String(tags.length) : undefined}
+        defaultOpen={false}
+        info="Tag cards to group work across folders. Click a tag to filter the canvas; add, rename, recolour or delete tags here."
+        {...dragProps("tags")}
+      >
         <TagsPanel />
       </CollapsibleSection>
     );
@@ -272,7 +304,13 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
   if (!dockedIds.has("analytics")) {
     sections.analytics = (
       <AnimatedConditional show={can("graphAnalytics", tier) && nodes.length > 0} delay={100}>
-        <CollapsibleSection title="Graph Analytics" icon={Layers} defaultOpen={false} {...dragProps("analytics")}>
+        <CollapsibleSection
+          title="Graph Analytics"
+          icon={Layers}
+          defaultOpen={false}
+          info="What is on the canvas right now: cards by type, depth, and the tags in use."
+          {...dragProps("analytics")}
+        >
           <StatsPanel />
         </CollapsibleSection>
       </AnimatedConditional>
@@ -289,7 +327,15 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     const hiddenCount = activeLeaf ? activeLeaf.resolved.hiddenIds.length : hiddenIds.length;
     if (viewHidden || viewFiltersFiles) {
       sections.hidden = (
-        <CollapsibleSection title="Hidden Cards" icon={EyeOff} badge={String(hiddenCount)} forceOpen={hiddenPanelExpandTrigger} defaultOpen {...dragProps("hidden")}>
+        <CollapsibleSection
+          title="Hidden Cards"
+          icon={EyeOff}
+          badge={String(hiddenCount)}
+          forceOpen={hiddenPanelExpandTrigger}
+          defaultOpen
+          info="Cards hidden from this view. Search them, reveal one at a time, or Reveal All to bring them back."
+          {...dragProps("hidden")}
+        >
           <HiddenNodesPanel />
         </CollapsibleSection>
       );

@@ -520,3 +520,33 @@ test("changing the layout direction re-fits the view to the whole graph (#286)",
   const after = await page.locator(".react-flow__viewport").first().getAttribute("style");
   expect(after).not.toBe(zoomedIn);
 });
+
+test("sidebar sections and settings explain themselves on hover (T-173)", async ({ page }) => {
+  // tier=pro: the Advanced tab's Layout Policy is a pro/basic-mode gate, and
+  // the override is inlined into the build the webServer serves.
+  await page.goto("/app?tier=pro");
+
+  // Sidebar: each section carries an About tip; hovering it shows the sentence
+  // without opening the section it explains. Connections & Style starts folded
+  // (Layout ships defaultOpen), so "still closed" is provable. The header's
+  // accessible name carries its drag label, so it is found by its section id.
+  const sectionHeader = page
+    .locator('[data-section-id="edges"] [role="button"][aria-expanded]')
+    .first();
+  await expect(sectionHeader).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: "About Connections & Style" }).hover();
+  await expect(page.getByRole("tooltip")).toContainText(/solid, dashed or dotted/);
+  await expect(sectionHeader).toHaveAttribute("aria-expanded", "false");
+
+  // Settings: the explainers are off the panel - sr-only, wired to their
+  // control - until their tip is engaged.
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("tab", { name: "Advanced" }).click();
+  await expect(page.getByText(/Extra spacing between sibling branches/)).toHaveClass(/sr-only/);
+  await expect(page.getByRole("switch", { name: "Auto-relayout" })).toHaveAttribute(
+    "aria-describedby",
+    "hint-auto-relayout",
+  );
+  await page.getByRole("button", { name: "About Crown Shyness" }).hover();
+  await expect(page.getByRole("tooltip")).toContainText(/Extra spacing between sibling branches/);
+});

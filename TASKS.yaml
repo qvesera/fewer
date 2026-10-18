@@ -4739,3 +4739,120 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 15, deletions: 2}
   spent_min: 55
   session_count: 2
+- id: "T-170"
+  title: "Home privacy bento: claim cards show title only, claim revealed on hover"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 428
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T21:38:34Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T21:38:55Z"
+    end: "2026-10-16T22:16:14Z"
+    measured: true
+    note: "Privacy bento claim tiles, option B after review (grow-in-place was rejected as jarring): tiles carry only their title; the claim opens as a floating panel under the tile, absolute + z-20 inside @media (hover: hover), in flow and visible where there is no hover to spend (touch/no-JS); tabIndex + focus-within gives the keyboard reveal. e2e pins closed/hover/focus plus bento height and gap-to-stats unchanged, and the statement loop now hovers each tile (pointer cleared first, since an open panel covers the tile below - a teleport hover reports interception while a reader pointer simply un-hovers on the way over). Gates: tsc 0, lint 0, bun run test all green, marketing e2e privacy test green on dev server and on a prod build (the statY pin was swapped to a rect gap after the Reveal entrance transform proved to be an offsetParent/rect artifact, not layout). Pre-existing: marketing.spec:170 arrows wrap fails on origin/dev code too (baseline build check) and the CI E2E job is red on dev for that test - picked up next as its own row."
+    proof: ["517bc82"]
+    effort: {commits: 1, files: 5, insertions: 175, deletions: 17}
+  - start: "2026-10-17T07:38:16Z"
+    end: "2026-10-17T07:54:55Z"
+    measured: true
+    note: "Follow-up session (review feedback: the floating panel was not liked, and the grow-in-place before it was jarring): the claim is back in the layout at all times and only opacity is toggled inside @media (hover: hover), so nothing moves - pinned by the bento-shape e2e (height + gap to the stat band). Tiles now carry flex justify-center so a card centres its stack: the cloud card used to strand its title at the top next to the taller ZERO card. The panel chrome, absolute positioning, z-index, pointer-events and the e2e blur/mouse-move workarounds are all gone; the statement loop now pins opacity 1 after each tile hover instead of visibility. Gates: tsc 0, lint 0, bun run test 0 fail, marketing e2e 23/23 on a fresh prod build, changelog validate OK; dark-theme screenshots checked at 1440 (rest + hover)."
+    proof: ["b4ff325"]
+    effort: {commits: 1, files: 4, insertions: 46, deletions: 65}
+  - start: "2026-10-17T08:48:17Z"
+    end: "2026-10-17T19:47:51Z"
+    measured: true
+    note: "Third pass, and the reveal loses: grow-in-place re-centred the band, the floating panel covered the card below, the centred-title fade left every card half empty - so the claim now sits under its kicker at rest, always, and the bento is scaled up into the room that frees (p-6 inset, 16px claims, 11px kickers on an h-8 chip, text-4xl/5xl display word, bigger stat badges). Kicker tracking 0.18em -> 0.1em so Trackers/ads/telemetry holds one line at 11px in the xl split (measured 194px in the 205px it has). All mk-claim/mk-tile CSS deleted; e2e keeps the five-tile/five-claim pins and reads all six statements back at rest. Gates: tsc 0, lint 0, bun run test 0 fail, marketing e2e 23/23 on a fresh prod build (the first-scroll test flaked once in a full run and passed on re-run - the known timing flake, CI retries it), changelog validate OK; dark-theme screenshots at 700 and 1440 checked against the mock."
+    proof: ["6137624"]
+    effort: {commits: 1, files: 4, insertions: 56, deletions: 142}
+  - start: "2026-10-17T19:56:24Z"
+    end: "2026-10-17T19:57:15Z"
+    measured: true
+    note: "Verification pass over the third design (the cards say everything up front, scaled up - committed as 6137624 during an interruption that also lost this session record). Re-measured the kicker fit after the type step-up: at 0.14em tracking TRACKERS ADS TELEMETRY needed 205px in the 205px the xl split gives it and wrapped, so tracking went 0.18em -> 0.1em (194px) - that fix is inside 6137624. Re-ran every gate on the final tree: tsc 0, lint 0, bun run test 1827+12+233 0 fail, marketing e2e 23/23 on a fresh production build, changelog validate OK; dark-theme screenshots at 700 (stacked) and 1440 (split) checked against the mock - claims at rest, kickers on one line, no dead space. PR #428 retitled to the final design."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-10-17T21:06:05Z"
+    end: "2026-10-17T21:34:24Z"
+    measured: true
+    note: "Restored the reveal the 6137624 interruption dropped, on top of the scaled-up chrome: TileTitle is absolute again - centred and one size up at rest (kicker 12px/0.06em, ZERO 60/48px), sliding to the top and stepping down (11px/0.08em, 48/36px) while the claim fades into its reserved slot (padding-top calc(--mk-title-h + 1rem); 2rem label row / 5.5rem display block). Timing as chosen in review: 400ms over --ease-aurora on all three properties, reduced-motion instant, @media (hover: hover) keeps touch/no-JS showing everything. Measured at 1440 and 700: title centre delta 0 at rest, topPad 0 engaged, gap 16 under the title, claim opacity 0 -> 1, card heights byte-identical (258/202/124) - the band cannot move. Kicker rest size picked by measurement: 13px wrapped Trackers ads telemetry in the xl split, 12px/0.06em = 197px of 205px. Gates: tsc 0, lint 0, bun run test 1827+12+233 0 fail, marketing e2e 23/23 on a fresh prod build (tabIndex restored on the card - the keyboard reveal had lost its tab stop in the rewrite), changelog rewritten to the reveal + validate OK; rest/hover screenshots at 700 and 1440 checked. Also caught: the dev server was serving stale globals.css mid-edit (5.1rem vs 5.5rem on disk) - all final numbers above are from the build."
+    proof: ["dc01c17"]
+    effort: {commits: 1, files: 4, insertions: 257, deletions: 47}
+  - start: "2026-10-18T12:10:06Z"
+    end: "2026-10-18T12:28:41Z"
+    measured: true
+    note: "Merged origin/dev (post-#427) into #428. Conflicts: CHANGELOG (union: dev's per-view collapse bullet + the two branch bullets) and TASKS.yaml (append-union: dev's T-163..T-169 + branch's T-170..T-172, 168 rows, validate-merge clean). Semantic conflict found by test: T-169's badge pin getByName(/Hidden Cards/) now also matches T-172's About Hidden Cards info tip -> strict-mode fail; pin scopes to [data-section-id=hidden] [role=button][aria-expanded]. Gates: lint 0, tsc 0, bun run test 237/237, build 0, groups+marketing e2e 40/40, changelog+migrations validate OK."
+    proof: ["053aa65"]
+    effort: {commits: 1, files: 1, insertions: 6, deletions: 1}
+  spent_min: 762
+  session_count: 6
+- id: "T-171"
+  title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 20
+  estimate_basis: "cli"
+  issue: null
+  pr: 428
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-16T22:17:26Z"
+  notes: []
+  sessions:
+  - start: "2026-10-16T22:17:45Z"
+    end: "2026-10-16T22:18:15Z"
+    measured: true
+    note: "The wrap pin asserted data-mk-hero-slide=fix while marketingHero.ts carries five slides with watch last (fix is fourth). Reproduced against a baseline build of origin/dev with my two source files stashed: the component was never broken, the expectation went stale when the fifth slide landed, which is what has had the E2E job red on dev (runs 38872787602 and 38955258511 both fail only on marketing.spec:170). One-line fix plus the comment naming why; test passes (1.2s). No changelog entry - test-only, no user impact."
+    proof: ["d1bb47f", "1568233"]
+    effort: {commits: 2, files: 2, insertions: 32, deletions: 1}
+  spent_min: 0
+  session_count: 1
+- id: "T-172"
+  title: "Info tooltips on sidebar sections and settings rows"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: 428
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-17T23:25:59Z"
+  notes: []
+  sessions:
+  - start: "2026-10-17T23:26:53Z"
+    end: "2026-10-18T08:39:34Z"
+    measured: true
+    note: "Info tooltips on sidebar sections and settings rows: shared InfoTip (real button, min-hit, About label, aria-describedby id, and its own TooltipProvider so it renders in panels and tests alike), CollapsibleSection.info rendered as a sibling of the disclosure so hovering a tip opens no section, all seven sidebar sections wired (File & Actions, Your Directories, Layout, Connections & Style, Tags, Graph Analytics, Hidden Cards), and thirteen settings explainers moved out of the panel into tips with the sentences kept as sr-only plus aria-describedby - Profile, Username, plan limits, Delete account, Sibling Sort, Connection Motion, Minimap position, Layout Policy (group footnote plus Max Depth, Auto-hide Limit, Crown Shyness, Auto-relayout) and Canvas Navigation; live status text stays visible on purpose. Tooltip layer z-50 -> z-[70] so it clears the settings dialog. Component tests 237 pass (two new Sidebar, two new Settings); the new e2e flow needed two locator fixes - Layout ships defaultOpen so the still-closed pin uses Connections & Style, and the section header accessible name carries its drag label so it is found by data-section-id - and passes against the dev server; tsc 0, lint 0, changelog bullet added (no docs page quotes the moved sentences). Also landed 932f614, the reviewers own ellipsis cleanup in the FeatureProof batch-actions list, in this session so it rides with the PR."
+    proof: ["932f614", "3cf1f57"]
+    effort: {commits: 2, files: 10, insertions: 369, deletions: 70}
+  spent_min: 553
+  session_count: 1
