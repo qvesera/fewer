@@ -4706,7 +4706,7 @@ tasks:
   session_count: 1
 - id: "T-169"
   title: "Revealing one card of a collapsed group must not reveal its siblings (park them per-view)"
-  status: "review"
+  status: "triaged"
   type: "fix"
   area: "visibility"
   tier: 0
@@ -4731,5 +4731,11 @@ tasks:
     note: "Scoped reveal (T-169): openedCollapsedGroupsForLeaf now returns a park list — every member of an OPENED group that the gesture did not reveal is parked under hideLayers.subtrees[groupId] via parkInLayers/withGroupReveal, so it stays hidden, stays listed in the Hidden panel and is eye-revealable one by one; the chevron expand (toggleGroupCollapsedForLeaf) releases the parked set, keeping 'chevron = reveal the whole cluster'. Show All/⇧H still open everything (no park). Debug journey: the e2e failure was the TEST shape (sample's grouped pair was an ancestor chain, so the subtree reveal legitimately included both) — peers are now computed from the graph cache intersected with rendered cards. Gates: tsc 0, bun run test 1846+12+233 0 fail, lint 0, groups e2e 17/17 incl. the new panel-flow test, changelog validate OK."
     proof: ["f83a133"]
     effort: {commits: 1, files: 9, insertions: 267, deletions: 48}
-  spent_min: 48
-  session_count: 1
+  - start: "2026-10-18T09:56:00Z"
+    end: "2026-10-18T10:02:55Z"
+    measured: true
+    note: "CI red diagnosis + fix: (1) test job — bun shares the zustand singleton across all 22 component files, so HiddenNodesPanel's seed([sub, deep, a]) leaked into GroupFrames' new T-164 pin; GroupFrames now clears hiddenIds in beforeEach and HiddenNodesPanel restores getInitialState() in afterEach (233 pass/0 fail full run). (2) e2e job — stale hero wrap pin expected 'fix' backwards from the first slide; marketingHero.ts has watch last (same fix as 1568233, carried so #427 does not wait on #428). Gates: bun run test 0 fail, lint 0, tsc 0, production build via playwright webServer, marketing.spec 22/22 relevant green."
+    proof: ["1238f89"]
+    effort: {commits: 1, files: 3, insertions: 15, deletions: 2}
+  spent_min: 55
+  session_count: 2
