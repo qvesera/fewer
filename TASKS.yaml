@@ -4899,7 +4899,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-18T17:45:09Z"
-  notes: []
+  notes: ["2026-10-18T18:33:06Z · Branch rebased onto dev after PR 429 merged (changelog line conflict, both entries kept): proof commit 665a39c became 0ad3a80; PR 431 force-pushed, validate-merge clean."]
   sessions:
   - start: "2026-10-18T17:59:27Z"
     end: "2026-10-18T18:25:59Z"
