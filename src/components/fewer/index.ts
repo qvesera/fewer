@@ -26,7 +26,6 @@ export { ShortcutsDialog } from "./ShortcutsDialog";
 export { Sidebar } from "./Sidebar";
 export { StatsPanel } from "./StatsPanel";
 export { ThemeProvider } from "./ThemeProvider";
-export { Toolbar } from "./Toolbar";
 export { TutorialDialog } from "./TutorialDialog";
 export { SavedGraphsPanel } from "./SavedGraphsPanel";
 export { VersionHistoryDialog } from "./VersionHistoryDialog";

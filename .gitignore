@@ -90,6 +90,8 @@ scripts/*
 !scripts/build-desktop.sh
 # the marketing hero screenshot tool (see package.json shot)
 !scripts/marketing-shot.ts
+# the OG share-card generator (see scripts/og-card.ts)
+!scripts/og-card.ts
 lighthouse/*
 .clinerules/*
 

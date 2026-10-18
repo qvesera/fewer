@@ -271,6 +271,22 @@ test("the home page sits on the canvas dot grid", async ({ page }) => {
   await expect(page.locator(".mk-backdrop")).toHaveAttribute("aria-hidden", "true");
 });
 
+test("shared links unfurl with the OG card", async ({ page }) => {
+  await page.goto("/");
+
+  // The card is how the product first appears in a Slack or Discord unfurl,
+  // so the image must be an absolute URL off the canonical host (metadataBase)
+  // and the twitter card must be the large variant.
+  const image = await page
+    .locator('meta[property="og:image"]')
+    .getAttribute("content");
+  expect(image).toMatch(/^https:\/\/[^/]+\/og\.png$/);
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
+  );
+});
+
 test("the tree vs graph comparison switches views", async ({ page }) => {
   await page.goto("/");
 
