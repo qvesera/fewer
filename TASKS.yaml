@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 1
