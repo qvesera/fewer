@@ -52,11 +52,11 @@ const IMPORT_CHIPS = [
 ];
 
 const BATCH_ACTIONS = [
-  "Rename…",
+  "Rename",
   "Copy",
   "Cut",
   "Duplicate",
-  "Move to Folder…",
+  "Move to Folder",
   "Unparent",
   "Hide",
   "Delete 8 items",
