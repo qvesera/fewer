@@ -4880,3 +4880,32 @@ tasks:
     effort: {commits: 2, files: 10, insertions: 369, deletions: 70}
   spent_min: 553
   session_count: 1
+- id: "T-173"
+  title: "Brand identity: OG card, canonical mark, dead Toolbar"
+  status: "in-progress"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 430
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-18T17:45:09Z"
+  notes: []
+  sessions:
+  - start: "2026-10-18T17:59:27Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

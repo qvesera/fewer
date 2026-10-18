@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** Canonical public host. One place: sitemap.ts and branding.ts default to
+ *  the same string, and the metadata below (metadataBase, OG urls) resolves
+ *  every relative asset through it. */
+const SITE_URL =
+  (process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.directory").replace(/\/+$/, "") ||
+  "https://fewer.directory";
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
@@ -23,6 +30,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
     "fewer turns any directory into an interactive graph you can explore, edit, organise and group, with 8 export formats, keyboard-first navigation, custom themes and real file system integration. Open source (AGPLv3), privacy-first.",

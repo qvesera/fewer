@@ -5,9 +5,10 @@
  * exactly what gets stripped.
  */
 
-/** Public marketing homepage (overridable via env). */
+/** Public marketing homepage (overridable via env). The canonical host is
+    fewer.directory — the same default sitemap.ts and the footer use. */
 export const FEWER_HOME_URL =
-  process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.direct";
+  process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.directory";
 
 /**
  * App version stamped into exports and bug reports. next.config.ts injects

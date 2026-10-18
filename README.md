@@ -445,6 +445,8 @@ See [ROADMAP.md](ROADMAP.md) for the full roadmap, covering short-term, medium-t
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. By participating, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
+Brand assets: `public/logo_flat.svg` is the source of record. The share-card image (`public/og.png`, 1200×630) is regenerated with `bun scripts/og-card.ts`; the copies frozen into exported SVGs and emails are pinned to their assets by `src/lib/fewer/brandAssets.test.ts`, so `bun run test` fails if the drawing changes without re-copying.
+
 ## License
 
 AGPLv3. See [LICENSE](LICENSE) for details.
