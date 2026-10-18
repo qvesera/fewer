@@ -4626,14 +4626,14 @@ tasks:
   session_count: 1
 - id: "T-172"
   title: "Info tooltips on sidebar sections and settings rows"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 428
   internal: true
   milestone: null
   blocked_by: []
