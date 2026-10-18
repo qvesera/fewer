@@ -328,7 +328,12 @@ test("revealing ONE card of a collapsed group opens the frame but keeps the sibl
   // back, but only the asked-for card — the sibling stays in the panel.
   await page.getByRole("button", { name: "Show subtree" }).first().click();
   // The parked sibling keeps the panel's badge at 1 — the reveal is scoped.
-  await expect(page.getByRole("button", { name: /Hidden Cards/ })).toContainText("1");
+  // Scope to the section HEADER (the disclosure carries aria-expanded): the
+  // info tip's trigger is aria-label "About Hidden Cards" and matches this
+  // name too (T-172), which fails strict mode.
+  await expect(
+    page.locator('[data-section-id="hidden"] [role="button"][aria-expanded]').first(),
+  ).toContainText("1");
   // Poll, don't sample: the reveal is a store write + canvas re-render.
   await expect
     .poll(async () => Number(await cards[0].isVisible()) + Number(await cards[1].isVisible()))
