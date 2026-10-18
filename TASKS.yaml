@@ -4095,7 +4095,7 @@ tasks:
   session_count: 5
 - id: "T-150"
   title: "Marketing home page redesign: interactive hero on the canvas dot grid, ls-R vs graph toggle, illustration band, 3-step how-it-works, capability stories, trust strip, bezier motion system"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4156,8 +4156,14 @@ tasks:
     note: "T-150 follow-up on PR 421: derived demo-graph geometry (no clipping, no stacking), live Crown Shyness dial re-flowing the canvas, feature tour with pause/play (parks under reduced motion/off-screen/tree pane/hidden tab), arrows, no X and no dead Try it link, View toolbar above the canvas, unified Privacy/Open source sections, hover-only-when-the-pointer-moved guard, README + changelog, marketing e2e rewritten (14 passing)"
     proof: ["724a033"]
     effort: {commits: 1, files: 13, insertions: 832, deletions: 308}
-  spent_min: 342
-  session_count: 7
+  - start: "2026-10-18T13:43:17Z"
+    end: "2026-10-18T15:16:56Z"
+    measured: true
+    note: "Tree-first marketing demo: view defaults to tree, hand-drawn squiggle (inlined from public/squiggle.svg, pathLength=1 dash draw on first view, reduced-motion static, 1270ms) points at the View toggle with see the difference, ungrep -c '<<<<<<<\\|>>>>>>>' TASKS.yaml || echo NO_MARKERS; grep -n 'id: T-16[2-8]' TASKS.yaml; bun run task:validate 2>&1 | tail -3 retires after first comparison; tour runs on both panes. e2e repinned for tree default + squiggle draw/retire; parkTheTour opens the graph pane. Gates: tsc 0, lint 0, bun test 237/237, build OK, playwright marketing 24/24, changelog validate OK."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 436
+  session_count: 8
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
   status: "review"

@@ -1191,3 +1191,44 @@ html.lenis body {
   color: var(--muted-foreground);
 }
 
+/* The compare squiggle on the home page: the reader's hand-drawn arrow
+   (public/squiggle.svg, inlined) pointing from "see the difference!" up at the
+   View toggle. pathLength=1 normalizes both strokes so the dash math is the
+   same for the long loop and the short head: the loop draws, the head lands a
+   beat after it, the first time the section is on screen (one-way data-drawn).
+   prefers-reduced-motion simply gets it already drawn. The nudge reuses the
+   canvas's own handle ping for one glow on the toggle. */
+.mk-squiggle path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.mk-squiggle[data-drawn="1"] path {
+  /* Speed cut 45%: 700 / 0.55, so the stroke draws at 55% of the old rate. */
+  animation: mk-squiggle-draw 1270ms var(--ease-enter) forwards;
+}
+.mk-squiggle[data-drawn="1"] path + path {
+  animation-delay: 1000ms;
+}
+@keyframes mk-squiggle-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.mk-compare-nudge {
+  animation: mk-port-ping 1.6s cubic-bezier(0, 0, 0.2, 1) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-squiggle path {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .mk-compare-nudge {
+    animation: none;
+  }
+}
+

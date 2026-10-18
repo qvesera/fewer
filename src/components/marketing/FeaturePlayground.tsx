@@ -111,8 +111,62 @@ function BarButton({
   );
 }
 
+/**
+ * The comparison's annotation: the reader's hand-drawn squiggle
+ * (public/squiggle.svg, inlined so the strokes can draw themselves) pointing
+ * up at the View toggle, with the sentence beside it as real text. Decorative
+ * and pointer-transparent - it teaches by pointing, the toggle is the control.
+ * The loop draws first and the arrowhead lands after it, the first time the
+ * section is on screen (one-way `entered`, so scrolling away and back cannot
+ * replay it); under prefers-reduced-motion it is simply drawn. Below sm there
+ * is no room beside the toggle to point at, so only the sentence shows.
+ */
+function CompareAnnotation({ entered }: { entered: boolean }) {
+  return (
+    <div
+      data-mk-compare-hint
+      className="pointer-events-none absolute -top-6 left-4 z-10 select-none sm:left-48"
+      style={{ color: "var(--fewer-folder-icon)" }}
+    >
+      <div className="flex items-center gap-2">
+        <svg
+          className="mk-squiggle hidden h-[116px] w-[150px] shrink-0 sm:block"
+          viewBox="0 0 67.352715 51.977543"
+          data-drawn={entered ? "1" : "0"}
+          aria-hidden="true"
+        >
+          <g transform="translate(-62.313375,-37.095948)">
+            <path
+              pathLength={1}
+              d="M 128.66609,61.027395 C 119.61041,87.165189 99.81681,94.870779 87.883466,81.979512 73.694414,66.651466 96.384728,47.399694 105.22089,64.375662 120.47625,93.68414 54.576875,91.817572 68.910101,38.650684"
+            />
+            <path pathLength={1} d="m 63.313375,42.119016 5.708767,-4.02311 3.258942,5.191834" />
+          </g>
+        </svg>
+        <span
+          className="font-mono text-[12px] font-semibold"
+          style={{ transform: "rotate(-2deg)" }}
+        >
+          see the difference!
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function FeaturePlayground() {
-  const [view, setView] = useState<View>("graph");
+  /**
+   * The demo opens on the text pane: the comparison is the point, so a
+   * reader arrives on the ordinary `tree` their files already print as. The
+   * coach mark (rendered inside the tree pane, gone once the reader has seen
+   * the graph - `seenGraph`) is what invites the switch.
+   */
+  const [view, setView] = useState<View>("tree");
+  /** One-way: the reader has been to the graph at least once this visit. */
+  const [seenGraph, setSeenGraph] = useState(false);
+  useEffect(() => {
+    if (view === "graph") setSeenGraph(true);
+  }, [view]);
   const [accent, setAccent] = useState<string | undefined>(undefined);
   const [activeId, setActiveId] = useState<string>(MARKETING_FEATURES[0].id);
   /**
@@ -135,6 +189,9 @@ export function FeaturePlayground() {
   /** Bumped by every reader activation: the quiet clock starts again from it. */
   const [tourToken, setTourToken] = useState(0);
   const [inView, setInView] = useState(false);
+  /** One-way: the section has been on screen at least once, so the coach
+   *  mark's arrow draws exactly once and never re-animates on re-entry. */
+  const [entered, setEntered] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -186,17 +243,22 @@ export function FeaturePlayground() {
     [activeId, activate],
   );
 
-  // The tour only runs where it can be seen: in view, on the graph pane, with
-  // the tab in front, and never under prefers-reduced-motion.
+  // The tour only runs where it can be seen: in view, with the tab in front,
+  // and never under prefers-reduced-motion. It is not gated on the graph pane
+  // - the inspector below cycles on the tree pane too, and it is what still
+  // names each feature while the text view is up.
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
       setInView(true);
+      setEntered(true);
       return;
     }
-    const io = new IntersectionObserver((entries) =>
-      setInView(entries.some((entry) => entry.isIntersecting)),
-    );
+    const io = new IntersectionObserver((entries) => {
+      const visible = entries.some((entry) => entry.isIntersecting);
+      setInView(visible);
+      if (visible) setEntered(true);
+    });
     io.observe(el);
     return () => io.disconnect();
   }, []);
@@ -250,16 +312,16 @@ export function FeaturePlayground() {
   }, []);
 
   useEffect(() => {
-    if (!playing || !inView || !tabVisible || view !== "graph") return;
+    if (!playing || !inView || !tabVisible) return;
     const timer = setTimeout(() => {
       const index = MARKETING_FEATURES.findIndex((f) => f.id === activeId);
       setActiveId(MARKETING_FEATURES[(index + 1) % MARKETING_FEATURES.length].id);
       setEngaged(true);
     }, TOUR_MS);
     return () => clearTimeout(timer);
-  }, [playing, inView, tabVisible, view, activeId, tourToken]);
+  }, [playing, inView, tabVisible, activeId, tourToken]);
 
-  const tourRunning = playing && inView && tabVisible && view === "graph";
+  const tourRunning = playing && inView && tabVisible;
 
   return (
     <section
@@ -304,7 +366,12 @@ export function FeaturePlayground() {
             <div
               role="group"
               aria-label="Choose a view"
-              className="inline-flex rounded-lg border border-border/60 bg-muted/30 p-1"
+              className={[
+                "inline-flex rounded-lg border border-border/60 bg-muted/30 p-1",
+                // The toggle glows once when the section lands on screen, to
+                // pull the eye to the control the coach mark is about.
+                entered && !seenGraph ? "mk-compare-nudge" : "",
+              ].join(" ")}
             >
               <button
                 type="button"
@@ -361,6 +428,12 @@ export function FeaturePlayground() {
               }
               aria-hidden={view !== "tree"}
             >
+              {/* The squiggle points up into the title bar from the pane
+                  itself, so it lives on the pane, not in the centred column -
+                  `seenGraph` retires it for the rest of the visit once the
+                  reader has compared. The pane's own `invisible` hides it
+                  with everything else when the graph is up. */}
+              {view === "tree" && !seenGraph && <CompareAnnotation entered={entered} />}
               {/* The same folder, as text: a captioned block the same size as
                   the canvas it swaps with, not a stray <pre> at a page edge.
                   `items-center` shrinks each child to its own text and centres

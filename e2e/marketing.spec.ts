@@ -26,7 +26,12 @@ import { HERO_ROTATE_MS } from "../src/lib/fewer/marketingHero";
 
 /** Park the tour so an assertion cannot be raced by its next tick. */
 async function parkTheTour(page: import("@playwright/test").Page) {
+  // The pause button only exists once the tour is actually running, so
+  // waiting for it is also waiting for hydration. The demo opens on the tree
+  // pane now, and these tests assert on the canvas behind it: park first,
+  // then bring the graph pane up.
   await page.locator('[data-mk-tour="pause"]').click();
+  await page.getByRole("button", { name: "fewer", exact: true }).click();
 }
 
 test("the home page states the current product", async ({ page }) => {
@@ -276,14 +281,49 @@ test("the tree vs graph comparison switches views", async ({ page }) => {
 
   // Both panes stay mounted and stacked in one grid cell, so the container
   // height never jumps; the toggle only moves opacity. The hidden pane is
-  // `invisible`, so it cannot be tabbed into.
+  // `invisible`, so it cannot be tabbed into. The demo arrives on the text
+  // pane, with the coach mark naming the comparison.
   const treePane = page.locator("#compare pre");
-  await page.getByRole("button", { name: "tree", exact: true }).click();
-  await expect(treePane).toHaveCSS("opacity", "1");
+  const hint = page.locator("[data-mk-compare-hint]");
+  await expect(page.getByRole("button", { name: "tree", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(treePane).toBeVisible();
   await expect(treePane).toContainText("└── Themes");
+  await expect(hint).toBeVisible();
 
   await page.getByRole("button", { name: "fewer", exact: true }).click();
   await expect(page.locator("#compare [data-mk-node]").first()).toBeVisible();
+  await expect(treePane).not.toBeVisible();
+  // The coach mark has done its job the moment the reader sees the
+  // difference - and never comes back, however often they flip.
+  await expect(hint).toHaveCount(0);
+
+  await page.getByRole("button", { name: "tree", exact: true }).click();
+  await expect(treePane).toBeVisible();
+  await expect(hint).toHaveCount(0);
+});
+
+test("the compare squiggle draws, and retires after the comparison", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#features").scrollIntoViewIfNeeded();
+
+  const hint = page.locator("[data-mk-compare-hint]");
+  const squiggle = page.locator(".mk-squiggle");
+
+  // It is the annotation the toggle's glow belongs to: the copy is real text,
+  // and the drawn attribute flips when the section lands on screen.
+  await expect(hint).toContainText("see the difference!");
+  await expect(squiggle).toHaveAttribute("data-drawn", "1");
+
+  // Comparing retires it for good - it has said what it came to say.
+  await page.getByRole("button", { name: "fewer", exact: true }).click();
+  await expect(page.locator("#compare [data-mk-node]").first()).toBeVisible();
+  await expect(hint).toHaveCount(0);
+  await page.getByRole("button", { name: "tree", exact: true }).click();
+  await expect(page.locator("#compare pre")).toBeVisible();
+  await expect(hint).toHaveCount(0);
 });
 
 test("the tree pane is the canvas's twin, not a stray text block", async ({ page }) => {
@@ -386,12 +426,19 @@ test("the tour never starts under prefers-reduced-motion", async ({ page }) => {
     .not.toBe(first);
 });
 
-test("the tour leaves the tree pane alone", async ({ page }) => {
+test("the tour never steals the tree pane", async ({ page }) => {
   await page.goto("/");
   await page.locator("#features").scrollIntoViewIfNeeded();
 
-  await page.getByRole("button", { name: "tree", exact: true }).click();
-  await page.waitForTimeout(6500);
+  // The demo arrives on the tree pane, and the tour runs there too - it
+  // cycles the inspector below, and must never switch the view out from
+  // under the reader while doing so.
+  const callout = page.locator("[data-mk-callout]");
+  const first = await callout.getAttribute("data-mk-callout");
+  await expect
+    .poll(async () => callout.getAttribute("data-mk-callout"), { timeout: 15000 })
+    .not.toBe(first);
+
   await expect(page.getByRole("button", { name: "tree", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
