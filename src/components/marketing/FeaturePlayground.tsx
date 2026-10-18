@@ -5,6 +5,12 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useDevice } from "@/hooks/use-device";
 import { graphToTextLines } from "@/lib/fewer/marketingPreview";
 import { MARKETING_CATEGORIES, MARKETING_FEATURES } from "@/lib/fewer/marketingFeatures";
+import {
+  SQUIGGLE_HEAD_PATH,
+  SQUIGGLE_LOOP_PATH,
+  SQUIGGLE_TRANSFORM,
+  SQUIGGLE_VIEW_BOX,
+} from "./compareSquiggle";
 import { PreviewGraph } from "./PreviewGraph";
 import { FeatureProof } from "./FeatureProof";
 
@@ -120,8 +126,12 @@ function BarButton({
  * section is on screen (one-way `entered`, so scrolling away and back cannot
  * replay it); under prefers-reduced-motion it is simply drawn. Below sm there
  * is no room beside the toggle to point at, so only the sentence shows.
+ *
+ * The geometry comes from compareSquiggle.ts - verbatim from
+ * public/squiggle.svg, pinned by its test - and the box keeps the asset's own
+ * ratio (w-[150px] h-auto), so the drawing is not letterboxed inside it.
  */
-function CompareAnnotation({ entered }: { entered: boolean }) {
+export function CompareAnnotation({ entered }: { entered: boolean }) {
   return (
     <div
       data-mk-compare-hint
@@ -130,17 +140,14 @@ function CompareAnnotation({ entered }: { entered: boolean }) {
     >
       <div className="flex items-center gap-2">
         <svg
-          className="mk-squiggle hidden h-[116px] w-[150px] shrink-0 sm:block"
-          viewBox="0 0 67.352715 51.977543"
+          className="mk-squiggle hidden w-[150px] shrink-0 sm:block h-auto"
+          viewBox={SQUIGGLE_VIEW_BOX}
           data-drawn={entered ? "1" : "0"}
           aria-hidden="true"
         >
-          <g transform="translate(-62.313375,-37.095948)">
-            <path
-              pathLength={1}
-              d="M 128.66609,61.027395 C 119.61041,87.165189 99.81681,94.870779 87.883466,81.979512 73.694414,66.651466 96.384728,47.399694 105.22089,64.375662 120.47625,93.68414 54.576875,91.817572 68.910101,38.650684"
-            />
-            <path pathLength={1} d="m 63.313375,42.119016 5.708767,-4.02311 3.258942,5.191834" />
+          <g transform={SQUIGGLE_TRANSFORM}>
+            <path pathLength={1} d={SQUIGGLE_LOOP_PATH} />
+            <path pathLength={1} d={SQUIGGLE_HEAD_PATH} />
           </g>
         </svg>
         <span
