@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER, FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { ShellHeader } from "./ShellHeader";
 
 // Client-only: tree layout is loaded from localStorage, so the server
 // always renders a single-leaf default and the client hydrates with the
@@ -82,6 +83,12 @@ export function FewerApp() {
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const resizingRef = useRef(false);
+  // T-198: shell chrome swap decided after mount — SSR has no window, and the
+  // first client render must match the server HTML to stay hydration-clean.
+  const [inShellChrome, setInShellChrome] = useState(false);
+  useEffect(() => {
+    setInShellChrome(isHost());
+  }, []);
 
   const { importFlowOpen, setImportFlowOpen, addChildOpen, setAddChildOpen, addStandaloneOpen, setAddStandaloneOpen, addParentOpen, setAddParentOpen, notificationOpen, setNotificationOpen, authOpen, setAuthOpen, sidebarSide } = useDialogState();
   const { panelTree } = useViewState();
@@ -607,8 +614,18 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
-      <CanvasToolbar onLoadSample={handleLoadSample} />
+      {/* T-198: the desktop shell swaps the web's two-bar chrome (~96px) for
+          one 44px header. Decided after mount so SSR/first client render match
+          the server HTML (isHost() is false during SSR — the same pattern the
+          web chrome uses to avoid a hydration mismatch). */}
+      {inShellChrome ? (
+        <ShellHeader />
+      ) : (
+        <>
+          <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
+          <CanvasToolbar onLoadSample={handleLoadSample} />
+        </>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* Sidebar wrapper — positioned by sidebarSide */}

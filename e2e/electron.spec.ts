@@ -92,6 +92,22 @@ test.describe("Electron shell", () => {
     expect(result.fileItems).toContain("Export…");
   });
 
+  test("shell chrome: one compact header, no web navbar/toolbar (T-198)", async () => {
+    const window = await app.firstWindow();
+    await window.goto("app://fewer/app.html");
+    await expect.poll(() => window.title(), { timeout: 30_000 }).toContain("fewer");
+    // The shell swaps the web's GlobalNavbar + CanvasToolbar for one 44px bar.
+    await expect(window.locator("header[data-shell-header]")).toBeVisible({ timeout: 30_000 });
+    const height = await window.locator("header[data-shell-header]").evaluate((el) => el.getBoundingClientRect().height);
+    expect(Math.round(height)).toBe(44);
+    // Web-only chrome and header buttons the native menu owns are gone.
+    expect(await window.locator('button:has-text("Load Sample")').count()).toBe(0);
+    expect(await window.locator('button:has-text("Export")').count()).toBe(0);
+    expect(await window.locator('button[aria-label="Open settings"]').count()).toBe(0);
+    // Search sits in the shell header (top right).
+    expect(await window.locator("header[data-shell-header] input[data-search-input]").count()).toBe(1);
+  });
+
   test("shell docs: no marketing header, no links to hidden pages (T-104)", async () => {
     const window = await app.firstWindow();
     // Direct load over app:// (the protocol maps /docs → out/docs.html; the

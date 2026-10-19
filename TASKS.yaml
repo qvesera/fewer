@@ -5453,7 +5453,7 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "Single 44px app header for the standalone shell"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "ui"
   tier: 0
@@ -5471,9 +5471,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:44Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-19T21:19:59Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-199"
   title: "Recent folders: reopen a directory without the import flow"
   status: "triaged"

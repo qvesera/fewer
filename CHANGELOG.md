@@ -106,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-hide Limit now caps each folder instead of emptying it: a folder shows its first N children (N = the limit, default 10) in the canvas sort order and hides the rest, cascading through every visible folder — including folders revealed by hand, which come up with their first N children and leave the rest for one-by-one reveal. Manual reveals stay on top of the cap, changing the Sort re-picks the visible N, and reveal toasts/reporting count only what actually stayed hidden
 - Tagging unified: selecting cards and right-clicking now opens the same **Tags** submenu a single card uses (checked/indeterminate per tag, + New tag with color swatches) instead of a separate batch dialog — one UI, one undo step, Pro-gated on both paths
 - Standalone desktop app gets a native application menu (File/Edit/View/Window/Help): Open Folder, Save Project, Export…, Settings…, Undo/Redo, Toggle Sidebar, Keyboard Shortcuts and Report an Issue are all reachable from the menu, with the new accelerators listed in the shortcuts dialog for the shell only.
+- Standalone desktop app replaces the web navbar + toolbar with a single 44px header: icon-only logo and sidebar toggle, undo/redo/delete at top left, global search at top right. Settings, Export and Load Sample are gone from the header (Settings and Export live in the native File/Edit/View menu).
 
 ### Fixed
 
