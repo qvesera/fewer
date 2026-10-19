@@ -4940,7 +4940,7 @@ tasks:
   session_count: 1
 - id: "T-175"
   title: "Restore Copy Path on folder and file context menus; document Groups vs Tags"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "ui"
   tier: 0
