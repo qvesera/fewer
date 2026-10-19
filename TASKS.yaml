@@ -5540,7 +5540,7 @@ tasks:
   session_count: 1
 - id: "T-201"
   title: "Fix cloud server.test.ts registry mock leaking process-wide (CI file-order failure)"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "infra"
   tier: 0
@@ -5553,17 +5553,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-19T22:53:44Z"
   notes: []
   sessions:
   - start: "2026-10-19T22:53:44Z"
-    end: null
+    end: "2026-10-19T22:55:00Z"
     measured: true
-    note: ""
+    note: "server.test.ts spreads + restores the real ./registry; both file orders verified (server-first pair + full src suite 1913 pass)"
     proof: []
-    effort: null
-  spent_min: 0
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 1
   session_count: 1
