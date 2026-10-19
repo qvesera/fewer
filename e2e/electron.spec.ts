@@ -75,6 +75,23 @@ test.describe("Electron shell", () => {
     ).rejects.toThrow(/unknown command/);
   });
 
+  test("application menu exists with the File/Edit/View/Window/Help sections (T-197)", async () => {
+    // Menu lives in the main process — inspect it there, not in the DOM.
+    const result = await app.evaluate((electronApp) => {
+      const menu = electronApp.Menu.getApplicationMenu();
+      const sections = menu ? menu.items.map((item) => item.label) : [];
+      const file = menu ? menu.items.find((item) => item.label === "File") : null;
+      const fileItems = file && file.submenu ? file.submenu.items.map((item) => item.label) : [];
+      return { sections, fileItems };
+    });
+    // macOS puts Settings in the app menu; every platform still has these.
+    for (const section of ["File", "Edit", "View", "Window", "Help"]) {
+      expect(result.sections, `menu section ${section}`).toContain(section);
+    }
+    expect(result.fileItems).toContain("Open Folder…");
+    expect(result.fileItems).toContain("Export…");
+  });
+
   test("shell docs: no marketing header, no links to hidden pages (T-104)", async () => {
     const window = await app.firstWindow();
     // Direct load over app:// (the protocol maps /docs → out/docs.html; the

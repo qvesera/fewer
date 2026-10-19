@@ -15,6 +15,13 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 contextBridge.exposeInMainWorld("__FEWER_NATIVE__", {
   invoke: (cmd: string, args?: Record<string, unknown>): Promise<unknown> =>
     ipcRenderer.invoke("fewer:invoke", cmd, args ?? {}),
+  // T-197: application-menu actions (main → renderer). Returns an unsubscribe,
+  // shaped like an addEventListener subscription so the renderer can clean up.
+  onMenu: (cb: (action: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, action: string) => cb(action);
+    ipcRenderer.on("fewer:menu", handler);
+    return () => ipcRenderer.removeListener("fewer:menu", handler);
+  },
   filePath: (file: unknown): string => {
     try {
       return webUtils.getPathForFile(file as File) ?? "";

@@ -42,6 +42,9 @@ interface HostBridge {
      *  that host delivers dropped paths through its `tauri://drag-drop` event
      *  instead, which is not wired up yet (Tauri parked). */
     filePath?: (file: unknown) => string;
+    /** T-197: application-menu action subscription (main → renderer). Returns
+     *  an unsubscribe. Absent on Tauri and in the web build. */
+    onMenu?: (cb: (action: string) => void) => () => void;
   };
 }
 
@@ -67,6 +70,18 @@ export function hostInvoke<T>(cmd: string, args?: Record<string, unknown>): Prom
 /** Open a file/folder with the OS default handler (replaces /api/open-*). */
 export function nativeOpenPath(path: string): Promise<void> {
   return hostInvoke("open_in_os", { path });
+}
+
+/**
+ * T-197: subscribe to native application-menu actions (ids like
+ * "open-folder", "settings"). Returns an unsubscribe function; in the web app
+ * (no host bridge) the subscription is inert and the returned unsubscribe is a
+ * no-op, so callers can always subscribe unconditionally behind `isHost()`.
+ */
+export function nativeOnMenu(cb: (action: string) => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const helper = (window as unknown as HostBridge).__FEWER_NATIVE__?.onMenu;
+  return typeof helper === "function" ? helper(cb) : () => {};
 }
 
 /** Windowed directory listing — the spike §7.1 RPC shape. */

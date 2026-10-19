@@ -26,7 +26,7 @@ import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isHost, hostFetchResponse, nativeTakePendingOpenFile } from "@/lib/fewer/nativeShell";
+import { isHost, hostFetchResponse, nativeTakePendingOpenFile, nativeOnMenu } from "@/lib/fewer/nativeShell";
 import { registerHostFetch } from "@/lib/fewer/netFetch";
 import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
@@ -37,7 +37,7 @@ import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from 
 import { saveHistoryLocal, loadHistoryLocal, clearHistoryLocal } from "@/lib/fewer/historyStorage";
 import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
-import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER, FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
 
@@ -549,6 +549,50 @@ export function FewerApp() {
       window.removeEventListener(FEWER_IMPORT_FOLDER, openImportFolder);
       window.removeEventListener("fewer-restart-tutorial", restartTutorial);
     };
+  }, [openImportFlow]);
+
+  // T-197: native application menu → renderer actions. Only the Electron host
+  // exposes onMenu; every other host gets a no-op unsubscribe.
+  useEffect(() => {
+    if (!isHost()) return;
+    return nativeOnMenu((action) => {
+      const s = useGraphStore.getState();
+      switch (action) {
+        case "open-folder":
+          openImportFlow("folder");
+          break;
+        case "save":
+          window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH));
+          break;
+        case "export":
+          s.setExportOpen(true);
+          break;
+        case "settings":
+          s.setSettingsOpen(true);
+          break;
+        case "shortcuts":
+          s.setShortcutsOpen(true);
+          break;
+        case "bug-report":
+          s.setBugReportOpen(true);
+          break;
+        case "undo":
+          s.undo();
+          break;
+        case "redo":
+          s.redo();
+          break;
+        case "select-all":
+          s.setSelectedNodeIds(s.nodes.map((n) => n.id));
+          break;
+        case "delete-selection":
+          if (s.selectedNodeIds.length) s.deleteNodes(s.selectedNodeIds);
+          break;
+        case "toggle-sidebar":
+          s.setSidebarOpen(!s.sidebarOpen);
+          break;
+      }
+    });
   }, [openImportFlow]);
 
   const handleLoadSample = useCallback(() => {

@@ -65,6 +65,17 @@ will unlock (unbranded exports, in-app file preview). **This build deliberately
 has no licence screen and no upgrade flow**: there is nothing to activate and
 nothing to buy yet, and the documentation will say so the day that changes.
 
+## Application menu (T-197)
+
+The desktop shell has a native **File / Edit / View / Window / Help** menu:
+
+- **File → Open Folder…** (`Ctrl/Cmd+O`), **Save Project** (`Ctrl/Cmd+S`), **Export…** (`Ctrl/Cmd+E`), **Settings…** (`Ctrl/Cmd+,` on Linux/Windows; on macOS Settings lives in the app menu).
+- **Edit → Undo / Redo / Select All Cards / Delete Selection** — graph-level, separate from the text-editing shortcuts.
+- **View → Toggle Sidebar** (`Ctrl/Cmd+B`), zoom, full screen, and (in development builds) Developer Tools.
+- **Help → Keyboard Shortcuts**, **Report an Issue**.
+
+The in-app header carries only what you need mid-work. Settings and Export are reached from the menu, not from header buttons.
+
 ## Updating
 
 Download a new build from the releases page and install it over the old one; your library folder is untouched. The builds are unsigned, so on macOS right-click → Open the first time, and on Windows SmartScreen may warn on first run (More info → Run anyway).

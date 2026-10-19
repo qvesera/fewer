@@ -9,7 +9,8 @@
 // IPC: one channel ("fewer:invoke") → handlers.ts dispatch — the same command
 // names/shapes as the Rust host (src-tauri/src/lib.rs).
 
-import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, shell } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
 import path from "node:path";
 import { existsSync, statSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
@@ -156,6 +157,106 @@ function createWindow(): void {
   });
 }
 
+/**
+ * Application menu (T-197): the standalone shell's File/Edit/View/Window/Help
+ * chrome. Items that mutate the graph or open a dialog FORWARD an action id to
+ * the renderer over `webContents.send("fewer:menu", action)`; the renderer
+ * (`FewerApp` → `nativeOnMenu`) maps ids to the store. Text editing (cut,
+ * copy, paste, type-ahead) stays with Chromium — no role needs an accelerator,
+ * so nothing races the renderer's own key handlers (Ctrl/Cmd+Z, Delete, Alt+*
+ * are owned by `keyboardShortcuts.ts` and deliberately have no menu
+ * accelerator here).
+ */
+const MENU_CHANNEL = "fewer:menu";
+
+function buildMenu(): Menu {
+  const send = (action: string) => mainWindow?.webContents.send(MENU_CHANNEL, action);
+  const separator = { type: "separator" } as const;
+
+  const appMenu: MenuItemConstructorOptions[] =
+    process.platform === "darwin"
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" },
+              separator,
+              { label: "Settings…", accelerator: "CmdOrCtrl+,", click: () => send("settings") },
+              separator,
+              { role: "services" },
+              separator,
+              { role: "hide" },
+              { role: "hideOthers" },
+              { role: "unhide" },
+              separator,
+              { role: "quit" },
+            ],
+          },
+        ]
+      : [];
+
+  const fileMenu: MenuItemConstructorOptions = {
+    label: "File",
+    submenu: [
+      { label: "Open Folder…", accelerator: "CmdOrCtrl+O", click: () => send("open-folder") },
+      { label: "Save Project", accelerator: "CmdOrCtrl+S", click: () => send("save") },
+      { label: "Export…", accelerator: "CmdOrCtrl+E", click: () => send("export") },
+      ...(process.platform === "darwin"
+        ? []
+        : [
+            separator,
+            { label: "Settings…", accelerator: "CmdOrCtrl+,", click: () => send("settings") },
+          ]),
+      separator,
+      { role: "close" },
+      ...(process.platform === "darwin" ? [] : [separator, { role: "quit" as const }]),
+    ],
+  };
+
+  const editMenu: MenuItemConstructorOptions = {
+    label: "Edit",
+    submenu: [
+      { label: "Undo", click: () => send("undo") },
+      { label: "Redo", click: () => send("redo") },
+      separator,
+      { label: "Select All Cards", click: () => send("select-all") },
+      { label: "Delete Selection", click: () => send("delete-selection") },
+    ],
+  };
+
+  const viewMenu: MenuItemConstructorOptions = {
+    label: "View",
+    submenu: [
+      { label: "Toggle Sidebar", accelerator: "CmdOrCtrl+B", click: () => send("toggle-sidebar") },
+      separator,
+      { role: "resetZoom" },
+      { role: "zoomIn" },
+      { role: "zoomOut" },
+      separator,
+      { role: "togglefullscreen" },
+      ...(process.env.NODE_ENV === "development" || !app.isPackaged
+        ? [separator, { role: "toggleDevTools" as const }]
+        : []),
+    ],
+  };
+
+  const windowMenu: MenuItemConstructorOptions = {
+    label: "Window",
+    role: "windowMenu",
+  };
+
+  const helpMenu: MenuItemConstructorOptions = {
+    label: "Help",
+    submenu: [
+      { label: "Keyboard Shortcuts", click: () => send("shortcuts") },
+      { label: "Report an Issue", click: () => send("bug-report") },
+    ],
+  };
+
+  const template: MenuItemConstructorOptions[] = [...appMenu, fileMenu, editMenu, viewMenu, windowMenu, helpMenu];
+  return Menu.buildFromTemplate(template);
+}
+
 // Dialogs + shell ops need a parent window (and must stay async — a sync
 // handler would block the main thread, the T-091 lesson from the Tauri host).
 const dispatch = createDispatch({
@@ -212,6 +313,7 @@ ipcMain.handle("fewer:invoke", (_event, cmd: string, args?: Record<string, unkno
 
 app.whenReady().then(() => {
   registerProtocol();
+  Menu.setApplicationMenu(buildMenu());
   createWindow();
   app.on("activate", () => {
     // macOS convention; harmless elsewhere.
