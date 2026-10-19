@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 
 import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer/canvasSelection";
+import { isGroupPillNodeId } from "@/lib/fewer/groupLayout";
 import { selectionBounds, viewportForBounds } from "@/lib/fewer/fitBounds";
 import { useGraphStore } from "@/store/graphStore";
 import { isHost } from "@/lib/fewer/nativeShell";
@@ -114,7 +115,11 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
     ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
-      const selectedIds = new Set(selected.map((n) => n.id));
+      // A collapsed group's pill is a NODE (T-180) so edges attach to it, but it
+      // is not a CARD: a box selection must not adopt it as one (Delete, copy,
+      // the highlight path and the member count would all see a phantom card).
+      const cardNodes = selected.filter((n) => !isGroupPillNodeId(n.id));
+      const selectedIds = new Set(cardNodes.map((n) => n.id));
       // Sync the live edge-selection ref from RF's selection snapshot
       // snapshot so the upcoming rebuild (and any later one) preserves it.
       selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
@@ -133,7 +138,7 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
       // Mid-drag, an empty report means "the canvas painted the card unselected",
       // not "the user deselected" — keep the drag's selection (see dragSelectionRef).
       const newIds = nextSelectionIds({
-        prevIds, selected, selectedIds, base,
+        prevIds, selected: cardNodes, selectedIds, base,
         dragSelection: dragSelectionRef.current,
       });
       // Write to per-leaf selection (and global for keyboard shortcut compatibility)

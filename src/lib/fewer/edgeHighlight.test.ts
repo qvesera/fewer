@@ -4,12 +4,14 @@ import { edgeDashPattern } from "./types";
 import {
   applyEdgeHighlights,
   applyEdgeSelection,
+  applyPillEdgeColors,
   buildEdgeBase,
   buildSelectedEdgeHighlight,
   buildTreeLookups,
   edgeTypeFor,
   staticEdgeDashArray,
 } from "./edgeHighlight";
+import { groupPillNodeId } from "./groupLayout";
 
 function makeNode(id: string, type: "folder" | "file" = "folder"): FewerNode {
   return { id, type, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type } };
@@ -284,5 +286,35 @@ describe("applyEdgeSelection", () => {
       expect((link.markerEnd as { color?: string })?.color).toBe(THEME.folderIcon); // follows the highlight stroke
       expect(link.style?.stroke).toBe(THEME.folderIcon);
     });
+  });
+});
+
+describe("applyPillEdgeColors (T-180)", () => {
+  const pill = groupPillNodeId("g");
+  const wired = (id: string, source: string, target: string) =>
+    ({ ...makeEdge(id, source, target), style: { stroke: THEME.edge } }) as FewerEdge;
+
+  test("a coloured group's pill edges take the group colour, either end", () => {
+    const edges = [
+      wired("root->pill", "root", pill),
+      wired("pill->kid", pill, "kid"),
+      wired("root->kid", "root", "kid"),
+    ];
+    const out = applyPillEdgeColors(edges, new Map([[pill, "#ff6600"]]));
+    expect(out.map((e) => e.style?.stroke)).toEqual(["#ff6600", "#ff6600", THEME.edge]);
+    // Copy-on-write: the untouched edge keeps its identity.
+    expect(out[2]).toBe(edges[2]);
+  });
+
+  test("no colour in the map → the array passes through BY IDENTITY", () => {
+    const edges = [wired("root->pill", "root", pill)];
+    expect(applyPillEdgeColors(edges, new Map())).toBe(edges);
+  });
+
+  test("a pill with no colour keeps the base stroke", () => {
+    const edges = [wired("root->pill", "root", pill)];
+    const out = applyPillEdgeColors(edges, new Map([[groupPillNodeId("other"), "#00ff00"]]));
+    expect(out[0].style?.stroke).toBe(THEME.edge);
+    expect(out[0]).toBe(edges[0]); // untouched → same object
   });
 });

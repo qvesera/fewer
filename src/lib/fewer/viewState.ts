@@ -15,7 +15,7 @@ import {
 } from "./types";
 import { layoutGraphContour, type LayoutOptions } from "./layout";
 import { collapsedGroupMembers, type Group, type GroupBounds } from "./groups";
-import { collapseToLayoutBlocks, pillRectsFrom, stripPillNodes } from "./groupLayout";
+import { collapseToLayoutBlocks, injectGroupPillNodes, viewMemberNodes } from "./groupLayout";
 
 // ── Types ──
 
@@ -102,13 +102,14 @@ export function computeEffectiveHidden(
 
 /**
  * True when a leaf renders a layout of its own instead of the shared (store)
- * positions: its direction differs from the global one, it collapses folders
- * OR GROUPS, or its hide layers change the visible set.
+ * positions: its direction differs from the global one, it collapses folders,
+ * or its hide layers change the visible set.
  *
- * Collapsing a group must derive too (T-179): its members leave the painted
- * set, and only a derived layout gives the pill a slot in THIS view's
- * coordinate space (the shared layout is still laid out with the members in
- * it, so painting it would leave the whole expanded block reserved).
+ * A collapsed GROUP deliberately does NOT appear here: a compact block forces
+ * its own pass inside `deriveViewLayout` (the only collapse that changes the
+ * layout), and an anchor group's members already occupy their slots in the
+ * shared layout — deriving for it too would re-lay the whole canvas out with
+ * measured card sizes the store has never used, so every card jumps on collapse.
  *
  * This is the single source of truth for both the canvas (which then runs the
  * layout engine locally) and the Organize action (which knows that clearing a
@@ -124,7 +125,6 @@ export function needsLayoutDerivation(
   if (!vs) return false;
   if (vs.direction !== undefined && vs.direction !== global.direction) return true;
   if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
-  if ((vs.collapsedGroupIds?.length ?? 0) > 0) return true;
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
 }
 
@@ -307,10 +307,28 @@ export function resolveViewNodes(
     fileIds: string[];
   },
   layout: LayoutOptions = {},
+  groups: readonly Group[] = [],
+  /** Where to find hidden members for an anchor pill — the store's full list
+   *  (the export has one; a caller with only the painted set passes nothing and
+   *  compact pills still arrive from the layout). */
+  memberSource: readonly FewerNode[] = visibleNodes,
 ): FewerNode[] {
-  return applyViewPositions(
-    deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout)?.nodes ?? visibleNodes,
+  const result = deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout, groups);
+  const laid = result?.nodes ?? visibleNodes;
+  const collapsedIds = raw?.collapsedGroupIds ?? [];
+  // Same order the canvas paints in: per-view positions, then the anchors' pill
+  // nodes — so an exported image shows exactly the collapsed pills (and their
+  // rect) the canvas does (T-180).
+  const memberNodes = applyViewPositions(
+    [...viewMemberNodes(result?.members, memberSource, groups, collapsedIds)],
     resolved.positions,
+  );
+  return injectGroupPillNodes(
+    applyViewPositions(laid, resolved.positions),
+    memberNodes,
+    groups,
+    collapsedIds,
+    resolved.direction,
   );
 }
 
@@ -348,7 +366,7 @@ export function deriveViewLayout(
   },
   layout: LayoutOptions = {},
   groups: readonly Group[] = [],
-): { nodes: FewerNode[]; pillRects?: Map<string, GroupBounds> } | null {
+): { nodes: FewerNode[]; members?: FewerNode[] } | null {
   // 1. Direction override OR diverged visible set: derive this view's own
   //    layout. This runs BEFORE the per-view positions are applied, because a
   //    view's map only ever holds the cards the user dragged in that view — a
@@ -358,20 +376,32 @@ export function deriveViewLayout(
   //    instead put a new card at a coordinate from the *global* layout, which
   //    is how a card created in the primary view showed up in a dock pane in
   //    the wrong slot — and why Sort/Organize read as inert on that pane.
-  if (!needsLayoutDerivation(raw, global, global.fileIds)) return null;
   const collapsedIds = raw?.collapsedGroupIds ?? [];
   // `layoutNodes` may still carry the collapsed groups' members (the canvas
-  // hands them in on purpose): the block replaces them, and the layout's own
-  // coordinates decide the pill slot.
+  // hands them in on purpose): compact groups replace them with a pill block,
+  // anchor groups keep them as invisible geometry (T-180).
   const blocks = collapseToLayoutBlocks(layoutNodes, layoutEdges, groups, collapsedIds);
+  // A collapse forces its own pass only when it CHANGES the layout — that is,
+  // at least one group compacts. An anchor group's members still occupy their
+  // slots in the shared layout, so a collapse-only view can paint it as-is;
+  // deriving anyway would re-lay every card out against measured card sizes the
+  // store has never used (the whole canvas jumping on collapse).
+  const collapsing = blocks.pillNodes.size > 0;
+  if (!collapsing && !needsLayoutDerivation(raw, global, global.fileIds)) return null;
   const laid = layoutGraphContour(blocks.nodes, blocks.edges, resolved.direction, layout);
-  const pillRects = pillRectsFrom(laid, blocks.pillNodes);
   // Members hide by derivation (T-164): they ride the layout only so the pill
-  // can take their slot, then drop out — nothing paints them.
+  // can take their slot (compact) or so their subtrees keep their depth
+  // (anchor), then drop out — nothing paints them. The PILL does paint (T-180):
+  // it is a real node the edge layer attaches to, so the frame reads its rect
+  // from `pillRectsFromNodes` after every overlay instead of from here.
   const memberIds = new Set(collapsedGroupMembers(groups, collapsedIds));
+  const members = memberIds.size === 0 ? [] : laid.filter((n) => memberIds.has(n.id));
   return {
-    nodes: stripPillNodes(laid).filter((n) => !memberIds.has(n.id)),
-    ...(pillRects.size > 0 ? { pillRects } : {}),
+    nodes: laid.filter((n) => !memberIds.has(n.id)),
+    // The members' LAID positions ride along: an anchor pill injects on the
+    // block the VIEW laid out (never the store's, which diverges as soon as a
+    // direction override, a hide layer or a compact sibling re-flows).
+    ...(members.length > 0 ? { members } : {}),
   };
 }
 

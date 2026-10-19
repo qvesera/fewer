@@ -5,6 +5,7 @@ import type { EdgeChange } from "@xyflow/react";
 import {
   applyEdgeHighlights,
   applyEdgeSelection,
+  applyPillEdgeColors,
   buildEdgeBase,
   buildTreeLookups,
   edgeTypeFor,
@@ -59,6 +60,9 @@ export interface CanvasEdgesDeps {
    *  highlight effect rebuilds every edge, so it must not key on a per-frame
    *  array identity. */
   hiddenIds: string[];
+  /** pill node id → that GROUP's colour (T-180): the pill's edges are ordinary
+   *  edges, and a coloured group keeps its wires tinted like the old stubs. */
+  pillEdgeColors: ReadonlyMap<string, string>;
   animation: EdgeAnimationOptions;
   leafId?: string | null;
   isActive: boolean;
@@ -72,7 +76,7 @@ export interface CanvasEdgesDeps {
  * `selectedEdgeIdsRef` is owned here and shared with `useCanvasSelection`
  * (which writes it from RF's authoritative edge-snapshot on selection change).
  */
-export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges, themeColors, vs, hiddenIds, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
+export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges, themeColors, vs, hiddenIds, pillEdgeColors, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
   // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
   const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
 
@@ -103,14 +107,17 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, select
   // reuses it and only restyles the path edges.
   const baseEdges = useMemo(() => {
     const hidden = new Set(hiddenIds);
-    return buildEdgeBase(
-      visibleEdges.filter((e: FewerEdge) => !hidden.has(e.source) && !hidden.has(e.target)),
-      themeColors,
-      vs.edgeWidth,
-      animation,
-      symlinkTargetIds,
-    ).map((e: FewerEdge) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
-  }, [visibleEdges, hiddenIds, themeColors, vs.edgeWidth, animation, vs.edgeStyle, symlinkTargetIds]);
+    return applyPillEdgeColors(
+      buildEdgeBase(
+        visibleEdges.filter((e: FewerEdge) => !hidden.has(e.source) && !hidden.has(e.target)),
+        themeColors,
+        vs.edgeWidth,
+        animation,
+        symlinkTargetIds,
+      ).map((e: FewerEdge) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) })),
+      pillEdgeColors,
+    );
+  }, [visibleEdges, hiddenIds, themeColors, vs.edgeWidth, animation, vs.edgeStyle, symlinkTargetIds, pillEdgeColors]);
 
   useEffect(() => {
     const state = useGraphStore.getState();

@@ -14,6 +14,7 @@ import { Boxes, ChevronDown, ChevronRight, StickyNote, X } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view-context";
 import { COLLAPSED_PILL_HEIGHT, COLLAPSED_PILL_WIDTH, GROUP_HEADER_HEIGHT, GROUP_PADDING, GROUP_HANDLES, cardsInsideBox, descendantGroupIds, groupBounds, groupFrameRects, groupPill, handleAxes, handleOrigin, minScaleFor, normalizeGroupColor, nodeRenderedSize, scaleFactorFor, scaleMemberPositions, subtreeMemberIds, type GroupBounds, type GroupHandleId } from "@/lib/fewer/groups";
+import { groupPillNodeId } from "@/lib/fewer/groupLayout";
 import type { Group } from "@/lib/fewer/groups";
 import type { FewerNode } from "@/lib/fewer/types";
 import { TAG_FALLBACK_COLOR } from "@/lib/fewer/tags";
@@ -69,6 +70,9 @@ type FrameGesture = {
   /** Member positions when the gesture began — the restore point for Escape
    *  and the absolute base for every frame's target positions (no drift). */
   startPositions: Map<string, { x: number; y: number }>;
+  /** Collapsed COMPACT pill: its own start position (a layout-owned slot only
+   *  a per-view override can move — see `onFramePointerMove`). */
+  startPill?: { x: number; y: number };
   /** Scale only: the frame box and the fixed origin captured on press. */
   startBox?: { width: number; height: number };
   origin?: { x: number; y: number };
@@ -101,7 +105,15 @@ const gestureRef = {
  * would write a map nothing paints from. This matches the leafId the card-drag
  * path routes on.
  */
-export function GroupFrames({ leafId, nodes, pillRects }: { leafId?: string; nodes: FewerNode[]; pillRects?: ReadonlyMap<string, GroupBounds> }): ReactNode {
+export function GroupFrames({
+  leafId,
+  nodes,
+  pillRects,
+}: {
+  leafId?: string;
+  nodes: FewerNode[];
+  pillRects?: ReadonlyMap<string, GroupBounds>;
+}): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const { visibleIds, direction } = useGraphViewScope();
   // Collapsed pills anchor on the store's full list (hidden members), with this
@@ -174,8 +186,8 @@ export function GroupFrame({
    *  cascade applied). Falls back to a local single-group box when rendered
    *  standalone (tests). */
   rect?: GroupBounds;
-  /** This group's pill rect from the VIEW'S layout (T-179) — the rect is in the
-   *  same coordinates the canvas paints, unlike the store-coords fallback. */
+  /** This group's pill rect, read from the painted PILL NODE (T-179/T-180) —
+   *  the rect, the node and its edge handles are the same box. */
   pillRect?: GroupBounds;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
@@ -237,7 +249,9 @@ export function GroupFrame({
           const s = act;
           if (leafId) {
             // startPositions is a Map — spread it; Object.entries() on a Map is [].
-            s.setNodePositionsBatch(leafId, [...g.startPositions].map(([id, pos]) => ({ id, pos })));
+            const batch = [...g.startPositions].map(([id, pos]) => ({ id, pos }));
+            if (g.startPill) batch.push({ id: groupPillNodeId(g.groupId), pos: g.startPill });
+            s.setNodePositionsBatch(leafId, batch);
           } else {
             s.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
           }
@@ -286,8 +300,14 @@ export function GroupFrame({
     () => (box ? cardsInsideBox(nodes, box, subtreeMemberIds(allGroups, group.id), visible) : []),
     [nodes, allGroups, group.id, group.memberIds, visible, box?.x, box?.y, box?.width, box?.height],
   );
+  // The pill NODE (T-180): its presence says a compact pill came from the
+  // layout; `data.anchor` says it was injected on its members' block instead.
+  // The drag below routes each case differently (see `onFramePointerMove`).
+  const pillNode = collapsed
+    ? nodes.find((n) => n.id === groupPillNodeId(group.id))
+    : undefined;
+  const pillIsAnchor = pillNode?.data.anchor === true;
   if (!box) return null;
-
   // Colored frames tint border + fill + header from the same hex; the default
   // stays slate so a plain group reads exactly as it did before colors existed.
   const accent = group.color ?? TAG_FALLBACK_COLOR;
@@ -342,6 +362,14 @@ export function GroupFrame({
     s.setGroupMemberPositions(group.id, positions);
   };
 
+  /** Write the COMPACT pill's own per-view position (the drag's live visual —
+   *  the layout is not re-run because pill ids never enter `layoutInput`). */
+  const writePillPosition = (pos: { x: number; y: number }) => {
+    if (!leafId) return;
+    const s = act();
+    s.setNodePositionsBatch(leafId, [{ id: groupPillNodeId(group.id), pos }]);
+  };
+
   const startGesture = (
     e: React.PointerEvent<HTMLElement>,
     mode: "move" | "scale",
@@ -351,17 +379,29 @@ export function GroupFrame({
     // Transitive (W5): moving a group moves its WHOLE subtree's cards.
     const members = new Set(subtreeMemberIds(allGroups, group.id));
     // Effective positions: the painted array IS what this canvas shows, so the
-    // members' start coords are their painted ones (T-138).
-    for (const n of nodes) {
+    // members' start coords are their painted ones (T-138). Collapsed members
+    // are NOT painted (they hide by derivation), so the collapse reads the
+    // store list with this leaf's positions overlaid — `anchorNodes`.
+    const source = collapsed ? anchorNodes : nodes;
+    for (const n of source) {
       if (!members.has(n.id)) continue;
       startPositions.set(n.id, { x: n.position.x, y: n.position.y });
     }
+    // A COMPACT pill's slot is layout-owned: moving its members cannot move it,
+    // so the gesture captures the pill itself and writes a per-view override
+    // (an ANCHOR pill needs no capture — its rect derives from the members it
+    // just moved, and an override on top of that would go stale).
+    const startPill =
+      collapsed && pillNode && !pillIsAnchor
+        ? { x: pillNode.position.x, y: pillNode.position.y }
+        : undefined;
     gestureRef.set({
       mode,
       groupId: group.id,
       pointerId: e.pointerId,
       startScreen: { x: e.clientX, y: e.clientY },
       startPositions,
+      startPill,
       moved: false,
       cancelled: false,
       ...extra,
@@ -426,6 +466,9 @@ export function GroupFrame({
       const positions: Record<string, { x: number; y: number }> = {};
       for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
       writeMemberPositions(positions);
+      // Compact: the members move (so expanding lands where you dropped it) and
+      // the PILL takes the override that actually moves what you see.
+      if (g.startPill) writePillPosition({ x: g.startPill.x + dx / zoom, y: g.startPill.y + dy / zoom });
       return;
     }
     // Resize-by-scale (T-136): the axis factors come from the pointer's
@@ -462,6 +505,12 @@ export function GroupFrame({
         const to = leafPos?.[n.id] ?? { x: n.position.x, y: n.position.y };
         return from ? [{ nodeId: n.id, from, to }] : [];
       });
+    // The compact pill's own override rides the SAME op, so one undo takes the
+    // pill and its members back together.
+    if (g.startPill && leafId) {
+      const pillId = groupPillNodeId(group.id);
+      moves.push({ nodeId: pillId, from: g.startPill, to: leafPos?.[pillId] ?? g.startPill });
+    }
     state.recordDragMoves(moves, leafId);
     if (leafId) state._persistLayout();
   };
@@ -528,6 +577,10 @@ export function GroupFrame({
             })}
         </>
       )}
+
+      {/* A collapsed pill's connections are ordinary React Flow edges bound to
+          the pill NODE (`GroupPillNode`) — same renderer, style, dash and width
+          as every folder→file edge (T-180). Nothing is drawn here. */}
 
       {/* Right-click the header for the group menu; the body stays out of the way.
           Collapsed, this pill IS the whole frame — the same design language as a

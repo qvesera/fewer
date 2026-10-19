@@ -1,5 +1,6 @@
 import type { EdgeStrokeStyle, EdgeStyle, FewerEdge, FewerNode } from "./types";
 import { contrastStroke, edgeDashPattern } from "./types";
+import { isGroupPillNodeId } from "./groupLayout";
 
 /** React Flow edge subtype for a UI edge-style choice. */
 export function edgeTypeFor(style: EdgeStyle): FewerEdge["type"] {
@@ -148,6 +149,31 @@ export function buildEdgeBase(
             : { strokeDasharray: undefined }),
       },
     };
+  });
+}
+
+/**
+ * Tint a collapsed group's pill edges with that GROUP's colour (T-180): the
+ * pill's inherited connections are ordinary edges now, and the group's own
+ * accent carries onto them the way the drawn stubs used to. Apply right after
+ * `buildEdgeBase` (which owns the default stroke) and before the highlight pass
+ * (which owns selection) — a coloured group's wires then keep the colour in
+ * every state a plain edge would have.
+ *
+ * `colorByPillId` maps pill node id → group colour, and only groups WITH a
+ * colour are in it: the empty map (the common case) passes edges through.
+ */
+export function applyPillEdgeColors(
+  edges: FewerEdge[],
+  colorByPillId: ReadonlyMap<string, string>,
+): FewerEdge[] {
+  if (colorByPillId.size === 0) return edges;
+  return edges.map((e) => {
+    const pill = isGroupPillNodeId(e.source) ? e.source : isGroupPillNodeId(e.target) ? e.target : undefined;
+    if (!pill) return e;
+    const color = colorByPillId.get(pill);
+    if (!color) return e;
+    return { ...e, style: { ...e.style, stroke: color } };
   });
 }
 

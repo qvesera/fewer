@@ -5025,3 +5025,32 @@ tasks:
     effort: {commits: 2, files: 19, insertions: 730, deletions: 64}
   spent_min: 78
   session_count: 1
+- id: "T-180"
+  title: "Anchor-mode collapsed groups (multi-level members keep their slot) plus derived input/output boundary stubs on the pill"
+  status: "in-progress"
+  type: "fix"
+  area: "layout"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 439
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#439"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-19T15:26:46Z"
+  notes: ["2026-10-19T15:27:23Z · Follow-up to T-179 (issue #437). Root cause: collapseToLayoutBlocks re-points EVERY parent edge at the single pill node; with members under different parents buildHierarchy keeps all in childrenMap but last-write-wins in parentMap, and assignPositions writes the slot per subtree -> last write wins (pill in an arbitrary column, phantom slots). Also members' visible children are re-parented onto the pill (depth promotion + reflow) while their painted edges are filtered (orphans). Fix: per-group mode — compact iff every member is a leaf under one parent (unchanged), else ANCHOR (members stay as invisible layout geometry, never re-parented; pill rect = groupPill(laid member bounds, direction)); invariant test pill rect overlaps the block. Stubs: inputs = hidden-target/visible-source edges, outputs = visible-target/hidden-source edges, internal silent; drawn in the GroupFrames portal (derived only).", "2026-10-19T17:58:56Z · Scope pivot (user decision): the derived stub layer is REMOVED — the pill is now a real node (type groupPill) and its inherited connections are ordinary React Flow edges (pillsForViewEdges), so they look and behave like regular folder/file edges; pill drag wired (compact: per-view override + members, anchor: members), and resolveViewNodes takes groups so exports show pills+edges.", "2026-10-19T17:59:36Z · Scope pivot (user decision): stub layer REMOVED; pill is a real node (groupPill) with ordinary edges (pillsForViewEdges); pill drag wired; resolveViewNodes takes groups for exports."]
+  sessions:
+  - start: "2026-10-19T15:28:44Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

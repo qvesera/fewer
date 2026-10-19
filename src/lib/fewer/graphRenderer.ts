@@ -8,6 +8,7 @@ import {
   type LayoutDirection,
 } from "./types";
 import { sortedChildRows } from "./nodeDisplay";
+import { isGroupPillNodeId } from "./groupLayout";
 import { plural } from "./plural";
 import { maxVisibleRows } from "./visibleRange";
 import { symlinkBadgeText } from "./symlinkDisplay";
@@ -162,6 +163,9 @@ function formatSize(bytes: number): string {
 /** A folder the active view shows as a collapsed pill (legacy per-node flag or
  *  the leaf's per-view collapsed list). */
 function isCollapsedNode(n: FewerNode, o: GraphRenderOptions): boolean {
+  // A collapsed GROUP's pill (T-180): always the one-line pill shape, whatever
+  // the proto member's data says.
+  if (isGroupPillNodeId(n.id)) return true;
   if (n.data.type !== "folder") return false;
   return n.data.collapsed === true || (o.collapsedIds?.has(n.id) ?? false);
 }
