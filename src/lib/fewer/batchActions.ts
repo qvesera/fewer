@@ -1,6 +1,7 @@
 import { useGraphStore } from "@/store/graphStore";
 import { countDescendants, pluralizeCount } from "./keyboardShortcuts";
 import { can } from "./tiers";
+import { isHost } from "./nativeShell";
 
 /** Minimal shape of the toast function menus pass in. */
 export type BatchToast = (t: { title: string; description?: string }) => void;
@@ -26,8 +27,12 @@ const items = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
 export function buildBatchActions(opts: {
   toast: BatchToast;
   selectedIds: string[];
+  /** Whether a desktop shell host is present. Defaults to the live check;
+   *  tests pass it explicitly. Copy Paths is shell-only: the web app builds
+   *  graphs from remote sources, so there is no local path to hand out. */
+  inShell?: boolean;
 }): BatchAction[] {
-  const { toast, selectedIds } = opts;
+  const { toast, selectedIds, inShell = isHost() } = opts;
   const g = () => useGraphStore.getState();
   const ids = () => g().selectedNodeIds;
 
@@ -151,27 +156,29 @@ export function buildBatchActions(opts: {
         toast({ title: "Expanded", description: `${items(n)} folder${n === 1 ? "" : "s"} expanded` });
       },
     },
-    {
-      id: "copy-paths",
-      label: "Copy Paths",
-      run: () => {
-        const s = g();
-        const list = s.selectedNodeIds;
-        if (list.length === 0) return;
-        const paths = list
-          .map((id) => s.nodes.find((n) => n.id === id)?.data.path)
-          .filter((p): p is string => !!p)
-          .join("\n");
-        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(paths).then(
-            () => toast({ title: "Paths copied", description: `${items(list.length)} path${list.length === 1 ? "" : "s"} to clipboard` }),
-            () => toast({ title: "Copy failed", description: "Clipboard unavailable" }),
-          );
-        } else {
-          toast({ title: "Copy failed", description: "Clipboard unavailable" });
-        }
-      },
-    },
+    ...(inShell
+      ? [{
+          id: "copy-paths",
+          label: "Copy Paths",
+          run: () => {
+            const s = g();
+            const list = s.selectedNodeIds;
+            if (list.length === 0) return;
+            const paths = list
+              .map((id) => s.nodes.find((n) => n.id === id)?.data.path)
+              .filter((p): p is string => !!p)
+              .join("\n");
+            if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+              navigator.clipboard.writeText(paths).then(
+                () => toast({ title: "Paths copied", description: `${items(list.length)} path${list.length === 1 ? "" : "s"} to clipboard` }),
+                () => toast({ title: "Copy failed", description: "Clipboard unavailable" }),
+              );
+            } else {
+              toast({ title: "Copy failed", description: "Clipboard unavailable" });
+            }
+          },
+        }]
+      : []),
     {
       id: "tags",
       label: "Tags…",

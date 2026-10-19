@@ -4938,3 +4938,32 @@ tasks:
     effort: {commits: 1, files: 21, insertions: 464, deletions: 86}
   spent_min: 437
   session_count: 1
+- id: "T-175"
+  title: "Restore Copy Path on folder and file context menus; document Groups vs Tags"
+  status: "done"
+  type: "fix"
+  area: "ui"
+  tier: 0
+  estimate_min: 40
+  estimate_basis: "cli"
+  issue: null
+  pr: 434
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-19T10:07:34Z"
+  notes: ["2026-10-19T10:08:12Z · Copy Path was buried in the Info submenu (folders) and absent on files; restore top-level item on both. Also add Groups-vs-Tags doc paragraph."]
+  sessions:
+  - start: "2026-10-19T10:08:53Z"
+    end: "2026-10-19T10:21:08Z"
+    measured: true
+    note: "Copy Path restored as a top-level context-menu item on folder and file cards, gated to the desktop shell via isHost() (batch Copy Paths too); Groups vs Tags docs paragraph + tests"
+    proof: ["f6e3148"]
+    effort: {commits: 1, files: 7, insertions: 152, deletions: 40}
+  spent_min: 12
+  session_count: 1

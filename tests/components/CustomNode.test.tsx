@@ -101,6 +101,15 @@ function openContextMenu(targetText: string) {
 beforeEach(() => { toast.mockClear(); });
 afterEach(cleanup);
 
+// `isHost()` reads window.__FEWER_NATIVE__, so the desktop-shell surface is
+// simulated by defining the bridge before rendering and dropping it after.
+function installHost() {
+  (window as unknown as { __FEWER_NATIVE__?: unknown }).__FEWER_NATIVE__ = { invoke: async () => undefined };
+}
+function removeHost() {
+  delete (window as unknown as { __FEWER_NATIVE__?: unknown }).__FEWER_NATIVE__;
+}
+
 // ── Rendering ───────────────────────────────────────────────────────────
 
 describe("CustomNode rendering", () => {
@@ -167,6 +176,30 @@ describe("FolderContextMenu", () => {
     const calls = toast.mock.calls.flat();
     expect(calls.some((c: any) => c.title === "Duplicated" && c.description === "src")).toBe(true);
   });
+
+  test("Copy Path is a top-level item that writes the full path", async () => {
+    installHost();
+    try {
+      const writeText = mock(async () => {});
+      Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+      renderNode("f1", FOLDER_DATA, { nodes });
+      openContextMenu("src");
+      screen.getByText("Copy Path").click();
+      await act(async () => {});
+      expect(writeText).toHaveBeenCalledWith("/src");
+      const calls = toast.mock.calls.flat();
+      expect(calls.some((c: any) => c.title === "Path copied" && c.description === "/src")).toBe(true);
+    } finally {
+      removeHost();
+    }
+  });
+
+  test("Copy Path is hidden in the web app", () => {
+    removeHost();
+    renderNode("f1", FOLDER_DATA, { nodes });
+    openContextMenu("src");
+    expect(screen.queryByText("Copy Path")).toBeNull();
+  });
 });
 
 // ── File context menu ───────────────────────────────────────────────────
@@ -191,6 +224,30 @@ describe("FileEntryContextMenu", () => {
     await act(async () => {});
     const calls = toast.mock.calls.flat();
     expect(calls.some((c: any) => c.title === "Item deleted" && c.description === "index")).toBe(true);
+  });
+
+  test("Copy Path is a top-level item that writes the full path", async () => {
+    installHost();
+    try {
+      const writeText = mock(async () => {});
+      Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+      renderNode("f2", FILE_DATA, { nodes, width: 200, height: 60 });
+      openContextMenu("index");
+      screen.getByText("Copy Path").click();
+      await act(async () => {});
+      expect(writeText).toHaveBeenCalledWith("/src/index.ts");
+      const calls = toast.mock.calls.flat();
+      expect(calls.some((c: any) => c.title === "Path copied" && c.description === "/src/index.ts")).toBe(true);
+    } finally {
+      removeHost();
+    }
+  });
+
+  test("Copy Path is hidden in the web app", () => {
+    removeHost();
+    renderNode("f2", FILE_DATA, { nodes, width: 200, height: 60 });
+    openContextMenu("index");
+    expect(screen.queryByText("Copy Path")).toBeNull();
   });
 });
 

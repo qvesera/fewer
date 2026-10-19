@@ -55,7 +55,7 @@ Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Show            | Reveals selected cards that are currently hidden                                                                                                                                     |
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
-| Copy Paths      | Copies each selected card's full path to the clipboard, one per line                                                                                                                 |
+| Copy Paths      | Desktop app only: copies each selected card's full path to the clipboard, one per line                                                                                                 |
 | Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
@@ -99,7 +99,7 @@ In Power User mode, right-click a folder for:
 | Show/Hide Children    | Power User mode        |
 | Add Child Card        | Power User mode        |
 | Open in File Explorer | Disabled in the web build |
-| Copy Path             | Power User mode        |
+| Copy Path             | Desktop app only: copies the card's full path; hidden in the web app      |
 | Refresh from Disk     | Directory imports only; desktop app re-scans through the shell |
 
 ### Files
@@ -108,6 +108,7 @@ In Power User mode, right-click a folder for:
 | ---------------------- | --------------------------------------- |
 | Rename                 | Updates extension/category              |
 | Copy / Cut / Duplicate | Clipboard-aware                         |
+| Copy Path              | Desktop app only: copies the card's full path |
 | Copy Name              | Copies filename to clipboard            |
 | Delete                 | Single card                             |
 | Open File              | Disabled in the web build               |
@@ -185,6 +186,20 @@ them.
 Every group action is a single undo step — rename, note, colour, membership,
 **Ungroup**, delete: **Ctrl+Z** reverses it. Collapse is the exception: it is
 per-view state, like a folded folder, so it is not recorded and not undone.
+
+**Groups vs tags** — they look alike but answer different questions, and both
+are deliberate:
+
+- A **group** is a *spatial container*: one titled box, on this canvas, holding
+  an explicit list of cards. It moves, scales and collapses them, and it never
+  changes the tree. Free in every tier.
+- A **tag** is a *label* a card carries: many per card, anywhere in the graph,
+  filterable and sortable. It never moves a card. Pro feature.
+
+Rule of thumb: **one place on the canvas → group; one attribute across many
+cards → tag.** Use a group when the point is "these cards belong together
+here"; use a tag when the point is "this card is that kind of thing" and you
+want to find it anywhere. See **Graph Features → Tags**.
 
 ## Undo / Redo
 

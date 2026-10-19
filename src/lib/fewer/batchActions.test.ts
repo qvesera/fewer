@@ -7,7 +7,8 @@ const base = { toast: noopToast, selectedIds: ["a", "b"], canSetParent: false };
 
 // Feature keys gate menus on tier, and the store starts with no tier (guest),
 // which hides tier-gated actions like `group`. Seed free so the canonical list
-// is the one signed-in web users and every shell user see.
+// is the one signed-in web users and every shell user see. Copy Paths is
+// shell-only, so the web list (the default here) has no `copy-paths` entry.
 beforeEach(() => {
   useGraphStore.setState({ tier: "free" as const });
 });
@@ -24,7 +25,6 @@ describe("buildBatchActions", () => {
       "show",
       "collapse",
       "expand",
-      "copy-paths",
       "tags",
       "group",
       "move-to-folder",
@@ -117,6 +117,13 @@ describe("buildBatchActions", () => {
     useGraphStore.setState({ activeLeafId: null });
   });
 
+  it("copy-paths only exists inside a desktop shell", () => {
+    const web = buildBatchActions({ ...base, inShell: false }).map((a) => a.id);
+    const shell = buildBatchActions({ ...base, inShell: true }).map((a) => a.id);
+    expect(web).not.toContain("copy-paths");
+    expect(shell).toContain("copy-paths");
+  });
+
   it("copy-paths joins selected node paths with newlines", async () => {
     const s = useGraphStore.getState();
     const withPaths = s.nodes.filter((n) => n.data.path).slice(0, 2);
@@ -125,7 +132,7 @@ describe("buildBatchActions", () => {
     (globalThis as unknown as { navigator: unknown }).navigator = {
       clipboard: { writeText: (t: string) => { written = t; return Promise.resolve(); } },
     };
-    const copy = buildBatchActions({ ...base }).find((a) => a.id === "copy-paths");
+    const copy = buildBatchActions({ ...base, inShell: true }).find((a) => a.id === "copy-paths");
     copy?.run();
     expect(written).toBe(withPaths.map((n) => n.data.path).join("\n"));
   });
