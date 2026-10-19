@@ -1,8 +1,9 @@
 "use client";
 
-import type { FewerNode, FewerEdge, LayoutDirection } from "./types";
+import type { FewerNode, FewerEdge, LayoutDirection, Tag } from "./types";
 import type { ViewSettings } from "./viewState";
-import { computeDisplayDepthHiddenIds, computeLargeFolderHiddenIds } from "./importMerge";
+import { computeDisplayDepthHiddenIds, computeLargeFolderHiddenIds, orderFromStore } from "./importMerge";
+import type { SortKey } from "./sorting";
 import type { GraphState } from "@/store/graphStore";
 import { navigate } from "./navigation";
 import { LOCAL_FS_FEATURES } from "./features";
@@ -83,6 +84,9 @@ export interface StoreReader {
   autoHideThreshold: number;
   maxDisplayDepth: number;
   revealedRootIds: string[];
+  /** Sort order the auto-hide cap follows (so the toast counts what re-hides). */
+  sortKey: SortKey;
+  tags: Tag[];
   tier: string;
   /** Canvas groups + the group selection (T-143): Alt+F zooms to groups too. */
   groups: Group[];
@@ -127,7 +131,7 @@ function leafHiddenIds(vs: ViewSettings, allFileIds: string[]): Set<string> {
  */
 export function shiftHOutcome(
   st: Pick<StoreReader, "hiddenIds" | "nodes" | "edges" | "activeLeafId" | "viewSettings"
-    | "autoHideThreshold" | "maxDisplayDepth" | "revealedRootIds" | "groups">,
+    | "autoHideThreshold" | "maxDisplayDepth" | "revealedRootIds" | "groups" | "sortKey" | "tags">,
 ): { restored: number; stillHidden: number } {
   const fileIds = st.nodes.filter((n) => n.data.type === "file").map((n) => n.id);
   const hiddenNow = new Set<string>(st.hiddenIds);
@@ -149,7 +153,7 @@ export function shiftHOutcome(
   // skips.
   const exemptions = new Set(st.hiddenIds.length > 0 || collapsedHere > 0 ? [] : st.revealedRootIds);
   const reHidden = new Set<string>([
-    ...computeLargeFolderHiddenIds(st.nodes, st.edges, st.autoHideThreshold, exemptions),
+    ...computeLargeFolderHiddenIds(st.nodes, st.edges, st.autoHideThreshold, exemptions, orderFromStore(st)),
     ...computeDisplayDepthHiddenIds(st.nodes, st.maxDisplayDepth),
   ]);
 
@@ -185,6 +189,8 @@ export function readShortcutStateFields(): (keyof StoreReader)[] {
     "autoHideThreshold",
     "maxDisplayDepth",
     "revealedRootIds",
+    "sortKey",
+    "tags",
     "tier",
     "groups",
     "selectedGroupIds",
@@ -212,6 +218,8 @@ export function toStoreReader(s: Record<string, any>): StoreReader {
     autoHideThreshold: s.autoHideThreshold ?? DEFAULT_AUTO_HIDE_THRESHOLD,
     maxDisplayDepth: s.maxDisplayDepth ?? 0,
     revealedRootIds: s.revealedRootIds ?? [],
+    sortKey: s.sortKey ?? "name",
+    tags: s.tags ?? [],
     tier: s.tier ?? "guest",
     groups: s.groups ?? [],
     selectedGroupIds: s.selectedGroupIds ?? [],
@@ -407,6 +415,8 @@ export function buildKeyboardRules(): ShortcutRule[] {
             maxDisplayDepth: st.maxDisplayDepth,
             revealedRootIds: st.revealedRootIds,
             groups: st.groups,
+            sortKey: st.sortKey,
+            tags: st.tags,
           });
           // Also run when the only thing hiding cards is this view's collapsed
           // group (T-164): nothing sits in hiddenIds, but Reveal All still has

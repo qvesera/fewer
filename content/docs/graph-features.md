@@ -188,14 +188,14 @@ Shows selected card's full path. Click any segment to navigate to that ancestor.
 
 ## Auto-hide Large Folders
 
-Folders with more than N children (default: 10) auto-hide their children on import. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree.
+Every folder shows its first **N** children — the **Auto-hide Limit** in Settings → Advanced, default 10 — in the canvas sort order. Children past that limit, and everything under them, are hidden on import. The rule **cascades**: any visible folder (including one you reveal by hand) shows its own first N and no more. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree, and the folder card keeps its `N hidden` badge.
 
-**Reveal a folder**: click the eye icon next to it. Its whole subtree becomes visible. A reveal is not undone by the auto-hide pass afterwards, whether it came from the sidebar, a double-click on a hidden child row inside a card, **Show Children**, or a search jump. Hiding a card again gives the auto-hide its exemption back, so a later folder refresh or threshold change may hide it as usual.
+**Reveal a folder**: click the eye icon next to it, double-click its hidden row inside the parent card, or use **Show Children**. The folder comes up with its first N children (cascading the same way); the rest of its children stay hidden until you reveal them one by one. A reveal is not undone by the auto-hide pass afterwards, whether it came from the sidebar, a canvas double-click, **Show Children**, or a search jump. Hiding a card again gives the auto-hide its exemption back, so a later folder refresh, sort change or limit change may hide it as usual. **Reveal All** / **Shift+H** clear the cap entirely.
 
 ## Visibility: Hide Files / Show Children
 
 - **Hide Files / Show Files** (canvas toolbar or right-click → **Visibility**) hides or reveals every file card. Folders stay visible either way.
-- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree, and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
+- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree up to the Auto-hide Limit (children past the limit stay hidden so you can reveal them individually), and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
 
 ## Hidden Cards Panel
 

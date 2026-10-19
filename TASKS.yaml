@@ -4909,3 +4909,32 @@ tasks:
     effort: {commits: 1, files: 15, insertions: 253, deletions: 210}
   spent_min: 27
   session_count: 1
+- id: "T-174"
+  title: "Auto-hide limit keeps the first N children visible per folder (cascading, reveal-overridable)"
+  status: "in-progress"
+  type: "fix"
+  area: "visibility"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 432
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-18T22:22:57Z"
+  notes: []
+  sessions:
+  - start: "2026-10-18T22:35:22Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

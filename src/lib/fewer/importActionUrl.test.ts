@@ -79,7 +79,7 @@ describe("runUrlImport", () => {
     expect(r.ok).toBe(true);
     expect(r.description).toBe("3 cards loaded.");
     expect(r.notes).toHaveLength(1);
-    expect(r.notes![0]!.title).toBe("Large folders collapsed");
+    expect(r.notes![0]!.title).toBe("Large folders trimmed");
     expect(r.notes![0]!.description).toContain("2 items were auto-hidden");
   });
 

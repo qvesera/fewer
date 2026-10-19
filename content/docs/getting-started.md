@@ -42,7 +42,7 @@ If **Power User mode** is enabled in Settings, you will see the below options in
 | Include Hidden Files    | Off     | Include dotfiles (`.gitignore`, `.env`, etc.) |
 | Include File Cards      | On      | Show files or folders only                    |
 | Extension Filter        | None    | Comma-separated whitelist                     |
-| Auto-hide Large Folders | On      | Folders with >10 children hide children       |
+| Auto-hide Large Folders | On      | Each folder shows its first 10 items; the rest are hidden |
 
 ## First Graph
 

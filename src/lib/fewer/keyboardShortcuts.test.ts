@@ -165,6 +165,8 @@ describe("shiftHOutcome", () => {
     maxDisplayDepth: 0,
     revealedRootIds: [] as string[],
     groups: [] as any[],
+    sortKey: "name" as const,
+    tags: [] as any[],
   };
 
   test("nothing hidden → nothing restored, nothing still hidden", () => {
@@ -192,8 +194,8 @@ describe("shiftHOutcome", () => {
     const nodes = [folder("root"), folder("big"), ...kids];
     const edges = [edge("big"), ...kids.map((k) => edge(k.id))];
     expect(shiftHOutcome({ ...base, nodes, edges, hiddenIds: [], revealedRootIds: ["n0"] }))
-      // The auto-hide would cover all 12; n0 is exempt, but nothing was hidden to
-      // restore, so both numbers stay at zero.
+      // The auto-hide would hide the two kids past the limit; n0 is exempt, but
+      // nothing was hidden to restore, so both numbers stay at zero.
       .toEqual({ restored: 0, stillHidden: 0 });
   });
 
@@ -212,7 +214,7 @@ describe("shiftHOutcome", () => {
 // which re-applies the large-folder auto-hide, so those cards are hidden again
 // in the same keypress. The toast used to count them as restored.
 describe("Shift+H with the auto-hide filter on", () => {
-  /** root -> big -> [12 files]  (big exceeds the threshold of 10) */
+  /** root -> big -> [12 files]  (12 exceeds the limit of 10 → the last 2 stay hidden) */
   const folder = (id: string, label = id) =>
     ({ id, position: { x: 0, y: 0 }, data: { label, path: `/${label}`, type: "folder", depth: 1 } } as any);
   const file = (id: string) =>
@@ -233,6 +235,9 @@ describe("Shift+H with the auto-hide filter on", () => {
       revealedRootIds: [],
       activeLeafId: null,
       viewSettings: {},
+      // Pinned so another suite's leaked depth limit can't count as "still hidden".
+      maxDisplayDepth: 0,
+      showFiles: true,
       ...extra,
     } as any);
   };
@@ -242,15 +247,16 @@ describe("Shift+H with the auto-hide filter on", () => {
     return a;
   };
 
-  test("cards the filter re-hides are not reported as restored", () => {
+  test("only the cards past the limit are re-hidden; the toast reports them apart", () => {
     withFilterOn({ hiddenIds: kids.map((k) => k.id) }); // all 12 hidden, by the filter
     try {
       const a = run();
-      // The action still runs (showAll + setShowFiles), but nothing is claimed.
+      // The action still runs (showAll + setShowFiles); the cap keeps its 2
+      // (the last two in sort order) hidden and the toast says so honestly.
       expect(a.showAll).toBe(true);
       expect(a.setShowFiles).toBe(true);
-      expect(a.toast?.title).toBe("Nothing to unhide");
-      expect(a.toast?.description).toBe("12 cards stayed hidden: the auto-hide filter still applies");
+      expect(a.toast?.title).toBe("Unhid all cards");
+      expect(a.toast?.description).toBe("10 cards restored · 2 cards kept hidden by the auto-hide filter");
     } finally {
       useGraphStore.setState(useGraphStore.getInitialState(), true);
     }
@@ -260,12 +266,12 @@ describe("Shift+H with the auto-hide filter on", () => {
     withFilterOn({
       nodes: [...graph.nodes, manual],
       edges: [...graph.edges, { id: "e3", source: "root", target: "manual" } as any],
-      // 12 by the filter + 1 by hand.
+      // 12 by the filter (2 stay behind the cap) + 1 by hand.
       hiddenIds: [...kids.map((k) => k.id), "manual"],
     });
     try {
       const a = run();
-      expect(a.toast?.description).toBe("1 card restored · 12 cards kept hidden by the auto-hide filter");
+      expect(a.toast?.description).toBe("11 cards restored · 2 cards kept hidden by the auto-hide filter");
     } finally {
       useGraphStore.setState(useGraphStore.getInitialState(), true);
     }

@@ -5,6 +5,7 @@ import { getDescendants } from "@/lib/fewer/validation";
 import { emptyHideLayers, type HideLayers } from "@/lib/fewer/viewState";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { planReveal } from "../graph/reveal";
+import { orderFromStore } from "@/lib/fewer/importMerge";
 import { openedCollapsedGroupsForLeaf, parkInLayers, revealLeafId, withGroupReveal } from "../graph/revealGroups";
 
 /** Seed-on-write helper: first call captures the effective global hidden into the leaf's individual layer. */
@@ -150,8 +151,13 @@ export const createFolderSlice: FolderSliceCreator = (set, get) => ({
     const s = get();
     const toShow = planReveal({
       edges: s.edges,
+      nodes: s.nodes,
       hiddenIds: s.hiddenIds,
       independentlyHiddenIds: s.independentlyHiddenIds,
+      autoHiddenIds: s.autoHiddenIds,
+      revealedRootIds: s.revealedRootIds,
+      threshold: s.autoHideThreshold,
+      order: orderFromStore(s),
       id,
       subtree: opts?.subtree ?? false,
     });

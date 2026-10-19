@@ -4,6 +4,7 @@ import type { GraphState } from "../types";
 import { getDescendants } from "@/lib/fewer/validation";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { collectRevealableFileIds, applyRevealLimits } from "./revealHelpers";
+import { orderFromStore } from "@/lib/fewer/importMerge";
 import { revealLeafId, withGroupReveal } from "../graph/revealGroups";
 import type { FileCategory } from "@/lib/fewer/types";
 
@@ -129,6 +130,7 @@ export const createVisibilitySlice: VisibilitySliceCreator = (set, get) => ({
         maxDisplayDepth,
         independentlyHiddenIds: get().independentlyHiddenIds,
         revealIds,
+        order: orderFromStore(get()),
       });
       const after = { ...before, showFiles: true, hiddenIds: nextHidden, autoHiddenIds: nextAuto };
       if (JSON.stringify(after) !== JSON.stringify(before)) get().pushOp(viewStateOp(before, after));

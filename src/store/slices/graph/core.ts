@@ -9,7 +9,7 @@ import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/t
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation, pruneViewSettingsForGraph } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
-import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets } from "@/lib/fewer/importMerge";
+import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets, orderFromStore } from "@/lib/fewer/importMerge";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { captureViewState } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
@@ -74,6 +74,7 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
       state.autoHideThreshold,
       state.maxDisplayDepth,
       state.categoryFilter,
+      orderFromStore(state),
     );
     const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
     const laidFinal = options?.preservePositions
@@ -176,7 +177,7 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   },
   applyFolderRefresh: (nodeId, childNodes, childEdges) => {
     const {
-      nodes, edges, searchQuery, categoryFilter, hiddenIds,
+      nodes, edges, searchQuery, categoryFilter, hiddenIds, autoHiddenIds,
       revealedRootIds, autoHideThreshold, maxDisplayDepth,
       direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, sortKey, sortDir, graphVersion, showFiles,
     } = get();
@@ -197,7 +198,14 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     for (const id of oldIds) fsHandleStore.delete(id);
     const finalNodes = [...nodes.filter((n) => n.id !== nodeId && !oldIds.has(n.id)), folderNode, ...newChildNodes];
     const finalEdges = [...edges.filter((e) => !oldIds.has(e.source) && !oldIds.has(e.target)), ...subtreeEdges];
-    const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, autoHideThreshold, new Set(revealedRootIds as string[]));
+    // Previous auto-hides are re-derived (they live in `autoHiddenIds`); every
+    // other hide the graph still carries is seeded so it is never relabelled
+    // as an auto-hide of the refreshed subtree.
+    const seeded = new Set((hiddenIds as string[]).filter((h) => !autoHiddenIds.includes(h)));
+    const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, autoHideThreshold, new Set(revealedRootIds as string[]), {
+      ...orderFromStore(get()),
+      hiddenSeed: seeded,
+    });
     const depthIds = computeDisplayDepthHiddenIds(finalNodes, maxDisplayDepth);
     const catHiddenIds = categoryHiddenNodeIds(finalNodes, categoryFilter);
     let idsToHide: string[] = [...(hiddenIds as string[]).filter((h) => !oldIds.has(h))];
