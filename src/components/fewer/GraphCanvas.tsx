@@ -17,6 +17,7 @@ import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
 import { GroupFrames } from "./GroupFrames";
+import { GroupPillNode } from "./GroupPillNode";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import {
@@ -48,6 +49,14 @@ import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeas
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
 import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
 import { collapsedGroupMembers } from "@/lib/fewer/groups";
+import {
+  collapsedGroupBlocks,
+  groupPillNodeId,
+  injectGroupPillNodes,
+  pillRectsFromNodes,
+  pillsForViewEdges,
+  viewMemberNodes,
+} from "@/lib/fewer/groupLayout";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -76,9 +85,8 @@ import { useCanvasCollapsedInternals } from "@/hooks/use-canvas-collapsed-intern
 import { useCanvasHiddenChip } from "@/hooks/use-canvas-hidden-chip";
 import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
-const nodeTypes = { folder: CustomNode, file: CustomNode };
+const nodeTypes = { folder: CustomNode, file: CustomNode, groupPill: GroupPillNode };
 const PERF_NODE_LIMIT = 300;
-
 // React Flow's `StoreUpdater` compares tracked props BY IDENTITY and writes its
 // store for every field that differs (and re-renders everything reading it), so
 // these must not be built inline: a fresh object each render wrote the RF store
@@ -228,20 +236,67 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       vs.direction, direction, hiddenIds, fileIds, layoutOpts, groups,
     ],
   );
-  const positionedNodes = useMemo(
-    () => applyViewPositions(laid?.nodes ?? viewNodes, vs.positions),
-    [laid, viewNodes, vs.positions],
-  );
+  const positionedNodes = useMemo(() => {
+    const overlaid = applyViewPositions(laid?.nodes ?? viewNodes, vs.positions);
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0) return overlaid;
+    // Anchor groups' pills (T-180): a COMPACT pill arrives from the layout, but
+    // an anchor group never runs a pass — its members stay invisible geometry —
+    // so its pill is injected on their block AFTER the per-view overlay. The
+    // members themselves are hidden from the paint: the injection reads them
+    // from the LAID set when a pass ran, else from the store — with this leaf's
+    // positions overlaid either way (the frame's `anchorNodes` rule).
+    const memberNodes = applyViewPositions(
+      [...viewMemberNodes(laid?.members, allNodes, groups ?? [], collapsedIds)],
+      vs.positions,
+    );
+    return injectGroupPillNodes(overlaid, memberNodes, groups ?? [], collapsedIds, vs.direction);
+  }, [laid, viewNodes, vs.positions, vs.direction, groups, allNodes, rawLeaf?.collapsedGroupIds]);
 
-  // Publish this leaf's collapsed-group pill rects (T-179): zoom-to-selection
-  // (toolbar button and Alt+F) reads them so a collapsed group's fit target is
-  // the PAINTED pill, not the store-coords corner anchor. `undefined` clears —
-  // a view that collapses nothing (or unmounts) leaves no stale target behind.
+  // The pills' inherited connections (T-180): every edge touching a hidden
+  // member is re-pointed at that member's pill NODE, so a collapsed group's
+  // connections render like any other edge — the same renderer, style, dash and
+  // width — instead of a drawn stub layer. Derived from the edge list alone
+  // (nothing enters the snapshot), and deliberately OUTSIDE the layout memo:
+  // an anchor collapse paints the shared layout as-is, no pass runs.
+  const viewEdges = useMemo(() => {
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0) return visibleEdges;
+    const boundary = pillsForViewEdges(
+      allEdges,
+      groups ?? [],
+      collapsedIds,
+      new Set(effectiveHiddenIds),
+      new Set(visibleNodes.map((n) => n.id)),
+    );
+    return boundary.length > 0 ? [...visibleEdges, ...boundary] : visibleEdges;
+  }, [visibleNodes, visibleEdges, allEdges, groups, rawLeaf?.collapsedGroupIds, effectiveHiddenIds]);
+
+  const pillEdgeColors = useMemo(() => {
+    const out = new Map<string, string>();
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0 || !groups?.length) return out;
+    // A coloured group tints its pill's edges (T-180) — same rule the drawn
+    // stubs had: group colour, else the default edge stroke (an empty entry).
+    for (const g of collapsedGroupBlocks(groups, collapsedIds)) {
+      if (g.color) out.set(groupPillNodeId(g.id), g.color);
+    }
+    return out;
+  }, [groups, rawLeaf?.collapsedGroupIds]);
+
+  // The pill rects, read from the PAINTED pill nodes (T-179): one source for
+  // the frame shell and for zoom-to-selection, so a per-view position override
+  // can never desynchronise them. `undefined` clears — a view that collapses
+  // nothing (or unmounts) leaves no stale target behind.
+  const pillRects = useMemo(
+    () => pillRectsFromNodes(positionedNodes, groups ?? [], rawLeaf?.collapsedGroupIds ?? []),
+    [positionedNodes, groups, rawLeaf?.collapsedGroupIds],
+  );
   const setPillRectsForLeaf = useGraphStore((s) => s.setPillRectsForLeaf);
   useEffect(() => {
-    setPillRectsForLeaf(leafId ?? "", laid?.pillRects);
+    setPillRectsForLeaf(leafId ?? "", pillRects.size > 0 ? pillRects : undefined);
     return () => setPillRectsForLeaf(leafId ?? "", undefined);
-  }, [laid?.pillRects, leafId, setPillRectsForLeaf]);
+  }, [pillRects, leafId, setPillRectsForLeaf]);
 
   // ── Selection: derived, never stored on the store's nodes ──
   // The leaf's own ids, or — only while no leaf owns the shared list — the
@@ -265,9 +320,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const graphsExists = allNodes.length > 0;
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(stampedNodes);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(viewEdges);
 
-  useCanvasGraphSync(graphVersion, stampedNodes, visibleEdges, setRfNodes, setRfEdges);
+  useCanvasGraphSync(graphVersion, stampedNodes, viewEdges, setRfNodes, setRfEdges);
   // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
   // It is deliberately NOT a graphVersion change: that would rebuild everything.
   //
@@ -338,8 +393,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges,
-    themeColors, vs, hiddenIds: effectiveHiddenIds, animation, leafId, isActive,
+    onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges: viewEdges,
+    themeColors, vs, hiddenIds: effectiveHiddenIds, pillEdgeColors, animation, leafId, isActive,
   });
 
   // Leaf-aware select-all scope: only nodes visible in THIS view, not every
@@ -468,7 +523,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           hiddenChipStyle={hiddenChipStyle}
         />
-        <GroupFrames leafId={leafId} nodes={positionedNodes} pillRects={laid?.pillRects} />
+        <GroupFrames
+          leafId={leafId}
+          nodes={positionedNodes}
+          pillRects={pillRects}
+        />
       </ReactFlow>
 
       {canvasMenu && (

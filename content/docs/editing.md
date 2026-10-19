@@ -145,8 +145,16 @@ exactly as they did before.
   the frame to a pill; the layout treats that pill as a single card-sized
   block — so the tree re-flows compactly around it in **every** direction
   (top-down, bottom-up, and both horizontal ones) instead of keeping the
-  group's whole footprint empty. Expanding brings the cards back, except any
-  you hid yourself. Collapse is per-view state — other panel views
+  group's whole footprint empty. A group that holds **folder cards** (or cards
+  from different branches) keeps every card's slot instead, so its contents
+  never jump a level — the pill simply sits on the group's own block — and the
+  pill **keeps the connections its hidden cards carried as ordinary edges**:
+  each wire is drawn by the canvas itself, exactly like a folder→file edge, so
+  your **connection style** (shape, dash and width) and the selection highlight
+  apply to it unchanged — and a group with a **colour** keeps its wires tinted
+  with it. You can also **drag the pill** to move the collapsed
+  group — one gesture, one undo step. Expanding brings the cards back,
+  except any you hid yourself. Collapse is per-view state — other panel views
   keep showing the frame — and, like a folded folder, it is not an undo step.
 - **The frame follows visibility**: the box hugs the cards the canvas actually
   shows, and its count reads **3 of 5 members** when some are hidden. Hide every

@@ -190,10 +190,13 @@ test("Organize no longer re-flows cards onto a collapsed group's pill (T-140)", 
 
   const pb = (await pill.boundingBox())!;
   const rects = await page.locator(".react-flow__node").evaluateAll((els) =>
-    els.map((e) => {
-      const r = e.getBoundingClientRect();
-      return { l: r.x, t: r.y, r: r.x + r.width, b: r.y + r.height };
-    }),
+    els
+      // The pill is a NODE too (T-180) — it IS the box we check against.
+      .filter((e) => !(e.getAttribute("data-id") ?? "").includes("__group_pill__"))
+      .map((e) => {
+        const r = e.getBoundingClientRect();
+        return { l: r.x, t: r.y, r: r.x + r.width, b: r.y + r.height };
+      }),
   );
   expect(rects.length).toBeGreaterThan(0);
   for (const c of rects) {
@@ -218,8 +221,11 @@ test("a collapsed pill stays in the tree when the view switches layout direction
   await expect(pill).toBeVisible();
   await page.waitForTimeout(400);
 
-  // The pill is one slot in the VIEW's layout, so its centre sits inside the
-  // band of painted cards (one column away), never at the old top-down coords.
+  // The pill is one slot in the VIEW's layout, so its centre sits in the band
+  // of painted cards — one column at most: the HIDDEN members can sit in a
+  // column of their own (their children ARE the painted cards, and the block
+  // anchors left of them), so the band allows a layer + a card past them and
+  // never the old top-down coordinates.
   const pb = (await pill.boundingBox())!;
   const centres = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
@@ -232,14 +238,179 @@ test("a collapsed pill stays in the tree when the view switches layout direction
   expect(centres.length).toBeGreaterThan(0);
   const cx = pb.x + pb.width / 2;
   const cy = pb.y + pb.height / 2;
-  const nearX = Math.min(...centres.map((c) => c.cx)) - 240;
-  const farX = Math.max(...centres.map((c) => c.cx)) + 240;
-  const nearY = Math.min(...centres.map((c) => c.cy)) - 240;
-  const farY = Math.max(...centres.map((c) => c.cy)) + 240;
+  const SLACK = 640;
+  const nearX = Math.min(...centres.map((c) => c.cx)) - SLACK;
+  const farX = Math.max(...centres.map((c) => c.cx)) + SLACK;
+  const nearY = Math.min(...centres.map((c) => c.cy)) - SLACK;
+  const farY = Math.max(...centres.map((c) => c.cy)) + SLACK;
   expect(cx).toBeGreaterThan(nearX);
   expect(cx).toBeLessThan(farX);
   expect(cy).toBeGreaterThan(nearY);
   expect(cy).toBeLessThan(farY);
+});
+
+test("a collapsed multi-level group keeps its children in place and wires them to the pill (T-180)", async ({ page }) => {
+  await openCanvas(page);
+  // React's duplicate-key console error is a real bug we shipped once — catch
+  // it here, not by eye.
+  const keyErrors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error" && msg.text().includes("same key")) keyErrors.push(msg.text());
+  });
+  // Pick two FOLDER cards that both have children outside the group — the
+  // shape that used to stretch the tree (#439). Child rows are separate
+  // `.react-flow__node`s drawn inside their parent card; offsetHeight (layout
+  // px, unaffected by the canvas zoom) separates real folders (200) from rows
+  // and files (≤58).
+  const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els
+      .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
+      .filter((c) => c.id && c.h > 100)
+      .map((c) => c.id),
+  );
+  // [0] is the root; the next two folders both have children outside the group.
+  expect(folderCardIds.length).toBeGreaterThan(2);
+  const a = page.locator(`[data-id="${folderCardIds[1]}"]`);
+  const b = page.locator(`[data-id="${folderCardIds[2]}"]`);
+  const { frame } = await createGroupFromCards(page, a, b);
+  await expect(frame).toBeVisible();
+  await page.waitForTimeout(500);
+
+  const snapshot = () =>
+    page.locator(".react-flow__node").evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { id: e.getAttribute("data-id") ?? "", x: r.x, y: r.y };
+      }),
+    );
+  const before = await snapshot();
+
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(page.locator("[data-pill-shell]")).toBeVisible();
+  await page.waitForTimeout(500);
+
+  // Anchor mode: the members hide, but EVERY other card keeps its exact
+  // position — no re-parenting, no promoted depth level, no stretched tree.
+  const after = await snapshot();
+  const byId = new Map(after.map((c) => [c.id, c]));
+  const deltas: string[] = [];
+  let stillPainted = 0;
+  for (const card of before) {
+    const now = byId.get(card.id);
+    if (!now) continue; // a member: hidden by the collapse
+    stillPainted++;
+    const dx = Math.round(now.x - card.x);
+    const dy = Math.round(now.y - card.y);
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) deltas.push(`${card.id} d=(${dx},${dy})`);
+  }
+  expect(deltas, deltas.join(" ")).toEqual([]);
+  expect(stillPainted).toBeGreaterThan(5); // the sample's folders + files survive
+
+  // The pill inherits the connections the hidden folders used to carry — as
+  // ORDINARY React Flow edges bound to the pill NODE (T-180): the same
+  // renderer, style and width as every folder→file edge, not a separately
+  // drawn stub layer.
+  await expect(page.locator("[data-pill-node]")).toHaveCount(1);
+  const pillEdges = page.locator('.react-flow__edge[data-id*="__group_pill__"]');
+  expect(await pillEdges.count()).toBeGreaterThan(0);
+  const edgeIds = await pillEdges.evaluateAll((els) => els.map((e) => e.getAttribute("data-id") ?? ""));
+  const pillId = (id: string) => id.includes("__group_pill__");
+  expect(edgeIds.some((id) => pillId(id.split("->")[0]))).toBe(true); // pill feeds a card
+  expect(edgeIds.some((id) => pillId(id.split("->")[1]))).toBe(true); // a card feeds the pill
+  // The stub layer is gone for good: no drawn wires, no port dots.
+  expect(await page.locator("[data-group-stubs]").count()).toBe(0);
+  expect(await page.locator("[data-stub-port]").count()).toBe(0);
+
+  // The connection style drives the shape, exactly like the tree's edges.
+  const pillPathD = () =>
+    page.locator('.react-flow__edge[data-id*="__group_pill__"] path').first().getAttribute("d");
+  expect(await pillPathD()).toBeTruthy();
+  // Connections & Style in the sidebar; the section starts collapsed. (The
+  // section's INFO tooltip shares the phrase — `.first()` is the header.)
+  const section = page.getByRole("button", { name: /Connections & Style/ }).first();
+  if ((await section.getAttribute("aria-expanded")) !== "true") await section.click();
+  // Curved → a cubic, Straight → a polyline. (RF compacts its path strings:
+  // `… C848.5,789 …`, so match the bare command letters.)
+  await page.getByRole("button", { name: "Curved", exact: true }).first().click();
+  await expect.poll(pillPathD).toContain("C");
+  await page.getByRole("button", { name: "Straight", exact: true }).first().click();
+  await expect.poll(pillPathD).not.toContain("C");
+  expect(await pillPathD()).toContain("L");
+
+  expect(keyErrors).toEqual([]);
+});
+
+test("dragging a collapsed pill moves the group — one gesture, one undo (T-180)", async ({ page }) => {
+  await openCanvas(page);
+  const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els
+      .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
+      .filter((c) => c.id && c.h > 100)
+      .map((c) => c.id),
+  );
+  expect(folderCardIds.length).toBeGreaterThan(2);
+  const a = page.locator(`[data-id="${folderCardIds[1]}"]`);
+  const b = page.locator(`[data-id="${folderCardIds[2]}"]`);
+  const { frame } = await createGroupFromCards(page, a, b);
+  await expect(frame).toBeVisible();
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  const pill = page.locator("[data-pill-shell]");
+  await expect(pill).toBeVisible();
+  await page.waitForTimeout(300);
+
+  const before = (await pill.boundingBox())!;
+  // Drag the PILL itself (the shell carries the gesture; the pill NODE is the
+  // edge anchor and follows the same override).
+  await page.mouse.move(before.x + 40, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 40 + 150, before.y + before.height / 2 + 90, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+
+  const dragged = (await pill.boundingBox())!;
+  expect(Math.abs(dragged.x - before.x)).toBeGreaterThan(60);
+  expect(Math.abs(dragged.y - before.y)).toBeGreaterThan(30);
+  // The pill's edges stayed bound (still a node, still wired).
+  expect(await page.locator('.react-flow__edge[data-id*="__group_pill__"]').count()).toBeGreaterThan(0);
+
+  // One undo takes the whole gesture back.
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(300);
+  const undone = (await pill.boundingBox())!;
+  expect(Math.abs(undone.x - before.x)).toBeLessThan(8);
+  expect(Math.abs(undone.y - before.y)).toBeLessThan(8);
+});
+
+test("a group's colour tints its pill's edges (T-180)", async ({ page }) => {
+  await openCanvas(page);
+  const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els
+      .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
+      .filter((c) => c.id && c.h > 100)
+      .map((c) => c.id),
+  );
+  expect(folderCardIds.length).toBeGreaterThan(2);
+  const a = page.locator(`[data-id="${folderCardIds[1]}"]`);
+  const b = page.locator(`[data-id="${folderCardIds[2]}"]`);
+  const { frame } = await createGroupFromCards(page, a, b);
+  await expect(frame).toBeVisible();
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  await expect(page.locator("[data-pill-node]")).toHaveCount(1);
+
+  const path = page.locator('.react-flow__edge[data-id*="__group_pill__"] path').first();
+  await expect(path).toHaveCount(1);
+
+  // Color… → the hex input → Escape closes the picker, which COMMITS the draft.
+  await page.locator("[data-group-header]").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Color…" }).click();
+  await page.getByLabel("Group color hex value").fill("#ff6600");
+  await page.keyboard.press("Escape");
+
+  // The pill's ordinary edge now carries the group's colour — the rule the old
+  // drawn stubs had, on the same edge every other card uses.
+  await expect
+    .poll(() => path.evaluate((el) => getComputedStyle(el).stroke))
+    .toBe("rgb(255, 102, 0)");
 });
 
 test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {

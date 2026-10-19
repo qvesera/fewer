@@ -132,7 +132,7 @@ docker run -p 3000:3000 fewer
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
-- **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike
+- **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike. Collapsing shrinks the frame to a pill whose connections stay ordinary canvas edges (your connection style, dash and width apply, and the group's colour tints them), and you can drag the pill to move the collapsed group
 
 ---
 
@@ -289,7 +289,7 @@ docker run -p 3000:3000 fewer
 
 Toggle **Export Selected** to export only the selected subtree.
 
-Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
+Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, collapsed groups (pill and their wires), tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 
 ---
 

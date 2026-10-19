@@ -87,7 +87,7 @@ export interface FewerNodeData {
   [key: string]: unknown;
 }
 
-export type FewerNode = Node<FewerNodeData, "folder" | "file">;
+export type FewerNode = Node<FewerNodeData, "folder" | "file" | "groupPill">;
 export type FewerEdge = Edge<{ label?: string }, "default" | "smoothstep" | "straight">;
 
 export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
