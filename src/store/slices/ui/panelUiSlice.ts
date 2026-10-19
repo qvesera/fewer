@@ -2,6 +2,7 @@
 import { StateCreator } from "zustand";
 import type { GraphState } from "../types";
 import type { ViewSettings } from "@/lib/fewer/viewState";
+import type { GroupBounds } from "@/lib/fewer/groups";
 import {
   saveLayoutToStorage,
   clearLayoutStorage,
@@ -75,6 +76,14 @@ export type PanelUiSliceCreator = StateCreator<
     scrollAction: "pan" | "zoom";
     /** Live canvas (viewer) dimensions — guides minimap X/Y slider bounds. */
     canvasSize: { width: number; height: number };
+    /** Collapsed-group pill rects from each leaf's last derived layout (T-179):
+     *  written by the canvas that laid them out, read by zoom-to-selection so a
+     *  collapsed group's fit target is the PAINTED pill, not the store-coords
+     *  anchor (which lives in the shared layout's space). Keyed by leaf id
+     *  ("" = primary). Derived runtime state — never persisted. */
+    pillRectsByLeaf: Record<string, ReadonlyMap<string, GroupBounds> | undefined>;
+    /** Publish (or clear) one leaf's pill rects. */
+    setPillRectsForLeaf: (leafId: string, rects: ReadonlyMap<string, GroupBounds> | undefined) => void;
     // ── Panel layout (Blender-style docked areas) ──
     sidebarSide: "left" | "right";
     panelTree: import("@/lib/fewer/panelTree").PanelNode;
@@ -158,6 +167,7 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   miniMapY: 16,
   scrollAction: "pan",
   canvasSize: { width: 0, height: 0 },
+  pillRectsByLeaf: {},
 
   // Panel layout defaults — always start with server-safe defaults.
   // Stored layout hydrates in a useEffect to avoid hydration mismatch.
@@ -275,6 +285,13 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     if (s.canvasSize.width === size.width && s.canvasSize.height === size.height) return {};
     return { canvasSize: size };
   }),
+  setPillRectsForLeaf: (leafId, rects) => set((s) => (
+    // Same map identity = nothing changed (the canvas already skipped the write
+    // upstream); a fresh object per write would churn every subscriber.
+    s.pillRectsByLeaf[leafId] === rects
+      ? {}
+      : { pillRectsByLeaf: { ...s.pillRectsByLeaf, [leafId]: rects } }
+  )),
 
   // ── Panel layout actions ──
 

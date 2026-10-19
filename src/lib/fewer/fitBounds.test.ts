@@ -62,6 +62,26 @@ describe("selectionBounds", () => {
     expect(rl).toEqual({ x: 440 + GROUP_PADDING, y: -GROUP_PADDING - GROUP_HEADER_HEIGHT, ...pill });
   });
 
+  test("the canvas's published pill rect wins over the store-coords anchor (T-179)", () => {
+    const laid = new Map([["g1", { x: 900, y: 300, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT }]]);
+    const b = selectionBounds(
+      state({ selectedGroupIds: ["g1"], activeLeafId: "leaf-1", viewSettings: { "leaf-1": { collapsedGroupIds: ["g1"] } }, pillRects: laid }),
+    )!;
+    expect(b).toEqual(laid.get("g1")!);
+  });
+
+  test("the active leaf's direction override decides the fallback corner (T-179)", () => {
+    const b = selectionBounds(
+      state({
+        selectedGroupIds: ["g1"], direction: "TB", activeLeafId: "leaf-1",
+        viewSettings: { "leaf-1": { collapsedGroupIds: ["g1"], direction: "RL" } },
+      }),
+    )!;
+    // RL: past the cluster's right edge, same as a global RL would place it.
+    expect(b.x).toBe(440 + GROUP_PADDING);
+    expect(b.y).toBe(-GROUP_PADDING - GROUP_HEADER_HEIGHT);
+  });
+
   test("collapse is per-view: another leaf's collapsed set does not shrink this view's box", () => {
     const b = selectionBounds(
       state({

@@ -192,6 +192,9 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
       activeLeafId: st.activeLeafId,
       viewSettings: st.viewSettings,
       direction: st.direction,
+      // The active leaf's collapsed pills are layout slots (T-179) — the canvas
+      // publishes them, and the painted pill is what must be centered.
+      pillRects: st.pillRectsByLeaf?.[st.activeLeafId ?? ""],
     });
     const el = containerRef.current;
     if (!bounds || !el || el.clientWidth === 0) {

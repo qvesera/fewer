@@ -4996,3 +4996,32 @@ tasks:
     effort: {commits: 1, files: 16, insertions: 214, deletions: 207}
   spent_min: 25
   session_count: 1
+- id: "T-179"
+  title: "Collapsed group breaks in every layout: pill lands in the store's coordinate space (non-TB), a full block is reserved in TB, and the title overlaps cards in LR/RL"
+  status: "review"
+  type: "fix"
+  area: "layout"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 437
+  pr: 438
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#437"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T11:47:57Z"
+  notes: ["2026-10-19T11:49:23Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-10-19T11:52:41Z"
+    end: "2026-10-19T13:11:06Z"
+    measured: true
+    note: "Collapsed group pill/placement fixed at the root: a collapsed group is now ONE pill-sized synthetic node in the layout input (groupLayout.ts), so the engine places the pill in the view's own direction, the parent centers over it and the block is exactly the pill (no TB hole, no stray anchor). needsLayoutDerivation reads collapsedGroupIds so collapse always derives; GraphCanvas feeds the layout the painted set + collapsed members and publishes pillRectsByLeaf; GroupFrames/groupFrameRects prefer the laid rects (store-coords corner anchor stays as the no-layout fallback); fitBounds uses the active view's direction and the published pill rects (zoom to selection centers the painted pill); horizontal sibling gap 50->64 clears the 56px frame title inset. Gates: lint 0, tsc 0, bun run test 1875+12+241 green (new groupLayout.test.ts, layout.frameGap.test.ts + groups/viewState/fitBounds cases), build ok, groups e2e 18/18 incl. new direction-switch regression test, changelog+docs (editing.md) updated."
+    proof: ["ef9cefa", "f493ab8", "#438"]
+    effort: {commits: 2, files: 19, insertions: 730, deletions: 64}
+  spent_min: 78
+  session_count: 1

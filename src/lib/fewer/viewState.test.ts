@@ -327,7 +327,7 @@ describe("deriveViewLayout / applyViewPositions split", () => {
       const edges = chain(["a", "b", "c"]);
       const r = resolved(resolvedExtra);
       const split = applyViewPositions(
-        deriveViewLayout(nodes, edges, raw, r, global) ?? nodes,
+        deriveViewLayout(nodes, edges, raw, r, global)?.nodes ?? nodes,
         r.positions,
       );
       expect(split).toEqual(resolveViewNodes(nodes, edges, raw, r, global));

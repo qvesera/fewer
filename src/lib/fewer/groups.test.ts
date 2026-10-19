@@ -543,6 +543,19 @@ describe("groupFrameRects + groupDepth (W5 nesting geometry)", () => {
     );
   });
 
+  test("a layout-supplied pill rect wins over the store-coords corner anchor (T-179)", () => {
+    const gs = [{ id: "P", title: "P", note: "", memberIds: ["pa"] }];
+    const collapsed = new Set(["P"]);
+    const laid = new Map([["P", { x: 900, y: 300, width: COLLAPSED_PILL_WIDTH, height: COLLAPSED_PILL_HEIGHT }]]);
+    expect(
+      groupFrameRects(gs, painted, painted, undefined, "RL", collapsed, laid).rects.get("P"),
+    ).toEqual(laid.get("P"));
+    // …and a group with no laid rect keeps the old anchor math.
+    expect(
+      groupFrameRects(gs, painted, painted, undefined, "RL", collapsed, new Map()).rects.get("P"),
+    ).toEqual(groupPill(groupBounds(painted, ["pa"])!, "RL"));
+  });
+
   test("an expanded parent with hidden own cards still frames visible children", () => {
     // P's own card is not in the painted/visible set, but its child C is.
     const gs = [

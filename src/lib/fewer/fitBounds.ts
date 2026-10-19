@@ -28,11 +28,21 @@ export interface SelectionState {
     /** This view's collapsed group ids (T-164): a collapsed group's pill box is
      *  the fit target here, not its (hidden) member cluster. */
     collapsedGroupIds?: readonly string[];
+    /** This view's direction override (per-leaf since the sidebar/dock write a
+     *  per-view direction): the pill's flow-start corner follows the ACTIVE
+     *  view's direction, not the global one (T-179). */
+    direction?: LayoutDirection;
   }>>;
   /** Layout direction — only the COLLAPSED pill box consults it (the pill
-   *  anchors at the flow-start corner, T-163). Absent = TB, the historical
+   *  anchors at the flow-start corner, T-163), and the ACTIVE VIEW's override
+   *  of it wins (direction is per-leaf, T-179). Absent = TB, the historical
    *  top-left placement. */
   direction?: LayoutDirection;
+  /** The ACTIVE view's collapsed-group pill rects from its own layout (T-179):
+   *  `viewSettings`-adjacent derived state the canvas publishes. A collapsed
+   *  group's fit target prefers these — they are in the coordinates the canvas
+   *  paints — and falls back to the store-coords corner anchor when absent. */
+  pillRects?: ReadonlyMap<string, GroupBounds>;
 }
 
 /**
@@ -49,17 +59,22 @@ export interface SelectionState {
  * Collapsed members are hidden and culled nodes may never have been measured,
  * so callers must NOT hand this to React Flow's `fitView({ nodes })` (it fits
  * measured nodes only) — pair it with `viewportForBounds` + `setViewport`.
+ *
+ * A collapsed group's PILL rect is a layout slot (T-179), so `state.pillRects`
+ * (the rects the canvas published for the active leaf) wins; the store-coords
+ * corner anchor is only the fallback for a caller with no canvas behind it
+ * (tests).
  */
 export function selectionBounds(state: SelectionState): GroupBounds | null {
-  const viewPositions = state.activeLeafId
-    ? state.viewSettings?.[state.activeLeafId]?.positions
-    : undefined;
+  const viewVs = state.activeLeafId ? state.viewSettings?.[state.activeLeafId] : undefined;
+  const viewPositions = viewVs?.positions;
   const viewMap = viewPositions ? new Map(Object.entries(viewPositions)) : undefined;
   // Collapse is per-view (T-164): the ACTIVE view's collapsed set decides which
   // selected groups contribute their pill box instead of the member cluster.
-  const collapsedGroupIds = state.activeLeafId
-    ? state.viewSettings?.[state.activeLeafId]?.collapsedGroupIds
-    : undefined;
+  const collapsedGroupIds = viewVs?.collapsedGroupIds;
+  // …and so does the pill's corner: a view that overrides the direction paints
+  // (and lays its pill) in that direction (T-179).
+  const direction = viewVs?.direction ?? state.direction;
 
   let minX = Infinity;
   let minY = Infinity;
@@ -91,7 +106,11 @@ export function selectionBounds(state: SelectionState): GroupBounds | null {
     // the user selected. `null` = members are gone from the store entirely.
     const bounds = groupBounds(state.nodes as FewerNode[], g.memberIds, undefined, undefined, viewMap);
     if (!bounds) continue;
-    add(collapsedGroupIds?.includes(g.id) ? groupPill(bounds, state.direction) : bounds);
+    add(
+      collapsedGroupIds?.includes(g.id)
+        ? (state.pillRects?.get(g.id) ?? groupPill(bounds, direction))
+        : bounds,
+    );
   }
 
   if (!found) return null;
