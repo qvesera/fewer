@@ -319,6 +319,9 @@ export function buildKeyboardRules(): ShortcutRule[] {
           activeLeafId: st.activeLeafId,
           viewSettings: st.viewSettings,
           direction: st.direction,
+          // The active leaf's collapsed pills are layout slots (T-179) — the
+          // canvas publishes them, and the painted pill is what gets centered.
+          pillRects: st.pillRectsByLeaf?.[st.activeLeafId ?? ""],
         });
         const size = bounds ? ctx.canvasSize() : null;
         if (bounds && size) {

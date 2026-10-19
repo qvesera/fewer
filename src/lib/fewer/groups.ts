@@ -449,6 +449,13 @@ export function groupFrameRects(
    *  pass takes it instead of reading a flag off the group (whose collapse is
    *  no longer stored on the group at all). */
   collapsedIds: ReadonlySet<string> = EMPTY_COLLAPSED,
+  /** The collapsed pills' rects straight from the VIEW'S layout (T-179): same
+   *  coordinates the canvas paints, in every direction. When one is present it
+   *  WINS over the `anchor`-based corner math, which measures the store's
+   *  coordinates — correct only when this view paints exactly the shared
+   *  layout. Callers that never run a derived layout (standalone tests) pass
+   *  nothing and keep the old behaviour. */
+  pillRects?: ReadonlyMap<string, GroupBounds>,
 ): { rects: Map<string, GroupBounds>; order: string[] } {
   const byId = new Map(groups.map((g) => [g.id, g]));
 
@@ -478,10 +485,17 @@ export function groupFrameRects(
     }
     let out: GroupBounds | null;
     if (collapsedIds.has(g.id)) {
-      // Anchor the pill on the whole subtree's cards (store coords — they're hidden).
-      const ids = subtreeMemberIds(groups, id);
-      const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
-      out = own ? groupPill(own, direction) : null;
+      // The layout's pill rect wins (T-179): it is in this view's own
+      // coordinates. Fallback: anchor the pill on the whole subtree's cards
+      // (store coords — they're hidden) at the flow-start corner.
+      const laid = pillRects?.get(g.id);
+      if (laid) {
+        out = laid;
+      } else {
+        const ids = subtreeMemberIds(groups, id);
+        const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
+        out = own ? groupPill(own, direction) : null;
+      }
     } else {
       // Own content (header already reserved by groupBounds), minus the header
       // so children union into the region BELOW the header.

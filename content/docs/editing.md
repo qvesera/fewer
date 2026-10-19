@@ -141,8 +141,11 @@ exactly as they did before.
   to slate. The border, fill and header tint to match, the colour saves with the
   graph, and one drag is a single undo step. **Done** or **Escape** closes it.
 - **Collapse**: the chevron hides the group's cards **in this view** and shrinks
-  the frame to a pill where the cluster was; expanding brings the cards back,
-  except any you hid yourself. Collapse is per-view state — other panel views
+  the frame to a pill; the layout treats that pill as a single card-sized
+  block — so the tree re-flows compactly around it in **every** direction
+  (top-down, bottom-up, and both horizontal ones) instead of keeping the
+  group's whole footprint empty. Expanding brings the cards back, except any
+  you hid yourself. Collapse is per-view state — other panel views
   keep showing the frame — and, like a folded folder, it is not an undo step.
 - **The frame follows visibility**: the box hugs the cards the canvas actually
   shows, and its count reads **3 of 5 members** when some are hidden. Hide every

@@ -101,7 +101,7 @@ const gestureRef = {
  * would write a map nothing paints from. This matches the leafId the card-drag
  * path routes on.
  */
-export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNode[] }): ReactNode {
+export function GroupFrames({ leafId, nodes, pillRects }: { leafId?: string; nodes: FewerNode[]; pillRects?: ReadonlyMap<string, GroupBounds> }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
   const { visibleIds, direction } = useGraphViewScope();
   // Collapsed pills anchor on the store's full list (hidden members), with this
@@ -122,8 +122,8 @@ export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNo
           return p ? { ...n, position: p } : n;
         })
       : allNodes;
-    return groupFrameRects(groups, nodes, anchor, visibleIds, direction, new Set(collapsedGroupIds ?? []));
-  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction, collapsedGroupIds]);
+    return groupFrameRects(groups, nodes, anchor, visibleIds, direction, new Set(collapsedGroupIds ?? []), pillRects);
+  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction, collapsedGroupIds, pillRects]);
 
   if (groups.length === 0) return null;
   return (
@@ -141,6 +141,7 @@ export function GroupFrames({ leafId, nodes }: { leafId?: string; nodes: FewerNo
               visible={visibleIds}
               leafId={leafId}
               rect={rect}
+              pillRect={pillRects?.get(id)}
             />
           );
         })}
@@ -158,6 +159,7 @@ export function GroupFrame({
   visible,
   leafId,
   rect,
+  pillRect,
 }: {
   group: Group;
   /** The canvas's PAINTED nodes (derived layout + per-view positions + pill
@@ -172,6 +174,9 @@ export function GroupFrame({
    *  cascade applied). Falls back to a local single-group box when rendered
    *  standalone (tests). */
   rect?: GroupBounds;
+  /** This group's pill rect from the VIEW'S layout (T-179) — the rect is in the
+   *  same coordinates the canvas paints, unlike the store-coords fallback. */
+  pillRect?: GroupBounds;
 }): ReactNode {
   const [editing, setEditing] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -262,8 +267,12 @@ export function GroupFrame({
   const localVisible = groupBounds(nodes, group.memberIds, GROUP_PADDING, visible);
   const localAll = collapsed ? groupBounds(anchorNodes, group.memberIds) : null;
   const localAnchor = collapsed ? (localAll ?? localVisible) : localVisible;
+  // Collapsed: the layout's own pill rect wins (T-179 — same coordinates the
+  // canvas paints); the store-coords corner anchor is the standalone fallback.
   // Every member gone (deleted, or the graph changed under it): nothing to draw.
-  const localBox = localAnchor && (collapsed ? groupPill(localAnchor, direction) : localAnchor);
+  const localBox = collapsed
+    ? (pillRect ?? (localAnchor && groupPill(localAnchor, direction)))
+    : localVisible;
   // Nesting (W5): prefer the parent's cascade/containment-aware rect; the local
   // single-group box is the fallback when this frame is rendered standalone.
   const box = rect ?? localBox;

@@ -14,7 +14,8 @@ import {
   type LayoutDirection,
 } from "./types";
 import { layoutGraphContour, type LayoutOptions } from "./layout";
-import { collapsedGroupMembers, type Group } from "./groups";
+import { collapsedGroupMembers, type Group, type GroupBounds } from "./groups";
+import { collapseToLayoutBlocks, pillRectsFrom, stripPillNodes } from "./groupLayout";
 
 // ── Types ──
 
@@ -101,8 +102,13 @@ export function computeEffectiveHidden(
 
 /**
  * True when a leaf renders a layout of its own instead of the shared (store)
- * positions: its direction differs from the global one, it collapses folders,
- * or its hide layers change the visible set.
+ * positions: its direction differs from the global one, it collapses folders
+ * OR GROUPS, or its hide layers change the visible set.
+ *
+ * Collapsing a group must derive too (T-179): its members leave the painted
+ * set, and only a derived layout gives the pill a slot in THIS view's
+ * coordinate space (the shared layout is still laid out with the members in
+ * it, so painting it would leave the whole expanded block reserved).
  *
  * This is the single source of truth for both the canvas (which then runs the
  * layout engine locally) and the Organize action (which knows that clearing a
@@ -118,6 +124,7 @@ export function needsLayoutDerivation(
   if (!vs) return false;
   if (vs.direction !== undefined && vs.direction !== global.direction) return true;
   if ((vs.collapsedFolderIds?.length ?? 0) > 0) return true;
+  if ((vs.collapsedGroupIds?.length ?? 0) > 0) return true;
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
 }
 
@@ -302,7 +309,7 @@ export function resolveViewNodes(
   layout: LayoutOptions = {},
 ): FewerNode[] {
   return applyViewPositions(
-    deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout) ?? visibleNodes,
+    deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout)?.nodes ?? visibleNodes,
     resolved.positions,
   );
 }
@@ -311,20 +318,26 @@ export function resolveViewNodes(
  * The expensive half of a view's node set: decide whether this view derives its
  * own layout, and if so run the layout engine.
  *
+ * Returns the laid-out PAINTED nodes plus, when the view collapses a group, the
+ * pill rects the layout reserved for them (T-179: a collapsed group becomes one
+ * pill-sized synthetic node in the layout input, so its rect is in THIS view's
+ * coordinates and its block is exactly the pill — no reserved hole, no stale
+ * anchor). `null` when the shared store layout already paints this view.
+ *
  * Its result is a function of the visible set, the direction, the derivation
  * predicate and the layout options — and deliberately NOT of the per-view
  * position overrides. Those are rewritten on every frame of a drag, so a canvas
  * that derived both in one memo re-ran the whole layout per frame: 193ms on a
- * 30k-node graph, in ANY view that diverges (hide layers, a collapsed folder, a
- * direction override), which is what made dragging in those views crawl.
+ * 30k-node graph, in ANY view that diverges (hide layers, a collapsed folder,
+ * a direction override), which is what made dragging in those views crawl.
  *
  * The caller memoises this on the leaf's *fields* the predicate reads
- * (hideLayers / direction / collapsedFolderIds) rather than on the settings
- * object, which a drag replaces wholesale.
+ * (hideLayers / direction / collapsedFolderIds / collapsedGroupIds) rather than
+ * on the settings object, which a drag replaces wholesale.
  */
 export function deriveViewLayout(
-  visibleNodes: FewerNode[],
-  visibleEdges: FewerEdge[],
+  layoutNodes: FewerNode[],
+  layoutEdges: FewerEdge[],
   raw: ViewSettings | undefined,
   resolved: ResolvedViewSettings,
   global: {
@@ -334,7 +347,8 @@ export function deriveViewLayout(
     fileIds: string[];
   },
   layout: LayoutOptions = {},
-): FewerNode[] | null {
+  groups: readonly Group[] = [],
+): { nodes: FewerNode[]; pillRects?: Map<string, GroupBounds> } | null {
   // 1. Direction override OR diverged visible set: derive this view's own
   //    layout. This runs BEFORE the per-view positions are applied, because a
   //    view's map only ever holds the cards the user dragged in that view — a
@@ -345,7 +359,20 @@ export function deriveViewLayout(
   //    is how a card created in the primary view showed up in a dock pane in
   //    the wrong slot — and why Sort/Organize read as inert on that pane.
   if (!needsLayoutDerivation(raw, global, global.fileIds)) return null;
-  return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
+  const collapsedIds = raw?.collapsedGroupIds ?? [];
+  // `layoutNodes` may still carry the collapsed groups' members (the canvas
+  // hands them in on purpose): the block replaces them, and the layout's own
+  // coordinates decide the pill slot.
+  const blocks = collapseToLayoutBlocks(layoutNodes, layoutEdges, groups, collapsedIds);
+  const laid = layoutGraphContour(blocks.nodes, blocks.edges, resolved.direction, layout);
+  const pillRects = pillRectsFrom(laid, blocks.pillNodes);
+  // Members hide by derivation (T-164): they ride the layout only so the pill
+  // can take their slot, then drop out — nothing paints them.
+  const memberIds = new Set(collapsedGroupMembers(groups, collapsedIds));
+  return {
+    nodes: stripPillNodes(laid).filter((n) => !memberIds.has(n.id)),
+    ...(pillRects.size > 0 ? { pillRects } : {}),
+  };
 }
 
 /**

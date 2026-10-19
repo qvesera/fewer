@@ -202,6 +202,46 @@ test("Organize no longer re-flows cards onto a collapsed group's pill (T-140)", 
   }
 });
 
+test("a collapsed pill stays in the tree when the view switches layout direction (T-179)", async ({ page }) => {
+  await openCanvas(page);
+  const { frame } = await createGroup(page);
+  await expect(frame).toBeVisible();
+
+  // The sidebar's LayoutPicker writes a PER-VIEW direction override: the
+  // canvas derives its own layout while the store keeps the old one. The pill
+  // used to anchor on the store's coordinates and ended up stranded.
+  await page.getByRole("button", { name: /Horizontal/ }).first().click();
+  await page.waitForTimeout(900);
+
+  await page.getByRole("button", { name: "Collapse group" }).click();
+  const pill = page.locator("[data-pill-shell]");
+  await expect(pill).toBeVisible();
+  await page.waitForTimeout(400);
+
+  // The pill is one slot in the VIEW's layout, so its centre sits inside the
+  // band of painted cards (one column away), never at the old top-down coords.
+  const pb = (await pill.boundingBox())!;
+  const centres = await page.locator(".react-flow__node").evaluateAll((els) =>
+    els
+      .filter((e) => (e as HTMLElement).getBoundingClientRect().height > 40)
+      .map((e) => {
+        const r = (e as HTMLElement).getBoundingClientRect();
+        return { cx: r.x + r.width / 2, cy: r.y + r.height / 2 };
+      }),
+  );
+  expect(centres.length).toBeGreaterThan(0);
+  const cx = pb.x + pb.width / 2;
+  const cy = pb.y + pb.height / 2;
+  const nearX = Math.min(...centres.map((c) => c.cx)) - 240;
+  const farX = Math.max(...centres.map((c) => c.cx)) + 240;
+  const nearY = Math.min(...centres.map((c) => c.cy)) - 240;
+  const farY = Math.max(...centres.map((c) => c.cy)) + 240;
+  expect(cx).toBeGreaterThan(nearX);
+  expect(cx).toBeLessThan(farX);
+  expect(cy).toBeGreaterThan(nearY);
+  expect(cy).toBeLessThan(farY);
+});
+
 test("Delete on a selected group ungroups it, keeping the cards", async ({ page }) => {
   await openCanvas(page);
   const { frame, cards } = await createGroup(page);

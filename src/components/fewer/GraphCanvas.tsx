@@ -47,6 +47,7 @@ import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
 import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
+import { collapsedGroupMembers } from "@/lib/fewer/groups";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -197,20 +198,50 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     () => ({ shynessScale, sortKey, sortDir, tagLabelById: tagLookup }),
     [shynessScale, sortKey, sortDir, tagLookup],
   );
-  const laidNodes = useMemo(
+  // What this view LAYS OUT (T-179): the painted set PLUS the collapsed groups'
+  // member cards. Members hide by derivation (T-164), but the layout needs them
+  // so a collapsed group can be replaced by ONE pill-sized block in this view's
+  // own coordinates — deriveViewLayout drops them again before anything paints.
+  // Their edges are pulled from the full edge set (the paint filter dropped
+  // them); genuinely hidden cards stay out of the layout entirely.
+  const layoutInput = useMemo(() => {
+    const memberIds = new Set(collapsedGroupMembers(groups ?? [], rawLeaf?.collapsedGroupIds ?? []));
+    if (memberIds.size === 0) return { nodes: viewNodes, edges: visibleEdges };
+    const hidden = new Set(effectiveHiddenIds);
+    const keep = (id: string) => !hidden.has(id) || memberIds.has(id);
+    const members = allNodes.filter((n) => memberIds.has(n.id));
+    return {
+      nodes: withCollapsedPillGeometry([...viewNodes, ...members], vs.collapsedFolderIds),
+      edges: allEdges.filter((e) => keep(e.source) && keep(e.target)),
+    };
+  }, [
+    viewNodes, visibleEdges, allNodes, allEdges, effectiveHiddenIds,
+    groups, rawLeaf?.collapsedGroupIds, vs.collapsedFolderIds,
+  ]);
+  const laid = useMemo(
     () => deriveViewLayout(
-      viewNodes, visibleEdges, rawLeaf, vs, { direction, hiddenIds, fileIds }, layoutOpts,
+      layoutInput.nodes, layoutInput.edges, rawLeaf, vs, { direction, hiddenIds, fileIds }, layoutOpts, groups,
     ),
     [
-      viewNodes, visibleEdges,
-      rawLeaf?.hideLayers, rawLeaf?.direction, rawLeaf?.collapsedFolderIds,
-      vs.direction, direction, hiddenIds, fileIds, layoutOpts,
+      layoutInput,
+      rawLeaf?.hideLayers, rawLeaf?.direction, rawLeaf?.collapsedFolderIds, rawLeaf?.collapsedGroupIds,
+      vs.direction, direction, hiddenIds, fileIds, layoutOpts, groups,
     ],
   );
   const positionedNodes = useMemo(
-    () => applyViewPositions(laidNodes ?? viewNodes, vs.positions),
-    [laidNodes, viewNodes, vs.positions],
+    () => applyViewPositions(laid?.nodes ?? viewNodes, vs.positions),
+    [laid, viewNodes, vs.positions],
   );
+
+  // Publish this leaf's collapsed-group pill rects (T-179): zoom-to-selection
+  // (toolbar button and Alt+F) reads them so a collapsed group's fit target is
+  // the PAINTED pill, not the store-coords corner anchor. `undefined` clears —
+  // a view that collapses nothing (or unmounts) leaves no stale target behind.
+  const setPillRectsForLeaf = useGraphStore((s) => s.setPillRectsForLeaf);
+  useEffect(() => {
+    setPillRectsForLeaf(leafId ?? "", laid?.pillRects);
+    return () => setPillRectsForLeaf(leafId ?? "", undefined);
+  }, [laid?.pillRects, leafId, setPillRectsForLeaf]);
 
   // ── Selection: derived, never stored on the store's nodes ──
   // The leaf's own ids, or — only while no leaf owns the shared list — the
@@ -437,7 +468,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           hiddenChipStyle={hiddenChipStyle}
         />
-        <GroupFrames leafId={leafId} nodes={positionedNodes} />
+        <GroupFrames leafId={leafId} nodes={positionedNodes} pillRects={laid?.pillRects} />
       </ReactFlow>
 
       {canvasMenu && (
