@@ -132,6 +132,11 @@ describe("dispatch", () => {
         "fs_remove_file",
         "fs_write_text",
         "host_fetch",
+        "index_build",
+        "index_clear",
+        "index_purge",
+        "index_search",
+        "index_status",
         "list_dir",
         "open_in_os",
         "pick_library_dir",
@@ -173,6 +178,20 @@ describe("dispatch", () => {
     expect(await dispatch("take_pending_open_file")).toBe("/home/u/graphs/plan.fwr");
     // Second read must be empty — a re-render cannot reopen the document.
     expect(await dispatch("take_pending_open_file")).toBeNull();
+  });
+
+  test("index commands reject when the host has no index directory (T-200)", async () => {
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: {
+        openPath: async () => {},
+        defaultLibraryDir: async () => "/home/u/Documents/fewer",
+        fetchText: async () => ({ status: 200, body: "" }),
+      },
+    });
+    // Bun has no node:sqlite AND no indexDir here — either reason rejecting is
+    // the contract: the renderer must never crash on an unavailable index.
+    await expect(dispatch("index_search", { query: "anything" })).rejects.toThrow();
   });
 
   test("take_pending_open_file is null on a host that collects no documents", async () => {

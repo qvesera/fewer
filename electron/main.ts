@@ -304,6 +304,11 @@ const dispatch = createDispatch({
       pendingOpenFile = null;
       return pending;
     },
+    // T-200: the search index database lives in userData, never in the
+    // user's library folder.
+    indexDir() {
+      return app.getPath("userData");
+    },
   },
 });
 

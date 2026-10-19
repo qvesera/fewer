@@ -257,6 +257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Canvas groups can now nest: a group can live inside another (Move into group / Move out of group in the frame menu). A parent frame grows to contain its children, moving/resizing a parent carries its whole subtree, collapsing a parent hides every card beneath it (children's frames disappear with it), and ungrouping a parent re-homes its children instead of deleting them.
 - The home page's Themes feature now links straight to the community gallery's themes tab (/gallery?tab=themes), where Apply tries a theme on the whole page; the gallery's Graphs/Themes toggle is reflected in the URL, so either view is linkable and shareable
 - Recent Folders in the desktop app: every opened folder root is remembered (up to eight), one click re-opens it without the import dialog, and a folder that no longer exists drops off the list. The sidebar's File & Actions section and the empty canvas now lead with Open Folder (native picker straight away); URL, GitHub, archive and file imports moved behind More sources.
+- On-device search in the desktop app: the global search box now also queries a local index of every folder you have opened (SQLite FTS5 in the app's data folder, names and paths only — never file contents). Device hits appear under 'On this device' in the search panel; clicking one selects the card or opens its folder. The index is capped, skips node_modules/hidden/cache folders, and can be inspected and cleared from Settings → Help → Storage.
 
 ### Performance
 

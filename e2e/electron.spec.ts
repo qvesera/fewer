@@ -108,6 +108,44 @@ test.describe("Electron shell", () => {
     expect(await window.locator("header[data-shell-header] input[data-search-input]").count()).toBe(1);
   });
 
+  test("device search index: build, prefix + substring search, purge (T-200)", async () => {
+    const window = await app.firstWindow();
+    const invoke = async (cmd: string, args: Record<string, unknown>) =>
+      window.evaluate(
+        ({ c, a }: { c: string; a: Record<string, unknown> }) =>
+          (window as unknown as {
+            __FEWER_NATIVE__: { invoke: (cmd: string, args: Record<string, unknown>) => Promise<unknown> };
+          }).__FEWER_NATIVE__.invoke(c, a),
+        { c: cmd, a: args },
+      );
+
+    // A throwaway folder — the index is real node:sqlite in the main process,
+    // so this is the only place the FTS5 path is exercised end to end.
+    const fs = await import("node:fs/promises");
+    const os = await import("node:os");
+    const pth = await import("node:path");
+    const dir = await fs.mkdtemp(pth.join(os.tmpdir(), "fewer-idx-"));
+    await fs.mkdir(pth.join(dir, "src"));
+    await fs.writeFile(pth.join(dir, "src", "alpha-note.txt"), "hi");
+
+    const built = (await invoke("index_build", { root: dir })) as { indexed: number; truncated: boolean };
+    expect(built.indexed).toBe(2); // src/ folder + alpha-note.txt
+    expect(built.truncated).toBe(false);
+
+    const prefix = (await invoke("index_search", { query: "alpha" })) as { hits: Array<{ path: string }> };
+    expect(prefix.hits.some((h) => h.path.endsWith("alpha-note.txt"))).toBe(true);
+
+    // Mid-word substring misses FTS prefix tokens and lands on the LIKE
+    // fallback ("lpha-not" is contiguous inside "alpha-note.txt" but its
+    // tokens are not prefixes of any indexed token pair).
+    const substring = (await invoke("index_search", { query: "lpha-not" })) as { hits: Array<{ path: string }> };
+    expect(substring.hits.some((h) => h.path.endsWith("alpha-note.txt"))).toBe(true);
+
+    const purged = (await invoke("index_purge", { root: dir })) as { removed: number };
+    expect(purged.removed).toBe(2);
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   test("shell docs: no marketing header, no links to hidden pages (T-104)", async () => {
     const window = await app.firstWindow();
     // Direct load over app:// (the protocol maps /docs → out/docs.html; the
@@ -167,14 +205,34 @@ test.describe("Electron shell", () => {
         /* ignore */
       }
     });
-    // Back to the app (the docs test left us on /docs/getting-started).
+    // Back to the app (the docs test left us on /docs/getting-started) and
+    // wait for the shell chrome — it only appears once FewerApp has mounted,
+    // which is also when the menu bridge starts listening.
     await window.goto("app://fewer/app.html");
+    await expect(window.locator("header[data-shell-header]")).toBeVisible({ timeout: 30_000 });
     await expect
       .poll(() => window.title().then((t) => t.toLowerCase()), { timeout: 30_000 })
       .toContain("fewer");
 
-    // Settings → Help → Report an Issue opens the shared dialog.
-    await window.locator('button[title="Settings"]').click();
+    // Settings → Help → Report an Issue opens the shared dialog. T-198: the
+    // shell header has no Settings button — the native application menu owns
+    // it, so drive the real menu item from the main process.
+    await app.evaluate(({ Menu }) => {
+      const menu = Menu.getApplicationMenu();
+      const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
+        for (const item of items) {
+          if (item.label === "Settings…") return item;
+          const nested = item.submenu?.items;
+          const hit = nested ? find(nested) : undefined;
+          if (hit) return hit;
+        }
+        return undefined;
+      };
+      const settings = menu ? find(menu.items) : undefined;
+      if (!settings?.click) throw new Error("Settings menu item missing");
+      settings.click();
+    });
+    await expect(window.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
     // T-148: the licensing rail ships OFF, so a packaged build offers no path
     // to Pro — no License tab, no activation flow, no upgrade copy.
     expect(await window.getByRole("tab", { name: "License" }).count()).toBe(0);

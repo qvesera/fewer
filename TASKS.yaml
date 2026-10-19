@@ -5511,7 +5511,7 @@ tasks:
   session_count: 1
 - id: "T-200"
   title: "On-device search index over opened folders using node:sqlite FTS5"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "performance"
   tier: 1
@@ -5529,6 +5529,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:45Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-19T21:45:11Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1

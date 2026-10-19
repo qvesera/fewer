@@ -82,6 +82,19 @@ The desktop shell has a native **File / Edit / View / Window / Help** menu:
 
 The in-app header carries only what you need mid-work. Settings and Export are reached from the menu, not from header buttons.
 
+### Search on this device
+
+The search box in the header searches the loaded graph first, then a **local
+index of every folder you have opened** — names and paths only, never file
+contents. Device hits appear under *On this device*; clicking one selects the
+card, or opens the folder first when the hit lives elsewhere.
+
+- The index lives in the app's own data folder, not your library.
+- Only opened folders are indexed; `node_modules`, hidden directories and
+  build caches are skipped.
+- **Settings → Help → Storage** shows how many entries and megabytes the index
+  uses and can clear it.
+
 ## Updating
 
 Download a new build from the releases page and install it over the old one; your library folder is untouched. The builds are unsigned, so on macOS right-click → Open the first time, and on Windows SmartScreen may warn on first run (More info → Run anyway).

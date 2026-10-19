@@ -124,6 +124,15 @@ docker run -p 3000:3000 fewer
 > folder onto the canvas to open it as the graph (it asks before replacing the
 > current one), or drop a file to open it in its default app.
 
+> **Desktop app:** *File & Actions* leads with **Open Folder** (native picker,
+> straight away) and **Recent Folders** — every folder you open is remembered,
+> one click re-opens it. URL/GitHub/archive/file imports sit behind **More
+> sources…**. The app has a native **File / Edit / View / Window / Help** menu
+> (Open Folder `Ctrl+O`, Save `Ctrl+S`, Export `Ctrl+E`, Settings `Ctrl+,`,
+> Toggle Sidebar `Ctrl+B`), a single compact 44px header, and the search box
+> also queries a **local index of the folders you have opened** (names and
+> paths only, never file contents — clearable in Settings → Help → Storage).
+
 ### Edit the graph
 
 - **Rename** a card: **F2** or right-click

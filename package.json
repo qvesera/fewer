@@ -20,7 +20,7 @@
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "shot": "bun scripts/marketing-shot.ts",
     "lint": "bun eslint .",
-    "test": "bun test src && bun test electron/handlers.test.ts && bun run test:components",
+    "test": "bun test src && bun test electron/handlers.test.ts electron/searchIndex.test.ts && bun run test:components",
     "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
     "build:netlify": "bun run vendor:archive && bun next build",
     "build:desktop": "bun run vendor:archive && bash scripts/build-desktop.sh",

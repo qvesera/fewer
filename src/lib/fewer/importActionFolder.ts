@@ -116,6 +116,11 @@ export async function runFolderImport(
       // T-199: every path-backed open (picker, OS drop, Recent Folders) records
       // the root so the shell can re-open it in one click next time.
       rememberFolder(nativeRoot);
+      // T-200: and queues it into the on-device search index, best-effort.
+      void (async () => {
+        const { indexFolderQuiet } = await import("@/lib/fewer/deviceIndex");
+        await indexFolderQuiet(nativeRoot);
+      })();
     }
 
     // Resolve the imported root to its absolute path on the dev machine once,

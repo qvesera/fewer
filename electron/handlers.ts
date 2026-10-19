@@ -32,6 +32,9 @@ export interface HostShell {
    *  once taken. Optional: only Electron's main process collects it — a host
    *  without the capability returns null and the boot hook does nothing. */
   takePendingOpen?(): string | null;
+  /** Directory for the search-index database (T-200: userData). Optional — a
+   *  host without it rejects the index_* commands. */
+  indexDir?(): string;
 }
 
 /* -------------------------------- list_dir -------------------------------- */
@@ -182,7 +185,55 @@ export function createHostHandlers(deps: { dialogs: HostDialogs; shell: HostShel
       }
       return deps.shell.fetchText(parsed.toString());
     },
+    // ── T-200: on-device search index (node:sqlite + FTS5) ────────────────────
+    // Dynamic imports: bun runs these handlers under test, and bun has no
+    // node:sqlite — loading it at module scope would break every test file.
+    async index_build({ root }: { root: string }) {
+      return withIndexDb(deps, (db, si) => si.indexRoot(db, root));
+    },
+    async index_search({ query, limit }: { query: string; limit?: number }) {
+      return withIndexDb(deps, (db, si) => ({ hits: si.searchIndex(db, query, limit ?? si.DEFAULT_SEARCH_LIMIT) }));
+    },
+    async index_status() {
+      return withIndexDb(deps, async (db, si) => {
+        const stats = si.indexStats(db);
+        const bytes = await si.indexDbBytes(si.resolveDbPath(indexDirOf(deps)));
+        return { ...stats, bytes };
+      });
+    },
+    async index_purge({ root }: { root: string }) {
+      return withIndexDb(deps, (db, si) => ({ removed: si.purgeRoot(db, root) }));
+    },
+    async index_clear() {
+      return withIndexDb(deps, (db, si) => {
+        const stats = si.indexStats(db);
+        let removed = 0;
+        for (const r of stats.roots) removed += si.purgeRoot(db, r.root);
+        return { removed };
+      });
+    },
   };
+}
+
+function indexDirOf(deps: { shell: HostShell }): string {
+  const dir = deps.shell.indexDir?.();
+  if (!dir) throw new Error("search index: host has no index directory");
+  return dir;
+}
+
+/** Open the index DB, run `fn`, always close. `node:sqlite` is loaded lazily. */
+async function withIndexDb<T>(
+  deps: { shell: HostShell },
+  fn: (db: import("node:sqlite").DatabaseSync, si: typeof import("./searchIndex")) => T | Promise<T>,
+): Promise<T> {
+  const { DatabaseSync } = await import("node:sqlite");
+  const si = await import("./searchIndex");
+  const db = new DatabaseSync(si.resolveDbPath(indexDirOf(deps)));
+  try {
+    return await fn(db, si);
+  } finally {
+    db.close();
+  }
 }
 
 export type HostHandlers = ReturnType<typeof createHostHandlers>;

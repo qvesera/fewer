@@ -155,6 +155,47 @@ export function nativeTakePendingOpenFile(): Promise<string | null> {
   return hostInvoke<string | null>("take_pending_open_file");
 }
 
+/* ---- T-200: on-device search index over opened folders ---- */
+
+export interface NativeIndexBuildResult {
+  root: string;
+  indexed: number;
+  truncated: boolean;
+  durationMs: number;
+}
+export interface NativeDeviceHit {
+  path: string;
+  name: string;
+  root: string;
+  type: "folder" | "file";
+}
+export interface NativeIndexStats {
+  total: number;
+  bytes: number;
+  roots: Array<{ root: string; count: number; indexedAt: string }>;
+}
+
+/** (Re)build the index for one folder root. Resolves when the walk is done. */
+export function nativeIndexBuild(root: string): Promise<NativeIndexBuildResult> {
+  return hostInvoke<NativeIndexBuildResult>("index_build", { root });
+}
+/** Query the index (FTS5 prefix, LIKE fallback). */
+export function nativeIndexSearch(query: string, limit?: number): Promise<{ hits: NativeDeviceHit[] }> {
+  return hostInvoke<{ hits: NativeDeviceHit[] }>("index_search", { query, limit });
+}
+/** Index size + per-root counts (Settings → storage). */
+export function nativeIndexStatus(): Promise<NativeIndexStats> {
+  return hostInvoke<NativeIndexStats>("index_status");
+}
+/** Drop one root's rows. */
+export function nativeIndexPurge(root: string): Promise<{ removed: number }> {
+  return hostInvoke<{ removed: number }>("index_purge", { root });
+}
+/** Drop every root (the Settings "clear index" button). */
+export function nativeIndexClear(): Promise<{ removed: number }> {
+  return hostInvoke<{ removed: number }>("index_clear");
+}
+
 /**
  * Absolute OS path behind a dropped `File`, or `""` when no host exposes the
  * helper (web app, Tauri). Synchronous by design: `webUtils.getPathForFile`
