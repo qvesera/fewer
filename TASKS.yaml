@@ -4911,30 +4911,30 @@ tasks:
   session_count: 1
 - id: "T-174"
   title: "Auto-hide limit keeps the first N children visible per folder (cascading, reveal-overridable)"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "visibility"
   tier: 1
   estimate_min: 240
   estimate_basis: "cli"
   issue: 432
-  pr: null
+  pr: 433
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-18T22:22:57Z"
   notes: []
   sessions:
   - start: "2026-10-18T22:35:22Z"
-    end: null
+    end: "2026-10-19T05:52:16Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Auto-hide limit redefined as a per-folder cap: computeLargeFolderHiddenIds keeps the first N children in sort order (options: sortKey/sortDir/tagLabelById/hiddenSeed) and hides the rest with their subtrees, cascading via an orphan pass; planReveal/walkSubtreeReveal gain a cap-derived stopIds so folder reveals show the first N only; reconcileAutoHide seeds manual/depth/file hides; sort changes re-cap; Shift+H and import toasts count only what stays hidden. New autoHideCap.test.ts (8 tests); updated deleteUndo/revealContract/importMerge/importActionUrl/keyboardShortcuts expectations; docs (graph-features, getting-started) + changelog. Gates: tsc 0, lint 0, bun run test 1851+12+237 pass, build OK."
+    proof: ["47d922b", "#433"]
+    effort: {commits: 1, files: 21, insertions: 464, deletions: 86}
+  spent_min: 437
   session_count: 1
