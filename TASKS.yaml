@@ -4967,29 +4967,6 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 152, deletions: 40}
   spent_min: 12
   session_count: 1
-- id: "T-177"
-  title: "Collapsed group pill breaks in derived layouts: pill anchors in the store's coordinate space, the layout reserves the full expanded block (TB hole), and the group header overlaps cards in LR/RL"
-  status: "wontfix"
-  type: "fix"
-  area: "layout"
-  tier: 0
-  estimate_min: 1
-  estimate_basis: "cli"
-  issue: null
-  pr: null
-  internal: false
-  milestone: null
-  blocked_by: []
-  parent: null
-  source: null
-  time_source: null
-  reporter: null
-  assignee: "qvesera"
-  created_at: "2026-10-19T11:45:44Z"
-  notes: ["2026-10-19T11:51:33Z · Duplicate of T-179 (issue #437), which owns the issue link; folded there. No work recorded."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
 - id: "T-178"
   title: "Unify batch and individual tagging into one Tags submenu"
   status: "triaged"
