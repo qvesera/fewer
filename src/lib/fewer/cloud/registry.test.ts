@@ -1,7 +1,9 @@
 import { describe, expect, test, mock } from "bun:test";
 mock.module("server-only", () => ({}));
 
-const { getAdapter, isProviderImplemented } = await import("./registry");
+// T-201: import the core directly — a whole-file mock of "./registry" in
+// server.test.ts used to leak here depending on the runner's file order.
+const { getAdapter, isProviderImplemented } = await import("./registryCore");
 
 describe("getAdapter", () => {
   test("github → returns adapter with id=github", async () => {

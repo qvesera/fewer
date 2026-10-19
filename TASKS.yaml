@@ -5540,7 +5540,7 @@ tasks:
   session_count: 1
 - id: "T-201"
   title: "Fix cloud server.test.ts registry mock leaking process-wide (CI file-order failure)"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "infra"
   tier: 0
@@ -5565,5 +5565,11 @@ tasks:
     note: "server.test.ts spreads + restores the real ./registry; both file orders verified (server-first pair + full src suite 1913 pass)"
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-10-19T23:11:43Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 1
-  session_count: 1
+  session_count: 2
