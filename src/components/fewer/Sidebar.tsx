@@ -25,7 +25,7 @@ import { defaultDirection } from "@/store/slices/layoutSlice";
 import { CollapsibleSection, AnimatedConditional } from "./CollapsibleSection";
 import { HiddenNodesPanel } from "./HiddenNodesPanel";
 import { LayoutPicker } from "./LayoutPicker";
-import { StatsPanel, SavedGraphsPanel, TagsPanel } from ".";
+import { StatsPanel, SavedGraphsPanel, TagsPanel, RecentFolders } from ".";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { recentFiles, forgetRecent } from "@/lib/fewer/recentFiles";
+import { openFolderAction } from "@/lib/fewer/openFolderAction";
 import { isHost } from "@/lib/fewer/nativeShell";
 import {
   Tooltip,
@@ -168,6 +169,21 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     });
   };
   const recents = isHost() ? recentFiles() : [];
+  const inShell = isHost();
+
+  // T-199: in the shell, the primary action opens a folder directly through
+  // the native picker (no 3-step import dialog); the dialog's other origins
+  // (URL, GitHub, archive, file) stay reachable behind "More sources…".
+  const openFolderDirect = async () => {
+    const result = await openFolderAction();
+    if (!result) return;
+    toast({
+      title: result.title,
+      description: result.ok ? result.description : result.error,
+      variant: result.ok ? "default" : "destructive",
+    });
+    result.notes?.forEach((n) => toast({ title: n.title, description: n.description }));
+  };
 
   // Build section nodes keyed by id, then render in sidebarOrder
   const sections: Record<string, React.ReactNode> = {};
@@ -178,14 +194,37 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
         title="File & Actions"
         icon={HardDrive}
         defaultOpen
-        info="Import a folder, an archive, a link or a GitHub repo, add a single file or folder card by hand, clear the canvas, or reopen a recent folder."
+        info={
+          inShell
+            ? "Open a folder straight from disk, reopen a recent one, add a single file or folder card by hand, or reach the other import sources (URL, GitHub, archive, file)."
+            : "Import a folder, an archive, a link or a GitHub repo, add a single file or folder card by hand, clear the canvas, or reopen a recent folder."
+        }
         {...dragProps("file")}
       >
         <div className="space-y-2.5 w-full min-w-0">
-          <Button className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10" onClick={onOpenDirectory}>
-            <FolderOpen className="h-4 w-4 shrink-0" />
-            <span className="truncate">Import</span>
-          </Button>
+          {inShell ? (
+            <>
+              <Button
+                className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10"
+                onClick={() => void openFolderDirect()}
+              >
+                <FolderOpen className="h-4 w-4 shrink-0" />
+                <span className="truncate">Open Folder</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2 text-xs font-medium min-w-0 h-8"
+                onClick={onOpenDirectory}
+              >
+                <span className="truncate">More sources…</span>
+              </Button>
+            </>
+          ) : (
+            <Button className="w-full gap-2 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-sm transition-transform active:scale-[0.98] min-w-0 h-10" onClick={onOpenDirectory}>
+              <FolderOpen className="h-4 w-4 shrink-0" />
+              <span className="truncate">Import</span>
+            </Button>
+          )}
           <div className="flex items-center gap-1 pt-1 border-t border-border/20 w-full min-w-0">
             <Button variant="ghost" size="sm" className="flex-1 min-w-0 gap-1 text-xs text-muted-foreground hover:text-foreground justify-start px-2" onClick={() => handleAddNode("file")}>
               <FilePlus className="h-3.5 w-3.5 shrink-0" />
@@ -221,6 +260,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
               ))}
             </div>
           )}
+          <RecentFolders />
         </div>
       </CollapsibleSection>
     );

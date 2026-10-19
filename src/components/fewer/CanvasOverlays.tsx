@@ -3,9 +3,13 @@ import { Panel } from "@xyflow/react";
 import { EyeOff, FolderOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGraphStore } from "@/store/graphStore";
+import { useToast } from "@/hooks/use-toast";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { plural } from "@/lib/fewer/plural";
 import type { CanvasChipStyle } from "@/lib/fewer/themeColors";
+import { isHost } from "@/lib/fewer/nativeShell";
+import { openFolderAction } from "@/lib/fewer/openFolderAction";
+import { RecentFolders } from "./RecentFolders";
 
 /**
  * Overlay panels for the canvas: loading spinner, empty-graph message,
@@ -33,6 +37,19 @@ export function CanvasOverlays({
   hiddenCount: number;
   hiddenChipStyle: CanvasChipStyle;
 }): ReactNode {
+  const { toast } = useToast();
+  const inShell = isHost();
+  // T-199: the shell's empty canvas offers the direct native-folder open —
+  // no import dialog — plus the recent-folders list underneath.
+  const openFolder = async () => {
+    const result = await openFolderAction();
+    if (!result) return;
+    toast({
+      title: result.title,
+      description: result.ok ? result.description : result.error,
+      variant: result.ok ? "default" : "destructive",
+    });
+  };
   return (
     <>
       {loading && (
@@ -76,20 +93,37 @@ export function CanvasOverlays({
           <div className="gm-float flex flex-col items-center gap-4 rounded-2xl px-6 sm:px-8 py-8 sm:py-6 text-center w-[90vw] sm:w-auto">
             <FolderOpen className="h-12 w-12 text-muted-foreground/60" />
             <div className="text-lg font-semibold">No directory loaded</div>
-            <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
-              Use the sidebar to open a directory from your file system, or
-              load one of the sample datasets to explore the visualization.
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <Button onClick={onOpenImport} data-tutorial="sample-button">
-                <FolderOpen className="h-4 w-4" />
-                Import
-              </Button>
-              <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Load sample
-              </Button>
-            </div>
+            {inShell ? (
+              <>
+                <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
+                  Open a folder from your file system, or pick one you opened before.
+                </div>
+                <div className="flex w-full max-w-xs flex-col items-center gap-2">
+                  <Button className="w-full" onClick={() => void openFolder()} data-tutorial="sample-button">
+                    <FolderOpen className="h-4 w-4" />
+                    Open Folder
+                  </Button>
+                  <RecentFolders />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sm:max-w-xs text-sm text-muted-foreground leading-relaxed">
+                  Use the sidebar to open a directory from your file system, or
+                  load one of the sample datasets to explore the visualization.
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <Button onClick={onOpenImport} data-tutorial="sample-button">
+                    <FolderOpen className="h-4 w-4" />
+                    Import
+                  </Button>
+                  <Button variant="outline" onClick={onLoadSample} data-tutorial="sample-button">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Load sample
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </Panel>
       )}

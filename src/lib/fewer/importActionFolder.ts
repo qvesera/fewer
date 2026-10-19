@@ -19,6 +19,7 @@ import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
 import { useGraphStore } from "@/store/graphStore";
 import { isHost, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
 import { buildTreeFromNative } from "@/lib/fewer/nativeTree";
+import { rememberFolder } from "@/lib/fewer/recentFolders";
 /** Produce the tree for a dropped folder through whichever channel delivered it. */
 async function treeFromDropped(
   source: DroppedDirectorySource,
@@ -110,7 +111,12 @@ export async function runFolderImport(
       maxDisplayDepth: options.displayMaxDepth,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
-    if (nativeRoot) useGraphStore.getState().setLocalRootPath(nativeRoot);
+    if (nativeRoot) {
+      useGraphStore.getState().setLocalRootPath(nativeRoot);
+      // T-199: every path-backed open (picker, OS drop, Recent Folders) records
+      // the root so the shell can re-open it in one click next time.
+      rememberFolder(nativeRoot);
+    }
 
     // Resolve the imported root to its absolute path on the dev machine once,
     // so later opens (and saved graphs) use it directly instead of searching.

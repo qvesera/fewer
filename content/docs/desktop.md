@@ -36,6 +36,12 @@ instead and it opens in your system's default app for that type.
   the document opens in the app (Linux, macOS and Windows all register the
   association; a graph dropped on a running window opens there too instead of
   starting a second one).
+- **Open Folder** appears in *File & Actions* (and on the empty canvas): it
+  opens the native folder picker straight away — no import dialog. The other
+  import origins (URL, GitHub, archive, file) stay behind **More sources…**.
+- **Recent Folders** appears in *File & Actions* once you have opened a
+  folder: the eight most recent roots, one click re-opens each. A folder that
+  has since been deleted or unmounted drops off the list automatically.
 - **Open Recent** appears in *File & Actions* once you have opened a document:
   the five most recent, click to reopen. A file that has since moved or been
   deleted drops off the list automatically.

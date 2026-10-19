@@ -256,6 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selected group frames can be resized: drag a corner or edge handle to scale the whole arrangement: the cards keep their size while their spacing scales (hold Shift for proportions). One undo step, nothing extra persisted.
 - Canvas groups can now nest: a group can live inside another (Move into group / Move out of group in the frame menu). A parent frame grows to contain its children, moving/resizing a parent carries its whole subtree, collapsing a parent hides every card beneath it (children's frames disappear with it), and ungrouping a parent re-homes its children instead of deleting them.
 - The home page's Themes feature now links straight to the community gallery's themes tab (/gallery?tab=themes), where Apply tries a theme on the whole page; the gallery's Graphs/Themes toggle is reflected in the URL, so either view is linkable and shareable
+- Recent Folders in the desktop app: every opened folder root is remembered (up to eight), one click re-opens it without the import dialog, and a folder that no longer exists drops off the list. The sidebar's File & Actions section and the empty canvas now lead with Open Folder (native picker straight away); URL, GitHub, archive and file imports moved behind More sources.
 
 ### Performance
 
