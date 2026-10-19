@@ -24,6 +24,7 @@ Saved projects live in `graphs/` as **`.fwr`** files (Fewer's portable graph doc
 ## Import & export
 
 - **Import** accepts `.fwr` documents, which restore whole with their cards, positions, tags and groups; raw `.json` graph exports, which rebuild the graph from their structure; ASCII trees; shell scripts; CSV; DOT; directory files; GitHub repository URLs; and public file-index URLs.
+- **Archives inside a folder are always opened**: when you open a folder, any `.zip`, `.tar`, `.7z` or `.rar` found along the way shows its contents directly on the canvas — the archive is read in place, never extracted to disk. Refresh from Disk keeps this behaviour.
 - **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project. The `.fwr` carries cards, positions, tags and groups.
 
 **Drag and drop**: drag a folder from your file manager onto the canvas to open

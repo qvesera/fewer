@@ -5573,3 +5573,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 67, deletions: 50}
   spent_min: 1
   session_count: 2
+- id: "T-202"
+  title: "Desktop app always opens archives found while opening a folder (zip/tar contents on the canvas)"
+  status: "in-progress"
+  type: "feat"
+  area: "import"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-19T23:27:35Z"
+  notes: []
+  sessions:
+  - start: "2026-10-19T23:27:36Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

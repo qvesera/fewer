@@ -3,6 +3,7 @@ import {
   DEFAULT_IMPORT_OPTIONS,
   OPTION_SCOPES,
   RELEVANT_OPTIONS,
+  alwaysExpandArchives,
   optionScopeFor,
   scopeOptionsToOrigin,
   type ImportOptions,
@@ -172,5 +173,18 @@ describe("scopeOptionsToOrigin — a pasted export arrives intact", () => {
     expect(names).toContain("level7");
     expect(names).toContain(".github");
     expect(names).toContain("empty");
+  });
+});
+
+describe("alwaysExpandArchives (T-202)", () => {
+  test("turns expansion on without touching the other options", () => {
+    const forced = alwaysExpandArchives({ ...DEFAULT_IMPORT_OPTIONS, maxDepth: 2 });
+    expect(forced.expandArchives).toBe(true);
+    expect(forced.maxDepth).toBe(2);
+  });
+
+  test("returns the same object when expansion is already on", () => {
+    const on = { ...DEFAULT_IMPORT_OPTIONS, expandArchives: true };
+    expect(alwaysExpandArchives(on)).toBe(on);
   });
 });

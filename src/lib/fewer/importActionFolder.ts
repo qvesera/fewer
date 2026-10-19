@@ -6,6 +6,7 @@
 import type { ImportOptions } from "@/lib/fewer/importOptions";
 import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
 import { buildProgress, collectAutoHideNotes } from "@/lib/fewer/importFlow";
+import { alwaysExpandArchives } from "@/lib/fewer/importOptions";
 import { pickDirectoryTree } from "@/lib/fewer/fileSystem";
 import {
   buildTreeFromEntry,
@@ -65,11 +66,15 @@ async function fetchLocalTree(
  * @param onProgress Optional live progress (phase + done/total when known).
  */
 export async function runFolderImport(
-  options: ImportOptions,
+  rawOptions: ImportOptions,
   dropped?: DroppedDirectorySource,
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
+    // T-202: the desktop app always looks inside archives found while opening
+    // a folder (zip/tar contents belong on the canvas). The web build keeps
+    // the user's import-option choice.
+    const options = isHost() ? alwaysExpandArchives(rawOptions) : rawOptions;
     // Desktop shell: ALWAYS walk via the shell's list_dir RPC. Import is a
     // core capability (plan: desktop free = import + canvas), and the
     // webview fallback (<input webkitdirectory>) presents a file-only chooser

@@ -107,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tagging unified: selecting cards and right-clicking now opens the same **Tags** submenu a single card uses (checked/indeterminate per tag, + New tag with color swatches) instead of a separate batch dialog — one UI, one undo step, Pro-gated on both paths
 - Standalone desktop app gets a native application menu (File/Edit/View/Window/Help): Open Folder, Save Project, Export…, Settings…, Undo/Redo, Toggle Sidebar, Keyboard Shortcuts and Report an Issue are all reachable from the menu, with the new accelerators listed in the shortcuts dialog for the shell only.
 - Standalone desktop app replaces the web navbar + toolbar with a single 44px header: icon-only logo and sidebar toggle, undo/redo/delete at top left, global search at top right. Settings, Export and Load Sample are gone from the header (Settings and Export live in the native File/Edit/View menu).
+- Desktop app: opening a folder now always looks inside archives found along the way — a .zip (or .tar/.7z/.rar) shows its contents directly on the graph canvas, no extraction and no option to hunt for. The 'Look Inside Archives' toggle is now always-on in the desktop app's import options, and Refresh from Disk keeps the expansion. Web build unchanged (option still a choice there).
 
 ### Fixed
 
