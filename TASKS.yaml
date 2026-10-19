@@ -5453,7 +5453,7 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "Single 44px app header for the standalone shell"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ui"
   tier: 0
@@ -5466,19 +5466,19 @@ tasks:
   blocked_by: []
   parent: "T-181"
   source: "gh#442"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:44Z"
   notes: []
   sessions:
   - start: "2026-10-19T21:19:59Z"
-    end: null
+    end: "2026-10-19T21:31:36Z"
     measured: true
-    note: ""
+    note: "ShellHeader + shared SearchField; web keeps GlobalNavbar/CanvasToolbar; post-mount swap keeps hydration clean; component tests + electron e2e"
     proof: []
-    effort: null
-  spent_min: 0
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 12
   session_count: 1
 - id: "T-199"
   title: "Recent folders: reopen a directory without the import flow"
