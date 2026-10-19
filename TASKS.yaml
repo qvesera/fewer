@@ -5482,7 +5482,7 @@ tasks:
   session_count: 1
 - id: "T-199"
   title: "Recent folders: reopen a directory without the import flow"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 0
@@ -5495,19 +5495,19 @@ tasks:
   blocked_by: []
   parent: "T-181"
   source: "gh#443"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:45Z"
   notes: []
   sessions:
   - start: "2026-10-19T21:31:51Z"
-    end: null
+    end: "2026-10-19T21:44:50Z"
     measured: true
-    note: ""
+    note: "recentFolders.ts + openRecentFolder + openFolderAction; runFolderImport records roots; Sidebar/CanvasOverlays shell variants; unit tests with in-memory storage stub"
     proof: []
-    effort: null
-  spent_min: 0
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 13
   session_count: 1
 - id: "T-200"
   title: "On-device search index over opened folders using node:sqlite FTS5"
