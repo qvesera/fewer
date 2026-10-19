@@ -5424,7 +5424,7 @@ tasks:
   session_count: 0
 - id: "T-197"
   title: "Electron application menu and renderer menu bridge for the standalone shell"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ui"
   tier: 0
@@ -5437,19 +5437,19 @@ tasks:
   blocked_by: []
   parent: "T-181"
   source: "gh#441"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:44Z"
   notes: []
   sessions:
   - start: "2026-10-19T20:58:25Z"
-    end: null
+    end: "2026-10-19T21:16:29Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Native app menu (File/Edit/View/Window/Help) in electron/main.ts, onMenu bridge in preload, nativeOnMenu in nativeShell, action routing in FewerApp; shell-only shortcuts listed in ShortcutsDialog; e2e asserts menu sections"
+    proof: ["bd1ee8c"]
+    effort: {commits: 1, files: 11, insertions: 731, deletions: 5}
+  spent_min: 18
   session_count: 1
 - id: "T-198"
   title: "Single 44px app header for the standalone shell"
