@@ -4969,14 +4969,14 @@ tasks:
   session_count: 1
 - id: "T-176"
   title: "Unify batch and individual tagging into one Tags submenu"
-  status: "triaged"
+  status: "review"
   type: "refactor"
   area: "ui"
   tier: 1
   estimate_min: 180
   estimate_basis: "cli"
   issue: 435
-  pr: null
+  pr: 436
   internal: false
   milestone: null
   blocked_by: []
