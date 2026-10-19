@@ -18,7 +18,15 @@ mock.module("./crypto", () => ({
   encryptToken: (s: string) => `encrypted:${s}`,
 }));
 const mockRefreshToken = mock(async () => ({ accessToken: "new-token", expiresIn: 3600 }));
+// Spread the real registry so every OTHER export (isProviderImplemented,
+// notConfigured, …) survives for later files, and restore it at the bottom of
+// this file: bun's mock.module registry is process-wide, so a whole-module
+// replacement made any file loading AFTER this one see a getAdapter() whose
+// adapters have no ids — registry.test.ts failed exactly that way whenever the
+// runner's file order put this file first (seen on CI, T-201).
+const _actualRegistry = await import("./registry");
 mock.module("./registry", () => ({
+  ..._actualRegistry,
   getAdapter: async () => ({ refreshToken: mockRefreshToken }),
 }));
 
@@ -91,3 +99,8 @@ describe("getConnectionWithToken", () => {
     await expect(getConnectionWithToken("c1", "github")).rejects.toThrow("Connection not found");
   });
 });
+
+// T-201: hand the REAL registry back before the runner loads the next file —
+// see the note at the mock above. Without this, whichever test file bun
+// evaluates after this one inherits the stub.
+mock.module("./registry", () => _actualRegistry);
