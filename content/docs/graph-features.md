@@ -138,6 +138,8 @@ Tags are named, colored labels you can attach to any folder or file card. Taggin
 
 Tags are part of the graph data: they ride along with saved graphs, share links, version history, and the local reload cache.
 
+**Tags vs groups**: a tag classifies a card wherever it sits; a canvas **group** (Editing → Groups) boxes a set of cards on this one canvas. Reach for the label when the meaning should follow the card across the whole graph, and for the frame when the cluster itself is the point — the two are separate systems on purpose.
+
 ## Max Display Depth
 
 Configurable display depth (default 6 levels) for both import-time and post-import. Deeper cards go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).

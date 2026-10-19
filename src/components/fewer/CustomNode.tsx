@@ -37,6 +37,7 @@ import { selectSameExtension, selectSameCategory } from "@/lib/fewer/batchSelect
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
@@ -224,6 +225,9 @@ function FolderContextMenu({
   const clipboard = useGraphStore((s) => s.clipboard);
   const tier = useGraphStore((s) => s.tier);
   const canvasAddChild = can("canvasAddChild", tier);
+  // Copy Path is shell-only: the web app builds graphs from remote sources, so
+  // a card's `path` is a repo/index path, not something the OS can resolve.
+  const inShell = isHost();
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
@@ -284,6 +288,21 @@ function FolderContextMenu({
         >
           Duplicate
         </ContextMenuItem>
+        {inShell && (
+          <ContextMenuItem
+            onSelect={async () => {
+              try {
+                await navigator.clipboard.writeText(nodePath);
+                toast({ title: "Path copied", description: nodePath });
+              } catch {
+                toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
+              }
+            }}
+            className="cursor-pointer"
+          >
+            Copy Path
+          </ContextMenuItem>
+        )}
         {clipboard && clipboard.nodeIds.length > 0 && (
           <ContextMenuItem
             onSelect={() => {
@@ -496,19 +515,6 @@ function FolderContextMenu({
                     </ContextMenuItem>
                   )
                 )}
-                <ContextMenuItem
-                  onSelect={async () => {
-                    try {
-                      await navigator.clipboard.writeText(nodePath);
-                      toast({ title: "Path copied", description: nodePath });
-                    } catch {
-                      toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  Copy Path
-                </ContextMenuItem>
                 {nodes.find((n) => n.id === nodeId)?.data.symlink && (
                   <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
                 )}
@@ -691,6 +697,8 @@ function FileEntryContextMenu({
   const providerLabel = providerLabelFromSource(dataSource);
   const tier = useGraphStore((s) => s.tier);
   const canvasAddChild = can("canvasAddChild", tier);
+  // Copy Path is shell-only (see FolderContextMenu).
+  const inShell = isHost();
   // A file imported from a public file index (via crawl) — not a GitHub repo.
   // For these, "open" just downloads the raw file, so offer a Download action
   // instead of navigation. Folders and GitHub files keep "Open in <provider>".
@@ -751,6 +759,21 @@ function FileEntryContextMenu({
         >
           Duplicate
         </ContextMenuItem>
+        {inShell && nodePath && (
+          <ContextMenuItem
+            onSelect={async () => {
+              try {
+                await navigator.clipboard.writeText(nodePath);
+                toast({ title: "Path copied", description: nodePath });
+              } catch {
+                toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
+              }
+            }}
+            className="cursor-pointer"
+          >
+            Copy Path
+          </ContextMenuItem>
+        )}
         {clipboard && clipboard.nodeIds.length > 0 && (
           <ContextMenuItem
             onSelect={() => {
