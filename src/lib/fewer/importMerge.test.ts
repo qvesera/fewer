@@ -53,7 +53,8 @@ describe("import merge", () => {
 });
 
 describe("imported hide sets", () => {
-  // A folder with more than `threshold` children → all children auto-hidden.
+  // A folder with more than `threshold` children → the children PAST the limit
+  // auto-hide (the first `threshold` in sort order stay visible).
   const bigFolder = (depth = 1): FewerNode => ({ id: "big", type: "folder", position: { x: 0, y: 0 }, data: { label: "big", path: "big", type: "folder", depth } });
   const child = (id: string, parentId: string): FewerNode => ({ id, type: "file", position: { x: 0, y: 0 }, data: { label: id, path: `${parentId}/${id}`, type: "file", category: "text", depth: 2 } });
   const children = (parentId: string, n: number): FewerNode[] => Array.from({ length: n }, (_, i) => child(`${parentId}-${i}`, parentId));
@@ -63,7 +64,7 @@ describe("imported hide sets", () => {
   test("layers file hiding, auto-hide, depth and category with no mutation", () => {
     const nodes: FewerNode[] = [
       bigFolder(),
-      ...children("big", 4), // threshold 3 → all 4 hidden by auto-hide
+      ...children("big", 4), // threshold 3 → big-3 (past the limit) auto-hidden
             { id: "deep", type: "file", position: { x: 0, y: 0 }, data: { label: "deep", path: "deep", type: "file", depth: 2, category: "text" } },
     ];
     const edges: FewerEdge[] = [
@@ -74,13 +75,13 @@ describe("imported hide sets", () => {
 
     const result = computeImportedHideSets(nodes, edges, ["deep"], true, 3, 6, ["code"] as FileCategory[]);
 
-        // showFiles=true; base hide set = ["deep"]; auto-hide hides big's 4 children;
-    // category "code" hides every text file (the 4 children + deep, deep already
-    // in the base set); depth=6 hides nothing (max node depth is 2).
+        // showFiles=true; base hide set = ["deep"]; auto-hide keeps big-0..big-2
+    // visible and hides big-3; category "code" hides every text file (the 4
+    // children + deep, deep already in the base set); depth=6 hides nothing.
     expect(result.idsToHide.sort()).toEqual(["big-0", "big-1", "big-2", "big-3", "deep"].sort());
-    expect(result.autoHideIds.sort()).toEqual(["big-0", "big-1", "big-2", "big-3"].sort());
+    expect(result.autoHideIds.sort()).toEqual(["big-3"].sort());
     expect(result.catHiddenIds).toEqual(["big-0", "big-1", "big-2", "big-3", "deep"].sort());
-    expect(result.autoHideCount).toBe(4); // all 4 auto-hidden are not in the base set
+    expect(result.autoHideCount).toBe(1); // only big-3 is a new auto-hide
 
     // No input mutation.
     expect(nodes.map((n) => ({ id: n.id, path: n.data.path }))).toEqual(baseSnapshot);

@@ -134,11 +134,17 @@ describe("a reveal survives every later auto-hide reconcile", () => {
     expect(s().hiddenIds).toContain("b0");
   });
 
-  it("a folder reveal keeps the whole subtree it promised to show", () => {
+  it("a folder reveal shows the limit's first children and leaves the rest hidden", () => {
     s().revealInView(null, "big", { subtree: true });
-    for (let i = 0; i < CHILDREN; i++) {
-      expect(s().hiddenIds).not.toContain(`b${i}`);
-    }
+    const kids = Array.from({ length: CHILDREN }, (_, i) => `b${i}`);
+    const stillHidden = kids.filter((id) => s().hiddenIds.includes(id));
+    // 12 children, limit 10 → the folder plus its first 10 children (in sort
+    // order) come up; the two past the limit stay for the user to reveal.
+    expect(kids.filter((id) => !s().hiddenIds.includes(id))).toHaveLength(10);
+    expect(stillHidden).toHaveLength(2);
+    // ...and a later reconcile keeps exactly that split.
+    s().autoHideLargeFolders();
+    expect(new Set(s().hiddenIds)).toEqual(new Set(stillHidden));
   });
 });
 

@@ -225,6 +225,9 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   setSortKey: (key) => {
     if (key === get().sortKey) return;
     set({ sortKey: key });
+    // The auto-hide cap keeps the first N children in the CURRENT sort order,
+    // so a new sort must re-pick them before the layout re-flows with them.
+    get().autoHideLargeFolders();
     get().relayout();
   },
 
@@ -233,6 +236,7 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     set({ sortDir: dir });
     // Not gated by autoRelayout: Sort is itself a request to re-order, so it
     // must take effect even when the implicit re-flows are switched off.
+    get().autoHideLargeFolders();
     get().relayout();
   },
 

@@ -1184,7 +1184,7 @@ function AdvancedTab() {
               <div className="flex items-center gap-1">
                 <Label className="text-xs font-medium text-foreground">Auto-hide Limit</Label>
                 <Hint id="hint-auto-hide" label="Auto-hide Limit">
-                  Auto-collapse folders with more than this number of items.
+                  Each folder shows its first N items (in sort order); the rest go to Hidden Cards.
                 </Hint>
               </div>
               <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={autoHideThreshold} onCommit={(v) => setAutoHideThreshold(v)} unit=" items" /></span>

@@ -4,13 +4,20 @@
 import type { StateCreator } from "zustand";
 import type { GraphState } from "../types";
 import { getDescendants, parentMapOf, ancestorChainOf } from "@/lib/fewer/validation";
-import { computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds } from "@/lib/fewer/importMerge";
+import { computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, orderFromStore } from "@/lib/fewer/importMerge";
 import { layoutGraphSync } from "@/lib/fewer/layout";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
 import { collectShowSubtrees, walkSubtreeReveal, reconcileAutoHide } from "./reveal";
 import { openedCollapsedGroupsForLeaf, withGroupReveal, type GroupRevealPatch } from "./revealGroups";
+
+/** Order-insensitive id-set equality — hide lists are Sets with array storage. */
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(b);
+  return a.every((id) => set.has(id));
+}
 
 function commitShow(
   set: (p: any) => void,
@@ -157,13 +164,27 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
     get().relayoutIfAuto();
   },
   showSubtree: (id) => {
-    const { hiddenIds, edges, independentlyHiddenIds } = get();
-    const toShow = walkSubtreeReveal(edges, new Set(hiddenIds), new Set(independentlyHiddenIds), [id]);
+    const { hiddenIds, edges, independentlyHiddenIds, nodes, revealedRootIds, autoHideThreshold } = get();
+    // Cap the reveal: the folder's beyond-limit children stay hidden (the user
+    // reveals those one by one), the folder's first N come up.
+    const stop = new Set(
+      computeLargeFolderHiddenIds(nodes, edges, autoHideThreshold, new Set([...revealedRootIds, id]), orderFromStore(get())),
+    );
+    const toShow = walkSubtreeReveal(edges, new Set(hiddenIds), new Set(independentlyHiddenIds), [id], stop);
     commitShow(set, get, toShow, false, openedCollapsedGroupsForLeaf(get(), [id]));
   },
   showSubtrees: (ids) => {
-    const { hiddenIds, edges, independentlyHiddenIds } = get();
-    const toShow = collectShowSubtrees(edges, hiddenIds, independentlyHiddenIds, ids);
+    const { hiddenIds, edges, independentlyHiddenIds, nodes, revealedRootIds, autoHideThreshold } = get();
+    const stop = new Set(
+      computeLargeFolderHiddenIds(
+        nodes,
+        edges,
+        autoHideThreshold,
+        new Set([...revealedRootIds, ...ids]),
+        orderFromStore(get()),
+      ),
+    );
+    const toShow = collectShowSubtrees(edges, hiddenIds, independentlyHiddenIds, ids, stop);
     // The folder ids themselves are targets too: a member folder collapsed
     // away appears in no hide set, and "Show Children" must open its group
     // instead of silently no-opping (T-167).
@@ -220,7 +241,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       }
       return true;
     });
-    const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds));
+    const largeHidden = computeLargeFolderHiddenIds(nodes, edges, get().autoHideThreshold, new Set(get().revealedRootIds), orderFromStore(get()));
     const mergedIds = [...new Set([...depthHidden, ...kept, ...largeHidden])];
     const excludeFromLayout = mergedIds.length > 0 ? new Set(mergedIds) : undefined;
     const laid = layoutGraphSync(nodes, edges, direction, { excludeFromLayout, shynessScale: get().shynessScale, sortKey: get().sortKey, sortDir: get().sortDir, tagLabelById: makeTagLabelLookup(get().tags) })
@@ -234,6 +255,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       get().autoHiddenIds,
       get().revealedRootIds,
       get().autoHideThreshold,
+      orderFromStore(get()),
     );
     set({
       maxDisplayDepth: maxDepth,
@@ -253,6 +275,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       autoHiddenIds,
       revealedRootIds,
       thresholdValue,
+      orderFromStore(get()),
     );
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds
@@ -260,7 +283,10 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       : reconciled;
     const fileIdSet = fileIds ? new Set(fileIds) : null;
     const nextAutoFiltered = fileIdSet ? nextAuto.filter((id) => !fileIdSet.has(id)) : nextAuto;
-    if (nextHidden.length !== hiddenIds.length || nextAutoFiltered.length !== autoHiddenIds.length) {
+    // Compare the SETS, not the lengths: a sort change re-caps at the same
+    // count, and a length-equal swap would otherwise skip the write and leave
+    // the canvas showing the previous sort's selection.
+    if (!sameIds(nextHidden, hiddenIds) || !sameIds(nextAutoFiltered, autoHiddenIds)) {
       set({ hiddenIds: nextHidden, autoHiddenIds: nextAutoFiltered, graphVersion: get().graphVersion + 1 });
     }
   },
@@ -274,6 +300,7 @@ export const createHideShowSlice: HideShowSliceCreator = (set, get) => ({
       autoHiddenIds,
       revealedRootIds,
       threshold,
+      orderFromStore(get()),
     );
     const fileIds = !showFiles ? nodes.filter((n) => n.data.type === "file").map((n) => n.id) : null;
     const nextHidden: string[] = fileIds

@@ -231,8 +231,8 @@ export async function collectAutoHideNotes(): Promise<
   if (autoHideCount <= 0) return [];
   return [
     {
-      title: "Large folders collapsed",
-      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Cards in the sidebar to reveal them.`,
+      title: "Large folders trimmed",
+      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden: folders show their first ${autoHideThreshold} items (by the current sort), the rest sit in Hidden Cards in the sidebar.`,
     },
   ];
 }
