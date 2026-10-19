@@ -5424,14 +5424,14 @@ tasks:
   session_count: 0
 - id: "T-197"
   title: "Electron application menu and renderer menu bridge for the standalone shell"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ui"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 441
-  pr: null
+  pr: 445
   internal: false
   milestone: null
   blocked_by: []
@@ -5453,14 +5453,14 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "Single 44px app header for the standalone shell"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ui"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 442
-  pr: null
+  pr: 445
   internal: false
   milestone: null
   blocked_by: []
@@ -5482,14 +5482,14 @@ tasks:
   session_count: 1
 - id: "T-199"
   title: "Recent folders: reopen a directory without the import flow"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: 443
-  pr: null
+  pr: 445
   internal: false
   milestone: null
   blocked_by: []
@@ -5511,14 +5511,14 @@ tasks:
   session_count: 1
 - id: "T-200"
   title: "On-device search index over opened folders using node:sqlite FTS5"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "performance"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: 444
-  pr: null
+  pr: 445
   internal: false
   milestone: null
   blocked_by: []
