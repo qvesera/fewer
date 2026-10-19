@@ -126,6 +126,8 @@ Tags are named, colored labels you can attach to any folder or file card. Taggin
 
 **Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
+**Tag many at once**: select several cards, then right-click the selection → **Tags** — the very same submenu, not a separate dialog. There the checkbox is checked when *every* selected card carries the tag and shows a dash when only some do; clicking a mixed or unchecked tag assigns it to the whole selection, and clicking a fully-checked one removes it from all of them. A tag created from it is applied to every selected card in the same single undo step.
+
 **The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments, one per tag (up to 5; extra tags collapse into a "+N" dot), never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
 
 **Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.

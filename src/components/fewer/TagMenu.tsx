@@ -12,27 +12,32 @@ import {
   ContextMenuItem,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { TAG_PALETTE } from "@/lib/fewer/tags";
+import { TAG_PALETTE, tagSelectionState } from "@/lib/fewer/tags";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 
 /**
- * "Tags" submenu inside a node's context menu. Lists every tag as a checkbox
- * (checked = assigned to this node) and a "+ New tag" row that creates one and
- * immediately assigns it. Toggling is a single store action.
+ * "Tags" submenu inside a node's context menu — the ONE tag-assignment UI,
+ * whether it serves a single card or a multi-selection. Lists every tag as a
+ * checkbox (checked = all target nodes carry it, indeterminate = only some) and
+ * a "+ New tag" row that creates one and immediately assigns it. Clicking a
+ * tag fills the gap (assign to every target) when it is mixed, and clears it
+ * when they all carry it; each change is a single history entry.
  */
-export function TagMenu({
-  nodeId,
-  nodeTagIds,
-}: {
-  nodeId: string;
-  nodeTagIds: string[];
-}) {
+export function TagMenu({ ids }: { ids: string[] }) {
   const tags = useGraphStore((s) => s.tags);
-  const toggleNodeTag = useGraphStore((s) => s.toggleNodeTag);
+  const nodes = useGraphStore((s) => s.nodes);
+  const assignTagToNodes = useGraphStore((s) => s.assignTagToNodes);
+  const unassignTagFromNodes = useGraphStore((s) => s.unassignTagFromNodes);
   const createTag = useGraphStore((s) => s.createTag);
+  const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftColor, setDraftColor] = useState<string | null>(null);
+
+  const toggle = (tagId: string) => {
+    if (tagSelectionState(nodes, ids, tagId) === "all") unassignTagFromNodes(ids, tagId);
+    else assignTagToNodes(ids, tagId);
+  };
 
   const commitDraft = (colorOverride?: string) => {
     const label = draft.trim();
@@ -46,7 +51,13 @@ export function TagMenu({
     // palette default in createTag. We must NOT auto-create, because an empty
     // draftColor here is indistinguishable from "user didn't pick a color".
     const tag = createTag(label, colorOverride ?? undefined);
-    toggleNodeTag(nodeId, tag.id);
+    assignTagToNodes(ids, tag.id);
+    if (ids.length > 1) {
+      toast({
+        title: "Tag assigned",
+        description: `"${tag.label}" applied to ${ids.length} cards`,
+      });
+    }
     setDraft("");
     setDraftColor(null);
     setCreating(false);
@@ -64,14 +75,14 @@ export function TagMenu({
           </div>
         )}
         {tags.map((tag) => {
-          const checked = nodeTagIds.includes(tag.id);
+          const state = tagSelectionState(nodes, ids, tag.id);
           return (
             <ContextMenuCheckboxItem
               key={tag.id}
-              checked={checked}
+              checked={state === "all" ? true : state === "some" ? "indeterminate" : false}
               onSelect={(e) => {
                 e.preventDefault();
-                toggleNodeTag(nodeId, tag.id);
+                toggle(tag.id);
               }}
               className="cursor-pointer"
             >
@@ -128,7 +139,8 @@ export function TagMenu({
               })}
             </div>
             <p className="text-[10px] text-muted-foreground/60">
-              Uncheck a tag above to remove it from this card.
+              Uncheck a tag above to remove it from{" "}
+              {ids.length === 1 ? "this card" : `these ${ids.length} cards`}.
             </p>
           </div>
         ) : (

@@ -55,6 +55,7 @@ Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click a
 | Show            | Reveals selected cards that are currently hidden                                                                                                                                     |
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
+| Tags            | The same **Tags** submenu a single card's menu has: check/uncheck tags across the whole selection, or create one for all of them (Pro)                                                |
 | Copy Paths      | Desktop app only: copies each selected card's full path to the clipboard, one per line                                                                                                 |
 | Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
 | Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection)                                                           |

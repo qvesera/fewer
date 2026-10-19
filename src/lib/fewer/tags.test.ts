@@ -6,6 +6,7 @@ import {
   colorForTag,
   tagRingColors,
   compareSiblingsByTag,
+  tagSelectionState,
   TAG_FALLBACK_COLOR,
   TAG_RING_CAP,
 } from "./tags";
@@ -167,3 +168,21 @@ test("compareSiblingsByTag: same tag → name tie-break (never inverted)", () =>
   expect(compareSiblingsByTag(a, b, lookup, "asc")).toBeLessThan(0);
   expect(compareSiblingsByTag(a, b, lookup, "desc")).toBeLessThan(0);
 });
+
+test("tagSelectionState: none / all / some drive the checkbox across a selection", () => {
+  const nodes = [node("n1", "a", ["t1"]), node("n2", "b", ["t1"]), node("n3", "c", [])];
+  expect(tagSelectionState(nodes, ["n1"], "t1")).toBe("all");
+  expect(tagSelectionState(nodes, ["n3"], "t1")).toBe("none");
+  expect(tagSelectionState(nodes, ["n1", "n2"], "t1")).toBe("all");
+  expect(tagSelectionState(nodes, ["n1", "n3"], "t1")).toBe("some");
+  expect(tagSelectionState(nodes, ["n3", "n1"], "t1")).toBe("some");
+  expect(tagSelectionState(nodes, [], "t1")).toBe("none");
+});
+
+test("tagSelectionState: ids resolving to no node are ignored", () => {
+  const nodes = [node("n1", "a", ["t1"])];
+  // A stale id must neither block "all" nor stand alone as a phantom carrier.
+  expect(tagSelectionState(nodes, ["n1", "ghost"], "t1")).toBe("all");
+  expect(tagSelectionState(nodes, ["ghost"], "t1")).toBe("none");
+});
+
