@@ -31,7 +31,6 @@ export type DialogsSliceCreator = StateCreator<
     addStandaloneOpen: boolean;
     addParentOpen: boolean;
     batchRenameOpen: boolean;
-    batchTagOpen: boolean;
     parentPickerOpen: boolean;
     notificationOpen: boolean;
 
@@ -63,7 +62,6 @@ export type DialogsSliceCreator = StateCreator<
     setAddStandaloneOpen: (open: boolean) => void;
     setAddParentOpen: (open: boolean) => void;
     setBatchRenameOpen: (open: boolean) => void;
-    setBatchTagOpen: (open: boolean) => void;
     setParentPickerOpen: (open: boolean) => void;
     setNotificationOpen: (open: boolean) => void;
 
@@ -97,7 +95,6 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   addStandaloneOpen: false,
   addParentOpen: false,
   batchRenameOpen: false,
-  batchTagOpen: false,
   parentPickerOpen: false,
   notificationOpen: false,
   advancedModeEnabled: false,
@@ -128,7 +125,6 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   setAddStandaloneOpen: (open) => set({ addStandaloneOpen: open }),
   setAddParentOpen: (open) => set({ addParentOpen: open }),
   setBatchRenameOpen: (open) => set({ batchRenameOpen: open }),
-  setBatchTagOpen: (open) => set({ batchTagOpen: open }),
   setParentPickerOpen: (open) => set({ parentPickerOpen: open }),
   setNotificationOpen: (open) => set({ notificationOpen: open }),
   setLoading: (loading) => set({ loading }),
@@ -186,7 +182,6 @@ export function isAnyDialogOpen(s: GraphState): boolean {
     s.addStandaloneOpen ||
     s.addParentOpen ||
     s.batchRenameOpen ||
-    s.batchTagOpen ||
     s.parentPickerOpen ||
     s.notificationOpen
   );

@@ -4967,3 +4967,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 152, deletions: 40}
   spent_min: 12
   session_count: 1
+- id: "T-176"
+  title: "Unify batch and individual tagging into one Tags submenu"
+  status: "review"
+  type: "refactor"
+  area: "ui"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 435
+  pr: 436
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-19T10:33:35Z"
+  notes: ["2026-10-19T10:34:58Z · Unify batch + individual tagging: generalize TagMenu to ids[], delete BatchTagDialog, render submenu in multi-select menus; mixed-state click = assign all"]
+  sessions:
+  - start: "2026-10-19T10:48:11Z"
+    end: "2026-10-19T11:12:48Z"
+    measured: true
+    note: "Unified tagging: TagMenu generalized to ids[] (checked/indeterminate/none via tagSelectionState), multi-select menus render the same submenu, BatchTagDialog + batchTagOpen + flat Tags action deleted, Pro gate on both paths; docs/README/changelog + 5 component tests + 2 helper tests"
+    proof: ["8a5da93"]
+    effort: {commits: 1, files: 16, insertions: 214, deletions: 207}
+  spent_min: 25
+  session_count: 1

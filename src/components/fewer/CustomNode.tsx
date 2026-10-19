@@ -371,7 +371,7 @@ function FolderContextMenu({
             <ContextMenuSeparator />
             {can("tags", tier) && (
               <>
-                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <TagMenu ids={[nodeId]} />
                 <SelectByTagSubmenu label="Select by Tag" />
               </>
             )}
@@ -542,7 +542,7 @@ function FolderContextMenu({
 
             {can("tags", tier) && (
               <>
-                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <TagMenu ids={[nodeId]} />
                 <SelectByTagSubmenu label="Select by Tag" />
               </>
             )}
@@ -620,6 +620,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
           {action.label}
         </ContextMenuItem>
       ))}
+      {can("tags", tier) && <TagMenu ids={selectedNodeIds} />}
       {more.length > 0 && (
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
@@ -842,7 +843,7 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
-        {can("tags", tier) && <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />}
+        {can("tags", tier) && <TagMenu ids={[nodeId]} />}
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
             Select

@@ -141,6 +141,32 @@ export function firstTagId(node: FewerNode): string | null {
   return Array.isArray(ids) && ids.length > 0 ? ids[0] : null;
 }
 
+/**
+ * Tag state across a selection of node ids — what the Tags submenu renders as a
+ * checkbox: "all" (every present node carries it → checked), "some" (mixed →
+ * indeterminate), "none" (unchecked). Ids that resolve to no node are ignored,
+ * so a stale selection can neither pin a mixed state nor block the checked
+ * state. Empty or wholly unresolvable selection → "none".
+ */
+export function tagSelectionState(
+  nodes: FewerNode[],
+  ids: readonly string[],
+  tagId: string,
+): "all" | "some" | "none" {
+  if (ids.length === 0) return "none";
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  let present = 0;
+  let have = 0;
+  for (const id of ids) {
+    const node = byId.get(id);
+    if (!node) continue;
+    present++;
+    if (node.data.tagIds?.includes(tagId)) have++;
+  }
+  if (present === 0 || have === 0) return "none";
+  return have === present ? "all" : "some";
+}
+
 /** Build a tagId → label lookup from a tag registry, for tag-based layout sort. */
 export function makeTagLabelLookup(tags: Tag[]): (id: string) => string {
   const map = new Map(tags.map((t) => [t.id, t.label]));

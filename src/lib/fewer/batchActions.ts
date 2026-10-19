@@ -179,11 +179,9 @@ export function buildBatchActions(opts: {
           },
         }]
       : []),
-    {
-      id: "tags",
-      label: "Tags…",
-      run: () => window.dispatchEvent(new CustomEvent("fewer-batch-tags")),
-    },
+    // Tag assignment is NOT a flat batch action: it is a checkbox submenu
+    // rendered by the same `TagMenu` the single-card menus use, so batch and
+    // individual tagging share one UI (a flat `run()` cannot host checkboxes).
     // Grouping is organization, like tags — and because it lives in this shared
     // list it reaches EVERY multi-select menu (canvas selection menu and the
     // node context menus' batch section) on both the web app and the desktop

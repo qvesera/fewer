@@ -25,7 +25,6 @@ describe("buildBatchActions", () => {
       "show",
       "collapse",
       "expand",
-      "tags",
       "group",
       "move-to-folder",
       "unparent",

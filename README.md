@@ -193,7 +193,7 @@ docker run -p 3000:3000 fewer
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
 | **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
 | **Canvas** | Fit View, Select All, Organize, Zoom In/Out, Show All                      |
-| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
+| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Tags, Move to Folder…, Unparent, Delete N Items |
 
 </details>
 

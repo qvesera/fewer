@@ -3,6 +3,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
+import { TagMenu } from "./TagMenu";
 import type { FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
@@ -119,6 +120,7 @@ export function CanvasContextMenu({
                 {a.label}
               </DropdownMenuItem>
             ))}
+            {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
             {more.length > 0 && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
