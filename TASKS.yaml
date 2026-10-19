@@ -5511,7 +5511,7 @@ tasks:
   session_count: 1
 - id: "T-200"
   title: "On-device search index over opened folders using node:sqlite FTS5"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "performance"
   tier: 1
@@ -5524,17 +5524,17 @@ tasks:
   blocked_by: []
   parent: "T-181"
   source: "gh#444"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-19T20:57:45Z"
   notes: []
   sessions:
   - start: "2026-10-19T21:45:11Z"
-    end: null
+    end: "2026-10-19T22:25:30Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "node:sqlite FTS5 index in electron/searchIndex.ts + index_* host commands, deviceIndex.ts renderer seam, SearchPanel 'On this device' section, Settings storage card; pure helper unit tests + Electron smoke over a temp dir"
+    proof: ["a27c1b1"]
+    effort: {commits: 1, files: 18, insertions: 840, deletions: 7}
+  spent_min: 40
   session_count: 1
