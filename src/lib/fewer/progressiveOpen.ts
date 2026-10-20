@@ -11,7 +11,7 @@ import {
   type ScanQueueItem,
 } from "./progressiveScan";
 import { buildBatchGraph, buildGraphFromBatches, connectOrphansToRoot, type BatchGraph } from "./progressiveGraph";
-import { setScanStatus } from "./scanStatus";
+import { clearScanStatus, getScanStatus, setScanStatus } from "./scanStatus";
 import type { TreeEntry } from "./types";
 
 /**
@@ -85,6 +85,8 @@ export interface SkeletonOpen {
   rootName: string;
   graph: BatchGraph;
   queue: ScanQueueItem[];
+  /** Entries the skeleton itself already emitted (seed for the chip, T-215). */
+  scanned: number;
 }
 
 export interface SkeletonRequest {
@@ -99,12 +101,16 @@ export interface SkeletonRequest {
 /** Generic skeleton (T-208): any listing primitive — shell and web share it. */
 export async function openSkeletonWith(req: SkeletonRequest): Promise<SkeletonOpen> {
   cancelActiveScan();
+  // T-215: a new open replaces the previous scan entirely — no stale chip,
+  // no leftover queue that could be resumed into the wrong folder.
+  pendingResume = null;
+  clearScanStatus();
   const engine = { options: req.options, listAll: req.listAll };
   const skeleton = await scanSkeleton(req.rootAbs, engine, DEFAULT_SKELETON_DEPTH);
   const graph = buildGraphFromBatches(req.rootName, skeleton.batches, {
     includeFiles: req.options.includeFiles,
   });
-  return { rootName: req.rootName, graph, queue: skeleton.queue };
+  return { rootName: req.rootName, graph, queue: skeleton.queue, scanned: skeleton.scanned };
 }
 
 /** Phase 1, desktop shell: cancel any previous scan, read the skeleton. */
@@ -157,6 +163,8 @@ export function startBackgroundScanWith(req: {
   options: ImportOptions;
   queue: ScanQueueItem[];
   io: ScanIo;
+  /** Skeleton entries already on the canvas — the chip counts from here (T-215). */
+  initialScanned?: number;
 }): void {
   const { rootAbs, rootName, options, queue, io } = req;
   generation++;
@@ -164,7 +172,20 @@ export function startBackgroundScanWith(req: {
   const controller = new AbortController();
   activeController = controller;
   cachedNodes = null;
-  setScanStatus({ active: true, root: rootName, scanned: 0, dirs: 0, stopped: false });
+  // Remember the run so the chip's Resume can continue where the budget
+  // stopped (T-215). Cleared when the queue drains or a new folder opens.
+  pendingResume = req;
+  const base = req.initialScanned ?? 0;
+  let baseDirs = 0;
+  setScanStatus({
+    active: true,
+    root: rootName,
+    scanned: base,
+    dirs: 0,
+    stopped: false,
+    reason: null,
+    pending: false,
+  });
 
   let relayoutTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleRelayout = (): void => {
@@ -203,7 +224,7 @@ export function startBackgroundScanWith(req: {
   void (async () => {
     const result = await continueScan(queue, engine, {
       onTick: (scanned, dirs) => {
-        if (gen === generation) setScanStatus({ scanned, dirs });
+        if (gen === generation) setScanStatus({ scanned: base + scanned, dirs: baseDirs + dirs });
       },
     });
     if (gen !== generation) return;
@@ -221,7 +242,7 @@ export function startBackgroundScanWith(req: {
       relayoutTimer = null;
       useGraphStore.getState().relayout();
     }
-    if (result.unscanned.length) {
+    if (result.reason === "budget" && result.unscanned.length) {
       const paths = new Set(result.unscanned.map((r) => `${rootName}/${r}`));
       useGraphStore.setState((s) => ({
         nodes: s.nodes.map((n) =>
@@ -235,8 +256,27 @@ export function startBackgroundScanWith(req: {
     // tags/groups again now that every appended card is on the canvas.
     const { restoreFolderMeta } = await import("./folderMetaSync");
     await restoreFolderMeta(rootAbs);
-    setScanStatus({ active: false, stopped: result.stopped });
+    if (result.reason === "aborted") {
+      // User stopped it (✕, another folder, cleared canvas): no pause chip,
+      // no "not loaded" badges — the folders are simply as-is (T-215).
+      clearScanStatus();
+      return;
+    }
+    if (!result.stopped) {
+      pendingResume = null; // drained — nothing left to resume
+      clearScanStatus();
+      return;
+    }
+    // Budget pause: badges + a resumable amber chip.
+    setScanStatus({ active: false, stopped: true, reason: "budget", pending: queue.length > 0 });
   })();
+}
+
+/** Chip's Resume (T-215): continue the queue the budget paused. */
+export function resumeBackgroundScan(): void {
+  if (!pendingResume) return;
+  if (getScanStatus().active) return;
+  startBackgroundScanWith({ ...pendingResume, initialScanned: getScanStatus().scanned });
 }
 
 /** Phase 2, desktop shell: native list_dir + per-archive expansion. */
@@ -245,15 +285,20 @@ export function startBackgroundScan(
   rootName: string,
   options: ImportOptions,
   queue: ScanQueueItem[],
+  initialScanned = 0,
 ): void {
   startBackgroundScanWith({
     rootAbs: rootPath,
     rootName,
     options,
     queue,
+    initialScanned,
     io: {
       listAll: nativeListAll,
       ...(options.expandArchives ? { readArchiveMembers: archiveMemberReader(options) } : {}),
     },
   });
 }
+
+// Resume state for the paused scan (T-215); replaced by every new open.
+let pendingResume: Parameters<typeof startBackgroundScanWith>[0] | null = null;

@@ -12,11 +12,15 @@ export interface ScanStatus {
   root: string | null;
   scanned: number;
   dirs: number;
-  /** True once the budget stopped the walk — deeper folders need a click. */
+  /** True once the budget paused the walk — deeper folders stay loadable. */
   stopped: boolean;
+  /** Why it stopped (T-215): budget → resumable; aborted → user stopped it. */
+  reason: "budget" | "aborted" | null;
+  /** Remaining queue can be resumed from the chip. */
+  pending: boolean;
 }
 
-const IDLE: ScanStatus = { active: false, root: null, scanned: 0, dirs: 0, stopped: false };
+const IDLE: ScanStatus = { active: false, root: null, scanned: 0, dirs: 0, stopped: false, reason: null, pending: false };
 
 let status: ScanStatus = IDLE;
 const listeners = new Set<() => void>();

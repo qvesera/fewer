@@ -84,11 +84,16 @@ two levels right away** and keeps scanning the rest in the background — deeper
 cards appear as they are read. A chip in the header reports progress
 (`Scanning app · 12,340 cards · 2,140 folders`) and can stop the crawl.
 
-- The background crawl stops at **25,000 cards or 8 seconds**, whichever comes
-  first; folders it did not reach carry a **not scanned** badge.
-- Click a **not scanned** badge to load that folder's contents on demand.
-- Scanning cancels automatically when you open another folder, and it always
-  skips `node_modules`, hidden and cache folders.
+- The background crawl pauses at **25,000 cards or 30 seconds**, whichever
+  comes first; the chip then offers **Resume** to continue, and folders it did
+  not reach carry a **not loaded** badge (`—` where their item count would be:
+  unknown is not the same as empty).
+- Click a **not loaded** badge to load just that folder on demand.
+- Stopping the scan (✕, opening another folder, clearing the canvas) leaves
+  the graph as-is — no badges, no leftover chip — and everything already
+  loaded keeps working.
+- Scanning skips `node_modules`, hidden and cache folders, and archive
+  listing time never counts against the pause budget.
 
 ## Themes
 

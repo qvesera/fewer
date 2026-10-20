@@ -32,13 +32,15 @@ export interface ProgressiveScanResult {
   scanned: number;
   dirs: number;
   stopped: boolean;
-  /** Relative paths of folders that were queued but never read (budget/abort). */
+  /** Why the walk stopped: the budget (resumable) or an abort (user action). */
+  reason: "budget" | "aborted" | null;
+  /** Relative paths of folders that were queued but never read. */
   unscanned: string[];
 }
 
 export const DEFAULT_SKELETON_DEPTH = 2;
 export const DEFAULT_MAX_NODES = 25_000;
-export const DEFAULT_MAX_MS = 8_000;
+export const DEFAULT_MAX_MS = 30_000;
 
 function posixJoin(base: string, name: string): string {
   return base ? `${base}/${name}` : name;
@@ -64,6 +66,8 @@ export interface ScanQueueItem {
 interface ScanEngine {
   options: ImportOptions;
   listAll(absPath: string): Promise<ScanDirEntry[]>;
+  /** Milliseconds spent reading archives — excluded from the wall-clock budget (T-215). */
+  archiveMs?: number;
   readArchiveMembers?(absPath: string, relPath: string, depth: number): Promise<ScanBatch[] | null>;
   signal?: AbortSignal;
   onBatch?(batch: ScanBatch): void;
@@ -111,11 +115,16 @@ async function readDir(
     for (const e of sorted) {
       if (e.type !== "file" || !isArchiveName(e.name)) continue;
       if (engine.signal?.aborted) return sorted.length;
+      // T-215: archive reads can dwarf everything else (a 64MB zip on a slow
+      // disk); their time must not eat the scan's wall-clock budget.
+      const archiveStarted = Date.now();
       try {
         const batches = await engine.readArchiveMembers(absJoin(abs, e.name), posixJoin(rel, e.name), depth + 1);
         for (const b of batches ?? []) engine.onBatch?.(b);
       } catch {
         // Unreadable archive listing — the archive row stays on the canvas.
+      } finally {
+        engine.archiveMs = (engine.archiveMs ?? 0) + (Date.now() - archiveStarted);
       }
     }
   }
@@ -167,9 +176,17 @@ export async function continueScan(
   let scanned = 0;
   let dirs = 0;
   let stopped = false;
+  let reason: ProgressiveScanResult["reason"] = null;
   while (queue.length) {
-    if (config.signal?.aborted || scanned >= maxNodes || Date.now() - started >= maxMs) {
+    if (config.signal?.aborted) {
       stopped = true;
+      reason = "aborted";
+      break;
+    }
+    const elapsed = Date.now() - started - (config.archiveMs ?? 0);
+    if (scanned >= maxNodes || elapsed >= maxMs) {
+      stopped = true;
+      reason = "budget";
       break;
     }
     const next = queue.shift()!;
@@ -177,5 +194,5 @@ export async function continueScan(
     dirs++;
     budget?.onTick?.(scanned, dirs);
   }
-  return { scanned, dirs, stopped, unscanned: queue.map((q) => q.rel) };
+  return { scanned, dirs, stopped, reason, unscanned: queue.map((q) => q.rel) };
 }

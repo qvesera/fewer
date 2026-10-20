@@ -1,21 +1,25 @@
 "use client";
 
-import { Loader2, PauseCircle, X } from "lucide-react";
+import { Loader2, PauseCircle, Play, X } from "lucide-react";
 import { useScanStatus } from "@/lib/fewer/scanStatus";
-import { cancelActiveScan } from "@/lib/fewer/progressiveOpen";
-import { plural } from "@/lib/fewer/plural";
+import { cancelActiveScan, resumeBackgroundScan } from "@/lib/fewer/progressiveOpen";
 import { cn } from "@/lib/utils";
 
+/** `${n} cards` — the count belongs to the noun; never print it twice (T-215). */
+function count(n: number, noun: string): string {
+  return `${n.toLocaleString()} ${n === 1 ? noun : `${noun}s`}`;
+}
+
 /**
- * Scan status chip (T-207): sits in the shell header while a big folder is
- * being filled in — "Scanning … N cards · M folders", or "paused" once the
- * budget stops the crawl (deeper folders carry a "not scanned" badge to
- * finish on demand). Renders nothing when idle, so the web navbar can host it
- * unchanged.
+ * Scan status chip (T-207/T-215): sits in the header while a big folder is
+ * being filled in — "Scanning …" with live counts, or a paused chip with a
+ * Resume button once the budget stops the crawl. Renders nothing when idle or
+ * when the user stopped the scan, so the web navbar can host it unchanged.
  */
 export function ScanStatusChip() {
   const status = useScanStatus();
   if (!status.active && !status.stopped) return null;
+  const paused = !status.active && status.stopped;
 
   return (
     <div
@@ -38,18 +42,29 @@ export function ScanStatusChip() {
         {status.root ? ` ${status.root}` : ""}
       </span>
       <span className="tabular-nums">
-        {status.scanned.toLocaleString()} {plural(status.scanned, "card")}
-        {status.dirs ? ` · ${status.dirs.toLocaleString()} ${plural(status.dirs, "folder")}` : ""}
+        {count(status.scanned, "card")}
+        {status.dirs ? ` · ${count(status.dirs, "folder")}` : ""}
       </span>
-      {!status.active && (
-        <span className="hidden sm:inline text-[9px] opacity-80">— click a folder to load it</span>
+      {paused && status.pending && (
+        <>
+          <span className="hidden sm:inline text-[9px] opacity-80">— click a folder to load it, or</span>
+          <button
+            type="button"
+            onClick={resumeBackgroundScan}
+            title="Continue scanning the rest of this folder"
+            className="flex items-center gap-1 rounded-full px-1.5 py-0.5 hover:bg-amber-500/20"
+          >
+            <Play className="h-3 w-3" />
+            Resume
+          </button>
+        </>
       )}
       {status.active && (
         <button
           type="button"
           onClick={cancelActiveScan}
           aria-label="Stop scanning"
-          title="Stop scanning — deeper folders stay marked as not scanned"
+          title="Stop scanning — the folder stays as loaded so far"
           className="rounded-full p-0.5 hover:bg-primary/20"
         >
           <X className="h-3 w-3" />

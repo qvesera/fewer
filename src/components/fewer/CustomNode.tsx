@@ -1044,7 +1044,7 @@ function ChildEntry({ child }: { child: FewerNode }) {
       {(child.data.unscanned as boolean | undefined) && (
         <button
           type="button"
-          title="Not fully scanned — click to load this folder's contents"
+          title="Not loaded yet — click to load this folder's contents"
           onClick={async (e) => {
             e.stopPropagation();
             const mark = (on: boolean) =>
@@ -1057,14 +1057,16 @@ function ChildEntry({ child }: { child: FewerNode }) {
             const result = await refreshFolderFromDisk(child.id);
             if (result.status !== "ok") mark(true);
           }}
-          className="shrink-0 cursor-pointer rounded bg-primary/10 px-1 text-[9px] font-medium uppercase tracking-wide text-primary hover:bg-primary/20"
+          className="shrink-0 cursor-pointer rounded border border-primary/40 px-1 text-[9px] font-medium uppercase tracking-wide text-primary/80 hover:bg-primary/10"
         >
-          not scanned
+          not loaded
         </button>
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
-          ? plural(folderChildCount, "item")
+          ? (child.data.unscanned as boolean | undefined) && folderChildCount === 0
+            ? "—" // unknown, not zero: the folder was never read (T-215)
+            : plural(folderChildCount, "item")
           : formatSize(child.data.size ?? 0)}
       </span>
       <ChevronRight className="h-3 w-3 shrink-0 text-fewer-text-subtle/60" />

@@ -5946,7 +5946,7 @@ tasks:
   session_count: 1
 - id: "T-215"
   title: "Scan chip fixes: duplicate counts, stale status, not-loaded semantics, resume"
-  status: "triaged"
+  status: "in-progress"
   type: "fix"
   area: "ui"
   tier: 0
@@ -5964,6 +5964,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-20T18:40:24Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-20T19:02:57Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1

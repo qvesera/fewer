@@ -161,7 +161,7 @@ export async function runFolderImport(
     // budget stops the crawl and marks deeper folders "not scanned".
     if (progressive && nativeRoot) {
       const { startBackgroundScan } = await import("@/lib/fewer/progressiveOpen");
-      startBackgroundScan(nativeRoot, progressive.rootName, options, progressive.queue);
+      startBackgroundScan(nativeRoot, progressive.rootName, options, progressive.queue, progressive.scanned);
     } else if (progressive && webSource) {
       const { startBackgroundScanWith } = await import("@/lib/fewer/progressiveOpen");
       startBackgroundScanWith({
@@ -170,6 +170,7 @@ export async function runFolderImport(
         options,
         queue: progressive.queue,
         io: { listAll: webSource.listAll },
+        initialScanned: progressive.scanned,
       });
     }
 

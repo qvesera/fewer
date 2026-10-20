@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from "./importOptions";
 import {
   DEFAULT_MAX_NODES,
+  DEFAULT_MAX_MS,
   DEFAULT_SKELETON_DEPTH,
   continueScan,
   scanSkeleton,
@@ -86,8 +87,10 @@ describe("continueScan", () => {
     ];
     const result = await continueScan(queue, engine(() => {}), { maxNodes: 1 });
     expect(result.stopped).toBe(true);
+    expect(result.reason).toBe("budget"); // resumable — the chip offers Resume
     expect(result.unscanned.length).toBe(1);
     expect(DEFAULT_MAX_NODES).toBe(25_000);
+    expect(DEFAULT_MAX_MS).toBe(30_000); // T-215: slow disks get 30s, not 8s
   });
 
   test("abort stops the walk immediately", async () => {
@@ -97,6 +100,7 @@ describe("continueScan", () => {
     const cfg = { ...engine(() => {}), signal: controller.signal };
     const result = await continueScan(queue, cfg);
     expect(result.stopped).toBe(true);
+    expect(result.reason).toBe("aborted"); // user stopped it — no badges, no chip
     expect(result.unscanned).toEqual(["a/a1/sub"]);
   });
 });
