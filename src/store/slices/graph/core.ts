@@ -18,6 +18,8 @@ const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
 export type CoreSliceCreator = StateCreator<GraphState, [], [], {
   setGraph: GraphState["setGraph"];
+  /** T-206: merge one progressive-scan batch (no history entry). */
+  appendGraphBatch: (nodes: import("@/lib/fewer/types").FewerNode[], edges: import("@/lib/fewer/types").FewerEdge[]) => { added: number };
   setDataSource: GraphState["setDataSource"];
   setLocalRootPath: GraphState["setLocalRootPath"];
   triggerHiddenPanelExpand: GraphState["triggerHiddenPanelExpand"];
@@ -113,6 +115,95 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     // View settings just changed; persist the pruned map (debounced) so storage
     // cannot resurrect the dead ids on the next load.
     get()._persistLayout();
+  },
+  /**
+   * T-206: append one progressive-scan batch to the loaded graph. Existing
+   * paths win (their ids and positions are kept, size/symlink refresh);
+   * brand-new paths are placed near their parent until the next relayout.
+   * No history entry: background appends are not user operations.
+   */
+  appendGraphBatch: (incomingNodes, incomingEdges) => {
+    const state = get();
+    const pathIndex = new Map<string, string>();
+    for (const n of state.nodes) {
+      if (n.data.path) pathIndex.set(n.data.path, n.id);
+    }
+    const nextNodes = [...state.nodes];
+    const indexOfId = new Map<string, number>(nextNodes.map((n, i) => [n.id, i]));
+    const idMap = new Map<string, string>();
+    const incomingParent = new Map<string, string>(incomingEdges.map((e) => [e.target, e.source]));
+    let added = 0;
+    for (const n of incomingNodes) {
+      if (!n.data.path) continue;
+      const existingId = pathIndex.get(n.data.path);
+      if (existingId) {
+        idMap.set(n.id, existingId);
+        const i = indexOfId.get(existingId);
+        if (i !== undefined) {
+          const cur = nextNodes[i];
+          nextNodes[i] = {
+            ...cur,
+            data: {
+              ...cur.data,
+              size: n.data.size ?? cur.data.size,
+              symlink: n.data.symlink ?? cur.data.symlink,
+            },
+          };
+        }
+        continue;
+      }
+      pathIndex.set(n.data.path, n.id);
+      indexOfId.set(n.id, nextNodes.length);
+      // Park new cards near their parent; the debounced relayout settles them.
+      const parentId = incomingParent.get(n.id);
+      const parent = parentId ? nextNodes[indexOfId.get(parentId) ?? -1] : undefined;
+      const siblings = incomingNodes.filter((m) => incomingParent.get(m.id) === parentId);
+      const ordinal = Math.max(0, siblings.findIndex((m) => m.id === n.id));
+      nextNodes.push({
+        ...n,
+        position: {
+          x: (parent?.position.x ?? 0) + ordinal * 30,
+          y: (parent?.position.y ?? 0) + 140,
+        },
+        style: {
+          ...n.style,
+          width: state.nodeWidth,
+          height: n.data.type === "folder" ? state.nodeHeight : undefined,
+          minHeight: undefined,
+        },
+      });
+      added++;
+    }
+    if (added === 0) return { added: 0 };
+    const liveIds = new Set(nextNodes.map((n) => n.id));
+    const edgeType = edgeTypeFromStyle(state.edgeStyle);
+    const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
+    const edgeKeys = new Set(state.edges.map((e) => e.id));
+    const nextEdges = [...state.edges];
+    for (const e of incomingEdges) {
+      const source = idMap.get(e.source) ?? e.source;
+      const target = idMap.get(e.target) ?? e.target;
+      if (!liveIds.has(source) || !liveIds.has(target)) continue;
+      const id = `e-${source}-${target}`;
+      if (edgeKeys.has(id)) continue;
+      edgeKeys.add(id);
+      nextEdges.push({
+        ...e,
+        id,
+        source,
+        target,
+        type: edgeType,
+        animated,
+        style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
+      });
+    }
+    set({
+      nodes: applySearchHighlight(nextNodes, state.searchQuery, state.categoryFilter),
+      edges: sortEdges(nextEdges, nextNodes),
+      graphVersion: state.graphVersion + 1,
+    });
+    return { added };
   },
   relayout: () => {
     const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();
