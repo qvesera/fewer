@@ -174,7 +174,9 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
       });
       added++;
     }
-    if (added === 0) return { added: 0 };
+    // T-212: no `added === 0` early return — a batch whose nodes all exist
+    // still repairs MISSING EDGES (the scan-end orphan heal appends edge-only
+    // batches, and a re-emitted directory re-wires any edge that was lost).
     const liveIds = new Set(nextNodes.map((n) => n.id));
     const edgeType = edgeTypeFromStyle(state.edgeStyle);
     const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;

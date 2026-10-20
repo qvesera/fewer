@@ -33,7 +33,11 @@ export interface BatchGraph {
 
 /**
  * One scan batch → nodes/edges. `parentIdOf` resolves the batch's parent
- * folder by its RELATIVE path ("" = root), which the caller keeps as a map.
+ * folder by its RELATIVE path ("" = root, which MUST wire to the root node —
+ * T-212: forgetting that orphaned every top-level folder). When a parent can't
+ * be resolved, `rootId` attaches the batch to the root instead of leaving it
+ * floating: the canvas is always one tree.
+ *
  * When `includeFiles` is false, file entries are dropped entirely — the
  * background append path has no hide-set pass, so emitting them would leak
  * them onto the canvas.
@@ -42,10 +46,10 @@ export function buildBatchGraph(
   rootName: string,
   batch: ScanBatch,
   parentIdOf: (relPath: string) => string | undefined,
-  opts: { includeFiles: boolean },
+  opts: { includeFiles: boolean; rootId?: string },
 ): BatchGraph {
   const parentFullPath = batch.parentPath ? `${rootName}/${batch.parentPath}` : rootName;
-  const parentNodeId = batch.parentPath ? parentIdOf(batch.parentPath) : undefined;
+  const parentNodeId = parentIdOf(batch.parentPath) ?? opts.rootId;
   const nodes: FewerNode[] = [];
   const edges: FewerEdge[] = [];
   for (const e of batch.entries) {
@@ -96,11 +100,31 @@ export function buildGraphFromBatches(
       rootName,
       batch,
       (rel) => pathId.get(rel ? `${rootName}/${rel}` : rootName),
-      opts,
+      { ...opts, rootId: root.id },
     );
     for (const n of built.nodes) pathId.set(n.data.path, n.id);
     nodes.push(...built.nodes);
     edges.push(...built.edges);
   }
   return { nodes, edges };
+}
+
+/**
+ * Defensive repair (T-212): return edges that attach every parentless non-root
+ * node to the root, so a graph can never render as floating top-level cards.
+ * Runs at the end of a scan; a graph that is already a tree gets an empty list.
+ */
+export function connectOrphansToRoot(nodes: FewerNode[], edges: FewerEdge[], rootId: string): FewerEdge[] {
+  const hasParent = new Set(edges.map((e) => e.target));
+  const edgeKeys = new Set(edges.map((e) => e.id));
+  const extra: FewerEdge[] = [];
+  for (const n of nodes) {
+    if (n.id === rootId || hasParent.has(n.id) || n.type === "groupPill") continue;
+    const id = `e-${rootId}-${n.id}`;
+    if (edgeKeys.has(id)) continue;
+    edgeKeys.add(id);
+    extra.push({ id, source: rootId, target: n.id, type: "default" });
+    hasParent.add(n.id);
+  }
+  return extra;
 }

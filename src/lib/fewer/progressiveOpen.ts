@@ -10,7 +10,7 @@ import {
   type ScanDirEntry,
   type ScanQueueItem,
 } from "./progressiveScan";
-import { buildBatchGraph, buildGraphFromBatches, type BatchGraph } from "./progressiveGraph";
+import { buildBatchGraph, buildGraphFromBatches, connectOrphansToRoot, type BatchGraph } from "./progressiveGraph";
 import { setScanStatus } from "./scanStatus";
 import type { TreeEntry } from "./types";
 
@@ -183,7 +183,8 @@ export function startBackgroundScanWith(req: {
     onBatch: (batch: ScanBatch) => {
       if (gen !== generation) return;
       // The canvas was cleared or replaced underneath us — stop wasting IO.
-      if (!pathIdOf(rootName)) {
+      const rootId = pathIdOf(rootName);
+      if (!rootId) {
         controller.abort();
         return;
       }
@@ -191,7 +192,7 @@ export function startBackgroundScanWith(req: {
         rootName,
         batch,
         (rel) => pathIdOf(rel ? `${rootName}/${rel}` : rootName),
-        { includeFiles: options.includeFiles },
+        { includeFiles: options.includeFiles, rootId },
       );
       if (!built.nodes.length) return;
       useGraphStore.getState().appendGraphBatch(built.nodes, built.edges);
@@ -206,6 +207,15 @@ export function startBackgroundScanWith(req: {
       },
     });
     if (gen !== generation) return;
+    // T-212: make sure the finished graph is ONE tree — any node the walker
+    // could not wire (a parent filtered out, a re-emitted batch) attaches to
+    // the root instead of floating as a top-level card.
+    const s = useGraphStore.getState();
+    const rootNode = s.nodes.find((n) => n.data.isRoot);
+    if (rootNode) {
+      const heal = connectOrphansToRoot(s.nodes, s.edges, rootNode.id);
+      if (heal.length) s.appendGraphBatch([], heal);
+    }
     if (relayoutTimer) {
       clearTimeout(relayoutTimer);
       relayoutTimer = null;
