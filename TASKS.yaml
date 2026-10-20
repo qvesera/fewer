@@ -5857,3 +5857,101 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 27, deletions: 9}
   spent_min: 0
   session_count: 2
+- id: "T-212"
+  title: "Progressive graph: root batch must wire root→child edges (orphaned top-level folders)"
+  status: "review"
+  type: "fix"
+  area: "layout"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 445
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T18:40:22Z"
+  notes: []
+  sessions:
+  - start: "2026-10-20T18:40:25Z"
+    end: "2026-10-20T18:48:42Z"
+    measured: true
+    note: "root-batch edge fix + rootId fallback + scan-end orphan heal; appendGraphBatch edge-only batches; 7 tests"
+    proof: ["c0e5d59", "#445"]
+    effort: {commits: 1, files: 5, insertions: 94, deletions: 10}
+  spent_min: 8
+  session_count: 1
+- id: "T-213"
+  title: "Arrow-key navigation zooms to fit the selected card"
+  status: "triaged"
+  type: "fix"
+  area: "keyboard"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T18:40:23Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-214"
+  title: "Double-click a file opens it in the OS default app (shell)"
+  status: "triaged"
+  type: "feat"
+  area: "file-ops"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T18:40:24Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-215"
+  title: "Scan chip fixes: duplicate counts, stale status, not-loaded semantics, resume"
+  status: "triaged"
+  type: "fix"
+  area: "ui"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T18:40:24Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
