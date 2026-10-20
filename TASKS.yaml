@@ -6027,30 +6027,30 @@ tasks:
   session_count: 0
 - id: "T-218"
   title: "Turbopack build warnings: overly broad fs patterns in localContent.ts"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "build"
   tier: 0
   estimate_min: 45
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 445
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-20T21:30:44Z"
   notes: []
   sessions:
   - start: "2026-10-20T21:30:45Z"
-    end: null
+    end: "2026-10-20T21:33:06Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "module-scope literal dirs + ternary; web + desktop builds warning-free; tests/lint green"
+    proof: ["23373dc", "#445"]
+    effort: {commits: 1, files: 2, insertions: 86, deletions: 5}
+  spent_min: 2
   session_count: 1
