@@ -5824,7 +5824,7 @@ tasks:
   session_count: 0
 - id: "T-211"
   title: "Fix registry mock aliasing through export-star (CI-only registry.test failure)"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "infra"
   tier: 0
@@ -5849,5 +5849,11 @@ tasks:
     note: "named re-exports in registry.ts; verified CI file order + full suite"
     proof: ["88d1a8e", "#445"]
     effort: {commits: 1, files: 2, insertions: 42, deletions: 3}
+  - start: "2026-10-20T11:16:32Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 1
+  session_count: 2
