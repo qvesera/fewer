@@ -495,9 +495,12 @@ export function buildKeyboardRules(): ShortcutRule[] {
           ctx.setFocusedNodeId(next);
           if (kc.shift) { ctx.setSelectedNodeIds(st.selectedNodeIds.includes(next) ? st.selectedNodeIds : [...st.selectedNodeIds, next]); }
           else { ctx.setSelectedNodeIds([next]); }
+          // T-213: zoom to FIT the selected card (same pipeline the search
+          // panel uses). The old setCenter(x+100, y+30, currentZoom) kept the
+          // current zoom and offset by hardcoded card geometry, so at high
+          // zoom the view teleported somewhere that was not the target card.
+          ctx.getState().setZoomToNode?.(next);
         }
-        const nn = st.nodes.find((n) => n.id === next);
-        if (nn) ctx.reactFlow.setCenter(nn.position.x + 100, nn.position.y + 30, { zoom: ctx.reactFlow.getZoom(), duration: 300 });
       },
     },
 
