@@ -5824,7 +5824,7 @@ tasks:
   session_count: 0
 - id: "T-211"
   title: "Fix registry mock aliasing through export-star (CI-only registry.test failure)"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "infra"
   tier: 0
@@ -5850,10 +5850,10 @@ tasks:
     proof: ["88d1a8e", "#445"]
     effort: {commits: 1, files: 2, insertions: 42, deletions: 3}
   - start: "2026-10-20T11:16:32Z"
-    end: null
+    end: "2026-10-20T11:16:35Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
+    note: "override seam replaces the last registry module mock; full suite green"
+    proof: ["42796ba", "#445"]
+    effort: {commits: 1, files: 3, insertions: 27, deletions: 9}
   spent_min: 0
   session_count: 2
