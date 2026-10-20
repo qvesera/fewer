@@ -18,18 +18,17 @@ mock.module("./crypto", () => ({
   encryptToken: (s: string) => `encrypted:${s}`,
 }));
 const mockRefreshToken = mock(async () => ({ accessToken: "new-token", expiresIn: 3600 }));
-// Spread the real registry so every OTHER export (isProviderImplemented,
-// notConfigured, …) survives for later files, and restore it at the bottom of
-// this file: bun's mock.module registry is process-wide, so a whole-module
-// replacement made any file loading AFTER this one see a getAdapter() whose
-// adapters have no ids — registry.test.ts failed exactly that way whenever the
-// runner's file order put this file first (seen on CI, T-201).
-const _actualRegistry = await import("./registry");
+// T-211 (final): mock "./registry" — the only mechanism proven to reach
+// server.ts's adapter lookup — but spread a FRESH copy of registryCore: bun
+// evaluates the query-busted specifier as a separate, never-mocked instance,
+// and registry.test.ts imports the SAME fresh specifier. The stub therefore
+// cannot alias into registry.test.ts (or anything else) in either file order.
+const freshCoreSpec = "./registryCore" + "?fresh=1";
+const freshCore = (await import(freshCoreSpec)) as typeof import("./registryCore");
 mock.module("./registry", () => ({
-  ..._actualRegistry,
-  getAdapter: async () => ({ refreshToken: mockRefreshToken }),
+  ...freshCore,
+  getAdapter: async () => ({ refreshToken: mockRefreshToken }) as never,
 }));
-
 const { getAuthedClient, getConnectionWithToken } = await import("./server");
 
 describe("getAuthedClient", () => {
@@ -99,8 +98,3 @@ describe("getConnectionWithToken", () => {
     await expect(getConnectionWithToken("c1", "github")).rejects.toThrow("Connection not found");
   });
 });
-
-// T-201: hand the REAL registry back before the runner loads the next file —
-// see the note at the mock above. Without this, whichever test file bun
-// evaluates after this one inherits the stub.
-mock.module("./registry", () => _actualRegistry);

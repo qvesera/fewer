@@ -41,21 +41,7 @@ function notConfigured(provider: CloudProvider): CloudProviderAdapter {
   };
 }
 
-/**
- * Test-only override (T-211): bun's module-mock registry is process-wide AND
- * order-sensitive on CI (a mock of a re-exporting file can alias onto the
- * module behind it), so server.test.ts injects its stub through this seam
- * instead of mocking the module. Never set in production code.
- */
-let adapterOverride: ((provider: CloudProvider) => Promise<CloudProviderAdapter>) | null = null;
-export function __overrideGetAdapterForTests(
-  fn: ((provider: CloudProvider) => Promise<CloudProviderAdapter>) | null,
-): void {
-  adapterOverride = fn;
-}
-
 export async function getAdapter(provider: CloudProvider): Promise<CloudProviderAdapter> {
-  if (adapterOverride) return adapterOverride(provider);
   return ADAPTERS[provider] ?? notConfigured(provider);
 }
 
