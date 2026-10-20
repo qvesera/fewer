@@ -266,7 +266,10 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
     );
   }
 
-  if (can("savedGraphs", tier) && !dockedIds.has("directories")) {
+  // T-204: the desktop app has no "Your Directories" section — a folder's
+  // tags and groups belong to the folder now (T-203 auto-save), so the manual
+  // project list is redundant there. The web build keeps it.
+  if (!inShell && can("savedGraphs", tier) && !dockedIds.has("directories")) {
     sections.directories = (
       <div ref={dirRef} data-section-id="directories">
         <CollapsibleSection
@@ -406,6 +409,14 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
           <div key={id} data-section-id={id}>{sections[id]}</div>
         ))}
       </div>
+
+      {/* T-204: no visible section in the desktop app, but the panel owns the
+          Alt+S / menu "Save Project" dialog — keep it mounted, hidden. */}
+      {inShell && (
+        <div className="hidden" aria-hidden>
+          <SavedGraphsPanel onRequireAuth={onRequireAuth} />
+        </div>
+      )}
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>
