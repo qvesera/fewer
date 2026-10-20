@@ -5979,3 +5979,78 @@ tasks:
     effort: {commits: 1, files: 10, insertions: 138, deletions: 38}
   spent_min: 86
   session_count: 1
+- id: "T-216"
+  title: "Turbopack build warnings: overly broad fs patterns in localContent.ts"
+  status: "wontfix"
+  type: "fix"
+  area: "build"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T21:29:04Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-217"
+  title: "Turbopack build warnings: overly broad fs patterns in localContent.ts"
+  status: "backlog"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T21:29:47Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-218"
+  title: "Turbopack build warnings: overly broad fs patterns in localContent.ts"
+  status: "in-progress"
+  type: "fix"
+  area: "build"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T21:30:44Z"
+  notes: []
+  sessions:
+  - start: "2026-10-20T21:30:45Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
