@@ -72,6 +72,19 @@ them, attached to the same files and folders.
 - Because a folder carries its own metadata, the desktop sidebar has no
   "Your Directories" section: reopening the folder IS reopening your work.
 
+### Big folders appear instantly
+
+Opening a folder no longer waits for a full crawl. The app shows the **first
+two levels right away** and keeps scanning the rest in the background — deeper
+cards appear as they are read. A chip in the header reports progress
+(`Scanning app · 12,340 cards · 2,140 folders`) and can stop the crawl.
+
+- The background crawl stops at **25,000 cards or 8 seconds**, whichever comes
+  first; folders it did not reach carry a **not scanned** badge.
+- Click a **not scanned** badge to load that folder's contents on demand.
+- Scanning cancels automatically when you open another folder, and it always
+  skips `node_modules`, hidden and cache folders.
+
 ## Themes
 
 The theme editor saves named themes to your library as `.fwtheme` files. No sign-in, no cloud gallery: themes are yours on disk. Theme files are plain JSON, so share the file itself with another Fewer install.

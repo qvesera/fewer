@@ -6,6 +6,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "./Logo";
 import { SearchField } from "./SearchField";
+import { ScanStatusChip } from "./ScanStatusChip";
 
 /**
  * The desktop shell's header (T-198): ONE 44px bar instead of the web app's
@@ -88,6 +89,7 @@ export function ShellHeader() {
 
       <div className="flex-1" />
 
+      <ScanStatusChip />
       <SearchField className="w-full max-w-sm" />
     </header>
   );

@@ -1041,6 +1041,27 @@ function ChildEntry({ child }: { child: FewerNode }) {
           archive
         </span>
       )}
+      {(child.data.unscanned as boolean | undefined) && (
+        <button
+          type="button"
+          title="Not fully scanned — click to load this folder's contents"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const mark = (on: boolean) =>
+              useGraphStore.setState((s) => ({
+                nodes: s.nodes.map((n) =>
+                  n.id === child.id ? { ...n, data: { ...n.data, unscanned: on } } : n,
+                ),
+              }));
+            mark(false);
+            const result = await refreshFolderFromDisk(child.id);
+            if (result.status !== "ok") mark(true);
+          }}
+          className="shrink-0 cursor-pointer rounded bg-primary/10 px-1 text-[9px] font-medium uppercase tracking-wide text-primary hover:bg-primary/20"
+        >
+          not scanned
+        </button>
+      )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
           ? plural(folderChildCount, "item")

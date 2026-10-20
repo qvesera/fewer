@@ -89,30 +89,34 @@ export async function runFolderImport(
     const nativeAllowed = isHost();
     let tree: TreeEntry | null = null;
     let nativeRoot: string | null = null;
-    if (dropped) {
+    // T-205: path-based opens in the desktop app load PROGRESSIVELY — the
+    // first levels land on the canvas immediately and the rest fills in the
+    // background. Browser-based walks (FSA picker, entry drops) keep the
+    // all-or-nothing tree until their own streaming walker lands (T-208).
+    let progressive: import("@/lib/fewer/progressiveOpen").SkeletonOpen | null = null;
+    if (dropped && dropped.kind !== "path") {
       tree = await treeFromDropped(dropped, options);
-      // A path drop carries its own absolute root (the picker branch sets the
-      // same value); without it, refresh/open would have nothing to resolve.
-      if (dropped.kind === "path") nativeRoot = dropped.path;
-    } else if (nativeAllowed) {
-      const rootPath = await nativePickDirectory();
+    } else if (nativeAllowed || dropped?.kind === "path") {
+      const rootPath = dropped?.kind === "path" ? dropped.path : await nativePickDirectory();
       if (!rootPath) return { ok: false, cancelled: true, title: "Import cancelled" };
       nativeRoot = rootPath;
-      tree = await buildTreeFromNative(rootPath, options, nativeListDir, (phase) =>
-        onProgress?.({ phase }),
-      );
+      onProgress?.({ phase: "Reading the first levels" });
+      const { openFolderSkeleton } = await import("@/lib/fewer/progressiveOpen");
+      progressive = await openFolderSkeleton(rootPath, options);
     } else {
       tree = await pickDirectoryTree(options, undefined, onProgress);
     }
-    if (!tree) {
+    if (!progressive && !tree) {
       return { ok: false, cancelled: true, title: "Import cancelled" };
     }
 
-    const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
-      tree,
-      { includeFiles: options.includeFiles },
-      buildProgress(onProgress),
-    );
+    const { nodes, edges, hiddenFileIds } = progressive
+      ? { nodes: progressive.graph.nodes, edges: progressive.graph.edges, hiddenFileIds: [] as string[] }
+      : await chunkTreeToGraph(
+          tree!,
+          { includeFiles: options.includeFiles },
+          buildProgress(onProgress),
+        );
 
     useGraphStore.setState({
       dataSource: "directory",
@@ -133,6 +137,13 @@ export async function runFolderImport(
       // T-203: and restores the tags/groups the user attached to this folder
       // on an earlier visit — the metadata belongs to the folder, not a save.
       await restoreFolderMeta(nativeRoot);
+    }
+
+    // T-205: keep filling the skeleton in the background (shell only). The
+    // budget stops the crawl and marks deeper folders "not scanned".
+    if (progressive && nativeRoot) {
+      const { startBackgroundScan } = await import("@/lib/fewer/progressiveOpen");
+      startBackgroundScan(nativeRoot, progressive.rootName, options, progressive.queue);
     }
 
     // Resolve the imported root to its absolute path on the dev machine once,
@@ -160,7 +171,7 @@ export async function runFolderImport(
     return {
       ok: true,
       title: "Directory loaded",
-      description: `${tree.name}: ${nodes.length} entries`,
+      description: `${progressive?.rootName ?? tree?.name ?? "folder"}: ${nodes.length} entries`,
       notes,
     };
   } catch (err) {
