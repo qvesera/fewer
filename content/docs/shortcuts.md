@@ -104,6 +104,8 @@ In the desktop app the native **File / Edit / View / Window / Help** menu owns t
 | ------------------ | -------------------------------------------------- |
 | **Drag (canvas)**  | Pan the canvas                                     |
 | **Shift+drag**     | Box-select cards: adds to the existing selection  |
+| **Double-click (folder)** | Zoom to fit that folder                     |
+| **Double-click (file, desktop app)** | Open in the OS default application |
 
 ## Tips
 

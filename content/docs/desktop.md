@@ -27,6 +27,11 @@ Saved projects live in `graphs/` as **`.fwr`** files (Fewer's portable graph doc
 - **Archives inside a folder are always opened**: when you open a folder, any `.zip`, `.tar`, `.7z` or `.rar` found along the way shows its contents directly on the canvas — the archive is read in place, never extracted to disk. Refresh from Disk keeps this behaviour.
 - **Export** offers SVG, PNG, JSON, CSV, DOT, shell script, ASCII tree, and **Fewer graph (`.fwr`)** for a portable copy of the whole project. The `.fwr` carries cards, positions, tags and groups.
 
+- **Double-click a folder** to zoom to fit; **double-click a file** to open it
+  in your operating system's default application — the same opener as the
+  right-click **Open File** and **Enter**. Files that only exist inside an
+  expanded archive zoom instead of opening.
+
 **Drag and drop**: drag a folder from your file manager onto the canvas to open
 it as the graph, and the app asks before replacing the one you have. Drop a file
 instead and it opens in your system's default app for that type.
