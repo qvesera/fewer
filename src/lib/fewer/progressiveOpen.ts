@@ -87,23 +87,38 @@ export interface SkeletonOpen {
   queue: ScanQueueItem[];
 }
 
-/** Phase 1: cancel any previous scan, read the skeleton, build its graph. */
+export interface SkeletonRequest {
+  /** Directory listing path — the real absolute path in the shell, the root
+   *  name on the web (handle/FileList sources are name-keyed). */
+  rootAbs: string;
+  rootName: string;
+  listAll(absPath: string): Promise<ScanDirEntry[]>;
+  options: ImportOptions;
+}
+
+/** Generic skeleton (T-208): any listing primitive — shell and web share it. */
+export async function openSkeletonWith(req: SkeletonRequest): Promise<SkeletonOpen> {
+  cancelActiveScan();
+  const engine = { options: req.options, listAll: req.listAll };
+  const skeleton = await scanSkeleton(req.rootAbs, engine, DEFAULT_SKELETON_DEPTH);
+  const graph = buildGraphFromBatches(req.rootName, skeleton.batches, {
+    includeFiles: req.options.includeFiles,
+  });
+  return { rootName: req.rootName, graph, queue: skeleton.queue };
+}
+
+/** Phase 1, desktop shell: cancel any previous scan, read the skeleton. */
 export async function openFolderSkeleton(
   rootPath: string,
   options: ImportOptions,
 ): Promise<SkeletonOpen> {
-  cancelActiveScan();
   const rootName = rootPath.split(/[\\/]/).filter(Boolean).pop() ?? rootPath;
-  const engine = {
-    options,
+  return openSkeletonWith({
+    rootAbs: rootPath,
+    rootName,
     listAll: nativeListAll,
-    ...(options.expandArchives ? { readArchiveMembers: archiveMemberReader(options) } : {}),
-  };
-  const skeleton = await scanSkeleton(rootPath, engine, DEFAULT_SKELETON_DEPTH);
-  const graph = buildGraphFromBatches(rootName, skeleton.batches, {
-    includeFiles: options.includeFiles,
+    options,
   });
-  return { rootName, graph, queue: skeleton.queue };
 }
 
 // path → node id, cached by the store's nodes array identity so each batch
@@ -130,12 +145,20 @@ const RELAYOUT_DEBOUNCE_MS = 500;
  * `appendGraphBatch`, layout settles on a debounce, and whatever the budget
  * did not reach is marked "unscanned" on its folder card.
  */
-export function startBackgroundScan(
-  rootPath: string,
-  rootName: string,
-  options: ImportOptions,
-  queue: ScanQueueItem[],
-): void {
+export interface ScanIo {
+  listAll(absPath: string): Promise<ScanDirEntry[]>;
+  readArchiveMembers?(absPath: string, relPath: string, depth: number): Promise<ScanBatch[] | null>;
+}
+
+/** Generic background fill (T-208): any listing primitive. */
+export function startBackgroundScanWith(req: {
+  rootAbs: string;
+  rootName: string;
+  options: ImportOptions;
+  queue: ScanQueueItem[];
+  io: ScanIo;
+}): void {
+  const { rootAbs, rootName, options, queue, io } = req;
   generation++;
   const gen = generation;
   const controller = new AbortController();
@@ -154,9 +177,9 @@ export function startBackgroundScan(
 
   const engine = {
     options,
-    listAll: nativeListAll,
+    listAll: io.listAll,
     signal: controller.signal,
-    ...(options.expandArchives ? { readArchiveMembers: archiveMemberReader(options) } : {}),
+    ...(io.readArchiveMembers ? { readArchiveMembers: io.readArchiveMembers } : {}),
     onBatch: (batch: ScanBatch) => {
       if (gen !== generation) return;
       // The canvas was cleared or replaced underneath us — stop wasting IO.
@@ -201,7 +224,26 @@ export function startBackgroundScan(
     // T-203: the skeleton restore only saw the first levels — apply the saved
     // tags/groups again now that every appended card is on the canvas.
     const { restoreFolderMeta } = await import("./folderMetaSync");
-    await restoreFolderMeta(rootPath);
+    await restoreFolderMeta(rootAbs);
     setScanStatus({ active: false, stopped: result.stopped });
   })();
+}
+
+/** Phase 2, desktop shell: native list_dir + per-archive expansion. */
+export function startBackgroundScan(
+  rootPath: string,
+  rootName: string,
+  options: ImportOptions,
+  queue: ScanQueueItem[],
+): void {
+  startBackgroundScanWith({
+    rootAbs: rootPath,
+    rootName,
+    options,
+    queue,
+    io: {
+      listAll: nativeListAll,
+      ...(options.expandArchives ? { readArchiveMembers: archiveMemberReader(options) } : {}),
+    },
+  });
 }

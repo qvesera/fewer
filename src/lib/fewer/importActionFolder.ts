@@ -94,6 +94,7 @@ export async function runFolderImport(
     // background. Browser-based walks (FSA picker, entry drops) keep the
     // all-or-nothing tree until their own streaming walker lands (T-208).
     let progressive: import("@/lib/fewer/progressiveOpen").SkeletonOpen | null = null;
+    let webSource: import("@/lib/fewer/webProgressive").WebScanSource | null = null;
     if (dropped && dropped.kind !== "path") {
       tree = await treeFromDropped(dropped, options);
     } else if (nativeAllowed || dropped?.kind === "path") {
@@ -103,8 +104,25 @@ export async function runFolderImport(
       onProgress?.({ phase: "Reading the first levels" });
       const { openFolderSkeleton } = await import("@/lib/fewer/progressiveOpen");
       progressive = await openFolderSkeleton(rootPath, options);
-    } else {
+    } else if (options.expandArchives) {
+      // Web archives are opt-in and still need the all-at-once tree (their
+      // reader expands over TreeEntry blobs). Default web opens stream (T-208).
       tree = await pickDirectoryTree(options, undefined, onProgress);
+    } else {
+      // T-208: web parity — FSA browsers stream handle-by-handle, the
+      // webkitdirectory fallback groups its FileList by depth. Same skeleton
+      // and background pipeline as the desktop app.
+      const { pickWebScanSource } = await import("@/lib/fewer/webProgressive");
+      const source = await pickWebScanSource();
+      if (!source) return { ok: false, cancelled: true, title: "Import cancelled" };
+      const { openSkeletonWith } = await import("@/lib/fewer/progressiveOpen");
+      progressive = await openSkeletonWith({
+        rootAbs: source.rootName,
+        rootName: source.rootName,
+        listAll: source.listAll,
+        options,
+      });
+      webSource = source;
     }
     if (!progressive && !tree) {
       return { ok: false, cancelled: true, title: "Import cancelled" };
@@ -144,6 +162,15 @@ export async function runFolderImport(
     if (progressive && nativeRoot) {
       const { startBackgroundScan } = await import("@/lib/fewer/progressiveOpen");
       startBackgroundScan(nativeRoot, progressive.rootName, options, progressive.queue);
+    } else if (progressive && webSource) {
+      const { startBackgroundScanWith } = await import("@/lib/fewer/progressiveOpen");
+      startBackgroundScanWith({
+        rootAbs: webSource.rootName,
+        rootName: webSource.rootName,
+        options,
+        queue: progressive.queue,
+        io: { listAll: webSource.listAll },
+      });
     }
 
     // Resolve the imported root to its absolute path on the dev machine once,

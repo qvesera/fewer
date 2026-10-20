@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useBilling } from "@/hooks/use-billing";
 import { Logo } from "./Logo";
 import { SearchField } from "./SearchField";
+import { ScanStatusChip } from "./ScanStatusChip";
 import { cloudFeature } from "@/lib/fewer/features";
 import { isHost } from "@/lib/fewer/nativeShell";
 import { useAuth } from "@/hooks/use-auth";
@@ -83,6 +84,8 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
 
       {/* System Actions Utility Cluster */}
       <div className="z-10 flex items-center gap-1">
+        {/* T-208: web folder opens stream too — surface the same scan chip. */}
+        <ScanStatusChip />
           <Button
             variant="ghost"
             size="icon"
