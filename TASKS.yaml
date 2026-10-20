@@ -5989,7 +5989,7 @@ tasks:
   estimate_basis: "cli"
   issue: null
   pr: null
-  internal: false
+  internal: true
   milestone: null
   blocked_by: []
   parent: null
@@ -6004,7 +6004,7 @@ tasks:
   session_count: 0
 - id: "T-217"
   title: "Turbopack build warnings: overly broad fs patterns in localContent.ts"
-  status: "backlog"
+  status: "wontfix"
   type: "fix"
   area: "other"
   tier: null
@@ -6012,7 +6012,7 @@ tasks:
   estimate_basis: "cli"
   issue: null
   pr: null
-  internal: false
+  internal: true
   milestone: null
   blocked_by: []
   parent: null
