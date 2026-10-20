@@ -99,6 +99,17 @@ export function FewerApp() {
     if (isHost()) registerHostFetch(hostFetchResponse);
   }, []);
 
+  // T-203: while a folder root is loaded, tags/groups auto-save to the app's
+  // data directory; reopening the folder restores them. Shell only.
+  useEffect(() => {
+    if (!isHost()) return;
+    let stop: (() => void) | undefined;
+    void import("@/lib/fewer/folderMetaSync").then(({ startFolderMetaSync }) => {
+      stop = startFolderMetaSync();
+    });
+    return () => stop?.();
+  }, []);
+
   // T-123: the OS handed us a document at launch (double-click on a .fwr).
   // One-shot: the main process clears its slot on read, so StrictMode's double
   // effect or any later re-render cannot reopen it. A host that does not

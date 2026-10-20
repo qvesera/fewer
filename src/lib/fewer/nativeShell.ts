@@ -196,6 +196,17 @@ export function nativeIndexClear(): Promise<{ removed: number }> {
   return hostInvoke<{ removed: number }>("index_clear");
 }
 
+/* ---- T-203: per-folder tags/groups metadata ---- */
+
+/** Read the metadata document for a folder root; null when none saved yet. */
+export function nativeFolderMetaGet(root: string): Promise<{ contents: string | null }> {
+  return hostInvoke<{ contents: string | null }>("folder_meta_get", { root });
+}
+/** Write the metadata document for a folder root. */
+export function nativeFolderMetaSet(root: string, contents: string): Promise<{ ok: boolean }> {
+  return hostInvoke<{ ok: boolean }>("folder_meta_set", { root, contents });
+}
+
 /**
  * Absolute OS path behind a dropped `File`, or `""` when no host exposes the
  * helper (web app, Tauri). Synchronous by design: `webUtils.getPathForFile`

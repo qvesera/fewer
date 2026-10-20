@@ -5602,3 +5602,55 @@ tasks:
     effort: {commits: 1, files: 8, insertions: 76, deletions: 6}
   spent_min: 8
   session_count: 1
+- id: "T-203"
+  title: "Auto-save tags and groups per opened folder root (on-device folder metadata)"
+  status: "in-progress"
+  type: "feat"
+  area: "file-ops"
+  tier: 1
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T00:04:24Z"
+  notes: []
+  sessions:
+  - start: "2026-10-20T00:04:25Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
+- id: "T-204"
+  title: "Remove Your Directories (saved graphs) section from the desktop sidebar"
+  status: "triaged"
+  type: "refactor"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-20T00:04:25Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0

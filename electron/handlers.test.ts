@@ -131,6 +131,8 @@ describe("dispatch", () => {
         "fs_read_text",
         "fs_remove_file",
         "fs_write_text",
+        "folder_meta_get",
+        "folder_meta_set",
         "host_fetch",
         "index_build",
         "index_clear",
@@ -178,6 +180,25 @@ describe("dispatch", () => {
     expect(await dispatch("take_pending_open_file")).toBe("/home/u/graphs/plan.fwr");
     // Second read must be empty — a re-render cannot reopen the document.
     expect(await dispatch("take_pending_open_file")).toBeNull();
+  });
+
+  test("folder_meta_get/set round-trips one root's metadata (T-203)", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "fewer-meta-"));
+    const dispatch = createDispatch({
+      dialogs: { pickDirectory: async () => null, pickFile: async () => null },
+      shell: {
+        openPath: async () => {},
+        defaultLibraryDir: async () => "/home/u/Documents/fewer",
+        fetchText: async () => ({ status: 200, body: "" }),
+        indexDir: () => dir,
+      },
+    });
+    expect(await dispatch("folder_meta_get", { root: "/data/app" })).toEqual({ contents: null });
+    await dispatch("folder_meta_set", { root: "/data/app", contents: '{"tags":[]}' });
+    expect(await dispatch("folder_meta_get", { root: "/data/app" })).toEqual({ contents: '{"tags":[]}' });
+    // Roots are isolated — another root reads empty.
+    expect(await dispatch("folder_meta_get", { root: "/data/other" })).toEqual({ contents: null });
+    await fs.rm(dir, { recursive: true, force: true });
   });
 
   test("index commands reject when the host has no index directory (T-200)", async () => {

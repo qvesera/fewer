@@ -212,6 +212,16 @@ export function createHostHandlers(deps: { dialogs: HostDialogs; shell: HostShel
         return { removed };
       });
     },
+    // ── T-203: per-folder tags/groups metadata (userData/folder-meta) ────────
+    async folder_meta_get({ root }: { root: string }) {
+      const fm = await import("./folderMeta");
+      return { contents: await fm.readFolderMeta(indexDirOf(deps), root) };
+    },
+    async folder_meta_set({ root, contents }: { root: string; contents: string }) {
+      const fm = await import("./folderMeta");
+      await fm.writeFolderMeta(indexDirOf(deps), root, contents);
+      return { ok: true };
+    },
   };
 }
 

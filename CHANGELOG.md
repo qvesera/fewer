@@ -108,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standalone desktop app gets a native application menu (File/Edit/View/Window/Help): Open Folder, Save Project, Export…, Settings…, Undo/Redo, Toggle Sidebar, Keyboard Shortcuts and Report an Issue are all reachable from the menu, with the new accelerators listed in the shortcuts dialog for the shell only.
 - Standalone desktop app replaces the web navbar + toolbar with a single 44px header: icon-only logo and sidebar toggle, undo/redo/delete at top left, global search at top right. Settings, Export and Load Sample are gone from the header (Settings and Export live in the native File/Edit/View menu).
 - Desktop app: opening a folder now always looks inside archives found along the way — a .zip (or .tar/.7z/.rar) shows its contents directly on the graph canvas, no extraction and no option to hunt for. The 'Look Inside Archives' toggle is now always-on in the desktop app's import options, and Refresh from Disk keeps the expansion. Web build unchanged (option still a choice there).
+- Desktop app: the 'Your Directories' (saved projects) section is gone from the sidebar — folders carry their own tags and groups now, so reopening one IS reopening your work. Save Project (Ctrl+S / File menu) still writes a .fwr when you want a portable copy.
 
 ### Fixed
 
@@ -259,6 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The home page's Themes feature now links straight to the community gallery's themes tab (/gallery?tab=themes), where Apply tries a theme on the whole page; the gallery's Graphs/Themes toggle is reflected in the URL, so either view is linkable and shareable
 - Recent Folders in the desktop app: every opened folder root is remembered (up to eight), one click re-opens it without the import dialog, and a folder that no longer exists drops off the list. The sidebar's File & Actions section and the empty canvas now lead with Open Folder (native picker straight away); URL, GitHub, archive and file imports moved behind More sources.
 - On-device search in the desktop app: the global search box now also queries a local index of every folder you have opened (SQLite FTS5 in the app's data folder, names and paths only — never file contents). Device hits appear under 'On this device' in the search panel; clicking one selects the card or opens its folder. The index is capped, skips node_modules/hidden/cache folders, and can be inspected and cleared from Settings → Help → Storage.
+- Desktop app: tags and groups now follow the folder. Tag or group cards while exploring a directory and the metadata is saved automatically (app data folder, on device, never in the cloud) — reopening the same folder restores every tag, colour and group, with membership re-attached by file path so a folder that changed on disk degrades gracefully.
 
 ### Performance
 

@@ -71,6 +71,10 @@ export async function runFolderImport(
   onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
+    // T-203: persist the outgoing folder's tags/groups before the canvas is
+    // replaced — the sync module holds at most one debounced write.
+    const { flushFolderMeta, restoreFolderMeta } = await import("@/lib/fewer/folderMetaSync");
+    await flushFolderMeta();
     // T-202: the desktop app always looks inside archives found while opening
     // a folder (zip/tar contents belong on the canvas). The web build keeps
     // the user's import-option choice.
@@ -126,6 +130,9 @@ export async function runFolderImport(
         const { indexFolderQuiet } = await import("@/lib/fewer/deviceIndex");
         await indexFolderQuiet(nativeRoot);
       })();
+      // T-203: and restores the tags/groups the user attached to this folder
+      // on an earlier visit — the metadata belongs to the folder, not a save.
+      await restoreFolderMeta(nativeRoot);
     }
 
     // Resolve the imported root to its absolute path on the dev machine once,

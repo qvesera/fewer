@@ -57,6 +57,21 @@ and what disappeared. The desktop app reads the directory directly through its
 own file-system bridge, so refresh works fully offline: no server, no browser
 permission prompt. The graph root's card offers it too.
 
+### Tags and groups follow the folder
+
+The desktop app remembers the **tags and groups you attach while exploring a
+folder** — no save button, nothing to press. Tag or group something, keep
+working, close the app: reopen the same folder (Open Folder or Recent
+Folders) and the tags, tag colours and groups come back exactly as you left
+them, attached to the same files and folders.
+
+- The metadata lives next to the app's search index, in the app's own data
+  folder — never inside the folder you opened, never in the cloud.
+- Membership follows the file's path, so a re-scan of the folder re-attaches
+  everything; files you deleted from disk simply drop out of their groups.
+- Because a folder carries its own metadata, the desktop sidebar has no
+  "Your Directories" section: reopening the folder IS reopening your work.
+
 ## Themes
 
 The theme editor saves named themes to your library as `.fwtheme` files. No sign-in, no cloud gallery: themes are yours on disk. Theme files are plain JSON, so share the file itself with another Fewer install.
