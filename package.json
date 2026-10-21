@@ -22,6 +22,7 @@
     "lint": "bun eslint .",
     "test": "bun test src && bun test electron/handlers.test.ts electron/searchIndex.test.ts && bun run test:components",
     "test:components": "bun test --preload ./tests/setup-dom.ts ./tests/components",
+    "perf:bench": "bun src/lib/fewer/perf.bench.ts",
     "build:netlify": "bun run vendor:archive && bun next build",
     "build:desktop": "bun run vendor:archive && bash scripts/build-desktop.sh",
     "electron:compile": "tsc -p electron/tsconfig.json",
