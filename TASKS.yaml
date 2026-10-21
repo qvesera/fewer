@@ -5791,14 +5791,20 @@ tasks:
   blocked_by: []
   parent: "T-181"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-20T00:31:39Z"
-  notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  notes: ["2026-10-21T17:22:01Z · Baseline (dev box, 2026-10-21, perf.bench.ts): 20k-dir tree — skeleton 87ms, setGraph 120ms, relayout 34ms, sortEdges 9ms, nodeChildren x200 5ms, searchHighlight empty 3.2ms BUT clones every node (identity gate fails by design). 50k: skeleton 101ms, setGraph 169ms, relayout 93ms, sortEdges 27ms. THE BUG: appendGraphBatch worst batch 130ms @20k; full 20k append burst = 110s / 9,555 batches. @5k worst 18ms idle to 52ms busy, total 6.2-9.6s / 2,055 batches — O(B*N) whole-graph path-index rebuild per batch. Budgets: appendBatchWorst 150ms, appendTotal5k 30s, relayout20k 300ms, searchEmpty20k 15ms, nodeChildren200 40ms; identity gate left test.todo for T-219."]
+  sessions:
+  - start: "2026-10-21T16:41:25Z"
+    end: "2026-10-21T17:25:05Z"
+    measured: true
+    note: "Perf harness landed: perfFixtures (deterministic 5k/20k/50k trees via the real scan/batch builders), perf.bench.ts (9-stage bench, bun run perf:bench), perfBudgets.test.ts (5 CI gates: append worst/total, relayout 20k, empty-search time, nodeChildren x200, layout correctness). Baseline recorded: append is O(B*N) — 130ms worst batch @20k, 110s full burst; searchHighlight clones every node. Gates set ~7x baseline for CI headroom; identity gate left as test.todo for T-219."
+    proof: ["6ff6e8c"]
+    effort: {commits: 1, files: 4, insertions: 391, deletions: 0}
+  spent_min: 44
+  session_count: 1
 - id: "T-210"
   title: "Progressive loading: large-tree e2e coverage (web + Electron)"
   status: "triaged"
@@ -6054,3 +6060,26 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 86, deletions: 5}
   spent_min: 2
   session_count: 1
+- id: "T-219"
+  title: "Graph viewer perf: kill allocation tax + narrow CustomNode subscriptions"
+  status: "triaged"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-209"]
+  parent: "T-181"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-21T16:40:58Z"
+  notes: ["2026-10-21T16:41:25Z · Phases 1-4 from the lag analysis: applySearchHighlight copy-on-write, sortEdges/nodeIndexOf reuse, appendGraphBatch hoisted sibling ordinals + incremental path index, rAF-coalesced relayout, CustomNode per-parent child subscription. Guarded by the T-209 perf budget test."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
