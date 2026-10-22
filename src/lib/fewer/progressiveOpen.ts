@@ -6,6 +6,7 @@ import {
   DEFAULT_SKELETON_DEPTH,
   continueScan,
   scanSkeleton,
+  type PendingArchive,
   type ScanBatch,
   type ScanDirEntry,
   type ScanQueueItem,
@@ -109,6 +110,9 @@ export interface SkeletonOpen {
   queue: ScanQueueItem[];
   /** Entries the skeleton itself already emitted (seed for the chip, T-215). */
   scanned: number;
+  /** Archives inside the skeleton levels, waiting for the background pass to
+   *  expand them (T-220) — the skeleton itself has no archive reader. */
+  archives: PendingArchive[];
 }
 
 export interface SkeletonRequest {
@@ -132,7 +136,13 @@ export async function openSkeletonWith(req: SkeletonRequest): Promise<SkeletonOp
   const graph = buildGraphFromBatches(req.rootName, skeleton.batches, {
     includeFiles: req.options.includeFiles,
   });
-  return { rootName: req.rootName, graph, queue: skeleton.queue, scanned: skeleton.scanned };
+  return {
+    rootName: req.rootName,
+    graph,
+    queue: skeleton.queue,
+    scanned: skeleton.scanned,
+    archives: skeleton.archives,
+  };
 }
 
 /** Phase 1, desktop shell: cancel any previous scan, read the skeleton. */
@@ -198,6 +208,9 @@ export function startBackgroundScanWith(req: {
   io: ScanIo;
   /** Skeleton entries already on the canvas — the chip counts from here (T-215). */
   initialScanned?: number;
+  /** Archives the skeleton could not expand (T-220). Expanded here FIRST, so
+   *  the folder's own zips fill in before the deep queue walk. */
+  archives?: PendingArchive[];
 }): void {
   const { rootAbs, rootName, options, queue, io } = req;
   generation++;
@@ -316,6 +329,27 @@ export function startBackgroundScanWith(req: {
   };
 
   void (async () => {
+    // T-220: archives inside the skeleton levels. The skeleton phase runs
+    // WITHOUT an archive reader on purpose (reading a 64MB zip would undo the
+    // sub-second first paint), and files are never re-read by the queue walk —
+    // so a zip at depth 0–2 would otherwise stay a leaf forever. Expand them
+    // here, before the queue walk: the top-level zips are what the user sees
+    // first. This runs before `continueScan` starts its clock, so archive time
+    // cannot eat the scan budget (T-215).
+    if (options.expandArchives && io.readArchiveMembers && req.archives?.length) {
+      for (const archive of req.archives) {
+        if (gen !== generation || controller.signal.aborted) break;
+        try {
+          const batches = await io.readArchiveMembers(archive.abs, archive.rel, archive.depth);
+          for (const b of batches ?? []) engine.onBatch?.(b);
+        } catch {
+          // Unreadable archive — its card stays, empty.
+        }
+      }
+      // A resumed scan continues the QUEUE; the archives above are already on
+      // the canvas, so they must not be read a second time.
+      if (pendingResume === req) pendingResume = { ...req, archives: [] };
+    }
     const result = await continueScan(queue, engine, {
       onTick: (scanned, dirs) => {
         if (gen === generation) setScanStatus({ scanned: base + scanned, dirs: baseDirs + dirs });
@@ -388,6 +422,7 @@ export function startBackgroundScan(
   options: ImportOptions,
   queue: ScanQueueItem[],
   initialScanned = 0,
+  archives: PendingArchive[] = [],
 ): void {
   startBackgroundScanWith({
     rootAbs: rootPath,
@@ -395,6 +430,7 @@ export function startBackgroundScan(
     options,
     queue,
     initialScanned,
+    archives,
     io: {
       listAll: nativeListAll,
       ...(options.expandArchives ? { readArchiveMembers: archiveMemberReader(options) } : {}),

@@ -161,7 +161,16 @@ export async function runFolderImport(
     // budget stops the crawl and marks deeper folders "not scanned".
     if (progressive && nativeRoot) {
       const { startBackgroundScan } = await import("@/lib/fewer/progressiveOpen");
-      startBackgroundScan(nativeRoot, progressive.rootName, options, progressive.queue, progressive.scanned);
+      // T-220: the skeleton could not expand archives (no reader) — the
+      // background pass does, starting with the ones it already walked past.
+      startBackgroundScan(
+        nativeRoot,
+        progressive.rootName,
+        options,
+        progressive.queue,
+        progressive.scanned,
+        progressive.archives,
+      );
     } else if (progressive && webSource) {
       const { startBackgroundScanWith } = await import("@/lib/fewer/progressiveOpen");
       startBackgroundScanWith({
@@ -171,6 +180,7 @@ export async function runFolderImport(
         queue: progressive.queue,
         io: { listAll: webSource.listAll },
         initialScanned: progressive.scanned,
+        archives: progressive.archives,
       });
     }
 

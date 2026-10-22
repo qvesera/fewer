@@ -75,6 +75,7 @@ export function buildBatchGraph(
         size: e.size ?? 0,
         depth: batch.parentDepth + 1,
         isRoot: false,
+        ...(e.isArchive ? { isArchive: true } : {}),
         ...(symlink ? { symlink } : {}),
       },
     });

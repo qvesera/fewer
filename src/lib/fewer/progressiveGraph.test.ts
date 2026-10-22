@@ -53,6 +53,37 @@ describe("buildGraphFromBatches", () => {
     const graph = buildGraphFromBatches("app", BATCHES, { includeFiles: false });
     expect(graph.nodes.every((n) => n.data.type === "folder")).toBe(true);
   });
+
+  test("an expanded archive is a folder container carrying isArchive (T-220)", () => {
+    // The scan promotes an archive that WILL be expanded to `type: "folder"`
+    // + `isArchive` (exactly what expandArchives does on a tree entry), so the
+    // card renders as an archive container and its members can hang off it.
+    const batches: ScanBatch[] = [
+      {
+        parentPath: "",
+        parentDepth: 0,
+        entries: [{ name: "Logos.zip", type: "folder", isArchive: true }],
+      },
+      {
+        parentPath: "Logos.zip",
+        parentDepth: 1,
+        entries: [{ name: "logo.svg", type: "file", size: 5 }],
+      },
+    ];
+    const graph = buildGraphFromBatches("app", batches, { includeFiles: true });
+    const zip = graph.nodes.find((n) => n.data.path === "app/Logos.zip")!;
+    expect(zip.data.type).toBe("folder");
+    expect(zip.data.isArchive).toBe(true);
+    expect(zip.data.extension).toBe(""); // containers carry no file extension
+    const member = graph.nodes.find((n) => n.data.path === "app/Logos.zip/logo.svg")!;
+    expect(graph.edges.find((e) => e.target === member.id)!.source).toBe(zip.id);
+
+    // "Folders only" must not eat the archives: promotion happens before the
+    // file filter, so a zip survives as a container.
+    const foldersOnly = buildGraphFromBatches("app", batches, { includeFiles: false });
+    expect(foldersOnly.nodes.map((n) => n.data.path)).toContain("app/Logos.zip");
+    expect(foldersOnly.nodes.some((n) => n.data.isArchive !== true && !n.data.isRoot)).toBe(false);
+  });
 });
 
 describe("buildBatchGraph / buildRootNode", () => {

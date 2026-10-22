@@ -70,6 +70,67 @@ describe("scanSkeleton", () => {
   });
 });
 
+describe("archives across the phases (T-202/T-220)", () => {
+  const ARCHIVE_FS: Record<string, ScanDirEntry[]> = {
+    "/r": [
+      { name: "src", type: "folder" },
+      { name: "Logos.zip", type: "file", size: 100 },
+      { name: "notes.txt", type: "file", size: 3 },
+    ],
+    "/r/src": [{ name: "inner.zip", type: "file", size: 50 }],
+  };
+  const ARCHIVE_OPTS: ImportOptions = { ...OPTS, expandArchives: true };
+
+  function archiveEngine(onBatch: (b: ScanBatch) => void, options = ARCHIVE_OPTS) {
+    return { options, listAll: async (abs: string) => ARCHIVE_FS[abs] ?? [], onBatch };
+  }
+
+  test("the skeleton promotes archives to containers and reports them unexpanded", async () => {
+    // The skeleton has no archive reader on purpose (sub-second first paint),
+    // so a zip is emitted as an archive CONTAINER and handed to `archives` —
+    // files are never re-read by the queue walk, so nothing else could expand
+    // it (the T-220 bug: root-level zips stayed plain file cards forever).
+    const result = await scanSkeleton("/r", archiveEngine(() => {}), DEFAULT_SKELETON_DEPTH);
+    expect(result.archives).toEqual([
+      { abs: "/r/Logos.zip", rel: "Logos.zip", depth: 1 },
+      { abs: "/r/src/inner.zip", rel: "src/inner.zip", depth: 2 },
+    ]);
+    const rootBatch = result.batches.find((b) => b.parentPath === "")!;
+    expect(rootBatch.entries.find((e) => e.name === "Logos.zip")).toMatchObject({
+      type: "folder",
+      isArchive: true,
+    });
+    // Non-archive files keep their leaf shape.
+    expect(rootBatch.entries.find((e) => e.name === "notes.txt")).toMatchObject({ type: "file" });
+    // Nothing was expanded — no batch hangs off either archive.
+    expect(result.batches.some((b) => b.parentPath.endsWith(".zip"))).toBe(false);
+  });
+
+  test("with a reader attached, the same entries expand inline and report nothing", async () => {
+    const read: string[] = [];
+    const cfg = {
+      ...archiveEngine(() => {}),
+      readArchiveMembers: async (_abs: string, rel: string, depth: number) => {
+        read.push(`${rel}@${depth}`);
+        return [{ parentPath: rel, parentDepth: depth, entries: [{ name: "logo.svg", type: "file" as const }] }];
+      },
+    };
+    const result = await scanSkeleton("/r", cfg, DEFAULT_SKELETON_DEPTH);
+    expect(read).toEqual(["Logos.zip@1", "src/inner.zip@2"]);
+    expect(result.archives).toEqual([]);
+    const memberBatch = result.batches.find((b) => b.parentPath === "Logos.zip")!;
+    expect(memberBatch.parentDepth).toBe(1);
+    expect(memberBatch.entries.map((e) => e.name)).toEqual(["logo.svg"]);
+  });
+
+  test("expandArchives off leaves archives as untouched file entries", async () => {
+    const result = await scanSkeleton("/r", archiveEngine(() => {}, OPTS), DEFAULT_SKELETON_DEPTH);
+    expect(result.archives).toEqual([]);
+    const rootBatch = result.batches.find((b) => b.parentPath === "")!;
+    expect(rootBatch.entries.find((e) => e.name === "Logos.zip")).toMatchObject({ type: "file" });
+  });
+});
+
 describe("continueScan", () => {
   test("drains the remaining queue and reports no unscanned folders", async () => {
     const skeleton = await scanSkeleton("/r", engine(() => {}), DEFAULT_SKELETON_DEPTH);

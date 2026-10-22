@@ -18,6 +18,24 @@ export interface ScanDirEntry {
   type: "folder" | "file";
   size?: number;
   symlink?: { target: string; broken: boolean };
+  /** T-220: an archive that WILL be expanded — promoted to a container card
+   *  (`type: "folder"` + this flag), exactly like `expandArchives` promotes it
+   *  on the all-or-nothing walk. */
+  isArchive?: boolean;
+}
+
+/**
+ * An archive the scan walked past but did not expand (T-220).
+ *
+ * The skeleton phase has no archive reader — it must stay sub-second — so it
+ * reports what it saw and the background pass expands those first. `depth` is
+ * the archive's OWN depth, the same value `readDir` hands the reader, so members
+ * land one level below the archive card.
+ */
+export interface PendingArchive {
+  abs: string;
+  rel: string;
+  depth: number;
 }
 
 export interface ScanBatch {
@@ -71,6 +89,9 @@ interface ScanEngine {
   readArchiveMembers?(absPath: string, relPath: string, depth: number): Promise<ScanBatch[] | null>;
   signal?: AbortSignal;
   onBatch?(batch: ScanBatch): void;
+  /** Called instead of `readArchiveMembers` when the engine has no reader
+   *  (skeleton phase): the caller expands these itself, later (T-220). */
+  onArchive?(archive: PendingArchive): void;
 }
 
 function sortEntries(entries: ScanDirEntry[]): ScanDirEntry[] {
@@ -106,20 +127,40 @@ async function readDir(
       kept.push(e);
     }
   }
-  const sorted = sortEntries(kept);
+  const sorted = sortEntries(kept).map((e) =>
+    // T-220: an archive that is going to be expanded is a CONTAINER on the
+    // canvas, not a leaf — the same promotion `expandArchives` applies to a
+    // tree entry. Without it the card renders as a plain file and its listing
+    // (from the reader below) hangs off a node that can never show children.
+    // Promotion must happen BEFORE the batch is emitted: it changes the node
+    // type, extension and (for `includeFiles: false`) whether it survives.
+    options.expandArchives && e.type === "file" && isArchiveName(e.name)
+      ? { ...e, type: "folder" as const, isArchive: true }
+      : e,
+  );
   if (sorted.length) engine.onBatch?.({ parentPath: rel, parentDepth: depth, entries: sorted });
 
   // Archives (T-202): list members via the injected reader and emit them as
   // batches under the archive's own path — one level, never nested expansion.
-  if (options.expandArchives && engine.readArchiveMembers) {
+  if (options.expandArchives) {
     for (const e of sorted) {
-      if (e.type !== "file" || !isArchiveName(e.name)) continue;
+      if (!e.isArchive) continue;
+      // T-215: check between archives, not inside one — a partially listed
+      // archive is worse than none.
       if (engine.signal?.aborted) return sorted.length;
+      const archiveAbs = absJoin(abs, e.name);
+      const archiveRel = posixJoin(rel, e.name);
+      if (!engine.readArchiveMembers) {
+        // Skeleton phase (T-220): no reader here by design — hand the archive
+        // to the caller so the background pass expands it.
+        engine.onArchive?.({ abs: archiveAbs, rel: archiveRel, depth: depth + 1 });
+        continue;
+      }
       // T-215: archive reads can dwarf everything else (a 64MB zip on a slow
       // disk); their time must not eat the scan's wall-clock budget.
       const archiveStarted = Date.now();
       try {
-        const batches = await engine.readArchiveMembers(absJoin(abs, e.name), posixJoin(rel, e.name), depth + 1);
+        const batches = await engine.readArchiveMembers(archiveAbs, archiveRel, depth + 1);
         for (const b of batches ?? []) engine.onBatch?.(b);
       } catch {
         // Unreadable archive listing — the archive row stays on the canvas.
@@ -136,6 +177,9 @@ export interface SkeletonResult {
   /** Folders at (or under) the skeleton depth boundary, ready to continue. */
   queue: ScanQueueItem[];
   scanned: number;
+  /** Archives the skeleton saw but could not expand — the background pass
+   *  expands these first (T-220). Empty unless `expandArchives` is on. */
+  archives: PendingArchive[];
 }
 
 /**
@@ -148,8 +192,16 @@ export async function scanSkeleton(
   skeletonDepth = DEFAULT_SKELETON_DEPTH,
 ): Promise<SkeletonResult> {
   const batches: ScanBatch[] = [];
+  const archives: PendingArchive[] = [];
   const queue: ScanQueueItem[] = [];
-  const engine: ScanEngine = { ...config, onBatch: (b) => batches.push(b) };
+  const engine: ScanEngine = {
+    ...config,
+    onBatch: (b) => batches.push(b),
+    onArchive: (a) => {
+      archives.push(a);
+      config.onArchive?.(a);
+    },
+  };
   let scanned = 0;
   scanned += await readDir(engine, rootAbs, "", 0, queue);
   // Breadth-first: everything queued after level `skeletonDepth` stays queued.
@@ -157,7 +209,7 @@ export async function scanSkeleton(
     const next = queue.shift()!;
     scanned += await readDir(engine, next.abs, next.rel, next.depth, queue);
   }
-  return { batches, queue, scanned };
+  return { batches, queue, scanned, archives };
 }
 
 /**
