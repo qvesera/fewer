@@ -6089,3 +6089,32 @@ tasks:
     effort: {commits: 3, files: 17, insertions: 890, deletions: 88}
   spent_min: 1253
   session_count: 1
+- id: "T-220"
+  title: "Desktop: archives at skeleton depth never expand on folder import"
+  status: "review"
+  type: "fix"
+  area: "import"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: 445
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: "T-181"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-22T20:58:28Z"
+  notes: ["2026-10-22T20:58:34Z · Reported: zips in a freshly imported folder render as plain file cards. Root cause: T-205's progressive skeleton engine carries no readArchiveMembers, and files are never re-read by the background queue, so archives at skeleton depth (0-2) are never expanded; deeper archives do expand but their card is never promoted to an archive container (type=folder + isArchive, as archiveExpand does for the all-at-once walk). Fix: skeleton marks+reports archives, background expands them first, scan batches carry isArchive into node data."]
+  sessions:
+  - start: "2026-10-22T20:59:20Z"
+    end: "2026-10-22T21:12:44Z"
+    measured: true
+    note: "Root cause: T-205's progressive skeleton has no archive reader AND the background queue re-reads only folders, so archives at skeleton depth (0-2) were read once as plain files and never expanded; deeper archives expanded but their card was never promoted to a container. Fix: scan promotes expandable archives to type=folder+isArchive before emitting the batch, the skeleton reports them via onArchive/PendingArchive, and startBackgroundScanWith expands them before the queue walk (outside the T-215 budget, not re-run on resume). New progressiveArchive.test.ts covers the end-to-end wiring; progressiveScan/progressiveGraph tests pin the phase contract. Gates: tsc, lint, 2244 unit, build, desktop build. Known follow-up: the 'Expanded N archives' note is read before the background expansion finishes, so desktop opens still show no expansion toast (pre-existing since T-205)."
+    proof: ["36300e0"]
+    effort: {commits: 1, files: 8, insertions: 364, deletions: 8}
+  spent_min: 13
+  session_count: 1
