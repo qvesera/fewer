@@ -19,24 +19,23 @@ import { perfProgressiveSplit, perfSkeletonGraph } from "./perfFixtures";
 
 const BUDGET_MS = {
   /** One background batch appended to a growing 5k graph (the scan's unit of work).
-   *  Baseline at T-209: worst 18.2 ms (idle) / 52.5 ms (busy box) over 2,055
-   *  batches, 6.2–9.6 s total. Budgets ~7x to absorb CI noise; T-219 tightens
-   *  toward the 16 ms frame budget once the per-batch whole-graph rebuilds are
-   *  gone. */
-  appendBatchWorst: 150,
+   *  T-209 baseline: worst 18.2 ms (idle) / 52.5 ms (busy box), 6.2–9.6 s total
+   *  over 2,055 batches — O(B·N) whole-graph rebuilds per batch. T-219 made the
+   *  append path incremental: worst ~2.5 ms, total ~140 ms. Budgets ~10x the
+   *  post-fix numbers to absorb CI noise while still failing any O(B·N)
+   *  regression (which lands in the SECONDS). */
+  appendBatchWorst: 25,
   /** Total time to append every background batch of the 5k fixture.
-   *  Baseline: 6,173 ms — O(B*N), the dominant cost of a folder open.
-   *  Run-to-run observed: 6.2 s (idle box) to 9.6 s (box busy). */
-  appendTotal5k: 30_000,
+   *  Post-fix: ~140 ms. An O(B·N) regression is >6 s. */
+  appendTotal5k: 2_000,
   /** Full contour relayout of a 20k-node graph (the debounced flush).
-   *  Baseline: 38 ms. */
+   *  Baseline: 38 ms; post-fix unchanged (layout itself was never the bug). */
   relayout20k: 300,
   /** applySearchHighlight with an EMPTY query — must be a no-op, not a clone.
-   *  Baseline: 2.0 ms at 20k (timing passes today; the IDENTITY gate below is
-   *  what fails, and it is the real bug). */
-  searchEmpty20k: 15,
+   *  Post-fix: 0.3 ms at 20k (was 2.0 ms + full-graph clone). */
+  searchEmpty20k: 10,
   /** Child-row derivation for the 200 folder cards a typical viewport mounts.
-   *  Baseline: 9.2 ms at 20k. */
+   *  Baseline: 6–9 ms at 20k. */
   nodeChildren200: 40,
 } as const;
 
@@ -82,15 +81,32 @@ describe("graph perf budgets", () => {
     expect(ms).toBeLessThan(BUDGET_MS.relayout20k);
   }, 60_000);
 
-  // T-219 activates this gate: `applySearchHighlight("")` must return the SAME
-  // array reference. It fails at T-209 baseline (every node cloned per call,
-  // per batch, per relayout) — so it lands as `todo` and flips to a real test
-  // the moment copy-on-write lands. Kept visible so it can't be forgotten.
-  test.todo("applySearchHighlight with an empty query returns the same array (no clones)", () => {
+  // Activated by T-219: `applySearchHighlight("")` must return the SAME array
+  // reference — a clone per call was a whole-graph allocation per batch, per
+  // relayout, per structural edit.
+  test("applySearchHighlight with an empty query returns the same array (no clones)", () => {
     const { graph } = perfSkeletonGraph({ folders: 20_000, rootFanout: 12, filesPerFolder: 0 });
     const out = applySearchHighlight(graph.nodes, "");
     expect(out).toBe(graph.nodes);
   });
+
+  // T-219: the append path must not rebuild whole-graph indexes per batch —
+  // its incremental caches are keyed to the store's arrays, so a graph
+  // REPLACEMENT (setGraph) must invalidate them, and a repeated append over
+  // the same content must stay incremental. Identity round-trip guard.
+  test("appendGraphBatch keeps ids and paths stable across a re-append", () => {
+    const split = perfProgressiveSplit({ folders: 500, rootFanout: 6, filesPerFolder: 0 }, 50);
+    useGraphStore.getState().setGraph(split.skeleton.nodes, split.skeleton.edges, false);
+    for (const b of split.background) useGraphStore.getState().appendGraphBatch(b.nodes, b.edges);
+    const first = useGraphStore.getState();
+    const paths = new Set(first.nodes.map((n) => n.data.path));
+    // Re-appending the SAME batches must not duplicate or orphan anything.
+    for (const b of split.background) useGraphStore.getState().appendGraphBatch(b.nodes, b.edges);
+    const second = useGraphStore.getState();
+    expect(second.nodes.length).toBe(first.nodes.length);
+    expect(new Set(second.nodes.map((n) => n.data.path))).toEqual(paths);
+    expect(second.edges.length).toBe(first.edges.length);
+  }, 60_000);
 
   test("applySearchHighlight with an empty query stays within its time budget", () => {
     const { graph } = perfSkeletonGraph({ folders: 20_000, rootFanout: 12, filesPerFolder: 0 });
