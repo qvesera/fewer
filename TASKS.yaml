@@ -5778,14 +5778,14 @@ tasks:
   session_count: 1
 - id: "T-209"
   title: "Progressive loading: perf spike for layout at 5k/20k/50k nodes and budget defaults"
-  status: "triaged"
+  status: "done"
   type: "research"
   area: "performance"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 445
   internal: true
   milestone: null
   blocked_by: []
@@ -6062,24 +6062,30 @@ tasks:
   session_count: 1
 - id: "T-219"
   title: "Graph viewer perf: kill allocation tax + narrow CustomNode subscriptions"
-  status: "triaged"
+  status: "review"
   type: "perf"
   area: "performance"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
-  pr: null
-  internal: false
+  pr: 445
+  internal: true
   milestone: null
   blocked_by: ["T-209"]
   parent: "T-181"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-21T16:40:58Z"
-  notes: ["2026-10-21T16:41:25Z · Phases 1-4 from the lag analysis: applySearchHighlight copy-on-write, sortEdges/nodeIndexOf reuse, appendGraphBatch hoisted sibling ordinals + incremental path index, rAF-coalesced relayout, CustomNode per-parent child subscription. Guarded by the T-209 perf budget test."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  notes: ["2026-10-21T16:41:25Z · Phases 1-4 from the lag analysis: applySearchHighlight copy-on-write, sortEdges/nodeIndexOf reuse, appendGraphBatch hoisted sibling ordinals + incremental path index, rAF-coalesced relayout, CustomNode per-parent child subscription. Guarded by the T-209 perf budget test.", "2026-10-22T14:54:35Z · AFTER (same box): 5k append burst 6.2-9.6s → 158ms; searchHighlight empty @20k 2.0ms+full clone → 0.2ms+zero clone (identity gate now a real test); nodeChildren x200 @20k 6-9ms → 0.3ms. Raw appendGraphBatch floor is now the immutable-array copy (0.4ms/batch @20k, 0.8ms @50k); production multiplies that by FLUSH_MS coalescing (batch buffer in progressiveOpen, ~1 write per 100ms instead of one per directory — 9555 writes → ~300). Phase-3 render path: CustomNode/ChildEntry subscribe to stable per-card rows (cardChildRows slots) + value selectors instead of whole nodes/edges arrays; scope carries content-stable hiddenIds instead of per-batch visibleIds (was: context identity changed every batch → every mounted card re-rendered regardless of selectors). Cancel contract preserved: cancelActiveScan flushes the buffer + relayouts + clears the chip."]
+  sessions:
+  - start: "2026-10-21T18:18:00Z"
+    end: "2026-10-22T15:10:51Z"
+    measured: true
+    note: "Three-phase lag fix. PHASE 1 store: appendGraphBatch incremental indexes (appendIndexes), mergeSortedEdges (equiv-tested vs sortEdges), COW applySearchHighlight (identity gate activated), O(k) sibling ordinals, redo re-sorts. PHASE 2 scan: FLUSH_MS batch coalescing + pendingPathId parent resolution, relayout throttle w/ no-new-nodes skip, cancelActiveScan flushes buffer + clears chip (new coalesce test). PHASE 3 render: cardChildRows stable slots, value selectors in CustomNode/ChildEntry, scope hiddenIds instead of per-batch visibleIds. Numbers: 5k append 6.2-9.6s -> 0.16s; empty search @20k 2.0ms+clone -> 0.2ms+same-ref; nodeChildren x200 6-9ms -> 0.3ms; production append writes 9555 -> ~300/scan. Gates: tsc, lint, 2238 unit, build, desktop build, 67 web E2E, 6 Electron smoke — all green."
+    proof: ["ac32cc4", "918e710", "a9a457d"]
+    effort: {commits: 3, files: 17, insertions: 890, deletions: 88}
+  spent_min: 1253
+  session_count: 1
