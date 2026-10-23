@@ -6145,5 +6145,11 @@ tasks:
     note: "Cap re-derived at scan end (drain + budget pause) before the layout; unconditional final relayout; 3 tests pin archive + deep-folder capping and the under-limit no-op."
     proof: ["2f03a44", "#445"]
     effort: {commits: 1, files: 4, insertions: 178, deletions: 1}
+  - start: "2026-10-23T18:50:55Z"
+    end: "2026-10-23T18:51:08Z"
+    measured: true
+    note: "CI caught an order-dependent assertion (shared store, sortDir leaked from layoutSlice.test); pinned view state + made assertions invariant-scoped."
+    proof: ["c00c403", "#445"]
+    effort: {commits: 1, files: 1, insertions: 34, deletions: 21}
   spent_min: 14
-  session_count: 1
+  session_count: 2
