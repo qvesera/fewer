@@ -6153,3 +6153,78 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 34, deletions: 21}
   spent_min: 14
   session_count: 2
+- id: "T-222"
+  title: "Split standalone desktop app into private fewer-desktop repo; strip it from fewer"
+  status: "backlog"
+  type: "infra"
+  area: "build"
+  tier: 2
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-23T19:57:20Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-223"
+  title: "Split standalone desktop app into private fewer-desktop repo; strip it from fewer"
+  status: "triaged"
+  type: "infra"
+  area: "build"
+  tier: 2
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-23T19:57:57Z"
+  notes: ["2026-10-23T19:58:02Z · Option B: private fewer-desktop fork owns standalone; fewer becomes web-only"]
+  sessions:
+  - start: "2026-10-23T19:58:02Z"
+    end: "2026-10-23T20:14:01Z"
+    measured: true
+    note: "Private fewer-desktop repo created and forked at a3bfc70; Electron/Tauri/packaging/desktop docs removed from fewer. Follow-up: host-seam consolidation + Tauri port in the new repo."
+    proof: ["a5cac12"]
+    effort: {commits: 1, files: 53, insertions: 46, deletions: 8208}
+  spent_min: 16
+  session_count: 1
+- id: "T-224"
+  title: "Collapse the host seam (src/lib/fewer/host/) and remove dead shell UI from the web build"
+  status: "backlog"
+  type: "refactor"
+  area: "frontend"
+  tier: null
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-23T20:14:10Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
