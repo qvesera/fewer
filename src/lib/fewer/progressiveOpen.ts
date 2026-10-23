@@ -373,11 +373,23 @@ export function startBackgroundScanWith(req: {
       const heal = connectOrphansToRoot(s.nodes, s.edges, rootNode.id);
       if (heal.length) s.appendGraphBatch([], heal);
     }
+    // T-221: the auto-hide cap is a SNAPSHOT taken by `setGraph` (skeleton
+    // only, where archives have no members yet) and `appendGraphBatch` only
+    // adds nodes/edges — so everything this fill appends (every archive member,
+    // every folder's children below the skeleton) escaped the cap and showed
+    // regardless of the Auto-hide Limit. Re-derive it now that the graph is
+    // complete, BEFORE the layout: hidden cards must not keep a slot.
+    // `reconcileAutoHide` seeds manual hides and exempts `revealedRootIds`, so
+    // this only caps what the setting caps (and it is a no-op set-wise when
+    // nothing changed).
+    useGraphStore.getState().autoHideLargeFolders();
     if (relayoutTimer) {
       clearTimeout(relayoutTimer);
       relayoutTimer = null;
-      useGraphStore.getState().relayout();
     }
+    // Unconditional: the throttle's last pass may predate the final batches,
+    // and the cards the cap just hid must be re-flowed out of the layout.
+    useGraphStore.getState().relayout();
     if (result.reason === "budget" && result.unscanned.length) {
       const paths = new Set(result.unscanned.map((r) => `${rootName}/${r}`));
       useGraphStore.setState((s) => ({

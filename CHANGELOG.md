@@ -222,6 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Arrow-key navigation now zooms to FIT the selected card (same pipeline the search panel uses) instead of centering a hardcoded offset at the current zoom, which at high zoom sent the view somewhere that was not the target card.
 - Scan status is honest now: the header chip no longer prints counts twice ('36 36 cards'), counts what is actually loaded (skeleton included), resets when a new folder opens, and disappears when you stop the scan instead of lingering with stale numbers. A budget pause shows a Resume button, folders the crawl never reached are labelled 'not loaded' with — instead of a misleading '0 items', and the pause budget is 30 seconds (was 8) with archive-reading time excluded — slow external disks no longer pause after a handful of folders.
 - Desktop: archives in the top levels of an imported folder now expand instead of rendering as plain file cards — the progressive skeleton never expanded them and its deeper background pass never re-read those files (T-220).
+- Auto-hide limit now applies to the cards a folder-open scan appends in the background, expanded archive members included
 
 ### Added
 
