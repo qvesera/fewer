@@ -112,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop app: big folders open progressively. The first two levels land on the canvas immediately while the rest is scanned in the background — deeper cards appear as they are read, with a live 'Scanning …' chip in the header and a stop button. The crawl pauses at 25,000 cards or 8 seconds and marks deeper folders 'not scanned'; click a badge to load that folder on demand. No more staring at an empty canvas while a huge tree loads.
 - Web app: folder imports now load progressively too. The first two levels appear immediately while the rest streams in from the File System Access handle tree (or the grouped webkitdirectory list in browsers without it), with the same 'Scanning …' chip and stop button as the desktop app. Folder imports with 'Look Inside Archives' enabled keep the previous all-at-once walk until the archive reader streams.
 - Desktop app: double-clicking a file card opens it in the operating system's default application (same opener as the context menu and Enter) instead of only zooming. Folders still zoom to fit; files inside an expanded archive zoom since they are not real paths; the licensed in-app preview moved to Alt+double-click.
+- Standalone desktop app (Electron/Tauri shell, packaging and its docs) moved to the private fewer-desktop repository; this repo is now the web app only
 
 ### Fixed
 

@@ -68,24 +68,12 @@ bun run dev
 ### Alternative installs
 
 <details>
-<summary><b>Desktop app (Electron)</b></summary>
+<summary><b>Desktop app</b></summary>
 
-```bash
-bun install
-bun run electron:dist          # builds out/ + packages release/Fewer-<version>.AppImage + .deb
-./release/Fewer-*.AppImage     # or: sudo apt install release/fewer_*_amd64.deb
-```
-
-Fully offline: the app ships its own build and docs, with no server and no account needed
-for import, canvas, and the local graph library. On distros without libfuse2 (e.g.
-Fedora 39+), run the AppImage with `--appimage-extract-and-run`. Develop against the
-shell with `bun run electron:start`; point it at the Next dev server (HMR) with
-`FEWER_DEV_SERVER_URL=http://localhost:3000` + `bun run dev`.
-
-Bug reports go through **GitHub**: *Settings → Help → Report an Issue* builds a
-pre-filled issue and opens it in your default browser (no email channel in the
-shell). *Settings → Help → Export Settings* saves a JSON snapshot of every Fewer
-setting for a backup or to attach to a report.
+The standalone desktop build is distributed separately — its source lives in a
+private repository (`qvesera/fewer-desktop`, a fork of this one) and is no longer
+built from this repo. This repo is the web app: `bun run build` produces the
+Next.js standalone server.
 
 </details>
 

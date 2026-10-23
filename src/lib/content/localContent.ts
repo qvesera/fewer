@@ -55,9 +55,7 @@ export const SHELL_HIDDEN_DOCS = new Set([
   "watch",
 ]);
 
-// App-only docs (T-104): shipped in the desktop export, never on the web
-// (gen-seed-content.py skips them too — the file is the single source).
-export const APP_ONLY_DOCS = new Set(["desktop"]);
+// App-only docs moved to the private fewer-desktop repo with the desktop app.
 
 // Blogs are web-only: release posts are marketing; the standalone ships none
 // (the build also removes out/blog — belt and braces for prerendered pages).
@@ -152,7 +150,6 @@ export async function listLocalContent(type: ContentType): Promise<LocalContent[
     const slug = name.slice(0, -3);
     if (UNPUBLISHED.has(`${type}/${slug}`)) continue;
     if (type === "docs") {
-      if (APP_ONLY_DOCS.has(slug) && !isDesktopExport()) continue;
       if (SHELL_HIDDEN_DOCS.has(slug) && isDesktopExport()) continue;
     }
     try {
