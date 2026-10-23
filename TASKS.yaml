@@ -6118,3 +6118,32 @@ tasks:
     effort: {commits: 1, files: 8, insertions: 364, deletions: 8}
   spent_min: 13
   session_count: 1
+- id: "T-221"
+  title: "Auto-hide cap re-derives when the background scan lands"
+  status: "review"
+  type: "fix"
+  area: "perf"
+  tier: 2
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 446
+  pr: 445
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-23T18:18:02Z"
+  notes: []
+  sessions:
+  - start: "2026-10-23T18:25:24Z"
+    end: "2026-10-23T18:38:59Z"
+    measured: true
+    note: "Cap re-derived at scan end (drain + budget pause) before the layout; unconditional final relayout; 3 tests pin archive + deep-folder capping and the under-limit no-op."
+    proof: ["2f03a44", "#445"]
+    effort: {commits: 1, files: 4, insertions: 178, deletions: 1}
+  spent_min: 14
+  session_count: 1
