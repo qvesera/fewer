@@ -3,13 +3,16 @@
 // applyFolderRefresh. DEFAULT_AUTO_HIDE_THRESHOLD moves too.
 import type { StateCreator } from "zustand";
 import type { GraphState } from "../types";
+import type { FewerEdge } from "@/lib/fewer/types";
 import { layoutGraphSync } from "@/lib/fewer/layout";
 import { getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { needsLayoutDerivation, pruneViewSettingsForGraph } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
-import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets, orderFromStore } from "@/lib/fewer/importMerge";
+import { sortEdges, mergeSortedEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, computeImportedHideSets, orderFromStore } from "@/lib/fewer/importMerge";
+import { edgeIdSetOf, idToIndexOf, idToNodeOf, pathIdIndexOf, rekeyAppendIndexes } from "@/lib/fewer/appendIndexes";
+import { resetCardChildSlots } from "@/lib/fewer/cardChildRows";
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { captureViewState } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
@@ -18,6 +21,8 @@ const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
 export type CoreSliceCreator = StateCreator<GraphState, [], [], {
   setGraph: GraphState["setGraph"];
+  /** T-206: merge one progressive-scan batch (no history entry). */
+  appendGraphBatch: (nodes: import("@/lib/fewer/types").FewerNode[], edges: import("@/lib/fewer/types").FewerEdge[]) => { added: number };
   setDataSource: GraphState["setDataSource"];
   setLocalRootPath: GraphState["setLocalRootPath"];
   triggerHiddenPanelExpand: GraphState["triggerHiddenPanelExpand"];
@@ -50,6 +55,9 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   },
   setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => {
     const state = get();
+    // T-219: whole-graph replacement — drop the per-card row slots so the old
+    // graph's node objects can't be pinned by the render-path cache.
+    resetCardChildSlots();
     if (pushHistory && state.nodes.length > 0) {
       get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
     }
@@ -113,6 +121,132 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
     // View settings just changed; persist the pruned map (debounced) so storage
     // cannot resurrect the dead ids on the next load.
     get()._persistLayout();
+  },
+  /**
+   * T-206: append one progressive-scan batch to the loaded graph. Existing
+   * paths win (their ids and positions are kept, size/symlink refresh);
+   * brand-new paths are placed near their parent until the next relayout.
+   * No history entry: background appends are not user operations.
+   *
+   * T-219: per-batch cost is O(batch), not O(graph). The path→id / id→index /
+   * edge-id maps are maintained incrementally (appendIndexes, re-keyed to the
+   * arrays set below) instead of rebuilt from the whole store per batch; the
+   * sibling ordinals come from one pre-pass instead of an O(k²)
+   * `filter`+`findIndex` inside the loop; and the search-highlight pass is
+   * skipped entirely when no query is active (new nodes carry no flags, so the
+   * result is identical). Measured: 20k-node append burst 110 s → sub-second.
+   */
+  appendGraphBatch: (incomingNodes, incomingEdges) => {
+    const state = get();
+    const pathIndex = pathIdIndexOf(state.nodes);
+    const indexOfId = idToIndexOf(state.nodes);
+    const nodeById = idToNodeOf(state.nodes);
+    const idMap = new Map<string, string>();
+    const incomingParent = new Map<string, string>(incomingEdges.map((e) => [e.target, e.source]));
+    // One pass: each incoming node's ordinal among its incoming siblings
+    // (same semantics as the old filter+findIndex, but O(k) not O(k²)).
+    const siblingOrdinal = new Map<string, number>();
+    const perParentCount = new Map<string | undefined, number>();
+    for (const n of incomingNodes) {
+      const p = incomingParent.get(n.id);
+      const ord = perParentCount.get(p) ?? 0;
+      perParentCount.set(p, ord + 1);
+      siblingOrdinal.set(n.id, ord);
+    }
+    const nextNodes = [...state.nodes];
+    let added = 0;
+    for (const n of incomingNodes) {
+      if (!n.data.path) continue;
+      const existingId = pathIndex.get(n.data.path);
+      if (existingId) {
+        idMap.set(n.id, existingId);
+        const i = indexOfId.get(existingId);
+        if (i !== undefined) {
+          const cur = nextNodes[i];
+          const refreshed = {
+            ...cur,
+            data: {
+              ...cur.data,
+              size: n.data.size ?? cur.data.size,
+              symlink: n.data.symlink ?? cur.data.symlink,
+            },
+          };
+          nextNodes[i] = refreshed;
+          nodeById.set(existingId, refreshed);
+        }
+        continue;
+      }
+      pathIndex.set(n.data.path, n.id);
+      indexOfId.set(n.id, nextNodes.length);
+      // Park new cards near their parent; the debounced relayout settles them.
+      const parentId = incomingParent.get(n.id);
+      const parent = parentId ? nextNodes[indexOfId.get(parentId) ?? -1] : undefined;
+      const ordinal = siblingOrdinal.get(n.id) ?? 0;
+      const parked = {
+        ...n,
+        position: {
+          x: (parent?.position.x ?? 0) + ordinal * 30,
+          y: (parent?.position.y ?? 0) + 140,
+        },
+        style: {
+          ...n.style,
+          width: state.nodeWidth,
+          height: n.data.type === "folder" ? state.nodeHeight : undefined,
+          minHeight: undefined,
+        },
+      };
+      nextNodes.push(parked);
+      nodeById.set(n.id, parked);
+      added++;
+    }
+    // T-212: no `added === 0` early return — a batch whose nodes all exist
+    // still repairs MISSING EDGES (the scan-end orphan heal appends edge-only
+    // batches, and a re-emitted directory re-wires any edge that was lost).
+    const edgeKeys = edgeIdSetOf(state.edges);
+    const edgeType = edgeTypeFromStyle(state.edgeStyle);
+    const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+    const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
+    const addedEdges: FewerEdge[] = [];
+    for (const e of incomingEdges) {
+      const source = idMap.get(e.source) ?? e.source;
+      const target = idMap.get(e.target) ?? e.target;
+      // `indexOfId` covers every live node (existing + this batch) — no
+      // separate whole-graph id Set per batch.
+      if (!indexOfId.has(source) || !indexOfId.has(target)) continue;
+      const id = `e-${source}-${target}`;
+      if (edgeKeys.has(id)) continue;
+      edgeKeys.add(id);
+      addedEdges.push({
+        ...e,
+        id,
+        source,
+        target,
+        type: edgeType,
+        animated,
+        style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
+      });
+    }
+    // `state.edges` is already in painter order (every writer sorts; redo
+    // re-sorts in historySlice), so the batch's edges MERGE in O(E + k log k)
+    // instead of re-sorting all E — fed the incremental id→node map so the
+    // merge never rebuilds a whole-graph Map on the fresh array.
+    const nextEdges = mergeSortedEdges(state.edges, addedEdges, nodeById);
+    // Empty query ⇒ flags are already false everywhere (clearing the query
+    // cleared them), and batch nodes carry no flags — so the pass would be a
+    // no-op scan over the whole graph. Skip it.
+    const applied = state.searchQuery.trim()
+      ? applySearchHighlight(nextNodes, state.searchQuery, state.categoryFilter)
+      : nextNodes;
+    // Re-key the incremental indexes to what the store will hold. `applied` /
+    // `nextEdges` keep the same ids/paths/indices and edge-id membership as the
+    // arrays the maps were built on (the merge only reorders).
+    rekeyAppendIndexes(applied, nextEdges);
+    set({
+      nodes: applied,
+      edges: nextEdges,
+      graphVersion: state.graphVersion + 1,
+    });
+    return { added };
   },
   relayout: () => {
     const { nodes, edges, direction, searchQuery, categoryFilter, hiddenIds, graphVersion, shynessScale, sortKey, sortDir } = get();

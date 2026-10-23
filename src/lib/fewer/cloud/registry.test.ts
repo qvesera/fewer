@@ -1,7 +1,12 @@
 import { describe, expect, test, mock } from "bun:test";
 mock.module("server-only", () => ({}));
 
-const { getAdapter, isProviderImplemented } = await import("./registry");
+// T-211 (final): import registryCore through a query-busted specifier — bun
+// evaluates it as a SEPARATE, never-mocked instance, no matter what
+// mock.module("./registry", …) server.test.ts installs or how the runner
+// orders the files. This file can never see another file's stub.
+const freshSpec = "./registryCore" + "?fresh=1";
+const { getAdapter, isProviderImplemented } = (await import(freshSpec)) as typeof import("./registryCore");
 
 describe("getAdapter", () => {
   test("github → returns adapter with id=github", async () => {

@@ -115,7 +115,12 @@ export function GroupFrames({
   pillRects?: ReadonlyMap<string, GroupBounds>;
 }): ReactNode {
   const groups = useGraphStore((s) => s.groups) ?? [];
-  const { visibleIds, direction } = useGraphViewScope();
+  const { direction } = useGraphViewScope();
+  // T-219: the painted set comes from THIS component's `nodes` prop (the view's
+  // positioned/painted list) instead of the scope's old `visibleIds` — same
+  // contents, and it no longer forces the shared scope to carry a per-batch
+  // array (the scope now exposes only content-stable `hiddenIds`).
+  const paintedIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
   // Collapsed pills anchor on the store's full list (hidden members), with this
   // leaf's per-view positions overlaid — built once for every group (T-138).
   const allNodes = useGraphStore((s) => s.nodes);
@@ -134,8 +139,8 @@ export function GroupFrames({
           return p ? { ...n, position: p } : n;
         })
       : allNodes;
-    return groupFrameRects(groups, nodes, anchor, visibleIds, direction, new Set(collapsedGroupIds ?? []), pillRects);
-  }, [groups, nodes, allNodes, leafPositions, visibleIds, direction, collapsedGroupIds, pillRects]);
+    return groupFrameRects(groups, nodes, anchor, paintedIds, direction, new Set(collapsedGroupIds ?? []), pillRects);
+  }, [groups, nodes, allNodes, leafPositions, paintedIds, direction, collapsedGroupIds, pillRects]);
 
   if (groups.length === 0) return null;
   return (
@@ -150,7 +155,7 @@ export function GroupFrames({
               key={id}
               group={group}
               nodes={nodes}
-              visible={visibleIds}
+              visible={paintedIds}
               leafId={leafId}
               rect={rect}
               pillRect={pillRects?.get(id)}

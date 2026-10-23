@@ -11,7 +11,7 @@
 // process had (AGENTS.md → component test isolation).
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { hostFilePathForDrop, hostInvoke, isElectron, isHost, isTauri, nativeListDir } from "./nativeShell";
+import { hostFilePathForDrop, hostInvoke, isElectron, isHost, isTauri, nativeListDir, nativeOnMenu } from "./nativeShell";
 
 type FakeWindow = Record<string, unknown>;
 const g = globalThis as unknown as { window?: FakeWindow };
@@ -136,5 +136,43 @@ describe("hostInvoke routing", () => {
     await expect(hostInvoke("fs_read_text", { path: "/tmp/x" })).rejects.toThrow(
       /no host bridge[\s\S]*fs_read_text/,
     );
+  });
+});
+
+describe("nativeOnMenu (T-197)", () => {
+  test("no window → subscription is inert", () => {
+    delete g.window;
+    expect(() => nativeOnMenu(() => {})()).not.toThrow();
+  });
+
+  test("bridge without onMenu (Tauri, older preload) → inert unsubscribe", () => {
+    installWindow({ __FEWER_NATIVE__: { invoke: () => Promise.resolve() } });
+    expect(() => nativeOnMenu(() => {})()).not.toThrow();
+  });
+
+  test("Electron preload onMenu → actions delivered, unsubscribe stops them", () => {
+    const bridge: { handler: ((a: string) => void) | null; unsubscribed: boolean } = {
+      handler: null,
+      unsubscribed: false,
+    };
+    installWindow({
+      __FEWER_NATIVE__: {
+        invoke: () => Promise.resolve(),
+        onMenu: (cb: (a: string) => void) => {
+          bridge.handler = cb;
+          return () => {
+            bridge.unsubscribed = true;
+            bridge.handler = null;
+          };
+        },
+      },
+    });
+    const seen: string[] = [];
+    const off = nativeOnMenu((action) => seen.push(action));
+    bridge.handler?.("settings");
+    expect(seen).toEqual(["settings"]);
+    off();
+    expect(bridge.unsubscribed).toBe(true);
+    expect(bridge.handler).toBeNull();
   });
 });

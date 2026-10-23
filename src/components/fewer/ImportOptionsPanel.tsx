@@ -17,6 +17,7 @@ import {
   Link2,
 } from "lucide-react";
 import { RELEVANT_OPTIONS, type ImportOptions, type OptionKey, type OptionScope } from "@/lib/fewer/importOptions";
+import { isHost } from "@/lib/fewer/nativeShell";
 import { cn } from "@/lib/utils";
 
 interface ImportOptionsPanelProps {
@@ -285,17 +286,20 @@ export function ImportOptionsPanel({
                     Look Inside Archives
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Show what&apos;s inside{" "}
+                    {isHost()
+                      ? "Always on in the desktop app: archives found in the opened folder show their contents on the canvas, without extracting them."
+                      : <>Show what&apos;s inside{" "}
                     <code className="font-mono text-[10px] bg-muted px-1 rounded">.zip</code>,{" "}
                     <code className="font-mono text-[10px] bg-muted px-1 rounded">.tar</code>,{" "}
                     <code className="font-mono text-[10px] bg-muted px-1 rounded">.7z</code>{" "}
-                    and friends found in the folder, without extracting them.
+                    and friends found in the folder, without extracting them.</>}
                   </p>
                 </div>
               </div>
               <Switch
                 id="ip-expand-archives"
-                checked={options.expandArchives}
+                checked={isHost() || options.expandArchives}
+                disabled={isHost()}
                 onCheckedChange={(v) => update({ expandArchives: v })}
               />
             </div>

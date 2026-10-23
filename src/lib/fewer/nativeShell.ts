@@ -42,6 +42,9 @@ interface HostBridge {
      *  that host delivers dropped paths through its `tauri://drag-drop` event
      *  instead, which is not wired up yet (Tauri parked). */
     filePath?: (file: unknown) => string;
+    /** T-197: application-menu action subscription (main → renderer). Returns
+     *  an unsubscribe. Absent on Tauri and in the web build. */
+    onMenu?: (cb: (action: string) => void) => () => void;
   };
 }
 
@@ -67,6 +70,18 @@ export function hostInvoke<T>(cmd: string, args?: Record<string, unknown>): Prom
 /** Open a file/folder with the OS default handler (replaces /api/open-*). */
 export function nativeOpenPath(path: string): Promise<void> {
   return hostInvoke("open_in_os", { path });
+}
+
+/**
+ * T-197: subscribe to native application-menu actions (ids like
+ * "open-folder", "settings"). Returns an unsubscribe function; in the web app
+ * (no host bridge) the subscription is inert and the returned unsubscribe is a
+ * no-op, so callers can always subscribe unconditionally behind `isHost()`.
+ */
+export function nativeOnMenu(cb: (action: string) => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const helper = (window as unknown as HostBridge).__FEWER_NATIVE__?.onMenu;
+  return typeof helper === "function" ? helper(cb) : () => {};
 }
 
 /** Windowed directory listing — the spike §7.1 RPC shape. */
@@ -138,6 +153,58 @@ export function nativeFsReadBytes(path: string, maxBytes: number): Promise<Array
  */
 export function nativeTakePendingOpenFile(): Promise<string | null> {
   return hostInvoke<string | null>("take_pending_open_file");
+}
+
+/* ---- T-200: on-device search index over opened folders ---- */
+
+export interface NativeIndexBuildResult {
+  root: string;
+  indexed: number;
+  truncated: boolean;
+  durationMs: number;
+}
+export interface NativeDeviceHit {
+  path: string;
+  name: string;
+  root: string;
+  type: "folder" | "file";
+}
+export interface NativeIndexStats {
+  total: number;
+  bytes: number;
+  roots: Array<{ root: string; count: number; indexedAt: string }>;
+}
+
+/** (Re)build the index for one folder root. Resolves when the walk is done. */
+export function nativeIndexBuild(root: string): Promise<NativeIndexBuildResult> {
+  return hostInvoke<NativeIndexBuildResult>("index_build", { root });
+}
+/** Query the index (FTS5 prefix, LIKE fallback). */
+export function nativeIndexSearch(query: string, limit?: number): Promise<{ hits: NativeDeviceHit[] }> {
+  return hostInvoke<{ hits: NativeDeviceHit[] }>("index_search", { query, limit });
+}
+/** Index size + per-root counts (Settings → storage). */
+export function nativeIndexStatus(): Promise<NativeIndexStats> {
+  return hostInvoke<NativeIndexStats>("index_status");
+}
+/** Drop one root's rows. */
+export function nativeIndexPurge(root: string): Promise<{ removed: number }> {
+  return hostInvoke<{ removed: number }>("index_purge", { root });
+}
+/** Drop every root (the Settings "clear index" button). */
+export function nativeIndexClear(): Promise<{ removed: number }> {
+  return hostInvoke<{ removed: number }>("index_clear");
+}
+
+/* ---- T-203: per-folder tags/groups metadata ---- */
+
+/** Read the metadata document for a folder root; null when none saved yet. */
+export function nativeFolderMetaGet(root: string): Promise<{ contents: string | null }> {
+  return hostInvoke<{ contents: string | null }>("folder_meta_get", { root });
+}
+/** Write the metadata document for a folder root. */
+export function nativeFolderMetaSet(root: string, contents: string): Promise<{ ok: boolean }> {
+  return hostInvoke<{ ok: boolean }>("folder_meta_set", { root, contents });
 }
 
 /**
