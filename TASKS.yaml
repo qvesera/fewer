@@ -5056,14 +5056,14 @@ tasks:
   session_count: 1
 - id: "T-181"
   title: "Remove the standalone desktop host seam and shell-only surfaces from the web build"
-  status: "triaged"
+  status: "review"
   type: "refactor"
   area: "frontend"
   tier: 2
   estimate_min: 600
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 448
   internal: true
   milestone: null
   blocked_by: []
