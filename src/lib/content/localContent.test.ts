@@ -71,6 +71,7 @@ describe("shell export filtering (T-104)", () => {
     expect(isDesktopExport()).toBe(true);
     const docs = (await listLocalContent("docs")).map((d) => d.slug);
     expect(docs).toContain("getting-started");
+    expect(docs).toContain("desktop"); // app-only ships in the shell
     expect(docs).not.toContain("cloud"); // web-only hidden
     expect(docs).not.toContain("plans");
     expect(docs).not.toContain("privacy");

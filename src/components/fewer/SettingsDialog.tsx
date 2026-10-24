@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { SearchIndexPanel } from "./SearchIndexPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1449,12 +1448,6 @@ function HelpTab() {
           Support
         </Label>
         {renderActions(supportActions)}
-      </div>
-      <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Storage
-        </Label>
-        <SearchIndexPanel />
       </div>
     </div>
   );

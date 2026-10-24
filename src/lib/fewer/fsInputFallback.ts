@@ -98,7 +98,7 @@ function removeEmptyFolders(entry: TreeEntry): boolean {
   return entry.children.length > 0;
 }
 
-export function showInputPicker(): Promise<FileList | null> {
+function showInputPicker(): Promise<FileList | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";

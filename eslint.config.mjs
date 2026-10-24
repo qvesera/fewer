@@ -47,8 +47,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
 }, {
   // Host engines are a backend detail (T-094 seam): feature code routes through
   // src/lib/fewer/nativeShell.ts (isHost() + hostInvoke) and never imports a
-  // host package directly. The desktop host now lives in the private
-  // fewer-desktop repo — neither @tauri-apps/* nor electron is importable here.
+  // host package directly. The Rust side of the contract is src-tauri/src/lib.rs;
+  // the Node side is electron/handlers/ — neither is importable from src/.
   files: ["src/**/*.{ts,tsx}"],
   rules: {
     "no-restricted-imports": ["error", {
@@ -61,7 +61,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     }],
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/libarchive/**"]
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/libarchive/**", "src-tauri/target/**", "src-tauri/gen/**", "electron/dist/**"]
 }];
 
 export default eslintConfig;

@@ -7,8 +7,9 @@ import { makeTagLabelLookup } from "./tags";
 import { categoryHiddenNodeIds } from "./categorize";
 
 /** Preserve painter order: files before folders, reverse label, then raised edges. */
-export function compareEdgePaintOrder(nodeMap: Map<string, FewerNode>) {
-  return (a: FewerEdge, b: FewerEdge): number => {
+export function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  return [...edges].sort((a, b) => {
     const aNode = nodeMap.get(a.target);
     const bNode = nodeMap.get(b.target);
     const aType = aNode?.data.type ?? "file";
@@ -20,47 +21,7 @@ export function compareEdgePaintOrder(nodeMap: Map<string, FewerNode>) {
     const labelDiff = bLabel.localeCompare(aLabel);
     if (labelDiff !== 0) return labelDiff;
     return (a.zIndex ?? 0) - (b.zIndex ?? 0);
-  };
-}
-
-export function sortEdges(edges: FewerEdge[], nodes: FewerNode[]): FewerEdge[] {
-  // T-219: the identity-cached node index (graphIndex) instead of rebuilding a
-  // Map over every node per call — sortEdges runs on every append/import/edit.
-  const nodeMap = nodeIndexOf(nodes);
-  return [...edges].sort(compareEdgePaintOrder(nodeMap));
-}
-
-/**
- * T-219: merge freshly appended edges into an ALREADY-SORTED edge array in
- * O(E + k log k) instead of re-sorting all E edges (O(E log E)) per scan batch.
- * `existing` must be in `sortEdges` order — every store writer that touches
- * edges sorts them (redo re-sorts; see historySlice), so the append path can
- * rely on it. Stable on ties: equal keys keep existing edges first, exactly
- * like `[...existing, ...incoming]` through the stable `sortEdges`.
- *
- * Takes the id→node map directly so the append path can feed its incremental
- * one (`idToNodeOf`) — `nodeIndexOf(nodes)` would rebuild a whole-graph Map on
- * the fresh array every batch.
- */
-export function mergeSortedEdges(
-  existing: FewerEdge[],
-  incoming: FewerEdge[],
-  nodeMap: Map<string, FewerNode>,
-): FewerEdge[] {
-  if (incoming.length === 0) return existing;
-  const cmp = compareEdgePaintOrder(nodeMap);
-  const sortedNew = [...incoming].sort(cmp);
-  const out: FewerEdge[] = new Array(existing.length + sortedNew.length);
-  let i = 0;
-  let j = 0;
-  let k = 0;
-  while (i < existing.length && j < sortedNew.length) {
-    // `<= 0` keeps existing edges first on ties (stability parity with sort).
-    out[k++] = cmp(existing[i], sortedNew[j]) <= 0 ? existing[i++] : sortedNew[j++];
-  }
-  while (i < existing.length) out[k++] = existing[i++];
-  while (j < sortedNew.length) out[k++] = sortedNew[j++];
-  return out;
+  });
 }
 
 /** Shared duplicate/paste merge; history and search highlighting stay in the slice. */

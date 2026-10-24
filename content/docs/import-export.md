@@ -41,13 +41,10 @@ same graph from the session cache restores its view state untouched.
    - Extension filter
 4. Click **Import**
 
-The first two levels of the folder appear on the canvas **immediately**, and
-the rest streams in progressively — a live chip in the header shows
-`Scanning …` with the running card and folder counts and offers a stop button,
-so a huge folder never leaves you staring at an empty canvas. Dismissing the
-folder picker simply cancels the import and returns you to the summary —
-nothing is loaded. Imports with **Look Inside Archives** enabled still wait
-for the full walk before rendering (the archive reader is not streaming yet).
+The graph builds instantly with auto-layout. Large imports show a progress bar
+with the current phase and, once the file count is known, a percentage.
+Dismissing the folder picker simply cancels the import and returns you to the
+summary. Nothing is loaded.
 
 ### Drag & Drop (empty canvas)
 

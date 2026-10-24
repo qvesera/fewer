@@ -345,10 +345,7 @@ function withActions(reader: StoreReader, a: Record<string, any>): StoreReader &
   return {
     ...reader,
     organize: (leafId) => { a.organize = leafId ?? null; a.organizeCalls = (a.organizeCalls ?? 0) + 1; },
-    // T-213: arrow navigation zooms through the store's zoom-to-node pipeline.
-    setZoomToNode: (id: string) => { a.setZoomToNode = id; },
-    showAncestors: (id: string) => { a.showAncestors = id; },
-  } as never;
+  };
 }
 
 function makeCtx(overrides?: Partial<ShortcutCtx>): { ctx: ShortcutCtx; a: Record<string, any> } {
@@ -654,19 +651,3 @@ test("Ctrl+V paste toasts real clipboard content", () => {
 });
 
 // ─── Dialog blocking ───────────────────────────────────────────────────
-
-// ─── Arrow-key zoom-to-fit (T-213) ──────────────────────────────────────────
-test("Arrow keys zoom to FIT the target card instead of setCenter offsets", () => {
-  const folder = (id: string) =>
-    ({ id, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type: "folder" } } as any);
-  const nodes = [folder("a"), folder("b")];
-  const edges = [{ id: "e", source: "a", target: "b" }] as any;
-  const { ctx, a } = makeCtx({
-    getState: () => withActions(toStoreReader({ nodes, edges, focusedNodeId: "a", selectedNodeIds: ["a"] }), a) as any,
-  });
-  expect(fire(buildKeyboardRules(), ctx, { key: "ArrowDown" })).toBe(true);
-  expect(a.setFocusedNodeId).toBe("b");
-  expect(a.setSelectedNodeIds).toEqual(["b"]);
-  expect(a.setZoomToNode).toBe("b");
-  expect(a.setCenter).toBeUndefined();
-});

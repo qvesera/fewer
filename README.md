@@ -68,12 +68,24 @@ bun run dev
 ### Alternative installs
 
 <details>
-<summary><b>Desktop app</b></summary>
+<summary><b>Desktop app (Electron)</b></summary>
 
-The standalone desktop build is distributed separately — its source lives in a
-private repository (`qvesera/fewer-desktop`, a fork of this one) and is no longer
-built from this repo. This repo is the web app: `bun run build` produces the
-Next.js standalone server.
+```bash
+bun install
+bun run electron:dist          # builds out/ + packages release/Fewer-<version>.AppImage + .deb
+./release/Fewer-*.AppImage     # or: sudo apt install release/fewer_*_amd64.deb
+```
+
+Fully offline: the app ships its own build and docs, with no server and no account needed
+for import, canvas, and the local graph library. On distros without libfuse2 (e.g.
+Fedora 39+), run the AppImage with `--appimage-extract-and-run`. Develop against the
+shell with `bun run electron:start`; point it at the Next dev server (HMR) with
+`FEWER_DEV_SERVER_URL=http://localhost:3000` + `bun run dev`.
+
+Bug reports go through **GitHub**: *Settings → Help → Report an Issue* builds a
+pre-filled issue and opens it in your default browser (no email channel in the
+shell). *Settings → Help → Export Settings* saves a JSON snapshot of every Fewer
+setting for a backup or to attach to a report.
 
 </details>
 
@@ -111,15 +123,6 @@ docker run -p 3000:3000 fewer
 > **Import → From disk** instead. The **desktop app** has them all: drag a
 > folder onto the canvas to open it as the graph (it asks before replacing the
 > current one), or drop a file to open it in its default app.
-
-> **Desktop app:** *File & Actions* leads with **Open Folder** (native picker,
-> straight away) and **Recent Folders** — every folder you open is remembered,
-> one click re-opens it. URL/GitHub/archive/file imports sit behind **More
-> sources…**. The app has a native **File / Edit / View / Window / Help** menu
-> (Open Folder `Ctrl+O`, Save `Ctrl+S`, Export `Ctrl+E`, Settings `Ctrl+,`,
-> Toggle Sidebar `Ctrl+B`), a single compact 44px header, and the search box
-> also queries a **local index of the folders you have opened** (names and
-> paths only, never file contents — clearable in Settings → Help → Storage).
 
 ### Edit the graph
 
