@@ -51,7 +51,6 @@ Settings in Advanced:
 - **GitHub Issues** link
 - **Website** link
 
-<!-- shell:off -->
 ## Accounts & Saved Graphs
 
 Fewer works fully without an account. Signing in (optional) unlocks saving and sharing your directories across devices. See [Accounts & Saved Graphs](/docs/accounts) for the full guide.
@@ -82,7 +81,6 @@ The **Your Directories** section lists your saved graphs. Each row lets you:
 - **Delete** (trash icon)
 
 Saving is always user-initiated. Fewer never auto-uploads your graph.
-<!-- /shell:off -->
 
 ## Notifications
 

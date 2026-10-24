@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 import { getSupabase } from "@/lib/supabase";
-import { isDesktopExport, listLocalContent } from "@/lib/content/localContent";
 
 export const metadata = {
   title: "Docs | Fewer",
@@ -19,14 +18,6 @@ type DocMeta = {
 };
 
 async function getDocs(): Promise<DocMeta[]> {
-  // Desktop export: the same repo markdown the pages render, no server query.
-  if (isDesktopExport()) {
-    return (await listLocalContent("docs")).map((d) => ({
-      slug: d.slug,
-      title: d.title,
-      description: d.description,
-    }));
-  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")
@@ -64,21 +55,6 @@ const WEB_SECTIONS = [
   },
 ];
 
-// Shell variant (T-104): only locally relevant guides + the app-only page —
-// accounts/cloud/pricing/legal/PWA pages don't exist in the standalone export.
-const SHELL_SECTIONS = [
-  {
-    title: "Getting Started",
-    items: ["getting-started", "desktop"],
-  },
-  {
-    title: "Using Fewer",
-    items: ["graph-features", "editing", "import-export", "shortcuts", "theming", "settings"],
-  },
-];
-
-const sections = isDesktopExport() ? SHELL_SECTIONS : WEB_SECTIONS;
-
 export default async function DocsPage() {
   const docs = await getDocs();
   const docsBySlug = new Map(docs.map((d) => [d.slug, d]));
@@ -94,7 +70,7 @@ export default async function DocsPage() {
 
       <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-10">
         <aside className="md:col-span-1 space-y-6">
-          {sections.map((section) => (
+          {WEB_SECTIONS.map((section) => (
             <div key={section.title}>
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}

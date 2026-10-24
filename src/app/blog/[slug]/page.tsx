@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { DocsLayout } from "@/components/DocsLayout";
 import { renderMarkdown } from "@/lib/MarkdownRenderer";
 import { getSupabase } from "@/lib/supabase";
-import { getLocalContent, isDesktopExport, listLocalSlugs } from "@/lib/content/localContent";
 
 // Serve from Supabase with a 60s revalidate so edits go live without a deploy.
 // (The desktop static export has no server: it renders the in-repo markdown at
@@ -21,20 +20,6 @@ type PostMeta = {
 };
 
 async function getPost(slug: string): Promise<{ content: string; meta: PostMeta } | null> {
-  if (isDesktopExport()) {
-    const local = await getLocalContent("blog", slug);
-    if (!local) return null;
-    return {
-      content: local.content,
-      meta: {
-        title: local.title,
-        date: local.date,
-        description: local.description,
-        author: local.author,
-        tags: local.tags,
-      },
-    };
-  }
   try {
     const { data, error } = await getSupabase()
       .from("content_pages")
@@ -61,11 +46,6 @@ async function getPost(slug: string): Promise<{ content: string; meta: PostMeta 
 
 // Static export prerenders every slug from the repo's markdown; the web build
 // renders on demand with ISR.
-export async function generateStaticParams() {
-  if (!isDesktopExport()) return [];
-  return (await listLocalSlugs("blog")).map((slug) => ({ slug }));
-}
-
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {

@@ -7,53 +7,34 @@
  *    explorer/open/xdg-open on the machine running the dev server)
  *  - OS drag-and-drop of folders onto the canvas
  *
- * None of these exist or are reliable inside a non-browser shell (e.g. a
- * Tauri webview): there is no Next.js server to spawn openers, no
- * showDirectoryPicker in WKWebView/WebKitGTK, and OS file drops are
- * intercepted by the shell before HTML5 drop events fire.
+ * The web build supports none of them today: the opener routes are dev-only,
+ * `showDirectoryPicker` is Chromium-only, and reading `DataTransfer.files`
+ * outside our own packaged Chromium is what the portalised-Chromium crash
+ * hazard warns about (dropImport.ts). Flags stay so the web can flip them
+ * without touching call sites.
  *
- * The opener flags flip at runtime inside the Tauri thin shell, which replaces
- * the localhost routes with its own `open_in_os` command (see nativeShell.ts;
- * ruling: .agents/doc/2026-10-02-native-shell-spike.md). Everything else stays
- * OFF until its native replacement lands (T-063 children) — the code behind
- * them is kept intact.
- *
- * What intentionally still works everywhere (incl. webviews):
- *  - folder import via the legacy `<input webkitdirectory>` picker
- *  - file / URL / cloud imports (plain inputs, FileReader, fetch)
- *  - in-app node drag & drop (custom DataTransfer payload, no item access)
+ * What intentionally still works: folder import via the legacy
+ * `<input webkitdirectory>` picker, file / URL / cloud imports, and in-app node
+ * drag & drop (custom DataTransfer payload, no item access).
  */
-import { isHost } from "./nativeShell";
-
-/** True inside any desktop shell host (Tauri or Electron); false on web, SSR, and bun tests. */
-const inHostShell = isHost();
 
 export const LOCAL_FS_FEATURES = {
-  /** "Open in File Explorer" (folder context menu + Alt+O): /api/open-folder or the shell's open_in_os. */
-  openInOs: inHostShell,
-  /** "Open File" (file context menu + Enter): /api/open-file, FS handles, or the shell's open_in_os. */
-  openFileInOs: inHostShell,
-  /** External OS folder drop on the canvas → import (T-122).
-   *  ON in the shell only: the preload bridge resolves the dropped `File` to
-   *  an absolute path, so the walk needs no server. Off on web, where the old
-   *  picker fallback still exists behind it — reading `DataTransfer.files`
-   *  outside our own packaged Chromium is what the portalised-Chromium crash
-   *  hazard warns about (dropImport.ts), so the web build must never reach it. */
-  dragDropImport: inHostShell,
-  /** Drop a disk-backed folder child onto the canvas to expand it from disk.
-   *  FSA-handle only — the shell has no handles, so it stays OFF. */
+  /** "Open in File Explorer" (folder context menu + Alt+O). */
+  openInOs: false,
+  /** "Open File" (file context menu + Enter). */
+  openFileInOs: false,
+  /** External OS folder drop on the canvas → import. */
+  dragDropImport: false,
+  /** Drop a disk-backed folder child onto the canvas to expand it from disk. */
   dropToExpand: false,
   /** File System Access API directory picker (showDirectoryPicker). */
   fsaDirectoryPicker: false,
 } as const;
 
-// ── Standalone shell: server-dependent features (T-098 / T-099) ─────────────
-// The web app is the only host with a server — none of the /api routes ship in
-// the desktop static export. Every surface below is OFF in the shell regardless
-// of tier: no account exists to gate on. Replacements: local library (.fwr,
-// T-101), theme files (.fwtheme, T-101), host_fetch for URL/GitHub import
-// (T-102), GitHub issues for bug reports (T-105). One map decides — components
-// gate on cloudFeature() instead of inventing per-surface shell checks.
+// ── Server-dependent features ───────────────────────────────────────────────
+// The web app is the host with the server; every surface below ships there.
+// The map stays so call sites read as "server feature" rather than hardcoding
+// true in a dozen components.
 export type CloudFeature =
   | "accounts"        // sign-in, profile edits, account deletion
   | "cloudSave"       // /api/graphs cloud-saved projects
@@ -63,10 +44,8 @@ export type CloudFeature =
   | "watch"           // watched indexes + nightly email digests
   | "versionHistory"  // /api/graphs/[id]/versions snapshots
   | "billing"         // Stripe checkout / customer portal
-  | "bugEmail";       // Web3Forms email fallback in the bug report (T-105): the
-                      // shell files GitHub issues instead — no server-side key
+  | "bugEmail";       // Web3Forms email fallback in the bug report
 
-/** True on the web (a server exists); false in the desktop shell. */
 export const CLOUD_FEATURES: Record<CloudFeature, boolean> = {
   accounts: true,
   cloudSave: true,
@@ -79,12 +58,8 @@ export const CLOUD_FEATURES: Record<CloudFeature, boolean> = {
   bugEmail: true,
 };
 
-/** Pure core: unit-testable without a DOM or a host. */
-export function cloudFeatureFor(inShell: boolean, feature: CloudFeature): boolean {
-  return CLOUD_FEATURES[feature] && !inShell;
+/** Server-feature check used by components. */
+export function cloudFeature(feature: CloudFeature): boolean {
+  return CLOUD_FEATURES[feature];
 }
 
-/** Shell-aware check used by components: server features are off standalone. */
-export function cloudFeature(feature: CloudFeature): boolean {
-  return cloudFeatureFor(inHostShell, feature);
-}

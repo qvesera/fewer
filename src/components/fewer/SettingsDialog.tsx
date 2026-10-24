@@ -80,8 +80,6 @@ import { SlidingToggle } from "../ui/sliding-toggle";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeEditorDialog, Logo, CloudPanel } from ".";
 import { WatchedIndexesPanel } from "./WatchedIndexesPanel";
-import { LicensePanel } from "./LicensePanel";
-import { isHost } from "@/lib/fewer/nativeShell";
 import { collectSettingsExport, settingsExportFilename } from "@/lib/fewer/settingsExport";
 import {
   AlertDialog,
@@ -127,7 +125,6 @@ const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
   appearance: { label: "Appearance", Icon: Palette },
   watched: { label: "Watched", Icon: BellRing },
   cloud: { label: "Cloud", Icon: Cloud },
-  license: { label: "License", Icon: KeyRound },
   advanced: { label: "Advanced", Icon: Settings },
   help: { label: "Help", Icon: BookOpen },
 };
@@ -1359,7 +1356,6 @@ function HelpTab() {
     const snapshot = collectSettingsExport({
       keys: Object.keys(localStorage),
       read: (key) => localStorage.getItem(key),
-      host: isHost(),
     });
     const filename = settingsExportFilename(Date.now());
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], {
@@ -1391,19 +1387,11 @@ function HelpTab() {
 
   const learnActions = [
     { label: "Restart Interactive Tutorial", icon: RefreshCw, onClick: handleRestartTutorial },
-    // Blog is web-only: stripped from the standalone export (T-104).
-    ...(!isHost()
-      ? [{ label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") }]
-      : []),
+    { label: "Blog", icon: Newspaper, onClick: () => window.open("/blog", "_blank", "noreferrer") },
     {
       label: "Documentation",
       icon: BookOpen,
-      onClick: () => {
-        // Shell (T-104): docs live in-app — app:// serves the prerendered
-        // export and the navigation guard allows /docs. Web opens a tab.
-        if (isHost()) window.location.assign("/docs");
-        else window.open("/docs", "_blank", "noreferrer");
-      },
+      onClick: () => window.open("/docs", "_blank", "noreferrer"),
     },
   ];
 
@@ -1467,7 +1455,7 @@ export function SettingsDialog() {
   const isMobile = useIsMobile();
   // The Advanced tab is empty for non-Pro mobile users: Layout Policy +
   // Node Metrics are Pro-tier and the Scroll to Zoom card is desktop-only.
-  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled, inShell: isHost() });
+  const tabs = visibleTabs({ tier, isMobile, advancedMode: advancedModeEnabled });
   const showAdvancedTab = tabs.includes("advanced");
 
   // Open straight to the Account (profile) tab when the share/gallery flow asks
@@ -1533,7 +1521,6 @@ export function SettingsDialog() {
                 {id === "about" && <AboutTab />}
                 {id === "appearance" && <AppearanceTab />}
                 {id === "watched" && <WatchedIndexesPanel />}
-                {id === "license" && <LicensePanel />}
                 {id === "cloud" && <CloudTab />}
                 {id === "advanced" && <AdvancedTab />}
                 {id === "help" && <HelpTab />}

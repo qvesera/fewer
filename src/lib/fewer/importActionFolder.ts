@@ -17,8 +17,6 @@ import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { TreeEntry } from "@/lib/fewer/types";
 import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
 import { useGraphStore } from "@/store/graphStore";
-import { isHost, nativeListDir, nativePickDirectory } from "@/lib/fewer/nativeShell";
-import { buildTreeFromNative } from "@/lib/fewer/nativeTree";
 /** Produce the tree for a dropped folder through whichever channel delivered it. */
 async function treeFromDropped(
   source: DroppedDirectorySource,
@@ -30,12 +28,8 @@ async function treeFromDropped(
       return await buildTreeFromHandle(source.handle, 0, options);
     case "entry":
       return await buildTreeFromEntry(source.entry, 0, options);
-    case "path":
-      // T-122: an OS-dropped folder arrives as an absolute path from the
-      // shell's preload bridge. Walk it with the same reader and filters as
-      // the picker branch, so a dropped folder and a picked folder produce
-      // identical graphs — and both record an absolute root path.
-      return await buildTreeFromNative(source.path, options, nativeListDir);
+    default:
+      return null;
   }
 }
 
@@ -76,21 +70,9 @@ export async function runFolderImport(
     // native dialog is folder-only and the walk needs no server. Absolute
     // paths survive, so localRootPath is known exactly and Open-in-Explorer /
     // saved graphs resolve without a filesystem search.
-    const nativeAllowed = isHost();
     let tree: TreeEntry | null = null;
-    let nativeRoot: string | null = null;
     if (dropped) {
       tree = await treeFromDropped(dropped, options);
-      // A path drop carries its own absolute root (the picker branch sets the
-      // same value); without it, refresh/open would have nothing to resolve.
-      if (dropped.kind === "path") nativeRoot = dropped.path;
-    } else if (nativeAllowed) {
-      const rootPath = await nativePickDirectory();
-      if (!rootPath) return { ok: false, cancelled: true, title: "Import cancelled" };
-      nativeRoot = rootPath;
-      tree = await buildTreeFromNative(rootPath, options, nativeListDir, (phase) =>
-        onProgress?.({ phase }),
-      );
     } else {
       tree = await pickDirectoryTree(options, undefined, onProgress);
     }
@@ -110,7 +92,6 @@ export async function runFolderImport(
       maxDisplayDepth: options.displayMaxDepth,
     });
     useGraphStore.getState().setGraph(nodes, edges, false, hiddenFileIds);
-    if (nativeRoot) useGraphStore.getState().setLocalRootPath(nativeRoot);
 
     // Resolve the imported root to its absolute path on the dev machine once,
     // so later opens (and saved graphs) use it directly instead of searching.

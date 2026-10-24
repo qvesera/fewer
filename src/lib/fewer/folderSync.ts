@@ -16,8 +16,6 @@ import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { useGraphStore } from "@/store/graphStore";
 import type { GraphState } from "@/store/slices/types";
 import { isLocalClient } from "./isLocalClient";
-import { isHost, nativeListDir, nativeOpenPath } from "./nativeShell";
-import type { NativeListDir } from "./nativeTree";
 import { nodeAbsolutePath } from "./filePaths";
 import { isBrowserRenderable } from "./fileRender";
 
@@ -163,15 +161,6 @@ export async function refreshFolderFromDisk(
         importOpts,
         treeToGraph,
       ));
-    } else if (isHost()) {
-      // Desktop shell: no FSA handles and no dev server, so both web channels
-      // are dead here — re-walk through the shell's list_dir RPC instead.
-      const result = await refreshViaNativeWalk(store, folderNode, importOpts, treeToGraph);
-      if (result.status !== "ok") {
-        return { added: 0, removed: 0, status: result.status, error: result.error };
-      }
-      rawNodes = result.nodes;
-      rawEdges = result.edges;
     } else {
       const result = await refreshViaPathWalk(store, folderNode, importOpts, treeToGraph);
       if (result.status !== "ok") {
@@ -240,36 +229,6 @@ export async function refreshViaPathWalk(
   return { status: "ok", nodes, edges };
 }
 
-/**
- * Channel 3: re-walk via the shell's native `list_dir` RPC.
- *
- * The desktop shell has no File System Access handles (channel 1) and no dev
- * server for `/api/list-directory` (channel 2), so refresh failed standalone —
- * every folder reported "Refresh failed" until this channel existed. The walk
- * is `buildTreeFromNative`, which mirrors the path walk's semantics exactly
- * (hidden/vendored filters, extension filter, symlink modes, depth cap).
- * `listDir` is injected for the same reason `buildTreeFromNative` injects it:
- * bun tests drive the walk without a host bridge.
- */
-export async function refreshViaNativeWalk(
-  store: GraphState,
-  folderNode: FewerNode,
-  importOpts: ImportOptions,
-  treeToGraph: (tree: TreeEntry, opts: { idPrefix: string }) => { nodes: FewerNode[]; edges: FewerEdge[] },
-  listDir: NativeListDir = nativeListDir,
-): Promise<RefreshPathResult> {
-  const rootNode = store.nodes.find((n: FewerNode) => n.data.isRoot && n.data.type === "folder");
-  const absPath = nodeAbsolutePath(folderNode.data.path, rootNode?.data.path, store.localRootPath);
-  if (!absPath) {
-    return { status: "no-handle" };
-  }
-  const { buildTreeFromNative } = await import("./nativeTree");
-  const tree = await buildTreeFromNative(absPath, importOpts, listDir);
-  tree.name = folderNode.data.label;
-  const { nodes, edges } = treeToGraph(tree, { idPrefix: "refresh" });
-  return { status: "ok", nodes, edges };
-}
-
 // ---------------------------------------------------------------------------
 // Local file / folder opening
 // ---------------------------------------------------------------------------
@@ -313,14 +272,6 @@ export async function openNodeFile(
   const sendPath =
     nodeAbsolutePath(node.data.path, root?.data.path, st.localRootPath) ?? node.data.path;
 
-  if (isHost() && sendPath) {
-    try {
-      await nativeOpenPath(sendPath);
-      return true;
-    } catch {
-      // shell command unavailable — fall through to the other paths
-    }
-  }
   if (isLocalClient() && node.data.path) {
     try {
       const res = await fetch("/api/open-file", {
@@ -354,15 +305,6 @@ export async function openFolderInExplorer(path: string): Promise<boolean> {
   const st = useGraphStore.getState();
   const root = st.nodes.find((n) => n.data.isRoot);
   const sendPath = nodeAbsolutePath(path, root?.data.path, st.localRootPath) ?? path;
-  if (isHost()) {
-    try {
-      await nativeOpenPath(sendPath);
-      return true;
-    } catch (err) {
-      console.error("Open folder error:", err instanceof Error ? err.message : "Unknown error");
-      return false;
-    }
-  }
   try {
     const res = await fetch("/api/open-folder", {
       method: "POST",

@@ -6,10 +6,8 @@ import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer
 import { isGroupPillNodeId } from "@/lib/fewer/groupLayout";
 import { selectionBounds, viewportForBounds } from "@/lib/fewer/fitBounds";
 import { useGraphStore } from "@/store/graphStore";
-import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
 import { nodeAbsolutePath } from "@/lib/fewer/filePaths";
-import { usePreviewStore } from "@/lib/fewer/previewStore";
 
 export interface CanvasSelectionHandlers {
   /** Merge RF's live selection into the store (per-leaf aware). */
@@ -153,27 +151,6 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
 
   const onNodeDoubleClick = useCallback(
     (_: unknown, node: { id: string }) => {
-      // Desktop shell + localPreview license: a file card opens the in-app
-      // preview (T-091). Folders and unlicensed shells keep the zoom behavior.
-      const st = useGraphStore.getState();
-      const full = st.nodes.find((n) => n.id === node.id);
-      if (
-        full?.data.type === "file" &&
-        full.data.path &&
-        isHost() &&
-        can("localPreview", st.tier)
-      ) {
-        const root = st.nodes.find((n) => n.data.isRoot);
-        const abs = nodeAbsolutePath(full.data.path, root?.data.path, st.localRootPath);
-        if (abs) {
-          usePreviewStore.getState().openPreview({
-            nodeId: node.id,
-            path: abs,
-            name: full.data.label || full.data.path,
-          });
-          return;
-        }
-      }
       // A double-click selects the card itself, so the advisory report RF emits
       // around it no longer has to defend the selection (see the gate above).
       useGraphStore.getState().setSelectedNodeIds([node.id]);

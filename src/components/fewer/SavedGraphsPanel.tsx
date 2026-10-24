@@ -21,14 +21,7 @@ import { FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
-import {
-  chooseLibraryDir,
-  ensureLibraryDir,
-  getGraphsBackend,
-  type GraphsBackend,
-} from "@/lib/fewer/graphsData";
-import { getLibraryDir } from "@/lib/fewer/libraryConfig";
-import { isHost } from "@/lib/fewer/nativeShell";
+import { getGraphsBackend, type GraphsBackend } from "@/lib/fewer/graphsData";
 import { cloudFeature } from "@/lib/fewer/features";
 import {
   buildShareRequestBody,
@@ -58,7 +51,6 @@ import {
   Share2,
   History,
   Globe2,
-  HardDrive,
 } from "lucide-react";
 import {
   Dialog,
@@ -86,20 +78,11 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [renameValue, setRenameValue] = useState("");
   const [sharing, setSharing] = useState<SavedGraph | null>(null);
   const [historyFor, setHistoryFor] = useState<SavedGraph | null>(null);
-  // Data backend: local Fewer Library on desktop, cloud account otherwise (T-089).
-  const [backend, setBackend] = useState<GraphsBackend>(() => getGraphsBackend());
-  const localMode = backend.local;
-  const inShell = isHost();
-  // The local library is free (T-148): no licence gate on saving.
+  // Data backend: the cloud account (T-089).
+  const [backend] = useState<GraphsBackend>(() => getGraphsBackend());
 
   const loadGraphs = useCallback(async () => {
-    // Shell with no library dir chosen yet (T-099): nothing to list — the
-    // choose-folder prompt covers onboarding.
-    if (inShell && !getLibraryDir()) {
-      setGraphs([]);
-      return;
-    }
-    if (!backend.local && tier === "guest") {
+    if (tier === "guest") {
       setGraphs([]);
       return;
     }
@@ -118,19 +101,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     loadGraphs();
   }, [loadGraphs]);
 
-  // First run in the shell (T-101): create and persist the default library
-  // dir (~/Documents/fewer) so saving works without a picker round-trip.
-  useEffect(() => {
-    if (!inShell) return;
-    let cancelled = false;
-    void ensureLibraryDir().then((dir) => {
-      if (!cancelled && dir) setBackend(getGraphsBackend());
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [inShell]);
-
   /** Close the save dialog and reset it back to "save as new". */
   const closeSaveDialog = () => {
     setSavingOpen(false);
@@ -147,11 +117,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleSave = async () => {
-    if (localMode && !getLibraryDir()) {
-      toast({ title: "Choose a library folder", description: "Use the folder prompt in Your Directories to pick where graphs are saved." });
-      return;
-    }
-    if (!localMode && tier === "guest") return onRequireAuth();
+    if (tier === "guest") return onRequireAuth();
     const updating = saveTarget !== "new";
     // Guard: refuse dangerous/oversized values; blank falls back to existing/Untitled.
     const nameError = validateTextField(saveName, { label: "Name", max: 200 });
@@ -187,7 +153,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const openSaveDialog = () => {
-    if (!localMode && tier === "guest") return onRequireAuth();
+    if (tier === "guest") return onRequireAuth();
     if (nodes.length === 0) {
       toast({ title: "Nothing to save", description: "Add cards to your canvas first." });
       return;
@@ -213,7 +179,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!localMode && tier === "guest") return;
+    if (tier === "guest") return;
     try {
       await backend.remove(id);
       setGraphs((g) => g.filter((x) => x.id !== id));
@@ -247,13 +213,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
 
   const nodeCount = (g: SavedGraph) => g.data?.nodes?.length ?? 0;
 
-  const handleChooseLibrary = async () => {
-    const dir = await chooseLibraryDir();
-    if (dir) setBackend(getGraphsBackend()); // loadGraphs reruns via backend dep
-  };
-
   const handleFavorite = async (graph: SavedGraph) => {
-    if (!localMode && tier === "guest") return;
+    if (tier === "guest") return;
     const next = !graph.is_favorite;
     // Optimistic update; reverted on failure.
     setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: next } : g)));
@@ -288,29 +249,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         Save
       </Button>
 
-      {/* Desktop library location (T-089): pick the local Fewer Library folder */}
-      {inShell && !getLibraryDir() && (
-        <div className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
-          <p className="text-[11px] text-muted-foreground/80">
-            Desktop builds keep graphs in a local Fewer Library folder, no account needed.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 text-xs"
-            onClick={handleChooseLibrary}
-          >
-            <HardDrive className="h-3.5 w-3.5" />
-            Choose library folder
-          </Button>
-        </div>
-      )}
-      {localMode && (
-        <p className="px-1 text-[10px] text-muted-foreground/60 truncate" title={getLibraryDir()}>
-          Library: {getLibraryDir()}
-        </p>
-      )}
-
       {/* List */}
       {loading ? (
         <div className="flex items-center justify-center py-4 text-muted-foreground">
@@ -318,11 +256,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         </div>
       ) : graphs.length === 0 ? (
         <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-          {localMode
-            ? "No graphs in this library yet. Saved graphs stay on this device."
-            : tier !== "guest"
-              ? "No saved graphs yet. Save one to access it from any device."
-              : "Sign in to save and access your directories."}
+          {tier !== "guest"
+            ? "No saved graphs yet. Save one to access it from any device."
+            : "Sign in to save and access your directories."}
         </p>
       ) : (
         <div className="space-y-1.5 w-full min-w-0">
@@ -416,8 +352,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   >
                     <Pencil className="h-3 w-3" />
                   </button>
-                  {!localMode && (
-                    <button
+                  <button
                       type="button"
                       onClick={() => setHistoryFor(g)}
                       className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
@@ -425,9 +360,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     >
                       <History className="h-3 w-3" />
                     </button>
-                  )}
-                  {!localMode && (
-                    <button
+                  <button
                       type="button"
                       onClick={() => setSharing(g)}
                       className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
@@ -435,7 +368,6 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     >
                       <Share2 className="h-3 w-3" />
                     </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => handleDelete(g.id, g.name)}
@@ -460,9 +392,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
               Save
             </DialogTitle>
             <DialogDescription>
-              {localMode
-                ? "Save the current graph to this device's library."
-                : "Save the current graph to your account."}
+              Save the current graph to your account.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -499,9 +429,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground/70">
-                {localMode
-                  ? "Updating an existing graph replaces its file in the library."
-                  : "Updating an existing graph keeps its share link and records a new version."}
+                Updating an existing graph keeps its share link and records a new version.
               </p>
             </div>
           </div>
