@@ -100,6 +100,11 @@ lighthouse/*
 /.repowise/*
 !/.repowise/decisions.yaml
 
-# tauri shell builds live in the private fewer-desktop repo
+# tauri shell (T-087 POC)
+src-tauri/target/
+src-tauri/gen/
 !scripts/sign-license.ts
-# electron-builder output lives in the private fewer-desktop repo
+# electron shell build output (T-095)
+electron/dist/
+# electron-builder output (T-096)
+release/

@@ -7,7 +7,6 @@ import { v4 as uuid } from "uuid";
 import { validateConnection, parentMapOf, ancestorChainOf, getDescendants } from "@/lib/fewer/validation";
 import { fsHandleStore, edgeTypeFromStyle } from "@/lib/fewer/types";
 import { sortEdges } from "@/lib/fewer/importMerge";
-import { resetCardChildSlots } from "@/lib/fewer/cardChildRows";
 import type { HistoryOp } from "@/lib/fewer/types";
 import { rewriteConnectionPaths } from "@/lib/fewer/pathRewrite";
 import { applySearchHighlight } from "../searchHighlight";
@@ -174,8 +173,6 @@ export const createStructureSlice: StructureSliceCreator = (set, get) => ({
   },
   reset: () => {
     fsHandleStore.clear();
-    // T-219: whole-graph replacement — drop the per-card row slots.
-    resetCardChildSlots();
     set({
       nodes: [], edges: [], past: [], future: [], leafHistories: {}, selectedNodeIds: [],
       searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,

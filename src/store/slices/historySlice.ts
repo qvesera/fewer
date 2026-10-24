@@ -3,7 +3,6 @@ import { StateCreator } from "zustand";
 import type { GraphState, HistoryEntry, LeafStacks } from "./types";
 import type { HistoryOp, ViewState, FileCategory } from "@/lib/fewer/types";
 import { applyOps, undoOps, getUndoViewState, getRedoViewState, leafPositionsFor, leafMoveOrigin } from "@/lib/fewer/history";
-import { sortEdges } from "@/lib/fewer/importMerge";
 import { applySearchHighlight } from "./searchHighlight";
 import { can } from "@/lib/fewer/tiers";
 
@@ -213,11 +212,7 @@ export const createHistorySlice: HistorySliceCreator = (set, get) => ({
       future: future.slice(1),
       past: cap([...past, entry]),
       nodes: applySearchHighlight(nextNodes, searchQuery, categoryFilter),
-      // T-219: applyOps APPENDS re-added edges (connect/bulk-import redo), which
-      // leaves the array out of painter order — the append path's edge MERGE
-      // (mergeSortedEdges) relies on `edges` always being sorted. Undo only
-      // filters (order-preserving), so redo is the one side that re-sorts.
-      edges: sortEdges(nextEdges, nextNodes),
+      edges: nextEdges,
       graphVersion: graphVersion + 1,
       ...viewPatch,
       ...leafPositionPatch(leafMoveOrigin(entry.ops) ?? (activeLeafId as string | null), viewSettings, entry.ops, "to"),

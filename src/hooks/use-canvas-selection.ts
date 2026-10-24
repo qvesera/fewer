@@ -9,9 +9,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { isHost } from "@/lib/fewer/nativeShell";
 import { can } from "@/lib/fewer/tiers";
 import { nodeAbsolutePath } from "@/lib/fewer/filePaths";
-import { doubleClickIntent } from "@/lib/fewer/doubleClick";
 import { usePreviewStore } from "@/lib/fewer/previewStore";
-import { useToast } from "@/hooks/use-toast";
 
 export interface CanvasSelectionHandlers {
   /** Merge RF's live selection into the store (per-leaf aware). */
@@ -74,7 +72,6 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
   // happened when the drag was the FIRST interaction (clicking a card first
   // leaves `leafSelections[leafId]` populated and the write becomes a no-op).
   const dragSelectionRef = useRef<string[] | null>(null);
-  const { toast } = useToast();
 
   const seedSelectionForDrag = useCallback(
     (ids: string[]) => {
@@ -155,20 +152,17 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
   );
 
   const onNodeDoubleClick = useCallback(
-    (event: unknown, node: { id: string }) => {
+    (_: unknown, node: { id: string }) => {
+      // Desktop shell + localPreview license: a file card opens the in-app
+      // preview (T-091). Folders and unlicensed shells keep the zoom behavior.
       const st = useGraphStore.getState();
       const full = st.nodes.find((n) => n.id === node.id);
-      const intent = doubleClickIntent(
-        { data: full?.data ?? { type: "folder" } },
-        {
-          host: isHost(),
-          dataSource: st.dataSource,
-          altKey: !!(event as { altKey?: boolean } | null)?.altKey,
-          previewLicensed: can("localPreview", st.tier),
-        },
-      );
-      if (intent === "preview" && full?.data.path) {
-        // Licensed in-app preview (T-091), kept reachable behind Alt+double-click.
+      if (
+        full?.data.type === "file" &&
+        full.data.path &&
+        isHost() &&
+        can("localPreview", st.tier)
+      ) {
         const root = st.nodes.find((n) => n.data.isRoot);
         const abs = nodeAbsolutePath(full.data.path, root?.data.path, st.localRootPath);
         if (abs) {
@@ -180,28 +174,12 @@ export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selec
           return;
         }
       }
-      if (intent === "open" && full) {
-        // T-214: a double-clicked file opens in the OS default application —
-        // the whole point of a file viewer. Selection still lands on the card;
-        // no viewport movement. Same opener the context menu and Enter use.
-        useGraphStore.getState().setSelectedNodeIds([node.id]);
-        void (async () => {
-          const { openNodeFile } = await import("@/lib/fewer/fileOps");
-          const ok = await openNodeFile(full, st.dataSource ?? "");
-          toast({
-            title: ok ? "Opening file" : "Cannot open file",
-            description: full.data.label || full.data.path,
-            ...(ok ? {} : { variant: "destructive" as const }),
-          });
-        })();
-        return;
-      }
       // A double-click selects the card itself, so the advisory report RF emits
       // around it no longer has to defend the selection (see the gate above).
       useGraphStore.getState().setSelectedNodeIds([node.id]);
       requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
     },
-    [fitView, toast],
+    [fitView],
   );
 
   const fitToSelection = useCallback(() => {

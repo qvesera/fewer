@@ -12,7 +12,7 @@
 import { fsHandleStore } from "./types";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
-import { DEFAULT_IMPORT_OPTIONS, alwaysExpandArchives } from "./importOptions";
+import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import { useGraphStore } from "@/store/graphStore";
 import type { GraphState } from "@/store/slices/types";
 import { isLocalClient } from "./isLocalClient";
@@ -150,12 +150,7 @@ export async function refreshFolderFromDisk(
     }
 
     const { treeToGraph, rekeyTreeChildren } = await import("./treeToGraph");
-    // T-202: a refresh in the desktop app keeps the always-on archive
-    // expansion the folder open itself applied, so a zip never silently
-    // collapses back to a leaf on refresh.
-    const importOpts: ImportOptions = isHost()
-      ? alwaysExpandArchives({ ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 })
-      : { ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 };
+    const importOpts: ImportOptions = { ...DEFAULT_IMPORT_OPTIONS, maxDepth: 3 };
 
     const handle = fsHandleStore.get(nodeId);
     let rawNodes: FewerNode[];

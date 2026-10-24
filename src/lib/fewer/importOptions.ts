@@ -219,14 +219,3 @@ export function scopeOptionsToOrigin(
   }
   return scoped as ImportOptions;
 }
-
-/**
- * T-202: the desktop app always looks inside archives it meets while opening
- * a folder — a `.zip` on disk is just another directory as far as the graph
- * is concerned, and its contents belong on the canvas. Pure: returns the
- * input untouched when expansion is already on, so callers can use it
- * unconditionally.
- */
-export function alwaysExpandArchives(options: ImportOptions): ImportOptions {
-  return options.expandArchives ? options : { ...options, expandArchives: true };
-}

@@ -5,20 +5,12 @@ import { Folder, FileIcon, EyeOff, Search, History, X, Tag as TagIcon } from "lu
 import { useGraphStore } from "@/store/graphStore";
 import { cn } from "@/lib/utils";
 import { can } from "@/lib/fewer/tiers";
-import { useToast } from "@/hooks/use-toast";
 import {
   searchKeyAction,
   searchNodes,
   searchPanelView,
   visibleMatches,
 } from "@/lib/fewer/searchModel";
-import {
-  DEVICE_SEARCH_MIN_QUERY,
-  deviceSearchAvailable,
-  findDeviceNode,
-  searchDevice,
-} from "@/lib/fewer/deviceIndex";
-import type { NativeDeviceHit } from "@/lib/fewer/nativeShell";
 
 export function SearchPanel() {
   const open = useGraphStore((s) => s.searchOpen);
@@ -42,9 +34,6 @@ export function SearchPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const { toast } = useToast();
-  // T-200: on-device hits (shell only) shown under the canvas results.
-  const [deviceHits, setDeviceHits] = useState<NativeDeviceHit[]>([]);
 
   const handleResultClick = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
@@ -66,31 +55,6 @@ export function SearchPanel() {
       zoomToNode: { nodeId, timestamp: Date.now() },
     }));
 
-    setOpen(false);
-  };
-
-  // T-200: a device hit resolves against the loaded graph first; a hit in
-  // another indexed root opens that root and then selects the node.
-  const handleDeviceClick = async (hit: NativeDeviceHit) => {
-    const store = useGraphStore.getState();
-    if (query.trim()) commitSearch(query);
-    let node = findDeviceNode(store.nodes, hit, store.localRootPath);
-    if (!node && hit.root && hit.root !== store.localRootPath) {
-      const { openRecentFolder } = await import("@/lib/fewer/openRecentFolder");
-      const result = await openRecentFolder(hit.root);
-      if (!result.ok) {
-        toast({ title: result.title, description: result.error, variant: "destructive" });
-        setOpen(false);
-        return;
-      }
-      const after = useGraphStore.getState();
-      node = findDeviceNode(after.nodes, hit, after.localRootPath);
-    }
-    if (node) {
-      handleResultClick(node.id);
-      return;
-    }
-    toast({ title: "Not on the canvas", description: hit.path });
     setOpen(false);
   };
 
@@ -140,25 +104,6 @@ export function SearchPanel() {
   useEffect(() => {
     setActiveIndex(-1);
   }, [query]);
-
-  // T-200: debounced device-index lookup (shell only). Cancellation keeps the
-  // latest keystroke authoritative.
-  useEffect(() => {
-    if (!open || !deviceSearchAvailable() || query.trim().length < DEVICE_SEARCH_MIN_QUERY) {
-      setDeviceHits([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void searchDevice(query).then((hits) => {
-        if (!cancelled) setDeviceHits(hits);
-      });
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [open, query]);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -348,35 +293,6 @@ export function SearchPanel() {
                 );
               })}
             </ul>
-          )}
-
-          {/* T-200: on-device hits from the folder index (shell only). */}
-          {deviceHits.length > 0 && (
-            <div className="border-t border-border/20 mt-1 pt-1 px-1.5 pb-1">
-              <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-                On this device
-              </div>
-              <ul className="space-y-0.5" aria-label="Device search results">
-                {deviceHits.map((hit) => {
-                  const Icon = hit.type === "folder" ? Folder : FileIcon;
-                  return (
-                    <li key={hit.path}>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeviceClick(hit)}
-                        className="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-xs cursor-pointer rounded-md hover:bg-muted/60 text-foreground/90 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Icon className={cn("h-3.5 w-3.5 shrink-0", hit.type === "folder" ? "text-primary" : "text-purple-500")} />
-                        <span className="flex min-w-0 flex-1 flex-col text-left leading-snug">
-                          <span className="truncate font-semibold">{hit.name}</span>
-                          <span className="truncate text-[10px] text-muted-foreground/75 font-mono">{hit.root}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
           )}
         </div>
 

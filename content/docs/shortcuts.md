@@ -77,21 +77,6 @@ Fewer is primarily a keyboard driven application. Most of the common operations 
 > **Alt+O is disabled in the shipped web build**: it needs the server-side OS
 > opener gated by `LOCAL_FS_FEATURES.openInOs` (`src/lib/fewer/features.ts`).
 
-<!-- shell:on -->
-## Desktop App Menu
-
-In the desktop app the native **File / Edit / View / Window / Help** menu owns these:
-
-| Key         | Action                     |
-| ----------- | -------------------------- |
-| **Ctrl+O**  | Open Folder…               |
-| **Ctrl+S**  | Save Project               |
-| **Ctrl+E**  | Export…                    |
-| **Ctrl+,**  | Settings                   |
-| **Ctrl+B**  | Toggle sidebar             |
-
-<!-- /shell:on -->
-
 ## Reference
 
 | Key        | Action                            |
@@ -104,8 +89,6 @@ In the desktop app the native **File / Edit / View / Window / Help** menu owns t
 | ------------------ | -------------------------------------------------- |
 | **Drag (canvas)**  | Pan the canvas                                     |
 | **Shift+drag**     | Box-select cards: adds to the existing selection  |
-| **Double-click (folder)** | Zoom to fit that folder                     |
-| **Double-click (file, desktop app)** | Open in the OS default application |
 
 ## Tips
 

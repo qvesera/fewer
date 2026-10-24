@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { isMac } from "@/lib/fewer/platform";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
-import { isHost } from "@/lib/fewer/nativeShell";
 
 // Render the four navigation arrows with lucide icons so they all draw with
 // the same stroke/weight. Raw ←→ glyphs can render thinner than ↑↓ in mono.
@@ -30,8 +29,6 @@ interface Shortcut {
   minTier?: "free" | "pro";
   /** Hidden when the feature flag is off (no side effect in plain filter). */
   featureKey?: keyof typeof LOCAL_FS_FEATURES;
-  /** Shown only inside the standalone desktop shell (application-menu shortcuts). */
-  shellOnly?: boolean;
 }
 
 interface ShortcutGroup {
@@ -47,11 +44,6 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["⌘", "Ctrl", "E"], action: "Open export panel" },
       { keys: ["⌘", "Ctrl", "L"], action: "Cycle layout direction" },
       { keys: ["⌘", "Ctrl", "I"], action: "Show shortcuts" },
-      // T-197: the standalone shell's application menu owns these.
-      { keys: ["⌘", "Ctrl", "O"], action: "Open Folder… (desktop app)", shellOnly: true },
-      { keys: ["⌘", "Ctrl", "S"], action: "Save Project (desktop app)", shellOnly: true },
-      { keys: ["⌘", "Ctrl", "B"], action: "Toggle sidebar (desktop app)", shellOnly: true },
-      { keys: ["⌘", "Ctrl", ","], action: "Settings (desktop app)", shellOnly: true },
       { keys: ["Space"], action: "Fit graph to viewport" },
       { keys: ["Esc"], action: "Clear selection / close panels" },
       { keys: ["+"], action: "Zoom in" },
@@ -195,8 +187,6 @@ export function ShortcutsDialog() {
   const open = useGraphStore((s) => s.shortcutsOpen);
   const setOpen = useGraphStore((s) => s.setShortcutsOpen);
   const tier = useGraphStore((s) => s.tier);
-  // T-197: application-menu shortcuts exist only inside the desktop shell.
-  const isHostShell = isHost();
 
   const TIER_RANK: Record<string, number> = { guest: 0, free: 1, pro: 2 };
 
@@ -221,7 +211,7 @@ export function ShortcutsDialog() {
               </h3>
               <div className="flex flex-col gap-1">
                 {group.shortcuts
-                  .filter((s) => (!s.minTier || TIER_RANK[tier] >= TIER_RANK[s.minTier]) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]) && (!s.shellOnly || isHostShell))
+                  .filter((s) => (!s.minTier || TIER_RANK[tier] >= TIER_RANK[s.minTier]) && (!s.featureKey || LOCAL_FS_FEATURES[s.featureKey]))
                   .map((s, idx) => (
                     <ShortcutRow key={idx} shortcut={s} />
                   ))}

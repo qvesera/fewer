@@ -440,14 +440,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   const hiddenChipStyle = useCanvasHiddenChip();
 
-  // T-219: the scope carries the content-stable HIDDEN set, not the per-batch
-  // visible set. A visible-id Set gets a new identity on every store change
-  // (every scan batch adds nodes), which changed the context value and
-  // re-rendered EVERY mounted card per batch regardless of selector
-  // narrowness. `effectiveHiddenIds` is content-stable upstream
-  // (useStableHiddenIds), so this Set keeps its identity through a whole
-  // progressive fill.
-  const hiddenIdSet = useMemo(() => new Set(effectiveHiddenIds), [effectiveHiddenIds]);
+  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
   // Hover ring as a Set, built once per ring change instead of scanned by every
   // card and child row (see GraphViewScope.hoverIds).
   const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
@@ -469,10 +462,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       isActive: leafId ? leafId === activeLeafId : true,
       direction: vs.direction,
       resolved: scopeResolved,
-      hiddenIds: hiddenIdSet,
+      visibleIds,
       hoverIds,
     }),
-    [leafId, activeLeafId, vs.direction, scopeResolved, hiddenIdSet, hoverIds],
+    [leafId, activeLeafId, vs.direction, scopeResolved, visibleIds, hoverIds],
   );
   return (
     <GraphViewProvider value={scope}>
