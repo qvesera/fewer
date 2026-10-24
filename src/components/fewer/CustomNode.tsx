@@ -44,7 +44,8 @@ import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { SymlinkBadge } from "./SymlinkBadge";
 import { SymlinkMenuItems } from "./SymlinkMenuItems";
 import { getDescendants } from "@/lib/fewer/validation";
-import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
+import { CATEGORY_ICON, getHandlePositions, formatSize, providerLabelFromSource, renameSelection } from "@/lib/fewer/nodeDisplay";
+import { childRowsOf, childCountOf, nodeByIdOf, EMPTY_ROWS } from "@/lib/fewer/cardChildRows";
 import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
 import { can } from "@/lib/fewer/tiers";
 
@@ -959,7 +960,11 @@ function useVirtualScroll(containerEl: HTMLDivElement | null, totalItems: number
 function ChildEntry({ child }: { child: FewerNode }) {
   const scope = useGraphViewScope();
   const deleteNodes = useGraphStore((s) => s.deleteNodes);
-  const edges = useGraphStore((s) => s.edges);
+  // T-219: a value selector (number), not the whole edges array — the row
+  // re-renders only when THIS child's own count changes.
+  const folderChildCount = useGraphStore(
+    (s) => (child.data.type === "folder" ? childCountOf(child.id, s.edges) : 0),
+  );
   const showNode = useGraphStore((s) => s.showNode);
   const setZoomToNode = useGraphStore((s) => s.setZoomToNode);
   const dataSource = useGraphStore((s) => s.dataSource);
@@ -970,18 +975,16 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const { toast } = useToast();
   const isDimmed = false; // search dimming disabled — canvas visibility is the sole driver
   const isHighlighted = child.data.highlighted;
-  const isHidden = !scope.visibleIds.has(child.id);
+  // Every ChildEntry row is an EXISTING node (rows come from the graph), so
+  // hidden ⇔ id in the scope's hidden set — exact parity with the old
+  // `!visibleIds.has(id)`.
+  const isHidden = scope.hiddenIds.has(child.id);
   const isHovered = scope.hoverIds.has(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
   };
-
-  const folderChildCount = useMemo(
-    () => countFolderChildren(child.id, child.data.type === "folder", edges),
-    [child.data.type, child.id, edges],
-  );
 
   const childContent = (
     <div
@@ -1041,9 +1044,32 @@ function ChildEntry({ child }: { child: FewerNode }) {
           archive
         </span>
       )}
+      {(child.data.unscanned as boolean | undefined) && (
+        <button
+          type="button"
+          title="Not loaded yet — click to load this folder's contents"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const mark = (on: boolean) =>
+              useGraphStore.setState((s) => ({
+                nodes: s.nodes.map((n) =>
+                  n.id === child.id ? { ...n, data: { ...n.data, unscanned: on } } : n,
+                ),
+              }));
+            mark(false);
+            const result = await refreshFolderFromDisk(child.id);
+            if (result.status !== "ok") mark(true);
+          }}
+          className="shrink-0 cursor-pointer rounded border border-primary/40 px-1 text-[9px] font-medium uppercase tracking-wide text-primary/80 hover:bg-primary/10"
+        >
+          not loaded
+        </button>
+      )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
-          ? plural(folderChildCount, "item")
+          ? (child.data.unscanned as boolean | undefined) && folderChildCount === 0
+            ? "—" // unknown, not zero: the folder was never read (T-215)
+            : plural(folderChildCount, "item")
           : formatSize(child.data.size ?? 0)}
       </span>
       <ChevronRight className="h-3 w-3 shrink-0 text-fewer-text-subtle/60" />
@@ -1092,8 +1118,17 @@ function CustomNodeImpl({
   const isFolder = data.type === "folder";
 const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.collapsedFolderIds.includes(id));
 
-  const edges = useGraphStore((s) => s.edges);
-  const allNodes = useGraphStore((s) => s.nodes);
+  // T-219: narrow, value-stable selectors. The card used to subscribe to the
+  // store's WHOLE `nodes` and `edges` arrays — one scan batch re-rendered and
+  // re-sorted every mounted card. Now each selector returns either a primitive
+  // or a referentially-stable derived array (cardChildRows), so a batch
+  // re-renders only the cards whose OWN children changed.
+  const childRows = useGraphStore(
+    (s) => (isFolder ? childRowsOf(id, s.nodes, s.edges) : EMPTY_ROWS),
+  );
+  const childCount = useGraphStore(
+    (s) => (isFolder ? childCountOf(id, s.edges) : 0),
+  );
   const renamingId = useGraphStore((s) => s.renamingId);
   const renameSource = useGraphStore((s) => s.renameSource);
   const dataSource = useGraphStore((s) => s.dataSource);
@@ -1102,8 +1137,10 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   const renameNode = useGraphStore((s) => s.renameNode);
   const nodeHeight = useGraphStore((s) => s.nodeHeight);
   // Read the user's manual resize value from our store (never RF's measurement).
+  // O(1) via graphIndex's cached map — was an O(N) `nodes.find` per card per
+  // store change.
   const manualHeight = useGraphStore(
-    (s) => (s.nodes.find((n) => n.id === id)?.style?.height as number | undefined),
+    (s) => nodeByIdOf(s.nodes, id)?.style?.height as number | undefined,
   );
   const { toast } = useToast();
 
@@ -1116,10 +1153,20 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
     if (!ok) toast({ title: "Rename blocked", description: `"${v.trim()}" already exists in this folder.`, variant: "destructive" });
   };
 
-  const { children, childCount, hiddenChildCount } = useMemo(
-    () => nodeChildren(id, isFolder, allNodes, edges, scope.visibleIds),
-    [id, isFolder, allNodes, edges, scope.visibleIds],
-  );
+  // Hidden children = child ids this view does not paint (old
+  // `!visibleIds.has(cid)` contract): a child is hidden when its id is in the
+  // hidden set OR it doesn't exist in the graph at all (dangling edge target).
+  // `children` holds exactly the EXISTING rows, so painted = rows not in the
+  // hidden set, and hidden = total − painted. Derived from the scope's
+  // content-stable hidden SET (not the per-batch visible set), so it's a plain
+  // number that only changes when the hidden set or the children do.
+  const hiddenChildCount = useMemo(() => {
+    if (!isFolder) return 0;
+    let painted = 0;
+    for (const c of childRows) if (!scope.hiddenIds.has(c.id)) painted++;
+    return childCount - painted;
+  }, [childCount, childRows, isFolder, scope.hiddenIds]);
+  const children = childRows;
 
   const isRenaming = !!scope?.isActive && renamingId === id;
   const [childListEl, setChildListEl] = useState<HTMLDivElement | null>(null);

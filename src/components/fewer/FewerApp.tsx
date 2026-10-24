@@ -26,7 +26,7 @@ import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
 import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isHost, hostFetchResponse, nativeTakePendingOpenFile } from "@/lib/fewer/nativeShell";
+import { isHost, hostFetchResponse, nativeTakePendingOpenFile, nativeOnMenu } from "@/lib/fewer/nativeShell";
 import { registerHostFetch } from "@/lib/fewer/netFetch";
 import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
@@ -37,9 +37,10 @@ import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from 
 import { saveHistoryLocal, loadHistoryLocal, clearHistoryLocal } from "@/lib/fewer/historyStorage";
 import { onStorageKey } from "@/lib/fewer/storageSync";
 import { cn } from "@/lib/utils";
-import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, FEWER_ADD_NODE_STANDALONE, FEWER_IMPORT_FOLDER, FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { GlobalNavbar } from "./GlobalNavbar";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { ShellHeader } from "./ShellHeader";
 
 // Client-only: tree layout is loaded from localStorage, so the server
 // always renders a single-leaf default and the client hydrates with the
@@ -82,6 +83,12 @@ export function FewerApp() {
   const [hashLoaded, setHashLoaded] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const resizingRef = useRef(false);
+  // T-198: shell chrome swap decided after mount — SSR has no window, and the
+  // first client render must match the server HTML to stay hydration-clean.
+  const [inShellChrome, setInShellChrome] = useState(false);
+  useEffect(() => {
+    setInShellChrome(isHost());
+  }, []);
 
   const { importFlowOpen, setImportFlowOpen, addChildOpen, setAddChildOpen, addStandaloneOpen, setAddStandaloneOpen, addParentOpen, setAddParentOpen, notificationOpen, setNotificationOpen, authOpen, setAuthOpen, sidebarSide } = useDialogState();
   const { panelTree } = useViewState();
@@ -90,6 +97,17 @@ export function FewerApp() {
   // GitHub import work without our server (CORS-free cross-origin GETs).
   useEffect(() => {
     if (isHost()) registerHostFetch(hostFetchResponse);
+  }, []);
+
+  // T-203: while a folder root is loaded, tags/groups auto-save to the app's
+  // data directory; reopening the folder restores them. Shell only.
+  useEffect(() => {
+    if (!isHost()) return;
+    let stop: (() => void) | undefined;
+    void import("@/lib/fewer/folderMetaSync").then(({ startFolderMetaSync }) => {
+      stop = startFolderMetaSync();
+    });
+    return () => stop?.();
   }, []);
 
   // T-123: the OS handed us a document at launch (double-click on a .fwr).
@@ -551,6 +569,50 @@ export function FewerApp() {
     };
   }, [openImportFlow]);
 
+  // T-197: native application menu → renderer actions. Only the Electron host
+  // exposes onMenu; every other host gets a no-op unsubscribe.
+  useEffect(() => {
+    if (!isHost()) return;
+    return nativeOnMenu((action) => {
+      const s = useGraphStore.getState();
+      switch (action) {
+        case "open-folder":
+          openImportFlow("folder");
+          break;
+        case "save":
+          window.dispatchEvent(new CustomEvent(FEWER_SAVE_GRAPH));
+          break;
+        case "export":
+          s.setExportOpen(true);
+          break;
+        case "settings":
+          s.setSettingsOpen(true);
+          break;
+        case "shortcuts":
+          s.setShortcutsOpen(true);
+          break;
+        case "bug-report":
+          s.setBugReportOpen(true);
+          break;
+        case "undo":
+          s.undo();
+          break;
+        case "redo":
+          s.redo();
+          break;
+        case "select-all":
+          s.setSelectedNodeIds(s.nodes.map((n) => n.id));
+          break;
+        case "delete-selection":
+          if (s.selectedNodeIds.length) s.deleteNodes(s.selectedNodeIds);
+          break;
+        case "toggle-sidebar":
+          s.setSidebarOpen(!s.sidebarOpen);
+          break;
+      }
+    });
+  }, [openImportFlow]);
+
   const handleLoadSample = useCallback(() => {
     const { nodes, edges } = treeToGraph(SAMPLE_TREE, { idPrefix: "sample" });
     useGraphStore.setState({ dataSource: "sample", maxDisplayDepth: 6, localRootPath: null });
@@ -563,8 +625,18 @@ export function FewerApp() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
-      <CanvasToolbar onLoadSample={handleLoadSample} />
+      {/* T-198: the desktop shell swaps the web's two-bar chrome (~96px) for
+          one 44px header. Decided after mount so SSR/first client render match
+          the server HTML (isHost() is false during SSR — the same pattern the
+          web chrome uses to avoid a hydration mismatch). */}
+      {inShellChrome ? (
+        <ShellHeader />
+      ) : (
+        <>
+          <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
+          <CanvasToolbar onLoadSample={handleLoadSample} />
+        </>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* Sidebar wrapper — positioned by sidebarSide */}

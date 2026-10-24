@@ -25,10 +25,16 @@ export interface LocalContent {
   content: string;
 }
 
-const DIRS: Record<ContentType, string> = {
-  docs: "content/docs",
-  blog: "content/blog",
-};
+// Absolute paths built from string LITERALS at module scope. Turbopack traces
+// server-component fs calls into an NFT include pattern; when the argument was
+// `path.join(process.cwd(), DIRS[type])` — the runtime `type` parameter inside
+// the expression — the tracer resolved both literals but also kept a
+// catch-all `<dynamic>` arm that matched the whole project, emitting
+// "overly broad pattern" warnings on every build. Two literal-derived consts
+// and a ternary over them leave only the exact directories (plus the readdir-
+// derived `name`, which chains to files under them).
+const DOCS_DIR = path.join(process.cwd(), "content/docs");
+const BLOG_DIR = path.join(process.cwd(), "content/blog");
 
 // Mirrors UNPUBLISHED_ON_INSERT in scripts/gen-seed-content.py: these slugs are
 // hidden on the site, so the desktop export must not publish them either.
@@ -49,9 +55,7 @@ export const SHELL_HIDDEN_DOCS = new Set([
   "watch",
 ]);
 
-// App-only docs (T-104): shipped in the desktop export, never on the web
-// (gen-seed-content.py skips them too — the file is the single source).
-export const APP_ONLY_DOCS = new Set(["desktop"]);
+// App-only docs moved to the private fewer-desktop repo with the desktop app.
 
 // Blogs are web-only: release posts are marketing; the standalone ships none
 // (the build also removes out/blog — belt and braces for prerendered pages).
@@ -130,7 +134,7 @@ export function neutralizeDeadShellLinks(content: string): string {
 
 /** Every published markdown file of a type, sorted by title. */
 export async function listLocalContent(type: ContentType): Promise<LocalContent[]> {
-  const dir = path.join(process.cwd(), DIRS[type]);
+  const dir = type === "docs" ? DOCS_DIR : BLOG_DIR;
   let names: string[];
   try {
     names = await fs.readdir(dir);
@@ -146,7 +150,6 @@ export async function listLocalContent(type: ContentType): Promise<LocalContent[
     const slug = name.slice(0, -3);
     if (UNPUBLISHED.has(`${type}/${slug}`)) continue;
     if (type === "docs") {
-      if (APP_ONLY_DOCS.has(slug) && !isDesktopExport()) continue;
       if (SHELL_HIDDEN_DOCS.has(slug) && isDesktopExport()) continue;
     }
     try {

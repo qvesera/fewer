@@ -35,7 +35,9 @@ const DEFAULT_SCOPE: GraphViewScope = {
     hiddenIds: [] as string[],
     collapsedFolderIds: [] as string[],
   },
-  visibleIds: new Set<string>(["f1", "f2", "f3"]),
+  // T-219: the scope carries the content-stable HIDDEN set; an empty set = all
+  // children painted (was `visibleIds: {f1,f2,f3}` under the old contract).
+  hiddenIds: new Set<string>(),
   hoverIds: new Set<string>(),
 };
 

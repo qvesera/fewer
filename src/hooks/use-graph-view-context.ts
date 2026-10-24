@@ -14,8 +14,19 @@ export interface GraphViewScope {
   isActive: boolean;
   direction: LayoutDirection;
   resolved: ResolvedViewSettings;
-  /** The set of node ids actually rendered on this canvas (lens output). */
-  visibleIds: Set<string>;
+  /** THIS VIEW'S HIDDEN IDS (T-219), as a Set. Cards derive visibility from
+   *  it: a child is hidden ⇔ its id is in this set (it exists on the canvas or
+   *  it doesn't — dangling edge targets count as hidden, matching the old
+   *  `!visibleIds.has(id)` semantics for the edge-count badge).
+   *
+   *  Replaces the old `visibleIds: Set<string>` in the scope: that set was
+   *  rebuilt (new identity) on EVERY store change — including every
+   *  progressive-scan batch — so the context value changed and EVERY mounted
+   *  card re-rendered per batch, no matter how narrow its store selectors
+   *  were. The hidden set is content-stable (useStableHiddenIds upstream), so
+   *  during a scan the scope identity holds and cards re-render only when
+   *  their OWN children change. */
+  hiddenIds: ReadonlySet<string>;
   /** Transient hover ring from the sidebar's Hidden Cards panel, as a Set.
    *  Was an array scanned with `includes` by every mounted card AND every
    *  rendered child row, so one hover cost O(rendered × ring size) — and a

@@ -194,6 +194,8 @@ Shows selected card's full path. Click any segment to navigate to that ancestor.
 
 Every folder shows its first **N** children — the **Auto-hide Limit** in Settings → Advanced, default 10 — in the canvas sort order. Children past that limit, and everything under them, are hidden on import. The rule **cascades**: any visible folder (including one you reveal by hand) shows its own first N and no more. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree, and the folder card keeps its `N hidden` badge.
 
+The cap is re-derived when the background scan of a folder open finishes, so the cards that arrive during the fill — deep subfolders **and expanded archive members** — are capped by the same rule instead of showing in full.
+
 **Reveal a folder**: click the eye icon next to it, double-click its hidden row inside the parent card, or use **Show Children**. The folder comes up with its first N children (cascading the same way); the rest of its children stay hidden until you reveal them one by one. A reveal is not undone by the auto-hide pass afterwards, whether it came from the sidebar, a canvas double-click, **Show Children**, or a search jump. Hiding a card again gives the auto-hide its exemption back, so a later folder refresh, sort change or limit change may hide it as usual. **Reveal All** / **Shift+H** clear the cap entirely.
 
 ## Visibility: Hide Files / Show Children

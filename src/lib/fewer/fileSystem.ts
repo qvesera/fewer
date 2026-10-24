@@ -30,6 +30,45 @@ interface PickerOpts {
   id?: string;
 }
 
+/**
+ * Open the native folder picker and return the handle (T-208: shared by the
+ * full-tree walk and the progressive web source). Returns null on cancel.
+ * Throws the Brave-specific error when the API is blocked there.
+ */
+export async function pickDirectoryHandle(
+  startIn?: PickerOpts["startIn"],
+): Promise<FileSystemDirectoryHandle | null> {
+  const w = window as unknown as {
+    showDirectoryPicker?: (opts?: PickerOpts) => Promise<FileSystemDirectoryHandle>;
+  };
+  if (typeof w.showDirectoryPicker !== "function") return null;
+
+  const pickerOpts: PickerOpts = {
+    mode: "readwrite",
+    id: "fewer-import",
+  };
+  if (startIn) pickerOpts.startIn = startIn;
+
+  // Check for Brave browser (which may disable the API by default)
+  const isBrave = await detectBrave();
+  try {
+    const handle = await w.showDirectoryPicker(isBrave ? { ...pickerOpts, mode: "read" } : pickerOpts);
+    setStoredRootHandle(handle);
+    return handle;
+  } catch (err) {
+    // User cancelled — return null instead of throwing
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return null;
+    }
+    if (isBrave && err instanceof DOMException && err.name === "SecurityError") {
+      throw new Error(
+        "Brave browser blocks the File System Access API by default. Enable it at brave://flags/#file-system-access-api, or use a different browser."
+      );
+    }
+    throw err;
+  }
+}
+
 export async function pickDirectoryTree(
   options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
   startIn?: PickerOpts["startIn"],
@@ -42,51 +81,17 @@ export async function pickDirectoryTree(
     return pickDirectoryViaInput(options, onProgress);
   }
 
-  const w = window as unknown as {
-    showDirectoryPicker?: (opts?: PickerOpts) => Promise<FileSystemDirectoryHandle>;
-  };
-  if (typeof w.showDirectoryPicker !== "function") {
-    // Fallback to webkitdirectory input
-    return pickDirectoryViaInput(options, onProgress);
-  }
-
-  const pickerOpts: PickerOpts = {
-    mode: "readwrite",
-    id: "fewer-import",
-  };
-  if (startIn) pickerOpts.startIn = startIn;
-
-  // Check for Brave browser (which may disable the API by default)
-  const isBrave = await detectBrave();
-  if (isBrave) {
-    // Try anyway — the user may have enabled the flag
-    try {
-      const handle = await w.showDirectoryPicker!({ ...pickerOpts, mode: "read" });
-      setStoredRootHandle(handle);
-      onProgress?.({ phase: "Reading folder" });
-      return buildTreeFromHandle(handle, 0, options);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "SecurityError") {
-        throw new Error(
-          "Brave browser blocks the File System Access API by default. Enable it at brave://flags/#file-system-access-api, or use a different browser."
-        );
-      }
-      throw err;
+  const handle = await pickDirectoryHandle(startIn);
+  if (!handle) {
+    // No FSA in this browser — same fallback the feature gate uses.
+    const fallback = await window as unknown as { showDirectoryPicker?: unknown };
+    if (typeof fallback.showDirectoryPicker !== "function") {
+      return pickDirectoryViaInput(options, onProgress);
     }
+    return null; // cancelled
   }
-
-  try {
-    const handle = await w.showDirectoryPicker(pickerOpts);
-    setStoredRootHandle(handle);
-    onProgress?.({ phase: "Reading folder" });
-    return buildTreeFromHandle(handle, 0, options);
-  } catch (err) {
-    // User cancelled — return null instead of throwing
-    if (err instanceof DOMException && err.name === "AbortError") {
-      return null;
-    }
-    throw err;
-  }
+  onProgress?.({ phase: "Reading folder" });
+  return buildTreeFromHandle(handle, 0, options);
 }
 
 // ── Brave / iframe detection ───────────────────────────────────────

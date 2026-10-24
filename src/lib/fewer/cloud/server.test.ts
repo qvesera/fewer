@@ -18,10 +18,17 @@ mock.module("./crypto", () => ({
   encryptToken: (s: string) => `encrypted:${s}`,
 }));
 const mockRefreshToken = mock(async () => ({ accessToken: "new-token", expiresIn: 3600 }));
+// T-211 (final): mock "./registry" — the only mechanism proven to reach
+// server.ts's adapter lookup — but spread a FRESH copy of registryCore: bun
+// evaluates the query-busted specifier as a separate, never-mocked instance,
+// and registry.test.ts imports the SAME fresh specifier. The stub therefore
+// cannot alias into registry.test.ts (or anything else) in either file order.
+const freshCoreSpec = "./registryCore" + "?fresh=1";
+const freshCore = (await import(freshCoreSpec)) as typeof import("./registryCore");
 mock.module("./registry", () => ({
-  getAdapter: async () => ({ refreshToken: mockRefreshToken }),
+  ...freshCore,
+  getAdapter: async () => ({ refreshToken: mockRefreshToken }) as never,
 }));
-
 const { getAuthedClient, getConnectionWithToken } = await import("./server");
 
 describe("getAuthedClient", () => {
