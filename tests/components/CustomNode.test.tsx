@@ -101,15 +101,6 @@ function openContextMenu(targetText: string) {
 beforeEach(() => { toast.mockClear(); });
 afterEach(cleanup);
 
-// `isHost()` reads window.__FEWER_NATIVE__, so the desktop-shell surface is
-// simulated by defining the bridge before rendering and dropping it after.
-function _installHost() {
-  (window as unknown as { __FEWER_NATIVE__?: unknown }).__FEWER_NATIVE__ = { invoke: async () => undefined };
-}
-function _removeHost() {
-  delete (window as unknown as { __FEWER_NATIVE__?: unknown }).__FEWER_NATIVE__;
-}
-
 // ── Rendering ───────────────────────────────────────────────────────────
 
 describe("CustomNode rendering", () => {
