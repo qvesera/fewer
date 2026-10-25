@@ -1,6 +1,5 @@
 import type { ThemeMode } from "./types";
 import { validateTextField, validateUsername } from "./textValidation";
-import { LICENSING_ENABLED } from "./licensing";
 
 /**
  * Pure model for the Settings dialog (src/components/fewer/SettingsDialog.tsx).
@@ -18,7 +17,6 @@ export type SettingsTabId =
   | "appearance"
   | "watched"
   | "cloud"
-  | "license"
   | "advanced"
   | "help";
 
@@ -223,28 +221,13 @@ export function usageMeter(used: number, limit: number): UsageMeter {
 
 /**
  * Which settings tabs exist for the current viewer, in tab-strip order. The
- * Advanced tab is desktop-only unless advanced mode is on. Watched and Cloud
- * exist only for signed-in users (tier !== "guest").
+ * Watched and Cloud exist only for signed-in users (tier !== "guest").
  */
 export function visibleTabs(opts: {
   tier: string;
   isMobile: boolean;
   advancedMode: boolean;
-  /** Desktop shell: no account/cloud tabs — those need the server. License
-   *  activation replaces them (T-099), but only while the licensing rail is
-   *  ON (T-148): a free build must not offer a path to Pro at all. */
-  inShell?: boolean;
-  /** Licensing rail state for the License tab; defaults to the build switch.
-   *  Callers never pass it — tests do, to cover both states. */
-  licensing?: boolean;
 }): SettingsTabId[] {
-  if (opts.inShell) {
-    const shellTabs: SettingsTabId[] = ["about", "appearance"];
-    if (opts.licensing ?? LICENSING_ENABLED) shellTabs.push("license");
-    if (opts.advancedMode || !opts.isMobile) shellTabs.push("advanced");
-    shellTabs.push("help");
-    return shellTabs;
-  }
   const tabs: SettingsTabId[] = ["account", "about", "appearance"];
   if (opts.tier !== "guest") tabs.push("watched", "cloud");
   if (opts.advancedMode || !opts.isMobile) tabs.push("advanced");

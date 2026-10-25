@@ -5054,3 +5054,38 @@ tasks:
     effort: {commits: 1, files: 18, insertions: 1007, deletions: 153}
   spent_min: 176
   session_count: 1
+- id: "T-181"
+  title: "Remove the standalone desktop host seam and shell-only surfaces from the web build"
+  status: "review"
+  type: "refactor"
+  area: "frontend"
+  tier: 2
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: null
+  pr: 448
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-24T17:13:17Z"
+  notes: []
+  sessions:
+  - start: "2026-10-24T17:13:23Z"
+    end: "2026-10-24T17:20:00Z"
+    measured: true
+    note: "Remove desktop host seam + shell-only surfaces; split wrapper/docs already in fewer-desktop"
+    proof: ["c0a8647"]
+    effort: {commits: 1, files: 110, insertions: 145, deletions: 11266}
+  - start: "2026-10-24T17:27:13Z"
+    end: "2026-10-24T17:27:55Z"
+    measured: true
+    note: "Drop dead shell-bridge helpers from CustomNode tests"
+    proof: ["9803703"]
+    effort: {commits: 1, files: 1, insertions: 0, deletions: 9}
+  spent_min: 8
+  session_count: 2

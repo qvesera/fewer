@@ -115,24 +115,4 @@ describe("buildBatchActions", () => {
     expect(useGraphStore.getState().viewSettings["test-leaf"]?.collapsedFolderIds).not.toContain(id);
     useGraphStore.setState({ activeLeafId: null });
   });
-
-  it("copy-paths only exists inside a desktop shell", () => {
-    const web = buildBatchActions({ ...base, inShell: false }).map((a) => a.id);
-    const shell = buildBatchActions({ ...base, inShell: true }).map((a) => a.id);
-    expect(web).not.toContain("copy-paths");
-    expect(shell).toContain("copy-paths");
-  });
-
-  it("copy-paths joins selected node paths with newlines", async () => {
-    const s = useGraphStore.getState();
-    const withPaths = s.nodes.filter((n) => n.data.path).slice(0, 2);
-    s.setSelectedNodeIds(withPaths.map((n) => n.id));
-    let written = "";
-    (globalThis as unknown as { navigator: unknown }).navigator = {
-      clipboard: { writeText: (t: string) => { written = t; return Promise.resolve(); } },
-    };
-    const copy = buildBatchActions({ ...base, inShell: true }).find((a) => a.id === "copy-paths");
-    copy?.run();
-    expect(written).toBe(withPaths.map((n) => n.data.path).join("\n"));
-  });
 });

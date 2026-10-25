@@ -1,161 +1,18 @@
-// Local graph library format (T-089 / #301): the on-disk contract for the
-// offline desktop build. A library is a directory the user chooses:
+// Fewer graph document (`.fwr`): the portable snapshot envelope.
 //
-//   <library>/library.json          manifest (index of graphs)
-//   <library>/graphs/<file>.json    one SavedGraph-shaped file per graph
+//   { format_version, graph: { id, name, data, created_at, updated_at, … } }
 //
-// Graph files reuse the SavedGraph / SavedGraphData shape the web app already
-// saves (same snapshot schema the Supabase rows hold), so a library graph and
-// a cloud graph are the same document — importable on web and desktop alike.
-//
-// Pure module: no FS, no Tauri. The FS adapter lives in graphsData.ts.
+// The same shape the web app exports and imports, so a document moves between
+// accounts and devices. Pure module: no FS, no store, no host bridge.
 import type { SavedGraph, SavedGraphData } from "./savedGraphs";
 
-/** Bump when the graph-file or manifest shape changes incompatibly. */
+/** Bump when the graph-file shape changes incompatibly. */
 export const LIBRARY_FORMAT_VERSION = 1;
 
-/** One graph as stored on disk. */
+/** One graph as stored in a `.fwr` document. */
 export interface LibraryGraphFile {
   format_version: number;
   graph: SavedGraph;
-}
-
-/** Manifest row: enough to list the sidebar without reading every graph file. */
-export interface LibraryManifestEntry {
-  id: string;
-  file: string;
-  name: string;
-  created_at: string;
-  updated_at: string;
-  is_favorite?: boolean;
-  node_count: number;
-}
-
-export interface LibraryManifest {
-  format_version: number;
-  app: "fewer";
-  graphs: LibraryManifestEntry[];
-}
-
-/** Filesystem operations the library needs. Desktop: Tauri commands; tests: fakes. */
-export interface LibraryFs {
-  read(path: string): Promise<string>;
-  write(path: string, contents: string): Promise<void>;
-  remove(path: string): Promise<void>;
-  /** Optional dir listing (file names). Desktop: list_dir; older fakes omit it. */
-  list?(dir: string): Promise<string[]>;
-}
-
-/** Path helpers — posix-style joins; the Rust side normalizes separators. */
-export function libraryManifestPath(root: string): string {
-  return `${trimSlash(root)}/library.json`;
-}
-export function libraryGraphPath(root: string, file: string): string {
-  return `${trimSlash(root)}/graphs/${file}`;
-}
-function trimSlash(root: string): string {
-  return root.endsWith("/") || root.endsWith("\\") ? root.slice(0, -1) : root;
-}
-
-// ── Named themes as files (T-101): <library>/themes/<slug>.fwtheme ─────
-
-export const THEME_EXT = ".fwtheme";
-/** Tolerated alongside .fwtheme — hand-edited copies usually add .json. */
-export const THEME_JSON_EXT = ".fwtheme.json";
-
-export interface ThemeFile {
-  format_version: number;
-  app: "fewer";
-  name: string;
-  theme: unknown;
-  created_at: string;
-  updated_at: string;
-}
-
-export function libraryThemeDir(root: string): string {
-  return `${trimSlash(root)}/themes`;
-}
-
-export function libraryThemePath(root: string, file: string): string {
-  return `${libraryThemeDir(root)}/${file}`;
-}
-
-export function themeFileName(name: string): string {
-  return `${slugify(name)}${THEME_EXT}`;
-}
-
-export function isThemeFile(name: string): boolean {
-  return name.endsWith(THEME_EXT) || name.endsWith(THEME_JSON_EXT);
-}
-
-export function buildThemeFile(name: string, theme: unknown): ThemeFile {
-  const now = new Date().toISOString();
-  return { format_version: LIBRARY_FORMAT_VERSION, app: "fewer", name, theme, created_at: now, updated_at: now };
-}
-
-/** Parse a theme file. Throws on anything malformed — callers surface it. */
-export function parseThemeFile(raw: string): ThemeFile {
-  const f = JSON.parse(raw) as Partial<ThemeFile>;
-  if (!f || f.format_version !== LIBRARY_FORMAT_VERSION || !f.name || !f.theme || typeof f.theme !== "object") {
-    throw new Error("not a fewer theme file");
-  }
-  return f as ThemeFile;
-}
-
-/** Stable, filesystem-safe slug for a graph name. */
-export function slugify(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .normalize("NFKD")
-    // Strip combining marks first so "ÄÖÜ" → "aou", not "a-o-u".
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48)
-    .replace(/-+$/g, "");
-  return slug || "graph";
-}
-
-/** Graph file name: `<slug>-<id-prefix>.fwr` (T-101: Fewer graph documents).
- *  Id prefix keeps renames collision-free. New saves write `.fwr`, and only
- *  `.fwr` is read back (T-145: no legacy `.json` library files). */
-export function graphFileName(id: string, name: string): string {
-  return `${slugify(name)}-${id.slice(0, 8)}.fwr`;
-}
-
-/** Fewer graph documents only — a legacy `.json` copy is not a library file. */
-export function isGraphFile(name: string): boolean {
-  return name.endsWith(".fwr");
-}
-
-/**
- * Rebuild a manifest by scanning the graphs dir (disk is the source of truth):
- * any folder of `.fwr` files is a valid library; files dropped in by hand
- * appear without touching the manifest.
- */
-export async function rebuildManifestFromGraphDir(fs: LibraryFs, root: string): Promise<LibraryManifest | null> {
-  if (!fs.list) return null;
-  let names: string[];
-  try {
-    names = await fs.list(libraryGraphPath(root, ""));
-  } catch {
-    return null;
-  }
-  const graphs: SavedGraph[] = [];
-  for (const name of names) {
-    if (!isGraphFile(name)) continue;
-    try {
-      graphs.push(parseGraphFile(await fs.read(libraryGraphPath(root, name))));
-    } catch {
-      // Skip unreadable files (old formats, partial writes).
-    }
-  }
-  if (!graphs.length) return null;
-  return buildManifest(graphs);
-}
-
-export function buildGraphFile(graph: SavedGraph): LibraryGraphFile {
-  return { format_version: LIBRARY_FORMAT_VERSION, graph };
 }
 
 /** Is `data` a real snapshot (cards carry their payload) rather than a reduced
@@ -183,9 +40,8 @@ export function parseGraphFile(raw: string): SavedGraph {
  * Fewer graph document (`.fwr`, or any payload carrying that envelope) →
  * `{ name, data }`, or `null` when the bytes are not a snapshot document.
  *
- * The reader every fidelity path shares: double-click / Open Recent / drop,
- * the desktop library, and the Import dialog's file origin (T-145). Pure — no
- * store, no FS, no host bridge.
+ * The reader every fidelity path shares: Import dialog file origin, drag-drop
+ * and Share import. Pure — no store, no FS, no host bridge.
  */
 export function parseGraphDocument(raw: string): { name: string; data: SavedGraphData } | null {
   try {
@@ -194,66 +50,4 @@ export function parseGraphDocument(raw: string): { name: string; data: SavedGrap
   } catch {
     return null;
   }
-}
-
-export function buildManifest(graphs: SavedGraph[]): LibraryManifest {
-  return {
-    format_version: LIBRARY_FORMAT_VERSION,
-    app: "fewer",
-    graphs: graphs.map((g) => manifestEntryFor(g)),
-  };
-}
-
-export function manifestEntryFor(g: SavedGraph, file?: string): LibraryManifestEntry {
-  return {
-    id: g.id,
-    file: file ?? graphFileName(g.id, g.name),
-    name: g.name,
-    created_at: g.created_at,
-    updated_at: g.updated_at,
-    ...(g.is_favorite ? { is_favorite: true } : {}),
-    node_count: g.data?.nodes?.length ?? 0,
-  };
-}
-
-/** Parse a manifest; unknown/newer format_version throws (fail-safe, no guessing). */
-export function parseManifest(raw: string): LibraryManifest {
-  const m = JSON.parse(raw) as Partial<LibraryManifest>;
-  if (!m || m.format_version !== LIBRARY_FORMAT_VERSION || !Array.isArray(m.graphs)) {
-    throw new Error(`unsupported library manifest (format_version=${m?.format_version})`);
-  }
-  return m as LibraryManifest;
-}
-
-export function emptyManifest(): LibraryManifest {
-  return { format_version: LIBRARY_FORMAT_VERSION, app: "fewer", graphs: [] };
-}
-
-/** Insert-or-replace a manifest row by id, newest-updated first. */
-export function manifestUpsert(man: LibraryManifest, entry: LibraryManifestEntry): LibraryManifest {
-  const rest = man.graphs.filter((g) => g.id !== entry.id);
-  return { ...man, graphs: [entry, ...rest].sort((a, b) => b.updated_at.localeCompare(a.updated_at)) };
-}
-
-export function manifestRemove(man: LibraryManifest, id: string): LibraryManifest {
-  return { ...man, graphs: man.graphs.filter((g) => g.id !== id) };
-}
-
-/** Snapshot → SavedGraph, with the fields the panel relies on defaulted. */
-export function savedGraphFrom(
-  id: string,
-  name: string,
-  data: SavedGraphData,
-  prev?: SavedGraph | null,
-): SavedGraph {
-  const now = new Date().toISOString();
-  return {
-    id,
-    name,
-    data,
-    created_at: prev?.created_at ?? now,
-    updated_at: now,
-    is_favorite: prev?.is_favorite,
-    share: prev?.share ?? null,
-  };
 }

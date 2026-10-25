@@ -1,8 +1,8 @@
-// T-099: server-dependent features are OFF in the desktop shell — the shell
-// ships no server and no account. Pure tests via cloudFeatureFor.
+// Server-dependent features all ship on the web — the desktop shell that
+// turned them off has moved to the private fewer-desktop repo.
 
 import { describe, expect, test } from "bun:test";
-import { CLOUD_FEATURES, cloudFeatureFor, type CloudFeature } from "./features";
+import { CLOUD_FEATURES, type CloudFeature } from "./features";
 
 const ALL: CloudFeature[] = [
   "accounts",
@@ -16,16 +16,10 @@ const ALL: CloudFeature[] = [
   "bugEmail",
 ];
 
-describe("cloudFeatureFor", () => {
-  test("every server feature is OFF in the shell", () => {
+describe("CLOUD_FEATURES", () => {
+  test("every server feature is ON on the web", () => {
     for (const f of ALL) {
-      expect(cloudFeatureFor(true, f), f).toBe(false);
-    }
-  });
-
-  test("every server feature stays ON on the web", () => {
-    for (const f of ALL) {
-      expect(cloudFeatureFor(false, f), f).toBe(true);
+      expect(CLOUD_FEATURES[f], f).toBe(true);
     }
   });
 
@@ -33,3 +27,4 @@ describe("cloudFeatureFor", () => {
     expect(Object.keys(CLOUD_FEATURES).sort()).toEqual([...ALL].sort());
   });
 });
+

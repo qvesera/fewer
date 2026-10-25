@@ -10,7 +10,6 @@ import {
   BreadcrumbBar,
 } from ".";
 import { useGraphStore } from "@/store/graphStore";
-import { PreviewPanel } from "@/components/fewer/PreviewPanel";
 import { useDialogState, useViewState } from "@/store/hooks";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
 import { SAMPLE_TREE } from "@/lib/fewer/sampleData";
@@ -25,12 +24,7 @@ import { shouldDeferHashForAuth, PENDING_AUTH_HASH_KEY } from "@/lib/fewer/authG
 import { loadLayoutFromStorage, defaultLayout } from "@/lib/fewer/panelLayout";
 import { tierOf, can } from "@/lib/fewer/tiers";
 import { cloudFeature } from "@/lib/fewer/features";
-import { desktopLicensedTier, onLicenseChanged } from "@/lib/fewer/license/licenseState";
-import { isHost, hostFetchResponse, nativeTakePendingOpenFile } from "@/lib/fewer/nativeShell";
-import { registerHostFetch } from "@/lib/fewer/netFetch";
-import { libraryThemesBackend } from "@/lib/fewer/graphsData";
 import { devTierOverride } from "@/lib/fewer/devTier";
-import { shellTier } from "@/lib/fewer/licensing";
 import { SEARCH_HISTORY_KEY } from "@/lib/fewer/searchHistory";
 import { TUTORIAL_STORAGE_KEY, TUTORIAL_BEGINNER_DONE_KEY } from "@/lib/fewer/tutorial";
 import { applySnapshot, loadGraphLocal, saveGraphLocal, pruneNodeForSave } from "@/lib/fewer/snapshot";
@@ -86,40 +80,6 @@ export function FewerApp() {
   const { importFlowOpen, setImportFlowOpen, addChildOpen, setAddChildOpen, addStandaloneOpen, setAddStandaloneOpen, addParentOpen, setAddParentOpen, notificationOpen, setNotificationOpen, authOpen, setAuthOpen, sidebarSide } = useDialogState();
   const { panelTree } = useViewState();
 
-  // T-102: register the main-process fetch bridge in the shell so URL +
-  // GitHub import work without our server (CORS-free cross-origin GETs).
-  useEffect(() => {
-    if (isHost()) registerHostFetch(hostFetchResponse);
-  }, []);
-
-  // T-123: the OS handed us a document at launch (double-click on a .fwr).
-  // One-shot: the main process clears its slot on read, so StrictMode's double
-  // effect or any later re-render cannot reopen it. A host that does not
-  // collect documents rejects → ignored.
-  useEffect(() => {
-    if (!isHost()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const path = await nativeTakePendingOpenFile();
-        if (!path || cancelled) return;
-        const { loadGraphFromPath } = await import("@/lib/fewer/openLocalGraph");
-        const result = await loadGraphFromPath(path);
-        if (cancelled) return;
-        toast({
-          title: result.title,
-          description: result.ok ? result.description : result.error,
-          variant: result.ok ? "default" : "destructive",
-        });
-      } catch {
-        /* no document waiting, or a host without the command */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [toast]);
-
   // On mobile, start with sidebar closed
   useEffect(() => {
     if (device.isMobile) {
@@ -143,33 +103,15 @@ export function FewerApp() {
     useGraphStore.setState({ searchHistory, tutorialBeginnerDone, tutorialDismissed });
   }, []);
 
-  // Desktop shell marker for CSS (T-091): cards/panels that assume web
-  // rendering (backdrop-filter, color-mix) degrade under html[data-shell].
+  // Tier: who is the visitor? Derived from auth + profile, never persisted.
+  // Panel layout hydration is keyed on tier — Pro gets their stored workspace,
+  // guests/free get the default single canvas.
   useEffect(() => {
-    if (isHost()) document.documentElement.dataset.shell = "";
-  }, []);
-
-  // Tier: who is the visitor? Derived from auth + profile + (desktop) license,
-  // never persisted. Panel layout hydration is keyed on tier — Pro gets their
-  // stored workspace, guests/free get the default single canvas.
-  useEffect(() => {
-    let cancelled = false;
     const apply = async () => {
-      // Desktop shell: a valid offline license promotes the tier above the
-      // account fallback (license gate, T-090). `?tier=` dev override still wins.
-      const licensed = await desktopLicensedTier();
-      if (cancelled) return;
       // `?tier=` (dev builds only) forces the tier so the Pro surface is testable
       // without a Pro account — see devTier.ts. The server still enforces the real
       // plan; production builds ignore it.
-      // Standalone (T-100): no account exists in the shell, so the tier comes
-      // from the offline license alone — never "guest" (which would also blank
-      // the advanced UI). Web keeps the account ladder unchanged.
-      // T-148: the licensing rail ships OFF, so the shell pins to "free" and
-      // neither a licence file nor `?tier=` can unlock Pro.
-      const tier = isHost()
-        ? shellTier(licensed, devTierOverride())
-        : devTierOverride() ?? tierOf(user, profile.plan);
+      const tier = devTierOverride() ?? tierOf(user, profile.plan);
     const prev = useGraphStore.getState().tier;
     useGraphStore.setState({
       tier,
@@ -205,8 +147,6 @@ export function FewerApp() {
     }
   };
     void apply();
-    // Activation/deactivation while the app is open re-derives the tier live.
-    return onLicenseChanged(() => void apply());
   }, [user, profile.plan]);
   // a deliberate toggle (local or cloud) is never clobbered. The store keeps the
   // isomorphic `true` default to avoid an SSR/client hydration mismatch; this
@@ -631,7 +571,6 @@ export function FewerApp() {
       <SectionDragLayer />
 
       <ExportPanel />
-      <PreviewPanel />
       <SearchPanel />
       <BatchRenameDialog />
       <ParentPickerDialog />
@@ -640,7 +579,7 @@ export function FewerApp() {
       <TutorialDialog restartKey={tutorialRestartKey} />
       <ShortcutsDialog />
       <SettingsDialog />
-      <ThemeEditorDialog localThemes={isHost() ? libraryThemesBackend() : undefined} />
+      <ThemeEditorDialog />
       <ShareDialog />
     {/* Lazy-mount once, then keep alive across minimize so the dock pill can render.
         Shell hooks (useAuth/useWatch) still defer until first open. */}
@@ -651,7 +590,6 @@ export function FewerApp() {
         initialOrigin={importFlowOrigin}
         onFirstOpen={() => setImportFlowMounted(true)}
         cloudAvailable={cloudFeature("cloudImport")}
-        hostImportAvailable={isHost()}
       />
     )}
 

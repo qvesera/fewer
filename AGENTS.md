@@ -46,131 +46,16 @@ bun run build:desktop  # Static export for the desktop shell → out/
 bun run lint           # Run ESLint
 ```
 
-## Desktop shell
+## Desktop app (private repo)
 
-The desktop app is a **static export** (`out/`) loaded by an Electron shell —
-`bun run build:desktop` (Electron consumes `out/` through a custom protocol).
+The standalone desktop build — shell, packaging, release pipeline and its in-app
+docs — lives in the **private `qvesera/fewer-desktop` repo** (forked from this
+one; history shared so upstream merges stay possible). This repo is the web app
+only: `bun run build` produces the Next.js standalone server, and there is no
+static-export / desktop build target here.
 
-- `scripts/build-desktop.sh` moves the server-only trees aside for the export
-  (`middleware.ts`, `src/app/api`, `src/app/auth/callback`), builds with
-  `output: "export"`, then restores them. `out/` is gitignored.
-- Docs + blog render from the in-repo markdown (`src/lib/content/localContent.ts`)
-  in export mode, so the build works offline and the app ships its own docs.
-  The web build keeps reading `content_pages` with ISR — the **same markdown is
-  the source of record** for both (`scripts/gen-seed-content.py` seeds the DB).
-- **Host seam** (`src/lib/fewer/nativeShell.ts`, T-094): feature code gates on
-  `isHost()` and routes RPCs through `hostInvoke`; the Electron preload exposes
-  `window.__FEWER_NATIVE__.invoke` with the same command names/shapes as Tauri's
-  `__TAURI_INTERNALS__.invoke`. Host packages (`@tauri-apps/*`, `electron`) are
-  banned in `src/` by an ESLint `no-restricted-imports` guard — the Rust side of
-  the contract is `src-tauri/src/lib.rs`, the Node side will be
-  `electron/handlers/`.
-- **Electron shell** (`electron/`, T-095): `main.ts` (window + privileged
-  `app://` protocol serving `out/` — `net.fetch` cannot read `file://` URLs
-  through a custom protocol, so the handler reads files itself with a MIME
-  map), `preload.ts` (the `__FEWER_NATIVE__` bridge), `handlers.ts` (pure-Node
-  command surface mirroring `src-tauri/src/lib.rs`; unit-tested by
-  `bun test electron`, incl. the shared cross-host license fixture).
-  `bun run electron:start` compiles + launches against `out/`; set
-  `FEWER_DEV_SERVER_URL=http://localhost:3000` (with `bun run dev`) to iterate
-  against the Next dev server with HMR instead.
-- **Standalone scope** (T-099): the shell boots straight into
-  `app://fewer/app.html` (no marketing landing); `features.ts → cloudFeature()`
-  flips every server-dependent surface OFF in the shell (sign-in, cloud
-  save/share/gallery/URL-import/watch/history/billing) — one map, no scattered
-  checks. External http(s) links open in the system browser
-  (`webContents.setWindowOpenHandler`).
-- **Standalone tier model** (T-100, revised by T-148): the shell tier comes
-  from `shellTier(licensed, devOverride())` in `licensing.ts` — **never
-  `guest`** (that would blank advanced UI). The `NEXT_PUBLIC_LICENSING_ENABLED`
-  build switch ships **off**: the shell tier is pinned to `free`, so a
-  `.fewerlicense` file and `?tier=pro` are both inert, the License tab in
-  Settings does not exist, and no copy offers an upgrade path — a free build
-  offers no path to Pro at all (flip it only for a build paired with a
-  purchase path that works in every market). The local graph library is
-  **free** everywhere (T-148); `SHELL_MIN_TIER`/`canFor()` in tiers.ts still
-  apply shell-only overrides (e.g. `unbrandedExport` → license); settings are
-  localStorage-only (`isHost()` guards both `/api/settings` fetches). Web
-  tiers unchanged.
-- **Local-first stores** (T-101): graphs save as `.fwr` documents
-  (`{format_version, app, graph}` — same shape `localLibrary.ts` always wrote,
-  new extension); since T-145 only `.fwr` is read back (legacy `.json` copies
-  are not scanned), and when the
-  host can `list_dir` the backend scans `graphs/` for `*.fwr` on
-  every list (disk is the source of truth; the manifest is a fallback for
-  fakes/tests). Named themes live in `<library>/themes/<slug>.fwtheme`
-  (`.fwtheme.json` tolerated) via a `ThemesBackend` swap in `themesData.ts`
-  mirroring `graphsData.ts` — cloud rows on the web, files in the shell.
-  First run creates `~/Documents/fewer` (`default_library_dir` host command,
-  persisted via `libraryConfig`); Export gains a "Fewer graph (.fwr)" format
-  and Import accepts `.fwr` (T-145: the JSON parser no longer unwraps
-  envelopes — graph documents are parsed by `parseGraphDocument` and applied
-  whole, with groups, tags and positions). Tauri's
-  handlers predate `default_library_dir` (Tauri parked) — parity is pending.
-- **host_fetch bridge** (T-102): URL + GitHub import work in the shell without
-  our server — `netFetch.ts` (dependency-free seam; FewerApp registers
-  `hostFetchResponse` at boot) routes crawl/GitHub fetches through a GET-only
-  `host_fetch` main-process command (http(s) only, 10s, 10MB). `localImport.ts`
-  reuses the pure builders the `/api` routes used (`crawlTree`,
-  `buildTree`/`subtreeItems`), including branch-split probing; the import
-  dialog shows the `url` origin via `hostImportAvailable` (cloud connectors
-  stay off). Web keeps POSTing to the endpoints.
-- **Shell docs variant** (T-104): `localContent.ts` filters by build mode —
-  export hides web-only docs (accounts/cloud/plans/privacy/terms/sharing/
-  watch/deployment/pwa-install), ships app-only pages (`APP_ONLY_DOCS`,
-  e.g. `content/docs/desktop.md`; skipped by gen-seed-content.py too), and
-  drops blogs entirely (build-desktop.sh moves `src/app/blog` aside and
-  removes out/blog — export rejects dynamic routes with empty
-  generateStaticParams). Docs chrome in the export is app-only
-  (MarketingLayout gates on the dependency-free `exportMode.ts` — it also
-  sits in client graphs, so localContent's node:fs can't be imported there);
-  Settings → Documentation opens in-app; the Blog link is web-only.
-  Page CONTENT has variants too: `<!-- shell:off -->…` blocks are web-only,
-  `<!-- shell:on -->…` desktop-only (markers consumed in BOTH modes —
-  localContent for the export, gen-seed-content.py for the web seed), and
-  `neutralizeDeadShellLinks()` degrades links to pages the shell lacks into
-  plain text — the shell must never show a link it can't serve.
-  **Pitfall**: `isDesktopExport()` is build-time only — non-NEXT_PUBLIC env
-  is never inlined into client bundles, so components that render inside a
-  client graph (e.g. MarketingLayout via the `"use client"` DocsLayout)
-  must ALSO gate on `isHost()` or the web chrome hydrates over the
-  server-baked shell variant. The Electron smoke asserts the post-hydration
-  docs state (header + no dead links); static HTML greps can't see this.
-- **Bug report + settings export** (T-105): the shell files **GitHub issues** —
-  *Settings → Help → Report an Issue* builds the pre-filled URL (`bugReport.ts`)
-  and `window.open` → main.ts `setWindowOpenHandler` → `shell.openExternal`
-  hands it to the system browser (`.catch`-swallowed: a headless box without a
-  browser must not kill the main process). The Web3Forms email fallback is
-  web-only via `cloudFeature("bugEmail")` (features.ts map — never a per-surface
-  `isHost()` check). *Settings → Help → Export Settings* snapshots every
-  `fewer*` localStorage key to `fewer-settings-<ts>.json`
-  (`settingsExport.ts`, pure collector + unit test). Both flows are
-  regression-covered by the Electron smoke's T-105 test.
-
-- **Packaging** (`electron-builder.yml`, T-096/T-103): `bun run electron:dist`
-  builds `out/`, compiles the shell, and emits `release/Fewer-<version>.AppImage` +
-  `.deb` — version always from package.json (single source of truth). T-103
-  adds **unsigned** macOS (`electron:dist:mac`: dmg + zip, x64+arm64 —
-  `identity: null`, `hardenedRuntime: false`, CI sets
-  `CSC_IDENTITY_AUTO_DISCOVERY=false`) and Windows (`electron:dist:win`: nsis
-  setup + portable, x64 — no cert, SmartScreen flags by design) from the same
-  `public/logo-512.png` icon source (electron-builder derives .icns/.ico on the
-  respective runner). CI's `package` job is a 3-OS matrix: build → Electron
-  smoke → package → upload (`fewer-linux` / `fewer-mac` / `fewer-win`), with
-  `shell: bash` everywhere (build-desktop.sh) and xvfb only on linux. Packaged
-  layout mirrors the repo (`app.asar` holds `electron/dist/` + `out/`), so
-  main.ts's `../../out` resolution is identical dev vs packaged; asar-patched
-  fs makes existsSync/statSync/readFile work inside. AppImage needs libfuse2 —
-  on Fedora 39+ run with `--appimage-extract-and-run`. CI packaging job: T-097.
-  The Electron smoke (`e2e/electron.spec.ts`, its own
-  `playwright.electron.config.ts`) drives the real shell via Playwright
-  `_electron`: window up, `__FEWER_NATIVE__` bridge present, `list_dir`
-  round-trip through ipcMain → handlers → fs. CI's `package` job runs it under
-  `xvfb-run` before packaging; locally: `bunx playwright test --config
-  playwright.electron.config.ts`.
-- Segment config (`export const revalidate`) must stay a **literal** in export
-  mode: Next parses it statically, and a ternary aborts the build with
-  "Invalid segment configuration export detected".
+Host packages (`@tauri-apps/*`, `electron`) stay banned in `src/` by the ESLint
+`no-restricted-imports` guard.
 
 ## Project Architecture
 

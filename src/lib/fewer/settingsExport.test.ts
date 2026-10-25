@@ -38,7 +38,6 @@ describe("collectSettingsExport", () => {
       keys: Object.keys(STORAGE),
       read,
       now: new Date("2026-10-08T10:00:00.000Z"),
-      host: true,
     });
     expect(Object.keys(snap.entries)).toEqual([
       "fewer-theme",
@@ -49,18 +48,16 @@ describe("collectSettingsExport", () => {
     expect(snap.entries["other-app-key"]).toBeUndefined();
   });
 
-  test("envelope carries version, kind, timestamp, and host flag", () => {
+  test("envelope carries version, kind and timestamp", () => {
     const snap = collectSettingsExport({
       keys: ["fewer-theme"],
       read,
       now: new Date("2026-10-08T10:00:00.000Z"),
-      host: true,
     });
     expect(snap.app).toBe("fewer");
     expect(snap.kind).toBe("settings-export");
     expect(snap.version).toBe(SETTINGS_EXPORT_VERSION);
     expect(snap.exportedAt).toBe("2026-10-08T10:00:00.000Z");
-    expect(snap.host).toBe(true);
   });
 
   test("skips keys whose value reads back null (deleted mid-snapshot)", () => {
@@ -69,7 +66,6 @@ describe("collectSettingsExport", () => {
       read: (k) => (k === "fewer-gone" ? null : STORAGE[k] ?? null),
     });
     expect(snap.entries).toEqual({ "fewer-user-settings": "{\"version\":1}" });
-    expect(snap.host).toBe(false);
   });
 
   test("defaults exportedAt to now", () => {

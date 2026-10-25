@@ -2,8 +2,6 @@ import { ArrowRight, BellRing, History, Link2, Search, Shapes } from "lucide-rea
 import Link from "next/link";
 import { Slider } from "@/components/ui/slider";
 import { GroupDemo } from "./GroupDemo";
-import { isDesktopExport } from "@/lib/content/exportMode";
-import { isHost } from "@/lib/fewer/nativeShell";
 import type { ProofKind } from "@/lib/fewer/marketingFeatures";
 
 /**
@@ -249,10 +247,6 @@ mkdir -p docs`}
         ))}
       </div>
     );
-    // The gallery is a web-only surface (no /api in the desktop export), so
-    // the chips are a link only where the destination exists - the same gate
-    // MarketingLayout uses to hide the Gallery nav item (T-104).
-    if (isDesktopExport() || isHost()) return chips;
     return (
       <Link
         href="/gallery?tab=themes"

@@ -13,8 +13,6 @@ export interface SettingsExport {
   version: number;
   /** ISO-8601 timestamp the snapshot was taken. */
   exportedAt: string;
-  /** True when snapshotted inside a desktop shell (support context). */
-  host: boolean;
   /** Raw localStorage values keyed by storage key — only Fewer's own keys. */
   entries: Record<string, string>;
 }
@@ -32,7 +30,6 @@ export function collectSettingsExport(opts: {
   keys: readonly string[];
   read: (key: string) => string | null;
   now?: Date;
-  host?: boolean;
 }): SettingsExport {
   const entries: Record<string, string> = {};
   for (const key of [...opts.keys].filter(isSettingsExportKey).sort()) {
@@ -44,7 +41,6 @@ export function collectSettingsExport(opts: {
     kind: "settings-export",
     version: SETTINGS_EXPORT_VERSION,
     exportedAt: (opts.now ?? new Date()).toISOString(),
-    host: opts.host ?? false,
     entries,
   };
 }
