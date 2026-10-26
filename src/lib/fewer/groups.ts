@@ -439,6 +439,52 @@ export function groupsOpenedByReveal(
   return kept.length === collapsedIds.length ? null : kept;
 }
 
+/** View-scoped inputs the frame-rect pass needs — one bag keeps the extracted
+ *  branch helpers' signatures short. */
+type FrameRectCtx = {
+  groups: readonly Group[];
+  anchor: readonly FewerNode[];
+  painted: readonly FewerNode[];
+  visible?: ReadonlySet<string>;
+  direction: LayoutDirection;
+  pillRects?: ReadonlyMap<string, GroupBounds>;
+};
+
+/** A collapsed group's rect: the layout's pill rect when present (T-179 — it
+ *  is in this view's own coordinates), else the pill anchored on the whole
+ *  subtree's cards (store coords — they're hidden) at the flow-start corner. */
+function collapsedGroupRect(ctx: FrameRectCtx, g: Group, id: string): GroupBounds | null {
+  const laid = ctx.pillRects?.get(g.id);
+  if (laid) return laid;
+  const ids = subtreeMemberIds(ctx.groups, id);
+  const own = groupBounds(ctx.anchor, ids) ?? groupBounds(ctx.painted, ids, GROUP_PADDING, ctx.visible);
+  return own ? groupPill(own, ctx.direction) : null;
+}
+
+/** An expanded group's rect: own content (header already reserved by
+ *  groupBounds) minus the header so children union into the region BELOW it,
+ *  then the header re-added on the way out. */
+function expandedGroupRect(
+  ctx: FrameRectCtx,
+  g: Group,
+  id: string,
+  rect: (id: string) => GroupBounds | null,
+): GroupBounds | null {
+  const own = groupBounds(ctx.painted, g.memberIds, GROUP_PADDING, ctx.visible);
+  let content: GroupBounds | null = own
+    ? { x: own.x, y: own.y + GROUP_HEADER_HEIGHT, width: own.width, height: own.height - GROUP_HEADER_HEIGHT }
+    : null;
+  for (const c of childGroups(ctx.groups, id)) {
+    const cr = rect(c.id);
+    if (!cr) continue;
+    const padded = padRect(cr, GROUP_PADDING);
+    if (content) content = unionRect(content, padded);
+    else content = padded;
+  }
+  if (!content) return null;
+  return { x: content.x, y: content.y - GROUP_HEADER_HEIGHT, width: content.width, height: content.height + GROUP_HEADER_HEIGHT };
+}
+
 export function groupFrameRects(
   groups: readonly Group[],
   painted: readonly FewerNode[],
@@ -476,6 +522,7 @@ export function groupFrameRects(
   for (const g of groups) if (isSuppressed(g.id)) suppressed.add(g.id);
 
   const memo = new Map<string, GroupBounds | null>();
+  const ctx: FrameRectCtx = { groups, anchor, painted, visible, direction, pillRects };
   const rect = (id: string): GroupBounds | null => {
     if (memo.has(id)) return memo.get(id)!;
     const g = byId.get(id);
@@ -483,37 +530,9 @@ export function groupFrameRects(
       memo.set(id, null);
       return null;
     }
-    let out: GroupBounds | null;
-    if (collapsedIds.has(g.id)) {
-      // The layout's pill rect wins (T-179): it is in this view's own
-      // coordinates. Fallback: anchor the pill on the whole subtree's cards
-      // (store coords — they're hidden) at the flow-start corner.
-      const laid = pillRects?.get(g.id);
-      if (laid) {
-        out = laid;
-      } else {
-        const ids = subtreeMemberIds(groups, id);
-        const own = groupBounds(anchor, ids) ?? groupBounds(painted, ids, GROUP_PADDING, visible);
-        out = own ? groupPill(own, direction) : null;
-      }
-    } else {
-      // Own content (header already reserved by groupBounds), minus the header
-      // so children union into the region BELOW the header.
-      const own = groupBounds(painted, g.memberIds, GROUP_PADDING, visible);
-      let content: GroupBounds | null = own
-        ? { x: own.x, y: own.y + GROUP_HEADER_HEIGHT, width: own.width, height: own.height - GROUP_HEADER_HEIGHT }
-        : null;
-      for (const c of childGroups(groups, id)) {
-        const cr = rect(c.id);
-        if (cr) {
-          const padded = padRect(cr, GROUP_PADDING);
-          content = content ? unionRect(content, padded) : padded;
-        }
-      }
-      out = content
-        ? { x: content.x, y: content.y - GROUP_HEADER_HEIGHT, width: content.width, height: content.height + GROUP_HEADER_HEIGHT }
-        : null;
-    }
+    const out = collapsedIds.has(g.id)
+      ? collapsedGroupRect(ctx, g, id)
+      : expandedGroupRect(ctx, g, id, rect);
     memo.set(id, out);
     return out;
   };

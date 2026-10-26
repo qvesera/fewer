@@ -130,45 +130,45 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
       return;
     }
     const name = safeText(saveName);
-    if (localThemes) {
-      setSaving(true);
-      try {
-        await localThemes.save(name, customTheme);
-        setSaveOpen(false);
-        setSaveName("");
-        await loadThemes();
-        toast({ title: "Theme saved", description: `\"${name}\" saved to the theme library.` });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : undefined;
-        toast({ title: "Could not save", description: msg, variant: "destructive" });
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
+    // One skeleton for both destinations (they differed only in the body):
+    // save, close, clear, reload, then per-destination toast/publish — in that
+    // exact order, and with each destination's own catch default (library
+    // failures describe nothing new, account failures fall back to a generic).
     setSaving(true);
     try {
-      const res = await fetch("/api/themes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, theme: customTheme }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
-      const savedId: string = json.theme?.id ?? "";
+      let savedId = "";
+      if (localThemes) {
+        await localThemes.save(name, customTheme);
+      } else {
+        const res = await fetch("/api/themes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, theme: customTheme }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Save failed");
+        savedId = json.theme?.id ?? "";
+      }
       setSaveOpen(false);
       setSaveName("");
       await loadThemes();
-      if (shareGallery && savedId) {
+      if (localThemes) {
+        toast({ title: "Theme saved", description: `"${name}" saved to the theme library.` });
+      } else if (shareGallery && savedId) {
         await publishTheme(savedId, name);
       } else {
         toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
       }
-      setShareGallery(false);
-      setGalleryTitle("");
-      setGalleryDescription("");
+      if (!localThemes) {
+        setShareGallery(false);
+        setGalleryTitle("");
+        setGalleryDescription("");
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not save theme";
+      let msg: string | undefined;
+      if (err instanceof Error) msg = err.message;
+      // Library failures describe nothing new; account failures fall back to a generic.
+      else if (!localThemes) msg = "Could not save theme";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);

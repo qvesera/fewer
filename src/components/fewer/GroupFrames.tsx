@@ -90,6 +90,42 @@ const gestureRef = {
   set: (g: FrameGesture | null) => { activeGesture = g; },
 };
 
+/** True for targets that own their keystrokes (rename input, note editor). */
+function isEditableKeyTarget(target: HTMLElement | null): boolean {
+  if (!target) return false;
+  return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+}
+
+/** Escape's first job: snap a LIVE gesture back. Returns false when there is
+ *  nothing to restore (no gesture, nothing moved, already cancelled) so the
+ *  caller falls through to clearing the selection. Restore IS the Escape
+ *  result for a live drag: positions snap back where THIS canvas painted them,
+ *  nothing is recorded, the selection stays. Same routing as the gesture
+ *  writes (per-view map vs shared). */
+function restoreGestureIfLive(
+  act: ReturnType<typeof useGraphStore.getState>,
+  leafId: string | undefined,
+): boolean {
+  const g = gestureRef.get();
+  if (!g || !g.moved || g.cancelled) return false;
+  if (leafId) {
+    // startPositions is a Map — spread it; Object.entries() on a Map is [].
+    const batch = [...g.startPositions].map(([id, pos]) => ({ id, pos }));
+    if (g.startPill) batch.push({ id: groupPillNodeId(g.groupId), pos: g.startPill });
+    act.setNodePositionsBatch(leafId, batch);
+  } else {
+    act.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
+  }
+  g.cancelled = true;
+  return true;
+}
+
+/** Delete's job: ungroup every selected group, then clear the selection. */
+function ungroupSelection(act: ReturnType<typeof useGraphStore.getState>): void {
+  for (const id of act.selectedGroupIds) act.removeGroup(id);
+  act.setSelectedGroupIds([]);
+}
+
 /**
  * All group frames for one canvas.
  *
@@ -236,35 +272,16 @@ export function GroupFrame({
   // its own Escape/typing (rename input, note editor).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (isEditableKeyTarget(e.target as HTMLElement | null)) return;
       const act = useGraphStore.getState();
       if (e.key === "Escape") {
-        const g = gestureRef.get();
-        if (g && g.moved && !g.cancelled) {
-          // Restore IS the Escape result for a live drag: positions snap back
-          // where THIS canvas painted them, nothing is recorded, the selection
-          // stays. Same routing as the gesture writes (per-view map vs shared).
-          // (`act` here is already the state snapshot, not a getter.)
-          const s = act;
-          if (leafId) {
-            // startPositions is a Map — spread it; Object.entries() on a Map is [].
-            const batch = [...g.startPositions].map(([id, pos]) => ({ id, pos }));
-            if (g.startPill) batch.push({ id: groupPillNodeId(g.groupId), pos: g.startPill });
-            s.setNodePositionsBatch(leafId, batch);
-          } else {
-            s.setGroupMemberPositions(g.groupId, Object.fromEntries(g.startPositions));
-          }
-          g.cancelled = true;
-          return;
-        }
+        if (restoreGestureIfLive(act, leafId)) return;
         if (act.selectedGroupIds.length > 0) act.setSelectedGroupIds([]);
         return;
       }
       if (e.key === "Delete" && act.selectedGroupIds.length > 0) {
         e.preventDefault();
-        for (const id of act.selectedGroupIds) act.removeGroup(id);
-        act.setSelectedGroupIds([]);
+        ungroupSelection(act);
       }
     };
     window.addEventListener("keydown", onKey);
