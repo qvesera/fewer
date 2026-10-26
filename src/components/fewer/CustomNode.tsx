@@ -68,14 +68,12 @@ function NodeIcon({
     // A linked dir keeps its folder identity; the glyph swap is the always-on
     // link signal (see graphRenderer for the export twin). An expanded archive
     // shows the archive glyph so it is not mistaken for a real directory —
-    // it holds a listing, not the bytes on disk.
-    const FolderComp = isArchive
-      ? FileArchive
-      : symlink
-        ? FolderSymlink
-        : isRoot
-          ? FolderOpen
-          : Folder;
+    // it holds a listing, not the bytes on disk. Precedence order, weakest
+    // first: plain folder < root < symlink < archive.
+    let FolderComp = Folder;
+    if (isRoot) FolderComp = FolderOpen;
+    if (symlink) FolderComp = FolderSymlink;
+    if (isArchive) FolderComp = FileArchive;
     return <FolderComp className={className} />;
   }
   const IconComp = symlink ? FileSymlink : CATEGORY_ICON[category ?? "text"] ?? FileIcon;
