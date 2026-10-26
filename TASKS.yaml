@@ -5403,14 +5403,14 @@ tasks:
   session_count: 1
 - id: "T-194"
   title: "Document: shipped issues close by hand — PRs merge to dev, not the default branch"
-  status: "triaged"
+  status: "review"
   type: "docs"
   area: "docs"
   tier: 0
   estimate_min: 15
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 459
   internal: true
   milestone: null
   blocked_by: []
