@@ -3932,7 +3932,7 @@ tasks:
   session_count: 1
 - id: "T-145"
   title: "JSON/.fwr export should retain canvas groups (and tags) like saved graphs do"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 1
@@ -3961,7 +3961,7 @@ tasks:
   session_count: 1
 - id: "T-146"
   title: "Nested canvas groups (W4–W6): parentId model, recursive bounds, collapse cascade, transitive move/scale"
-  status: "done"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4013,7 +4013,7 @@ tasks:
   session_count: 0
 - id: "T-148"
   title: "Pro/licensing is off by default in the desktop shell (one flag, no license UI, tier pinned to free) and the local graph library becomes free"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "other"
   tier: 1
@@ -4042,7 +4042,7 @@ tasks:
   session_count: 1
 - id: "T-149"
   title: "Marketing home page refresh: stale facts (7→8 formats, nodes→cards), free-feature grid (groups, import breadth, gallery), SEO cleanup (/welcome duplicate, nav anchor, /app metadata), fresh demo screenshot"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 1
@@ -4184,7 +4184,7 @@ tasks:
   session_count: 11
 - id: "T-151"
   title: "Canvas interest points: one active-feature tag instead of twelve sparkle pins"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4225,7 +4225,7 @@ tasks:
   session_count: 3
 - id: "T-152"
   title: "Home Themes feature links to the gallery themes tab"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4254,7 +4254,7 @@ tasks:
   session_count: 1
 - id: "T-153"
   title: "Home hero: large centred headline as the first read"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4283,7 +4283,7 @@ tasks:
   session_count: 1
 - id: "T-154"
   title: "Preview canvas: slimmer file cards, folders stay saturated"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4312,7 +4312,7 @@ tasks:
   session_count: 1
 - id: "T-155"
   title: "Home privacy section: mockup layout + type scale"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4341,7 +4341,7 @@ tasks:
   session_count: 1
 - id: "T-156"
   title: "Home privacy: bento right column - hero claim, sandbox schematic, stat badges"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4376,7 +4376,7 @@ tasks:
   session_count: 2
 - id: "T-157"
   title: "Feature playground: spent hover authorisation on ignored folder hovers (e2e flake fix)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -4405,7 +4405,7 @@ tasks:
   session_count: 1
 - id: "T-158"
   title: "Home hero: canvas chassis, ambient accent glow, node hierarchy"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4434,7 +4434,7 @@ tasks:
   session_count: 1
 - id: "T-159"
   title: "Tighten the feature playground inspector spacing"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4469,7 +4469,7 @@ tasks:
   session_count: 2
 - id: "T-160"
   title: "Preview canvas: only the selected card's connection stays lit"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -4498,7 +4498,7 @@ tasks:
   session_count: 1
 - id: "T-161"
   title: "Home copy pass: plain-language rotating hero (scroll-armed), full-height hero section, ten-feature rail in newcomer words"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "ux"
   tier: 2
@@ -4539,7 +4539,7 @@ tasks:
   session_count: 3
 - id: "T-162"
   title: "Show Children does not restore individually-hidden file cards (toast fires, cards stay hidden)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 0
@@ -4568,7 +4568,7 @@ tasks:
   session_count: 1
 - id: "T-163"
   title: "Collapsed group pill ignores layout direction (always anchors top-left as if TB)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: 0
@@ -4597,7 +4597,7 @@ tasks:
   session_count: 1
 - id: "T-164"
   title: "Per-leaf group collapse: view state, effective-hidden resolution, persistence"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "layout"
   tier: 0
@@ -4672,7 +4672,7 @@ tasks:
   session_count: 0
 - id: "T-167"
   title: "Revealing a collapsed group's cards expands the group (per-view reveal invariant)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 0
@@ -4701,7 +4701,7 @@ tasks:
   session_count: 1
 - id: "T-168"
   title: "Docs + changelog for per-view group collapse and reveal-expands behavior"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: 0
@@ -4730,7 +4730,7 @@ tasks:
   session_count: 1
 - id: "T-169"
   title: "Revealing one card of a collapsed group must not reveal its siblings (park them per-view)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 0
@@ -4765,7 +4765,7 @@ tasks:
   session_count: 2
 - id: "T-170"
   title: "Home privacy bento: claim cards show title only, claim revealed on hover"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4824,7 +4824,7 @@ tasks:
   session_count: 6
 - id: "T-171"
   title: "Marketing e2e: hero arrow wrap test asserts the wrong last slide (stale, E2E red on dev)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -4853,7 +4853,7 @@ tasks:
   session_count: 1
 - id: "T-172"
   title: "Info tooltips on sidebar sections and settings rows"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
@@ -4882,7 +4882,7 @@ tasks:
   session_count: 1
 - id: "T-173"
   title: "Brand identity: OG card, canonical mark, dead Toolbar"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -4911,7 +4911,7 @@ tasks:
   session_count: 1
 - id: "T-174"
   title: "Auto-hide limit keeps the first N children visible per folder (cascading, reveal-overridable)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "visibility"
   tier: 1
@@ -4969,7 +4969,7 @@ tasks:
   session_count: 1
 - id: "T-176"
   title: "Unify batch and individual tagging into one Tags submenu"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "ui"
   tier: 1
@@ -4998,7 +4998,7 @@ tasks:
   session_count: 1
 - id: "T-179"
   title: "Collapsed group breaks in every layout: pill lands in the store's coordinate space (non-TB), a full block is reserved in TB, and the title overlaps cards in LR/RL"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: null
@@ -5027,7 +5027,7 @@ tasks:
   session_count: 1
 - id: "T-180"
   title: "Anchor-mode collapsed groups (multi-level members keep their slot) plus derived input/output boundary stubs on the pill"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "layout"
   tier: 1
@@ -5056,7 +5056,7 @@ tasks:
   session_count: 1
 - id: "T-181"
   title: "Remove the standalone desktop host seam and shell-only surfaces from the web build"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "frontend"
   tier: 2
@@ -5091,7 +5091,7 @@ tasks:
   session_count: 2
 - id: "T-182"
   title: "Wire test coverage into repowise so health findings are measured"
-  status: "review"
+  status: "done"
   type: "task"
   area: "infra"
   tier: 0
@@ -5258,7 +5258,7 @@ tasks:
   session_count: 0
 - id: "T-189"
   title: "Reduce brain-method complexity in store slice creators (folderSlice, panelUiSlice, hideShow)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "infra"
   tier: 1
@@ -5287,7 +5287,7 @@ tasks:
   session_count: 1
 - id: "T-190"
   title: "Raise test coverage on the two files the lcov ingest exposed (fileSystem.ts, versions.ts)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "other"
   tier: 0
@@ -5316,7 +5316,7 @@ tasks:
   session_count: 1
 - id: "T-191"
   title: "Redefining window.self in one components test breaks an unrelated test in CI (happy-dom/bun)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "other"
   tier: null
