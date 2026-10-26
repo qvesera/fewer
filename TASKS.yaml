@@ -5461,30 +5461,30 @@ tasks:
   session_count: 1
 - id: "T-196"
   title: "selectionSlice: tests first, then flatten createSelectionSlice (repo worst file, score 2.4)"
-  status: "in-progress"
+  status: "review"
   type: "task"
   area: "ux"
   tier: 0
   estimate_min: 150
   estimate_basis: "cli"
   issue: 461
-  pr: null
+  pr: 462
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#461"
-  time_source: null
+  time_source: "measured"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-10-26T18:29:51Z"
   notes: ["2026-10-26T18:30:08Z · adopted at intake from GitHub (open)", "2026-10-26T18:30:32Z · Tests first (colocated selectionSlice.test.ts, uiSlices.test.ts harness pattern), then flatten createSelectionSlice per #451 pattern (module-level fns, NO factory — aggregates CCN). Also fold pending reconcile (T-194/195 → done) as first ledger-only commit."]
   sessions:
   - start: "2026-10-26T18:31:25Z"
-    end: null
+    end: "2026-10-26T19:00:27Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Tests first (18 characterization tests, no mocks, #285 echo guards + mutual exclusion + history swap pinned), then flatten: createSelectionSlice CCN 23→8 dispatch table, module-level fns. File 2.4 (worst) → 5.63, coverage 0→86.92%, untested_hotspot/brain/complex/function_hotspot all gone. Gates: lint/tsc/build green, 1832+258 tests. Branch also folded reconcile T-194/195."
+    proof: ["49a6d86", "7ec95bf", "2363aa4", "#462"]
+    effort: {commits: 3, files: 4, insertions: 339, deletions: 65}
+  spent_min: 29
   session_count: 1
