@@ -5343,3 +5343,32 @@ tasks:
     effort: {commits: 2, files: 2, insertions: 21, deletions: 9}
   spent_min: 17
   session_count: 1
+- id: "T-192"
+  title: "Flatten the two deepest remaining methods: parsers.dotTokens (nest 6, CCN 39) and CustomNode.NodeIcon (nest 4)"
+  status: "review"
+  type: "task"
+  area: "other"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 456
+  pr: 457
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#456"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T12:51:29Z"
+  notes: ["2026-10-26T12:51:50Z · adopted at intake from GitHub (open)", "2026-10-26T12:51:50Z · Extract/early-return only. parsers.dotTokens (nest 6, CCN 39) + CustomNode.NodeIcon (nest 4, #1 deficit). Nets: parsers.test.ts, CustomNode.test.tsx. Queued behind: ThemeEditor handleSaveTheme, GroupFrames useEffect, groups.groupFrameRects."]
+  sessions:
+  - start: "2026-10-26T12:52:12Z"
+    end: "2026-10-26T13:04:55Z"
+    measured: true
+    note: "dotTokens: extracted readDotQuoted/readDotNegativeNumber/readDotIdentifier scanners + ternary→if/else; parsers 2.5→4.03, nest 6→3, CCN 39→27. NodeIcon: ternary ladder→precedence ifs, nest 4→2, finding gone. Gates: lint/tsc/build/test (1814+258) all green; parsers suite 22/22."
+    proof: ["29cb50a", "#457"]
+    effort: {commits: 1, files: 3, insertions: 74, deletions: 46}
+  spent_min: 13
+  session_count: 1
