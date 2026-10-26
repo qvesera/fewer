@@ -183,19 +183,14 @@ describe("detection helpers", () => {
     expect(isIframeContext()).toBe(false);
   });
 
-  test("isIframeContext returns true when window access throws", () => {
-    Object.defineProperty(window, "self", {
-      get() {
-        throw new Error("cross-origin");
-      },
-      configurable: true,
-    });
-    try {
-      expect(isIframeContext()).toBe(true);
-    } finally {
-      delete (window as unknown as { self?: unknown }).self;
-    }
-  });
+  // Deliberately NO test redefining `window.self` to hit the catch branch.
+  // Bisected in CI (qvesera/fewer#453): this file's `Object.defineProperty +
+  // delete` on `window.self` — state restored, probes showed a byte-identical
+  // window — reproducibly made the unrelated GroupFrames "Color…" test fail in
+  // the CI components process with an AggregateError from RTL cleanup, while
+  // every other slice of this file passed. Root cause sits in
+  // happy-dom/bun's window machinery, not here; the 3-line defensive catch is
+  // not worth an unrelated test's CI instability. Revisit if that code changes.
 });
 
 describe("stored root handle", () => {
