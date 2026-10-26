@@ -2853,6 +2853,11 @@ def cmd_renumber(args: argparse.Namespace) -> int:
 def cmd_doctor(args: argparse.Namespace) -> int:
     ledger = load()
     problems: list[str] = []
+    # Declared before the issue loop: the loop appends NOTEs (unreadable parent
+    # reads), and an annotated assignment anywhere makes the name local for the
+    # whole function — the old position (after the loop) crashed with
+    # UnboundLocalError the first time the parent-parity note actually fired.
+    notes: list[str] = []
     rows = {r.get("issue"): r for r in ledger["tasks"] if r.get("issue")}
     by_id = {r["id"]: r for r in ledger["tasks"]}
     if not have_gh():
@@ -2917,12 +2922,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
         if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
-    notes: list[str] = []
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
-        # projection of the row, and `sync-details` is its only writer.
-        board_drift, notes = board_problems(ledger)
+        # projection of the row, and `sync-details` is its only writer. Extend,
+        # don't reassign — the loop above collected NOTEs too.
+        board_drift, board_notes = board_problems(ledger)
         problems.extend(board_drift)
+        notes.extend(board_notes)
     for note in notes:
         print(f"NOTE   {note}")
     payload = {"problems": problems, "count": len(problems)}
