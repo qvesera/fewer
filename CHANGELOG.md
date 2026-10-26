@@ -106,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-hide Limit now caps each folder instead of emptying it: a folder shows its first N children (N = the limit, default 10) in the canvas sort order and hides the rest, cascading through every visible folder — including folders revealed by hand, which come up with their first N children and leave the rest for one-by-one reveal. Manual reveals stay on top of the cap, changing the Sort re-picks the visible N, and reveal toasts/reporting count only what actually stayed hidden
 - Tagging unified: selecting cards and right-clicking now opens the same **Tags** submenu a single card uses (checked/indeterminate per tag, + New tag with color swatches) instead of a separate batch dialog — one UI, one undo step, Pro-gated on both paths
 - Standalone desktop app (Electron/Tauri shell, local library, packaging, desktop build and its docs) removed — it now lives in the private fewer-desktop repository
+- Store slice creators (folderSlice, panelUiSlice, hideShow, core) are flat dispatch tables: action bodies moved to named module-level functions, one per action. Behavior unchanged, all 2050 tests pass. Per-file health: folderSlice 3.91→4.56, panelUiSlice 2.88→4.09, hideShow 3.96→4.46, core 2.26→3.26; every brain_method/large_method finding on them is gone, and the graph-slice composer ADR was re-synced to the current layout (stale_governance findings repo-wide: cleared).
 
 ### Fixed
 
