@@ -5089,3 +5089,257 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 0, deletions: 9}
   spent_min: 8
   session_count: 2
+- id: "T-182"
+  title: "Wire test coverage into repowise so health findings are measured"
+  status: "review"
+  type: "task"
+  area: "infra"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 449
+  pr: 450
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#449"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T06:18:44Z"
+  notes: ["2026-10-26T06:23:44Z · adopted at intake from GitHub (open)", "2026-10-26T06:24:20Z · T0 from repowise health plan: lcov from bun test --coverage, ingest via repowise coverage add, re-measure untested_hotspot count as baseline"]
+  sessions:
+  - start: "2026-10-26T06:24:57Z"
+    end: "2026-10-26T06:38:35Z"
+    measured: true
+    note: "Added test:coverage + health:coverage scripts; lcov ingest measured. Avg health 7.79->8.18 (band warning->healthy); untested_hotspot hundreds->5; real gaps now surfaced (fileSystem.ts 10%, versions.ts 22%). Reading rules documented in .clinerules/repowise-context.md. Gates lint/tsc/build/test all pass."
+    proof: ["33753a0", "5bc16a7"]
+    effort: {commits: 2, files: 4, insertions: 193, deletions: 0}
+  spent_min: 14
+  session_count: 1
+- id: "T-183"
+  title: "Auto-hide cap re-derives when the background scan lands"
+  status: "triaged"
+  type: "fix"
+  area: "perf"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 446
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#446"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-23T18:23:14Z"
+  notes: ["2026-10-26T06:23:48Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-184"
+  title: "On-device search index over opened folders using node:sqlite FTS5"
+  status: "triaged"
+  type: "feat"
+  area: "performance"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 444
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#444"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:56Z"
+  notes: ["2026-10-26T06:23:51Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-185"
+  title: "Recent folders: reopen a directory without the import flow"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 443
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#443"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:53Z"
+  notes: ["2026-10-26T06:23:53Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-186"
+  title: "Single 44px app header for the standalone shell"
+  status: "triaged"
+  type: "feat"
+  area: "ui"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 442
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#442"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:51Z"
+  notes: ["2026-10-26T06:23:56Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-187"
+  title: "Electron application menu and renderer menu bridge for the standalone shell"
+  status: "triaged"
+  type: "feat"
+  area: "ui"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 441
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#441"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:48Z"
+  notes: ["2026-10-26T06:23:58Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-188"
+  title: "Replace switch-ladder reducers with lookup maps in store slices (folderSlice, panelUiSlice, core, hideShow)"
+  status: "wontfix"
+  type: "refactor"
+  area: "infra"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 452
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-26T07:03:30Z"
+  notes: ["2026-10-26T07:07:26Z · Premise corrected: 0 switch statements in the 4 files. Real findings: brain_method createFolderSlice (CCN33,151ln) + createPanelUiSlice (CCN28,179ln); large/complex_method createHideShowSlice (CCN33,227ln); core.ts+hideShow primary = stale_governance ADR (staleness 0.80). Fix = extract action bodies to named helpers + refresh ADR."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-189"
+  title: "Reduce brain-method complexity in store slice creators (folderSlice, panelUiSlice, hideShow)"
+  status: "review"
+  type: "task"
+  area: "infra"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 451
+  pr: 450
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#451"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T07:10:14Z"
+  notes: ["2026-10-26T07:11:22Z · adopted at intake from GitHub (open)", "2026-10-26T07:11:33Z · Premise corrected: 0 switch statements in the 4 files. Real: brain_method createFolderSlice CCN33/151ln, createPanelUiSlice CCN28/179ln; large_method createHideShowSlice 227ln/CCN33; core+hideShow primary = stale_governance ADR. Fix = extract action bodies to named helpers + refresh ADR."]
+  sessions:
+  - start: "2026-10-26T07:12:10Z"
+    end: "2026-10-26T07:54:24Z"
+    measured: true
+    note: "Extracted action bodies to module scope in 4 store slices (one function per action; factory idiom rejected — buildClipboardMethods proves it aggregates CCN). Scores: folderSlice 3.91→4.56, panelUiSlice 2.88→4.09, hideShow 3.96→4.46, core 2.26→3.26; max_ccn 33/28/33/25 → 14/11/9/10; all brain/large_method findings on them gone. Refreshed graph-slice composer ADR text (stale_governance findings cleared repo-wide; note: decision health still lists 0.80 by its date-churn metric, and this CLI has no decision edit/review verb). Gates: lint/tsc/build/test (1808+242) all pass."
+    proof: ["c31c3ec", "bf2783f", "4cd1d91", "b1b390d"]
+    effort: {commits: 4, files: 6, insertions: 879, deletions: 719}
+  spent_min: 42
+  session_count: 1
+- id: "T-190"
+  title: "Raise test coverage on the two files the lcov ingest exposed (fileSystem.ts, versions.ts)"
+  status: "review"
+  type: "task"
+  area: "other"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 453
+  pr: 450
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#453"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T08:50:06Z"
+  notes: ["2026-10-26T08:51:02Z · adopted at intake from GitHub (open)", "2026-10-26T08:51:03Z · Tests only. fileSystem.ts 10%→80%+ target, versions.ts 22%→90%+. No mock.module: cancel-event drives the real input fallback; LOCAL_FS cast+restore in finally."]
+  sessions:
+  - start: "2026-10-26T08:51:41Z"
+    end: "2026-10-26T09:09:06Z"
+    measured: true
+    note: "22 new tests, no production code. fileSystem.ts: 10%→77.33% coverage, score 1.0→3.31, untested_hotspot gone. versions.ts: 21.7%→70.27%, 4.99→7.41. health:coverage now merges lcov from both test processes (src + components), ingested files 168→424. Note: bun's components-run lcov emits DA entries on comment lines, inflating the union denominator (fileSystem measured 116/116 in its own run, versions 78/78 in its own) — repowise union math itself is correct. Gates: lint/tsc/build/test all pass."
+    proof: ["5536188"]
+    effort: {commits: 1, files: 4, insertions: 395, deletions: 3}
+  spent_min: 17
+  session_count: 1
+- id: "T-191"
+  title: "Redefining window.self in one components test breaks an unrelated test in CI (happy-dom/bun)"
+  status: "review"
+  type: "task"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 454
+  pr: 450
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#454"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T10:54:47Z"
+  notes: ["2026-10-26T10:55:14Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-10-26T11:29:51Z"
+    end: "2026-10-26T11:47:20Z"
+    measured: true
+    note: "Root-caused #454 via CI bisect (6 slices): the bare delete after window.self redefinition was the trigger; native state + file order + CI env proven identical across machines. Fix: exact descriptor save/restore in finally → CI test job green with the catch-coverage test restored (fileSystem back to 77.33%/3.31, 22 tests). Corrections + resolution written to #454 (closed); PR #450 body updated."
+    proof: ["e56e943", "a2045c1", "#450"]
+    effort: {commits: 2, files: 2, insertions: 21, deletions: 9}
+  spent_min: 17
+  session_count: 1
