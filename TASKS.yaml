@@ -5372,3 +5372,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 74, deletions: 46}
   spent_min: 13
   session_count: 1
+- id: "T-193"
+  title: "Flatten the remaining nested-complexity trio: ThemeEditorDialog.handleSaveTheme, GroupFrames useEffect, groups.groupFrameRects"
+  status: "review"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 150
+  estimate_basis: "cli"
+  issue: 458
+  pr: 457
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#458"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T13:16:01Z"
+  notes: ["2026-10-26T13:16:05Z · adopted at intake from GitHub (open)", "2026-10-26T13:16:46Z · Extract/early-return only, same as #456. ThemeEditorDialog handleSaveTheme (nest 4), GroupFrames useEffect (nest 4), groups.groupFrameRects (CCN 25 nest 4). Lands on feat/nested-complexity (PR #457)."]
+  sessions:
+  - start: "2026-10-26T13:17:03Z"
+    end: "2026-10-26T13:31:33Z"
+    measured: true
+    note: "handleSaveTheme: merged duplicated save skeletons, exact order/defaults preserved, nested_complexity gone (nest 4→3). GroupFrames effect: restoreGestureIfLive/ungroupSelection/isEditableKeyTarget extracted; nested_complexity + complex_conditional gone. groupFrameRects: FrameRectCtx bag + collapsed/expanded helpers; nested_complexity gone. All three nest 4→3. Gates: lint/tsc/build/test (1814+258) green; groups 57/57."
+    proof: ["a349abb", "#457"]
+    effort: {commits: 1, files: 4, insertions: 119, deletions: 82}
+  spent_min: 14
+  session_count: 1
