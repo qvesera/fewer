@@ -5285,3 +5285,32 @@ tasks:
     effort: {commits: 4, files: 6, insertions: 879, deletions: 719}
   spent_min: 42
   session_count: 1
+- id: "T-190"
+  title: "Raise test coverage on the two files the lcov ingest exposed (fileSystem.ts, versions.ts)"
+  status: "triaged"
+  type: "task"
+  area: "other"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 453
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#453"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T08:50:06Z"
+  notes: ["2026-10-26T08:51:02Z · adopted at intake from GitHub (open)", "2026-10-26T08:51:03Z · Tests only. fileSystem.ts 10%→80%+ target, versions.ts 22%→90%+. No mock.module: cancel-event drives the real input fallback; LOCAL_FS cast+restore in finally."]
+  sessions:
+  - start: "2026-10-26T08:51:41Z"
+    end: "2026-10-26T09:09:06Z"
+    measured: true
+    note: "22 new tests, no production code. fileSystem.ts: 10%→77.33% coverage, score 1.0→3.31, untested_hotspot gone. versions.ts: 21.7%→70.27%, 4.99→7.41. health:coverage now merges lcov from both test processes (src + components), ingested files 168→424. Note: bun's components-run lcov emits DA entries on comment lines, inflating the union denominator (fileSystem measured 116/116 in its own run, versions 78/78 in its own) — repowise union math itself is correct. Gates: lint/tsc/build/test all pass."
+    proof: ["5536188"]
+    effort: {commits: 1, files: 4, insertions: 395, deletions: 3}
+  spent_min: 17
+  session_count: 1
