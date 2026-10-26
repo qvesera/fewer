@@ -727,6 +727,64 @@ function scanDot(text: string): { nodes: DotNode[]; edges: DotEdge[] } {
   return { nodes: [...nodes.values()], edges };
 }
 
+/** Where a scanner run ended, and what it consumed. */
+type DotScan = { value: string; next: number };
+
+/** The quoted-string run starting at `start` (the `"` itself). */
+function readDotQuoted(text: string, start: number): DotScan {
+  let i = start + 1;
+  let value = "";
+  while (i < text.length && text[i] !== '"') {
+    if (text[i] === "\\" && i + 1 < text.length) {
+      const next = text[i + 1]!;
+      // DOT escapes: \n is a newline inside a label, \" and \\ are literal.
+      if (next === "n") value += "\n";
+      else if (next === "t") value += "\t";
+      else value += next;
+      i += 2;
+    } else {
+      value += text[i];
+      i++;
+    }
+  }
+  // +1 consumes the closing quote (or overshoots an unterminated string —
+  // the same end position the old inline loop produced).
+  return { value, next: i + 1 };
+}
+
+/** The negative-number run starting at `start` (`margin=-0.5` values). */
+function readDotNegativeNumber(text: string, start: number): DotScan {
+  let i = start + 1;
+  let value = "-";
+  while (i < text.length && /[0-9.eE+_]/.test(text[i]!)) {
+    value += text[i];
+    i++;
+  }
+  return { value, next: i };
+}
+
+/** The identifier run starting at `start`; hyphens continue it (see inside). */
+function readDotIdentifier(text: string, start: number): DotScan {
+  const isIdChar = (c: string) => /[A-Za-z0-9_.:]/.test(c);
+  let i = start;
+  let value = "";
+  while (i < text.length && isIdChar(text[i]!)) {
+    value += text[i];
+    i++;
+  }
+  // A hyphen continues the id only when it isn't the start of -> or --,
+  // so `my-node` stays one token while `a->b` still splits into three.
+  while (i < text.length && text[i] === "-" && !">-".includes(text[i + 1] ?? "")) {
+    value += text[i];
+    i++;
+    while (i < text.length && isIdChar(text[i]!)) {
+      value += text[i];
+      i++;
+    }
+  }
+  return { value, next: i };
+}
+
 /** Token list for the scanner: ids, arrows, brackets, `=`, `,`, `;`, `{`, `}`. */
 function dotTokens(text: string): DotToken[] {
   const tokens: DotToken[] = [];
@@ -757,21 +815,9 @@ function dotTokens(text: string): DotToken[] {
       continue;
     }
     if (ch === '"') {
-      let value = "";
-      i++;
-      while (i < text.length && text[i] !== '"') {
-        if (text[i] === "\\" && i + 1 < text.length) {
-          const next = text[i + 1]!;
-          // DOT escapes: \n is a newline inside a label, \" and \\ are literal.
-          value += next === "n" ? "\n" : next === "t" ? "\t" : next;
-          i += 2;
-        } else {
-          value += text[i];
-          i++;
-        }
-      }
-      i++; // closing quote
-      tokens.push({ t: "id", v: value });
+      const quoted = readDotQuoted(text, i);
+      tokens.push({ t: "id", v: quoted.value });
+      i = quoted.next;
       continue;
     }
     if (ch === "-" && text[i + 1] === ">") {
@@ -786,13 +832,9 @@ function dotTokens(text: string): DotToken[] {
     }
     // Negative attribute values (`margin=-0.5`) are ids, not punctuation.
     if (ch === "-" && /[0-9.]/.test(text[i + 1] ?? "")) {
-      let value = "-";
-      i++;
-      while (i < text.length && /[0-9.eE+_]/.test(text[i]!)) {
-        value += text[i];
-        i++;
-      }
-      tokens.push({ t: "id", v: value });
+      const number = readDotNegativeNumber(text, i);
+      tokens.push({ t: "id", v: number.value });
+      i = number.next;
       continue;
     }
     if ("[]{}=,;".includes(ch)) {
@@ -801,22 +843,9 @@ function dotTokens(text: string): DotToken[] {
       continue;
     }
     if (isIdChar(ch)) {
-      let value = "";
-      while (i < text.length && isIdChar(text[i]!)) {
-        value += text[i];
-        i++;
-      }
-      // A hyphen continues the id only when it isn't the start of -> or --,
-      // so `my-node` stays one token while `a->b` still splits into three.
-      while (i < text.length && text[i] === "-" && !">-".includes(text[i + 1] ?? "")) {
-        value += text[i];
-        i++;
-        while (i < text.length && isIdChar(text[i]!)) {
-          value += text[i];
-          i++;
-        }
-      }
-      tokens.push({ t: "id", v: value });
+      const id = readDotIdentifier(text, i);
+      tokens.push({ t: "id", v: id.value });
+      i = id.next;
       continue;
     }
     i++; // anything else is skipped
