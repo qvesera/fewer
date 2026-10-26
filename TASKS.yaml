@@ -5089,3 +5089,147 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 0, deletions: 9}
   spent_min: 8
   session_count: 2
+- id: "T-182"
+  title: "Wire test coverage into repowise so health findings are measured"
+  status: "in-progress"
+  type: "task"
+  area: "infra"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 449
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#449"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-26T06:18:44Z"
+  notes: ["2026-10-26T06:23:44Z · adopted at intake from GitHub (open)", "2026-10-26T06:24:20Z · T0 from repowise health plan: lcov from bun test --coverage, ingest via repowise coverage add, re-measure untested_hotspot count as baseline"]
+  sessions:
+  - start: "2026-10-26T06:24:57Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
+- id: "T-183"
+  title: "Auto-hide cap re-derives when the background scan lands"
+  status: "triaged"
+  type: "fix"
+  area: "perf"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 446
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#446"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-23T18:23:14Z"
+  notes: ["2026-10-26T06:23:48Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-184"
+  title: "On-device search index over opened folders using node:sqlite FTS5"
+  status: "triaged"
+  type: "feat"
+  area: "performance"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 444
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#444"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:56Z"
+  notes: ["2026-10-26T06:23:51Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-185"
+  title: "Recent folders: reopen a directory without the import flow"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 443
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#443"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:53Z"
+  notes: ["2026-10-26T06:23:53Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-186"
+  title: "Single 44px app header for the standalone shell"
+  status: "triaged"
+  type: "feat"
+  area: "ui"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 442
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#442"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:51Z"
+  notes: ["2026-10-26T06:23:56Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-187"
+  title: "Electron application menu and renderer menu bridge for the standalone shell"
+  status: "triaged"
+  type: "feat"
+  area: "ui"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 441
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#441"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-19T20:56:48Z"
+  notes: ["2026-10-26T06:23:58Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
