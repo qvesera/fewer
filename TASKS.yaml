@@ -5430,3 +5430,32 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 39, deletions: 2}
   spent_min: 1
   session_count: 1
+- id: "T-195"
+  title: "tasks.py doctor: UnboundLocalError when a parent-link read is empty (notes scoped below use)"
+  status: "triaged"
+  type: "fix"
+  area: "devtools"
+  tier: 0
+  estimate_min: 20
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-26T18:05:40Z"
+  notes: []
+  sessions:
+  - start: "2026-10-26T18:07:11Z"
+    end: "2026-10-26T18:18:16Z"
+    measured: true
+    note: "cmd_doctor: notes declared AFTER first append (annotated assignment makes name local → UnboundLocalError whenever a parent-link read came back empty, which today's throttled gh triggered). Moved declaration before the issue loop; also fixed --board silently overwriting loop NOTEs (reassign → extend). selftest PASS; doctor exit 0 and agrees."
+    proof: ["afcd9f3"]
+    effort: {commits: 1, files: 1, insertions: 9, deletions: 3}
+  spent_min: 11
+  session_count: 1
