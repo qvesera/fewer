@@ -5258,14 +5258,14 @@ tasks:
   session_count: 0
 - id: "T-189"
   title: "Reduce brain-method complexity in store slice creators (folderSlice, panelUiSlice, hideShow)"
-  status: "triaged"
+  status: "review"
   type: "task"
   area: "infra"
   tier: 1
   estimate_min: 240
   estimate_basis: "cli"
   issue: 451
-  pr: null
+  pr: 450
   internal: false
   milestone: null
   blocked_by: []
