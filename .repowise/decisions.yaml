@@ -153,14 +153,20 @@ decisions:
 - id: a1214228826ec0d70c22785984002469
   title: graph state is composed of focused sub-slices; graphSlice.ts is the thin composer
   decision: 'graphSlice.ts is a 27-line composer: createCoreSlice, createNodesSlice, createStructureSlice,
-    createHideShowSlice under src/store/slices/graph/ (plus pure helpers reveal.ts and detach.ts). New
-    graph actions land in the matching sub-slice, never in the composer. Cross-slice calls go through
-    get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees, reconcileAutoHide, unparentSubtree)
-    keep the old import path so deleteUndo.test.ts, showSubtrees.test.ts and revealHelpers.ts work unchanged.'
+    createHideShowSlice under src/store/slices/graph/ (plus helpers reveal.ts, revealGroups.ts and
+    detach.ts). New graph actions land in the matching sub-slice, never in the composer. The nodes
+    sub-slice itself composes buildClipboardMethods, buildDeletionMethods, buildRenameMethods and
+    buildCreationMethods from src/store/slices/graph/nodes/, each owning one concern. Cross-slice
+    calls go through get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees,
+    reconcileAutoHide, unparentSubtree) keep the old import path so deleteUndo.test.ts,
+    showSubtrees.test.ts and revealHelpers.ts work unchanged.'
   reason: 'graphSlice.ts was a 1371-line monolith: createGraphSlice held ~50 actions (CCN 291, nesting
     6) across ~1077 lines, with 30 bug fixes and 49 committing files concentrated in it. Mirrors the established
     ui/ precedent (sub-slices + 32-line uiSlice.ts composer): each file owns one concern, each creator
-    type pins its own keys, and the composer web has the same shape so createStore.ts needed no edits.'
+    type pins its own keys, and the composer web has the same shape so createStore.ts needed no edits.
+    Refreshed 2026-10-26 (T-189): the nodes concern is now four method modules under nodes/ and
+    revealGroups.ts handles collapsed-group reveal, so the original scope and helper list no longer
+    described the layout the decision governs.'
   scope:
   - src/store/slices/graph/core.ts
   - src/store/slices/graph/hideShow.ts
@@ -174,6 +180,8 @@ decisions:
   accepted_artifact: .repowise/decisions.yaml
   evidence:
   - accepted by Yash Srivastava
+  - refreshed 2026-10-26 · T-189 · scope and helper list re-synced to the current
+    graph/ layout
 - id: d667f2d407f608f221738dc0f0b0eb95
   title: Webhook POST and CanvasInner residuals are accepted, not actionable
   decision: 'Two health findings are accepted as by-design rather than fixed. (1) complex_method POST
