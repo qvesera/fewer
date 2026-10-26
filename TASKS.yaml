@@ -5091,14 +5091,14 @@ tasks:
   session_count: 2
 - id: "T-182"
   title: "Wire test coverage into repowise so health findings are measured"
-  status: "triaged"
+  status: "review"
   type: "task"
   area: "infra"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 449
-  pr: null
+  pr: 450
   internal: false
   milestone: null
   blocked_by: []
