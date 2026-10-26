@@ -5345,7 +5345,7 @@ tasks:
   session_count: 1
 - id: "T-192"
   title: "Flatten the two deepest remaining methods: parsers.dotTokens (nest 6, CCN 39) and CustomNode.NodeIcon (nest 4)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "other"
   tier: 0
@@ -5374,7 +5374,7 @@ tasks:
   session_count: 1
 - id: "T-193"
   title: "Flatten the remaining nested-complexity trio: ThemeEditorDialog.handleSaveTheme, GroupFrames useEffect, groups.groupFrameRects"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5400,4 +5400,33 @@ tasks:
     proof: ["a349abb", "#457"]
     effort: {commits: 1, files: 4, insertions: 119, deletions: 82}
   spent_min: 14
+  session_count: 1
+- id: "T-194"
+  title: "Document: shipped issues close by hand — PRs merge to dev, not the default branch"
+  status: "in-progress"
+  type: "docs"
+  area: "docs"
+  tier: 0
+  estimate_min: 15
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-26T16:18:03Z"
+  notes: []
+  sessions:
+  - start: "2026-10-26T16:18:56Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
   session_count: 1

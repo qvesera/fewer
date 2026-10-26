@@ -27,6 +27,14 @@ It resolves the task from the `Task: T-###` trailers and sets:
   targets the **default branch**; on `dev` it is a cross-reference and the sidebar
   link stays a one-click manual step (the check prints `link: NOTE` instead of
   failing — a gate that can never go green would block every merge);
+- **close shipped issues by hand** — that same default-branch rule kills
+  **auto-closing** too: `Fixes #<N>` in a PR merged into `dev` never closes the
+  issue (GitHub only auto-closes on default-branch merges — verified 2026-10-26:
+  merged PRs #450/#457 had zero `closingIssuesReferences`). So at ship time,
+  `gh issue close <N> --comment "Shipped via PR #<N>"` each linked issue.
+  Leaving it open is not benign: `reconcile` demotes `done` rows whose issue is
+  open back to `triaged` (and restoring them needs the hop
+  `set-status <T> review` → `set-status <T> done`);
 - **project** — the board is a projection of the ledger, and the **issue** item
   is that projection: `pr-metadata` hands the PR's task rows to
   `sync-details --pr <N>` (one writer, and it only writes a field that differs).
