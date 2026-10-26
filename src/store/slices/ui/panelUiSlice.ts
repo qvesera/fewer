@@ -158,6 +158,207 @@ function flushLayoutPersist(get: () => GraphState) {
   get()._persistLayoutNow();
 }
 
+/**
+ * Action bodies at module scope, one function per action — see the note in
+ * folderSlice.ts: a factory wrapper would only rename the finding (repowise
+ * counts returned-arrow bodies into the enclosing function), while top-level
+ * functions each carry their own CCN. Behavior unchanged.
+ */
+type PanelSet = Parameters<PanelUiSliceCreator>[0];
+type PanelGet = () => GraphState;
+
+function setViewSetting(
+  set: PanelSet,
+  get: PanelGet,
+  leafId: string,
+  key: keyof ViewSettings,
+  value: unknown,
+): void {
+  const s = get();
+  const leaf = s.viewSettings[leafId] ?? {};
+  const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
+  set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
+  // A direction change is a user-requested re-flow: this view fits afterwards.
+  if (key === "direction") get().bumpReflow(leafId);
+  get()._persistLayout();
+}
+
+function updateViewSettings(set: PanelSet, get: PanelGet, leafId: string, patch: Partial<ViewSettings>): void {
+  const s = get();
+  const leaf = s.viewSettings[leafId] ?? {};
+  // When direction changes, clear positions so the view re-derives
+  const next: Record<string, unknown> = { ...leaf, ...patch };
+  if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
+    next.positions = undefined;
+  }
+  const viewNext = { ...s.viewSettings, [leafId]: next };
+  set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+  // Same as setViewSetting: a real direction change re-flows THIS view, and
+  // the canvas fits it once the re-derivation settles (#286).
+  if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
+    get().bumpReflow(leafId);
+  }
+  get()._persistLayout();
+}
+
+function setNodePositionsBatch(
+  set: PanelSet,
+  get: PanelGet,
+  leafId: string,
+  entries: { id: string; pos: { x: number; y: number } }[],
+): void {
+  set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    const current = leaf.positions ?? {};
+    // Skip reports that change nothing: React Flow re-reports a card's position
+    // when it re-adopts the node array we just pushed, and an unguarded write
+    // here starts the whole store → lens → push → report round trip again on a
+    // value that did not move (#281).
+    const moved = entries.filter(({ id, pos }) => {
+      const prev = current[id];
+      return !prev || prev.x !== pos.x || prev.y !== pos.y;
+    });
+    if (moved.length === 0) return {};
+    markLoop("write:positions-batch");
+    const positions = { ...current };
+    for (const { id, pos } of moved) positions[id] = pos;
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
+    return { viewSettings: next }; // No graphVersion bump — RF already shows positions
+  });
+}
+
+function seedNodePositions(
+  set: PanelSet,
+  leafId: string,
+  fullMap: Record<string, { x: number; y: number }>,
+): void {
+  set((s) => {
+    const leaf = s.viewSettings[leafId] ?? {};
+    if (leaf.positions) return {}; // Already seeded — no-op
+    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: { ...fullMap } } };
+    return { viewSettings: next }; // Silent — no bump
+  });
+}
+
+function clearViewPositions(set: PanelSet, get: PanelGet, leafId: string): void {
+  const s = get();
+  const leaf = s.viewSettings[leafId];
+  if (!leaf?.positions) return;
+  // Drop the entry entirely when positions were its only field. An empty
+  // `{ positions: undefined }` entry still reads as "this view has per-view
+  // settings" to needsLayoutDerivation and to the parse/sanitize round-trip.
+  const remaining = { ...leaf };
+  delete remaining.positions;
+  const viewNext = { ...s.viewSettings };
+  if (Object.keys(remaining).length > 0) viewNext[leafId] = remaining;
+  else delete viewNext[leafId];
+  set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
+  // Persist like every other viewSettings mutator. Without this the cleared
+  // positions are still in localStorage, so the next load restores them and
+  // the per-view positions outrank the layout engine again — which made
+  // Organize and the Crown Shyness slider look inert after a drag.
+  get()._persistLayout();
+}
+
+function setCanvasSize(set: PanelSet, size: { width: number; height: number }): void {
+  set((s) => {
+    // A ResizeObserver tick fires whenever the element is observed, not only
+    // when it actually resized, and the write feeds the minimap sliders — a
+    // fresh object on every tick re-renders SettingsDialog for nothing.
+    if (s.canvasSize.width === size.width && s.canvasSize.height === size.height) return {};
+    return { canvasSize: size };
+  });
+}
+
+function setPillRectsForLeaf(set: PanelSet, leafId: string, rects: ReadonlyMap<string, GroupBounds> | undefined): void {
+  set((s) => (
+    // Same map identity = nothing changed (the canvas already skipped the write
+    // upstream); a fresh object per write would churn every subscriber.
+    s.pillRectsByLeaf[leafId] === rects
+      ? {}
+      : { pillRectsByLeaf: { ...s.pillRectsByLeaf, [leafId]: rects } }
+  ));
+}
+
+/**
+ * Debounced: a single reveal gesture persisted the whole snapshot (panel tree +
+ * every view's settings and per-view positions) synchronously on each of its
+ * store writes — megabytes of JSON into localStorage, several times per sidebar
+ * click. Flushed on pagehide so the last edit survives a close.
+ */
+function _persistLayout(get: PanelGet): void {
+  // No window (tests, SSR) writes straight through.
+  if (!IS_BROWSER) {
+    get()._persistLayoutNow();
+    return;
+  }
+  // A pending debounce must not be lost when the tab goes away.
+  if (!pagehideBound) {
+    pagehideBound = true;
+    window.addEventListener("pagehide", () => flushLayoutPersist(get));
+  }
+  if (persistTimer !== null) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    get()._persistLayoutNow();
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+function splitArea(set: PanelSet, get: PanelGet, id: string, dir: "h" | "v", ratio?: number): void {
+  if (!can("panelWorkspace", get().tier)) return;
+  const tree = get().panelTree;
+  const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
+  if (newTree !== tree) get().setPanelTree(newTree);
+}
+
+function joinArea(set: PanelSet, get: PanelGet, id: string): void {
+  if (!can("panelWorkspace", get().tier)) return;
+  const tree = get().panelTree;
+  const newTree = treeModule.joinLeaf(tree, id);
+  if (newTree !== tree) {
+    // The joined leaf is gone — its undo/redo stack goes with it, and so does
+    // its per-leaf selection (panelSelectionPatch, #285).
+    // Don't funnel through setPanelTree — dropLeafHistory patches state in
+    // the same call, avoiding a double-set on panelTree.
+    set({ panelTree: newTree, ...dropLeafHistory(get(), id), ...panelSelectionPatch(get(), newTree) });
+    get()._persistLayout();
+  }
+}
+
+function setAreaEditor(set: PanelSet, get: PanelGet, id: string, editor: import("@/lib/fewer/panelLayout").AreaEditor): void {
+  if (!can("panelWorkspace", get().tier)) return;
+  const tree = get().panelTree;
+  const newTree = treeModule.setLeafEditor(tree, id, editor);
+  if (newTree !== tree) get().setPanelTree(newTree);
+}
+
+function insertAreaAtEdge(set: PanelSet, get: PanelGet, side: "left" | "right", editor: import("@/lib/fewer/panelLayout").AreaEditor): void {
+  if (!can("panelWorkspace", get().tier)) return;
+  const tree = get().panelTree;
+  const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
+  get().setPanelTree(newTree);
+}
+
+function setDividerRatio(set: PanelSet, get: PanelGet, firstId: string, secondId: string, ratio: number): void {
+  const tree = get().panelTree;
+  const newTree = treeModule.setDividerRatio(tree, firstId, secondId, ratio);
+  if (newTree !== tree) {
+    set({ panelTree: newTree });
+    get()._persistLayout();
+  }
+}
+
+function resetPanelLayout(set: PanelSet, get: PanelGet): void {
+  const d = defaultLayout();
+  set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree, ...panelSelectionPatch(get(), d.panelTree) });
+  clearLayoutStorage();
+  // Drop any queued write, or it would restore the layout we just cleared.
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+}
+
 export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
   showMiniMap: true,
   viewSettings: {},
@@ -193,33 +394,9 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     get()._persistLayout();
   },
 
-  setViewSetting: (leafId, key, value) => {
-    const s = get();
-    const leaf = s.viewSettings[leafId] ?? {};
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, [key]: value } };
-    set({ viewSettings: next, graphVersion: s.graphVersion + 1 });
-    // A direction change is a user-requested re-flow: this view fits afterwards.
-    if (key === "direction") get().bumpReflow(leafId);
-    get()._persistLayout();
-  },
+  setViewSetting: (leafId, key, value) => setViewSetting(set, get, leafId, key, value),
 
-  updateViewSettings: (leafId, patch) => {
-    const s = get();
-    const leaf = s.viewSettings[leafId] ?? {};
-    // When direction changes, clear positions so the view re-derives
-    const next: Record<string, unknown> = { ...leaf, ...patch };
-    if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
-      next.positions = undefined;
-    }
-    const viewNext = { ...s.viewSettings, [leafId]: next };
-    set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
-    // Same as setViewSetting: a real direction change re-flows THIS view, and
-    // the canvas fits it once the re-derivation settles (#286).
-    if (patch.direction !== undefined && patch.direction !== (leaf as Record<string, unknown>).direction) {
-      get().bumpReflow(leafId);
-    }
-    get()._persistLayout();
-  },
+  updateViewSettings: (leafId, patch) => updateViewSettings(set, get, leafId, patch),
 
   setNodePositionForLeaf: (leafId, nodeId, pos) => set((s) => {
     const leaf = s.viewSettings[leafId] ?? {};
@@ -228,93 +405,22 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     return { viewSettings: next, graphVersion: s.graphVersion + 1 };
   }),
 
-  setNodePositionsBatch: (leafId, entries) => set((s) => {
-    const leaf = s.viewSettings[leafId] ?? {};
-    const current = leaf.positions ?? {};
-    // Skip reports that change nothing: React Flow re-reports a card's position
-    // when it re-adopts the node array we just pushed, and an unguarded write
-    // here starts the whole store → lens → push → report round trip again on a
-    // value that did not move (#281).
-    const moved = entries.filter(({ id, pos }) => {
-      const prev = current[id];
-      return !prev || prev.x !== pos.x || prev.y !== pos.y;
-    });
-    if (moved.length === 0) return {};
-    markLoop("write:positions-batch");
-    const positions = { ...current };
-    for (const { id, pos } of moved) positions[id] = pos;
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions } };
-    return { viewSettings: next }; // No graphVersion bump — RF already shows positions
-  }),
+  setNodePositionsBatch: (leafId, entries) => setNodePositionsBatch(set, get, leafId, entries),
 
-  seedNodePositions: (leafId, fullMap) => set((s) => {
-    const leaf = s.viewSettings[leafId] ?? {};
-    if (leaf.positions) return {}; // Already seeded — no-op
-    const next = { ...s.viewSettings, [leafId]: { ...leaf, positions: { ...fullMap } } };
-    return { viewSettings: next }; // Silent — no bump
-  }),
+  seedNodePositions: (leafId, fullMap) => seedNodePositions(set, leafId, fullMap),
 
-  clearViewPositions: (leafId) => {
-    const s = get();
-    const leaf = s.viewSettings[leafId];
-    if (!leaf?.positions) return;
-    // Drop the entry entirely when positions were its only field. An empty
-    // `{ positions: undefined }` entry still reads as "this view has per-view
-    // settings" to needsLayoutDerivation and to the parse/sanitize round-trip.
-    const remaining = { ...leaf };
-    delete remaining.positions;
-    const viewNext = { ...s.viewSettings };
-    if (Object.keys(remaining).length > 0) viewNext[leafId] = remaining;
-    else delete viewNext[leafId];
-    set({ viewSettings: viewNext, graphVersion: s.graphVersion + 1 });
-    // Persist like every other viewSettings mutator. Without this the cleared
-    // positions are still in localStorage, so the next load restores them and
-    // the per-view positions outrank the layout engine again — which made
-    // Organize and the Crown Shyness slider look inert after a drag.
-    get()._persistLayout();
-  },
+  clearViewPositions: (leafId) => clearViewPositions(set, get, leafId),
   setMiniMapPosition: (pos) => set({ miniMapPosition: pos }),
   setMiniMapSize: (size) => set({ miniMapSize: size }),
   setMiniMapX: (x) => set({ miniMapX: x }),
   setMiniMapY: (y) => set({ miniMapY: y }),
   setScrollAction: (action) => set({ scrollAction: action }),
-  setCanvasSize: (size) => set((s) => {
-    // A ResizeObserver tick fires whenever the element is observed, not only
-    // when it actually resized, and the write feeds the minimap sliders — a
-    // fresh object on every tick re-renders SettingsDialog for nothing.
-    if (s.canvasSize.width === size.width && s.canvasSize.height === size.height) return {};
-    return { canvasSize: size };
-  }),
-  setPillRectsForLeaf: (leafId, rects) => set((s) => (
-    // Same map identity = nothing changed (the canvas already skipped the write
-    // upstream); a fresh object per write would churn every subscriber.
-    s.pillRectsByLeaf[leafId] === rects
-      ? {}
-      : { pillRectsByLeaf: { ...s.pillRectsByLeaf, [leafId]: rects } }
-  )),
+  setCanvasSize: (size) => setCanvasSize(set, size),
+  setPillRectsForLeaf: (leafId, rects) => setPillRectsForLeaf(set, leafId, rects),
 
   // ── Panel layout actions ──
 
-  _persistLayout: () => {
-    // Debounced: a single reveal gesture persisted the whole snapshot (panel
-    // tree + every view's settings and per-view positions) synchronously on
-    // each of its store writes — megabytes of JSON into localStorage, several
-    // times per sidebar click. No window (tests, SSR) writes straight through.
-    if (!IS_BROWSER) {
-      get()._persistLayoutNow();
-      return;
-    }
-    // A pending debounce must not be lost when the tab goes away.
-    if (!pagehideBound) {
-      pagehideBound = true;
-      window.addEventListener("pagehide", () => flushLayoutPersist(get));
-    }
-    if (persistTimer !== null) clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => {
-      persistTimer = null;
-      get()._persistLayoutNow();
-    }, PERSIST_DEBOUNCE_MS);
-  },
+  _persistLayout: () => _persistLayout(get),
 
   _persistLayoutNow: () => {
     const s = get();
@@ -335,58 +441,15 @@ export const createPanelUiSlice: PanelUiSliceCreator = (set, get) => ({
     get()._persistLayout();
   },
 
-  splitArea: (id, dir, ratio) => {
-    if (!can("panelWorkspace", get().tier)) return;
-    const tree = get().panelTree;
-    const newTree = treeModule.splitLeaf(tree, id, dir, ratio);
-    if (newTree !== tree) get().setPanelTree(newTree);
-  },
+  splitArea: (id, dir, ratio) => splitArea(set, get, id, dir, ratio),
 
-  joinArea: (id) => {
-    if (!can("panelWorkspace", get().tier)) return;
-    const tree = get().panelTree;
-    const newTree = treeModule.joinLeaf(tree, id);
-    if (newTree !== tree) {
-      // The joined leaf is gone — its undo/redo stack goes with it, and so does
-      // its per-leaf selection (panelSelectionPatch, #285).
-      // Don't funnel through setPanelTree — dropLeafHistory patches state in
-      // the same call, avoiding a double-set on panelTree.
-      set({ panelTree: newTree, ...dropLeafHistory(get(), id), ...panelSelectionPatch(get(), newTree) });
-      get()._persistLayout();
-    }
-  },
+  joinArea: (id) => joinArea(set, get, id),
 
-  setAreaEditor: (id, editor) => {
-    if (!can("panelWorkspace", get().tier)) return;
-    const tree = get().panelTree;
-    const newTree = treeModule.setLeafEditor(tree, id, editor);
-    if (newTree !== tree) get().setPanelTree(newTree);
-  },
+  setAreaEditor: (id, editor) => setAreaEditor(set, get, id, editor),
 
-  insertAreaAtEdge: (side, editor) => {
-    if (!can("panelWorkspace", get().tier)) return;
-    const tree = get().panelTree;
-    const newTree = treeModule.insertLeafAtEdge(tree, side, editor);
-    get().setPanelTree(newTree);
-  },
+  insertAreaAtEdge: (side, editor) => insertAreaAtEdge(set, get, side, editor),
 
-  setDividerRatio: (firstId, secondId, ratio) => {
-    const tree = get().panelTree;
-    const newTree = treeModule.setDividerRatio(tree, firstId, secondId, ratio);
-    if (newTree !== tree) {
-      set({ panelTree: newTree });
-      get()._persistLayout();
-    }
-  },
+  setDividerRatio: (firstId, secondId, ratio) => setDividerRatio(set, get, firstId, secondId, ratio),
 
-  resetPanelLayout: () => {
-    const d = defaultLayout();
-    set({ sidebarSide: d.sidebarSide, panelTree: d.panelTree, ...panelSelectionPatch(get(), d.panelTree) });
-    clearLayoutStorage();
-    // Drop any queued write, or it would restore the layout we just cleared.
-    if (persistTimer !== null) {
-      clearTimeout(persistTimer);
-      persistTimer = null;
-    }
-  },
+  resetPanelLayout: () => resetPanelLayout(set, get),
 });
