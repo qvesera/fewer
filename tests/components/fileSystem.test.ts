@@ -183,14 +183,26 @@ describe("detection helpers", () => {
     expect(isIframeContext()).toBe(false);
   });
 
-  // Deliberately NO test redefining `window.self` to hit the catch branch.
-  // Bisected in CI (qvesera/fewer#453): this file's `Object.defineProperty +
-  // delete` on `window.self` — state restored, probes showed a byte-identical
-  // window — reproducibly made the unrelated GroupFrames "Color…" test fail in
-  // the CI components process with an AggregateError from RTL cleanup, while
-  // every other slice of this file passed. Root cause sits in
-  // happy-dom/bun's window machinery, not here; the 3-line defensive catch is
-  // not worth an unrelated test's CI instability. Revisit if that code changes.
+  test("isIframeContext returns true when window access throws", () => {
+    // Restore the EXACT native descriptor in finally — a bare `delete` left a
+    // window without its own `self` (happy-dom re-install behavior differs
+    // between environments and, unreinstalled, made an unrelated GroupFrames
+    // test fail only in CI — bisect in #454). Byte-identical restore means no
+    // window for anything downstream to observe as changed.
+    const native = Object.getOwnPropertyDescriptor(window, "self");
+    Object.defineProperty(window, "self", {
+      get() {
+        throw new Error("cross-origin");
+      },
+      configurable: true,
+    });
+    try {
+      expect(isIframeContext()).toBe(true);
+    } finally {
+      if (native) Object.defineProperty(window, "self", native);
+      else delete (window as unknown as { self?: unknown }).self;
+    }
+  });
 });
 
 describe("stored root handle", () => {
