@@ -118,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - folderSlice flattened: revealInView split into planRevealGesture/releasedLeafLayers/revealViewSettings and showSubtreeForLeaf into releasedSubtreeLayers/showSubtreeLeaf/globalHiddenDescendants (both were CCN 14). Same store calls, same write ordering; the hide/reveal suites are the net.
 - revealContract suite extended with the two sameHideLayers paths folderSlice never exercised: a release that changes no layer (leaf object untouched, zero persists, undo sidecar still recorded) and a bulk-layer release that writes the exemption in the same gesture. folderSlice line coverage 97.8% → 100%.
 - importDetect flattened: detectImportFormat's ordered scanner splits into looksLikeJson/Dot/Script/TreeGlyphs/Csv with a flat 6-branch dispatch — order and every tie-break unchanged (repowise's #1 refactoring directive, recovers 1.45). Characterization gaps closed first: nested graph.data.nodes shape, strict digraph, JSON-array fallthrough.
+- Import module cycle broken: the shared vocabulary (ImportOrigin, FileImportFormat, FILE_IMPORT_FORMATS) moved to a neutral importTypes.ts, closing both loops that ran through importFlow's type edges (importDetect → importFlow, importOptions → importFlow) — the 7-file cycle from repowise's break_cycle plan. importFlow re-exports the symbols, so no importer changed.
 
 ### Fixed
 

@@ -8,7 +8,7 @@
  * Pure and total: never throws, safe to call on every keystroke.
  */
 import { isExportCsv, parseCsvRows } from "./csvModel";
-import type { FileImportFormat } from "./importFlow";
+import type { FileImportFormat } from "./importTypes";
 
 /** Header of a DOT document: `strict` / `digraph` / `graph` opening the file. */
 const DOT_HEADER = /^(?:strict\s+)?(?:di)?graph\b/i;

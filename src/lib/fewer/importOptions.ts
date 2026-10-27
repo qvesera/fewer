@@ -1,7 +1,7 @@
 /** How the walk treats symbolic links. Only the local-path walk can detect them. */
 export type SymlinkMode = "skip" | "leaf" | "follow";
 
-import type { ImportOrigin } from "./importFlow";
+import type { ImportOrigin } from "./importTypes";
 
 /** Every tunable key of ImportOptions. */
 export type OptionKey = keyof ImportOptions;
