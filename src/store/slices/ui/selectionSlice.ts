@@ -66,57 +66,53 @@ export type SelectionSliceCreator = StateCreator<
   }
 >;
 
-export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
-  selectedNodeIds: [],
-  selectedGroupIds: [],
-  leafSelections: {},
-  activeLeafId: null,
-  selectionVersion: 0,
-  hoverHighlightIds: [],
-  renamingId: null,
-  renameSource: null,
-  zoomToNode: null,
-  zoomToNodeIds: null,
-  mousePosition: null,
-  pastePosition: null,
-  pendingCreatePosition: null,
-  focusedNodeId: null,
+/**
+ * Action bodies at module scope, one function per action — the #451 pattern.
+ * (A `build*Methods` factory would only rename the finding: repowise counts the
+ * returned arrows' bodies into the enclosing builder — see `buildClipboardMethods`,
+ * CCN 73.) The creator below stays a flat dispatch table.
+ */
+type SelSet = Parameters<SelectionSliceCreator>[0];
+type SelGet = () => GraphState;
 
-  // The canonical selection is the id list. React Flow's own node array carries
-  // the `selected` flags the canvas paints; the store's nodes do NOT — they are
-  // stamped from this list in the canvas lens (see viewState.stampSelection),
-  // because writing the flags back into the store's node array made every click
-  // replace every node object, invalidating the identity-cached tree index and
-  // every card's child-list memo.
-  setSelectedNodeIds: (ids) =>
-    set((s) => {
-      const base: Record<string, unknown> = sameIds(s.selectedNodeIds, ids) ? {} : { selectedNodeIds: ids, selectionVersion: s.selectionVersion + 1 };
-      // Mirror into active leaf's selection so per-view sync picks it up
-      if (s.activeLeafId && !sameIds(s.selectedNodeIds, ids)) {
-        base.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
-      }
-      // Mutual exclusion (T-135): a real card selection clears any selected
-      // group frames — and so does an empty list (Escape/blur clearing).
-      if (s.selectedGroupIds.length > 0) base.selectedGroupIds = [];
-      return base;
-    }),
-  setSelectedGroupIds: (ids) =>
-    set((s) => {
-      if (sameIds(s.selectedGroupIds, ids)) return {};
-      // Mutual exclusion: selecting a group clears the card selection so a
-      // Delete or a drag always has one unambiguous target. Bump
-      // selectionVersion so the canvas repaints any group ring off.
-      return {
-        selectedGroupIds: ids,
-        selectionVersion: s.selectionVersion + 1,
-        ...(ids.length > 0 && s.selectedNodeIds.length > 0
-          ? { selectedNodeIds: [], leafSelections: {} }
-          : {}),
-      };
-    }),
-  setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
+// The canonical selection is the id list. React Flow's own node array carries
+// the `selected` flags the canvas paints; the store's nodes do NOT — they are
+// stamped from this list in the canvas lens (see viewState.stampSelection),
+// because writing the flags back into the store's node array made every click
+// replace every node object, invalidating the identity-cached tree index and
+// every card's child-list memo.
+function setSelectedNodeIds(set: SelSet, ids: string[]): void {
+  set((s) => {
+    const base: Record<string, unknown> = sameIds(s.selectedNodeIds, ids) ? {} : { selectedNodeIds: ids, selectionVersion: s.selectionVersion + 1 };
+    // Mirror into active leaf's selection so per-view sync picks it up
+    if (s.activeLeafId && !sameIds(s.selectedNodeIds, ids)) {
+      base.leafSelections = { ...s.leafSelections, [s.activeLeafId]: ids };
+    }
+    // Mutual exclusion (T-135): a real card selection clears any selected
+    // group frames — and so does an empty list (Escape/blur clearing).
+    if (s.selectedGroupIds.length > 0) base.selectedGroupIds = [];
+    return base;
+  });
+}
 
-  setSelectionForLeaf: (leafId, ids) => set((s) => {
+function setSelectedGroupIds(set: SelSet, ids: string[]): void {
+  set((s) => {
+    if (sameIds(s.selectedGroupIds, ids)) return {};
+    // Mutual exclusion: selecting a group clears the card selection so a
+    // Delete or a drag always has one unambiguous target. Bump
+    // selectionVersion so the canvas repaints any group ring off.
+    return {
+      selectedGroupIds: ids,
+      selectionVersion: s.selectionVersion + 1,
+      ...(ids.length > 0 && s.selectedNodeIds.length > 0
+        ? { selectedNodeIds: [], leafSelections: {} }
+        : {}),
+    };
+  });
+}
+
+function setSelectionForLeaf(set: SelSet, leafId: string, ids: string[]): void {
+  set((s) => {
     const prev = s.leafSelections[leafId];
     // React Flow re-reports its selection whenever a view's nodes are re-pushed,
     // so every report is either an echo of what this canvas already paints or a
@@ -144,9 +140,11 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
       selectedNodeIds: ids,
       ...(selectionChanged ? { selectionVersion: s.selectionVersion + 1 } : {}),
     };
-  }),
+  });
+}
 
-  setActiveLeaf: (leafId) => set((s) => {
+function setActiveLeaf(set: SelSet, leafId: string | null): void {
+  set((s) => {
     if (!leafId || leafId === s.activeLeafId) return {};
     const ids = s.leafSelections[leafId] ?? [];
     // Each leaf owns its own 50-step undo history — swapping the live
@@ -158,20 +156,51 @@ export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
       // Which selection the canvas shows just changed.
       selectionVersion: s.selectionVersion + 1,
     };
-  }),
+  });
+}
 
-  setRenamingId: (id, source) => {
-    if (id) {
-      const { hiddenIds, edges } = get();
-      if (hiddenIds.includes(id)) {
-        const parentEdge = edges.find((e) => e.target === id);
-        if (parentEdge) { set({ renamingId: id, renameSource: source ?? "canvas", zoomToNode: { nodeId: parentEdge.source, timestamp: Date.now() } }); return; }
-      }
+function setRenamingId(set: SelSet, get: SelGet, id: string | null, source?: "canvas" | "folder"): void {
+  if (id) {
+    const { hiddenIds, edges } = get();
+    if (hiddenIds.includes(id)) {
+      const parentEdge = edges.find((e) => e.target === id);
+      if (parentEdge) { set({ renamingId: id, renameSource: source ?? "canvas", zoomToNode: { nodeId: parentEdge.source, timestamp: Date.now() } }); return; }
     }
-    set({ renamingId: id, renameSource: id ? (source ?? "canvas") : null, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null });
-  },
+  }
+  set({ renamingId: id, renameSource: id ? (source ?? "canvas") : null, zoomToNode: id ? { nodeId: id, timestamp: Date.now() } : null });
+}
 
-  setZoomToNode: (nodeId) => set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null }),
+function setZoomToNode(set: SelSet, nodeId: string | null): void {
+  set({ zoomToNode: nodeId ? { nodeId, timestamp: Date.now() } : null });
+}
+
+export const createSelectionSlice: SelectionSliceCreator = (set, get) => ({
+  selectedNodeIds: [],
+  selectedGroupIds: [],
+  leafSelections: {},
+  activeLeafId: null,
+  selectionVersion: 0,
+  hoverHighlightIds: [],
+  renamingId: null,
+  renameSource: null,
+  zoomToNode: null,
+  zoomToNodeIds: null,
+  mousePosition: null,
+  pastePosition: null,
+  pendingCreatePosition: null,
+  focusedNodeId: null,
+
+  setSelectedNodeIds: (ids) => setSelectedNodeIds(set, ids),
+  setSelectedGroupIds: (ids) => setSelectedGroupIds(set, ids),
+  setHoverHighlight: (ids) => set({ hoverHighlightIds: ids }),
+
+  setSelectionForLeaf: (leafId, ids) => setSelectionForLeaf(set, leafId, ids),
+
+  setActiveLeaf: (leafId) => setActiveLeaf(set, leafId),
+
+  setRenamingId: (id, source) => setRenamingId(set, get, id, source),
+
+  setZoomToNode: (nodeId) => setZoomToNode(set, nodeId),
   setZoomToNodeIds: (ids) => set({ zoomToNodeIds: ids }),
   setMousePosition: (pos) => set({ mousePosition: pos }),
   setPastePosition: (pos) => set({ pastePosition: pos }),
