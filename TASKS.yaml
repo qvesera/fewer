@@ -5670,24 +5670,30 @@ tasks:
   session_count: 1
 - id: "T-203"
   title: "folderSlice coverage: sameHideLayers branch paths (file's only uncovered block, repowise 90.12% →)"
-  status: "triaged"
+  status: "review"
   type: "task"
   area: "ux"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
-  issue: null
-  pr: null
+  issue: 475
+  pr: 476
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-27T14:07:33Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-27T14:16:22Z"
+    end: "2026-10-27T14:19:49Z"
+    measured: true
+    note: "sameHideLayers L57-61 covered via 2 revealInView tests (no-layer-change + bulk-exempt write). folderSlice lcov 97.8%→100%, gradient 0.81→0.31, score 4.64→5.14. 1847+258 green, coverage ingested + repowise updated."
+    proof: ["0032ea0", "#476"]
+    effort: {commits: 1, files: 2, insertions: 58, deletions: 0}
+  spent_min: 3
+  session_count: 1
