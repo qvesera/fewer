@@ -92,6 +92,19 @@ function countLayoutPasses() {
   return () => passes;
 }
 
+/** Count layout persists by shadowing _persistLayout (it debounces to storage). */
+function countPersists() {
+  const original = useGraphStore.getState()._persistLayout;
+  let n = 0;
+  useGraphStore.setState({
+    _persistLayout: () => {
+      n++;
+      original();
+    },
+  });
+  return () => n;
+}
+
 describe("a reveal survives every later auto-hide reconcile", () => {
   it("canvas double-click reveal is not undone by a later sidebar reveal", () => {
     s().showNode("b0"); // the canvas path: eyeRevealForLeaf + showNode
@@ -191,6 +204,50 @@ describe("one reveal gesture is one store write", () => {
     s().revealInView(null, "root");
     expect(s().graphVersion).toBe(version);
     expect(s().past.length).toBe(past);
+  });
+
+  it("releasing a card no layer holds leaves the leaf untouched (no write, no persist)", () => {
+    // b0 lives only in the global sets; this leaf's `individual` holds someone
+    // else, so the release changes nothing — sameHideLayers must walk every
+    // layer (bulk flag, exempt, subtrees) and find them equal.
+    useGraphStore.setState({
+      viewSettings: {
+        leaf1: { hideLayers: { individual: ["b1"], subtrees: {}, filesBulkActive: false, filesBulkExempt: [] } },
+      },
+    });
+    const persists = countPersists();
+    const version = s().graphVersion;
+    const past = s().past.length;
+    const leafBefore = s().viewSettings.leaf1;
+
+    s().revealInView("leaf1", "b0");
+
+    expect(s().hiddenIds).not.toContain("b0"); // the reveal itself happened
+    expect(s().revealedRootIds).toContain("b0"); // …with its exemption recorded
+    expect(s().viewSettings.leaf1).toBe(leafBefore); // no leaf write → same object
+    expect(persists()).toBe(0); // …and no layout persist for a layer that didn't move
+    expect(s().past.length).toBe(past + 1); // the undo sidecar still records the gesture
+    expect(s().graphVersion).toBe(version + 2); // reveal write + one layout pass
+  });
+
+  it("a bulk-layer reveal writes the exemption into the leaf in the same gesture", () => {
+    // filesBulkExempt grows (a length change sameHideLayers sees at its third
+    // check), so the leaf IS written and persisted alongside the global sets.
+    useGraphStore.setState({
+      viewSettings: {
+        leaf1: { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: [] } },
+      },
+    });
+    const persists = countPersists();
+    const version = s().graphVersion;
+
+    s().revealInView("leaf1", "b0");
+
+    expect(s().viewSettings.leaf1.hideLayers.filesBulkExempt).toContain("b0");
+    expect(s().viewSettings.leaf1.hideLayers.filesBulkActive).toBe(true);
+    expect(persists()).toBe(1);
+    expect(s().hiddenIds).not.toContain("b0");
+    expect(s().graphVersion).toBe(version + 2);
   });
 });
 
