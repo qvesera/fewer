@@ -5606,7 +5606,7 @@ tasks:
   session_count: 0
 - id: "T-201"
   title: "localTree: parallelize the queue-time fs.stat in buildTreeFromPath's dirent loop (serial_await_in_loop @ L149, top-ranked perf opportunity)"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: 0
