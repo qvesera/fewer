@@ -5519,24 +5519,30 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "historySlice: flatten applyViewState (complex_method CCN 15, repo's remaining highest-impact method finding)"
-  status: "triaged"
+  status: "review"
   type: "task"
   area: "ux"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
-  issue: null
-  pr: null
+  issue: 465
+  pr: 466
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-27T10:29:37Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-27T10:38:57Z"
+    end: "2026-10-27T10:39:20Z"
+    measured: true
+    note: "applyViewState: 11-branch if-chain → table-driven over COPIED_VIEW_KEYS/PRO_VIEW_KEYS; Pro-tag gate + groups rule unchanged. historySlice 4.74→6.01, max_ccn 15→8, complex_method finding gone. Gates: tsc/lint/build green, 1832+258 tests (97% coverage net)."
+    proof: ["242e550", "#466"]
+    effort: {commits: 1, files: 2, insertions: 18, deletions: 13}
   spent_min: 0
-  session_count: 0
+  session_count: 1
