@@ -5583,7 +5583,7 @@ tasks:
   session_count: 2
 - id: "T-200"
   title: "graph/core.ts: flatten setGraph + applyFolderRefresh (complex_method CCN ~10 each)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5639,3 +5639,26 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 20, deletions: 8}
   spent_min: 3
   session_count: 1
+- id: "T-202"
+  title: "folderSlice: flatten showSubtreeForLeaf + revealInView (worst file 2.65, complex_method CCN 14 each)"
+  status: "triaged"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T13:36:21Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
