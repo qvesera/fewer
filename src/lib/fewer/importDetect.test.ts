@@ -27,6 +27,15 @@ const ASCII_TREE = `show/
 
 describe("detectImportFormat — each format from its own shape", () => {
   test("json", () => expect(detectImportFormat(JSON_GRAPH)).toBe("json"));
+  test("the nested Fewer document shape (graph.data.nodes) is json too", () => {
+    // T-145: both shapes count — the importer picks fidelity vs structure from
+    // the payload itself.
+    const doc = `{\n  "format_version": 1,\n  "app": "fewer",\n  "graph": { "data": { "nodes": [{ "id": "a" }], "edges": [] } }\n}`;
+    expect(detectImportFormat(doc)).toBe("json");
+  });
+  test("a strict digraph opens a DOT document", () => {
+    expect(detectImportFormat(`strict ${DOT}`)).toBe("dot");
+  });
   test("dot", () => expect(detectImportFormat(DOT)).toBe("dot"));
   test("script", () => expect(detectImportFormat(SCRIPT)).toBe("script"));
   test("csv table", () => expect(detectImportFormat(CSV_TABLE)).toBe("csv"));
@@ -46,6 +55,10 @@ describe("detectImportFormat — each format from its own shape", () => {
 describe("detectImportFormat — the ties that matter", () => {
   test("json that parses but is not a graph falls through", () => {
     expect(detectImportFormat(`{ "foo": 1, "bar": 2 }`)).toBe("tree");
+  });
+
+  test("a JSON array parses but is not a graph, so it falls through", () => {
+    expect(detectImportFormat(`[{ "id": "a" }]`)).toBe("tree");
   });
 
   test("a graph declaration with no edge is not DOT", () => {

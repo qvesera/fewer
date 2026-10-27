@@ -117,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - graph/core.ts flattened: setGraph decomposes into styleImportNodes/styleImportEdges/placeImportedNodes and applyFolderRefresh into rebuildFolderSubtree/refreshHideSets (both were CCN ~10). Dispatchers keep identical snapshots and ordering; no behavior change — the 99%-coverage characterization suite is the net.
 - folderSlice flattened: revealInView split into planRevealGesture/releasedLeafLayers/revealViewSettings and showSubtreeForLeaf into releasedSubtreeLayers/showSubtreeLeaf/globalHiddenDescendants (both were CCN 14). Same store calls, same write ordering; the hide/reveal suites are the net.
 - revealContract suite extended with the two sameHideLayers paths folderSlice never exercised: a release that changes no layer (leaf object untouched, zero persists, undo sidecar still recorded) and a bulk-layer release that writes the exemption in the same gesture. folderSlice line coverage 97.8% → 100%.
+- importDetect flattened: detectImportFormat's ordered scanner splits into looksLikeJson/Dot/Script/TreeGlyphs/Csv with a flat 6-branch dispatch — order and every tie-break unchanged (repowise's #1 refactoring directive, recovers 1.45). Characterization gaps closed first: nested graph.data.nodes shape, strict digraph, JSON-array fallthrough.
 
 ### Fixed
 
