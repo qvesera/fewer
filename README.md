@@ -433,7 +433,7 @@ See [ROADMAP.md](ROADMAP.md) for the full roadmap, covering short-term, medium-t
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. By participating, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Brand assets: `public/logo_flat.svg` is the source of record. The share-card image (`public/og.png`, 1200×630) is regenerated with `bun scripts/og-card.ts`; the copies frozen into exported SVGs and emails are pinned to their assets by `src/lib/fewer/brandAssets.test.ts`, so `bun run test` fails if the drawing changes without re-copying.
+Brand assets: `public/logo.svg` is the source of record. The raster copies (`logo.png`, `logo-192.png`, `logo-512.png`) are regenerated from it with `bun scripts/logo-assets.ts`, and the share-card image (`public/og.png`, 1200×630) with `bun scripts/og-card.ts`; the copies frozen into exported SVGs and emails are pinned to their assets by `src/lib/fewer/brandAssets.test.ts`, so `bun run test` fails if the drawing changes without re-copying.
 
 ## License
 

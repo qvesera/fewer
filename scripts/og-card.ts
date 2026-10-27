@@ -5,8 +5,8 @@
  * should not age every time the landing page layout moves, and the build
  * needs no image service.
  *
- * Standalone HTML + the flat mark inlined from public/logo_flat.svg (the
- * asset stays the source of record); Geist loads from Google Fonts at
+ * Standalone HTML + the mark inlined from public/logo.svg (the asset stays
+ * the source of record) — Geist loads from Google Fonts at
  * regeneration time only — the committed PNG carries the pixels. Offline,
  * the card falls back to system-ui; the script still writes a valid PNG.
  *
@@ -18,7 +18,7 @@ import { resolve } from "node:path";
 
 const OUT = resolve(process.argv[2] ?? "public/og.png");
 
-const logoSvg = readFileSync(resolve("public/logo_flat.svg"), "utf8")
+const logoSvg = readFileSync(resolve("public/logo.svg"), "utf8")
   .replace(/<\?xml[\s\S]*?\?>/g, "")
   .replace(/<!--[\s\S]*?-->/g, "")
   .trim();
