@@ -1921,7 +1921,7 @@ tasks:
   session_count: 1
 - id: "T-074"
   title: "gen-seed-content.py hardcodes a stale 'Crown Shyness drift' rationale into every reseed header (scripts/gen-seed-content.py:91) — 0048/0049/0050 all carry a reason describing an older change; make the header reason generic or a CLI arg"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "infra"
   tier: 0
