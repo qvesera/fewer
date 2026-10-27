@@ -5757,13 +5757,13 @@ tasks:
   session_count: 1
 - id: "T-206"
   title: "Rebrand to the redesigned public/logo.svg: switch every consumer (Logo, marketing, favicon/manifest, og-card), regenerate rasters/frozen copies (logo.png, 192/512, email base64, export badge), flip the brandAssets guard to the new source"
-  status: "triaged"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: 0
   estimate_min: 360
   estimate_basis: "cli"
-  issue: null
+  issue: 481
   pr: null
   internal: false
   milestone: null
@@ -5775,6 +5775,12 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-27T15:42:29Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-27T15:52:12Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
