@@ -40,6 +40,50 @@ export type CoreSliceCreator = StateCreator<GraphState, [], [], {
 type CoreSet = Parameters<CoreSliceCreator>[0];
 type CoreGet = () => GraphState;
 
+/** Size incoming cards for the current layout settings. */
+function styleImportNodes(nodes: any[], state: GraphState): any[] {
+  return nodes.map((n) => ({
+    ...n,
+    style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
+  }));
+}
+
+/** Stamp incoming edges with the store's style: type, animation, dash clock. */
+function styleImportEdges(edges: any[], state: GraphState): any[] {
+  const edgeType = edgeTypeFromStyle(state.edgeStyle);
+  const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
+  const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
+  return edges.map((e) => ({
+    ...e,
+    type: edgeType,
+    animated,
+    style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
+  }));
+}
+
+/** Place the imported cards: a layout pass unless the caller preserved
+ *  positions; the hidden set is excluded and the search highlight applied
+ *  either way. */
+function placeImportedNodes(
+  styledNodes: any[],
+  edges: any[],
+  state: GraphState,
+  idsToHide: string[],
+  options?: { preservePositions?: boolean },
+): any[] {
+  const highlighted = (placed: any[]) => applySearchHighlight(placed, state.searchQuery, state.categoryFilter);
+  if (options?.preservePositions) return highlighted(styledNodes);
+  return highlighted(
+    layoutGraphSync(styledNodes, edges, state.direction, {
+      excludeFromLayout: idsToHide.length > 0 ? new Set(idsToHide) : undefined,
+      shynessScale: state.shynessScale,
+      sortKey: state.sortKey,
+      sortDir: state.sortDir,
+      tagLabelById: makeTagLabelLookup(state.tags),
+    }),
+  );
+}
+
 function setGraph(
   set: CoreSet,
   get: CoreGet,
@@ -53,19 +97,8 @@ function setGraph(
   if (pushHistory && state.nodes.length > 0) {
     get().pushOp({ type: "bulk-import", nodes: state.nodes, edges: state.edges });
   }
-  const styledNodes = nodes.map((n) => ({
-    ...n,
-    style: { ...n.style, width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
-  }));
-  const edgeType = edgeTypeFromStyle(state.edgeStyle);
-  const animated = can("edgeMotion", state.tier) && state.edgeAnimated && !state.edgeAnimatedSelectedOnly;
-  const strokeDasharray = animated ? edgeDashPattern(state.edgeAnimatedStrokeStyle) : edgeDashPattern(state.edgeStrokeStyle);
-  const styledEdges = edges.map((e) => ({
-    ...e,
-    type: edgeType,
-    animated,
-    style: { ...e.style, strokeWidth: state.edgeWidth, ...(strokeDasharray ? { strokeDasharray } : {}) },
-  }));
+  const styledNodes = styleImportNodes(nodes, state);
+  const styledEdges = styleImportEdges(edges, state);
   const { idsToHide, autoHideIds, catHiddenIds, autoHideCount } = computeImportedHideSets(
     nodes,
     edges,
@@ -76,10 +109,7 @@ function setGraph(
     state.categoryFilter,
     orderFromStore(state),
   );
-  const excludeFromLayoutFinal = idsToHide.length > 0 ? new Set(idsToHide) : undefined;
-  const laidFinal = options?.preservePositions
-    ? applySearchHighlight(styledNodes, state.searchQuery, state.categoryFilter)
-    : applySearchHighlight(layoutGraphSync(styledNodes, edges, state.direction, { excludeFromLayout: excludeFromLayoutFinal, shynessScale: state.shynessScale, sortKey: state.sortKey, sortDir: state.sortDir, tagLabelById: makeTagLabelLookup(state.tags) }), state.searchQuery, state.categoryFilter);
+  const laidFinal = placeImportedNodes(styledNodes, edges, state, idsToHide, options);
   const sortedEdges = sortEdges(styledEdges, laidFinal);
   const baseHidden = new Set(hiddenFileIds ?? []);
   const seedAutoHidden = autoHideIds.filter((id) => !baseHidden.has(id));
@@ -176,6 +206,49 @@ function organizeAll(set: CoreSet, get: CoreGet): void {
   s.bumpReflow();
 }
 
+/** Swap a folder's subtree: lay the new children under the folder's current
+ *  position and collect what the old subtree took with it. */
+function rebuildFolderSubtree(folderNode: any, childNodes: any[], childEdges: any[], state: GraphState) {
+  const oldIds = new Set(getDescendants(folderNode.id, state.edges));
+  const oldNodes = state.nodes.filter((n) => oldIds.has(n.id));
+  const oldEdges = state.edges.filter((e) => oldIds.has(e.source) && oldIds.has(e.target));
+  const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(state.edgeStyle) }));
+  const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, state.direction, {
+    shynessScale: state.shynessScale,
+    sortKey: state.sortKey,
+    sortDir: state.sortDir,
+    tagLabelById: makeTagLabelLookup(state.tags),
+  });
+  const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
+  const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
+  const newChildNodes = laid.slice(1).map((n) => ({
+    ...n,
+    position: { x: (n.position.x ?? 0) + dx, y: (n.position.y ?? 0) + dy },
+    style: { width: state.nodeWidth, height: n.data.type === "folder" ? state.nodeHeight : undefined, minHeight: undefined },
+  }));
+  return { oldIds, oldNodes, oldEdges, newChildNodes, subtreeEdges };
+}
+
+/** Re-derive the hide layers for the refreshed graph: prior hides survive
+ *  (minus the old subtree), auto-hides/depth/category are recomputed, and
+ *  `showFiles=false` hides the subtree's files. */
+function refreshHideSets(finalNodes: any[], finalEdges: any[], state: GraphState, oldIds: Set<string>) {
+  // Previous auto-hides are re-derived (they live in `autoHiddenIds`); every
+  // other hide the graph still carries is seeded so it is never relabelled
+  // as an auto-hide of the refreshed subtree.
+  const seeded = new Set((state.hiddenIds as string[]).filter((h) => !state.autoHiddenIds.includes(h)));
+  const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, state.autoHideThreshold, new Set(state.revealedRootIds as string[]), {
+    ...orderFromStore(state),
+    hiddenSeed: seeded,
+  });
+  const depthIds = computeDisplayDepthHiddenIds(finalNodes, state.maxDisplayDepth);
+  const catHiddenIds = categoryHiddenNodeIds(finalNodes, state.categoryFilter);
+  let idsToHide: string[] = [...(state.hiddenIds as string[]).filter((h) => !oldIds.has(h))];
+  if (!state.showFiles) idsToHide = [...new Set([...idsToHide, ...finalNodes.filter((n) => n.data.type === "file").map((n) => n.id)])];
+  idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...depthIds, ...catHiddenIds])];
+  return { idsToHide, autoHideIds, catHiddenIds };
+}
+
 function applyFolderRefresh(
   set: CoreSet,
   get: CoreGet,
@@ -183,49 +256,22 @@ function applyFolderRefresh(
   childNodes: any[],
   childEdges: any[],
 ): { added: number; removed: number } {
-  const {
-    nodes, edges, searchQuery, categoryFilter, hiddenIds, autoHiddenIds,
-    revealedRootIds, autoHideThreshold, maxDisplayDepth,
-    direction, shynessScale, edgeStyle, nodeWidth, nodeHeight, sortKey, sortDir, graphVersion, showFiles,
-  } = get();
-  const folderNode = nodes.find((n) => n.id === nodeId);
+  const state = get();
+  const folderNode = state.nodes.find((n) => n.id === nodeId);
   if (!folderNode || folderNode.data.type !== "folder") return { added: 0, removed: 0 };
-  const oldIds = new Set(getDescendants(nodeId, edges));
-  const oldNodes = nodes.filter((n) => oldIds.has(n.id));
-  const oldEdges = edges.filter((e) => oldIds.has(e.source) && oldIds.has(e.target));
-  const subtreeEdges = childEdges.map((e) => ({ ...e, type: edgeTypeFromStyle(edgeStyle) }));
-  const laid = layoutGraphSync([folderNode, ...childNodes], subtreeEdges, direction, { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(get().tags) });
-  const dx = (folderNode.position.x ?? 0) - (laid[0]?.position?.x ?? 0);
-  const dy = (folderNode.position.y ?? 0) - (laid[0]?.position?.y ?? 0);
-  const newChildNodes = laid.slice(1).map((n) => ({
-    ...n,
-    position: { x: (n.position.x ?? 0) + dx, y: (n.position.y ?? 0) + dy },
-    style: { width: nodeWidth, height: n.data.type === "folder" ? nodeHeight : undefined, minHeight: undefined },
-  }));
+  const { oldIds, oldNodes, oldEdges, newChildNodes, subtreeEdges } = rebuildFolderSubtree(folderNode, childNodes, childEdges, state);
   for (const id of oldIds) fsHandleStore.delete(id);
-  const finalNodes = [...nodes.filter((n) => n.id !== nodeId && !oldIds.has(n.id)), folderNode, ...newChildNodes];
-  const finalEdges = [...edges.filter((e) => !oldIds.has(e.source) && !oldIds.has(e.target)), ...subtreeEdges];
-  // Previous auto-hides are re-derived (they live in `autoHiddenIds`); every
-  // other hide the graph still carries is seeded so it is never relabelled
-  // as an auto-hide of the refreshed subtree.
-  const seeded = new Set((hiddenIds as string[]).filter((h) => !autoHiddenIds.includes(h)));
-  const autoHideIds = computeLargeFolderHiddenIds(finalNodes, finalEdges, autoHideThreshold, new Set(revealedRootIds as string[]), {
-    ...orderFromStore(get()),
-    hiddenSeed: seeded,
-  });
-  const depthIds = computeDisplayDepthHiddenIds(finalNodes, maxDisplayDepth);
-  const catHiddenIds = categoryHiddenNodeIds(finalNodes, categoryFilter);
-  let idsToHide: string[] = [...(hiddenIds as string[]).filter((h) => !oldIds.has(h))];
-  if (!showFiles) idsToHide = [...new Set([...idsToHide, ...finalNodes.filter((n) => n.data.type === "file").map((n) => n.id)])];
-  idsToHide = [...new Set([...idsToHide, ...autoHideIds, ...depthIds, ...catHiddenIds])];
+  const finalNodes = [...state.nodes.filter((n) => n.id !== nodeId && !oldIds.has(n.id)), folderNode, ...newChildNodes];
+  const finalEdges = [...state.edges.filter((e) => !oldIds.has(e.source) && !oldIds.has(e.target)), ...subtreeEdges];
+  const { idsToHide, autoHideIds, catHiddenIds } = refreshHideSets(finalNodes, finalEdges, state, oldIds);
   const before = captureViewState(get());
   set({
-    nodes: applySearchHighlight(finalNodes, searchQuery, categoryFilter),
+    nodes: applySearchHighlight(finalNodes, state.searchQuery, state.categoryFilter),
     edges: sortEdges(finalEdges, finalNodes),
     hiddenIds: idsToHide,
     categoryHiddenIds: catHiddenIds,
     autoHiddenIds: autoHideIds,
-    graphVersion: graphVersion + 1,
+    graphVersion: state.graphVersion + 1,
   });
   const after = captureViewState(get());
   get().pushOp({
