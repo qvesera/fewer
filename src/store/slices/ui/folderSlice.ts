@@ -6,7 +6,7 @@ import { emptyHideLayers, type HideLayers } from "@/lib/fewer/viewState";
 import { captureViewState, viewStateOp } from "../historySlice";
 import { planReveal } from "../graph/reveal";
 import { orderFromStore } from "@/lib/fewer/importMerge";
-import { openedCollapsedGroupsForLeaf, parkInLayers, revealLeafId, withGroupReveal } from "../graph/revealGroups";
+import { openedCollapsedGroupsForLeaf, parkInLayers, revealLeafId, withGroupReveal, type GroupRevealPatch } from "../graph/revealGroups";
 
 /** Seed-on-write helper: first call captures the effective global hidden into the leaf's individual layer. */
 const seedLayers = (leaf: GraphState["viewSettings"][string] | undefined, globalHidden: string[]): HideLayers =>
@@ -159,14 +159,14 @@ function eyeRevealForLeaf(set: FolderSet, get: FolderGet, leafId: string, id: st
   get().relayoutIfAuto();
 }
 
-function revealInView(
-  set: FolderSet,
-  get: FolderGet,
+/** Phase 1 of a reveal gesture: what to show, and which collapsed group (if
+ *  any) is holding it (T-167/T-169). */
+function planRevealGesture(
+  s: GraphState,
   leafId: string | null,
   id: string,
   opts?: { subtree?: boolean },
-): void {
-  const s = get();
+) {
   const toShow = planReveal({
     edges: s.edges,
     nodes: s.nodes,
@@ -179,21 +179,62 @@ function revealInView(
     id,
     subtree: opts?.subtree ?? false,
   });
-
   // The gesture's TARGETS, not just what the hide sets contain: a card hidden
   // only by this view's collapsed group appears in neither, and then revealing
   // it means opening that group (T-167). A subtree gesture targets the folder
   // and everything under it — any of those may sit in a collapsed group.
   const targets = opts?.subtree ? [id, ...getDescendants(id, s.edges)] : [id];
   const opened = openedCollapsedGroupsForLeaf(s, targets, leafId ?? revealLeafId(s));
+  return { toShow, opened };
+}
 
-  // The view's own layers, computed but not written yet.
+/** Phase 2: this view's layers with the id released — computed, not written. */
+function releasedLeafLayers(s: GraphState, leafId: string | null, id: string) {
   const leaf = leafId ? s.viewSettings[leafId] : undefined;
   const nextLayers = leaf?.hideLayers ? releaseIdFromLayers(leaf.hideLayers, id) : null;
   const layerChanged =
     nextLayers !== null &&
     leaf !== undefined &&
     !sameHideLayers(leaf.hideLayers!, nextLayers);
+  return { leaf, nextLayers, layerChanged };
+}
+
+/** Phase 3's leaf half: merge the released layers and/or the group-open into
+ *  the view settings, reporting whether anything changed (the caller persists
+ *  only then). */
+function revealViewSettings(
+  viewSettings: GraphState["viewSettings"],
+  leafId: string | null,
+  leaf: GraphState["viewSettings"][string] | undefined,
+  nextLayers: HideLayers | null,
+  layerChanged: boolean,
+  opened: GroupRevealPatch | null,
+): { viewSettings: GraphState["viewSettings"]; changed: boolean } {
+  let next = viewSettings;
+  let changed = false;
+  if (layerChanged && leafId && leaf && nextLayers) {
+    next = { ...next, [leafId]: { ...leaf, hideLayers: nextLayers } };
+    changed = true;
+  }
+  if (opened) {
+    // Opens the group AND parks its unrevealed members (T-169) in this leaf —
+    // the revealed cards are targets, never parked.
+    next = withGroupReveal(next, opened);
+    changed = true;
+  }
+  return { viewSettings: next, changed };
+}
+
+function revealInView(
+  set: FolderSet,
+  get: FolderGet,
+  leafId: string | null,
+  id: string,
+  opts?: { subtree?: boolean },
+): void {
+  const s = get();
+  const { toShow, opened } = planRevealGesture(s, leafId, id, opts);
+  const { leaf, nextLayers, layerChanged } = releasedLeafLayers(s, leafId, id);
   if (toShow.size === 0 && !layerChanged && !opened) return; // nothing was hiding it
 
   const before = captureViewState(s);
@@ -212,29 +253,63 @@ function revealInView(
   // One write: this leaf's layers plus the group-open for whichever view the
   // gesture resolves to (normally the same leaf) — a member card hidden by
   // the collapse appears in no hide set, so the open IS the reveal (T-167).
-  let nextViewSettings = s.viewSettings;
-  let settingsChanged = false;
-  if (layerChanged && leafId) {
-    nextViewSettings = { ...nextViewSettings, [leafId]: { ...leaf, hideLayers: nextLayers! } };
-    settingsChanged = true;
-  }
-  if (opened) {
-    // Opens the group AND parks its unrevealed members (T-169) in this leaf —
-    // the revealed cards are targets, never parked.
-    nextViewSettings = withGroupReveal(nextViewSettings, opened);
-    settingsChanged = true;
-  }
+  const vs = revealViewSettings(s.viewSettings, leafId, leaf, nextLayers, layerChanged, opened);
   set({
     hiddenIds: after.hiddenIds,
     independentlyHiddenIds: after.independentlyHiddenIds,
     autoHiddenIds: after.autoHiddenIds,
     revealedRootIds: [...new Set([...s.revealedRootIds, ...revealed])],
     revealedFromHidden: [...new Set([...s.revealedFromHidden, ...revealed])],
-    ...(settingsChanged ? { viewSettings: nextViewSettings } : {}),
+    ...(vs.changed ? { viewSettings: vs.viewSettings } : {}),
     graphVersion: s.graphVersion + 1,
   });
-  if (settingsChanged) get()._persistLayout();
+  if (vs.changed) get()._persistLayout();
   get().relayoutIfAuto();
+}
+
+/** This leaf's layers with the folder's sub-list dropped: descendant files are
+ *  exempted from the bulk "Hide Files" layer (so Show Children beats it), and
+ *  descendants are released from per-node individual hides — hiding individual
+ *  file cards writes to `individual` (not `subtrees[folderId]`), so without the
+ *  release the cards stay hidden even though the context menu offered to show
+ *  them (it reads the effective hidden set, which includes `individual`). */
+function releasedSubtreeLayers(s: GraphState, layers: HideLayers, folderId: string, descendants: string[]): HideLayers {
+  const subtrees = { ...layers.subtrees };
+  delete subtrees[folderId];
+  const filesBulkExempt = layers.filesBulkActive
+    ? [...new Set([...layers.filesBulkExempt, ...fileIdSet(s, descendants)])]
+    : layers.filesBulkExempt;
+  const descendantSet = new Set(descendants);
+  const individual = layers.individual.filter((id) => !descendantSet.has(id));
+  return { ...layers, subtrees, filesBulkExempt, individual };
+}
+
+/** The leaf write for Show Children: the released layers, plus — when the
+ *  revealed folder lives in a collapsed group of THIS leaf (T-167) — the group
+ *  open and the park of its other members (T-169). */
+function showSubtreeLeaf(
+  leaf: GraphState["viewSettings"][string],
+  released: HideLayers,
+  opened: GroupRevealPatch | null,
+  leafId: string,
+): GraphState["viewSettings"][string] {
+  const sameLeaf = opened && opened.leafId === leafId ? opened : null;
+  return {
+    ...leaf,
+    hideLayers: sameLeaf ? parkInLayers(released, sameLeaf.park) : released,
+    ...(sameLeaf ? { collapsedGroupIds: sameLeaf.collapsedGroupIds } : {}),
+  };
+}
+
+/** The folder's descendants hidden GLOBALLY — files may also be hidden there
+ *  (no leaf, or a leaf seeded from a global "Show Files" off state). The
+ *  folder's hidden descendants live in hiddenIds, so reveal them there too.
+ *  collectShowSubtrees stops at independently-hidden nodes, matching
+ *  showSubtree: per-node user hides stay hidden. */
+function globalHiddenDescendants(s: GraphState, descendants: string[]): string[] {
+  const indieSet = new Set(s.independentlyHiddenIds);
+  const globalHidden = new Set(s.hiddenIds);
+  return descendants.filter((d) => globalHidden.has(d) && !indieSet.has(d));
 }
 
 function showSubtreeForLeaf(set: FolderSet, get: FolderGet, leafId: string, folderId: string): void {
@@ -246,31 +321,7 @@ function showSubtreeForLeaf(set: FolderSet, get: FolderGet, leafId: string, fold
   // collapsed group: "Show Children" opens that group rather than no-opping (T-167).
   const opened = openedCollapsedGroupsForLeaf(s, [folderId, ...descendants], leafId);
   if (layers) {
-    const subtrees = { ...layers.subtrees };
-    delete subtrees[folderId];
-    // Show Children must win over the bulk "Hide Files" layer too: exempt this
-    // folder's descendant files (same mechanism the eye-reveal uses), so the
-    // children actually appear while the bulk layer stays on for everywhere else.
-    const filesBulkExempt = layers.filesBulkActive
-      ? [...new Set([...layers.filesBulkExempt, ...fileIdSet(s, descendants)])]
-      : layers.filesBulkExempt;
-    // Show Children must also win over per-node individual hides within this
-    // folder: hiding individual file cards writes to `individual` (not
-    // `subtrees[folderId]`), so without releasing the folder's descendants from
-    // there the cards stay hidden even though the context menu offered to show
-    // them (it reads the effective hidden set, which includes `individual`).
-    const descendantSet = new Set(descendants);
-    const individual = layers.individual.filter((id) => !descendantSet.has(id));
-    withLeaf(set, get, leafId, {
-      ...leaf,
-      // Show Children also opens a collapsed group holding the folder or one
-      // of its descendants (T-167) — same write, same gesture — and parks the
-      // group's OTHER members (T-169) so only the asked-for cards come back.
-      hideLayers: opened && opened.leafId === leafId
-        ? parkInLayers({ ...layers, subtrees, individual, filesBulkExempt }, opened.park)
-        : { ...layers, subtrees, individual, filesBulkExempt },
-      ...(opened && opened.leafId === leafId ? { collapsedGroupIds: opened.collapsedGroupIds } : {}),
-    });
+    withLeaf(set, get, leafId, showSubtreeLeaf(leaf, releasedSubtreeLayers(s, layers, folderId, descendants), opened, leafId));
   } else if (opened) {
     set({
       viewSettings: withGroupReveal(s.viewSettings, opened),
@@ -278,13 +329,7 @@ function showSubtreeForLeaf(set: FolderSet, get: FolderGet, leafId: string, fold
     });
     get()._persistLayout();
   }
-  // Files may also be hidden GLOBALLY (no leaf, or a leaf seeded from a global
-  // "Show Files" off state) — the folder's hidden descendants live in hiddenIds,
-  // so reveal them there too. collectShowSubtrees stops at independently-hidden
-  // nodes, matching showSubtree: per-node user hides stay hidden.
-  const indieSet = new Set(get().independentlyHiddenIds);
-  const globalHidden = new Set(get().hiddenIds);
-  const hiddenDesc = descendants.filter((d) => globalHidden.has(d) && !indieSet.has(d));
+  const hiddenDesc = globalHiddenDescendants(s, descendants);
   if (hiddenDesc.length > 0) get().showSubtrees(hiddenDesc);
   get().relayoutIfAuto();
 }
