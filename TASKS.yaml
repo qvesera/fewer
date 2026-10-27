@@ -5583,27 +5583,33 @@ tasks:
   session_count: 2
 - id: "T-200"
   title: "graph/core.ts: flatten setGraph + applyFolderRefresh (complex_method CCN ~10 each)"
-  status: "triaged"
+  status: "review"
   type: "task"
   area: "ux"
   tier: 0
   estimate_min: 180
   estimate_basis: "cli"
   issue: 469
-  pr: null
+  pr: 472
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-27T11:44:37Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-27T13:02:09Z"
+    end: "2026-10-27T13:13:09Z"
+    measured: true
+    note: "setGraph → styleImportNodes/styleImportEdges/placeImportedNodes; applyFolderRefresh → rebuildFolderSubtree/refreshHideSets. core.ts 4.24→5.09, max_ccn 10→6, both complex_method gone. Net: 1845+258 tests green, tsc/lint/build 0, 99%-coverage suite as behavior net."
+    proof: ["a66584b", "#472"]
+    effort: {commits: 1, files: 2, insertions: 96, deletions: 49}
+  spent_min: 11
+  session_count: 1
 - id: "T-201"
   title: "localTree: parallelize the queue-time fs.stat in buildTreeFromPath's dirent loop (serial_await_in_loop @ L149, top-ranked perf opportunity)"
   status: "done"
