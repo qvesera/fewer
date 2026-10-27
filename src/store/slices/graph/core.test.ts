@@ -96,11 +96,13 @@ test("setGraph with preservePositions keeps the incoming positions instead of re
 });
 
 test("setGraph styles edges animated on capable tiers only", () => {
-  useGraphStore.setState({ tier: "free", edgeAnimated: true, edgeAnimatedSelectedOnly: false, edgeStrokeStyle: "dashed" });
+  // Set BOTH stroke styles: the animated branch reads edgeAnimatedStrokeStyle,
+  // whose default another suite may have overwritten on the shared store.
+  useGraphStore.setState({ tier: "free", edgeAnimated: true, edgeAnimatedSelectedOnly: false, edgeAnimatedStrokeStyle: "dashed", edgeStrokeStyle: "dashed" });
   useGraphStore.getState().setGraph([folder("f1", "F1")], [edge("f1", "f1")], false);
   const animated = useGraphStore.getState().edges[0];
   expect(animated.animated).toBe(true);
-  expect(animated.style?.strokeDasharray).toBeTruthy();
+  expect(animated.style?.strokeDasharray).toBe("8 4");
 
   useGraphStore.setState({ tier: "guest" });
   useGraphStore.getState().setGraph([folder("f1", "F1")], [edge("f1", "f1")], false);
