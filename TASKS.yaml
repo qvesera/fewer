@@ -5641,7 +5641,7 @@ tasks:
   session_count: 1
 - id: "T-202"
   title: "folderSlice: flatten showSubtreeForLeaf + revealInView (worst file 2.65, complex_method CCN 14 each)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5668,3 +5668,26 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 100, deletions: 54}
   spent_min: 7
   session_count: 1
+- id: "T-203"
+  title: "folderSlice coverage: sameHideLayers branch paths (file's only uncovered block, repowise 90.12% →)"
+  status: "triaged"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T14:07:33Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
