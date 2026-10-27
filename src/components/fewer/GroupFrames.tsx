@@ -127,6 +127,124 @@ function ungroupSelection(act: ReturnType<typeof useGraphStore.getState>): void 
 }
 
 /**
+ * Shared inputs for the frame pointer handlers: the component owns viewport
+ * routing (screenToFlow, the per-view vs shared position writes), the handlers
+ * own gesture math. Extracted so `framePointerMove`'s complexity stands alone —
+ * inside the component it was a CCN-16 method.
+ */
+type FramePointerCtx = {
+  groupId: string;
+  leafId?: string;
+  allGroups: readonly Group[];
+  zoom: number;
+  screenToFlow: (clientX: number, clientY: number) => { x: number; y: number };
+  writeMemberPositions: (positions: Record<string, { x: number; y: number }>) => void;
+  writePillPosition: (pos: { x: number; y: number }) => void;
+};
+
+/** The gesture for this frame/pointer, or null. `liveOnly` mirrors the two
+ *  guards: move skips cancelled gestures, END must still run to release a
+ *  cancelled one. */
+function frameGestureFor(groupId: string, pointerId: number, liveOnly: boolean): FrameGesture | null {
+  const g = gestureRef.get();
+  if (!g || g.groupId !== groupId || g.pointerId !== pointerId) return null;
+  if (liveOnly && g.cancelled) return null;
+  return g;
+}
+
+function applyFrameMove(ctx: FramePointerCtx, g: FrameGesture, dx: number, dy: number): void {
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / ctx.zoom, y: p.y + dy / ctx.zoom };
+  ctx.writeMemberPositions(positions);
+  // Compact: the members move (so expanding lands where you dropped it) and
+  // the PILL takes the override that actually moves what you see.
+  if (g.startPill) ctx.writePillPosition({ x: g.startPill.x + dx / ctx.zoom, y: g.startPill.y + dy / ctx.zoom });
+}
+
+/** Scale factors for the current pointer; Shift locks them uniform. */
+function lockedScaleFactors(
+  g: FrameGesture,
+  cur: { x: number; y: number },
+  start: { x: number; y: number },
+  mins: { x: number; y: number },
+  shift: boolean,
+): { sx: number; sy: number } {
+  const sx = g.axes!.x ? scaleFactorFor(cur.x, g.origin!.x, start.x, mins.x) : 1;
+  const sy = g.axes!.y ? scaleFactorFor(cur.y, g.origin!.y, start.y, mins.y) : 1;
+  if (!shift) return { sx, sy };
+  const s = g.axes!.x && g.axes!.y ? Math.max(sx, sy) : sx !== 1 ? sx : sy;
+  return { sx: Math.max(s, mins.x), sy: Math.max(s, mins.y) };
+}
+
+function applyFrameScale(ctx: FramePointerCtx, g: FrameGesture, e: React.PointerEvent<HTMLElement>): void {
+  // Resize-by-scale (T-136): the axis factors come from the pointer's
+  // distance to the fixed origin now vs at press; Shift locks uniform.
+  const cur = ctx.screenToFlow(e.clientX, e.clientY);
+  const start = ctx.screenToFlow(g.startScreen.x, g.startScreen.y);
+  const mins = minScaleFor({ x: 0, y: 0, ...g.startBox! });
+  const { sx, sy } = lockedScaleFactors(g, cur, start, mins, e.shiftKey);
+  ctx.writeMemberPositions(scaleMemberPositions(g.startPositions, g.origin!, sx, sy));
+}
+
+function framePointerMove(ctx: FramePointerCtx, e: React.PointerEvent<HTMLElement>): void {
+  const g = frameGestureFor(ctx.groupId, e.pointerId, true);
+  if (!g) return;
+  const dx = e.clientX - g.startScreen.x;
+  const dy = e.clientY - g.startScreen.y;
+  if (!g.moved) {
+    if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    g.moved = true;
+    // Capture only now: a plain click never captures (so the header's
+    // buttons keep their click), while a real drag keeps receiving move/up
+    // wherever the pointer goes (T-137).
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+  if (g.mode === "move") {
+    applyFrameMove(ctx, g, dx, dy);
+    return;
+  }
+  applyFrameScale(ctx, g, e);
+}
+
+type DragMove = { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } };
+
+/** The gesture's recorded moves: members from their pressed positions to where
+ *  they sit now (per-view map when the gesture wrote one), plus the compact
+ *  pill's own override riding the same op. */
+function gestureDragMoves(state: ReturnType<typeof useGraphStore.getState>, ctx: FramePointerCtx, g: FrameGesture): DragMove[] {
+  const members = new Set(subtreeMemberIds(ctx.allGroups, ctx.groupId));
+  const leafPos = ctx.leafId ? state.viewSettings[ctx.leafId]?.positions : undefined;
+  const moves: DragMove[] = (state.nodes ?? [])
+    .filter((n) => members.has(n.id))
+    .flatMap((n) => {
+      const from = g.startPositions.get(n.id);
+      const to = leafPos?.[n.id] ?? { x: n.position.x, y: n.position.y };
+      return from ? [{ nodeId: n.id, from, to }] : [];
+    });
+  // The compact pill's own override rides the SAME op, so one undo takes the
+  // pill and its members back together.
+  if (g.startPill && ctx.leafId) {
+    const pillId = groupPillNodeId(ctx.groupId);
+    moves.push({ nodeId: pillId, from: g.startPill, to: leafPos?.[pillId] ?? g.startPill });
+  }
+  return moves;
+}
+
+function framePointerEnd(ctx: FramePointerCtx, e: React.PointerEvent<HTMLElement>): void {
+  const g = frameGestureFor(ctx.groupId, e.pointerId, false);
+  if (!g) return;
+  gestureRef.set(null);
+  try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer already gone */ }
+  if (!g.moved || g.cancelled) return; // a click is a selection, not a gesture
+  // One history entry for the whole gesture, exactly like a card drag stop —
+  // tagged with the leaf when the gesture wrote the per-view map, so undo
+  // restores that map instead of the shared positions it never touched.
+  const state = useGraphStore.getState();
+  state.recordDragMoves(gestureDragMoves(state, ctx, g), ctx.leafId);
+  if (ctx.leafId) state._persistLayout();
+}
+
+/**
  * All group frames for one canvas.
  *
  * `nodes` is the canvas's PAINTED array (`positionedNodes` from GraphCanvas:
@@ -466,71 +584,20 @@ export function GroupFrame({
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
-  const onFramePointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    const g = gestureRef.get();
-    if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId || g.cancelled) return;
-    const dx = e.clientX - g.startScreen.x;
-    const dy = e.clientY - g.startScreen.y;
-    if (!g.moved) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      g.moved = true;
-      // Capture only now: a plain click never captures (so the header's
-      // buttons keep their click), while a real drag keeps receiving move/up
-      // wherever the pointer goes (T-137).
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    }
-    if (g.mode === "move") {
-      const positions: Record<string, { x: number; y: number }> = {};
-      for (const [id, p] of g.startPositions) positions[id] = { x: p.x + dx / zoom, y: p.y + dy / zoom };
-      writeMemberPositions(positions);
-      // Compact: the members move (so expanding lands where you dropped it) and
-      // the PILL takes the override that actually moves what you see.
-      if (g.startPill) writePillPosition({ x: g.startPill.x + dx / zoom, y: g.startPill.y + dy / zoom });
-      return;
-    }
-    // Resize-by-scale (T-136): the axis factors come from the pointer's
-    // distance to the fixed origin now vs at press; Shift locks uniform.
-    const cur = screenToFlow(e.clientX, e.clientY);
-    const start = screenToFlow(g.startScreen.x, g.startScreen.y);
-    const mins = minScaleFor({ x: 0, y: 0, ...g.startBox! });
-    let sx = g.axes!.x ? scaleFactorFor(cur.x, g.origin!.x, start.x, mins.x) : 1;
-    let sy = g.axes!.y ? scaleFactorFor(cur.y, g.origin!.y, start.y, mins.y) : 1;
-    if (e.shiftKey) {
-      const s = g.axes!.x && g.axes!.y ? Math.max(sx, sy) : sx !== 1 ? sx : sy;
-      sx = Math.max(s, mins.x);
-      sy = Math.max(s, mins.y);
-    }
-    writeMemberPositions(scaleMemberPositions(g.startPositions, g.origin!, sx, sy));
+  // Viewport conversion and the position-write routing stay in the component
+  // (they need vpX/vpY/zoom/leafId); the gesture math lives at module scope
+  // with the handlers — inside this component they were a CCN-16 method.
+  const pointerCtx: FramePointerCtx = {
+    groupId: group.id,
+    leafId,
+    allGroups,
+    zoom,
+    screenToFlow,
+    writeMemberPositions,
+    writePillPosition,
   };
-
-  const onFramePointerEnd = (e: React.PointerEvent<HTMLElement>) => {
-    const g = gestureRef.get();
-    if (!g || g.groupId !== group.id || g.pointerId !== e.pointerId) return;
-    gestureRef.set(null);
-    try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer already gone */ }
-    if (!g.moved || g.cancelled) return; // a click is a selection, not a gesture
-    // One history entry for the whole gesture, exactly like a card drag stop —
-    // tagged with the leaf when the gesture wrote the per-view map, so undo
-    // restores that map instead of the shared positions it never touched.
-    const state = act();
-    const members = new Set(subtreeMemberIds(allGroups, group.id));
-    const leafPos = leafId ? state.viewSettings[leafId]?.positions : undefined;
-    const moves = (state.nodes ?? [])
-      .filter((n) => members.has(n.id))
-      .flatMap((n) => {
-        const from = g.startPositions.get(n.id);
-        const to = leafPos?.[n.id] ?? { x: n.position.x, y: n.position.y };
-        return from ? [{ nodeId: n.id, from, to }] : [];
-      });
-    // The compact pill's own override rides the SAME op, so one undo takes the
-    // pill and its members back together.
-    if (g.startPill && leafId) {
-      const pillId = groupPillNodeId(group.id);
-      moves.push({ nodeId: pillId, from: g.startPill, to: leafPos?.[pillId] ?? g.startPill });
-    }
-    state.recordDragMoves(moves, leafId);
-    if (leafId) state._persistLayout();
-  };
+  const onFramePointerMove = (e: React.PointerEvent<HTMLElement>) => framePointerMove(pointerCtx, e);
+  const onFramePointerEnd = (e: React.PointerEvent<HTMLElement>) => framePointerEnd(pointerCtx, e);
 
   /**
    * Open a layer (popover) from a Radix menu item. The menu closes on the same
