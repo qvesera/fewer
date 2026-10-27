@@ -103,6 +103,8 @@ export async function buildTreeFromPath(
     // that is already being walked.
     const links: { subtree: Promise<TreeEntry> }[] = [];
     const dirLinkCandidates: { name: string; entryPath: string; info: SymlinkInfo; targetKey: string | null }[] = [];
+    /** Queued dirs awaiting their queue-time inode mark (see the fan-out below). */
+    const statQueue: string[] = [];
 
     for (const dirent of dirents) {
       // Skip hidden files/folders if not included
@@ -143,19 +145,28 @@ export async function buildTreeFromPath(
       }
 
       if (dirent.isDirectory()) {
-        // Pre-mark the inode at queue time so a dir link processed after the
-        // loop sees the dir is already being walked (no duplicate expansion).
-        try {
-          const st = await fs.stat(entryPath);
-          visited.add(`${st.dev}:${st.ino}`);
-        } catch {
-          /* unreadable — the recursion's readdir will fail on it */
-        }
+        // The queue-time inode mark happens in the fan-out below, before the
+        // follow/leaf decision — stats are data-independent, so they don't
+        // belong in this loop (T-201).
         dirs.push(entryPath);
+        statQueue.push(entryPath);
       } else if (dirent.isFile() && isAllowedFile(dirent.name, options)) {
         files.push({ name: dirent.name, path: entryPath });
       }
     }
+
+    // Pre-mark every queued dir's inode so a dir link processed after this
+    // point sees the dir is already being walked (no duplicate expansion).
+    await Promise.all(
+      statQueue.map(async (queuedPath) => {
+        try {
+          const st = await fs.stat(queuedPath);
+          visited.add(`${st.dev}:${st.ino}`);
+        } catch {
+          /* unreadable — the recursion's readdir will fail on it */
+        }
+      }),
+    );
 
     // "leaf" → link node without content. "follow" → recurse into the target,
     // but ONLY when the target lies outside the walk root: an internal target

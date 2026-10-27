@@ -280,6 +280,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A reveal from the sidebar is one store write again: it used to chain four actions and fire four version bumps, four full layout passes, up to three undo steps and a whole-layout localStorage write per click: the same rebuild churn that made selecting cards lag. The auto-hide pass also stopped rebuilding a Set of the hidden ids once per node, which was quadratic on a 30k-card graph and ran on every reveal
 - Layout persistence is debounced (flushed on pagehide) instead of serialising the panel tree and every view's settings and positions to localStorage on each of a gesture's store writes
 - Stale per-view hide layers and collapsed folders no longer survive an import: they also forced every open view to run its own layout pass (needsLayoutDerivation) for a graph that never asked for one, and dead card positions no longer pile up in localStorage across imports
+- localTree directory walk: the queue-time fs.stat per directory entry now fans out with Promise.all instead of awaiting serially inside the dirent loop (top-ranked serial_await_in_loop opportunity; the follow/leaf decision still sees all inode marks before it runs).
 
 ## [0.7.1] - 2026-09-12
 
