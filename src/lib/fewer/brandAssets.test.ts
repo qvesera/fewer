@@ -6,7 +6,7 @@ import { LOGO_DATA_URI } from "./emailTemplate";
 
 /**
  * Brand-asset drift guard (T-173): the mark exists in several frozen forms —
- * the vector `public/logo_flat.svg`, the flattened paths the SVG exporter
+ * the vector `public/logo.svg`, the paths + gradient the SVG exporter
  * embeds, and the base64 PNG the email template carries. Each is inline on
  * purpose (exports must work offline, emails cannot fetch), and each can go
  * stale the moment the source drawing changes. These tests are what makes
@@ -26,16 +26,17 @@ function pngSize(name: string): { width: number; height: number } {
 }
 
 describe("brand assets", () => {
-  const svg = readFileSync(join(PUBLIC, "logo_flat.svg"), "utf8");
+  const svg = readFileSync(join(PUBLIC, "logo.svg"), "utf8");
 
-  test("the exported mark matches public/logo_flat.svg", () => {
+  test("the exported mark matches public/logo.svg", () => {
     const flat = normalize(LOGO_MARK_PATHS);
     const paths = [...svg.matchAll(/ d="([^"]+)"/g)].map((m) => normalize(m[1]));
     expect(paths.length).toBeGreaterThan(0);
     for (const d of paths) expect(flat).toContain(`d="${d}"`);
 
+    // The current mark draws no circles; if one returns, the pin below keeps
+    // it honest the same way the path pin does.
     const circles = [...svg.matchAll(/<circle[^>]*>/g)].map((m) => m[0]);
-    expect(circles.length).toBeGreaterThan(0);
     for (const circle of circles) {
       const cx = circle.match(/cx="([^"]+)"/)?.[1];
       const cy = circle.match(/cy="([^"]+)"/)?.[1];

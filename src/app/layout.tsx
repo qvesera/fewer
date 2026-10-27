@@ -62,7 +62,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Yash Srivastava" }],
   icons: {
-    icon: [{ url: "/logo-192.png", type: "image/png" }],
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/logo-192.png", type: "image/png" },
+    ],
     apple: [{ url: "/logo-192.png", type: "image/png" }],
   },
   manifest: "/manifest.json",

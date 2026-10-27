@@ -380,7 +380,7 @@ test("the tree pane is the canvas's twin, not a stray text block", async ({ page
   // occupies - it used to be a bare <pre> pinned to the left edge of a
   // full-bleed row, with the hidden graph's height left empty beside it.
   await page.getByRole("button", { name: "tree", exact: true }).click();
-  const caption = page.getByText("The same folder, as text");
+  const caption = page.getByText("The folder, as ASCII Tree");
   await expect(caption).toBeVisible();
 
   const pre = page.locator("#compare pre");

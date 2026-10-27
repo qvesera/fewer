@@ -27,7 +27,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 relative z-20 border-b border-border/40 bg-background/80 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5">
-            <img src="/logo_flat.svg" alt="fewer logo" className="h-8 w-8" />
+            <img src="/logo.svg" alt="fewer logo" className="h-8 w-8" />
             <span className="text-base font-bold tracking-tight">fewer</span>
           </Link>
 
@@ -69,7 +69,7 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-6xl px-6 py-10 grid gap-10 md:grid-cols-2">
           <div>
             <Link href="/" className="flex items-center gap-2">
-              <img src="/logo_flat.svg" alt="fewer logo" className="h-7 w-7" />
+              <img src="/logo.svg" alt="fewer logo" className="h-7 w-7" />
               <span className="text-base font-bold tracking-tight">fewer</span>
             </Link>
             <p className="mt-3 text-sm text-muted-foreground max-w-xs">

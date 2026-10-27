@@ -482,7 +482,7 @@ export function FeaturePlayground() {
               {view === "tree" && !seenGraph && (
                 <CompareAnnotation entered={entered} hintRef={setHintNode} />
               )}
-              {/* The same folder, as text: a captioned block the same size as
+              {/* The folder, as ASCII Tree: a captioned block the same size as
                   the canvas it swaps with, not a stray <pre> at a page edge.
                   `items-center` shrinks each child to its own text and centres
                   it, so the block reads as one centred column - the pre keeps
@@ -490,7 +490,7 @@ export function FeaturePlayground() {
                   would stagger. */}
               <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-3 px-6 py-10">
                 <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  The same folder, as text
+                  The folder, as ASCII Tree
                 </span>
                 <pre className="m-0 max-w-full overflow-x-auto font-mono text-[13px] leading-6 text-muted-foreground">
                   {TREE_LINES.join("\n")}

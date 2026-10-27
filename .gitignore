@@ -92,6 +92,8 @@ scripts/*
 !scripts/marketing-shot.ts
 # the OG share-card generator (see scripts/og-card.ts)
 !scripts/og-card.ts
+# the raster brand-asset generator (see scripts/logo-assets.ts)
+!scripts/logo-assets.ts
 lighthouse/*
 .clinerules/*
 

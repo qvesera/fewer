@@ -734,12 +734,49 @@ function filterDefs(o: GraphRenderOptions): string {
 
 /* ------------------------ "made with fewer" watermark ----------------------- */
 
-/** Inline vector mark (`public/logo_flat.svg` flattened) — embedded directly in
-    the exported SVG so it survives rasterization (PNG) and opening the file
-    offline. Natural size is ~130.7 × 117.7 units; callers scale it down.
-    Exported only so brandAssets.test.ts can pin it to the asset it was
-    flattened from — the drift guard the squiggle earned. */
-export const LOGO_MARK_PATHS = `<path style="fill:#f97c20;stroke:none" d="M 18.744535,116.66975 V 42.194181 A 21.516756,21.516756 135 0 1 40.261291,20.677425 h 21.48881 a 10.160205,10.160205 26.121466 0 1 8.032801,3.938961 l 4.482039,5.787159 a 10.160205,10.160205 26.121466 0 0 8.032801,3.938961 h 45.530038 a 21.609584,21.609584 45 0 1 21.60958,21.609584 v 60.86611 a 21.574914,21.574914 135.0739 0 1 -21.63057,21.57484 l -87.620365,-0.22602 a 21.497343,21.497343 45.073899 0 1 -21.44189,-21.49727 z" transform="translate(-155.54246,311.95701)"/><g transform="translate(-155.54246,311.95701)"><path d="M 114.98183,60.062214 H 70.412308 A 16.807367,16.807367 135 0 0 53.604941,76.869581 v 61.252969 l 29.17889,0.0592 v -17.74588 a 10.387433,10.387433 135 0 1 10.387433,-10.38743 h 21.747226 c 0,0 -13.52653,-16.079502 -21.656037,-25.256653 5.715055,-6.277277 13.207107,-14.835145 21.719637,-24.729573 z" style="fill:#f9f9f9;stroke-width:0.575981"/><path style="fill:none;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 115.51467,60.057317 93.361718,85.054093 115.44653,110.05087"/><path style="fill:#cc9ee5;stroke:#a657ed;stroke-width:5;stroke-linecap:round;stroke-linejoin:round" d="M 93.511771,84.993363 H 74.846246"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="110.03839" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="72.858231" cy="85.035263" r="6.1801715"/><circle style="fill:#a657ed;stroke:none" cx="115.45615" cy="60.958183" r="6.1801715"/></g>`;
+/** Inline vector mark (copied from `public/logo.svg` — the source of record:
+    gradient defs and path transforms kept, ids renamed to `fewer-mark-*`) —
+    embedded directly in the exported SVG so it survives rasterization (PNG)
+    and opening the file offline. Natural size is ~130.7 × 117.7 units; callers
+    scale it down. Exported only so brandAssets.test.ts can pin it to the asset
+    it was copied from — the drift guard the squiggle earned. */
+export const LOGO_MARK_PATHS = `<defs
+     id="defs1"><linearGradient
+       id="fewer-mark-grad"><stop
+         style="stop-color:#f9771d;stop-opacity:1;"
+         offset="0"
+         id="stop38" /><stop
+         style="stop-color:#fc9533;stop-opacity:1;"
+         offset="1"
+         id="stop40" /><stop
+         style="stop-color:#ffb44a;stop-opacity:1;"
+         offset="1"
+         id="stop39" /></linearGradient><linearGradient
+       xlink:href="#fewer-mark-grad"
+       id="fewer-mark-grad-v"
+       gradientUnits="userSpaceOnUse"
+       x1="84.090965"
+       y1="14.205962"
+       x2="84.090965"
+       y2="144.89882" /></defs><path
+         style="fill:url(#fewer-mark-grad-v);fill-opacity:1;stroke:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 18.744535,116.66975 V 42.568358 A 21.890933,21.890933 135 0 1 40.635468,20.677425 h 21.114633 a 10.160205,10.160205 26.121466 0 1 8.032801,3.938961 l 4.482039,5.787159 a 10.160205,10.160205 26.121466 0 0 8.032801,3.938961 h 45.530038 a 21.609584,21.609584 45 0 1 21.60958,21.609584 v 60.86611 a 21.574914,21.574914 135.0739 0 1 -21.63057,21.57484 l -87.620365,-0.22602 a 21.497343,21.497343 45.073899 0 1 -21.44189,-21.49727 z"
+         id="path196"
+         transform="translate(405.97669,657.73399)" /><g
+         id="g199"
+         transform="translate(2.9602225,-1.6276061)"><path
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:10;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+           d="m 93.095824,380.80204 h 13.247166 a 2.4028871,2.4028871 45 0 1 2.40289,2.40289 v 48.39943 a 16.01122,16.01122 135 0 1 -16.01122,16.01122 h -2.136394 l 0.09019,-64.40954 a 2.4073694,2.4073694 135.04011 0 1 2.407367,-2.404 z"
+           id="path197"
+           transform="matrix(0,1,1,0,74.943283,620.98695)" /><path
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:10;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+           d="m 93.092541,380.80204 h 13.220689 a 2.4326522,2.4326522 45 0 1 2.43265,2.43265 v 21.36895 a 15.242365,15.242365 135 0 1 -15.242365,15.24237 h -0.344024 a 2.5550949,2.5550949 45.068646 0 1 -2.555088,-2.56122 l 0.08167,-34.08204 a 2.4064777,2.4064777 135.06865 0 1 2.406471,-2.40071 z"
+           id="path198"
+           transform="matrix(0,1,1,0,74.943283,647.17407)" /><path
+           style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:10;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+           d="m 99.640741,380.80204 a 9.1440697,9.1440697 45.24342 0 1 9.105139,9.18284 9.0970775,9.0970775 137.08177 0 1 -9.421532,8.76061 h -0.0038 a 8.6769501,8.6769501 45.149369 0 1 -8.676833,-8.72219 l 0.0014,-0.27246 a 8.9956994,8.9956994 135.14937 0 1 8.995577,-8.9488 z"
+           id="path199"
+           transform="rotate(-90,473.8331,398.88981)" /></g>`;
 
 /** Display host of the homepage (e.g. "fewer.direct") instead of the full URL,
     so the badge stays compact even if NEXT_PUBLIC_HOME_URL overrides the domain. */
@@ -762,7 +799,7 @@ function renderBrandingMark(sceneW: number, sceneH: number): string {
   const scale = 0.13; // 117.7-unit mark → ~15.3px tall in the badge
   return `<a href="${FEWER_HOME_URL}" target="_blank" rel="noopener"><g>
     <rect x="${bx}" y="${by}" width="${BW}" height="${BH}" rx="15" fill="rgba(11, 11, 19, 0.25)" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
-    <g transform="translate(${bx + 10}, ${by + 7.4}) scale(${scale})"><g transform="translate(-31.956073,-332.63444)"><g transform="translate(168.75398)">${LOGO_MARK_PATHS}</g></g></g>
+    <g transform="translate(${bx + 10}, ${by + 7.4}) scale(${scale})"><g transform="translate(-1095.0421,-1128.6004)"><g transform="translate(670.32075,450.18898)">${LOGO_MARK_PATHS}</g></g></g>
     <text x="${bx + 47}" y="${by + 14}" font-size="11" font-weight="700" fill="#f8f9fa">fewer</text>
     <text x="${bx + 35}" y="${by + 25}" font-size="9" fill="rgba(248, 249, 250, 0.9)">${escapeXml(brandingHost())}</text>
   </g></a>`;
