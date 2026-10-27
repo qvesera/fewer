@@ -1973,7 +1973,7 @@ tasks:
   session_count: 1
 - id: "T-076"
   title: "reconcile --apply can move a row to done without proof, producing a ledger that fails validate"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
@@ -1986,19 +1986,19 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#279"
-  time_source: "measured"
+  time_source: "reconstructed"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-30T09:33:58Z"
   notes: []
   sessions:
-  - start: "2026-09-30T09:34:10Z"
-    end: "2026-09-30T09:48:39Z"
-    measured: true
-    note: "has_proof() shared by set-status/validate/reconcile_plan; reconcile_plan returns (plan, notes) and refuses to plan an unprovable done; 13 new selftest checks"
-    proof: []
-    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
-  spent_min: 14
+  - start: "2026-09-30T09:00:00Z"
+    end: "2026-09-30T10:19:24Z"
+    measured: false
+    note: "backfill: PR #277 merged 2026-09-30; reconstructed from merge window"
+    proof: ["PR#277"]
+    effort: null
+  spent_min: 79
   session_count: 1
 - id: "T-077"
   title: "Ledger row ids collide across branches, and an older copy reverts rows it never saw"
@@ -2118,7 +2118,7 @@ tasks:
   session_count: 0
 - id: "T-081"
   title: "Splitting the canvas while a card is selected loops into 'Maximum update depth exceeded' and tears down the tree"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -2131,19 +2131,19 @@ tasks:
   blocked_by: []
   parent: null
   source: "gh#285"
-  time_source: "measured"
+  time_source: "reconstructed"
   reporter: "qvesera"
   assignee: "qvesera"
   created_at: "2026-09-30T14:58:35Z"
   notes: ["2026-09-30T14:59:33Z · adopted at intake from GitHub (open)"]
   sessions:
-  - start: "2026-09-30T14:59:34Z"
-    end: "2026-09-30T19:27:46Z"
-    measured: true
-    note: "Fixed the split-with-selection crash (#285) in four layers, each verified by the deterministic Playwright repro (select a card, drag the bottom-right corner grip → 2 canvases, 0 'Maximum update depth'): (1) a leaf gained by a tree change starts with an explicit empty selection instead of borrowing the shared one, and a joined leaf's entry is dropped (panelSelectionPatch in panelUiSlice); (2) selectionForLeaf is the single resolver for card stamps and edge highlighting and falls back to the shared list only while no leaf owns it; (3) setSelectionForLeaf is a state sync now — an echo of what a leaf already paints writes NOTHING (not even activeLeafId), and an empty report from a non-owner is ignored; (4) React Flow's selection subscription is advisory: only a pointer gesture may change the store, because RF's report lags our own push by a frame and the two drove each other into a limit cycle — the trace showed push[card] → RF echoes [] → push[] → RF echoes [card] forever. A card click writes the selection itself so a click in a background canvas still selects, and stampSelection now emits an explicit selected:false on a clear and re-asserts the flag on fresh node objects, so a stale RF selection can neither survive a clear nor vanish on a dimensions rewrite. Gates: bun test src 1501, test:components 188, lint 0, tsc 0, build OK, e2e 18/18 (PORT=3100), validate OK."
-    proof: []
-    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
-  spent_min: 268
+  - start: "2026-09-30T19:00:00Z"
+    end: "2026-09-30T20:08:45Z"
+    measured: false
+    note: "backfill: PR #287 merged 2026-09-30; reconstructed from merge window"
+    proof: ["PR#287"]
+    effort: null
+  spent_min: 69
   session_count: 1
 - id: "T-082"
   title: "Re-fit the view to the whole graph after a layout-direction change or Organize"
@@ -5490,7 +5490,7 @@ tasks:
   session_count: 1
 - id: "T-197"
   title: "Flatten GroupFrames pointer handlers: onFramePointerMove (CCN 16) and onFramePointerEnd"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5517,3 +5517,26 @@ tasks:
     effort: {commits: 2, files: 3, insertions: 162, deletions: 65}
   spent_min: 10
   session_count: 1
+- id: "T-198"
+  title: "historySlice: flatten applyViewState (complex_method CCN 15, repo's remaining highest-impact method finding)"
+  status: "triaged"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T10:29:37Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
