@@ -5583,7 +5583,7 @@ tasks:
   session_count: 2
 - id: "T-200"
   title: "graph/core.ts: flatten setGraph + applyFolderRefresh (complex_method CCN ~10 each)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5638,4 +5638,33 @@ tasks:
     proof: ["d57428f", "#471"]
     effort: {commits: 1, files: 2, insertions: 20, deletions: 8}
   spent_min: 3
+  session_count: 1
+- id: "T-202"
+  title: "folderSlice: flatten showSubtreeForLeaf + revealInView (worst file 2.65, complex_method CCN 14 each)"
+  status: "review"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 473
+  pr: 474
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T13:36:21Z"
+  notes: []
+  sessions:
+  - start: "2026-10-27T13:43:01Z"
+    end: "2026-10-27T13:49:52Z"
+    measured: true
+    note: "revealInView → planRevealGesture/releasedLeafLayers/revealViewSettings; showSubtreeForLeaf → releasedSubtreeLayers/showSubtreeLeaf/globalHiddenDescendants. folderSlice max_ccn 14→7, both complex_method gone, 3.84→4.64. 1845+258 green, tsc/lint/build 0."
+    proof: ["2ad839e", "#474"]
+    effort: {commits: 1, files: 2, insertions: 100, deletions: 54}
+  spent_min: 7
   session_count: 1

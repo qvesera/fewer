@@ -115,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - historySlice.applyViewState flattened: the 11-field if-chain is now table-driven over COPIED_VIEW_KEYS/PRO_VIEW_KEYS constants (Pro-gating and groups semantics untouched). CCN 15→~5, the repo's highest-impact complex_method finding is gone.
 - graph/core.ts characterization tests: 13 tests covering setGraph (bulk-import history, hidden seeding, preservePositions, animated-edge tier gate, bookkeeping reset), applyFolderRefresh (subtree swap + refresh-subtree undo, no-op guard, showFiles-off hiding), relayoutIfAuto gate, organize/organizeAll per-view position clearing + reflow bumps, applySearch.
 - graph/core.ts flattened: setGraph decomposes into styleImportNodes/styleImportEdges/placeImportedNodes and applyFolderRefresh into rebuildFolderSubtree/refreshHideSets (both were CCN ~10). Dispatchers keep identical snapshots and ordering; no behavior change — the 99%-coverage characterization suite is the net.
+- folderSlice flattened: revealInView split into planRevealGesture/releasedLeafLayers/revealViewSettings and showSubtreeForLeaf into releasedSubtreeLayers/showSubtreeLeaf/globalHiddenDescendants (both were CCN 14). Same store calls, same write ordering; the hide/reveal suites are the net.
 
 ### Fixed
 
