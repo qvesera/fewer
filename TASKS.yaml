@@ -5548,7 +5548,7 @@ tasks:
   session_count: 1
 - id: "T-199"
   title: "graph/core.ts: characterization tests for applyFolderRefresh + setGraph (coverage 61.7% → ~90%, repo worst file score 3.12)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 1
@@ -5581,3 +5581,55 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 4, deletions: 2}
   spent_min: 14
   session_count: 2
+- id: "T-200"
+  title: "graph/core.ts: flatten setGraph + applyFolderRefresh (complex_method CCN ~10 each)"
+  status: "triaged"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 469
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T11:44:37Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-201"
+  title: "localTree: parallelize the queue-time fs.stat in buildTreeFromPath's dirent loop (serial_await_in_loop @ L149, top-ranked perf opportunity)"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 470
+  pr: 471
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T11:45:59Z"
+  notes: []
+  sessions:
+  - start: "2026-10-27T11:52:56Z"
+    end: "2026-10-27T11:55:47Z"
+    measured: true
+    note: "Queue-time fs.stat per dirent entry → Promise.all fan-out after the loop, before the follow/leaf decision. Repowise perf opportunity perf2_c81ac02e6a6f5721bb51 resolved (evidence cleared). localTree 9/9, full 1845+258 green, build 0."
+    proof: ["d57428f", "#471"]
+    effort: {commits: 1, files: 2, insertions: 20, deletions: 8}
+  spent_min: 3
+  session_count: 1
