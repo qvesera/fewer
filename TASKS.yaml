@@ -5461,7 +5461,7 @@ tasks:
   session_count: 1
 - id: "T-196"
   title: "selectionSlice: tests first, then flatten createSelectionSlice (repo worst file, score 2.4)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5487,4 +5487,33 @@ tasks:
     proof: ["49a6d86", "7ec95bf", "2363aa4", "#462"]
     effort: {commits: 3, files: 4, insertions: 339, deletions: 65}
   spent_min: 29
+  session_count: 1
+- id: "T-197"
+  title: "Flatten GroupFrames pointer handlers: onFramePointerMove (CCN 16) and onFramePointerEnd"
+  status: "in-progress"
+  type: "task"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 463
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#463"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-27T09:30:59Z"
+  notes: ["2026-10-27T09:31:07Z · adopted at intake from GitHub (open)", "2026-10-27T09:31:21Z · Module-level extraction like #458 keyboard effect. Net: tests/components/GroupFrames.test.tsx. First commit = pending reconcile (T-196 → done)."]
+  sessions:
+  - start: "2026-10-27T09:32:37Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
   session_count: 1
