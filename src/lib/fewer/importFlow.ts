@@ -10,13 +10,13 @@ import { guessCsvMapping, isCsvMappingUsable, isExportCsv, parseCsvRows } from "
 import type { CsvColumnMap } from "@/lib/fewer/csvModel";
 import { detectImportFormat } from "@/lib/fewer/importDetect";
 import { useGraphStore } from "@/store/graphStore";
+import { FILE_IMPORT_FORMATS, type FileImportFormat, type ImportOrigin } from "./importTypes";
 
-export type ImportOrigin = "folder" | "file" | "url" | "cloud";
-
-/** The text formats the file origin can parse, in the order the panel lists them. */
-export const FILE_IMPORT_FORMATS = ["tree", "json", "script", "csv", "dot"] as const;
-
-export type FileImportFormat = (typeof FILE_IMPORT_FORMATS)[number];
+// The shared vocabulary lives in ./importTypes — the neutral home that breaks
+// the importFlow ⇄ importDetect / importOptions loops (both closed through
+// these type edges). Re-exported here so existing importers keep their home.
+export { FILE_IMPORT_FORMATS } from "./importTypes";
+export type { FileImportFormat, ImportOrigin } from "./importTypes";
 
 /**
  * Extensions the archive reader accepts. ONE list serves two jobs: the file

@@ -5699,7 +5699,7 @@ tasks:
   session_count: 1
 - id: "T-204"
   title: "importDetect: fill characterization gaps (nested graph.data.nodes, strict digraph, array fallthrough) then flatten detectImportFormat (complex_method HIGH, repowise directive #1, recovers 1.45)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "import"
   tier: 0
@@ -5725,4 +5725,33 @@ tasks:
     proof: ["3faf3ed", "#478"]
     effort: {commits: 1, files: 3, insertions: 81, deletions: 62}
   spent_min: 0
+  session_count: 1
+- id: "T-205"
+  title: "Break the 7-file import cycle (importFlow→importDetect type edge + importFlow→graphStore, repowise break_cycle plan refac2_934b7382206c911929ed)"
+  status: "review"
+  type: "refactor"
+  area: "import"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 479
+  pr: 480
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T15:01:42Z"
+  notes: []
+  sessions:
+  - start: "2026-10-27T15:09:08Z"
+    end: "2026-10-27T15:14:08Z"
+    measured: true
+    note: "importTypes.ts neutral home for ImportOrigin/FileImportFormat/FILE_IMPORT_FORMATS; importFlow re-exports (0 importer changes). Both cycle loops cut at importFlow's type edges. repowise break_cycle plan refac2_934b7382206c911929ed → resolved (also extract step). 1850+258 green, tsc/lint/build 0."
+    proof: ["a9db94b", "#480"]
+    effort: {commits: 1, files: 5, insertions: 23, deletions: 8}
+  spent_min: 5
   session_count: 1
