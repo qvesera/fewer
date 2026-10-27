@@ -5519,7 +5519,7 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "historySlice: flatten applyViewState (complex_method CCN 15, repo's remaining highest-impact method finding)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
@@ -5546,3 +5546,38 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 18, deletions: 13}
   spent_min: 0
   session_count: 1
+- id: "T-199"
+  title: "graph/core.ts: characterization tests for applyFolderRefresh + setGraph (coverage 61.7% → ~90%, repo worst file score 3.12)"
+  status: "review"
+  type: "task"
+  area: "ux"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 467
+  pr: 468
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T11:05:26Z"
+  notes: []
+  sessions:
+  - start: "2026-10-27T11:10:42Z"
+    end: "2026-10-27T11:24:18Z"
+    measured: true
+    note: "13 characterization tests for graph/core.ts (setGraph×5, applyFolderRefresh×3, relayout/organize×4, applySearch). Coverage 61.7%→99% (191/193), score 3.12→4.24, coverage_gradient 1.53→0.41. Full suite 1845+258 green; coverage ingest via --timeout 25000 (listArchive slow under instrumentation)."
+    proof: ["544d584", "e7b2fcd", "#468"]
+    effort: {commits: 2, files: 3, insertions: 233, deletions: 2}
+  - start: "2026-10-27T11:34:04Z"
+    end: "2026-10-27T11:34:26Z"
+    measured: true
+    note: "CI fix: animated-edge test now sets edgeAnimatedStrokeStyle explicitly (default was shared-store readable and another suite can flip it — CI order differed). Full suite 1845+258 green locally."
+    proof: ["4a8b903", "#468"]
+    effort: {commits: 1, files: 1, insertions: 4, deletions: 2}
+  spent_min: 14
+  session_count: 2
