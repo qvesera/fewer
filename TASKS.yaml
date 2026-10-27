@@ -5782,5 +5782,11 @@ tasks:
     note: "logo.svg = source of record: Logo/marketing/favicon/og switched; logo-assets.ts generator (whitelisted) regenerated 192/512/logo.png with matching framing; LOGO_MARK_PATHS rebuilt programmatically + wrapper transforms; email base64 regenerated; brandAssets guard flipped (1850+258 green); logo_flat.* deleted; README updated."
     proof: ["47ee3b5", "b18911d", "7d69324", "efeac16", "#482"]
     effort: {commits: 4, files: 19, insertions: 162, deletions: 115}
-  spent_min: 10
-  session_count: 1
+  - start: "2026-10-27T16:32:26Z"
+    end: "2026-10-27T16:33:15Z"
+    measured: true
+    note: "Follow-up: user copy change — tree-pane caption 'The same folder, as text' → 'The folder, as ASCII Tree' + comment + e2e selector kept in sync; changelog line added. lint/tsc green."
+    proof: ["57d09a7", "#482"]
+    effort: {commits: 1, files: 3, insertions: 4, deletions: 3}
+  spent_min: 11
+  session_count: 2
