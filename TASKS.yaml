@@ -5757,7 +5757,7 @@ tasks:
   session_count: 1
 - id: "T-206"
   title: "Rebrand to the redesigned public/logo.svg: switch every consumer (Logo, marketing, favicon/manifest, og-card), regenerate rasters/frozen copies (logo.png, 192/512, email base64, export badge), flip the brandAssets guard to the new source"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 0
