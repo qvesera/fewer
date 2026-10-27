@@ -1973,7 +1973,7 @@ tasks:
   session_count: 1
 - id: "T-076"
   title: "reconcile --apply can move a row to done without proof, producing a ledger that fails validate"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: null
@@ -2118,7 +2118,7 @@ tasks:
   session_count: 0
 - id: "T-081"
   title: "Splitting the canvas while a card is selected loops into 'Maximum update depth exceeded' and tears down the tree"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -5544,5 +5544,34 @@ tasks:
     note: "applyViewState: 11-branch if-chain → table-driven over COPIED_VIEW_KEYS/PRO_VIEW_KEYS; Pro-tag gate + groups rule unchanged. historySlice 4.74→6.01, max_ccn 15→8, complex_method finding gone. Gates: tsc/lint/build green, 1832+258 tests (97% coverage net)."
     proof: ["242e550", "#466"]
     effort: {commits: 1, files: 2, insertions: 18, deletions: 13}
+  spent_min: 0
+  session_count: 1
+- id: "T-199"
+  title: "graph/core.ts: characterization tests for applyFolderRefresh + setGraph (coverage 61.7% → ~90%, repo worst file score 3.12)"
+  status: "in-progress"
+  type: "task"
+  area: "ux"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 467
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-27T11:05:26Z"
+  notes: []
+  sessions:
+  - start: "2026-10-27T11:10:42Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
   session_count: 1
