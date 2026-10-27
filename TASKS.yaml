@@ -1973,7 +1973,7 @@ tasks:
   session_count: 1
 - id: "T-076"
   title: "reconcile --apply can move a row to done without proof, producing a ledger that fails validate"
-  status: "done"
+  status: "triaged"
   type: "fix"
   area: "infra"
   tier: null
@@ -2118,7 +2118,7 @@ tasks:
   session_count: 0
 - id: "T-081"
   title: "Splitting the canvas while a card is selected loops into 'Maximum update depth exceeded' and tears down the tree"
-  status: "done"
+  status: "triaged"
   type: "fix"
   area: "ux"
   tier: null
@@ -5519,7 +5519,7 @@ tasks:
   session_count: 1
 - id: "T-198"
   title: "historySlice: flatten applyViewState (complex_method CCN 15, repo's remaining highest-impact method finding)"
-  status: "review"
+  status: "done"
   type: "task"
   area: "ux"
   tier: 0
