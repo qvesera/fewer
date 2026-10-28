@@ -5955,7 +5955,7 @@ tasks:
   session_count: 1
 - id: "T-212"
   title: "Security wave A: upgrade next/react runtime + advisory packages (bun audit critical/high)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: 0
