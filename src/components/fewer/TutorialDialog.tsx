@@ -159,6 +159,9 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
 
   // Auto-advance demo step when sample loads (once per mount)
   const demoPlayedRef = useRef(false);
+  /* eslint-disable react-hooks/immutability -- once-per-mount guard: the
+     interval's cleanup runs on every dep change, the ref only blocks a second
+     entry while the demo is already at step 0 (classic run-once ref). */
   useEffect(() => {
     if (store.dataSource === "sample" && tutorialDemoStep === 0 && !demoPlayedRef.current) {
       demoPlayedRef.current = true;
@@ -170,6 +173,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
       return () => clearInterval(interval);
     }
   }, [store.dataSource, tutorialDemoStep, setTutorialDemoStep]);
+  /* eslint-enable react-hooks/immutability */
 
   const handleDismiss = () => {
     useGraphStore.getState().setTutorialDismissed();

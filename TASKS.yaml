@@ -5982,3 +5982,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 256, deletions: 108}
   spent_min: 19
   session_count: 1
+- id: "T-213"
+  title: "Dependency wave C: routine within-range refresh (radix suite, supabase, xyflow, ...) before the prod release"
+  status: "review"
+  type: "task"
+  area: "infra"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 508
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T20:36:23Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T20:36:23Z"
+    end: "2026-10-28T20:48:13Z"
+    measured: true
+    note: "Wave C: bun update within ranges - 58 -> 9 outdated (remaining 9 = majors: prisma7/stripe23/lucide1/eslint10/day-picker10/panels4/uuid14/registrator21), audit stays 0. Refreshed react-hooks rules flagged 16 errors: GraphGallerySection refactored ref->state (x/y hack removed), GraphCanvas #285 stamp cache + TutorialDialog run-once guard got scoped justified disables (react-hooks/refs + /immutability ids). Gates: lint 0 errors, tsc 0, 1850+258, build 0. PR #508."
+    proof: ["bc68493", "#508"]
+    effort: {commits: 1, files: 7, insertions: 241, deletions: 347}
+  spent_min: 12
+  session_count: 1
