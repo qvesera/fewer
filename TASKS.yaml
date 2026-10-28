@@ -5953,3 +5953,32 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 3, deletions: 1}
   spent_min: 3
   session_count: 1
+- id: "T-212"
+  title: "Security wave A: upgrade next/react runtime + advisory packages (bun audit critical/high)"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: 506
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T19:35:21Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T19:35:44Z"
+    end: "2026-10-28T19:54:58Z"
+    measured: true
+    note: "bun audit 98 -> 0: next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4; 14 flat overrides (bun ignores nested - verified empirically); union-range overrides for minimatch/brace-expansion/picomatch resolved to 10.2.6/5.0.12/4.0.7 across mixed majors. Gates: tsc 0, lint ok, 1850+258 tests, build 0. PR #506."
+    proof: ["775715d", "#506"]
+    effort: {commits: 1, files: 3, insertions: 256, deletions: 108}
+  spent_min: 19
+  session_count: 1
