@@ -38,27 +38,34 @@ export function viewStateOp(before: ViewState, after: ViewState): { type: "view-
   return { type: "view-state", before, after };
 }
 
+/** View-state keys copied verbatim whenever the snapshot carries them. */
+const COPIED_VIEW_KEYS = [
+  "hiddenIds", "showFiles", "maxDisplayDepth", "autoHideThreshold", "autoHiddenIds",
+  "categoryFilter", "categoryHiddenIds", "independentlyHiddenIds", "tags",
+] as const satisfies readonly (keyof ViewState)[];
+
+/** Tag filters are Pro-gated: see the `can("tags")` branch below. */
+const PRO_VIEW_KEYS = ["tagFilter", "tagFilterHiddenIds"] as const satisfies readonly (keyof ViewState)[];
+
 /**
  * Merge a partial view-state diff into the store. Only provided keys are applied.
  */
-function applyViewState(state: GraphState, view: Partial<ViewState> | null) {
+function applyViewState(state: GraphState, view: Partial<ViewState> | null): Partial<GraphState> {
   if (!view) return {};
   const patch: Partial<GraphState> = {};
-  if (view.hiddenIds !== undefined) patch.hiddenIds = view.hiddenIds;
-  if (view.showFiles !== undefined) patch.showFiles = view.showFiles;
-  if (view.maxDisplayDepth !== undefined) patch.maxDisplayDepth = view.maxDisplayDepth;
-  if (view.autoHideThreshold !== undefined) patch.autoHideThreshold = view.autoHideThreshold;
-  if (view.autoHiddenIds !== undefined) patch.autoHiddenIds = view.autoHiddenIds;
-  if (view.categoryFilter !== undefined) patch.categoryFilter = view.categoryFilter;
-  if (view.categoryHiddenIds !== undefined) patch.categoryHiddenIds = view.categoryHiddenIds;
-  if (view.independentlyHiddenIds !== undefined) patch.independentlyHiddenIds = view.independentlyHiddenIds;
+  for (const key of COPIED_VIEW_KEYS) {
+    if (view[key] !== undefined) Object.assign(patch, { [key]: view[key] });
+  }
   // Tags are a Pro workspace feature — skip filter restoration for non-Pro tiers
   // so undo/redo cannot resurrect a filter with no UI to clear it.
-  if (can("tags", (state as GraphState).tier ?? "guest")) {
-    if (view.tagFilter !== undefined) patch.tagFilter = view.tagFilter;
-    if (view.tagFilterHiddenIds !== undefined) patch.tagFilterHiddenIds = view.tagFilterHiddenIds;
+  if (can("tags", state.tier ?? "guest")) {
+    for (const key of PRO_VIEW_KEYS) {
+      if (view[key] !== undefined) Object.assign(patch, { [key]: view[key] });
+    }
   }
-  if (view.tags !== undefined) patch.tags = view.tags;
+  // Canvas groups (T-124): same rule as tags — only the ops that change the
+  // list carry the key, so restoring an unrelated op never touches it.
+  if (view.groups !== undefined) patch.groups = view.groups;
   return patch;
 }
 

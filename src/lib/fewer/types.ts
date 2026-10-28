@@ -1,4 +1,5 @@
 import type { Node, Edge } from "@xyflow/react";
+import type { Group } from "./groups";
 
 /** A reusable label+color marker that can be assigned to any number of nodes. */
 export interface Tag {
@@ -10,6 +11,24 @@ export interface Tag {
 
 /** Type of filesystem entry */
 export type EntryType = "folder" | "file";
+
+/**
+ * Symlink metadata captured at walk time. A link node keeps its honest
+ * `type` (a link to a dir is a folder everywhere: counts, layout, sorting);
+ * `data.symlink` carries everything that makes it a link.
+ */
+export interface SymlinkInfo {
+  /** Raw readlink() value — may be relative ("../v012") or absolute. */
+  target: string;
+  /** Resolved absolute path of the target, when computable at walk time. */
+  resolvedPath?: string;
+  /** True when the resolved target lies inside the imported root — enables "Go to target". */
+  insideTree?: boolean;
+  /** Dangling link: the target does not exist on disk. */
+  broken?: boolean;
+  /** True when the walk recursed into the target's content ("follow" mode). */
+  followed?: boolean;
+}
 
 /** Result status returned by `refreshFolderFromDisk`. */
 export type RefreshStatus = "ok" | "no-handle" | "not-found" | "error";
@@ -51,6 +70,10 @@ export interface FewerNodeData {
   isRoot?: boolean;
   /** Provider web URL for cloud-imported entries (open in a new tab) */
   webUrl?: string;
+  /** Symlink metadata when this node is a symlink (see SymlinkInfo). */
+  symlink?: SymlinkInfo;
+  /** True when this node is an expanded archive (see TreeEntry.isArchive). */
+  isArchive?: boolean;
   /** Layout direction stored at layout time, used by the node component */
   layoutDirection?: "TB" | "LR" | "RL" | "BT";
   isHorizontal?: boolean;
@@ -64,7 +87,7 @@ export interface FewerNodeData {
   [key: string]: unknown;
 }
 
-export type FewerNode = Node<FewerNodeData, "folder" | "file">;
+export type FewerNode = Node<FewerNodeData, "folder" | "file" | "groupPill">;
 export type FewerEdge = Edge<{ label?: string }, "default" | "smoothstep" | "straight">;
 
 export type LayoutDirection = "TB" | "LR" | "RL" | "BT";
@@ -93,6 +116,17 @@ export function edgeDashPattern(style: EdgeStrokeStyle): string | undefined {
 }
 
 /**
+ * The stroke style that stays readable against a view whose global edge style
+ * is `style` — used for symlink edges so they never match their siblings.
+ * Two dot-family styles (dashed vs dotted) are near-indistinguishable at
+ * canvas zoom levels, so the mapping collapses to the solid↔dashed axis:
+ * solid → dashed, dashed → solid, dotted → solid.
+ */
+export function contrastStroke(style: EdgeStrokeStyle): EdgeStrokeStyle {
+  return style === "solid" ? "dashed" : "solid";
+}
+
+/**
  * React Flow edge renderer type for a Settings edge style. Single source of
  * truth shared by the graph and layout slices (curved → built-in "default"
  * renderer, angled → "smoothstep", straight → "straight").
@@ -115,11 +149,13 @@ export interface DirectoryStats {
   totalFiles: number;
   totalFolders: number;
   totalSize: number;
+  /** Nodes whose data.symlink is set (links to dirs count as folders, files as files). */
+  totalSymlinks: number;
   byCategory: Record<FileCategory, number>;
 }
 
 export interface ExportSettings {
-  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree";
+  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree" | "fwr";
   quality: number; // 1-100
   transparentBackground: boolean;
   includeStats: boolean;
@@ -136,6 +172,20 @@ export interface TreeEntry {
   fsHandle?: FileSystemHandle | null;
   /** Provider web URL for cloud-imported entries (open in a new tab) */
   webUrl?: string;
+  /** Symlink metadata when this entry is a symlink (server-side walk only). */
+  symlink?: SymlinkInfo;
+  /**
+   * True when this node is an archive whose listing was expanded into its
+   * children (the "Look Inside Archives" import option). It renders as a
+   * container but is NOT a directory on disk, so disk actions must be skipped.
+   */
+  isArchive?: boolean;
+  /**
+   * Bytes already in hand for this file (browser walkers only), so the
+   * archive-expansion reader never has to re-acquire them. Transient: never
+   * copied into graph nodes or serialized.
+   */
+  archiveBlob?: Blob;
 }
 
 /** Optional File System Access handle stored on each node/item */
@@ -321,6 +371,21 @@ export interface ViewState {
    *  the key, so undoing an unrelated view-state op can never resurrect or drop
    *  a tag. A missing key is skipped rather than treated as "no tags". */
   tags?: Tag[];
+  /** Canvas groups (T-124) as they stood for this snapshot. Optional for the
+   *  same reason as `tags`: only ops that change the group list carry the key,
+   *  so undoing an unrelated op can neither drop a group nor invent one. */
+  groups?: Group[];
+}
+
+/** Any group mutation (create / rename / note / membership / collapse / delete).
+ *  Undo restores `before`, redo re-applies `after`. Groups carry their own
+ *  before/after (like `view-state`), so the node tables treat the op as a
+ *  passthrough — collapsing also toggles `hiddenIds`, which the same snapshot
+ *  restores. */
+export interface GroupsOp {
+  type: "groups";
+  before: ViewState;
+  after: ViewState;
 }
 
 /** Delete/cut a node + its subtree. Undo restores them. */
@@ -423,6 +488,7 @@ export type HistoryOp =
   | CollapseBatchOp
   | SetNodeTagsOp
   | RefreshSubtreeOp
+  | GroupsOp
   | ViewStateOp;
 
 /**

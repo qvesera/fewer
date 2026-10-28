@@ -52,12 +52,12 @@ async function refreshAccessToken(
   connection: { id: string; refresh_token_enc: string | null },
 ): Promise<string> {
   if (!connection.refresh_token_enc) {
-    throw new Error("Cloud token expired — unlink the account and connect it again.");
+    throw new Error("Cloud token expired: unlink the account and connect it again.");
   }
   const adapter = await getAdapter(provider);
   const refreshed = await adapter.refreshToken(decryptToken(connection.refresh_token_enc));
   if (!refreshed) {
-    throw new Error("Cloud token expired — unlink the account and connect it again.");
+    throw new Error("Cloud token expired: unlink the account and connect it again.");
   }
   const newExpiry = refreshed.expiresIn
     ? new Date(Date.now() + refreshed.expiresIn * 1000).toISOString()

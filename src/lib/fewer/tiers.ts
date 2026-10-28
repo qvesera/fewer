@@ -49,6 +49,7 @@ export type Feature =
   | "cloudImport"     // OneDrive / GitHub / Google Drive import origins
   // ── Power-user tools (free tier gets these) ──
   | "edgeMotion"           // animated edges, dash clock
+  // ── Enhanced import/export ──
   | "advancedImportFormats" // JSON / script import formats
   | "unbrandedExport"      // export without the fewer watermark
   | "customTheme"          // custom theme mode in Settings
@@ -58,6 +59,7 @@ export type Feature =
   | "layoutOrientation"    // left-to-right / bottom-to-top layouts
   | "historyTools"         // undo/redo toolbar block
   | "graphAnalytics"       // graph statistics panel
+  | "nodeGroups"           // canvas group frames, notes, collapse (T-124/T-125)
   // ── Cloud-saved custom themes ──
   | "savedThemes";
 
@@ -84,9 +86,16 @@ export const MIN_TIER: Record<Feature, Tier> = {
   layoutOrientation: "free",
   historyTools: "free",
   graphAnalytics: "free",
+  // Groups are pure client-side canvas state — no server, no cost to serve —
+  // so they sit on the free tier: every signed-in account on the web and every
+  // desktop-shell user (licensed or not) has them; signed-out guests do not,
+  // per the app-wide rule that no feature is guest-accessible. Monetizing
+  // later is this one line: raise it to "pro".
+  nodeGroups: "free",
 };
 
 /** True when the given tier meets or exceeds the feature's minimum. */
 export function can(feature: Feature, tier: Tier): boolean {
   return RANK[tier] >= RANK[MIN_TIER[feature]];
 }
+

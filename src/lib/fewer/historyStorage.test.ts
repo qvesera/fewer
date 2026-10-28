@@ -4,7 +4,10 @@ import type { HistoryEntry } from "@/store/slices/types";
 
 // ─── Test harness ─────────────────────────────────────────────
 // Bun test env has no sessionStorage — stub it, same as snapshot.test.ts.
-
+//
+// localStorage comes along for the ride: bun shares one global per test run, so
+// a `window` without it made the storage-guarded suites that run later (panel
+// layout, user settings) execute against a missing localStorage and fail.
 function makeStorage() {
   const store = new Map<string, string>();
   return {
@@ -19,6 +22,7 @@ if (typeof globalThis.window === "undefined") {
   (globalThis as Record<string, unknown>).window = globalThis;
 }
 (globalThis as Record<string, unknown>).sessionStorage = makeStorage();
+(globalThis as Record<string, unknown>).localStorage = makeStorage();
 
 function op(type = "move-positions"): HistoryEntry {
   return { ops: [{ type, moves: [] } as never], timestamp: 1 };

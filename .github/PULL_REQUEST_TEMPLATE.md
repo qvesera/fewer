@@ -34,10 +34,22 @@
 - [ ] My changes work in both light and dark themes
 - [ ] I have considered keyboard accessibility for new UI elements
 
+## Task & metadata
+
+<!-- Filled by `python3 scripts/tasks.py pr-metadata <PR#>` (CI re-applies it). -->
+
+- [ ] `pr-metadata` applied: labels (`status:*` + type + `category:*` + `size:*`), milestone, assignee, project item
+- [ ] Task's issue referenced by this PR — a bare `Fixes #N` line, alone on its line; `pr-metadata` adds it and the required CI check fails until it is there (the Development-sidebar link itself is a one-click step on `dev` PRs)
+- Task: <!-- T-### -->
+
 ## Screenshots (if applicable)
 
 <!-- Add screenshots of UI changes -->
 
 ## Related Issues
 
-<!-- Link to any related issues: Fixes #123, Closes #456 -->
+<!-- One `Fixes #<issue>` per line, ALONE on that line — a closing keyword with
+     prose on the same line is only a mention, never a link. `pr-metadata` adds
+     the line if it is missing and the required CI check blocks the merge until
+     the issue is referenced. (The Development-sidebar link is a one-click step
+     for PRs targeting dev: GitHub only auto-links on the default branch.) -->

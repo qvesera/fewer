@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from "react";
 import type { NodeChange } from "@xyflow/react";
 import type { FewerNode } from "@/lib/fewer/types";
 import { isResizeGestureFor, nodeDims, pendingResizeOps, type Dims } from "@/lib/fewer/resizeGesture";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { useGraphStore } from "@/store/graphStore";
 
 interface NodeChangeHandlerDeps {
@@ -40,6 +41,91 @@ export function flipBoxSelectDeselects(
   return changes.map((c) =>
     c.type === "select" && !c.selected && base.has(c.id) ? { ...c, selected: true } : c,
   );
+}
+
+export type DimensionChange = NodeChange<FewerNode> & {
+  id: string;
+  dimensions: { width: number; height: number };
+};
+
+/**
+ * Fold a batch of React Flow dimension reports into the store's nodes.
+ *
+ * Returns the SAME array (and `changed: false`) when the batch changes nothing —
+ * which is the common case: React Flow re-reports a card's size on every
+ * re-measure, and this handler deliberately refuses to pin a collapsed folder's
+ * pill height into the shared node. An unguarded `.map()` turned those no-op
+ * reports into a brand-new `nodes` array, and every mounted canvas then rebuilt
+ * its node lens and pushed a fresh array back into React Flow — the round trip
+ * that could chain into React's "Maximum update depth exceeded".
+ *
+ * `onFirstResize` fires once per node whose size actually moves, and only while
+ * a NodeResizer gesture is live (a re-measure must not become a history op).
+ */
+export function applyDimensionChanges(
+  nodes: FewerNode[],
+  changes: DimensionChange[],
+  collapsedIds: ReadonlySet<string>,
+  onFirstResize?: (node: FewerNode) => void,
+): { nodes: FewerNode[]; changed: boolean } {
+  if (changes.length === 0) return { nodes, changed: false };
+  let changed = false;
+  const next = nodes.map((n) => {
+    const change = changes.find((c) => c.id === n.id);
+    if (!change) return n;
+    // This leaf draws the folder as a compact pill (~38px). That is a
+    // rendering artifact of the pill, not a size the user picked, so keep it
+    // out of the shared node: pinning it would shrink the expanded card every
+    // other view draws (and the layout slot).
+    if (collapsedIds.has(n.id)) return n;
+    const { width, height } = change.dimensions;
+    if (
+      n.measured?.width === width &&
+      n.measured?.height === height &&
+      n.style?.width === width &&
+      (n.data.type !== "folder" || n.style?.height === height)
+    ) {
+      return n;
+    }
+    onFirstResize?.(n);
+    changed = true;
+    return {
+      ...n,
+      style: { ...n.style, width, height: n.data.type === "folder" ? height : n.style?.height },
+      measured: { width, height },
+    };
+  });
+  return { nodes: changed ? next : nodes, changed };
+}
+
+export type PositionChange = NodeChange<FewerNode> & {
+  id: string;
+  position: { x: number; y: number };
+};
+
+/**
+ * Fold a batch of React Flow position reports into the store's nodes.
+ *
+ * Returns the SAME array (and `changed: false`) when no card actually moved.
+ * A re-report of a position that is already the store's is not a drag: writing
+ * it rebuilt the store's node array, which rebuilt every mounted view's lens
+ * and pushed a fresh array back into React Flow — the round trip that chains
+ * into React's "Maximum update depth exceeded" (#281).
+ */
+export function applyPositionChanges(
+  nodes: FewerNode[],
+  changes: PositionChange[],
+): { nodes: FewerNode[]; changed: boolean } {
+  if (changes.length === 0) return { nodes, changed: false };
+  const targets = new Map(changes.map((c) => [c.id, c.position]));
+  let changed = false;
+  const next = nodes.map((n) => {
+    const pos = targets.get(n.id);
+    if (!pos || (n.position.x === pos.x && n.position.y === pos.y)) return n;
+    changed = true;
+    return { ...n, position: pos };
+  });
+  return { nodes: changed ? next : nodes, changed };
 }
 
 /**
@@ -94,40 +180,40 @@ export function useCanvasNodeChangeHandler({
           const entries = positionChanges.map((c) => ({ id: c.id, pos: c.position! }));
           useGraphStore.getState().setNodePositionsBatch(leafId, entries);
         } else {
-          useGraphStore.setState((s) => ({
-            nodes: s.nodes.map((n) => {
-              const change = positionChanges.find((c) => c.id === n.id);
-              return change ? { ...n, position: change.position } : n;
-            }),
-          }));
+          // Same guard as the per-view path (applyPositionChanges): a position
+          // the store already holds must not rebuild `nodes`.
+          useGraphStore.setState((s) => {
+            const next = applyPositionChanges(s.nodes, positionChanges);
+            if (next.changed) markLoop("write:positions-shared");
+            return next.changed ? { nodes: next.nodes } : {};
+          });
         }
       }
 
       if (dimensionChanges.length > 0) {
-        useGraphStore.setState((s) => ({
-          nodes: s.nodes.map((n) => {
-            const change = dimensionChanges.find((c) => c.id === n.id);
-            if (change) {
-              // This leaf draws the folder as a compact pill (~38px). That is a
-              // rendering artifact of the pill, not a size the user picked, so
-              // keep it out of the shared node: pinning it would shrink the
-              // expanded card every other view draws (and the layout slot).
-              if (collapsedSet.has(n.id)) return n;
-              // Record the pre-resize dimensions the first time we see this node
-              // resize — but only for a real gesture. A re-measure must not be
-              // captured, or the debounce below turns it into a phantom op.
+        // Rewrite `nodes` ONLY when a card's size actually changes (see
+        // applyDimensionChanges): a re-measure of an unchanged card must not
+        // hand every mounted canvas a new node array to re-push into React Flow.
+        let changed = false;
+        useGraphStore.setState((s) => {
+          const next = applyDimensionChanges(
+            s.nodes,
+            dimensionChanges,
+            collapsedSet,
+            // Record the pre-resize dimensions the first time we see this node
+            // resize — but only for a real gesture. A re-measure must not be
+            // captured, or the debounce below turns it into a phantom op.
+            (n) => {
               if (isResizeGestureFor(n.id) && !resizeStartDimensions.current.has(n.id)) {
                 resizeStartDimensions.current.set(n.id, nodeDims(n));
               }
-              return {
-                ...n,
-                style: { ...n.style, width: change.dimensions.width, height: n.data.type === "folder" ? change.dimensions.height : n.style?.height },
-                measured: { width: change.dimensions.width, height: change.dimensions.height },
-              };
-            }
-            return n;
-          }),
-        }));
+            },
+          );
+          changed = next.changed; // zustand runs the updater synchronously
+          return next.changed ? { nodes: next.nodes } : {};
+        });
+        if (changed) markLoop("write:dimensions");
+        if (!changed) return;
 
         // Commit a resize op once the gesture settles (debounced). Nothing
         // captured → no gesture → nothing to commit (skips the timer entirely

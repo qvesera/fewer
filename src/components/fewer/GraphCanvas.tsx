@@ -16,6 +16,8 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import { CustomNode, KeyboardShortcuts } from ".";
+import { GroupFrames } from "./GroupFrames";
+import { GroupPillNode } from "./GroupPillNode";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import {
@@ -33,7 +35,7 @@ import { edgeTypeFor } from "@/lib/fewer/edgeHighlight";
 import { cn } from "@/lib/utils";
 import { FolderOpen, Sparkles, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { EdgeStrokeStyle } from "@/lib/fewer/types";
+import type { EdgeStrokeStyle, FewerNode } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 import { useGraphData, useLayoutConfig, useThemeConfig, useUiState, useViewState, useStoreActions } from "@/store/hooks";
 
@@ -45,7 +47,16 @@ import { useCanvasGraphSync } from "@/hooks/use-canvas-graph-sync";
 import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
-import { resolveViewNodes, withCollapsedPillGeometry } from "@/lib/fewer/viewState";
+import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
+import { collapsedGroupMembers } from "@/lib/fewer/groups";
+import {
+  collapsedGroupBlocks,
+  groupPillNodeId,
+  injectGroupPillNodes,
+  pillRectsFromNodes,
+  pillsForViewEdges,
+  viewMemberNodes,
+} from "@/lib/fewer/groupLayout";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
@@ -60,6 +71,8 @@ import { useCanvasConnect } from "@/hooks/use-canvas-connect";
 import { useCanvasSelection } from "@/hooks/use-canvas-selection";
 import { resolveViewSettings } from "@/lib/fewer/viewState";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { selectionForLeaf } from "@/lib/fewer/canvasSelection";
+import { markLoop } from "@/lib/fewer/loopProbe";
 
 import { GraphViewProvider } from "@/hooks/use-graph-view-context";
 import { CanvasOverlays } from "./CanvasOverlays";
@@ -70,9 +83,17 @@ import { useCanvasInteractionHandlers } from "@/hooks/use-canvas-interaction-han
 import { useCanvasDragRecording } from "@/hooks/use-canvas-drag-recording";
 import { useCanvasCollapsedInternals } from "@/hooks/use-canvas-collapsed-internals";
 import { useCanvasHiddenChip } from "@/hooks/use-canvas-hidden-chip";
+import { useStableHiddenIds } from "@/hooks/use-stable-hidden-ids";
 
-const nodeTypes = { folder: CustomNode, file: CustomNode };
+const nodeTypes = { folder: CustomNode, file: CustomNode, groupPill: GroupPillNode };
 const PERF_NODE_LIMIT = 300;
+// React Flow's `StoreUpdater` compares tracked props BY IDENTITY and writes its
+// store for every field that differs (and re-renders everything reading it), so
+// these must not be built inline: a fresh object each render wrote the RF store
+// from an effect on every render of the canvas — a commit-phase write per render
+// on the very path that chains into "Maximum update depth exceeded" (#281).
+const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1.0, minZoom: 0.35 };
+const PRO_OPTIONS = { hideAttribution: true };
 
 interface CanvasMenuPosition { x: number; y: number; }
 interface CanvasEmptyActionsProps { onOpenImport: () => void; onLoadSample: () => void; primary?: boolean; leafId?: string; }
@@ -104,6 +125,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const { themeMode: themeModeGlobal, customTheme } = useThemeConfig();
   const { selectedNodeIds, loading, showFiles: showFilesGlobal } = useUiState();
   const { activeLeafId, viewSettings: viewSettingsMap, zoomToNode, zoomToNodeIds } = useViewState();
+  const leafSelections = useGraphStore((s) => s.leafSelections);
+  const selectionVersion = useGraphStore((s) => s.selectionVersion);
   const { setSelectedNodeIds, deleteNodes, recordDragMoves, recordResize, connectNodes, addStandaloneNode, setRenamingId, setCanvasSize, setNodePositionForLeaf, setZoomToNodeIds } = useStoreActions();
   const shynessScale = useGraphStore((s) => s.shynessScale);
   const sortKey = useGraphStore((s) => s.sortKey);
@@ -112,6 +135,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const tier = useGraphStore((s) => s.tier);
   const graphVersion = useGraphStore((s) => s.graphVersion);
   const seedNodePositions = useGraphStore((s) => s.seedNodePositions);
+  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
+  // Collapsed groups (T-164): a view's effective hidden derives a group's
+  // members from its collapsed set, so the resolver needs the group list.
+  const groups = useGraphStore((s) => s.groups);
 
   const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -133,8 +160,8 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       edgeAnimatedSelectedOnly: edgeAnimatedSelectedOnlyGlobal,
       edgeStrokeStyle: edgeStrokeStyleGlobal, edgeWidth: edgeWidthGlobal,
       direction, hiddenIds, collapsedFolderIds: [],
-    }, hiddenIds, fileIds),
-    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds],
+    }, hiddenIds, fileIds, groups),
+    [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds, groups],
   );
 
   const isDark = themeModeGlobal === "dark";
@@ -145,7 +172,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
 
   // Effective hiddenIds come from resolveViewSettings (which already computed
   // layers + bulk files from allFileIds). No showFiles special-case needed.
-  const effectiveHiddenIds = vs.hiddenIds;
+  // Content-stable: a drag writes view settings every frame, and a fresh array
+  // identity here would re-filter the node set and re-run every card's
+  // child-list memo on each of those frames.
+  const effectiveHiddenIds = useStableHiddenIds(vs.hiddenIds);
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
 
@@ -158,46 +188,203 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [visibleNodes, vs.collapsedFolderIds],
   );
 
-  // ── Per-view positions: derive when direction overrides OR visible set diverges ──
+  // ── Per-view positions: derive the layout once, overlay positions per change ──
   // Same predicate the Organize action uses (viewState.needsLayoutDerivation, via
-  // resolveViewNodes) so a view never ends up half-organised — and the exporter
+  // deriveViewLayout) so a view never ends up half-organised — and the exporter
   // runs the identical resolution, so an image export mirrors the active view.
-  const positionedNodes = useMemo(
-    () =>
-      resolveViewNodes(
-        viewNodes,
-        visibleEdges,
-        leafId ? viewSettingsMap[leafId] : undefined,
-        vs,
-        { direction, hiddenIds, fileIds },
-        { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
-      ),
-    [viewNodes, visibleEdges, leafId, viewSettingsMap, vs, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir, tags],
+  //
+  // The two halves are memoised apart on purpose. A drag rewrites this leaf's
+  // `positions` on every frame, so deriving the layout in the same memo re-ran
+  // the whole layout engine per frame in any view that diverges (hide layers, a
+  // collapsed folder, a direction override): 193ms per frame at 30k nodes. The
+  // layout memo therefore keys on the leaf's *fields* the derivation predicate
+  // reads — a position write replaces the settings object but keeps those
+  // references — and only the position overlay runs per frame.
+  const rawLeaf = leafId ? viewSettingsMap[leafId] : undefined;
+  const tagLookup = useMemo(() => makeTagLabelLookup(tags), [tags]);
+  const layoutOpts = useMemo(
+    () => ({ shynessScale, sortKey, sortDir, tagLabelById: tagLookup }),
+    [shynessScale, sortKey, sortDir, tagLookup],
   );
+  // What this view LAYS OUT (T-179): the painted set PLUS the collapsed groups'
+  // member cards. Members hide by derivation (T-164), but the layout needs them
+  // so a collapsed group can be replaced by ONE pill-sized block in this view's
+  // own coordinates — deriveViewLayout drops them again before anything paints.
+  // Their edges are pulled from the full edge set (the paint filter dropped
+  // them); genuinely hidden cards stay out of the layout entirely.
+  const layoutInput = useMemo(() => {
+    const memberIds = new Set(collapsedGroupMembers(groups ?? [], rawLeaf?.collapsedGroupIds ?? []));
+    if (memberIds.size === 0) return { nodes: viewNodes, edges: visibleEdges };
+    const hidden = new Set(effectiveHiddenIds);
+    const keep = (id: string) => !hidden.has(id) || memberIds.has(id);
+    const members = allNodes.filter((n) => memberIds.has(n.id));
+    return {
+      nodes: withCollapsedPillGeometry([...viewNodes, ...members], vs.collapsedFolderIds),
+      edges: allEdges.filter((e) => keep(e.source) && keep(e.target)),
+    };
+  }, [
+    viewNodes, visibleEdges, allNodes, allEdges, effectiveHiddenIds,
+    groups, rawLeaf?.collapsedGroupIds, vs.collapsedFolderIds,
+  ]);
+  const laid = useMemo(
+    () => deriveViewLayout(
+      layoutInput.nodes, layoutInput.edges, rawLeaf, vs, { direction, hiddenIds, fileIds }, layoutOpts, groups,
+    ),
+    [
+      layoutInput,
+      rawLeaf?.hideLayers, rawLeaf?.direction, rawLeaf?.collapsedFolderIds, rawLeaf?.collapsedGroupIds,
+      vs.direction, direction, hiddenIds, fileIds, layoutOpts, groups,
+    ],
+  );
+  const positionedNodes = useMemo(() => {
+    const overlaid = applyViewPositions(laid?.nodes ?? viewNodes, vs.positions);
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0) return overlaid;
+    // Anchor groups' pills (T-180): a COMPACT pill arrives from the layout, but
+    // an anchor group never runs a pass — its members stay invisible geometry —
+    // so its pill is injected on their block AFTER the per-view overlay. The
+    // members themselves are hidden from the paint: the injection reads them
+    // from the LAID set when a pass ran, else from the store — with this leaf's
+    // positions overlaid either way (the frame's `anchorNodes` rule).
+    const memberNodes = applyViewPositions(
+      [...viewMemberNodes(laid?.members, allNodes, groups ?? [], collapsedIds)],
+      vs.positions,
+    );
+    return injectGroupPillNodes(overlaid, memberNodes, groups ?? [], collapsedIds, vs.direction);
+  }, [laid, viewNodes, vs.positions, vs.direction, groups, allNodes, rawLeaf?.collapsedGroupIds]);
+
+  // The pills' inherited connections (T-180): every edge touching a hidden
+  // member is re-pointed at that member's pill NODE, so a collapsed group's
+  // connections render like any other edge — the same renderer, style, dash and
+  // width — instead of a drawn stub layer. Derived from the edge list alone
+  // (nothing enters the snapshot), and deliberately OUTSIDE the layout memo:
+  // an anchor collapse paints the shared layout as-is, no pass runs.
+  const viewEdges = useMemo(() => {
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0) return visibleEdges;
+    const boundary = pillsForViewEdges(
+      allEdges,
+      groups ?? [],
+      collapsedIds,
+      new Set(effectiveHiddenIds),
+      new Set(visibleNodes.map((n) => n.id)),
+    );
+    return boundary.length > 0 ? [...visibleEdges, ...boundary] : visibleEdges;
+  }, [visibleNodes, visibleEdges, allEdges, groups, rawLeaf?.collapsedGroupIds, effectiveHiddenIds]);
+
+  const pillEdgeColors = useMemo(() => {
+    const out = new Map<string, string>();
+    const collapsedIds = rawLeaf?.collapsedGroupIds ?? [];
+    if (collapsedIds.length === 0 || !groups?.length) return out;
+    // A coloured group tints its pill's edges (T-180) — same rule the drawn
+    // stubs had: group colour, else the default edge stroke (an empty entry).
+    for (const g of collapsedGroupBlocks(groups, collapsedIds)) {
+      if (g.color) out.set(groupPillNodeId(g.id), g.color);
+    }
+    return out;
+  }, [groups, rawLeaf?.collapsedGroupIds]);
+
+  // The pill rects, read from the PAINTED pill nodes (T-179): one source for
+  // the frame shell and for zoom-to-selection, so a per-view position override
+  // can never desynchronise them. `undefined` clears — a view that collapses
+  // nothing (or unmounts) leaves no stale target behind.
+  const pillRects = useMemo(
+    () => pillRectsFromNodes(positionedNodes, groups ?? [], rawLeaf?.collapsedGroupIds ?? []),
+    [positionedNodes, groups, rawLeaf?.collapsedGroupIds],
+  );
+  const setPillRectsForLeaf = useGraphStore((s) => s.setPillRectsForLeaf);
+  useEffect(() => {
+    setPillRectsForLeaf(leafId ?? "", pillRects.size > 0 ? pillRects : undefined);
+    return () => setPillRectsForLeaf(leafId ?? "", undefined);
+  }, [pillRects, leafId, setPillRectsForLeaf]);
+
+  // ── Selection: derived, never stored on the store's nodes ──
+  // The leaf's own ids, or — only while no leaf owns the shared list — the
+  // global one (see selectionForLeaf; a brand-new leaf must not borrow another
+  // view's selection, #285). Stamped AFTER the layout on purpose: doing it
+  // before would make the layout memo depend on the selection and re-derive the
+  // whole tree on every click.
+  const leafSelection = selectionForLeaf(leafSelections, leafId, activeLeafId, selectedNodeIds);
+  const selectionSet = useMemo(() => new Set<string>(leafSelection), [leafSelection]);
+  // What RF currently paints for this leaf — the stamp compares against it, so
+  // a clear can be pushed as an explicit `selected: false` instead of a node
+  // that has no flag at all (RF would keep its internal selection and re-report
+  // it forever, #285).
+  const lastStampedRef = useRef<readonly FewerNode[] | undefined>(undefined);
+  const stampedNodes = useMemo(() => {
+    const next = stampSelection(positionedNodes, selectionSet, lastStampedRef.current);
+    lastStampedRef.current = next;
+    return next;
+  }, [positionedNodes, selectionSet]);
 
   const graphsExists = allNodes.length > 0;
 
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(viewNodes);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(visibleEdges);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(stampedNodes);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(viewEdges);
 
-  useCanvasGraphSync(graphVersion, positionedNodes, visibleEdges, setRfNodes, setRfEdges, leafId);
+  useCanvasGraphSync(graphVersion, stampedNodes, viewEdges, setRfNodes, setRfEdges);
+  // A selection change paints new flags on the RF nodes (cheap, copy-on-write).
+  // It is deliberately NOT a graphVersion change: that would rebuild everything.
+  //
+  // This push is deliberately UNGUARDED, and skipping it when "the flags already
+  // match" is NOT safe: the array is also how React Flow's internals get resynced
+  // after it reports its own changes (a re-measure carries a `measured` the store
+  // copy has already settled). Skipping it let React Flow re-report the same
+  // change forever — each report re-rendering the canvas, 50 nested updates,
+  // "Maximum update depth exceeded" on a single card click. The cheapness lives
+  // upstream instead: the store only hands out a new node array when a card
+  // actually changed size or moved (see applyDimensionChanges / applyPositionChanges).
+  useEffect(() => {
+    markLoop("push:nodes");
+    setRfNodes(stampedNodes);
+  }, [stampedNodes, setRfNodes]);
+  useEffect(() => {
+    markLoop("render:canvas");
+  });
   useCanvasDashClock(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly);
   useCanvasDirectionRemeasure(vs.direction);
 
   const updateNodeInternals = useUpdateNodeInternals();
   useCanvasCollapsedInternals(vs.collapsedFolderIds, updateNodeInternals);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
-  useCanvasInitialFit(positionedNodes, containerRef, setViewport);
+  // User-requested re-flows (direction change, Organize) re-fit the view — see
+  // useCanvasInitialFit, which reuses the same bounds computation (#286).
+  const reflowVersion = useGraphStore((s) => s.reflowVersion);
+  const reflowTarget = useGraphStore((s) => s.reflowTarget);
+  useCanvasInitialFit(positionedNodes, containerRef, setViewport, reflowVersion, reflowTarget, leafId);
   useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
   const mini = useCanvasMinimap({ themeColors, isDark, leafId });
 
   const { seedOnFirstDrag, effectiveRecordDragMoves } = useCanvasDragRecording({
     leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
   });
-  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves);
-  const { baseRef: boxSelectBaseRef, onPointerDownCapture, onPointerUp, onPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
+  const { baseRef: boxSelectBaseRef, onPointerDownCapture: boxSelectOnPointerDown, onPointerUp: boxSelectOnPointerUp, onPointerCancel: boxSelectOnPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
   const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
+  // Activation belongs to input, not to selection echoes: a pointer landing in
+  // this canvas makes it the active view before React Flow reports anything.
+  // Without this, a card click in a background canvas relied on its selection
+  // report to flip `activeLeafId`, and that report is now (deliberately) a
+  // silent state sync — see setSelectionForLeaf (#285).
+  //
+  // The same ref tells useCanvasSelection whether RF's report can carry user
+  // intent at all: only a live pointer gesture may change the store's selection,
+  // because RF's subscription re-emits its own bookkeeping on every node push
+  // (those echoes lag a frame and oscillated the selection, #285).
+  const pointerActiveRef = useRef(false);
+  const onPointerDownCapture = useCallback((e: React.PointerEvent) => {
+    pointerActiveRef.current = true;
+    if (leafId) useGraphStore.getState().setActiveLeaf(leafId);
+    boxSelectOnPointerDown(e);
+  }, [leafId, boxSelectOnPointerDown]);
+  const onPointerUp = useCallback(() => {
+    pointerActiveRef.current = false;
+    boxSelectOnPointerUp();
+  }, [boxSelectOnPointerUp]);
+  const onPointerCancel = useCallback(() => {
+    pointerActiveRef.current = false;
+    boxSelectOnPointerCancel();
+  }, [boxSelectOnPointerCancel]);
   useCanvasCtrlWheelPan(containerRef, mini.scrollAction === "zoom");
 
   const animation = useEdgeAnimationOpts(can("edgeMotion", tier), vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, edgeAnimatedStrokeStyle, vs.edgeStrokeStyle);
@@ -206,12 +393,34 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // in useCanvasEdges so CanvasInner stays declarative. Effects/callbacks read
   // live store state to avoid unstable reference deps.
   const { handleEdgesChange, dashArray, selectedEdgeIdsRef } = useCanvasEdges({
-    onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive,
+    onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges: viewEdges,
+    themeColors, vs, hiddenIds: effectiveHiddenIds, pillEdgeColors, animation, leafId, isActive,
   });
 
-  const { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll } = useCanvasSelection({
-    setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId,
+  // Leaf-aware select-all scope: only nodes visible in THIS view, not every
+  // node in the store (which spans multiple leaves).
+  const visibleNodeIds = useMemo(() => visibleNodes.map((n) => n.id), [visibleNodes]);
+
+  const { onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll, seedSelectionForDrag, endSelectionDrag } = useCanvasSelection({
+    setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, pointerActiveRef,
+    visibleNodeIds,
   });
+
+  // Drag handlers come after the selection hook: a drag seeds the store's
+  // selection before React Flow's own select reports, so the canvas's next push
+  // cannot paint the dragged cards unselected and bounce the selection back
+  // (#281).
+  const dragHandlers = useCanvasNodeDrag(effectiveRecordDragMoves, seedSelectionForDrag, endSelectionDrag);
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: edgeTypeFor(vs.edgeStyle),
+      animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
+      style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
+      zIndex: 0,
+    }),
+    [vs.edgeStyle, tier, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly, themeColors.edge, vs.edgeWidth, dashArray],
+  );
 
   const { onConnect, onConnectEnd } = useCanvasConnect({
     connectNodes, setRfEdges, edgeStyle: vs.edgeStyle, screenToFlowPosition, toast,
@@ -232,8 +441,34 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const hiddenChipStyle = useCanvasHiddenChip();
 
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+  // Hover ring as a Set, built once per ring change instead of scanned by every
+  // card and child row (see GraphViewScope.hoverIds).
+  const hoverIds = useMemo(() => new Set<string>(hoverHighlightIds), [hoverHighlightIds]);
+  // The cards read only these two fields from the scope (CustomNode), but they
+  // read them through a context — and a drag rewrites `positions` on every frame.
+  // Carrying the resolved object whole meant a new context value every frame, so
+  // a drag re-rendered EVERY mounted card; with it pinned to the fields cards
+  // actually use, a drag frame re-renders the dragged card alone (#281).
+  const scopeResolved = useMemo(
+    () => ({ ...vs, positions: undefined }),
+    [
+      vs.showFiles, vs.minimapHidden, vs.edgeStyle, vs.edgeAnimated, vs.edgeAnimatedSelectedOnly,
+      vs.edgeStrokeStyle, vs.edgeWidth, vs.direction, vs.hiddenIds, vs.collapsedFolderIds,
+    ],
+  );
+  const scope = useMemo(
+    () => ({
+      leafId: leafId ?? "primary",
+      isActive: leafId ? leafId === activeLeafId : true,
+      direction: vs.direction,
+      resolved: scopeResolved,
+      visibleIds,
+      hoverIds,
+    }),
+    [leafId, activeLeafId, vs.direction, scopeResolved, visibleIds, hoverIds],
+  );
   return (
-    <GraphViewProvider value={{ leafId: leafId ?? "primary", isActive: leafId ? leafId === activeLeafId : true, direction: vs.direction, resolved: vs, visibleIds }}>
+    <GraphViewProvider value={scope}>
     <div ref={containerRef} className={cn("relative h-full w-full select-none", allNodes.length > PERF_NODE_LIMIT && "gm-perf")} style={{ background: "var(--fewer-background-gradient, var(--fewer-background))" }} onDrop={onDrop} onDragOver={onDragOver}
       onPointerDownCapture={onPointerDownCapture}
       onPointerUp={onPointerUp}
@@ -249,6 +484,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         onNodeDragStart={dragHandlers.onNodeDragStart} onNodeDragStop={dragHandlers.onNodeDragStop}
         onSelectionDragStart={dragHandlers.onSelectionDragStart} onSelectionDragStop={dragHandlers.onSelectionDragStop}
         onSelectionChange={onSelectionChange}
+        onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
         onDelete={onDelete}
         onNodeContextMenu={onNodeContextMenu}
@@ -264,15 +500,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
         panOnScrollMode={PanOnScrollMode.Vertical}
         zoomActivationKeyCode={mini.scrollAction === "pan" ? "Control" : null}
         panActivationKeyCode={mini.scrollAction === "zoom" ? "Control" : null}
-        fitViewOptions={{ padding: 0.2, maxZoom: 1.0, minZoom: 0.35 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={0.15} maxZoom={3}
-        defaultEdgeOptions={{
-          type: edgeTypeFor(vs.edgeStyle), animated: can("edgeMotion", tier) && vs.edgeAnimated && !vs.edgeAnimatedSelectedOnly,
-          style: { stroke: themeColors.edge, strokeWidth: vs.edgeWidth, ...(dashArray ? { strokeDasharray: dashArray } : {}) },
-          zIndex: 0,
-        }}
+        defaultEdgeOptions={defaultEdgeOptions}
         elevateNodesOnSelect
-        proOptions={{ hideAttribution: true }}
+        proOptions={PRO_OPTIONS}
         className="bg-transparent h-full w-full"
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={themeColors.bgDot} className="transition-colors" />
@@ -291,6 +523,11 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           hiddenCount={hiddenCount}
           hiddenChipStyle={hiddenChipStyle}
         />
+        <GroupFrames
+          leafId={leafId}
+          nodes={positionedNodes}
+          pillRects={pillRects}
+        />
       </ReactFlow>
 
       {canvasMenu && (
@@ -306,7 +543,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
           close={closeMenu}
         />
       )}
-      {primary && <KeyboardShortcuts />}
+      {primary && <KeyboardShortcuts containerRef={containerRef} />}
     </div>
     </GraphViewProvider>
   );

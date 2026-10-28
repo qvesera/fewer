@@ -153,14 +153,20 @@ decisions:
 - id: a1214228826ec0d70c22785984002469
   title: graph state is composed of focused sub-slices; graphSlice.ts is the thin composer
   decision: 'graphSlice.ts is a 27-line composer: createCoreSlice, createNodesSlice, createStructureSlice,
-    createHideShowSlice under src/store/slices/graph/ (plus pure helpers reveal.ts and detach.ts). New
-    graph actions land in the matching sub-slice, never in the composer. Cross-slice calls go through
-    get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees, reconcileAutoHide, unparentSubtree)
-    keep the old import path so deleteUndo.test.ts, showSubtrees.test.ts and revealHelpers.ts work unchanged.'
+    createHideShowSlice under src/store/slices/graph/ (plus helpers reveal.ts, revealGroups.ts and
+    detach.ts). New graph actions land in the matching sub-slice, never in the composer. The nodes
+    sub-slice itself composes buildClipboardMethods, buildDeletionMethods, buildRenameMethods and
+    buildCreationMethods from src/store/slices/graph/nodes/, each owning one concern. Cross-slice
+    calls go through get(). The four helper re-exports (walkSubtreeReveal, collectShowSubtrees,
+    reconcileAutoHide, unparentSubtree) keep the old import path so deleteUndo.test.ts,
+    showSubtrees.test.ts and revealHelpers.ts work unchanged.'
   reason: 'graphSlice.ts was a 1371-line monolith: createGraphSlice held ~50 actions (CCN 291, nesting
     6) across ~1077 lines, with 30 bug fixes and 49 committing files concentrated in it. Mirrors the established
     ui/ precedent (sub-slices + 32-line uiSlice.ts composer): each file owns one concern, each creator
-    type pins its own keys, and the composer web has the same shape so createStore.ts needed no edits.'
+    type pins its own keys, and the composer web has the same shape so createStore.ts needed no edits.
+    Refreshed 2026-10-26 (T-189): the nodes concern is now four method modules under nodes/ and
+    revealGroups.ts handles collapsed-group reveal, so the original scope and helper list no longer
+    described the layout the decision governs.'
   scope:
   - src/store/slices/graph/core.ts
   - src/store/slices/graph/hideShow.ts
@@ -174,6 +180,8 @@ decisions:
   accepted_artifact: .repowise/decisions.yaml
   evidence:
   - accepted by Yash Srivastava
+  - refreshed 2026-10-26 · T-189 · scope and helper list re-synced to the current
+    graph/ layout
 - id: d667f2d407f608f221738dc0f0b0eb95
   title: Webhook POST and CanvasInner residuals are accepted, not actionable
   decision: 'Two health findings are accepted as by-design rather than fixed. (1) complex_method POST
@@ -241,3 +249,152 @@ decisions:
   aliases:
   - 7c1cd6c3f686ba264622902b0dd7c98d
   - 8f2a1b3c4d5e6f7a8b9c0d1e2f3a4b5c
+- id: 55ab1b5529bd4d9191f9eb0a536df0d0
+  title: 'Archive is a source kind of the File origin, not its own origin'
+  decision: 'Step 1 of the import flow has four origins (folder, file, url, cloud). The File origin
+    carries one of two payloads discriminated by kind: text (ASCII tree, JSON, CSV, DOT, shell script,
+    decoded with parseImportFile) or archive (a binary File listed with listArchive). One picker accepts
+    both — FILE_ACCEPT is derived from the format tiles plus ARCHIVE_EXTENSIONS — and the panel switches
+    to archive mode when the picked file has an archive extension. ARCHIVE_EXTENSIONS in importFlow.ts
+    is the single source for both the input accept attribute and the mode detection, so the picker and
+    the UI cannot drift into two disagreeing lists.'
+  reason: 'Archive was a separate origin even though both paths converge on filterTree → chunkTreeToGraph
+    → setGraph and both set dataSource: file, which made step 1 ask a question the user could not answer
+    without knowing Fewer internals ("is my .tar.gz a File or an Archive?"). Folding it also gives a
+    single entry point for future canvas drag-and-drop (features.ts dragDropImport is still off). The one
+    real regression risk was the advancedFormats gate on the File panel''s format tiles versus the
+    Archive origin''s unconditional picker — so the merged accept attribute is deliberately never filtered
+    by advancedFormats, and a component test pins that archives stay in the accept list. listArchive
+    sniffs magic bytes rather than extensions, so the extension is only a UI hint: a renamed archive
+    still imports once the user is in archive mode.'
+  scope:
+  - src/components/fewer/ImportFlowDialog.tsx
+  - src/components/fewer/ImportOriginStep.tsx
+  - src/lib/fewer/importAction.ts
+  - src/lib/fewer/importActionArchive.ts
+  - src/lib/fewer/importActionFile.ts
+  - src/lib/fewer/importFlow.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-10-01T22:47:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - Accepted by Yash Srivastava; follows T-049 / T-050 / T-051 (archive features, all done) and makes
+    the "all four origins" phrasing in 3d6a225b71ffe94046ff4724880ca7cb accurate again.
+- id: 86efdb75ebf44a40ab6501f3701f9cdf
+  title: 'The file origin detects the import format from content; the tiles are an override, not a picker'
+  decision: 'Content is the single source of truth for which parser runs. detectImportFormat (importDetect.ts)
+    picks json, dot, script, csv or tree from the pasted or uploaded text with an ordered, cheap ladder —
+    and tree is the tolerant fallback that loses every tie. resolveFileFormat (importFlow.ts) folds that
+    detection with the user''s override into the two fields the parser reads, so the resolved format and
+    the intent cannot drift. The override is kept across edits to a file (tweaking a CSV cell must not
+    flip the user back to tree) and cleared by picking a new file or by the Auto tile. Uploads run the
+    same detection; the extension decides only archive-vs-text, since archives are binary. The format
+    tiles still exist but render only when the user presses Change, and advancedFormats no longer gates
+    this panel — it still gates ImportOptionsPanel and ExportPanel.'
+  reason: 'The tiles were a promise the parser never checked: parseImportFile takes the format as a
+    required argument, so pasting JSON while the ASCII-Tree tile was active parsed it as a tree, and the
+    upload path — which sniffed only the extension — had the same mismatch for a .txt full of JSON. That
+    is a confidently-wrong graph rather than an error, which is worse than either. Detection removes the
+    whole class of mismatch instead of patching each format. Two rules earn their place: the tree-glyph
+    check runs BEFORE csv, because a comma inside a tree name must not win over the box-drawing
+    characters (the glyph set is exactly the one parseASCIITree keys depth on, so the two cannot
+    disagree), and the override exists because detection is genuinely imperfect — a single-column list
+    has no delimiters and no glyphs, so it detects as tree, and the CSV column-mapper for that shape is
+    only reachable through the override. The ladder is a scanner, not a parser: the parsers already
+    existed and are reused.'
+  scope:
+  - src/components/fewer/ImportFlowDialog.tsx
+  - src/components/fewer/ImportOriginStep.tsx
+  - src/lib/fewer/importDetect.ts
+  - src/lib/fewer/importDetect.test.ts
+  - src/lib/fewer/importFlow.ts
+  - src/lib/fewer/importFlow.test.ts
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T11:05:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - 'Accepted by Yash Srivastava; follows #288 (CSV/DOT import) and #291 (archive fold) on the same panel.
+    Detection is pinned by 20 unit tests plus export round-trips (each exporter''s payload must detect
+    as its own format), and the component suite asserts the bug is gone: pasting JSON with nothing
+    selected hands the parser a json format.'
+- id: c7c577cd34e74424be79f4545c95e2bf
+  title: 'Import options act at three layers; explicit content is not scanned'
+  decision: 'Import options are scoped to the source at one seam (runImport) through RELEVANT_OPTIONS
+    in importOptions.ts, keyed by option scope — an origin, plus which payload the file origin carries
+    (file:text vs file:archive). A key irrelevant to a scope is forced to its no-op value before any
+    action sees it, so "irrelevant" means no effect rather than merely not rendered, and the panel
+    renders from the same map so the UI and the behavior cannot drift. A pasted file imports exactly
+    as given: only Include dependency & build folders and the display settings touch it. An uploaded
+    archive is a real filesystem listing and keeps the scan filters; only the walk-only switches
+    (consumed by localTree.ts and the folder walkers alone) drop out everywhere else.'
+  reason: 'The panel rendered one shared form for all four origins while the options act at three
+    layers — scan (what Fewer looks at), content filter (filterTree over whatever tree it is handed),
+    display (after import). So a pasted JSON export was silently rewritten by options the user never
+    applied to it: the persisted maxDepth of 6 truncated any tree nested deeper than six levels,
+    includeHidden:false dropped .github-style folders, skipEmptyFolders cascaded folders empty, and a
+    stale extensions filter stripped files. The URL path already guarded against exactly this
+    (use-github-import filters only when an option differs from its neutral value); file, archive and
+    cloud did not. Scoping once at the dispatcher — rather than per action — means every origin
+    inherits it without touching the actions, and the no-op values are the opposite of the default
+    where they differ, because a neutral is what never filters, not what merely resets.'
+  scope:
+  - src/lib/fewer/importOptions.ts
+  - src/lib/fewer/importOptions.test.ts
+  - src/lib/fewer/importAction.ts
+  - src/lib/fewer/importAction.test.ts
+  - src/components/fewer/ImportOptionsPanel.tsx
+  - src/components/fewer/ImportFlowDialog.tsx
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T12:40:00.000000'
+  accepted_by: Yash Srivastava
+  evidence:
+  - 'Accepted by Yash Srivastava; follows #291 (archive fold) and #293 (format detection) on the same
+    panel. 12 matrix tests pin every key against every scope plus a bug-pin that a deep export is
+    truncated and .github-dropped under unscoped defaults yet survives under scoped ones; the dispatch
+    suite asserts the neutralized options reach each action; the component suite asserts the file panel
+    offers only its three controls and the folder panel keeps the full set.'
+- id: dde1721f71af0e1ec541d4694cea08b8
+  title: 'Native shell: Tauri v2 (Rust) thin shell, not a Swift/macOS-native shell'
+  decision: 'If fewer ever ships a desktop build, it is a Tauri v2 shell over a Rust core, configured as a thin
+    shell: build.frontendDist points at the hosted web app (the config accepts an external URL and
+    embeds no assets), so every src/app/api/* route, Supabase SSR auth and Stripe billing keep working
+    unchanged. Native commands add only what a webview cannot do: scoped filesystem reads and directory
+    listing (tauri-plugin-fs), OS file/folder opening (tauri-plugin-opener, replacing /api/open-folder
+    and /api/open-file), a native file watcher (shipped inside the official fs plugin), system tray
+    (Tauri core TrayIconConfig) and global shortcuts (tauri-plugin-global-shortcut). The Rust core
+    replaces exactly one unbounded memory path - the libarchive.js WASM engine that copies the whole
+    archive into the Emscripten MEMFS heap under a wasm32 ceiling - behind the existing ArchiveReader
+    seam, and tree reads are windowed (list_dir(path, offset, limit) -> { entries: TreeEntry[], total })
+    so a 100k-node tree never exists three times as Rust struct -> JSON -> JS. Every LOCAL_FS_FEATURES
+    flag maps to a named native replacement; the three localhost-restricted routes stay for self-hosted
+    web and go dead only in the desktop build.'
+  reason: 'RAM does not justify the port: zip is already O(central directory) via Blob.slice, tar is
+    O(names+sizes) with an arithmetic skip and reads no payload bytes, and tar.gz is O(1) with a bounded
+    64KB read-and-discard buffer (Rust would add threads, not less RAM). The graph - per-node path
+    strings, edges and the derived index from #240 - dominates heap usage in the webview JS heap
+    regardless of core language, and Tauri IPC is JSON-serializable by default, so a whole-tree response
+    costs an extra serialise/parse. The port is therefore justified by what ROADMAP already lists
+    (native file watching, system tray, global hotkeys) with bounded-memory archive reads as a bonus.
+    Swift/macOS-native wins macOS fidelity only: it is macOS-only, drops Windows and Linux, rebuilds or
+    re-embeds the UI, has no plugin parity and cannot be built here (no Xcode/macOS toolchain). Tauri
+    reuses the entire web UI through the documented external-URL frontendDist option, and the migration
+    seams (LOCAL_FS_FEATURES, TreeEntry, ArchiveReader) were designed so this lands as a flag flip plus
+    injected readers. Nothing is benchmarked - no cargo/rustc/tauri/pkg-config/gtk3 on the dev box - so
+    the consuming task''s first step is instrumenting node-count vs bytes-read on the worst real
+    archive.'
+  scope:
+  - src/lib/fewer/features.ts
+  - src/lib/fewer/archiveExpand.ts
+  - src/lib/fewer/archiveEngine.ts
+  - ROADMAP.md
+  currency: active
+  source: cli
+  accepted_at: '2026-10-02T15:38:18'
+  accepted_by: qvesera
+  evidence:
+  - 'Ruling recorded for issue #214 (task T-039); full analysis, seam inventory and deferred POC spec in
+    .agents/doc/2026-10-02-native-shell-spike.md. Downstream: issue #250 (T-063) is unblocked by this
+    decision.'

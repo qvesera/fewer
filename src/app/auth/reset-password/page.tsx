@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { KeyRound, Loader2, Check, X, Eye, EyeOff } from "lucide-react";
 import { PASSWORD_HINTS, unmetPasswordHints } from "@/lib/fewer/passwordPolicy";
+import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 
 /**
  * Set-new-password screen reached from the password-reset email link.
@@ -72,7 +73,8 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <MarketingLayout>
+      <div className="flex items-center justify-center bg-background px-6 py-16">
       <div className="w-full max-w-sm rounded-2xl border border-border/50 bg-card/40 p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-primary" aria-hidden />
@@ -163,6 +165,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
       </div>
-    </div>
+      </div>
+    </MarketingLayout>
   );
 }

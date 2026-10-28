@@ -3,6 +3,7 @@ import { useGraphStore } from "@/store/graphStore";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
+import { TagMenu } from "./TagMenu";
 import type { FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
@@ -119,6 +120,7 @@ export function CanvasContextMenu({
                 {a.label}
               </DropdownMenuItem>
             ))}
+            {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
             {more.length > 0 && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
@@ -178,6 +180,9 @@ export function CanvasContextMenu({
                 })()}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            {/* Grouping ships as a shared batch action (batchActions.ts), so it
+                appears here — under More Actions — AND in the node context
+                menus' batch section, identically on web and in the shell. */}
             {del && (
               <>
                 <DropdownMenuSeparator />
@@ -211,29 +216,6 @@ export function CanvasContextMenu({
           View
         </div>
         <div className="my-1 h-px bg-border/40" />
-        {leafId && (
-          <>
-            <button
-              onClick={() => {
-                useGraphStore.getState().toggleMinimapForLeaf(leafId);
-                close();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-            >
-              {vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}
-            </button>
-            <button
-              onClick={() => {
-                useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles);
-                close();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-            >
-              {vs.showFiles ? "Hide Files" : "Show Files"}
-            </button>
-          </>
-        )}
-        <div className="my-1 h-px bg-border/40" />
         <button
           onClick={() => { selectAll(); close(); }}
           className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
@@ -242,7 +224,7 @@ export function CanvasContextMenu({
         </button>
         <button
           onClick={() => {
-            useGraphStore.getState().organize(leafId ?? null);
+            useGraphStore.getState().organizeAll();
             toast({ title: "Graph organized" });
             close();
           }}
@@ -284,6 +266,29 @@ export function CanvasContextMenu({
               className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Show All
+            </button>
+          </>
+        )}
+        <div className="my-1 h-px bg-border/40" />
+        {leafId && (
+          <>
+            <button
+              onClick={() => {
+                useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles);
+                close();
+              }}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
+            >
+              {vs.showFiles ? "Hide Files" : "Show Files"}
+            </button>
+            <button
+              onClick={() => {
+                useGraphStore.getState().toggleMinimapForLeaf(leafId);
+                close();
+              }}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
+            >
+              {vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}
             </button>
           </>
         )}

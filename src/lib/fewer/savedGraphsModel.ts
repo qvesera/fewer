@@ -73,7 +73,7 @@ export function saveSuccessToast(name: string, updating: boolean): { title: stri
 export function noChangesToast(name: string): { title: string; description: string } {
   return {
     title: "No changes",
-    description: `"${name}" is already up to date — no new version was added.`,
+    description: `"${name}" is already up to date: no new version was added.`,
   };
 }
 

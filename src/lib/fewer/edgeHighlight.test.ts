@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { FewerEdge, FewerNode } from "./types";
-import { applyEdgeSelection, buildSelectedEdgeHighlight, edgeTypeFor, staticEdgeDashArray } from "./edgeHighlight";
+import { edgeDashPattern } from "./types";
+import {
+  applyEdgeHighlights,
+  applyEdgeSelection,
+  applyPillEdgeColors,
+  buildEdgeBase,
+  buildSelectedEdgeHighlight,
+  buildTreeLookups,
+  edgeTypeFor,
+  staticEdgeDashArray,
+} from "./edgeHighlight";
+import { groupPillNodeId } from "./groupLayout";
 
 function makeNode(id: string, type: "folder" | "file" = "folder"): FewerNode {
   return { id, type, position: { x: 0, y: 0 }, data: { label: id, path: `/${id}`, type } };
@@ -131,6 +142,69 @@ describe("buildSelectedEdgeHighlight", () => {
   });
 });
 
+// A selection change must not renormali[z]e or re-clone the whole edge list: the
+// canvas memoises the base on the graph and re-applies only the path edges.
+describe("buildEdgeBase + applyEdgeHighlights", () => {
+  const lookups = buildTreeLookups(nodes, edges);
+  const base = () => buildEdgeBase(edges, THEME, 2, baseOpts());
+
+  test("an empty selection returns the base array by identity", () => {
+    const b = base();
+    expect(applyEdgeHighlights(b, [], [], lookups, THEME, 2, baseOpts())).toBe(b);
+  });
+
+  test("ids that are not in the graph also return the base by identity", () => {
+    const b = base();
+    expect(applyEdgeHighlights(b, ["nope"], ["nope"], lookups, THEME, 2, baseOpts())).toBe(b);
+  });
+
+  test("edges off the path are returned by identity, so RF can skip them", () => {
+    const b = base();
+    const out = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    const kept = out.find((e) => e.id === "e-xy");
+    expect(kept).toBe(b.find((e) => e.id === "e-xy"));
+    // The path edges are new objects.
+    expect(out.find((e) => e.id === "e-ra")).not.toBe(b.find((e) => e.id === "e-ra"));
+  });
+
+  test("highlighted edges keep their object identity across a repeated call", () => {
+    const b = base();
+    const first = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    // A second pass over the same base (what a re-selection does) reproduces the
+    // same array contents — and, for untouched edges, the same objects.
+    const second = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    expect(second.map((e) => e.id)).toEqual(first.map((e) => e.id));
+    expect(second.find((e) => e.id === "e-xy")).toBe(b.find((e) => e.id === "e-xy"));
+  });
+
+  test("highlighted edges are moved to the end, preserving relative order", () => {
+    const out = applyEdgeHighlights(base(), ["c"], [], lookups, THEME, 2, baseOpts());
+    // Non-highlighted first (e-xy), then the c path in order e-ra, e-ab, e-bc.
+    expect(out.map((e) => e.id)).toEqual(["e-xy", "e-ra", "e-ab", "e-bc"]);
+  });
+
+  test("no edge is left in the base style when something is highlighted", () => {
+    const b = base();
+    const out = applyEdgeHighlights(b, ["c"], [], lookups, THEME, 2, baseOpts());
+    // Path edges are coloured by their TARGET's type (c is a file), everything
+    // else keeps the default stroke.
+    const expected: Record<string, string> = {
+      "e-ra": THEME.folderIcon,
+      "e-ab": THEME.folderIcon,
+      "e-bc": THEME.fileIcon,
+      "e-xy": THEME.edge,
+    };
+    for (const e of out) expect(e.style?.stroke).toBe(expected[e.id]);
+  });
+
+  test("composition matches the one-shot builder for the same inputs", () => {
+    const composed = applyEdgeHighlights(base(), ["c"], [], lookups, THEME, 2, baseOpts());
+    const oneShot = buildSelectedEdgeHighlight(["c"], [], edges, nodes, THEME, 2, baseOpts());
+    expect(composed.map((e) => ({ id: e.id, zIndex: e.zIndex, animated: e.animated, style: e.style })))
+      .toEqual(oneShot.map((e) => ({ id: e.id, zIndex: e.zIndex, animated: e.animated, style: e.style })));
+  });
+});
+
 describe("applyEdgeSelection", () => {
   test("marks only the listed edges as selected", () => {
     const result = applyEdgeSelection(edges, new Set(["e-ab", "e-xy"]));
@@ -175,5 +249,72 @@ describe("applyEdgeSelection", () => {
       expect(staticEdgeDashArray("dotted")).toBe("2 6");
       expect(staticEdgeDashArray("solid")).toBeUndefined();
     });
+  });
+
+  describe("symlink contrast edges", () => {
+    // a → link (a symlink node) is the link edge; a → b is a regular sibling.
+    const linkNode: FewerNode = {
+      ...makeNode("link", "folder"),
+      data: { label: "link", path: "/link", type: "folder", symlink: { target: "v012", insideTree: true } },
+    };
+    const lNodes = [makeNode("a"), makeNode("b"), linkNode];
+    const lEdges = [makeEdge("e-al", "a", "link"), makeEdge("e-ab", "a", "b")];
+    const linkIds = new Set(["link"]);
+
+    test("buildEdgeBase: solid view → link edge dashed with a target-end arrowhead", () => {
+      const out = byId(buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds));
+      expect(out.get("e-ab")!.style?.strokeDasharray).toBeUndefined();
+      const link = out.get("e-al")!;
+      expect(link.style?.strokeDasharray).toBe("8 4");
+      expect((link.markerEnd as { type?: string })?.type).toBe("arrowclosed");
+    });
+
+    test("buildEdgeBase: dashed and dotted views → link edge solid (contrast axis, never dotted)", () => {
+      for (const style of ["dashed", "dotted"] as const) {
+        const out = byId(buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: style }), linkIds));
+        expect(out.get("e-al")!.style?.strokeDasharray).toBeUndefined();
+        expect(out.get("e-ab")!.style?.strokeDasharray).toBe(edgeDashPattern(style));
+      }
+    });
+
+    test("applyEdgeHighlights: the contrast (and arrowhead color) survives the ancestor-path highlight", () => {
+      const base = buildEdgeBase(lEdges, THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds);
+      // Selecting the link node highlights its parent edge e-al.
+      const out = byId(applyEdgeHighlights(base, ["link"], [], buildTreeLookups(lNodes, lEdges), THEME, 2, baseOpts({ baseStrokeStyle: "solid" }), linkIds));
+      const link = out.get("e-al")!;
+      expect(link.style?.strokeDasharray).toBe("8 4"); // still contrasts the solid view
+      expect((link.markerEnd as { color?: string })?.color).toBe(THEME.folderIcon); // follows the highlight stroke
+      expect(link.style?.stroke).toBe(THEME.folderIcon);
+    });
+  });
+});
+
+describe("applyPillEdgeColors (T-180)", () => {
+  const pill = groupPillNodeId("g");
+  const wired = (id: string, source: string, target: string) =>
+    ({ ...makeEdge(id, source, target), style: { stroke: THEME.edge } }) as FewerEdge;
+
+  test("a coloured group's pill edges take the group colour, either end", () => {
+    const edges = [
+      wired("root->pill", "root", pill),
+      wired("pill->kid", pill, "kid"),
+      wired("root->kid", "root", "kid"),
+    ];
+    const out = applyPillEdgeColors(edges, new Map([[pill, "#ff6600"]]));
+    expect(out.map((e) => e.style?.stroke)).toEqual(["#ff6600", "#ff6600", THEME.edge]);
+    // Copy-on-write: the untouched edge keeps its identity.
+    expect(out[2]).toBe(edges[2]);
+  });
+
+  test("no colour in the map → the array passes through BY IDENTITY", () => {
+    const edges = [wired("root->pill", "root", pill)];
+    expect(applyPillEdgeColors(edges, new Map())).toBe(edges);
+  });
+
+  test("a pill with no colour keeps the base stroke", () => {
+    const edges = [wired("root->pill", "root", pill)];
+    const out = applyPillEdgeColors(edges, new Map([[groupPillNodeId("other"), "#00ff00"]]));
+    expect(out[0].style?.stroke).toBe(THEME.edge);
+    expect(out[0]).toBe(edges[0]); // untouched → same object
   });
 });

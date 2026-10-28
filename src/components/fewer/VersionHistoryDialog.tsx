@@ -85,7 +85,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
       applySnapshot(full.data);
       toast({
         title: "Version restored",
-        description: "Loaded as unsaved changes — hit Save to keep it.",
+        description: "Loaded as unsaved changes. Hit Save to keep it.",
       });
       onClose();
     } catch (err) {
@@ -126,7 +126,7 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
               <History className="h-4 w-4" />
             </div>
-            History — &quot;{graph.name}&quot;
+            History: &quot;{graph.name}&quot;
           </DialogTitle>
           <DialogDescription>
             Saved snapshots of this graph. Restore any version, or delete one.

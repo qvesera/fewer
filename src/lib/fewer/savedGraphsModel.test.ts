@@ -85,7 +85,7 @@ describe("save toasts", () => {
   it("an unchanged update says so and names the graph", () => {
     expect(noChangesToast("G")).toEqual({
       title: "No changes",
-      description: '"G" is already up to date — no new version was added.',
+      description: '"G" is already up to date: no new version was added.',
     });
   });
 });

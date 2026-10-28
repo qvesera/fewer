@@ -7,10 +7,17 @@
  * handled by ImportFlowDialog.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,10 +25,14 @@ import {
   BellRing,
   ChevronRight,
   Cloud,
+  Columns3,
   ExternalLink,
+  FileArchive,
   FileIcon,
   FileJson,
+  FileSpreadsheet,
   FileTerminal,
+  FileText,
   Folder as FolderIcon,
   FolderOpen,
   FolderTree,
@@ -29,13 +40,23 @@ import {
   Loader2,
   Lock,
   RefreshCw,
+  ScanLine,
   Settings as SettingsIcon,
   Upload,
+  Wand2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isFileSystemAccessSupported } from "@/lib/fewer/fileSystem";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
+import {
+  CSV_FIELD_LABELS,
+  CSV_MAPPING_FIELDS,
+  guessCsvMapping,
+  isExportCsv,
+  parseCsvRows,
+} from "@/lib/fewer/csvModel";
+import type { CsvMappingField } from "@/lib/fewer/csvModel";
 import {
   listCloudFolder,
   PROVIDER_LABELS,
@@ -43,14 +64,19 @@ import {
 } from "@/hooks/use-cloud";
 import type { CloudConnection, CloudEntry } from "@/lib/fewer/cloud/types";
 import {
+  ARCHIVE_EXTENSIONS,
   ORIGIN_META,
+  defaultFileSource,
   defaultSourceFor,
+  isArchiveFileName,
   isGitHubUrl,
+  resolveFileFormat,
 } from "@/lib/fewer/importFlow";
 import type {
   FileImportFormat,
   ImportOrigin,
   OriginSource,
+  TextFileSource,
 } from "@/lib/fewer/importFlow";
 
 export interface ImportOriginStepProps {
@@ -58,8 +84,9 @@ export interface ImportOriginStepProps {
   onOriginChange: (origin: ImportOrigin) => void;
   source: OriginSource;
   onSourceChange: (source: OriginSource) => void;
-  advancedFormats: boolean;
   cloudImport: boolean;
+  /** Shell (T-102): show the "url" origin — host-fetch backed, no server. */
+  hostImport?: boolean;
   onRequireAuth: () => void;
   onOpenCloudSettings: () => void;
   /** Advance to the next step (folder origin has no picky source → Enter advances). */
@@ -69,7 +96,8 @@ export interface ImportOriginStepProps {
 const ORIGINS: ImportOrigin[] = ["folder", "file", "url", "cloud"];
 
 // URL and cloud origins require a linked account — only available to
-// signed-in users. Signed-out users see folder + file only.
+// signed-in users. Signed-out users see the local-only origins: folder and
+// file. Archive rides along inside the file origin, so it needs no card.
 const VISIBLE_ORIGINS_FOR: Record<"linkable" | "basic", ImportOrigin[]> = {
   linkable: ORIGINS,
   basic: ORIGINS.filter((o) => o === "folder" || o === "file"),
@@ -91,13 +119,20 @@ export function ImportOriginStep({
   onOriginChange,
   source,
   onSourceChange,
-  advancedFormats,
   cloudImport,
+  hostImport = false,
   onRequireAuth,
   onOpenCloudSettings,
   onAdvance,
 }: ImportOriginStepProps) {
-  const visibleOrigins = cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic;
+  // Origins visible for the mode: cloud (web, tier-gated) → all; shell
+  // host-fetch import (T-102) → folder/file/url (no cloud connectors);
+  // otherwise the local-only pair.
+  const visibleOrigins: ImportOrigin[] = cloudImport
+    ? VISIBLE_ORIGINS_FOR.linkable
+    : hostImport
+      ? ORIGINS.filter((o) => o !== "cloud")
+      : VISIBLE_ORIGINS_FOR.basic;
   const gridRef = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
 
@@ -180,7 +215,7 @@ export function ImportOriginStep({
       {/* ── Origin selection ── */}
       <div role="radiogroup" aria-label="Import source"
         className="grid grid-cols-2 gap-2" ref={gridRef} onKeyDown={handleGridKeyDown}>
-        {(cloudImport ? VISIBLE_ORIGINS_FOR.linkable : VISIBLE_ORIGINS_FOR.basic).map((o, idx) => {
+        {visibleOrigins.map((o, idx) => {
           const Icon = ORIGIN_ICONS[o];
           const active = o === origin;
           return (
@@ -231,14 +266,13 @@ export function ImportOriginStep({
       </p>
 
       {/* ── Origin-specific source picking ── */}
-      {cloudImport || origin === "folder" || origin === "file" ? (
+      {cloudImport || hostImport || origin === "folder" || origin === "file" ? (
         <div ref={sourceRef} className="space-y-4">
           {origin === "folder" && <FolderSource />}
           {origin === "file" && (
             <FileSource
               source={source as Extract<OriginSource, { origin: "file" }>}
               onSourceChange={onSourceChange}
-              advancedFormats={advancedFormats}
             />
           )}
           {origin === "url" && (
@@ -285,7 +319,7 @@ function FolderSource() {
         <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
         Your device's folder picker opens when you press{" "}
         <span className="font-medium text-foreground">Browse</span>. This
-        browser uses the legacy picker — everything still stays local.
+        browser uses the legacy picker; everything still stays local.
       </div>
     );
   }
@@ -295,7 +329,7 @@ function FolderSource() {
       <FolderOpen className="mb-1.5 h-4 w-4 text-muted-foreground/80" />
       Your device's folder picker opens when you press{" "}
       <span className="font-medium text-foreground">Browse</span>. Everything
-      is processed in browser — nothing is uploaded.
+      is processed in browser; nothing is uploaded.
     </div>
   );
 }
@@ -309,119 +343,268 @@ const FILE_FORMATS: {
   accept: string;
 }[] = [
   { value: "tree", label: "ASCII Tree", icon: FolderTree, accept: ".txt" },
-  { value: "json", label: "JSON Graph", icon: FileJson, accept: ".json" },
+  { value: "json", label: "Graph File (.json / .fwr)", icon: FileJson, accept: ".json,.fwr" },
   { value: "script", label: "Shell Script", icon: FileTerminal, accept: ".sh,.bat" },
+  { value: "csv", label: "CSV", icon: FileSpreadsheet, accept: ".csv" },
+  { value: "dot", label: "DOT", icon: FileText, accept: ".dot,.gv" },
 ];
 
-const FILE_PLACEHOLDERS: Record<FileImportFormat, string> = {
-  json: `{\n  "cards": [...],\n  "edges": [...]\n}`,
-  tree: `root_project_folder/\n├── src/\n│   ├── App.tsx\n│   └── main.tsx\n└── package.json`,
-  script: `mkdir -p "src/components"\nmkdir -p "src/hooks"\nmkdir -p "public"`,
-};
+/**
+ * One picker, everything it can read: every text format's extension plus the
+ * archive set. Unconditional on purpose — archive import is not tier-gated, so
+ * nothing in this panel may narrow what the picker offers.
+ */
+const FILE_ACCEPT = Array.from(
+  new Set([
+    ...FILE_FORMATS.flatMap((f) => f.accept.split(",")),
+    ...ARCHIVE_EXTENSIONS.map((e) => `.${e}`),
+  ]),
+).join(",");
 
+/**
+ * One box, five shapes — the panel no longer asks which, it detects. The
+ * example shown is an ASCII tree, the most common paste; the rest are named.
+ */
+const PASTE_PLACEHOLDER = `Paste a Fewer export, an ASCII tree, a mkdir script, a CSV table, or a Graphviz DOT graph. The format is detected for you.
+
+root/
+├── src/
+│   └── App.tsx
+└── package.json`;
+
+/**
+ * The file origin's panel, in one of two modes:
+ *
+ *  - **text** — upload + a paste box that detects its format + CSV column mapper.
+ *  - **archive** — the chosen archive and its size; nothing else to configure.
+ *
+ * The mode is chosen by the picked file's extension (`isArchiveFileName`).
+ * ponytail: the extension is a UI hint only — `listArchive` sniffs magic
+ * bytes, so a renamed archive still imports once the user switches mode. The
+ * upgrade path is sniffing the first bytes at pick time if that ever matters.
+ *
+ * The text format is DETECTED, not chosen: `resolveFileFormat` folds detection
+ * and the user's override into the two fields the parser reads. The tiles
+ * exist only as that override, revealed by "Change" — detection stays the
+ * default because the panel's old promise ("this tile says tree") was a
+ * promise the parser never checked: pasting JSON while the ASCII-Tree tile was
+ * active parsed it as a tree.
+ */
 function FileSource({
   source,
   onSourceChange,
-  advancedFormats,
 }: {
   source: Extract<OriginSource, { origin: "file" }>;
   onSourceChange: (source: OriginSource) => void;
-  advancedFormats: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formatsRef = useRef<HTMLDivElement>(null);
-  const formats = advancedFormats
-    ? FILE_FORMATS
-    : FILE_FORMATS.filter((f) => f.value === "tree");
+  const isArchive = source.kind === "archive";
+  // Narrow to the text payload so every field access below is safe.
+  const text = source.kind === "text" ? source : null;
+  // Local UI state only — the chosen override lives in `source.formatOverride`.
+  const [showOverride, setShowOverride] = useState(false);
+  // The override tiles: Auto (back to detection) first, then every format.
+  const overrideOptions: { value: FileImportFormat | null; label: string; icon: LucideIcon }[] = [
+    { value: null, label: "Auto", icon: Wand2 },
+    ...FILE_FORMATS.map(({ value, label, icon }) => ({ value, label, icon })),
+  ];
+  /**
+   * The override ONLY — never the detected format. While Auto is active this is
+   * null, so the Auto tile is the one highlighted: lighting up the detected
+   * format's tile instead made clicking Auto look like it had defaulted to
+   * that format.
+   */
+  const activeOption = text?.formatOverride ?? null;
 
-  // Arrow-key navigation across the format tiles (a row; wraps at the ends).
+  /**
+   * Apply an override (null = back to detection). Resolves against the current
+   * content in one call, so `format` and `formatOverride` cannot drift.
+   */
+  const chooseOverride = useCallback(
+    (value: FileImportFormat | null) => {
+      if (!text) return;
+      onSourceChange({ ...text, ...resolveFileFormat(text.content, value) });
+    },
+    [text, onSourceChange],
+  );
+
+  // Arrow-key navigation across the override tiles (a row; wraps at the ends).
   const handleFormatsKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const current = source.format;
-      const idx = formats.findIndex((f) => f.value === current);
+      if (!text) return;
+      const idx = overrideOptions.findIndex((f) => f.value === activeOption);
       if (idx < 0) return;
       let next = -1;
-      if (e.key === "ArrowRight") next = (idx + 1) % formats.length;
-      else if (e.key === "ArrowLeft") next = (idx - 1 + formats.length) % formats.length;
+      if (e.key === "ArrowRight") next = (idx + 1) % overrideOptions.length;
+      else if (e.key === "ArrowLeft") next = (idx - 1 + overrideOptions.length) % overrideOptions.length;
       else return;
       e.preventDefault();
-      const chosen = formats[next].value;
-      onSourceChange({ ...source, format: chosen });
+      chooseOverride(overrideOptions[next]!.value);
       formatsRef.current
         ?.querySelector<HTMLButtonElement>(`[data-format-idx="${next}"]`)
         ?.focus();
     },
-    [source, formats, onSourceChange],
+    [text, activeOption, overrideOptions, chooseOverride],
   );
 
-  // Advanced mode off → only ASCII tree is allowed.
-  useEffect(() => {
-    if (!advancedFormats && source.format !== "tree") {
-      onSourceChange({ ...source, format: "tree" });
-    }
-  }, [advancedFormats, source, onSourceChange]);
+  const pickFile = () => fileInputRef.current?.click();
+  const clearArchive = () => onSourceChange(defaultFileSource("text"));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = (ev.target?.result as string) ?? "";
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      let format: FileImportFormat = "tree";
-      if (advancedFormats && ext === "json") format = "json";
-      else if (advancedFormats && (ext === "sh" || ext === "bat"))
-        format = "script";
-      onSourceChange({ origin: "file", content: text, format });
-    };
-    reader.onerror = () =>
-      onSourceChange({ ...source, content: "", format: source.format });
-    reader.readAsText(file);
     // Allow re-selecting the same file.
     e.target.value = "";
+    if (!file) return;
+
+    // Archives are binary: route straight to the archive reader, no decode step.
+    if (isArchiveFileName(file.name)) {
+      onSourceChange({ origin: "file", kind: "archive", file, name: file.name });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = (ev.target?.result as string) ?? "";
+      // A picked file is a NEW file, so the format is detected from its content
+      // and any override from the previous one no longer applies. The extension
+      // decides nothing here: detection is the same rule the paste box uses, so
+      // an uploaded .txt containing JSON imports as JSON.
+      //
+      // Drop any column mapping from the previous file: it belongs to those headers.
+      onSourceChange({
+        origin: "file",
+        kind: "text",
+        content,
+        csvMapping: undefined,
+        ...resolveFileFormat(content, null),
+      });
+    };
+    reader.onerror = () =>
+      onSourceChange({
+        origin: "file",
+        kind: "text",
+        content: "",
+        ...resolveFileFormat("", null),
+      });
+    reader.readAsText(file);
   };
+
+  if (isArchive) {
+    return (
+      <div className="space-y-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={FILE_ACCEPT}
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
+          onClick={pickFile}
+        >
+          <FileArchive className="h-4 w-4 text-muted-foreground" />
+          Choose a different file
+        </Button>
+
+        <div className="flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3 py-2">
+          <FileArchive className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
+            {source.name}
+          </p>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+            {formatBytes(source.file?.size ?? 0)}
+          </span>
+          <button
+            type="button"
+            onClick={clearArchive}
+            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Reads the archive&apos;s file listing and draws it as a graph: the archive
+          is never unpacked on disk, and your files never leave the browser.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-          Format
-        </Label>
-        <div
-          ref={formatsRef}
-          onKeyDown={handleFormatsKeyDown}
-          className={cn("grid gap-2", formats.length === 1 ? "grid-cols-1" : "grid-cols-3")}
-        >
-          {formats.map((f, i) => {
-            const Icon = f.icon;
-            const active = source.format === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                data-format-idx={i}
-                onClick={() => onSourceChange({ ...source, format: f.value })}
-                className={cn(
-                  "flex flex-col items-center gap-2 rounded-xl border p-3.5 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active
-                    ? "border-primary bg-primary/10 text-primary shadow-sm"
-                    : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
-                )}
-              >
-                <Icon className="h-4.5 w-4.5 opacity-85" />
-                <span className="text-center text-xs font-medium leading-tight">
-                  {f.label}
-                </span>
-              </button>
-            );
-          })}
+        {/* The detected format is the product, not the choice: say what will
+            happen, and offer "Change" only so the user can disagree with it.
+            The chip names the MODE first (Auto vs Format) so clicking Auto
+            reads as staying on Auto — never as a format being selected. */}
+        <div className="flex items-center justify-between gap-2">
+          <div data-testid="format-chip" className="flex min-w-0 items-center gap-2">
+            <ScanLine
+              className={cn(
+                "h-4 w-4 shrink-0",
+                text?.formatOverride ? "text-primary" : "text-muted-foreground/80",
+              )}
+              aria-hidden="true"
+            />
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+              {text?.formatOverride ? "Format" : "Auto"}
+            </Label>
+            <span className="truncate text-xs font-medium text-foreground/85">
+              {FILE_FORMATS.find((f) => f.value === text?.format)?.label ?? "-"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowOverride((v) => !v)}
+            aria-expanded={showOverride}
+            className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showOverride ? "Done" : "Change"}
+          </button>
         </div>
+
+        {showOverride && (
+          <div
+            ref={formatsRef}
+            onKeyDown={handleFormatsKeyDown}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          >
+            {overrideOptions.map((f, i) => {
+              const Icon = f.icon;
+              const active = f.value === activeOption;
+              return (
+                <button
+                  key={f.value ?? "auto"}
+                  type="button"
+                  data-format-idx={i}
+                  onClick={() => chooseOverride(f.value)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-xl border p-3 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    active
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border/60 hover:border-border hover:bg-muted/30 text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4 opacity-85" />
+                  <span className="text-center text-xs font-medium leading-tight">
+                    {f.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <input
         ref={fileInputRef}
         type="file"
-        accept={FILE_FORMATS.find((f) => f.value === source.format)?.accept}
+        accept={FILE_ACCEPT}
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -429,7 +612,7 @@ function FileSource({
         variant="outline"
         size="sm"
         className="h-10 w-full gap-2 border-border/80 text-xs font-medium text-foreground hover:bg-muted/40"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={pickFile}
       >
         <Upload className="h-4 w-4 text-muted-foreground" />
         Upload file
@@ -440,12 +623,141 @@ function FileSource({
           Or paste content below
         </Label>
         <Textarea
-          value={source.content}
-          onChange={(e) => onSourceChange({ ...source, content: e.target.value })}
-          placeholder={FILE_PLACEHOLDERS[source.format]}
+          value={text?.content ?? ""}
+          onChange={(e) => {
+            if (!text) return;
+            // Editing keeps the user's override — a tweak to a CSV cell must not
+            // flip them back to tree — and drops any column mapping, since a
+            // mapping belongs to the headers it was guessed from.
+            const content = e.target.value;
+            onSourceChange({
+              ...text,
+              content,
+              csvMapping: undefined,
+              ...resolveFileFormat(content, text.formatOverride),
+            });
+          }}
+          placeholder={PASTE_PLACEHOLDER}
           className="gm-scroll min-h-[140px] max-h-[240px] bg-muted/20 p-3.5 font-mono text-xs font-medium leading-relaxed text-foreground"
         />
       </div>
+
+      {text?.format === "csv" && text.content.trim() !== "" && (
+        <CsvColumnMapper source={text} onSourceChange={onSourceChange} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Column mapping for a CSV that isn't our own export. Shows only when the
+ * header row doesn't match the export shape; pre-fills the guess from the
+ * header names, and lets any field be re-pointed or cleared. The Name column
+ * is required — the others are optional enhancements to the hierarchy.
+ */
+function CsvColumnMapper({
+  source,
+  onSourceChange,
+}: {
+  source: TextFileSource;
+  onSourceChange: (source: OriginSource) => void;
+}) {
+  const headers = useMemo(() => parseCsvRows(source.content)[0] ?? [], [source.content]);
+  const isExport = isExportCsv(headers);
+  const mapping = source.csvMapping ?? guessCsvMapping(headers);
+  const sample = useMemo(() => parseCsvRows(source.content).slice(1, 4), [source.content]);
+
+  if (isExport) return null;
+
+  const set = (field: CsvMappingField, index: number) => {
+    onSourceChange({ ...source, csvMapping: { ...mapping, [field]: index } });
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border/40 bg-muted/20 p-3.5">
+      <div className="flex items-center gap-2">
+        <Columns3 className="h-4 w-4 text-muted-foreground/80" />
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
+          Columns
+        </Label>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        This CSV isn't a Fewer export: tell us which column holds which. Pick the
+        Name column to continue; the rest refine folders and links.
+      </p>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {CSV_MAPPING_FIELDS.map((field) => (
+          <div key={field} className="space-y-1">
+            <Label
+              htmlFor={`csv-map-${field}`}
+              className={cn(
+                "text-[11px] font-medium",
+                field === "name" && "text-primary",
+              )}
+            >
+              {CSV_FIELD_LABELS[field]}
+              {field === "name" ? " *" : ""}
+            </Label>
+            <Select
+              value={String(mapping[field])}
+              onValueChange={(v) => set(field, Number(v))}
+            >
+              <SelectTrigger id={`csv-map-${field}`} size="sm" className="w-full">
+                <SelectValue placeholder="Column…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="-1">None</SelectItem>
+                {headers.map((h, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {h || `Column ${i + 1}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </div>
+
+      {sample.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-border/40 gm-scroll">
+          <table className="w-full text-[11px] font-mono">
+            <thead>
+              <tr className="border-b border-border/40 bg-muted/30">
+                {headers.map((h, i) => (
+                  <th
+                    key={i}
+                    className={cn(
+                      "px-2 py-1.5 text-left font-semibold whitespace-nowrap text-muted-foreground",
+                      i === mapping.name && "text-primary",
+                    )}
+                  >
+                    {h || `Column ${i + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sample.map((row, r) => (
+                <tr key={r} className="border-b border-border/20 last:border-0">
+                  {headers.map((_, c) => (
+                    <td
+                      key={c}
+                      className={cn(
+                        "max-w-[160px] truncate px-2 py-1 whitespace-nowrap text-foreground/80",
+                        c === mapping.name && "font-semibold text-foreground",
+                      )}
+                      title={row[c] ?? ""}
+                    >
+                      {row[c] ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

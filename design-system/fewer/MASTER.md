@@ -33,16 +33,29 @@
 
 ### Typography
 
-- **Heading Font:** Satoshi (`--font-heading`)
-- **Body Font:** General Sans (`--font-body`)
+Shipped reality (this file used to say Satoshi + General Sans; the app never
+loaded them). Fonts come from `next/font/google` in `src/app/layout.tsx`, which
+self-hosts and avoids a render-blocking request:
+
+- **Heading + body:** Geist Sans (`--font-geist-sans`)
+- **Mono:** Geist Mono (`--font-geist-mono`) — owns every path, CLI, file name,
+  and code surface (card labels, `tree` output, format chips)
 - **Mood:** warm, atmospheric, premium, modern, clean, sophisticated
-- **Google Fonts:** [Satoshi + General Sans](https://fonts.google.com/share?selection.family=DM+Sans:wght@400;500;700)
 
-**CSS Import:**
+### Motion tokens
 
-```css
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap");
-```
+Defined in `src/app/globals.css` and used by every transition and reveal:
+
+| Token | Value | Role |
+| --- | --- | --- |
+| `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | entrances, reveals |
+| `--ease-aurora` | `cubic-bezier(0.4, 0, 0.2, 1)` | exits (pre-existing) |
+| `--ease-pop` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | hover lifts, handle growth (pre-existing curve) |
+| `--dur-fast` / `--dur` / `--dur-slow` | `150ms` / `200ms` / `280ms` | durations, inside the 150-300ms band |
+
+Canvas dot backdrop (marketing home) uses `--marketing-dot` (the same values
+as the canvas `<Background variant="Dots">`) and `--marketing-dot-glow` for the
+pointer-following highlight.
 
 ### Spacing Variables
 

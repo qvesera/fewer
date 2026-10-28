@@ -148,6 +148,20 @@ export async function POST(request: Request) {
     const savedGraphId = body?.saved_graph_id ?? null;
     const gallery = galleryProps(body, access, user.id);
 
+    // Derive card metadata (category histogram, preview, author attribution)
+    // server-side from the payload so /api/gallery stays metadata-only.
+    if (gallery.in_gallery) {
+      const { deriveCardMeta } = await import("@/lib/fewer/galleryCategories");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, username")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const nodes = Array.isArray(data.nodes) ? (data.nodes as never[]) : [];
+      const cardMeta = deriveCardMeta(nodes, profile);
+      Object.assign(gallery, cardMeta);
+    }
+
     const { id, reused } = await upsertShare(supabase, {
       data,
       userId: user.id,

@@ -66,3 +66,25 @@ export function parseDbShareId(hash: string): string | null {
   const id = hash.slice(2);
   return id || null;
 }
+
+// ── Hash classification ────────────────────────────────────────────────────
+
+export type ShareHashKind = "invite" | "theme" | "db" | "embedded" | "unknown";
+
+/**
+ * Classify a URL hash fragment (with the leading `#` already stripped).
+ * The `unknown` branch covers prefixes the current build doesn't handle
+ * (e.g. an older bundle receiving a `#t:` link).
+ */
+export function classifyShareHash(hash: string): ShareHashKind {
+  if (hash.startsWith("i:")) return "invite";
+  if (hash.startsWith("t:")) return "theme";
+  if (hash.startsWith("s:")) return "db";
+  // An embedded hash is a raw LZ-string blob (no colon); anything else is unknown.
+  if (hash.includes(":")) return "unknown";
+  return "embedded";
+}
+
+/** Toast shown when a share hash prefix is not supported by this build. */
+export const UNSUPPORTED_LINK_MESSAGE =
+  "This link requires a newer version of fewer. Reload the page to update.";

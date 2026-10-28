@@ -60,7 +60,7 @@ export function WatchedIndexesPanel() {
         </div>
         <p className="text-xs text-muted-foreground/80 leading-relaxed">
           These public file indexes are crawled every night at 23:59. If anything changed,
-          you'll get one consolidated email the next morning. No changes — no email.
+          you'll get one consolidated email the next morning. No changes, no email.
         </p>
       </div>
 

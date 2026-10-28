@@ -231,7 +231,7 @@ function shiftClearOf(
   prevSize: number,
   size: number
 ): number {
-  const baseGap = pass.isHorizontal ? 50 : pass.nodeGap;
+  const baseGap = pass.nodeGap;
   const compareDepth = Math.min(prevContour.right.length, contour.left.length);
   let maxOverlapShift = 0;
 
@@ -396,7 +396,11 @@ export function layoutGraphContour(
   // "base + extra * scale" primitive.
   const shynessScale = effectiveShynessScale(options?.shynessScale ?? 1);
   const isHorizontal = direction === "LR" || direction === "RL";
-  const nodeGap = isHorizontal ? 50 : 60;  // Spacing between adjacent subtrees
+  // Sibling gap on the cross axis. The horizontal value must clear a canvas
+  // GROUP frame's top inset — GROUP_PADDING (24) + GROUP_HEADER_HEIGHT (32) =
+  // 56px of frame ABOVE its topmost member (src/lib/fewer/groups.ts) — or the
+  // card above a group overlaps the group's title strip in LR/RL (T-179).
+  const nodeGap = isHorizontal ? 64 : 60;  // Spacing between adjacent subtrees
   const layerGap = 70; // Spacing between tree depths
 
   const { childrenMap, parentMap } = buildHierarchy(edges, excludeSet);

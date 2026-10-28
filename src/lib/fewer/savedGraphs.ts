@@ -1,5 +1,6 @@
 import type { FewerNode, FewerEdge } from "./types";
 import type { Tag } from "./tags";
+import type { Group } from "./groups";
 
 /**
  * Serializable snapshot of a graph for a saved graph row.
@@ -9,7 +10,10 @@ import type { Tag } from "./tags";
  * settings, synced separately, and must NOT ride along with the graph. On load
  * the viewer's current settings win, so restoring a graph never clobbers them.
  */
-export const SNAPSHOT_VERSION = 1;
+/** v2 (T-124): adds the optional `groups` array. Readers tolerate both —
+ *  `normalizeSnapshot` stamps the current version and a missing `groups` is
+ *  treated as "no groups", so v1 documents keep loading unchanged. */
+export const SNAPSHOT_VERSION = 2;
 
 export interface SavedGraphData {
   /** Schema version for snapshot normalization. Absent = legacy (treated as v0). */
@@ -18,6 +22,9 @@ export interface SavedGraphData {
   edges: FewerEdge[];
   /** Tag registry (id → Tag) so assigned colors/labels survive save/load & share. */
   tags?: Tag[];
+  /** Canvas groups (T-124): titled boxes with explicit membership. Optional —
+   *  absent means "no groups" for documents saved before the layer existed. */
+  groups?: Group[];
   /** Absolute path of the graph's root folder on the originating dev machine
    *  (resolved at import time). Lets a graph opened later — including from the
    *  cloud — open files/folders directly when the path is still there, instead

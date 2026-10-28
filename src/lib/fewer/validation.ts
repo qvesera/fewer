@@ -1,4 +1,5 @@
 import type { FewerNode, FewerEdge } from "./types";
+import { childrenIndexOf, parentIndexOf } from "./graphIndex";
 
 export interface ValidationResult {
   ok: boolean;
@@ -112,14 +113,12 @@ export function isAncestor(
 /**
  * Index the edge list as parent id → direct child ids. Single home for the
  * edge→children grouping that the store slices, layout and Hidden panel all do.
+ *
+ * Backed by the identity-cached index (graphIndex) so repeated lookups over an
+ * unchanged graph cost a map read instead of another pass over every edge.
  */
 export function childrenMapOf(edges: FewerEdge[]): Map<string, string[]> {
-  const childrenMap = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
-    childrenMap.get(e.source)!.push(e.target);
-  }
-  return childrenMap;
+  return childrenIndexOf(edges);
 }
 
 /**
@@ -132,9 +131,7 @@ export function childrenMapOf(edges: FewerEdge[]): Map<string, string[]> {
  * verbatim, so imports can.
  */
 export function parentMapOf(edges: FewerEdge[]): Map<string, string> {
-  const parentMap = new Map<string, string>();
-  for (const e of edges) parentMap.set(e.target, e.source);
-  return parentMap;
+  return parentIndexOf(edges);
 }
 
 /**
@@ -170,22 +167,28 @@ export function ancestorChainOf(id: string, parentMap: Map<string, string>): str
  * node — e.g. CustomNode's "Hide Children" toast reports `descendants.length`
  * straight to the user, and its sibling `countDescendants` dedupes for exactly
  * the same reason.
+ *
+ * Walks the identity-cached children index rather than re-scanning the edge
+ * list per dequeued node: that scan made this O(descendants × edges), which
+ * froze the UI for a second or more on a graph of ~18k edges (a folder with
+ * thousands of descendants is exactly what "Hide Children" hides).
  */
 export function getDescendants(
   rootId: string,
   edges: FewerEdge[]
 ): string[] {
+  const children = childrenIndexOf(edges);
   const result: string[] = [];
   // Seeding with the root both excludes it from the result and stops a cycle
   // back to it from re-emitting the origin.
   const visited = new Set<string>([rootId]);
-  const queue = [rootId];
-  while (queue.length) {
-    const current = queue.shift()!;
-    const children = edges.filter((e) => e.source === current).map((e) => e.target);
-    for (const c of children) {
-      // Filtering before enqueueing keeps the queue itself duplicate-free, so
-      // the pop-time re-check is unnecessary.
+  const queue: string[] = [rootId];
+  // Index-based cursor instead of shift(): same breadth-first order, no O(n²)
+  // array shifting on a walk that can cover thousands of cards.
+  for (let i = 0; i < queue.length; i++) {
+    // Filtering before enqueueing keeps the queue itself duplicate-free, so
+    // the pop-time re-check is unnecessary.
+    for (const c of children.get(queue[i]) ?? []) {
       if (visited.has(c)) continue;
       visited.add(c);
       result.push(c);

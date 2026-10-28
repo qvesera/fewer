@@ -9,6 +9,10 @@ import type { ImportActionResult, OriginSource } from "./importFlow";
  * override) is exercised as composed. None of those three modules is imported
  * by another src test, which matters because bun's mock.module registry is
  * process-wide and would otherwise replace a real binding for a later file.
+ *
+ * The file origin's REAL action lives in `fileOriginImport.ts` (re-exported
+ * through this mocked path) precisely so its own suite can never see this spy
+ * (T-145).
  */
 const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({
   ok: true,
@@ -16,7 +20,7 @@ const runFolderImport = mock<() => Promise<ImportActionResult>>(async () => ({
 }));
 const runFileImport = mock<
   (
-    source: Extract<OriginSource, { origin: "file" }>,
+    source: Extract<OriginSource, { origin: "file"; kind: "text" }>,
     options: ImportOptions,
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Graph built from file" }));
@@ -26,10 +30,14 @@ const runCloudImport = mock<
     options: ImportOptions,
   ) => Promise<ImportActionResult>
 >(async () => ({ ok: true, title: "Imported from cloud" }));
+const runArchiveImport = mock<
+  (source: { file: File | null; name: string }, options: ImportOptions) => Promise<ImportActionResult>
+>(async () => ({ ok: true, title: "Graph built from archive" }));
 
 mock.module("@/lib/fewer/importActionFolder", () => ({ runFolderImport }));
 mock.module("@/lib/fewer/importActionFile", () => ({ runFileImport }));
 mock.module("@/lib/fewer/importActionCloud", () => ({ runCloudImport }));
+mock.module("@/lib/fewer/importActionArchive", () => ({ runArchiveImport }));
 
 const { runImport } = await import("./importAction");
 
@@ -93,21 +101,72 @@ beforeEach(() => {
 });
 
 describe("runImport dispatch", () => {
+  // The last arg is the optional progress callback; runImport always forwards it
+  // so the actions have one stable signature.
   test("folder → runFolderImport with the options only", async () => {
     const o = opts({ includeHidden: true });
     const r = await runImport({ origin: "folder" }, o, ctx());
     expect(r.ok).toBe(true);
     expect(runFolderImport).toHaveBeenCalledTimes(1);
-    expect(runFolderImport).toHaveBeenCalledWith(o);
+    expect(runFolderImport).toHaveBeenCalledWith(o, undefined, undefined);
     expect(runFileImport).not.toHaveBeenCalled();
     expect(runCloudImport).not.toHaveBeenCalled();
   });
 
-  test("file → runFileImport with the source and options", async () => {
-    const source = { origin: "file", content: "root {{ child }}", format: "tree" } as const;
+  test("file → runFileImport receives options scoped to the payload, not the raw ones", async () => {
+    // Exactly the values a folder import leaves behind — the ones that used to
+    // silently rewrite a pasted JSON export (truncate at depth 6, drop
+    // .github, strip files by extension).
+    const leaked = opts({
+      maxDepth: 6,
+      includeHidden: false,
+      skipEmptyFolders: true,
+      extensions: ["ts"],
+      symlinks: "skip",
+      expandArchives: true,
+    });
+    const source = { origin: "file", kind: "text", content: "root {{ child }}", format: "tree", formatOverride: null } as const;
+    await runImport(source, leaked, ctx());
+
+    const received = runFileImport.mock.calls[0]![1];
+    // The scan concepts cannot act on a pasted file…
+    expect(received.maxDepth).toBe(0);
+    expect(received.includeHidden).toBe(true);
+    expect(received.skipEmptyFolders).toBe(false);
+    expect(received.extensions).toEqual([]);
+    expect(received.symlinks).toBe("leaf");
+    expect(received.expandArchives).toBe(false);
+    // …while the options file imports DO honour pass through untouched.
+    expect(received.includeVendored).toBe(leaked.includeVendored);
+    expect(received.includeFiles).toBe(leaked.includeFiles);
+    expect(received.displayMaxDepth).toBe(leaked.displayMaxDepth);
+    expect(runFolderImport).not.toHaveBeenCalled();
+  });
+
+  test("file + archive payload → runArchiveImport keeps the scan filters but not the walk-only switches", async () => {
+    const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], "backup.zip");
+    const leaked = opts({ maxDepth: 4, includeHidden: true, symlinks: "follow", expandArchives: true });
+    const source = { origin: "file", kind: "archive", file, name: "backup.zip" } as const;
+    await runImport(source, leaked, ctx());
+
+    const received = runArchiveImport.mock.calls[0]![1];
+    // An archive listing IS a filesystem — the scan filters earn their keep…
+    expect(received.maxDepth).toBe(4);
+    expect(received.includeHidden).toBe(true);
+    // …but these two are consumed only by the folder walkers.
+    expect(received.symlinks).toBe("leaf");
+    expect(received.expandArchives).toBe(false);
+  });
+
+  test("file + archive kind → runArchiveImport with the source and options", async () => {
+    const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], "backup.zip");
+    const source = { origin: "file", kind: "archive", file, name: "backup.zip" } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runFileImport).toHaveBeenCalledWith(source, o);
+    // The dispatcher hands the reader a plain {file, name} — the origin field is
+    // gone, but the archive action itself is unchanged.
+    expect(runArchiveImport).toHaveBeenCalledWith({ file, name: "backup.zip" }, o, undefined);
+    expect(runFileImport).not.toHaveBeenCalled();
     expect(runFolderImport).not.toHaveBeenCalled();
   });
 
@@ -121,7 +180,7 @@ describe("runImport dispatch", () => {
     } as const;
     const o = opts();
     await runImport(source, o, ctx());
-    expect(runCloudImport).toHaveBeenCalledWith(source, o);
+    expect(runCloudImport).toHaveBeenCalledWith(source, o, undefined);
   });
 
   test("cancelled result from a runner is passed through untouched", async () => {
