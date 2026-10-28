@@ -5796,3 +5796,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 4, deletions: 3}
   spent_min: 11
   session_count: 2
+- id: "T-207"
+  title: "Reconcile main<->dev history: sq elephant"
+  status: "review"
+  type: "infra"
+  area: "infra"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 489
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T11:57:18Z"
+  notes: ["2026-10-28T11:58:21Z · Real scope (title truncated at creation): the previous release squash-merged dev->main (#176), so main has no shared ancestry with dev and every touched file conflicts. main tree == dev@1a9a4c0, so joining histories with dev's tree winning is lossless. PR #488 depends on this."]
+  sessions:
+  - start: "2026-10-28T11:58:21Z"
+    end: "2026-10-28T12:01:09Z"
+    measured: true
+    note: "Joined main's squashed release history into dev via -s ours merge (7654068): tree byte-identical to dev (diff=0), main now an ancestor of dev — unblocks release PR #488, which had no CI because the merge ref could not be built. Root cause: release #176 merged with squash."
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 3
+  session_count: 1
