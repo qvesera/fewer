@@ -1840,7 +1840,7 @@ tasks:
   session_count: 1
 - id: "T-071"
   title: "Supabase migration history drift on dev: 0046-0049 are not recorded, so apply-dev refuses to push and no reseed (0050-0052) reaches the environment"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: 0
