@@ -3282,6 +3282,18 @@ def cmd_fmt(args: argparse.Namespace) -> int:
 
 
 # ── validate-commits: every commit names a tracked task ────────────────
+
+# Grandfathered commits: everything here predates trailer enforcement (the
+# pre-hook release/sync era, #100–#176) except 0683a79 (#445), whose
+# `Task: T-208..T-223` trailers were stamped by the fewer-desktop fork's
+# ledger — ids that never existed in this repo's row set. Enumerated once so a
+# release PR (validating the whole dev..main line) can pass; NEVER extended:
+# a new commit must carry a real trailer instead.
+LEGACY_UNTRACKED = frozenset({
+    "03aca07", "0683a79", "0807f3e", "1a9a4c0", "1c001f7", "2a96296",
+    "3e260cd", "492f304", "7482fb0", "7fede77", "9eb7f19", "bcf5c7f",
+    "e2654a3", "f5c94f6",
+})
 def commit_trailers(body: str, subject: str = "") -> list[str]:
     """Ids named by `Task: T-###` trailers (body lines, or the subject)."""
     ids: list[str] = []
@@ -3322,7 +3334,11 @@ def cmd_validate_commits(args: argparse.Namespace) -> int:
     if not args.base:
         _die("validate-commits requires --base <ref>")
     revspec = args.base if ".." in args.base else f"{args.base}..HEAD"
-    out = git("log", "--no-merges", "--format=%h%x01%s%x01%B%x01--%x01", revspec, check=False)
+    # --first-parent: a join/release merge imports the other branch's history
+    # wholesale (e.g. `merge: join main's squashed release history into dev`);
+    # those commits belong to the base side, not this PR, so the walk must not
+    # descend through second parents. For linear branches the set is identical.
+    out = git("log", "--no-merges", "--first-parent", "--format=%h%x01%s%x01%B%x01--%x01", revspec, check=False)
     commits = [c for c in out.split("\x01--\x01") if c.strip()]
     if not commits:
         print(f"validate-commits: no commits in {revspec}")
@@ -3334,6 +3350,9 @@ def cmd_validate_commits(args: argparse.Namespace) -> int:
         if len(parts) < 2:
             continue
         short, subject, body = parts[0].strip(), parts[1].strip(), parts[2] if len(parts) > 2 else ""
+        if short[:7] in LEGACY_UNTRACKED:
+            # Grandfathered — see the constant above cmd_validate_commits.
+            continue
         if re.match(r"^(Merge |Revert |fixup! |squash! )", subject):
             continue
         paths = [p for p in git("show", "--name-only", "--format=", short,
