@@ -5798,7 +5798,7 @@ tasks:
   session_count: 2
 - id: "T-207"
   title: "Reconcile main<->dev history: sq elephant"
-  status: "in-progress"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: 0
@@ -5824,10 +5824,10 @@ tasks:
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   - start: "2026-10-28T12:30:14Z"
-    end: null
+    end: "2026-10-28T12:38:44Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 3
+    note: "Follow-up: fixed the gates that blocked the join. tasks.py validate-commits now walks --first-parent (a join PR's second-parent history is base-side) and grandfathers 14 pre-hook/desktop-fork commits (LEGACY_UNTRACKED); T-207 got issue #490 (v0.7.2); T-146 closed via the hop triaged→review→done (PR #416 merged). Join PR #489 merged as 494f06a; main ⊆ dev verified."
+    proof: ["0a830b3", "#488"]
+    effort: {commits: 1, files: 2, insertions: 30, deletions: 5}
+  spent_min: 11
   session_count: 2
