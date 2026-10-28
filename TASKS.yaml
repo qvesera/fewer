@@ -5862,7 +5862,7 @@ tasks:
   session_count: 1
 - id: "T-209"
   title: "Restore the brand mark + home link in the app header (removed by accident in #448)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: 0
@@ -5891,7 +5891,7 @@ tasks:
   session_count: 1
 - id: "T-210"
   title: "autoHideCap tests leak sortKey/sortDir from the singleton store (CI order-dependent failure)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: 0
