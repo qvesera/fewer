@@ -5918,3 +5918,32 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 7, deletions: 0}
   spent_min: 2
   session_count: 1
+- id: "T-211"
+  title: "Release v0.8.0: changelog cut + package.json sync, lands via #498"
+  status: "review"
+  type: "task"
+  area: "infra"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 501
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T18:09:18Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T18:10:13Z"
+    end: "2026-10-28T18:12:44Z"
+    measured: true
+    note: "v0.8.0 cut: changelog release 0.8.0 (finalized Unreleased + fresh section) + package.json 0.7.1->0.8.0, validate OK. PR #501 lands it on dev so #498 carries it to main."
+    proof: ["ea4b175", "#501"]
+    effort: {commits: 1, files: 2, insertions: 3, deletions: 1}
+  spent_min: 3
+  session_count: 1
