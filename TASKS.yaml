@@ -5920,7 +5920,7 @@ tasks:
   session_count: 1
 - id: "T-211"
   title: "Release v0.8.0: changelog cut + package.json sync, lands via #498"
-  status: "review"
+  status: "done"
   type: "task"
   area: "infra"
   tier: 0
