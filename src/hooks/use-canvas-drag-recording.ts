@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import type { FewerNode } from "@/lib/fewer/types";
 
@@ -40,6 +40,15 @@ export function useCanvasDragRecording({
     }
   }, [leafId, positionedNodes, seedNodePositions]);
 
+  // Identity-stable wrapper. `positionedNodes` changes on every drag frame, so
+  // handing the raw callback to the node-change handler gave it — and React
+  // Flow's stored `onNodesChange` — a new identity on every frame; RF's
+  // `StoreUpdater` compares tracked props by identity and wrote its store each
+  // time (#281).
+  const seedRef = useRef(seedOnFirstDrag);
+  useEffect(() => { seedRef.current = seedOnFirstDrag; });
+  const seedOnFirstDragStable = useCallback(() => seedRef.current(), []);
+
   const effectiveRecordDragMoves = useCallback(
     (moves: { nodeId: string; from: { x: number; y: number }; to: { x: number; y: number } }[]) => {
       if (leafId) {
@@ -54,5 +63,5 @@ export function useCanvasDragRecording({
     [leafId, seedOnFirstDrag, recordDragMoves, setNodePositionForLeaf],
   );
 
-  return { seedOnFirstDrag, effectiveRecordDragMoves };
+  return { seedOnFirstDrag: seedOnFirstDragStable, effectiveRecordDragMoves };
 }

@@ -1,6 +1,6 @@
 # fewer
 
-### Turn any directory into an interactive graph you can explore, edit, and export.
+### Open a folder and see everything inside it, all at once.
 
 [![Website Status](https://api.netlify.com/api/v1/badges/c64e4649-a3d3-4eb4-a02a-f712a785ab70/deploy-status)](https://app.netlify.com/projects/fewer-directory/deploys)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
@@ -15,7 +15,7 @@
 ---
 
 > [!IMPORTANT]
-> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project. The only network call is an optional GitHub repo import. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
+> **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project, and your directory is never uploaded. Network calls happen only for features you opt into: a GitHub/URL/Internet Archive import, a linked cloud account, an optional account (saved graphs, share links, gallery), watch digests, or the on-demand archive engine for `.7z`/`.rar`/`.xz`/`.bz2`/`.zst`. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
 
 ---
 
@@ -23,7 +23,7 @@
 
 You need to understand a directory structure: a new codebase, a project to document, a mess to reorganize. Standard tools don't help: `tree` is static, file managers show one folder at a time, `ls -R` is a wall of text. You scroll, search, switch contexts, and still miss the shape of it.
 
-If you've used a file tree in VS Code or `tree` in the terminal, you know the fix. What's new is turning that tree into an interactive graph: drag, search, edit, rename, export in 7 formats, all in the browser, with nothing to install beyond a dev server.
+If you've used a file tree in VS Code or `tree` in the terminal, you know the fix. What's new is turning that tree into an interactive graph: drag, search, edit, rename, group, export in 8 formats, all in the browser, with nothing to install beyond a dev server.
 
 ---
 
@@ -40,7 +40,14 @@ Open `http://localhost:3000`, click **Load sample project**, and explore the gra
 
 ![fewer demo](public/demo.png)
 
-Use arrow keys to navigate the tree. Right-click any node for actions. Press **Ctrl+I** for all shortcuts.
+Use arrow keys to navigate the tree. Right-click any card for actions. Press **Ctrl+I** for all shortcuts.
+
+The public home page at [fewer.directory](https://fewer.directory) opens on the promise and nothing else: a full-screen hero carrying five rotating ways of saying what the product does (see a folder, find a file, understand it, fix a mess, watch a folder for changes), whose 15-second clock starts as soon as the page does, with a bar inside the active dot that fills over those same 15 seconds and pauses with the clock, arrows to step, dots to jump and a button to park it all, plus a Lenis-eased scroll underneath (native scroll for touch and for anyone asking for reduced motion), and the first scroll is the page's opening move: it takes you all the way to the demo instead of nudging a few lines. The demo is the screen below, and the demo graph is the feature index itself - a folder card for each of the three rail groups (See your files, Shape it, Keep & share) and a file card for each of the ten features, so hovering a card tells exactly that feature (the card's id IS the feature's id). Open a folder, an archive, a URL or a repo, search by name even inside a zip, plan a structure and export it as a shell script, group cards and give them a note, batch-rename them, watch a public index, theme and share it. Hover a card or use the feature rail to see each one, step through all ten with the arrows in the feature card, or let the feature tour walk them for you (it parks itself under reduced motion, and the card's pause button is real); whichever feature is on screen is the card with the app's own active outline around it, with an ambient glow behind it, while everything else dims while you read. The Themes proof links on to the [community gallery's themes tab](https://fewer.directory/gallery?tab=themes), where Apply tries a theme on the whole page. The `tree` vs `fewer` toggle and the accent swatches live in the chassis's title bar, and the Crown Shyness dial in the Organize card is the app's own slider: dragging it re-flows the demo tree on the canvas behind it.
+
+**Testing Pro features locally (dev builds only):** append `?tier=pro` to the URL to unlock
+the Pro surface (split views, docking, tags) without a Pro account. `?tier=free` and
+`?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
+and production builds ignore the parameter.
 
 ---
 
@@ -61,6 +68,16 @@ bun run dev
 ### Alternative installs
 
 <details>
+<summary><b>Desktop app</b></summary>
+
+The standalone desktop build is distributed separately — its source lives in a
+private repository (`qvesera/fewer-desktop`) and is no longer built from this
+repo. This repo is the web app: `bun run build` produces the Next.js standalone
+server.
+
+</details>
+
+<details>
 <summary><b>Docker</b></summary>
 
 ```bash
@@ -78,9 +95,9 @@ docker run -p 3000:3000 fewer
 | ----- | --------------------------------------------------------------------------- |
 | **1** | Click **Load sample project** in the welcome dialog                         |
 | **2** | Use **arrow keys** (↑↓←→) to navigate the tree                              |
-| **3** | **Right-click** any node for context menu                                   |
+| **3** | **Right-click** any card for context menu                                   |
 | **4** | Press **Ctrl+I** to see all keyboard shortcuts                              |
-| **5** | Click **Export** to save the graph (SVG, PNG, JSON, CSV, DOT, script, tree) |
+| **5** | Click **Export** to save the graph (SVG, PNG, JSON, FWR, CSV, DOT, script, tree) |
 
 ### Import a real directory
 
@@ -88,18 +105,22 @@ docker run -p 3000:3000 fewer
 2. Select a folder: configurable depth, hidden files, extension filters
 3. The graph builds instantly with auto-layout
 
-> **Note:** Drag-and-drop import from your OS, "Open in File Explorer", and
-> "Open File" are switched off in the web build (build-time `LOCAL_FS_FEATURES`
-> flags in `src/lib/fewer/features.ts`) — use **Import → From disk** instead.
+> **Note:** In the **web build**, drag-and-drop import from your OS, "Open in
+> File Explorer", and "Open File" are switched off (build-time
+> `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`): use
+> **Import → From disk** instead. The **desktop app** has them all: drag a
+> folder onto the canvas to open it as the graph (it asks before replacing the
+> current one), or drop a file to open it in its default app.
 
 ### Edit the graph
 
-- **Rename** a node: **F2** or right-click
-- **Add** a node: **Alt+N**
-- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any node's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
+- **Rename** a card: **F2** or right-click
+- **Add** a card: **Alt+N**
+- **Add a child** by dragging from a folder's output handle, **add a parent folder** by dragging from any card's input handle (both open a dialog on release; a new parent may share the name of the card it wraps)
 - **Delete**: **Delete** key (cascading children)
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
-- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; node moves and tag assignments/deletes included)
+- **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
+- **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike. Collapsing shrinks the frame to a pill whose connections stay ordinary canvas edges (your connection style, dash and width apply, and the group's colour tints them), and you can drag the pill to move the collapsed group
 
 ---
 
@@ -111,13 +132,13 @@ docker run -p 3000:3000 fewer
 - **React Flow v12** canvas with minimap + controls
 - **Folder cards** (orange): children inline, scrollable, item counts, sizes
 - **File cards** (purple): filename, extension, category icon, size
-- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left
+- **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left, and the view re-fits to the whole graph when you switch, or after Organize
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight
 - **Custom Reingold-Tilford layout** with type-aware dimensions and crown-shyness spacing (subtree gaps scale with depth + size)
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
-- **Tags** *(Pro)*: assign named, colored tags to folders and files — tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
+- **Tags** *(Pro)*: assign named, colored tags to folders and files. Tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
 - **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
-- **Breadcrumb bar**: selected node's full path
+- **Breadcrumb bar**: selected card's full path
 
 </details>
 
@@ -127,7 +148,7 @@ docker run -p 3000:3000 fewer
 | Key                       | Action                                 |
 | ------------------------- | -------------------------------------- |
 | **↑↓←→**                  | Tree navigation (parent/child/sibling) |
-| **Alt+N**                 | New node                               |
+| **Alt+N**                 | New card                               |
 | **Ctrl+F**                | Search (fuzzy, click-to-zoom)          |
 | **Ctrl+E**                | Export panel                           |
 | **Ctrl+Z / Ctrl+Shift+Z** | Undo / Redo                            |
@@ -145,9 +166,9 @@ docker run -p 3000:3000 fewer
 <summary><b>Search</b></summary>
 
 - **Fuzzy search** across filenames, paths, extensions
-- **Click result** → zoom to node
-- **Hidden nodes** appear with badge: clicking shows the node **and its whole hidden ancestor chain** up to root, then zooms
-- **Highlight/dim** matched/unmatched nodes
+- **Click result** → zoom to card
+- **Hidden cards** appear with badge: clicking shows the card **and its whole hidden ancestor chain** up to root, then zooms
+- **Highlight/dim** matched/unmatched cards
 - **Recent searches** - committed terms persist for the browser session and appear when reopening search (clear from the panel)
 
 </details>
@@ -159,8 +180,8 @@ docker run -p 3000:3000 fewer
 | ---------- | ---------------------------------------------------------------- |
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
 | **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
-| **Canvas** | Fit View, Select All, Zoom In/Out, Show All                      |
-| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Move to Folder…, Unparent, Delete N Items |
+| **Canvas** | Fit View, Select All, Organize, Zoom In/Out, Show All                      |
+| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Tags, Move to Folder…, Unparent, Delete N Items |
 
 </details>
 
@@ -168,9 +189,12 @@ docker run -p 3000:3000 fewer
 <summary><b>Import</b></summary>
 
 - **Import from disk**: directory read with depth, hidden-file, and extension filters (File System Access API where enabled, `webkitdirectory` fallback elsewhere)
-- **Import from File**: JSON export, ASCII tree text, shell/batch `mkdir` scripts
+- **Symlink support**: on local-path imports, symbolic links import as link cards (link icon, `↷ target` badge, contrast connection with arrowhead) instead of vanishing: show-as-links by default, follow external targets, or skip; right-click → Info for Copy Target Path / Go to Target / Open Target in File Explorer; broken links stay visible with a warning
+- **Import from File**: Fewer graph documents (`.fwr`: restored whole, with positions, tags and groups), JSON export (structural: the graph is rebuilt, and it carries no tags or groups), ASCII tree text (understands `name -> target` symlink lines), shell/batch `mkdir` scripts, CSV (Fewer export or your own spreadsheet: non-export CSVs get a column-mapping panel), Graphviz DOT (Fewer export or third-party), and archives: **the format is detected from the content**, not chosen: a chip reports the mode and what was found (`Auto: CSV`), and **Change** reveals the tiles to override it (Auto returns to detection, and stays highlighted while auto is in force: never the detected format's). Your override is kept for that file even as you keep editing it. Uploads are detected the same way, so a `.txt` full of JSON imports as JSON. For archives: `.zip`, `.tar`, `.tar.gz`/`.tgz`, `.gz`, and, via an on-demand WebAssembly libarchive, `.7z`, `.rar` (v4/v5), `.xz`, `.bz2`, `.zst`. Reads the archive's file listing and draws it, without unpacking anything to disk. The archive never leaves your browser. zip/tar ship with no decompressor at all (the listing lives uncompressed inside them, and `.tar.gz` uses the browser's own gzip); the 7z/RAR/xz/bz2/zstd engine is fetched the first time you open one of those, and reads the whole archive into memory. Archives with more than 20,000 entries are truncated with a notice. There is no separate "Archive" origin: picking an archive switches the File panel to archive mode. The folder-import **Look Inside Archives** option is unchanged.
+- **Look Inside Archives** (advanced): folder imports can also expand the archives they find, showing each archive's contents as part of the tree: nothing is extracted, the listing is read in place. Off by default; one level deep; depth limits and per-import ceilings apply.
 - **Import from URL**: GitHub repo tree (public repos), any public Apache/nginx file index, or Internet Archive item (`archive.org/details/<id>`)
 - **webkitdirectory** fallback (Firefox/Safari)
+- **Progress feedback**: a long folder or archive import reports its current phase and a percentage on a progress bar, with a **Cancel** button while it runs
 - **Brave browser** detection with flag workaround instructions
 
 </details>
@@ -183,7 +207,7 @@ docker run -p 3000:3000 fewer
 - **Live custom theme editor** with hex input, per-color opacity, and a native color swatch
 - **Community theme gallery**: publish your saved themes (attributed to your profile), search themes and authors, apply any theme instantly on the gallery page, and open `#t:` links that set it as your last-used theme
 - **Gradient support** for canvas background, folder body, and file body (two-stop linear gradient with angle control)
-- Changes apply instantly to all nodes
+- Changes apply instantly to all cards
 
 </details>
 
@@ -192,7 +216,7 @@ docker run -p 3000:3000 fewer
 
 - **File operations**: copy, move, delete, create, rename, open files on disk
 - **FileSystemHandle** stored on each node for disk-level ops
-- **Import settings**: depth limit, hidden files, vendored dirs, extension filter, file/folder toggles
+- **Import settings**: options are scoped to where the import comes from: folder and listing imports offer scan depth, hidden files, vendored dirs, extension filter, symlink handling and archive expansion, while a pasted or uploaded file imports exactly as given (only the dependency-folder filter and the display settings apply to it)
 
 </details>
 
@@ -200,7 +224,7 @@ docker run -p 3000:3000 fewer
 <summary><b>Accounts & Saved Graphs</b></summary>
 
 - **Optional accounts**: email/password sign-in, Google/GitHub sign-in, or passwordless email links (magic link) via Supabase Auth. Account deletion runs with a 7-day grace window (sign in again to cancel). The app works fully logged-out
-- **Save graphs**: save the current graph (nodes, layout, theme, settings) to your account
+- **Save graphs**: save the current graph (cards, layout, theme, settings) to your account
 - **Your Directories**: load, rename, share, and delete saved graphs from the sidebar
 - **Selective sharing**: share saved graphs as "anyone with the link" or invite-only
 - **Short share links**: large graphs use a short server-backed `#s:<id>` link instead of a long URL hash
@@ -212,7 +236,7 @@ docker run -p 3000:3000 fewer
 
 - **Link cloud accounts**: connect GitHub, Google Drive, OneDrive, SharePoint, Azure DevOps, and Azure Blob via OAuth
 - **Browse & import**: lazily browse a linked account's folders and import one into the graph
-- **Open in provider**: open any imported node in its provider's web UI
+- **Open in provider**: open any imported card in its provider's web UI
 
 </details>
 
@@ -244,15 +268,16 @@ docker run -p 3000:3000 fewer
 | ---------- | ------------------------------------------ | ----------------------------- |
 | **SVG**    | Vector with theme background               | Documentation, presentations  |
 | **PNG**    | Raster, adjustable quality, transparent bg | Slides, social media          |
-| **JSON**   | Full graph state                           | Re-import, programmatic use   |
-| **CSV**    | Tabular nodes + connections                      | Spreadsheets, data analysis   |
+| **JSON**   | Structural graph data                      | Re-import, programmatic use   |
+| **FWR**    | Fewer graph document: cards, positions, tags, groups | Re-import restores the whole graph |
+| **CSV**    | Tabular cards + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
 
-Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
+Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, collapsed groups (pill and their wires), tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 
 ---
 
@@ -261,7 +286,7 @@ Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards,
 - [Docs](/docs): feature guides, tutorials, and technical references
 - [Blog](/blog): release notes, feature deep-dives, and behind-the-scenes stories
 
-**Docs & Blog are headless.** Blog posts and doc pages live in a Supabase `content_pages` table and are rendered at request time with a 60-second revalidate, so publishing a post or fixing a doc typo goes live in under a minute — no code release needed.
+**Docs & Blog are headless.** Blog posts and doc pages live in a Supabase `content_pages` table and are rendered at request time with a 60-second revalidate, so publishing a post or fixing a doc typo goes live in under a minute: no code release needed.
 
 To publish or edit:
 
@@ -269,7 +294,7 @@ To publish or edit:
 2. Insert a new row (or edit an existing one): `type` = `blog` or `docs`, `slug`, `title`, `description`, `content` (markdown body), plus `author`/`date`/`tags` for blog rows
 3. Set `published = true` → live within ~60 seconds
 
-Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is kept in-repo as a source-of-record backup and seeded into `content_pages` by `supabase/migrations/0021_content_pages.sql`.
+Writes go through the service role (RLS is public-read-only for published rows). The markdown in `content/blog/` and `content/docs/` is the source of record, but it is **not** what readers see: the app renders `content_pages` only. The repo copy is seeded into the table by `scripts/gen-seed-content.py`, which emits an idempotent `NNNN_content_pages_reseed.sql` migration that upserts every row (latest: `0049_content_pages_reseed.sql`). A markdown-only edit therefore reaches users after that migration is applied; editing the row in Studio goes live in ~60 seconds without one.
 
 ## How It Works
 
@@ -277,7 +302,7 @@ Writes go through the service role (RLS is public-read-only for published rows).
 User action → KeyboardShortcuts / ContextMenu → graphStore (Zustand) → React Flow re-render
 ```
 
-The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer — one buffer per panel view.
+The **Zustand store** is the single source of truth. React Flow nodes/connections are derived from store state. **Undo/redo** wraps store actions with a 50-step history buffer: one buffer per panel view.
 
 <details>
 <summary><b>Architecture</b></summary>
@@ -345,7 +370,7 @@ src/
 | Graph     | React Flow v12 (@xyflow/react)                                  |
 | State     | Zustand                                                         |
 | Language  | TypeScript 5 (strict)                                           |
-| Database  | Supabase (Postgres) — auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
+| Database  | Supabase (Postgres): auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
 
@@ -364,7 +389,7 @@ src/
 > **OS integration is switched off in the web build.** The File System Access
 > directory picker, "Open File", and "Open in File Explorer" are gated behind
 > `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts` (all flags `false`), so they
-> are unavailable in every browser until a build flips them — see
+> are unavailable in every browser until a build flips them: see
 > [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
 > Folder import works everywhere through the `webkitdirectory` fallback.
 
@@ -374,7 +399,7 @@ src/
 
 **Q: Does fewer send my directory data anywhere?**
 
-A: Your directory is never uploaded — local import, editing, layout, and export run entirely in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
+A: Your directory is never uploaded. Local import, editing, layout and export all run in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
 
 **Q: Can I use fewer without installing anything?**
 
@@ -382,7 +407,7 @@ A: Yes. The standalone version is available at [app.fewer.directory](https://app
 
 **Q: Why does directory import not work in Firefox/Safari?**
 
-A: Folder import works in every browser — Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only — and are currently switched off entirely in the web build (see the note above).
+A: Folder import works in every browser: Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only, and are currently switched off entirely in the web build (see the note above).
 
 **Q: How do I uninstall?**
 
@@ -394,7 +419,7 @@ A: No. Fewer works fully without one. Signing in (optional) unlocks saving graph
 
 **Q: Can I set my own avatar?**
 
-A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload — that keeps the app free of image storage without giving up identity in the toolbar.
+A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload, that keeps the app free of image storage without giving up identity in the toolbar.
 
 ---
 
@@ -407,6 +432,8 @@ See [ROADMAP.md](ROADMAP.md) for the full roadmap, covering short-term, medium-t
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. By participating, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Brand assets: `public/logo.svg` is the source of record. The raster copies (`logo.png`, `logo-192.png`, `logo-512.png`) are regenerated from it with `bun scripts/logo-assets.ts`, and the share-card image (`public/og.png`, 1200×630) with `bun scripts/og-card.ts`; the copies frozen into exported SVGs and emails are pinned to their assets by `src/lib/fewer/brandAssets.test.ts`, so `bun run test` fails if the drawing changes without re-copying.
 
 ## License
 

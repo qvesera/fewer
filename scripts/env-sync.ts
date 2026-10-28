@@ -65,6 +65,9 @@ const REGISTRY: Record<string, {
   STRIPE_SECRET_KEY:                    { env: "both", secret: true,  scope: "functions", github: "secret", placeholder: "YOUR_STRIPE_SECRET_KEY" },
   STRIPE_WEBHOOK_SECRET:                { env: "both", secret: true,  scope: "functions", github: "secret", placeholder: "YOUR_STRIPE_WEBHOOK_SECRET" },
   STRIPE_PRO_PRICE_ID:                  { env: "both", secret: false, scope: "runtime",   github: "var", placeholder: "YOUR_STRIPE_PRO_PRICE_ID" },
+  // Desktop licensing rail (T-148): OFF by default — a shell build pins its
+  // tier to free and hides the License tab entirely until this is 1.
+  NEXT_PUBLIC_LICENSING_ENABLED:        { env: "both", secret: false, scope: "builds",    github: "var" },
 };
 
 /* Vars referenced by code; used by check(). */
@@ -75,6 +78,7 @@ const CODE_VARS = [
   "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
   "MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT", "AZURE_BLOB_STORAGE_ACCOUNT",
   "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRO_PRICE_ID",
+  "NEXT_PUBLIC_LICENSING_ENABLED",
 ];
 
 /* ---- check ---- */

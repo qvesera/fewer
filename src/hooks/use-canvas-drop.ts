@@ -15,17 +15,21 @@ interface DropDeps {
 }
 
 /**
- * Handle two drop paths on the canvas:
+ * Handle three drop paths on the canvas:
  *  1. An intra-canvas Few­er payload (a child node dragged from its parent card)
  *     → either expand the folder from disk (if a directory handle is attached
  *     and drop-to-expand is enabled) or create a standalone node.
- *  2. An external native file/folder drop on an empty canvas → open the system
- *     folder picker and import the directory tree.
+ *  2. An OS-dropped file/folder in the desktop shell (T-122) → the preload
+ *     bridge resolves the File to an absolute path; a folder becomes the graph,
+ *     a file opens in the OS's default app.
+ *  3. An external native file/folder drop on an empty canvas (web) → open the
+ *     system folder picker and import the directory tree.
  *
  *  ⚠️ Do NOT iterate `dataTransfer.items` or call item-level methods
  *  (getAsFileSystemHandle, webkitGetAsEntry, getAsString, …). On portalized /
  *  sandboxed Chromium builds (Vivaldi Flatpak, Brave, some Windows) ANY
- *  item-level access can crash the renderer process.
+ *  item-level access can crash the renderer process. Path 2 reads `files`
+ *  instead, and only ever runs inside the shell's own packaged Chromium.
  */
 export function useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast }: DropDeps) {
   const onDrop = useCallback(
@@ -53,6 +57,8 @@ export function useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast }
 
       // External native drop on the empty canvas → open the system folder picker
       // (safe on every platform — no DataTransfer item access that could crash).
+      // Shell builds never reach this: path 2 resolves above. It stays as the
+      // degraded path when a host exposes no filePath helper.
       if (useGraphStore.getState().nodes.length > 0 || !LOCAL_FS_FEATURES.dragDropImport) return;
 
       const store = useGraphStore.getState();

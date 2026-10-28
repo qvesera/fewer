@@ -2,30 +2,53 @@ import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { OnSelectionChangeParams } from "@xyflow/react";
 
-import { mergeSelection } from "@/lib/fewer/canvasSelection";
-import type { FewerNode } from "@/lib/fewer/types";
+import { nextSelectionIds, selectionForLeaf, toggleSelection } from "@/lib/fewer/canvasSelection";
+import { isGroupPillNodeId } from "@/lib/fewer/groupLayout";
+import { selectionBounds, viewportForBounds } from "@/lib/fewer/fitBounds";
 import { useGraphStore } from "@/store/graphStore";
+import { can } from "@/lib/fewer/tiers";
+import { nodeAbsolutePath } from "@/lib/fewer/filePaths";
 
 export interface CanvasSelectionHandlers {
   /** Merge RF's live selection into the store (per-leaf aware). */
   onSelectionChange: (params: OnSelectionChangeParams) => void;
+  /** Card click: write the selection directly — RF's report arrives after pointerup. */
+  onNodeClick: (event: unknown, node: { id: string }) => void;
   /** Double-click: guard the selection from RF's stale snapshot + zoom to node. */
   onNodeDoubleClick: (event: unknown, node: { id: string }) => void;
   /** Zoom to the current selection (or fit the whole graph when empty). */
   fitToSelection: () => void;
   /** Select every node (store + RF canvas). */
   selectAll: () => void;
+  /** Claim the store's selection for a drag that is about to begin. */
+  seedSelectionForDrag: (ids: string[]) => void;
+  /** The drag ended — stop defending its selection against RF reports. */
+  endSelectionDrag: () => void;
 }
 
 export interface CanvasSelectionDeps {
   setSelectedNodeIds: (ids: string[]) => void;
-  setRfNodes: Dispatch<SetStateAction<FewerNode[]>>;
   /** Set while an additive Shift+drag box select is in flight. */
   boxSelectBaseRef: { current: Set<string> | null };
   /** Live RF edge-selection ref (owned by useCanvasEdges). */
   selectedEdgeIdsRef: { current: Set<string> };
   fitView: (opts: { nodes?: Array<{ id: string }>; duration?: number; padding?: number; maxZoom?: number }) => void;
+  /** Set the viewport directly — the bounds-based fit for selections with
+   *  groups in them (T-143); RF's fitView({nodes}) can't see hidden members. */
+  setViewport: (v: { x: number; y: number; zoom: number }, opts?: { duration?: number }) => void;
+  /** Pane the canvas paints into — bounds-based fits need its size. */
+  containerRef: { current: HTMLDivElement | null };
   leafId?: string | null;
+  /**
+   * IDs of nodes visible in the current view — select-all is scoped to these,
+   * not every node in the store (which may span multiple leaves/views).
+   */
+  visibleNodeIds: string[];
+  /**
+   * True while a pointer gesture is live in this canvas (CanvasInner tracks it).
+   * React Flow's selection subscription is advisory — see onSelectionChange.
+   */
+  pointerActiveRef: { current: boolean };
 }
 
 /**
@@ -38,26 +61,84 @@ export interface CanvasSelectionDeps {
  * loop. That effect handles both RF-edge highlighting and store-edge sync on
  * every selection / graphVersion / theme change instead.
  */
-export function useCanvasSelection({ setSelectedNodeIds, setRfNodes, boxSelectBaseRef, selectedEdgeIdsRef, fitView, leafId }: CanvasSelectionDeps): CanvasSelectionHandlers {
-  // Protect double-click selection from being cleared by the subsequent onSelectionChange.
-  const doubleClickedIdRef = useRef<string | null>(null);
+export function useCanvasSelection({ setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, fitView, setViewport, containerRef, leafId, visibleNodeIds, pointerActiveRef }: CanvasSelectionDeps): CanvasSelectionHandlers {
+  // What React Flow selected when the live drag began. A drag must keep its
+  // highlight: until the store has this view's own selection, the canvas paints
+  // the dragged card unselected on its next push, React Flow reports an empty
+  // selection back, and store → canvas → React Flow → store repeats until React
+  // gives up with "Maximum update depth exceeded" — the #281 crash, which only
+  // happened when the drag was the FIRST interaction (clicking a card first
+  // leaves `leafSelections[leafId]` populated and the write becomes a no-op).
+  const dragSelectionRef = useRef<string[] | null>(null);
+
+  const seedSelectionForDrag = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      dragSelectionRef.current = ids;
+      if (leafId) useGraphStore.getState().setSelectionForLeaf(leafId, ids);
+      else setSelectedNodeIds(ids);
+    },
+    [setSelectedNodeIds, leafId],
+  );
+
+  const endSelectionDrag = useCallback(() => { dragSelectionRef.current = null; }, []);
+
+  /**
+   * A card click writes the selection itself.
+   *
+   * React Flow's selection subscription fires *after* pointerup, so the gesture
+   * gate above (rightly) treats that report as advisory and drops it — which
+   * would leave the store empty while RF paints the clicked card. The click is
+   * the one input we can observe synchronously and unambiguously, so it carries
+   * the intent directly: a plain click selects the card, Shift adds to the
+   * view's selection, Ctrl/Cmd toggles it off (the same semantics RF applies to
+   * its own state). The lagging report then matches the store and is a no-op.
+   */
+  const onNodeClick = useCallback((_event: unknown, node: { id: string }) => {
+    if (!leafId) return;
+    const e = _event as { shiftKey?: boolean; metaKey?: boolean; ctrlKey?: boolean } | null;
+    const state = useGraphStore.getState();
+    const prev = selectionForLeaf(state.leafSelections, leafId, state.activeLeafId, state.selectedNodeIds);
+    const next = e?.shiftKey
+      ? (prev.includes(node.id) ? prev : [...prev, node.id])
+      : (e?.metaKey || e?.ctrlKey)
+        // Toggle, both directions: an unselected card joins, a selected one
+        // leaves. Only the deselect half existed, so Ctrl+clicking a fresh card
+        // after a stale selection left the stale list in place.
+        ? toggleSelection(prev, node.id)
+        : [node.id];
+    state.setSelectionForLeaf(leafId, next);
+  }, [leafId]);
 
   // ── Selection: highlight ancestor path for EVERY selected node ──
   const onSelectionChange = useCallback(
     ({ nodes: selected, edges: selectedEdges }: OnSelectionChangeParams) => {
-      const selectedIds = new Set(selected.map((n) => n.id));
-      // If a double-click just selected a node, ensure it stays selected
-      // even if RF's onSelectionChange reports a stale/empty selection.
-      if (doubleClickedIdRef.current) {
-        selectedIds.add(doubleClickedIdRef.current);
-        doubleClickedIdRef.current = null;
-      }
-      // Sync the live edge-selection ref from RF's authoritative full-selection
+      // A collapsed group's pill is a NODE (T-180) so edges attach to it, but it
+      // is not a CARD: a box selection must not adopt it as one (Delete, copy,
+      // the highlight path and the member count would all see a phantom card).
+      const cardNodes = selected.filter((n) => !isGroupPillNodeId(n.id));
+      const selectedIds = new Set(cardNodes.map((n) => n.id));
+      // Sync the live edge-selection ref from RF's selection snapshot
       // snapshot so the upcoming rebuild (and any later one) preserves it.
       selectedEdgeIdsRef.current = new Set(selectedEdges.filter((e) => e.selected).map((e) => e.id));
+      // React Flow's selection subscription is ADVISORY. It re-emits whenever
+      // this canvas pushes a new node array, and those echoes trail our own push
+      // by a frame — the report describes the PREVIOUS stamp. Writing them into
+      // the store made the selection oscillate: push [card], RF echoes [], push
+      // [], RF echoes [card] — store -> canvas -> RF -> store until React hit its
+      // 50-nested-update limit and tore the tree down (#285, splitting while a
+      // card was selected). Only a pointer gesture in this canvas (click, box
+      // select, drag) carries user intent; anything else is RF re-deriving the
+      // bookkeeping for a stamp the store already owns.
+      if (!pointerActiveRef.current && !dragSelectionRef.current) return;
       const prevIds = useGraphStore.getState().selectedNodeIds;
       const base = boxSelectBaseRef.current;
-      const newIds = mergeSelection(prevIds, selected, selectedIds, base);
+      // Mid-drag, an empty report means "the canvas painted the card unselected",
+      // not "the user deselected" — keep the drag's selection (see dragSelectionRef).
+      const newIds = nextSelectionIds({
+        prevIds, selected: cardNodes, selectedIds, base,
+        dragSelection: dragSelectionRef.current,
+      });
       // Write to per-leaf selection (and global for keyboard shortcut compatibility)
       if (leafId) {
         useGraphStore.getState().setSelectionForLeaf(leafId, newIds);
@@ -65,12 +146,13 @@ export function useCanvasSelection({ setSelectedNodeIds, setRfNodes, boxSelectBa
         setSelectedNodeIds(newIds);
       }
     },
-        [setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, leafId],
+    [setSelectedNodeIds, boxSelectBaseRef, selectedEdgeIdsRef, leafId, pointerActiveRef],
   );
 
   const onNodeDoubleClick = useCallback(
     (_: unknown, node: { id: string }) => {
-      doubleClickedIdRef.current = node.id;
+      // A double-click selects the card itself, so the advisory report RF emits
+      // around it no longer has to defend the selection (see the gate above).
       useGraphStore.getState().setSelectedNodeIds([node.id]);
       requestAnimationFrame(() => fitView({ nodes: [{ id: node.id }], duration: 600, padding: 0.3, maxZoom: 1.5 }));
     },
@@ -78,16 +160,45 @@ export function useCanvasSelection({ setSelectedNodeIds, setRfNodes, boxSelectBa
   );
 
   const fitToSelection = useCallback(() => {
-    const selected = useGraphStore.getState().selectedNodeIds;
-    if (selected.length === 0) { fitView({ duration: 600, padding: 0.2 }); return; }
-    fitView({ nodes: selected.map((id: string) => ({ id })), duration: 600, padding: 0.3 });
-  }, [fitView]);
+    // Everything selected — cards AND groups (T-143). Group selection is
+    // mutually exclusive with card selection, so a card-only read fit the
+    // whole graph whenever a group was selected. The bounds path also covers
+    // what RF's fitView({nodes}) cannot: hidden (collapsed) members and
+    // culled/unmeasured cards.
+    const st = useGraphStore.getState();
+    const bounds = selectionBounds({
+      nodes: st.nodes,
+      groups: st.groups,
+      selectedNodeIds: st.selectedNodeIds,
+      selectedGroupIds: st.selectedGroupIds,
+      activeLeafId: st.activeLeafId,
+      viewSettings: st.viewSettings,
+      direction: st.direction,
+      // The active leaf's collapsed pills are layout slots (T-179) — the canvas
+      // publishes them, and the painted pill is what must be centered.
+      pillRects: st.pillRectsByLeaf?.[st.activeLeafId ?? ""],
+    });
+    const el = containerRef.current;
+    if (!bounds || !el || el.clientWidth === 0) {
+      fitView({ duration: 600, padding: 0.2 });
+      return;
+    }
+    setViewport(
+      viewportForBounds(bounds, { width: el.clientWidth, height: el.clientHeight }),
+      { duration: 600 },
+    );
+  }, [fitView, setViewport, containerRef]);
 
   const selectAll = useCallback(() => {
-    const ids = useGraphStore.getState().nodes.map((n: FewerNode) => n.id);
-    useGraphStore.setState((s) => ({ nodes: s.nodes.map((n: FewerNode) => ({ ...n, selected: true })), selectedNodeIds: ids }));
-    setRfNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
-  }, [setRfNodes]);
+    // Select everything visible in the current view — scoped to visibleNodeIds
+    // rather than every node in the store (which may span multiple leaves).
+    // Uses the store action (not raw setState) so it mirrors into
+    // leafSelections[activeLeafId] and bumps selectionVersion for repaint.
+    setSelectedNodeIds(visibleNodeIds);
+  }, [setSelectedNodeIds, visibleNodeIds]);
 
-  return { onSelectionChange, onNodeDoubleClick, fitToSelection, selectAll };
+  return {
+    onSelectionChange, onNodeClick, onNodeDoubleClick, fitToSelection, selectAll,
+    seedSelectionForDrag, endSelectionDrag,
+  };
 }

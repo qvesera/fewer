@@ -4,15 +4,15 @@
  * Ported from handleConfirmImport in FewerApp.tsx.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn } from "@/lib/fewer/importFlow";
+import { buildProgress, collectAutoHideNotes } from "@/lib/fewer/importFlow";
 import { pickDirectoryTree } from "@/lib/fewer/fileSystem";
 import {
   buildTreeFromEntry,
   buildTreeFromHandle,
   setStoredRootHandle,
 } from "@/lib/fewer/fileSystem";
-import { treeToGraph } from "@/lib/fewer/treeToGraph";
+import { chunkTreeToGraph } from "@/lib/fewer/treeToGraph";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { TreeEntry } from "@/lib/fewer/types";
 import type { DroppedDirectorySource } from "@/lib/fewer/dropImport";
@@ -28,6 +28,8 @@ async function treeFromDropped(
       return await buildTreeFromHandle(source.handle, 0, options);
     case "entry":
       return await buildTreeFromEntry(source.entry, 0, options);
+    default:
+      return null;
   }
 }
 
@@ -53,22 +55,36 @@ async function fetchLocalTree(
  * @param options Saved import settings from the store.
  * @param dropped Optional pre-obtained directory (e.g. from a native
  *   drag-and-drop). When provided the native folder picker is skipped.
+ * @param onProgress Optional live progress (phase + done/total when known).
  */
 export async function runFolderImport(
   options: ImportOptions,
   dropped?: DroppedDirectorySource,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
-    const tree = dropped
-      ? await treeFromDropped(dropped, options)
-      : await pickDirectoryTree(options);
+    // Desktop shell: ALWAYS walk via the shell's list_dir RPC. Import is a
+    // core capability (plan: desktop free = import + canvas), and the
+    // webview fallback (<input webkitdirectory>) presents a file-only chooser
+    // in WebKitGTK — no folder selection at all (reported 2026-10-03). The
+    // native dialog is folder-only and the walk needs no server. Absolute
+    // paths survive, so localRootPath is known exactly and Open-in-Explorer /
+    // saved graphs resolve without a filesystem search.
+    let tree: TreeEntry | null = null;
+    if (dropped) {
+      tree = await treeFromDropped(dropped, options);
+    } else {
+      tree = await pickDirectoryTree(options, undefined, onProgress);
+    }
     if (!tree) {
       return { ok: false, cancelled: true, title: "Import cancelled" };
     }
 
-    const { nodes, edges, hiddenFileIds } = treeToGraph(tree, {
-      includeFiles: options.includeFiles,
-    });
+    const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
+      tree,
+      { includeFiles: options.includeFiles },
+      buildProgress(onProgress),
+    );
 
     useGraphStore.setState({
       dataSource: "directory",
@@ -79,9 +95,25 @@ export async function runFolderImport(
 
     // Resolve the imported root to its absolute path on the dev machine once,
     // so later opens (and saved graphs) use it directly instead of searching.
+    onProgress?.({ phase: "Finishing up" });
     await resolveRootLocalPath();
 
     const notes = await collectAutoHideNotes();
+
+    // "Look Inside Archives": tell the user what was expanded, and why
+    // anything was not. The walkers own the bytes, so they report via
+    // takeLastExpansion().
+    if (options.expandArchives) {
+      const { takeLastExpansion, expandNotes } = await import("./archiveExpand");
+      const expansion = takeLastExpansion();
+      if (expansion && expansion.expanded > 0) {
+        notes.push({
+          title: `Expanded ${expansion.expanded} archive${expansion.expanded === 1 ? "" : "s"}`,
+          description: `${expansion.members.toLocaleString()} entries read from inside the folder.`,
+        });
+      }
+      if (expansion) notes.push(...expandNotes(expansion));
+    }
 
     return {
       ok: true,

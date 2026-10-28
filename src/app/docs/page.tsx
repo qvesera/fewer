@@ -36,7 +36,7 @@ async function getDocs(): Promise<DocMeta[]> {
   }
 }
 
-const sections = [
+const WEB_SECTIONS = [
   {
     title: "Getting Started",
     items: ["getting-started"],
@@ -70,7 +70,7 @@ export default async function DocsPage() {
 
       <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-10">
         <aside className="md:col-span-1 space-y-6">
-          {sections.map((section) => (
+          {WEB_SECTIONS.map((section) => (
             <div key={section.title}>
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 {section.title}

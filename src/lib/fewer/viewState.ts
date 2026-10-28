@@ -14,6 +14,8 @@ import {
   type LayoutDirection,
 } from "./types";
 import { layoutGraphContour, type LayoutOptions } from "./layout";
+import { collapsedGroupMembers, type Group, type GroupBounds } from "./groups";
+import { collapseToLayoutBlocks, injectGroupPillNodes, viewMemberNodes } from "./groupLayout";
 
 // ── Types ──
 
@@ -33,6 +35,11 @@ export interface ViewSettings {
   hideLayers?: HideLayers;
   /** Per-leaf collapsed folder ids — descendants are pruned from this leaf's canvas. */
   collapsedFolderIds?: string[];
+  /** Per-leaf collapsed GROUP ids (T-164). The members' hidden-ness derives
+   *  from this list (see `resolveViewSettings`), never written into hiddenIds,
+   *  so the pill and the hidden set cannot drift apart — and a reveal that
+   *  brings the cards back can reopen the group in this view only. */
+  collapsedGroupIds?: string[];
   minimapHidden?: boolean;
   edgeStyle?: EdgeStyle;
   edgeAnimated?: boolean;
@@ -98,6 +105,12 @@ export function computeEffectiveHidden(
  * positions: its direction differs from the global one, it collapses folders,
  * or its hide layers change the visible set.
  *
+ * A collapsed GROUP deliberately does NOT appear here: a compact block forces
+ * its own pass inside `deriveViewLayout` (the only collapse that changes the
+ * layout), and an anchor group's members already occupy their slots in the
+ * shared layout — deriving for it too would re-lay the whole canvas out with
+ * measured card sizes the store has never used, so every card jumps on collapse.
+ *
  * This is the single source of truth for both the canvas (which then runs the
  * layout engine locally) and the Organize action (which knows that clearing a
  * view's card positions is enough — no global relayout needed). Keys explicitly
@@ -115,6 +128,74 @@ export function needsLayoutDerivation(
   return computeEffectiveHidden(global.hiddenIds, vs.hideLayers, allFileIds).length !== global.hiddenIds.length;
 }
 
+// ── Graph replacement ──
+
+/**
+ * One leaf's hide layers, minus every id the current graph does not contain.
+ * Returns `undefined` when nothing survives, so the caller can drop the key
+ * entirely — a leaf that has never hidden anything must not keep an empty
+ * `hideLayers` around: presence is what the Shift+H rules and the layout
+ * derivation read.
+ *
+ * `filesBulkActive` is a preference, not ids, so it survives.
+ */
+export function pruneHideLayers(layers: HideLayers, live: Set<string>): HideLayers | undefined {
+  const individual = layers.individual.filter((id) => live.has(id));
+  const filesBulkExempt = layers.filesBulkExempt.filter((id) => live.has(id));
+  const subtrees: Record<string, string[]> = {};
+  for (const [folderId, ids] of Object.entries(layers.subtrees)) {
+    if (!live.has(folderId)) continue; // the folder itself is gone
+    const kept = (ids as string[]).filter((id) => live.has(id));
+    if (kept.length > 0) subtrees[folderId] = kept;
+  }
+  if (!layers.filesBulkActive && individual.length === 0 && filesBulkExempt.length === 0 && Object.keys(subtrees).length === 0) {
+    return undefined;
+  }
+  return { individual, subtrees, filesBulkActive: layers.filesBulkActive, filesBulkExempt };
+}
+
+/**
+ * Drop every per-view id that the incoming graph does not contain.
+ *
+ * Import mints fresh node ids, so the previous graph's hidden cards, collapsed
+ * folders and dragged positions are all dead references. They still fed
+ * `computeEffectiveHidden` (the Hidden Cards badge counted them while the panel
+ * — which filters to live nodes — had no rows to show) and tripped
+ * `needsLayoutDerivation`, forcing every view into its own layout pass. View
+ * *preferences* (direction, edge style, theme, minimap) are untouched, and a
+ * reload of the same graph keeps everything: its ids are the same ids.
+ */
+export function pruneViewSettingsForGraph(
+  viewSettings: Record<string, ViewSettings>,
+  liveIds: Iterable<string>,
+): Record<string, ViewSettings> {
+  const live = liveIds instanceof Set ? liveIds : new Set(liveIds);
+  const out: Record<string, ViewSettings> = {};
+  for (const [leafId, vs] of Object.entries(viewSettings)) {
+    const next: ViewSettings = { ...vs };
+    if (vs.hideLayers) {
+      const pruned = pruneHideLayers(vs.hideLayers, live);
+      if (pruned) next.hideLayers = pruned;
+      else delete next.hideLayers;
+    }
+    if (vs.collapsedFolderIds) {
+      const kept = vs.collapsedFolderIds.filter((id) => live.has(id));
+      if (kept.length > 0) next.collapsedFolderIds = kept;
+      else delete next.collapsedFolderIds;
+    }
+    if (vs.positions) {
+      const positions: Record<string, { x: number; y: number }> = {};
+      for (const [id, pos] of Object.entries(vs.positions)) {
+        if (live.has(id)) positions[id] = pos;
+      }
+      if (Object.keys(positions).length > 0) next.positions = positions;
+      else delete next.positions;
+    }
+    if (Object.keys(next).length > 0) out[leafId] = next;
+  }
+  return out;
+}
+
 // ── Collapsed-folder pill geometry ──
 
 /**
@@ -122,6 +203,11 @@ export function needsLayoutDerivation(
  * collapsed. The shared store node keeps its expanded height, so collapsing a
  * folder in one view can never squish the expanded card another view paints
  * (nor the slot a global relayout reserves for it).
+ *
+ * A pill keeps the shared node's `measured` height, so React Flow does re-report
+ * the collapsed card's size; the canvas deliberately refuses to pin the pill
+ * height into the shared node, and `applyDimensionChanges` drops that no-op batch
+ * instead of handing every mounted canvas a new node array.
  *
  * Returns `nodes` by identity when the leaf collapses nothing.
  */
@@ -139,6 +225,63 @@ export function withCollapsedPillGeometry(
 }
 
 // ── View node resolution ──
+
+/**
+ * Stamp the canonical selection onto a node array, copy-on-write: only the cards
+ * whose flag actually flips are cloned, so React Flow skips the rest.
+ *
+ * This is the ONLY place the selection reaches the canvas. It used to be written
+ * back into the store's node array, which meant a click replaced every node
+ * object — invalidating the identity-cached tree index, every mounted card's
+ * child-list memo and the Hidden panel build. The id list stays canonical and the
+ * canvas derives the flags from it, so a rebuild for any other reason (hide,
+ * cut/paste, undo) can't resurrect a stale selection: the stamp runs on every
+ * rebuild path, after the layout.
+ */
+/**
+ * Paint the selection onto the node array React Flow will adopt.
+ *
+ * `prevStamped` is the previously stamped array (the canvas keeps it in a ref).
+ * The comparison is against what RF currently paints, not against the bare
+ * store node, because the store's nodes carry no `selected` flag at all: on a
+ * CLEAR, returning the store node untouched left RF's internal `selected: true`
+ * in place (adopt ignores a node that has no flag), so RF re-reported a
+ * selection the store no longer held and the two sides drove each other —
+ * store → canvas → React Flow → store — until React hit its update-depth limit
+ * (#285, splitting while a card is selected).
+ *
+ * Copy-on-write as before: a node whose flag already matches keeps its identity
+ * (a drag re-stamps the whole array every frame, and cloning all of it handed
+ * RF a new object per card, #281). Only nodes whose flag actually changes are
+ * cloned — now including the `true → false` case, which is exactly the one that
+ * has to reach RF explicitly.
+ */
+export function stampSelection(
+  nodes: FewerNode[],
+  selectedIds: ReadonlySet<string>,
+  prevStamped?: readonly FewerNode[],
+): FewerNode[] {
+  const prevById = prevStamped ? new Map(prevStamped.map((n) => [n.id, n.selected])) : null;
+  return nodes.map((n) => {
+    const shouldSelect = selectedIds.has(n.id);
+    // The node already carries the right flag — keep its identity (a drag
+    // re-stamps the whole array every frame, and cloning all of it handed RF a
+    // new object per card, #281).
+    if (n.selected === shouldSelect) return n;
+    // The node itself carries a flag that disagrees: fix it. This is the
+    // rebuild path — a node rebuilt for another reason (hide, cut/paste, undo)
+    // must not resurrect a selection the store no longer lists.
+    if (n.selected !== undefined) return { ...n, selected: shouldSelect };
+    // No flag on the node, and RF has never painted it: leave it untouched so a
+    // selection-free drag costs nothing.
+    if (!shouldSelect && prevById?.get(n.id) !== true) return n;
+    // Otherwise the flag must reach RF EXPLICITLY — adopting a node that has no
+    // flag at all leaves RF's internal selection to its own bookkeeping, which
+    // is how a selection got dropped when a dimensions rewrite handed the canvas
+    // a fresh object for a selected card (#285).
+    return { ...n, selected: shouldSelect };
+  });
+}
 
 /**
  * The node set + positions a leaf actually paints: explicit per-view card
@@ -164,23 +307,128 @@ export function resolveViewNodes(
     fileIds: string[];
   },
   layout: LayoutOptions = {},
+  groups: readonly Group[] = [],
+  /** Where to find hidden members for an anchor pill — the store's full list
+   *  (the export has one; a caller with only the painted set passes nothing and
+   *  compact pills still arrive from the layout). */
+  memberSource: readonly FewerNode[] = visibleNodes,
 ): FewerNode[] {
-  // 1. Explicit per-view positions (set by drag) take priority.
-  const positions = resolved.positions;
-  if (positions) {
-    return visibleNodes.map((n) =>
-      positions[n.id] ? { ...n, position: positions[n.id] } : n,
-    );
-  }
-  // 2. Direction override OR diverged visible set: derive from layout engine.
-  // Layout policy is global (Crown Shyness intensity, sibling sort), so the
-  // caller passes it in — without it the engine falls back to its own defaults
-  // and the Settings sliders look inert on per-view canvases.
-  if (needsLayoutDerivation(raw, global, global.fileIds)) {
-    return layoutGraphContour(visibleNodes, visibleEdges, resolved.direction, layout);
-  }
-  // 3. No override, shared visible set: use shared (store) positions.
-  return visibleNodes;
+  const result = deriveViewLayout(visibleNodes, visibleEdges, raw, resolved, global, layout, groups);
+  const laid = result?.nodes ?? visibleNodes;
+  const collapsedIds = raw?.collapsedGroupIds ?? [];
+  // Same order the canvas paints in: per-view positions, then the anchors' pill
+  // nodes — so an exported image shows exactly the collapsed pills (and their
+  // rect) the canvas does (T-180).
+  const memberNodes = applyViewPositions(
+    [...viewMemberNodes(result?.members, memberSource, groups, collapsedIds)],
+    resolved.positions,
+  );
+  return injectGroupPillNodes(
+    applyViewPositions(laid, resolved.positions),
+    memberNodes,
+    groups,
+    collapsedIds,
+    resolved.direction,
+  );
+}
+
+/**
+ * The expensive half of a view's node set: decide whether this view derives its
+ * own layout, and if so run the layout engine.
+ *
+ * Returns the laid-out PAINTED nodes plus, when the view collapses a group, the
+ * pill rects the layout reserved for them (T-179: a collapsed group becomes one
+ * pill-sized synthetic node in the layout input, so its rect is in THIS view's
+ * coordinates and its block is exactly the pill — no reserved hole, no stale
+ * anchor). `null` when the shared store layout already paints this view.
+ *
+ * Its result is a function of the visible set, the direction, the derivation
+ * predicate and the layout options — and deliberately NOT of the per-view
+ * position overrides. Those are rewritten on every frame of a drag, so a canvas
+ * that derived both in one memo re-ran the whole layout per frame: 193ms on a
+ * 30k-node graph, in ANY view that diverges (hide layers, a collapsed folder,
+ * a direction override), which is what made dragging in those views crawl.
+ *
+ * The caller memoises this on the leaf's *fields* the predicate reads
+ * (hideLayers / direction / collapsedFolderIds / collapsedGroupIds) rather than
+ * on the settings object, which a drag replaces wholesale.
+ */
+export function deriveViewLayout(
+  layoutNodes: FewerNode[],
+  layoutEdges: FewerEdge[],
+  raw: ViewSettings | undefined,
+  resolved: ResolvedViewSettings,
+  global: {
+    direction: LayoutDirection;
+    hiddenIds: string[];
+    /** All file ids — needed by the derivation predicate (bulk files layer). */
+    fileIds: string[];
+  },
+  layout: LayoutOptions = {},
+  groups: readonly Group[] = [],
+): { nodes: FewerNode[]; members?: FewerNode[] } | null {
+  // 1. Direction override OR diverged visible set: derive this view's own
+  //    layout. This runs BEFORE the per-view positions are applied, because a
+  //    view's map only ever holds the cards the user dragged in that view — a
+  //    card it has no entry for (created after the map was seeded by a drag,
+  //    or inherited when the graph was re-flowed) has to land in the layout its
+  //    siblings were placed by. Falling through to the shared store position
+  //    instead put a new card at a coordinate from the *global* layout, which
+  //    is how a card created in the primary view showed up in a dock pane in
+  //    the wrong slot — and why Sort/Organize read as inert on that pane.
+  const collapsedIds = raw?.collapsedGroupIds ?? [];
+  // `layoutNodes` may still carry the collapsed groups' members (the canvas
+  // hands them in on purpose): compact groups replace them with a pill block,
+  // anchor groups keep them as invisible geometry (T-180).
+  const blocks = collapseToLayoutBlocks(layoutNodes, layoutEdges, groups, collapsedIds);
+  // A collapse forces its own pass only when it CHANGES the layout — that is,
+  // at least one group compacts. An anchor group's members still occupy their
+  // slots in the shared layout, so a collapse-only view can paint it as-is;
+  // deriving anyway would re-lay every card out against measured card sizes the
+  // store has never used (the whole canvas jumping on collapse).
+  const collapsing = blocks.pillNodes.size > 0;
+  if (!collapsing && !needsLayoutDerivation(raw, global, global.fileIds)) return null;
+  const laid = layoutGraphContour(blocks.nodes, blocks.edges, resolved.direction, layout);
+  // Members hide by derivation (T-164): they ride the layout only so the pill
+  // can take their slot (compact) or so their subtrees keep their depth
+  // (anchor), then drop out — nothing paints them. The PILL does paint (T-180):
+  // it is a real node the edge layer attaches to, so the frame reads its rect
+  // from `pillRectsFromNodes` after every overlay instead of from here.
+  const memberIds = new Set(collapsedGroupMembers(groups, collapsedIds));
+  const members = memberIds.size === 0 ? [] : laid.filter((n) => memberIds.has(n.id));
+  return {
+    nodes: laid.filter((n) => !memberIds.has(n.id)),
+    // The members' LAID positions ride along: an anchor pill injects on the
+    // block the VIEW laid out (never the store's, which diverges as soon as a
+    // direction override, a hide layer or a compact sibling re-flows).
+    ...(members.length > 0 ? { members } : {}),
+  };
+}
+
+/**
+ * The cheap half: explicit per-view card positions (set by drag) override, card
+ * by card. With no derived layout the shared positions are already this view's
+ * layout, so only the overridden cards are cloned and the rest keep identity.
+ */
+export function applyViewPositions(
+  base: FewerNode[],
+  positions: Record<string, { x: number; y: number }> | undefined,
+): FewerNode[] {
+  if (!positions) return base;
+  // Copy-on-write, and identity-stable when nothing moved: only the overridden
+  // cards are cloned. This runs on every drag frame (a drag rewrites the leaf's
+  // map), so cloning the whole array handed React Flow a new object for every
+  // card — it re-adopted and re-rendered the entire graph per frame, then
+  // answered with its own reports, which is the store→canvas round trip behind
+  // "Maximum update depth exceeded" (#281).
+  let moved = false;
+  const next = base.map((n) => {
+    const pos = positions[n.id];
+    if (!pos || (n.position.x === pos.x && n.position.y === pos.y)) return n;
+    moved = true;
+    return { ...n, position: pos };
+  });
+  return moved ? next : base;
 }
 
 // ── Resolution ──
@@ -202,6 +450,7 @@ export function resolveViewSettings(
   global: ResolvedViewSettings,
   globalHiddenIds?: string[],
   allFileIds?: string[],
+  groups?: readonly Group[],
 ): ResolvedViewSettings {
   const vs: ViewSettings = leafId && byLeaf[leafId] ? byLeaf[leafId] : {};
   const hidden = computeEffectiveHidden(
@@ -209,6 +458,14 @@ export function resolveViewSettings(
     vs.hideLayers,
     allFileIds ?? [],
   );
+  // A collapsed group's members hide HERE too (T-164): derived from the leaf's
+  // collapsed set — like collapsedFolderIds — instead of a hiddenIds write, so
+  // collapse is per-view and "reveal" can reopen the group by editing one list.
+  // Fast path: the union only runs for a view that actually collapses a group.
+  const groupHidden = vs.collapsedGroupIds?.length
+    ? collapsedGroupMembers(groups ?? [], vs.collapsedGroupIds)
+    : [];
+  const merged = groupHidden.length > 0 ? [...new Set([...hidden, ...groupHidden])] : hidden;
   return {
     showFiles: !vs.hideLayers?.filesBulkActive && global.showFiles,
     minimapHidden: pick(vs.minimapHidden, global.minimapHidden),
@@ -219,10 +476,17 @@ export function resolveViewSettings(
     edgeWidth: pick(vs.edgeWidth, global.edgeWidth),
     direction: pick(vs.direction, global.direction),
     positions: vs.positions,
-    hiddenIds: hidden,
-    collapsedFolderIds: vs.collapsedFolderIds ?? [],
+    hiddenIds: merged,
+    // Shared empty list, not a fresh `[]`: a view with no collapsed folder must
+    // not hand every consumer a new array identity each time this runs — the
+    // canvas re-resolves it on every drag frame, and the collapsed ids are a dep
+    // of the pill-geometry and card memos (#281).
+    collapsedFolderIds: vs.collapsedFolderIds ?? EMPTY_IDS,
   };
 }
+
+/** Identity-stable stand-in for "this view has no collapsed folder". */
+const EMPTY_IDS: string[] = [];
 
 // ── Persistence ──
 
@@ -286,6 +550,7 @@ function collectViewSettings(raw: unknown): ViewSettings {
     if (typeof obj[field] === type) out[field] = obj[field];
   }
   if (Array.isArray(obj.collapsedFolderIds)) out.collapsedFolderIds = stringIds(obj.collapsedFolderIds);
+  if (Array.isArray(obj.collapsedGroupIds)) out.collapsedGroupIds = stringIds(obj.collapsedGroupIds);
   if (obj.positions && typeof obj.positions === "object") out.positions = obj.positions;
   migrateLegacyHideLayers(out, obj);
   return out as ViewSettings;

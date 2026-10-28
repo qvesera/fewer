@@ -263,6 +263,12 @@ describe("visibleTabs", () => {
     expect(tabs).not.toContain("watched");
     expect(tabs).not.toContain("cloud");
   });
+
+  it("web tabs carry account and never a License tab", () => {
+    const tabs = visibleTabs({ tier: "free", isMobile: false, advancedMode: false });
+    expect(tabs).toContain("account");
+    expect(tabs).not.toContain("license");
+  });
 });
 
 // ─── option lists ─────────────────────────────────────────────────

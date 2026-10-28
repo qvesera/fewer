@@ -1,5 +1,9 @@
-import type { FewerEdge, FewerNode, FileCategory } from "./types";
+import type { FewerEdge, FewerNode, FileCategory, Tag } from "./types";
 import { childrenMapOf } from "./validation";
+import { nodeIndexOf } from "./graphIndex";
+import { compareSiblings, DEFAULT_SORT_KEY, DEFAULT_SORT_DIR } from "./sorting";
+import type { SortKey, SortDir } from "./sorting";
+import { makeTagLabelLookup } from "./tags";
 import { categoryHiddenNodeIds } from "./categorize";
 
 /** Preserve painter order: files before folders, reverse label, then raised edges. */
@@ -44,33 +48,98 @@ export function computeDisplayDepthHiddenIds(nodes: FewerNode[], maxDepth: numbe
 }
 
 /**
- * Ids of children (recursively) of folders that exceed `threshold` direct
- * children, used to auto-collapse large folders on import. `revealedSet` holds
- * ids the user has explicitly expanded, which are skipped.
+ * Ordering + already-hidden context for the auto-hide cap.
+ *
+ * `sortKey` / `sortDir` / `tagLabelById` reproduce the layout comparator, so
+ * "the first N children" is the same order the user sees on the canvas.
+ * `hiddenSeed` names ids already hidden by ANOTHER mechanism (manual, depth,
+ * Hide Files, a saved graph's hides): they are never re-derived as auto-hides
+ * and their folders are never re-capped.
+ */
+export interface AutoHideOptions {
+  sortKey?: SortKey;
+  sortDir?: SortDir;
+  tagLabelById?: (id: string) => string;
+  hiddenSeed?: Set<string>;
+}
+
+/** The store's current sort as an AutoHideOptions order (tags need a lookup). */
+export function orderFromStore(
+  s: { sortKey?: SortKey; sortDir?: SortDir; tags?: Tag[] },
+): AutoHideOptions {
+  return {
+    sortKey: s.sortKey,
+    sortDir: s.sortDir,
+    tagLabelById: makeTagLabelLookup(s.tags ?? []),
+  };
+}
+
+/**
+ * The auto-hide cap: every folder shows its first `threshold` children (in the
+ * sort order the canvas lays them out); every child at or past that index —
+ * together with its whole subtree — is hidden. The rule cascades, so a folder
+ * that itself surfaces still caps its own children.
+ *
+ * `revealedSet` holds ids the user explicitly revealed: those extra cards stay
+ * visible on top of the first `threshold` and are never pulled back in.
+ *
+ * The single pass walks folders (skipping hidden ones), then one orphan pass
+ * hides the descendants of every folder the pass decided to hide — running it
+ * before or after the parent's decision yields the same set, so node order
+ * cannot change the outcome.
  */
 export function computeLargeFolderHiddenIds(
   nodes: FewerNode[],
   edges: FewerEdge[],
   threshold: number,
   revealedSet?: Set<string>,
+  options?: AutoHideOptions,
 ): string[] {
   const childrenMap = childrenMapOf(edges);
-  const toHide = new Set<string>();
+  const nodeMap = nodeIndexOf(nodes);
   const revealed = revealedSet ?? new Set<string>();
+  const seeded = options?.hiddenSeed ?? new Set<string>();
+  const sortKey = options?.sortKey ?? DEFAULT_SORT_KEY;
+  const sortDir = options?.sortDir ?? DEFAULT_SORT_DIR;
+  const toHide = new Set<string>();
+
+  // Dangling edge targets have no node to compare; compare by id as a plain
+  // file so the comparator stays total (an inconsistent one would make the
+  // "first N" selection jump between runs).
+  const asNode = (id: string): FewerNode =>
+    nodeMap.get(id) ?? ({ id, data: { label: id, type: "file" } } as FewerNode);
+  const ordered = (ids: string[]): string[] =>
+    [...ids].sort((a, b) => compareSiblings(asNode(a), asNode(b), sortKey, sortDir, options?.tagLabelById));
+
+  const hideSubtree = (rootId: string): void => {
+    const stack = [rootId];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (toHide.has(id) || seeded.has(id) || revealed.has(id)) continue;
+      toHide.add(id);
+      for (const gc of childrenMap.get(id) ?? []) stack.push(gc);
+    }
+  };
+
   for (const node of nodes) {
     if (node.data.type !== "folder") continue;
-    const directChildren = childrenMap.get(node.id) ?? [];
-    // Skip already-hidden or explicitly-revealed children
-    const visibleChildren = directChildren.filter((cid) => !toHide.has(cid) && !revealed.has(cid));
-    if (visibleChildren.length > threshold) {
-      const queue = [...visibleChildren];
-      while (queue.length) {
-        const cid = queue.shift()!;
-        if (toHide.has(cid) || revealed.has(cid)) continue;
-        toHide.add(cid);
-        for (const gc of childrenMap.get(cid) ?? []) queue.push(gc);
-      }
+    if (toHide.has(node.id) || seeded.has(node.id)) continue;
+    const children = ordered(childrenMap.get(node.id) ?? []);
+    for (let i = 0; i < children.length; i++) {
+      if (i < threshold) continue;
+      const cid = children[i];
+      if (revealed.has(cid) || seeded.has(cid) || toHide.has(cid)) continue;
+      hideSubtree(cid);
     }
+  }
+
+  // Orphan pass: a hidden folder's children never render on their own, so they
+  // are hidden too — and, being hidden here, they land in the auto-hide set
+  // (which is what a later reconcile must be able to re-derive).
+  for (const node of nodes) {
+    if (node.data.type !== "folder") continue;
+    if (seeded.has(node.id) || !toHide.has(node.id)) continue;
+    for (const cid of childrenMap.get(node.id) ?? []) hideSubtree(cid);
   }
   return [...toHide];
 }
@@ -91,6 +160,8 @@ export function computeLargeFolderHiddenIds(
  *    recomputing the whole import).
  *  - `autoHideCount`: how many auto-hidden ids were not already in the base
  *    hide set (the `autoHideCount` stat).
+ *
+ * `options` carries the sort order the cap follows (see `AutoHideOptions`).
  */
 export function computeImportedHideSets(
   nodes: FewerNode[],
@@ -100,6 +171,7 @@ export function computeImportedHideSets(
   autoHideThreshold: number,
   maxDisplayDepth: number,
   categoryFilter: FileCategory[] | undefined,
+  options?: AutoHideOptions,
 ): { idsToHide: string[]; autoHideIds: string[]; catHiddenIds: string[]; autoHideCount: number } {
   const base = new Set<string>(hiddenFileIds ?? []);
 
@@ -109,7 +181,12 @@ export function computeImportedHideSets(
     idsToHide = [...new Set([...idsToHide, ...fileIds])];
   }
 
-  const autoHideIds = computeLargeFolderHiddenIds(nodes, edges, autoHideThreshold, new Set());
+  const autoHideIds = computeLargeFolderHiddenIds(nodes, edges, autoHideThreshold, new Set(), {
+    ...options,
+    // The saved graph's own manual hides are not auto-hides: skip their
+    // folders instead of re-labelling their descendants as auto-hidden.
+    hiddenSeed: new Set([...(options?.hiddenSeed ?? []), ...base]),
+  });
   const depthIds = computeDisplayDepthHiddenIds(nodes, maxDisplayDepth);
   const catHiddenIds = categoryHiddenNodeIds(nodes, categoryFilter ?? []);
 

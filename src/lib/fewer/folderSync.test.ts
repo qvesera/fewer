@@ -1,5 +1,6 @@
 import { describe, test, expect, mock, afterEach } from "bun:test";
 import { refreshViaPathWalk } from "./folderSync";
+import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
 import type { FewerNode, FewerEdge, TreeEntry } from "./types";
 
 /**
@@ -93,3 +94,5 @@ describe("refreshViaPathWalk", () => {
     }
   });
 });
+
+

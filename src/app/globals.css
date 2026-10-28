@@ -66,6 +66,11 @@
   --color-fewer-folder-text: var(--fewer-folder-text);
   --color-fewer-folder-subtle-text: var(--fewer-folder-subtle-text);
   --color-fewer-folder-icon: var(--fewer-folder-icon);
+  --color-fewer-group-bg: var(--fewer-group-bg);
+  --color-fewer-group-border: var(--fewer-group-border);
+  --color-fewer-group-text: var(--fewer-group-text);
+  --color-fewer-group-subtle-text: var(--fewer-group-subtle-text);
+  --color-fewer-group-icon: var(--fewer-group-icon);
   --color-fewer-file-bg: var(--fewer-file-bg);
   --color-fewer-file-text: var(--fewer-file-text);
   --color-fewer-file-subtle-text: var(--fewer-file-subtle-text);
@@ -141,6 +146,15 @@
   --fewer-folder-subtle-text: #64748b;
   --fewer-folder-border: rgba(249, 115, 22, 0.35);
   --fewer-folder-icon: #f97316;
+  /* Group frames share the card design language (rounded-xl shell, tile, stat
+     sub-line) but keep the group's neutral slate identity — so a collapsed
+     group pill reads as the same product as a collapsed folder pill without
+     stealing the folder's orange. T-139. */
+  --fewer-group-bg: rgba(148, 163, 184, 0.08);
+  --fewer-group-text: #1e293b;
+  --fewer-group-subtle-text: #64748b;
+  --fewer-group-border: rgba(148, 163, 184, 0.35);
+  --fewer-group-icon: #94a3b8;
   --fewer-file-bg: rgba(168, 85, 247, 0.08);
   --fewer-file-text: #1e293b;
   --fewer-file-subtle-text: #64748b;
@@ -202,6 +216,11 @@
   --fewer-folder-subtle-text: #adb5bd;
   --fewer-folder-border: rgba(253, 126, 20, 0.45);
   --fewer-folder-icon: #ffa94d;
+  --fewer-group-bg: rgba(134, 142, 150, 0.12);
+  --fewer-group-text: #f8f9fa;
+  --fewer-group-subtle-text: #adb5bd;
+  --fewer-group-border: rgba(134, 142, 150, 0.45);
+  --fewer-group-icon: #adb5bd;
   --fewer-file-bg: rgba(190, 75, 219, 0.18);
   --fewer-file-text: #f8f9fa;
   --fewer-file-subtle-text: #adb5bd;
@@ -243,6 +262,31 @@
   to {
     opacity: 1;
     filter: blur(0);
+  }
+}
+
+/* ── Progress bar (indeterminate) ────────────────────────────────────────────
+   A full-track hatch, not a fixed-width block: when the animation is disabled
+   (prefers-reduced-motion, or a stylesheet served without the keyframe) a
+   parked partial block reads as "30% complete", which is a lie. The static
+   resting state is a hatch across the whole track = "unknown amount". */
+.gm-progress-indeterminate {
+  background-image: repeating-linear-gradient(
+    115deg,
+    var(--primary) 0 7px,
+    transparent 7px 14px
+  );
+  opacity: 0.45;
+  animation: gm-progress-stripes 0.9s linear infinite;
+}
+
+@keyframes gm-progress-stripes {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    /* One 14px period per step — the hatch advances seamlessly. */
+    background-position: 28px 0;
   }
 }
 
@@ -339,6 +383,18 @@
 .react-flow__node.selected {
   outline: none;
 }
+/* #180: after a Shift+drag box select, React Flow paints the group-selection
+   rect (.react-flow__nodesselection-rect) over the selected cards with
+   `pointer-events: all`. It sits above them (z-index 3, later in DOM order), so
+   every click — Ctrl+click included — lands on the rect and the cards never see
+   it: nothing could be deselected until you clicked empty canvas. Make it
+   click-through. The group is still movable by dragging any selected card (RF
+   drags all selected nodes together, getDragItems) and arrow keys still nudge
+   the focused selection. Scoped under the wrapper so it beats RF's
+   single-class rule regardless of stylesheet order. */
+.react-flow__nodesselection .react-flow__nodesselection-rect {
+  pointer-events: none;
+}
 .react-flow__node > div {
   animation: gm-node-fade-in 0.3s ease-out both;
 }
@@ -407,6 +463,7 @@ aside::-webkit-scrollbar-thumb:hover {
 /* ── Glass Utilities ───────────────────────────────────────────────────────── */
 
 .gm-glass {
+  background: var(--background);
   background: color-mix(in srgb, var(--background) 85%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -415,6 +472,7 @@ aside::-webkit-scrollbar-thumb:hover {
 
 /* Floating panel — for toolbar, breadcrumbs, search, bottom bar */
 .gm-float {
+  background: var(--background);
   background: color-mix(in srgb, var(--background) 80%, transparent);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
@@ -527,6 +585,21 @@ aside::-webkit-scrollbar-thumb:hover {
   animation: none;
 }
 
+/* ── Tauri shell rendering (T-091) ─────────────────────────────────────
+   WebKitGTK does not render backdrop-filter behind transformed React Flow
+   nodes (every node is transform-positioned), so the glass card look can't
+   work there — cards must read solid from their tint alone. themeColors
+   floors the folder/file tint at 0.92 in the shell (applyCustomThemeToDOM +
+   the layout bootstrap script); this rule drops the dead blur (same policy
+   as gm-perf). html[data-shell] is set by FewerApp when isTauri(). */
+html[data-shell] .react-flow__node > div {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-shell] .react-flow__node > div {
+  animation: none;
+}
+
 /* ── Accessibility ─────────────────────────────────────────────────────────── */
 
 /* Visible focus rings for keyboard navigation */
@@ -546,7 +619,10 @@ aside::-webkit-scrollbar-thumb:hover {
     scroll-behavior: auto !important;
   }
   .gm-edge-flow,
-  .gm-node-fade-in {
+  .gm-node-fade-in,
+  .gm-progress-indeterminate,
+  .mk-edge-flow,
+  .mk-caret {
     animation: none !important;
   }
 }
@@ -701,3 +777,458 @@ aside::-webkit-scrollbar-thumb:hover {
   pointer-events: none;
   z-index: 0;
 }
+.gm-canvas-aurora-3 {
+  position: absolute;
+  top: 25%;
+  right: 12%;
+  width: 30%;
+  height: 40%;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.04;
+  background: radial-gradient(circle, rgba(255, 0, 255, 0.5), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Marketing home — motion tokens, canvas dot backdrop, reveal system (T-150) */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Entrance is expo-out; --ease-aurora (above) stays the exit curve and
+     --ease-pop reuses the handle curve so hover feedback feels native to the
+     app. Durations sit inside the design system's 150-300ms band. */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur: 200ms;
+  --dur-slow: 280ms;
+  /* The marketing header is py-3 around a 32px row (the logo is h-8, the sm
+     button is h-8), plus its 1px border. The hero subtracts it so the first
+     screen is the promise alone, and #features subtracts it again so the
+     nav's anchor jump cannot land the demo under the header. Move the
+     header's padding and this number has to move with it. */
+  --mk-header-h: 57px;
+  /* Same values as the canvas dot colour in use-canvas-theme-colors.ts. */
+  --marketing-dot: rgba(100, 116, 139, 0.2);
+  --marketing-dot-glow: rgba(71, 85, 105, 0.45);
+}
+.dark {
+  --marketing-dot: rgba(173, 181, 189, 0.18);
+  --marketing-dot-glow: rgba(226, 232, 240, 0.5);
+}
+
+/* Fixed backdrop behind the marketing home only. Mirrors the canvas
+   <Background variant="Dots" gap={24} size={1.5}> so the page reads as the
+   same surface as the app. Both layers are inert; only the glow layer ever
+   repaints, and only while the pointer is moving. */
+.mk-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.mk-dotgrid,
+.mk-dotglow {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--marketing-dot) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+/* Softer than the raw token — the un-veiled page reads too loud at full
+   alpha (T-150 follow-up). */
+.mk-dotgrid {
+  opacity: 0.6;
+}
+/* The glow layer is the same dots at a stronger colour, revealed through a
+   soft radial mask that lerps after the pointer (written as --mk-x/--mk-y by
+   DotGrid.tsx). A brightness() filter would whiten the light-mode dots, so
+   the stronger colour is a separate token. */
+.mk-dotglow {
+  background-image: radial-gradient(var(--marketing-dot-glow) 1.5px, transparent 1.5px);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-enter);
+  -webkit-mask-image: radial-gradient(
+    170px circle at var(--mk-x, -300px) var(--mk-y, -300px),
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    transparent 72%
+  );
+  mask-image: radial-gradient(
+    170px circle at var(--mk-x, -300px) var(--mk-y, -300px),
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    transparent 72%
+  );
+}
+.mk-dotglow[data-on="1"] {
+  opacity: 1;
+}
+
+/* ── Privacy claim tiles (T-170) ──────────────────────────────────────────────
+   Two states of one fixed box. The TITLE (TileTitle) is taken out of the flow
+   and placed absolutely, so it can be CENTRED in its card at rest - set one
+   size up, alone on the card - and slide to the top when the tile is engaged
+   (hovered, or focused from the keyboard), stepping down to the size in the
+   markup as it goes. The claim, in flow, never moves: its padding-top is the
+   slot the title tops out into (--mk-title-h, one value per title shape), and
+   it only ever fades. That is why nothing here can resize the card, and the
+   bento - centred against its heading - cannot re-centre itself.
+
+   One timing for the whole reveal: --mk-reveal-dur over the house
+   --ease-aurora in-out curve (deliberately above the 150-300ms band - this is
+   a card-sized move, and --ease-enter's expo snap read as abrupt), so the
+   slide, the type step-down and the fade travel together. The global
+   reduced-motion rule makes them instant.
+
+   The centred/held-back state lives inside @media (hover: hover): where there
+   is no hover to spend (a touch screen, a no-JS reader) the title sits at the
+   top and the claim is visible from the start, so the markup never hides copy
+   from a crawler or a reader without a pointer. */
+.mk-claim-card {
+  --mk-title-h: 2rem; /* the CardLabel row: an h-8 icon chip */
+  --mk-reveal-dur: 400ms;
+}
+.mk-claim-card--display {
+  /* The kicker + ZERO block, measured engaged: 81px at sm+ - set a hair above
+     so the claim lands under it with the same 16px the label cards get. */
+  --mk-title-h: 5.5rem;
+}
+.mk-tile-title {
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  top: 1.5rem;
+}
+.mk-claim {
+  padding-top: calc(var(--mk-title-h) + 1rem);
+}
+@media (hover: hover) {
+  /* Rest: centred and set one size up - the title is the whole card. */
+  .mk-tile-title {
+    top: 50%;
+    transform: translateY(-50%);
+    transition:
+      top var(--mk-reveal-dur) var(--ease-aurora),
+      transform var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-claim {
+    opacity: 0;
+    transition: opacity var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  /* Real font-size, not a transform: the type re-flows instead of being
+     stretched, and the title is absolutely placed, so its own height change
+     cannot touch the card. The kicker's rest size is the largest that holds
+     one line in the xl split (12px/0.06em = ~197px of the 205px it has there;
+     13px wrapped the Trackers kicker), so it reads one size up while the
+     display word carries the big step. */
+  .mk-tile-kicker {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    transition:
+      font-size var(--mk-reveal-dur) var(--ease-aurora),
+      letter-spacing var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-tile-display {
+    font-size: 3rem;
+    transition: font-size var(--mk-reveal-dur) var(--ease-aurora);
+  }
+  .mk-claim-card:hover .mk-tile-kicker,
+  .mk-claim-card:focus-within .mk-tile-kicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .mk-claim-card:hover .mk-tile-display,
+  .mk-claim-card:focus-within .mk-tile-display {
+    font-size: 2.25rem;
+  }
+  /* Engaged: the title tops out (its slot starts right under it) and the
+     claim lights up. */
+  .mk-claim-card:hover .mk-tile-title,
+  .mk-claim-card:focus-within .mk-tile-title {
+    top: 1.5rem;
+    transform: translateY(0);
+  }
+  .mk-claim-card:hover .mk-claim,
+  .mk-claim-card:focus-within .mk-claim {
+    opacity: 1;
+  }
+  /* sm+: the display word keeps its step with the markup, in both states. */
+  @media (min-width: 640px) {
+    .mk-tile-display {
+      font-size: 3.75rem;
+    }
+    .mk-claim-card:hover .mk-tile-display,
+    .mk-claim-card:focus-within .mk-tile-display {
+      font-size: 3rem;
+    }
+  }
+}
+
+/* ── Reveal on scroll ────────────────────────────────────────────────────────
+   Hidden until observed; the reduced-motion block below and the <noscript>
+   style in MarketingHome.tsx both force the resting state, so the page never
+   depends on JS to be readable. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(4px);
+}
+[data-reveal="1"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition:
+    opacity var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms),
+    transform var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms),
+    filter var(--dur-slow) var(--ease-enter) var(--reveal-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Lenis (home page only, see SmoothScroll.tsx): the four rules the library
+   needs. It drives the real window scroll, so nothing here changes what is
+   scrollable - only how a wheel or a trackpad reaches its target. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* The hero's five messages crossfade in place (T-161): one grid cell holds
+   them all, so a swap cannot move the buttons under it, and the cell is as
+   tall as the tallest message. The hidden ones are opacity-0 here and
+   aria-hidden in the markup, so exactly one message is on screen and one is
+   announced. The first message is simply there on first paint - no rise, no
+   blur, nothing to wait for; after that the only motion the hero asks for is
+   the crossfade its own clock pays for. */
+.mk-hero-slide {
+  transition:
+    opacity var(--dur-slow) var(--ease-enter),
+    transform var(--dur-slow) var(--ease-enter);
+}
+.mk-hero-slide[data-active="0"] {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.mk-hero-slide[data-active="1"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The timer inside the active hero dot: a bar that FILLS for exactly as long
+   as its message holds, so the end of the bar is the moment it changes - the
+   tip travels left to right, and the empty part is the time still left.
+   `--hero-hold` comes from HERO_ROTATE_MS in the markup, which is the same
+   constant the JS clock waits on. The span is re-keyed on every clock tick
+   (see HeroRotator), so a pause-and-resume restarts both together rather than
+   leaving a bar that ran while nothing was running. */
+@keyframes mk-hero-timer {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.mk-hero-timer {
+  transform-origin: left center;
+  animation: mk-hero-timer var(--hero-hold) linear forwards;
+}
+/* Nothing is timed under reduced motion: the rotation is parked, so the bar
+   would only be a moving thing nobody asked for. Hidden, not zeroed. */
+@media (prefers-reduced-motion: reduce) {
+  .mk-hero-timer {
+    display: none;
+  }
+}
+
+/* Demo edges march the way the canvas's animated edges do (2px, dashed 5 5).
+   prefers-reduced-motion stops the march and leaves the dashes, which is what
+   the app does too. The preview cards reuse the app's own .gm-node-hover and
+   .shadow-node-* utilities instead of a marketing-only hover. */
+.mk-edge-flow {
+  stroke-dasharray: 5 5;
+  animation: mk-edge-flow 1s linear infinite;
+}
+@keyframes mk-edge-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Blinking caret for the `tree` pane. */
+@keyframes mk-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+}
+.mk-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+  background: currentColor;
+  opacity: 0.7;
+  animation: mk-caret 1.1s steps(1, end) infinite;
+}
+
+/* ── Marketing hotspot playground (T-150 follow-up) ──────────────────────────── */
+
+/* Demo cards brighten or quiet as the active hotspot changes. Restated here
+   because .gm-node-hover already owns box-shadow/filter for the hover lift, and
+   a second `transition` on the same element would replace it instead of adding
+   to it. Only the preview cards carry [data-mk-node]. */
+[data-mk-node] {
+  transition:
+    opacity var(--dur) var(--ease-enter),
+    filter var(--dur) var(--ease-enter),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mk-node-dim {
+  /* Light theme needs more presence than dark at the same opacity: a dimmed
+     card on near-white reads as deleted, not as quiet. Non-active leaves sit
+     slightly deeper than before (T-158) so the kept structure reads as depth,
+     not as a second subject. */
+  opacity: 0.32;
+  filter: saturate(0.3);
+}
+.dark .mk-node-dim {
+  opacity: 0.2;
+}
+/* Outline, not box-shadow: the cards' own .shadow-node-* shadows own box-shadow,
+   and the canvas uses the same outline trick (.gm-highlight-ring) for the same
+   reason. */
+.mk-node-active,
+.mk-node-active:hover {
+  outline: 2px solid var(--mk-accent, var(--fewer-folder-icon));
+  outline-offset: 2px;
+}
+/* The root is the one folder that never dims (T-154) and reads as the graph's
+   anchor (T-158): a faint accent-tinted halo, deliberately lighter than the
+   active ring so the two never compete. Outline only - the card's own
+   shadow-node-* owns box-shadow. */
+.mk-node-root,
+.mk-node-root:hover {
+  outline: 1px solid color-mix(in srgb, var(--fewer-folder-icon) 45%, transparent);
+  outline-offset: 1px;
+}
+/* The active card's connectable dots breathe the same accent the ring marks.
+   The global reduced-motion rule parks this exactly as it parks the marching
+   edges - one resting state, not a second animation policy. */
+@keyframes mk-port-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--mk-accent, var(--fewer-folder-icon)) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.mk-node-active .mk-handle {
+  animation: mk-port-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The hero canvas wears the app window's own clothes (T-158): a frosted
+   chassis with a title bar, an inner top highlight, and a deep shadow tinted
+   by the chosen accent - the accent that recolours the cards also lights the
+   air under the window. */
+.mk-chassis {
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 24px 60px -28px color-mix(in srgb, var(--mk-accent, var(--primary)) 45%, transparent),
+    0 16px 40px -24px rgb(0 0 0 / 0.45);
+}
+.mk-chassis-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 65%, transparent);
+}
+
+/* App furniture on the marketing page: the panel chrome the product's dialogs
+   and side panels carry (border, translucent surface, title bar with the grip
+   handle). The point is that the canvas controls and the feature inspector
+   read as parts of the app rather than as page UI wrapped around a screenshot. */
+.mk-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 32px -16px rgb(0 0 0 / 0.35);
+}
+.mk-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+/* The compare squiggle on the home page: the reader's hand-drawn arrow
+   (public/squiggle.svg, inlined) pointing from "see the difference!" up at the
+   View toggle. pathLength=1 normalizes both strokes so the dash math is the
+   same for the long loop and the short head: the loop draws, the head lands a
+   beat after it, the first time the section is on screen (one-way data-drawn).
+   prefers-reduced-motion simply gets it already drawn. The nudge reuses the
+   canvas's own handle ping for one glow on the toggle. */
+.mk-squiggle path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.mk-squiggle[data-drawn="1"] path {
+  /* Speed cut 45%: 700 / 0.55, so the stroke draws at 55% of the old rate. */
+  animation: mk-squiggle-draw 1270ms var(--ease-enter) forwards;
+}
+.mk-squiggle[data-drawn="1"] path + path {
+  animation-delay: 1000ms;
+}
+@keyframes mk-squiggle-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.mk-compare-nudge {
+  animation: mk-port-ping 1.6s cubic-bezier(0, 0, 0.2, 1) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-squiggle path {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .mk-compare-nudge {
+    animation: none;
+  }
+}
+

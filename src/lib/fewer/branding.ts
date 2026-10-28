@@ -5,9 +5,10 @@
  * exactly what gets stripped.
  */
 
-/** Public marketing homepage (overridable via env). */
+/** Public marketing homepage (overridable via env). The canonical host is
+    fewer.directory — the same default sitemap.ts and the footer use. */
 export const FEWER_HOME_URL =
-  process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.direct";
+  process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.directory";
 
 /**
  * App version stamped into exports and bug reports. next.config.ts injects
@@ -18,7 +19,7 @@ export const FEWER_HOME_URL =
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
 
 /** One credit line appended to every export when branding is enabled. */
-export const FEWER_CREDIT = `Created with fewer — ${FEWER_HOME_URL}`;
+export const FEWER_CREDIT = `Created with fewer · ${FEWER_HOME_URL}`;
 
 /** Leading title line on the ASCII directory-tree export. */
 export const TREE_HEADER = "Directory Tree Structure";

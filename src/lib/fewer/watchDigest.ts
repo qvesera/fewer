@@ -161,7 +161,7 @@ export function digestHtml(changes: IndexChange[]): string {
     heading: "Daily directory changes",
     intro,
     body: sections,
-    footnote: "You watch these indexes — manage them in Settings → Watched.",
+    footnote: "You watch these indexes: manage them in Settings → Watched.",
   });
 }
 

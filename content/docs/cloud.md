@@ -3,7 +3,7 @@ title: Cloud Storage
 description: Link cloud accounts (GitHub, Google Drive, OneDrive, SharePoint, Azure) to browse and visualize folders from cloud storage and private repositories.
 ---
 
-Fewer can browse and visualize directory structures from linked cloud accounts — private GitHub repos, Google Drive, OneDrive, SharePoint, and Azure. Sign in, link an account, then browse and import a folder into the graph.
+Fewer can browse and visualize directory structures from linked cloud accounts: private GitHub repos, Google Drive, OneDrive, SharePoint, and Azure. Sign in, link an account, then browse and import a folder into the graph.
 
 ## Link a cloud account
 
@@ -13,7 +13,7 @@ Fewer can browse and visualize directory structures from linked cloud accounts �
 4. Authorize the app on the provider's consent screen.
 5. You're returned to Fewer with the account linked.
 
-Each provider uses its own OAuth app. Before you can link, the provider's credentials must be configured — see [Cloud setup](/docs/deployment) for how to create the OAuth apps and set the environment variables.
+Each provider uses its own OAuth app. Before you can link, the provider's credentials must be configured: see [Cloud setup](/docs/deployment) for how to create the OAuth apps and set the environment variables.
 
 ## Browse cloud storage
 
@@ -24,17 +24,17 @@ Each provider uses its own OAuth app. Before you can link, the provider's creden
 
 ## Import into the graph
 
-1. Browse to the folder you want — the folder you're viewing is selected automatically for import.
+1. Browse to the folder you want: the folder you're viewing is selected automatically for import.
 2. Set the import **Depth** (how many levels deep to fetch).
 3. Click **Import Folder**.
 
-The folder's structure is rendered as a graph using the provider's metadata. Fewer only reads names, folder structure, and sizes — it never downloads file contents.
+The folder's structure is rendered as a graph using the provider's metadata. Fewer only reads names, folder structure, and sizes: it never downloads file contents.
 
 ## Open in provider
 
-Any node imported from a cloud account can be opened in the provider's web UI:
+Any card imported from a cloud account can be opened in the provider's web UI:
 
-- Right-click a folder or file node.
+- Right-click a folder or file card.
 - Choose **Open in {Provider}** (e.g. "Open in GitHub").
 
 This opens the folder or file at its exact location in the provider's site in a new browser tab.
@@ -48,12 +48,12 @@ This removes the connection and its stored tokens. It does not affect your provi
 
 ## Supported providers
 
-- **GitHub** — browse private (and public) repositories.
-- **Google Drive** — browse My Drive folders.
-- **OneDrive** — browse your personal OneDrive.
-- **SharePoint** — browse SharePoint sites' document libraries.
-- **Azure DevOps** — browse git repositories.
-- **Azure Blob** — browse storage container blobs.
+- **GitHub**: browse private (and public) repositories.
+- **Google Drive**: browse My Drive folders.
+- **OneDrive**: browse your personal OneDrive.
+- **SharePoint**: browse SharePoint sites' document libraries.
+- **Azure DevOps**: browse git repositories.
+- **Azure Blob**: browse storage container blobs.
 
 ## Privacy
 

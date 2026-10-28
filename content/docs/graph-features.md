@@ -1,6 +1,6 @@
 ---
 title: Graph Features
-description: Deep dive into Fewer's graph visualization: React Flow canvas, custom node types, layout engines, connection styles, and navigation features.
+description: Deep dive into Fewer's graph visualization: React Flow canvas, custom card types, layout engines, connection styles, and navigation features.
 ---
 
 Fewer is a very feature-rich directory viewer. Here is a deep dive into all of its features:
@@ -11,7 +11,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 - Pan (drag empty space)
 - Zoom (scroll wheel or +/- keys)
-- Scroll action setting (Settings → Advanced): default **Scroll to pan** — the wheel pans vertically and Ctrl/⌘+scroll zooms; toggle to **Scroll to zoom** for direct wheel zooming with Ctrl/⌘+scroll to pan vertically (trackpad pinch-zoom always works)
+- **Scroll action** (Settings → Advanced): defaults to **Scroll to pan**, where the wheel pans vertically and Ctrl/⌘+scroll zooms; switch to **Scroll to zoom** to make the wheel zoom directly instead (trackpad pinch-zoom always works)
 - Fit view (Space key)
 - Minimap (bottom-right, configurable)
 - Controls (zoom in/out, fit view buttons)
@@ -21,20 +21,20 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 Right-click empty canvas space to open quick actions:
 
-- **Fit View**: zoom to show all nodes
-- **Select All**: select every visible node
-- **Organize**: re-run the tree layout to reflow the graph
+- **Fit View**: zoom to show all cards
+- **Select All**: select every visible card
+- **Organize**: re-runs the tree layout to reflow the graph, in every view and not just the active one. The view re-fits to the whole graph afterwards, and a layout-direction change does the same
 - **Zoom In / Zoom Out**
-- **Delete Connection**: removes the last-clicked edge
-- **Set as Parent**: with 2+ nodes selected, makes the last-selected folder the parent of the rest
-- **Show All Cards**: reveal hidden nodes (Power User mode)
+- **Delete Connection**: removes the last-clicked connection
+- **Parent selected cards (Alt+P)**: with 2+ cards selected, makes the last-selected folder the parent of the rest
+- **Show All**: reveal hidden cards (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
 
-## Node Types
+## Card Types
 
 ### Folder Cards (Orange)
 
-- **Children inline**: scrollable list of child nodes inside the card
+- **Children inline**: scrollable list of child cards inside the card
 - **Item counts**: shows number of children
 - **Size display**: total size of all children
 - **Collapsible**: click to expand/collapse children
@@ -48,54 +48,54 @@ Right-click empty canvas space to open quick actions:
 - **No children**: source handle hidden
 - **Resizable**: horizontal only (width)
 
-### Node Resizing
+### Card Resizing
 
-Select a node to see resize handles:
+Select a card to see resize handles:
 
 - **Folders**: resize in all directions
 - **Files**: resize horizontally only (width)
 
 ### Handle Shortcuts
 
-**Ctrl+click** a node's input or output handle removes all connections from that handle.
+**Ctrl+click** a card's input or output handle removes all connections from that handle.
 
 ### Build the Tree by Dragging Handles
 
-Every node has an **input handle** (entry, on the left/top) and an **output handle** (exit, on the right/bottom).
+Every card has an **input handle** (entry, on the left/top) and an **output handle** (exit, on the right/bottom).
 
 - **Drag from a folder's output handle** and release over empty canvas → the **Add child card** dialog opens, letting you create a folder or file inside that folder.
-- **Drag from any node's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the node's new parent. The new parent is always a folder:
-  - If the node is already rooted elsewhere, the folder is inserted between the node and its current parent.
-  - If the node has no parent yet, the folder becomes the node's new root parent.
-  - The new folder may share the node's own name (a self-nesting `docs/docs`) — the node moves inside it, so it is no longer a sibling. Only a name already taken by another card in that scope is rejected.
+- **Drag from any card's input handle** and release over empty canvas → the **Add parent card** dialog opens, letting you create a folder that becomes the card's new parent. The new parent is always a folder:
+  - If the card is already rooted elsewhere, the folder is inserted between the card and its current parent.
+  - If the card has no parent yet, the folder becomes the card's new root parent.
+  - The new folder may share the card's own name (a self-nesting `docs/docs`); the card moves inside it, so it is no longer a sibling. Only a name already taken by another card in that scope is rejected.
 
 ## Multi-Select
 
-- **Ctrl+A**: select all visible nodes
-- **Shift+Arrow keys**: add nodes to the selection while navigating
-- **Set as Parent**: batch-parent multiple selected nodes under the last-selected folder (canvas context menu or **Alt+P**)
-- **Alt+Shift+P**: unparent all selected nodes — only the top-most selected cards detach (a selected descendant whose selected ancestor also detaches stays put); one undo step, and nothing is toasted when there was nothing to detach
+- **Ctrl+A**: select all visible cards
+- **Shift+Arrow keys**: add cards to the selection while navigating
+- **Parent selected cards**: batch-parent multiple selected cards under the last-selected folder (**Alt+P**)
+- **Alt+Shift+P**: unparents the selected cards. Only the top-most ones detach (a selected descendant whose selected ancestor also detaches stays put), the whole thing is one undo step, and nothing is toasted when there was nothing to detach
 - Batch delete, copy, cut, duplicate all work on multi-selections
 
 ## Drag & Drop (from your OS)
 
 **Disabled in the web build.** Dropping a folder from your file system onto the
-canvas — to expand it from disk, or to import it directly on an empty canvas —
+canvas (to expand it from disk, or to import it directly on an empty canvas)
 needs OS drop events and File System Access handles, which are switched off by
 the `LOCAL_FS_FEATURES` flags in `src/lib/fewer/features.ts`. Use **Import from
 disk** (**Alt+I**) instead.
 
-Dragging **nodes within the canvas** (reparenting, adding a child from a folder's
+Dragging **cards within the canvas** (reparenting, adding a child from a folder's
 output handle) is unaffected: it uses the app's own drag payload, not the OS.
 
 ## Layout Engine
 
-Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ nodes) and is used for both initial import and relayout operations.
+Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ cards) and is used for both initial import and relayout operations.
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
-- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Intensity is adjustable (0–3) via the **Crown Shyness** slider in Settings → Advanced (Power User mode) — click the value next to the slider to type a custom intensity; it takes effect as soon as you release the slider (or commit a typed value; changing it clears the active view's manual card positions, which were spaced for the old intensity). The slider responds on a curve: 0 is flat, 1 (the default) keeps the spacing a default canvas has always had, 2 is clearly looser, and 3 opens the tree right up — the top of the range is capped there, so 3 is as loose as the layout gets (roughly +70% spread on a wide graph, against about +10% before this was tuned)
-- Best for large graphs (1K+ nodes)
+- **Crown shyness spacing**: gaps between sibling subtrees scale with subtree depth and size (like tree canopies that never touch), so large branch clusters get natural breathing room instead of uniform packing. Adjust it from 0 to 3 with the **Crown Shyness** slider in Settings → Advanced (Power User mode); click the value next to the slider to type an intensity, which applies as soon as you release the slider or commit the typed value. Changing the intensity clears the active view's manual card positions, since those were spaced for the old value. The slider is curved rather than linear: 0 is flat, 1 (the default) keeps the spacing a default canvas has always had, 2 is clearly looser, and 3 opens the tree right up. The top of the range is capped there, so 3 is as loose as the layout gets (roughly +70% spread on a wide graph, against about +10% before this was tuned)
+- Best for large graphs (1K+ cards)
 - Async computation for large imports, sync for relayout
 - Supports all 4 layout directions (Top→Bottom, Left→Right, Bottom→Top, Right→Left)
 
@@ -113,10 +113,10 @@ Cycle through 4 directions (two if in basic mode) with **Ctrl+L** or via sidebar
 Children within each folder are drawn in a chosen order. The sort applies recursively at every level, so folders and files are laid out consistently across the whole graph. Change it in **Settings → Appearance → Sibling Sort**:
 
 - **Order by**:
-  - **Name** — alphabetical by label (default, A→Z)
-  - **Size** — ascending/descending by recorded node size. Folders whose size wasn't reported on import sort last.
-  - **Type** — folders first, then files grouped by extension. Extension order inverts with direction; folders stay first either way.
-- **Direction**: Ascending / Descending (only inverts the primary key — Name and Size both sort unknown/empty values last in either direction, and Type always keeps folders first).
+  - **Name**: alphabetical by label (default, A→Z)
+  - **Size**: ascending/descending by recorded card size. Folders whose size wasn't reported on import sort last.
+  - **Type**: folders first, then files grouped by extension. Extension order inverts with direction; folders stay first either way.
+- **Direction**: Ascending / Descending (it only inverts the primary key: Name and Size both sort unknown or empty values last in either direction, and Type always keeps folders first).
 
 Changing either control re-lays out the graph immediately. The choice is saved with your other preferences and is not tied to a saved graph.
 
@@ -126,21 +126,25 @@ Tags are named, colored labels you can attach to any folder or file card. Taggin
 
 **Assign tags**: right-click any card → **Tags**. The submenu lists every tag as a checkbox (checked = assigned) and a **+ New tag** row that creates one and immediately assigns it. While naming a new tag, click a color swatch to pick that color, or press **Enter** to accept the next palette color.
 
-**The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments — one per tag (up to 5; extra tags collapse into a "+N" dot) — never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
+**Tag many at once**: select several cards, then right-click the selection → **Tags** — the very same submenu, not a separate dialog. There the checkbox is checked when *every* selected card carries the tag and shows a dash when only some do; clicking a mixed or unchecked tag assigns it to the whole selection, and clicking a fully-checked one removes it from all of them. A tag created from it is applied to every selected card in the same single undo step.
+
+**The highlight ring**: every tagged card shows a permanent ring around its border, colored by its tags. With multiple tags, the ring is split into even, hard-edged segments, one per tag (up to 5; extra tags collapse into a "+N" dot), never a gradient blend. When the card is selected, the themed selection ring replaces the tag ring; deselect to see the tags again.
 
 **Manage the palette**: the sidebar **Tags** panel (visible once a graph is loaded) lists every tag with its color swatch. Create, rename, recolor (color picker), or delete tags. New tags can pick a color from the swatch row (or the sidebar panel) at creation time; deleting a tag removes it from every card that carries it.
 
-**Undo**: assigning or unassigning a tag is undoable (**Ctrl+Z**) — a batch assignment reverts as one step. Deleting a tag is undoable too: undo restores the tag itself, re-assigns the cards it was stripped from, and returns it to the active filter. Deleting a tag that was filtering also releases the cards it was hiding (hides owned by other layers stay). Creating, renaming, or recoloring a tag only edits the palette and is not a history step.
+**Undo**: assigning or unassigning a tag is undoable (**Ctrl+Z**), and a batch assignment reverts as one step. Deleting a tag is undoable too; undo restores the tag itself, re-assigns the cards it was stripped from, and returns it to the active filter. Deleting a tag that was filtering also releases the cards it was hiding (hides owned by other layers stay). Creating, renaming, or recoloring a tag only edits the palette and is not a history step.
 
-**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter — only cards that carry at least one selected tag (OR semantics) stay visible; every other card is removed from the canvas. Folders are hidden too, but only when neither they nor anything inside them matches, so a folder that contains a matching card stays visible as an anchor. Clear with the ✕.
+**Filter by tag**: the search panel shows a chip per tag. Toggle chips to filter the canvas: only cards that carry at least one selected tag (OR semantics) stay visible, and every other card is removed. Folders are hidden too, but only when neither they nor anything inside them matches, so a folder that contains a matching card stays visible as an anchor. Clear with the ✕.
 
 **Sort by tag**: **Settings → Appearance → Sibling Sort → Order by: Tag** orders siblings by the alphabetical label of their first tag; untagged cards always trail.
 
 Tags are part of the graph data: they ride along with saved graphs, share links, version history, and the local reload cache.
 
+**Tags vs groups**: a tag classifies a card wherever it sits; a canvas **group** (Editing → Groups) boxes a set of cards on this one canvas. Reach for the label when the meaning should follow the card across the whole graph, and for the frame when the cluster itself is the point — the two are separate systems on purpose.
+
 ## Max Display Depth
 
-Configurable display depth (default 6 levels) for both import-time and post-import. Deeper nodes go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
+Configurable display depth (default 6 levels) for both import-time and post-import. Deeper cards go to the Hidden Cards panel. Adjust in Settings → Advanced (Power User mode).
 
 ## Connection Styles
 
@@ -166,21 +170,17 @@ Optional motion effects:
 
 Connection motion is a signed-in (Power User) feature: it's only available to
 authenticated users. A Settings → Appearance toggle, **Animate Selected
-Edges Only**, limits the
-animation to the connections along the selected nodes' path to the root (the same
+Connections Only**, limits the
+animation to the connections along the selected cards' path to the root (the same
 connections that get the selection highlight) instead of every connection on the canvas.
-It works standalone — no need to turn on the edge motion toggle first — and
-its animated edges use the **Selected Connection Pattern** (dashed or dotted) chosen
-in the same dialog. Edges outside the selection follow the Motion
-and Pattern controls in the same tab.
+It works on its own: you do not have to turn on the connection motion toggle first. The animated connections use the **Selected Connection Pattern** (dashed or dotted) chosen in the same dialog, and connections outside the selection follow the Motion and Pattern controls in the same tab.
 
 ## Connection Pattern & Weight
 
 In Power User mode, Settings → Appearance → **Connection Styling** controls:
 
-- **Motion**: static or animated — applies to all edges globally, or to the
-  non-selected connections only when **Animate Selected Connections Only** is on
-- **Pattern**: solid, dashed, or dotted — same scope as Motion
+- **Motion**: static or animated. It applies to every connection, or only to the non-selected ones when **Animate Selected Connections Only** is on
+- **Pattern**: solid, dashed or dotted, with the same scope as Motion
 - **Line Thickness**: 0.5px to 6px slider
 
 The sidebar keeps a quick **Style** picker (curved / straight / angled); corner
@@ -188,50 +188,55 @@ radius for angled connections also lives in Connection Styling.
 
 ## Breadcrumb Bar
 
-Shows selected node's full path. Click any segment to navigate to that ancestor.
+Shows selected card's full path. Click any segment to navigate to that ancestor.
 
 ## Auto-hide Large Folders
 
-Folders with more than N children (default: 10) auto-hide their children on import. Hidden nodes appear in the sidebar **Hidden Cards** section as a nested tree.
+Every folder shows its first **N** children — the **Auto-hide Limit** in Settings → Advanced, default 10 — in the canvas sort order. Children past that limit, and everything under them, are hidden on import. The rule **cascades**: any visible folder (including one you reveal by hand) shows its own first N and no more. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree, and the folder card keeps its `N hidden` badge.
 
-**Reveal a folder**: click the eye icon next to it. Its subtree becomes visible (grandchildren stay hidden if they exceed threshold).
+**Reveal a folder**: click the eye icon next to it, double-click its hidden row inside the parent card, or use **Show Children**. The folder comes up with its first N children (cascading the same way); the rest of its children stay hidden until you reveal them one by one. A reveal is not undone by the auto-hide pass afterwards, whether it came from the sidebar, a canvas double-click, **Show Children**, or a search jump. Hiding a card again gives the auto-hide its exemption back, so a later folder refresh, sort change or limit change may hide it as usual. **Reveal All** / **Shift+H** clear the cap entirely.
 
 ## Visibility: Hide Files / Show Children
 
 - **Hide Files / Show Files** (canvas toolbar or right-click → **Visibility**) hides or reveals every file card. Folders stay visible either way.
-- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree — and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
+- **Show Children** (right-click a folder → **Visibility** → **Show Children**) reveals that folder's direct children and whole subtree up to the Auto-hide Limit (children past the limit stay hidden so you can reveal them individually), and it **also wins over an active "Hide Files"**: the folder's files appear even while Hide Files stays on everywhere else (files outside the folder remain hidden).
 
 ## Hidden Cards Panel
 
-Access via sidebar. Shows all hidden nodes grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
+Access via sidebar. Shows all hidden cards grouped by their visible parent folder, so you can always tell which folder a hidden file belongs to:
 
-- **Folder group headers** — each visible parent folder with a `N hidden` count and a collapse toggle
+- **Folder group headers**: each visible parent folder with a `N hidden` count and a collapse toggle
 - **Nested expandable tree** (any depth) for fully-hidden subtrees
-- **Eye button** reveals an individual item (or a whole hidden subtree)
+- **Eye button** reveals an individual item (or a whole hidden subtree) in the active view. One action covers both, so revealing here and on the canvas never cancel each other out
 - **"Show All" button** reveals everything
-- **Hover a row** to highlight the corresponding folder(s) on the canvas — hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
+- One reveal is one undo step (it used to be two or three, one per internal action)
+- **Hover a row** to highlight the corresponding folder(s) on the canvas. Hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
 
 ## Search
 
 Fuzzy search across filenames, paths, and extensions.
 
-- **Click result** → zoom to node
+- **Click result** → zoom to card
 - **Hidden matches** appear with badge; clicking reveals the match **and all its hidden ancestors** up to root, then zooms
-- **Highlight/dim** matched/unmatched nodes
-- **Recent searches** — committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
+- **Highlight/dim** matched/unmatched cards
+- **Recent searches**: committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
 ## Multiple Graph Views
 
-Split the workspace into two or more areas and every graph view keeps its own settings: hidden cards, collapsed folders, card positions, layout direction, connection style and connection width. Clicking a card, its pane, or its header makes that view the active one — the view that owns clicks, selection and keyboard actions.
+Split the workspace into two or more areas and every graph view keeps its own settings (hidden cards, collapsed folders, card positions, layout direction, connection style and connection width). Clicking a card, its pane, or its header makes that view the active one, so it owns clicks, selection and keyboard actions.
 
 The active view is marked with an accent inset border plus a dot in its header, so it is obvious which pane will respond. The marker only appears when the workspace holds more than one view, keeping a single-view layout unmarked. It is a UI affordance: it is never drawn into SVG/PNG exports.
 
 Image exports mirror the active view (see [Import & Export](/docs/import-export)); JSON, CSV, DOT, script and tree exports always cover the full graph.
 
-Card positions are per view, and so is undo: moving a card in one view records the move in that view's history, and undo/redo puts the card back there — the other views keep the arrangement they had, they do not follow along.
+Card positions are per view, and so is undo. Moving a card in one view records the move in that view's history, and undo/redo puts the card back there; the other views keep the arrangement they had and do not follow along.
 
-Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content — no information is clipped. Sidebar sections can be reordered by dragging the grip handle (⋮⋮) next to each section title — sections shift as you cross their midpoints, and Escape cancels. Dragging a section outside the sidebar docks it as a ~25% column (Pro only); the same dock preview band shows where the column will land. Keyboard: focus a section grip and press **Alt+↑/↓** to move it. Panel docking is a Pro feature; Tags requires Pro.
+Organize (sidebar, **Alt+R**, or the canvas context menu) is the exception: it re-flows the whole graph, dropping the manual card positions of **every** view and re-running the layout, so a card that was moved or created in one pane never sits stale in another. Within a view, a card you dragged keeps its spot while every other card re-flows around it. Organize and a layout-direction change both re-fit the view to the whole graph once the new layout settles, so working close to a card never leaves the re-flowed tree offscreen.
+
+Sort by Name/Size/Type is a lighter touch than Organize: it re-flows the layout in every view but keeps manual card positions, so a hand-placed card stays where you put it and its siblings re-order around it.
+
+Non-graph panes (Layout, Connections, File & Actions, Hidden Cards, Tags, Graph Analytics) scroll vertically when the area is too short for the content, so nothing is clipped. Sidebar sections can be reordered by dragging the grip handle (⋮⋮) next to each section title; sections shift as you cross their midpoints, and Escape cancels. Dragging a section outside the sidebar docks it as a ~25% column (Pro only), with a preview band showing where the column will land. To move a section from the keyboard, focus its grip and press **Alt+↑/↓**. Panel docking and Tags both require Pro.
 
 ## Sidebar
 

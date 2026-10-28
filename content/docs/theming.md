@@ -37,7 +37,7 @@ Switch themes via Settings → Appearance tab or use the theme toggle in the sid
 
 Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night, Rose Pine, Solarized, One Dark, One Light, GitHub Light, GitHub Dark, Material, and more.
 
-Each preset is hand-tuned with Open Color values for consistent, accessible contrast. Select a preset from the dropdown in the Custom Theme Editor.
+Each preset is hand-tuned with Open Color values for consistent, accessible contrast. Select a preset from the dropdown in the Custom Theme Editor. Eight additional "Gallery" presets (Terminal Amber, Blueprint, Ink & Clay, Neon Grid, Mono Print, Canopy, Aurora Depth, Slate Highlighter) are curated starter themes that also appear in the community gallery.
 
 ## Custom Theme Editor
 
@@ -71,7 +71,7 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 | `--fewer-item-hover`         | Hover state background     |
 | `--fewer-handle`             | Connection handle color    |
 | `--fewer-edge`               | Graph connection color           |
-| `--fewer-select-ring`        | Selected node outline      |
+| `--fewer-select-ring`        | Selected card outline      |
 | `--fewer-folder-bg`          | Folder card background     |
 | `--fewer-folder-border`      | Folder card border         |
 | `--fewer-folder-text`        | Folder title color         |
@@ -90,25 +90,25 @@ All theme colors are exposed as `--fewer-*` CSS variables:
 
 Canvas background, folder body, and file body slots support an optional
 two-stop **linear gradient**. Expand the slot in the Custom Theme Editor and
-click **Add** under *Gradient* to enable it — a second color picker lets you
-choose the endpoint, and the slider sets the angle. Click **On** again to
+click **Add** under *Gradient* to enable it, and a second color picker lets you
+choose the endpoint while the slider sets the angle. Click **On** again to
 remove it.
 
 Gradient-capable slots expose a `-gradient` companion CSS variable alongside
 the solid `--fewer-*` variable. UI surfaces opt in explicitly:
 
 ```css
-/* e.g. the canvas — falls back to the solid color when no gradient set */
+/* e.g. the canvas: falls back to the solid color when no gradient set */
 background: var(--fewer-background-gradient, var(--fewer-background));
 ```
 
 **Note:** the main `--fewer-*` variable always stays a solid color, so features
-that take a single color — the minimap, SVG/PNG export, saved-theme preview
-dots — render the solid start color even when a gradient is configured. Only
-the in-app canvas and node card backgrounds render gradients.
+that take a single color: the minimap, SVG/PNG export, saved-theme preview
+dots: render the solid start color even when a gradient is configured. Only
+the in-app canvas and card backgrounds render gradients.
 
 Editing a slot's base color (via the main picker or hex input) preserves its
-gradient — the gradient endpoint and angle are kept.
+gradient: the gradient endpoint and angle are kept.
 
 ### Per-Section Undo
 
@@ -128,8 +128,11 @@ Folder and file cards each have separate text controls:
 ## Community Theme Gallery
 
 Custom themes saved to your account can be published to the community gallery at
-[`/gallery`](https://fewer.directory/gallery) — a browsable, logged-out index with
-theme and author search, built next to the graph gallery.
+[`/gallery`](https://fewer.directory/gallery): a browsable, logged-out index with
+theme and author search, built next to the graph gallery. The themes tab is
+directly linkable at [`/gallery?tab=themes`](https://fewer.directory/gallery?tab=themes)
+(the home page's Themes feature points there), and its Apply button tries a
+theme on the whole gallery page — the fastest way to see a theme before saving it.
 
 **Publishing** (must be signed in, and saved themes are a Pro feature):
 
@@ -137,9 +140,9 @@ theme and author search, built next to the graph gallery.
 2. Tick **Share to the community gallery** and optionally add a gallery title
    and short description, then **Save & publish**
 
-Already-saved themes get a globe button in the **Custom** preset list — click it
+Already-saved themes get a globe button in the **Custom** preset list: click it
 to publish or unpublish at any time. Publishing requires your profile to have a
-**first name and a username** (how gallery entries are attributed — Fewer sends
+**first name and a username** (how gallery entries are attributed: Fewer sends
 you to Settings → Account if either is missing). Deleting a saved theme also
 removes its gallery listing.
 
@@ -147,12 +150,14 @@ removes its gallery listing.
 
 - The gallery's **Themes** tab shows each theme's name, colors, author and date,
   plus a search box that matches theme names, titles, descriptions, and authors.
-- **Apply** restyles the page you're on immediately — the gallery is themed
+- **Apply** restyles the page you're on immediately: the gallery is themed
   with the same CSS variables and shadcn tokens the app uses, so you try the
   theme on a real page before leaving.
-- **Open in app** loads `#t:<id>` in the app, which applies the theme and sets
-  it as your last-used theme (it persists through the normal settings sync).
-  Anyone with a gallery theme link can apply the theme without an account.
+- **Open in app** loads `#t:<id>` in the app. If you're signed out, the app
+  opens the **sign-in dialog first** and holds the link: the theme is applied
+  only after sign-in succeeds, at which point it becomes your last-used theme
+  (persisted through the normal settings sync). Signed-in viewers get the theme
+  applied immediately.
 - Signed-in viewers can **Save** a gallery theme straight to their own account.
 
 ## Aurora Haze Tokens
@@ -190,9 +195,9 @@ In Power User mode, the sidebar Connections section also controls:
 
 - **Pattern**: solid, dashed, or dotted
 - **Line Thickness**: 0.5px to 6px slider
-- **Corner Radius**: 0-20px for angled edges
+- **Corner Radius**: 0-20px for angled connections
 
 ## Next Steps
 
-- [Settings](/docs/settings): Power User mode and node dimensions
+- [Settings](/docs/settings): Power User mode and card dimensions
 - [Graph Features](/docs/graph-features): canvas, layout, and connection behavior

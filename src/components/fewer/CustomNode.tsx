@@ -6,10 +6,13 @@ import { useGraphViewDirection, useGraphViewScope } from "@/hooks/use-graph-view
 import {
   Folder,
   FolderOpen,
+  FolderSymlink,
   File as FileIcon,
+  FileArchive,
+  FileSymlink,
   ChevronRight,
 } from "lucide-react";
-import type { FewerNode, FileCategory } from "@/lib/fewer/types";
+import type { FewerNode, FileCategory, SymlinkInfo } from "@/lib/fewer/types";
 import { NODE_ITEM_HEIGHT } from "@/lib/fewer/types";
 import { visibleRange, OVERSCAN } from "@/lib/fewer/visibleRange";
 import { useGraphStore } from "@/store/graphStore";
@@ -37,6 +40,8 @@ import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
 import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
+import { SymlinkBadge } from "./SymlinkBadge";
+import { SymlinkMenuItems } from "./SymlinkMenuItems";
 import { getDescendants } from "@/lib/fewer/validation";
 import { CATEGORY_ICON, folderChildCount as countFolderChildren, getHandlePositions, formatSize, providerLabelFromSource, renameSelection, nodeChildren } from "@/lib/fewer/nodeDisplay";
 import { beginResizeGesture, endResizeGesture } from "@/lib/fewer/resizeGesture";
@@ -48,18 +53,30 @@ function NodeIcon({
   type,
   category,
   isRoot,
+  symlink,
+  isArchive,
   className,
 }: {
   type: "folder" | "file";
   category?: FileCategory;
   isRoot?: boolean;
+  symlink?: SymlinkInfo;
+  isArchive?: boolean;
   className?: string;
 }) {
   if (type === "folder") {
-    const FolderComp = isRoot ? FolderOpen : Folder;
+    // A linked dir keeps its folder identity; the glyph swap is the always-on
+    // link signal (see graphRenderer for the export twin). An expanded archive
+    // shows the archive glyph so it is not mistaken for a real directory —
+    // it holds a listing, not the bytes on disk. Precedence order, weakest
+    // first: plain folder < root < symlink < archive.
+    let FolderComp = Folder;
+    if (isRoot) FolderComp = FolderOpen;
+    if (symlink) FolderComp = FolderSymlink;
+    if (isArchive) FolderComp = FileArchive;
     return <FolderComp className={className} />;
   }
-  const IconComp = CATEGORY_ICON[category ?? "text"] ?? FileIcon;
+  const IconComp = symlink ? FileSymlink : CATEGORY_ICON[category ?? "text"] ?? FileIcon;
   return <IconComp className={className} />;
 }
 
@@ -208,6 +225,9 @@ function FolderContextMenu({
   const { toast } = useToast();
   const hasParent = edges.some((e) => e.target === nodeId);
   const hasChildren = edges.some((e) => e.source === nodeId);
+  // An expanded archive renders as a folder but is not a directory on disk, so
+  // the disk-only actions below must not target it.
+  const isArchive = !!nodes.find((n) => n.id === nodeId)?.data.isArchive;
   // When the right-clicked node is part of a multi-node selection (shift-drag,
   // Select Children, …), the menu shows ONLY batch actions.
   const isBatchSelection = useGraphStore(
@@ -330,7 +350,7 @@ function FolderContextMenu({
             <ContextMenuSeparator />
             {can("tags", tier) && (
               <>
-                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <TagMenu ids={[nodeId]} />
                 <SelectByTagSubmenu label="Select by Tag" />
               </>
             )}
@@ -442,7 +462,14 @@ function FolderContextMenu({
                     Open in {providerLabel}
                   </ContextMenuItem>
                 )}
-                {(dataSource === "directory" || localRootPath) && LOCAL_FS_FEATURES.openInOs && (
+                {/*
+                 * Disk actions are skipped for an expanded archive: it renders
+                 * as a folder, but it is not a directory on disk, so "Open in
+                 * File Explorer" / "Refresh from Disk" would target a file.
+                 */}
+                {(dataSource === "directory" || localRootPath) &&
+                  !isArchive &&
+                  LOCAL_FS_FEATURES.openInOs && (
                   isLocalClient() ? (
                     <ContextMenuItem
                       onSelect={async () => {
@@ -460,27 +487,17 @@ function FolderContextMenu({
                       disabled
                       className="cursor-pointer opacity-50"
                       onSelect={() => {
-                        toast({ title: "Not available remotely", description: "This graph lives on the server — remote clients can't open folders locally.", variant: "destructive" });
+                        toast({ title: "Not available remotely", description: "This graph lives on the server: remote clients can't open folders locally.", variant: "destructive" });
                       }}
                     >
                       Open in File Explorer
                     </ContextMenuItem>
                   )
                 )}
-                <ContextMenuItem
-                  onSelect={async () => {
-                    try {
-                      await navigator.clipboard.writeText(nodePath);
-                      toast({ title: "Path copied", description: nodePath });
-                    } catch {
-                      toast({ title: "Copy failed", description: "Clipboard not available", variant: "destructive" });
-                    }
-                  }}
-                  className="cursor-pointer"
-                >
-                  Copy Path
-                </ContextMenuItem>
-                {dataSource === "directory" && (
+                {nodes.find((n) => n.id === nodeId)?.data.symlink && (
+                  <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+                )}
+                {dataSource === "directory" && !isArchive && (
                   <ContextMenuItem
                     onSelect={async () => {
                       const result = await refreshFolderFromDisk(nodeId);
@@ -504,7 +521,7 @@ function FolderContextMenu({
 
             {can("tags", tier) && (
               <>
-                <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />
+                <TagMenu ids={[nodeId]} />
                 <SelectByTagSubmenu label="Select by Tag" />
               </>
             )}
@@ -582,6 +599,7 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
           {action.label}
         </ContextMenuItem>
       ))}
+      {can("tags", tier) && <TagMenu ids={selectedNodeIds} />}
       {more.length > 0 && (
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
@@ -787,7 +805,7 @@ function FileEntryContextMenu({
             </ContextMenuItem>
           )
         )}
-        {can("tags", tier) && <TagMenu nodeId={nodeId} nodeTagIds={nodes.find((n) => n.id === nodeId)?.data.tagIds ?? []} />}
+        {can("tags", tier) && <TagMenu ids={[nodeId]} />}
         <ContextMenuSub>
           <ContextMenuSubTrigger className="cursor-pointer">
             Select
@@ -851,6 +869,9 @@ function FileEntryContextMenu({
               >
                 Copy Name
               </ContextMenuItem>
+              {nodes.find((n) => n.id === nodeId)?.data.symlink && (
+                <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+              )}
             </ContextMenuSubContent>
           </ContextMenuSub>
         )}
@@ -911,9 +932,8 @@ function ChildEntry({ child }: { child: FewerNode }) {
   const { toast } = useToast();
   const isDimmed = false; // search dimming disabled — canvas visibility is the sole driver
   const isHighlighted = child.data.highlighted;
-  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
   const isHidden = !scope.visibleIds.has(child.id);
-  const isHovered = hoverHighlightIds.includes(child.id);
+  const isHovered = scope.hoverIds.has(child.id);
 
   const handleRename = (v: string) => {
     const ok = renameNode(child.id, v);
@@ -935,15 +955,16 @@ function ChildEntry({ child }: { child: FewerNode }) {
         isDimmed && "opacity-40",
         isHidden && "opacity-50 saturate-50",
       )}
-      title={isHidden ? "Hidden from canvas — double-click the folder to zoom there" : undefined}
+      title={isHidden ? "Hidden from canvas: double-click the folder to zoom there" : undefined}
       onDoubleClick={(e) => {
         // Double-clicking a hidden child reveals it in this view (and zooms to
         // it); the visible children keep zooming into the node as before.
         e.stopPropagation();
         if (isHidden) {
-          const store = useGraphStore.getState();
-          if (scope.leafId !== null) store.eyeRevealForLeaf(scope.leafId, child.id);
-          if (store.hiddenIds.includes(child.id)) store.showNode(child.id);
+          // Same single-write gesture the sidebar's eye uses, so a reveal here
+          // and a reveal there cannot undo each other, and neither costs more
+          // than one version bump + one layout pass.
+          useGraphStore.getState().revealInView(scope.leafId, child.id);
         }
         useGraphStore.getState().setSelectedNodeIds([child.id]);
         setZoomToNode(child.id);
@@ -953,6 +974,8 @@ function ChildEntry({ child }: { child: FewerNode }) {
         type={child.data.type}
         category={child.data.category}
         isRoot={child.data.isRoot}
+        symlink={child.data.symlink}
+        isArchive={child.data.isArchive}
         className={cn(
           "h-3.5 w-3.5 shrink-0",
           child.data.type === "folder"
@@ -968,6 +991,17 @@ function ChildEntry({ child }: { child: FewerNode }) {
         />
       ) : (
         <span className="truncate text-fewer-text">{child.data.label}</span>
+      )}
+      {child.data.symlink && (
+        <SymlinkBadge info={child.data.symlink} variant="inline" className="shrink-0" />
+      )}
+      {child.data.isArchive && (
+        <span
+          className="shrink-0 rounded bg-fewer-folder-icon/15 px-1 text-[9px] font-medium uppercase tracking-wide text-fewer-folder-icon"
+          title="Archive expanded: this is the archive's listing, not a folder on disk"
+        >
+          archive
+        </span>
       )}
       <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
         {child.data.type === "folder"
@@ -996,7 +1030,9 @@ function ChildEntry({ child }: { child: FewerNode }) {
       nodeId={child.id}
       nodeLabel={child.data.label}
       onDelete={() => deleteNodes([child.id])}
-      showOpenFile={dataSource === "directory" && isLocalClient()}
+      showOpenFile={
+        dataSource === "directory" && !child.data.isArchive && isLocalClient()
+      }
       nodePath={child.data.path}
       nodeWebUrl={child.data.webUrl}
     >
@@ -1033,8 +1069,7 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   );
   const { toast } = useToast();
 
-  const hoverHighlightIds = useGraphStore((s) => s.hoverHighlightIds);
-  const isHovered = hoverHighlightIds.includes(id);
+  const isHovered = scope.hoverIds.has(id);
   const tags = useGraphStore((s) => s.tags);
   const nodeTagIds = data.tagIds ?? [];
 
@@ -1072,6 +1107,7 @@ if (isCollapsed) {
               isHovered && "gm-highlight-ring",
               data.dimmed && "opacity-40 saturate-50",
               selected && "gm-selected-ring",
+              data.symlink?.broken && "ring-1 ring-amber-400/60",
             )}
             style={{ width: width ?? 240 }}
           >
@@ -1093,6 +1129,8 @@ if (isCollapsed) {
                 type={data.type}
                 category={data.category}
                 isRoot={data.isRoot}
+                symlink={data.symlink}
+                isArchive={data.isArchive}
                 className="h-5 w-5"
               />
             </div>
@@ -1100,9 +1138,13 @@ if (isCollapsed) {
               <span className="truncate text-sm font-semibold text-fewer-folder-text" title={data.label}>
                 {data.label}
               </span>
-              <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
-                {plural(childCount, "item")}
-              </span>
+              {data.symlink ? (
+                <SymlinkBadge info={data.symlink} className="tracking-normal" />
+              ) : (
+                <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
+                  {plural(childCount, "item")}
+                </span>
+              )}
             </div>
             {nodeTagIds.length > 0 && (
               <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0" />
@@ -1141,11 +1183,11 @@ if (isCollapsed) {
         className={cn(
           "group relative flex flex-col w-full rounded-2xl border backdrop-blur-xl gm-node-hover",
           "bg-fewer-folder-bg border-fewer-folder-border text-fewer-text shadow-node-folder",
-          data.isRoot && "gm-aurora gm-aurora-brand",
           data.highlighted && "gm-highlight-ring",
           isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
+          data.symlink?.broken && "ring-1 ring-amber-400/60",
         )}
         style={{ height: manualHeight ?? nodeHeight, background: "var(--fewer-folder-bg-gradient, var(--fewer-folder-bg))" }}
       >
@@ -1206,6 +1248,8 @@ if (isCollapsed) {
                   type={data.type}
                   category={data.category}
                   isRoot={data.isRoot}
+                  symlink={data.symlink}
+                isArchive={data.isArchive}
                   className="h-4 w-4"
                 />
               </div>
@@ -1230,6 +1274,7 @@ if (isCollapsed) {
                 >
                   {data.path}
                 </span>
+                {data.symlink && <SymlinkBadge info={data.symlink} className="shrink-0" />}
               </div>
               {nodeTagIds.length > 0 && (
                 <TagDots tags={tags} tagIds={nodeTagIds} className="shrink-0 ml-1" />
@@ -1308,7 +1353,9 @@ if (isCollapsed) {
       nodeId={id}
       nodeLabel={data.label}
       onDelete={() => deleteNodes([id])}
-      showOpenFile={dataSource === "directory" && isLocalClient()}
+      showOpenFile={
+        dataSource === "directory" && !data.isArchive && isLocalClient()
+      }
       nodePath={data.path}
       nodeWebUrl={data.webUrl}
     >
@@ -1321,6 +1368,7 @@ if (isCollapsed) {
           isHovered && "gm-highlight-ring",
           data.dimmed && "opacity-40 saturate-50",
           selected && "gm-selected-ring",
+          data.symlink?.broken && "ring-1 ring-amber-400/60",
         )}
         style={{ background: "var(--fewer-file-bg-gradient, var(--fewer-file-bg))" }}
       >
@@ -1345,6 +1393,8 @@ if (isCollapsed) {
             type={data.type}
             category={data.category}
             isRoot={data.isRoot}
+            symlink={data.symlink}
+            isArchive={data.isArchive}
             className="h-5 w-5"
           />
         </div>
@@ -1365,7 +1415,8 @@ if (isCollapsed) {
             </span>
           )}
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-file-subtle-text">
-            <span>{data.extension ? `.${data.extension}` : "file"}</span>
+            {data.symlink && <SymlinkBadge info={data.symlink} className="normal-case tracking-normal" />}
+            <span className="shrink-0">{data.extension ? `.${data.extension}` : "file"}</span>
             {data.size ? (
               <>
                 <span className="opacity-50">·</span>

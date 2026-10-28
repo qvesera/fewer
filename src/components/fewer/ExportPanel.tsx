@@ -53,6 +53,8 @@ import {
 import { computeStats } from "@/lib/fewer/stats";
 import { getDescendants } from "@/lib/fewer/validation";
 import { resolveViewNodes } from "@/lib/fewer/viewState";
+import { collapsedGroupBlocks, groupPillNodeId, pillsForViewEdges } from "@/lib/fewer/groupLayout";
+import { applyPillEdgeColors } from "@/lib/fewer/edgeHighlight";
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
@@ -86,7 +88,8 @@ const ADVANCED_FORMATS: {
   info: string;
 }[] = [
   { value: "svg", label: "SVG", desc: "Vector", icon: FileCode, info: "Ideal for logos, print, or scaling without quality loss." },
-  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Use for programmatic processing or importing into other tools." },
+  { value: "json", label: "JSON", desc: "Raw graph data", icon: FileJson, info: "Structural export for programmatic use: re-import rebuilds the graph, and it carries no tags or groups." },
+  { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's graph document: cards with positions, tags and groups exactly as saved. Re-import restores the whole graph on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
@@ -107,6 +110,8 @@ export function ExportPanel() {
   const sortKey = useGraphStore((s) => s.sortKey);
   const sortDir = useGraphStore((s) => s.sortDir);
   const tags = useGraphStore((s) => s.tags);
+  const groups = useGraphStore((s) => s.groups);
+  const localRootPath = useGraphStore((s) => s.localRootPath);
   const viewSettings = useGraphStore((s) => s.viewSettings);
   const { nodes, edges, hiddenIds } = useGraphData();
   const { nodeWidth, nodeHeight, edgeWidth, cornerRadius, edgeStyle, edgeStrokeStyle, direction } = useLayoutConfig();
@@ -184,7 +189,7 @@ export function ExportPanel() {
     [nodes],
   );
   const viewHiddenIds = resolved?.hiddenIds ?? hiddenIds;
-  const viewHiddenSet = useMemo(() => new Set(viewHiddenIds), [viewHiddenIds]);
+  const viewHiddenSet = useMemo(() => new Set<string>(viewHiddenIds ?? []), [viewHiddenIds]);
 
   const imageGraph = useMemo(() => {
     if (!isImageFormat) {
@@ -204,44 +209,78 @@ export function ExportPanel() {
           resolved,
           { direction, hiddenIds, fileIds },
           { shynessScale, sortKey, sortDir, tagLabelById: makeTagLabelLookup(tags) },
+          groups ?? [],
+          nodes, // store list: an anchor pill must find its hidden members here
         )
       : visibleAll;
     const viewById = new Map(positioned.map((n) => [n.id, n]));
     // Keep the scope-filtered list whole (hidden children still show as folder
     // rows) but take the position AND the layout stamp the view paints, so edge
     // geometry never reads a stale `layoutDirection` from the shared layout.
-    const imageNodes = exportNodes.map((n) => {
-      const v = viewById.get(n.id);
-      if (!v) return n;
-      return {
-        ...n,
-        position: v.position,
-        data: {
-          ...n.data,
-          layoutDirection: v.data.layoutDirection,
-          isHorizontal: v.data.isHorizontal,
-        },
-      };
-    });
+    const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name]));
+    const imageNodes = [
+      ...exportNodes.map((n) => {
+        const v = viewById.get(n.id);
+        if (!v) return n;
+        return {
+          ...n,
+          position: v.position,
+          data: {
+            ...n.data,
+            layoutDirection: v.data.layoutDirection,
+            isHorizontal: v.data.isHorizontal,
+          },
+        };
+      }),
+      // The collapsed pills the canvas paints (T-180): never in the scope list,
+      // so they ride along as their own nodes — labelled with the GROUP's name
+      // (a pill's `data.label` is a member's, kept only for sibling sort order).
+      ...positioned
+        .filter((n) => n.type === "groupPill")
+        .map((n) => ({
+          ...n,
+          data: {
+            ...n.data,
+            label: groupNameById.get(String(n.data.groupId)) ?? n.data.label,
+          },
+        })),
+    ];
     // Per-view edge style/width/stroke come from the resolved settings, exactly
     // as the canvas applies them to its own edges.
     const viewEdgeType = edgeTypeFromStyle(resolved?.edgeStyle ?? edgeStyle);
     const viewDash = edgeDashPattern(resolved?.edgeStrokeStyle ?? edgeStrokeStyle);
     const viewEdgeWidth = resolved?.edgeWidth ?? edgeWidth;
-    const imageEdges = exportEdges.map((e) => ({
-      ...e,
-      type: viewEdgeType,
-      style: { ...e.style, strokeWidth: viewEdgeWidth, strokeDasharray: viewDash },
-    }));
+    // The collapsed pills' inherited connections (T-180): re-pointed at the
+    // pill, exactly as the canvas paints them — an export shows the same wires,
+    // and a coloured group tints them the same way too.
+    const boundary = pillsForViewEdges(
+      edges,
+      groups ?? [],
+      rawViewSettings?.collapsedGroupIds ?? [],
+      viewHiddenSet,
+      new Set(visibleAll.map((n) => n.id)),
+    );
+    const pillColors = new Map<string, string>();
+    for (const g of collapsedGroupBlocks(groups ?? [], rawViewSettings?.collapsedGroupIds ?? [])) {
+      if (g.color) pillColors.set(groupPillNodeId(g.id), g.color);
+    }
+    const imageEdges = applyPillEdgeColors(
+      [...exportEdges, ...boundary].map((e) => ({
+        ...e,
+        type: viewEdgeType,
+        style: { ...e.style, strokeWidth: viewEdgeWidth, strokeDasharray: viewDash },
+      })),
+      pillColors,
+    );
     const collapsedIds = new Set<string>([
       ...(resolved?.collapsedFolderIds ?? []),
       ...nodes.filter((n) => n.data.collapsed).map((n) => n.id),
     ]);
     return { nodes: imageNodes, edges: imageEdges, collapsedIds };
   }, [
-    isImageFormat, exportNodes, exportEdges, nodes, edges, viewHiddenIds, resolved,
+    isImageFormat, exportNodes, exportEdges, nodes, edges, viewHiddenIds, viewHiddenSet, resolved,
     rawViewSettings, direction, hiddenIds, fileIds, shynessScale, sortKey, sortDir,
-    tags, edgeStyle, edgeStrokeStyle, edgeWidth,
+    tags, edgeStyle, edgeStrokeStyle, edgeWidth, groups,
   ]);
 
   const handleExport = () => {
@@ -272,6 +311,8 @@ export function ExportPanel() {
           cornerRadius,
           collapsedIds: imageGraph.collapsedIds,
           tags,
+          groups,
+          localRootPath,
           // Canvas handles follow the view's direction; edges must too.
           direction: resolved?.direction ?? direction,
         },
@@ -410,21 +451,27 @@ export function ExportPanel() {
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-            <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">Include fewer branding</Label>
-              <p className="text-xs text-muted-foreground">
-                {!canRemoveBranding
-                  ? "Signed out — exports carry the fewer watermark until you sign in."
-                  : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
-              </p>
+          {/* A `.fwr` document carries no meta/credit line (it is a document,
+              not an export payload), so the branding control would promise a
+              watermark it does not write; hide it there (T-145).
+              */}
+          {settings.format !== "fwr" && (
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold">Include fewer branding</Label>
+                <p className="text-xs text-muted-foreground">
+                  {!canRemoveBranding
+                    ? "Signed out: exports carry the fewer watermark until you sign in."
+                    : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
+                </p>
+              </div>
+              <Switch
+                checked={includeBranding}
+                onCheckedChange={(v) => setSettings({ includeBranding: v })}
+                disabled={!canRemoveBranding}
+              />
             </div>
-            <Switch
-              checked={includeBranding}
-              onCheckedChange={(v) => setSettings({ includeBranding: v })}
-              disabled={!canRemoveBranding}
-            />
-          </div>
+          )}
 
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">

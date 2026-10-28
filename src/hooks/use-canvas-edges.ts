@@ -3,14 +3,19 @@ import type { Dispatch, SetStateAction } from "react";
 import type { EdgeChange } from "@xyflow/react";
 
 import {
+  applyEdgeHighlights,
   applyEdgeSelection,
-  buildSelectedEdgeHighlight,
+  applyPillEdgeColors,
+  buildEdgeBase,
+  buildTreeLookups,
   edgeTypeFor,
   staticEdgeDashArray,
 } from "@/lib/fewer/edgeHighlight";
 import type { EdgeAnimationOptions, EdgeThemeColors } from "@/lib/fewer/edgeHighlight";
 import type { FewerEdge, FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
+import { selectionForLeaf } from "@/lib/fewer/canvasSelection";
+import { markLoop } from "@/lib/fewer/loopProbe";
 import { useGraphStore } from "@/store/graphStore";
 
 /**
@@ -41,9 +46,23 @@ export interface CanvasEdgesDeps {
   onEdgesChange: (changes: EdgeChange<FewerEdge>[]) => void;
   setRfEdges: Dispatch<SetStateAction<FewerEdge[]>>;
   graphVersion: number;
+  /** Bumped by selection changes only — the highlight must follow the selection
+   *  without a graph rebuild. */
+  selectionVersion: number;
   allNodes: FewerNode[];
+  allEdges: FewerEdge[];
+  /** The view's visible edges (hidden already filtered) — the base style array
+   *  is derived from these and memoised, so a selection change reuses it. */
+  visibleEdges: FewerEdge[];
   themeColors: EdgeThemeColors;
   vs: ResolvedViewSettings;
+  /** Content-stable effective hidden ids (see useStableHiddenIds) — the
+   *  highlight effect rebuilds every edge, so it must not key on a per-frame
+   *  array identity. */
+  hiddenIds: string[];
+  /** pill node id → that GROUP's colour (T-180): the pill's edges are ordinary
+   *  edges, and a coloured group keeps its wires tinted like the old stubs. */
+  pillEdgeColors: ReadonlyMap<string, string>;
   animation: EdgeAnimationOptions;
   leafId?: string | null;
   isActive: boolean;
@@ -57,7 +76,7 @@ export interface CanvasEdgesDeps {
  * `selectedEdgeIdsRef` is owned here and shared with `useCanvasSelection`
  * (which writes it from RF's authoritative edge-snapshot on selection change).
  */
-export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNodes, themeColors, vs, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
+export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, selectionVersion, allNodes, allEdges, visibleEdges, themeColors, vs, hiddenIds, pillEdgeColors, animation, leafId, isActive }: CanvasEdgesDeps): CanvasEdgesHandlers {
   // Track RF's live edge-selection so rebuilds (highlight/sync) don't wipe it.
   const selectedEdgeIdsRef = useRef<Set<string>>(new Set());
 
@@ -70,20 +89,51 @@ export function useCanvasEdges({ onEdgesChange, setRfEdges, graphVersion, allNod
     [onEdgesChange],
   );
 
+  // One pass over the whole graph, memoised on the graph itself — it used to be
+  // rebuilt on every selection change (30k nodes + 30k edges into two maps).
+  const lookups = useMemo(() => buildTreeLookups(allNodes, allEdges), [allNodes, allEdges]);
+  // Ids of symlink nodes — derived, never stored: symlink edges get their
+  // contrast stroke + arrowhead from (node metadata, view settings) alone.
+  const symlinkTargetIds = useMemo(
+    () => {
+      const out = new Set<string>();
+      for (const n of allNodes) if (n.data?.symlink) out.add(n.id);
+      return out;
+    },
+    [allNodes],
+  );
+  // The unhighlighted edge array: default stroke, global motion, edge type. It
+  // depends on the edges and the styling, NOT on the selection, so a click
+  // reuses it and only restyles the path edges.
+  const baseEdges = useMemo(() => {
+    const hidden = new Set(hiddenIds);
+    return applyPillEdgeColors(
+      buildEdgeBase(
+        visibleEdges.filter((e: FewerEdge) => !hidden.has(e.source) && !hidden.has(e.target)),
+        themeColors,
+        vs.edgeWidth,
+        animation,
+        symlinkTargetIds,
+      ).map((e: FewerEdge) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) })),
+      pillEdgeColors,
+    );
+  }, [visibleEdges, hiddenIds, themeColors, vs.edgeWidth, animation, vs.edgeStyle, symlinkTargetIds, pillEdgeColors]);
+
   useEffect(() => {
     const state = useGraphStore.getState();
-    const leafSel = leafId ? state.leafSelections[leafId] : undefined;
-    const selectedForHighlight = leafSel ?? state.selectedNodeIds;
+    // Same precedence as the card stamps (selectionForLeaf): a leaf that owns
+    // nothing paints nothing, so its edges must not highlight another view's
+    // selection either (#285).
+    const selectedForHighlight = selectionForLeaf(
+      state.leafSelections, leafId, state.activeLeafId, state.selectedNodeIds,
+    );
     const hoverForHighlight = isActive ? state.hoverHighlightIds : [];
-    const latestEdges = state.edges;
-    const updatedEdges = buildSelectedEdgeHighlight(selectedForHighlight, hoverForHighlight, latestEdges, allNodes, themeColors, vs.edgeWidth, animation);
-    const rfEdges = updatedEdges.map((e) => ({ ...e, type: edgeTypeFor(vs.edgeStyle) }));
-    setRfEdges(applyEdgeSelection(rfEdges, selectedEdgeIdsRef.current).filter((e: FewerEdge) => {
-      // Filter by the view's EFFECTIVE hidden set (layers + global), not just global.
-      const hidden = new Set(vs.hiddenIds);
-      return !hidden.has(e.source) && !hidden.has(e.target);
-    }));
-  }, [graphVersion, allNodes, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, vs.hiddenIds, leafId, isActive]);
+    markLoop("push:edges");
+    setRfEdges(applyEdgeSelection(
+      applyEdgeHighlights(baseEdges, selectedForHighlight, hoverForHighlight, lookups, themeColors, vs.edgeWidth, animation, symlinkTargetIds),
+      selectedEdgeIdsRef.current,
+    ));
+  }, [graphVersion, selectionVersion, themeColors, vs.edgeWidth, vs.edgeStyle, animation, setRfEdges, baseEdges, lookups, leafId, isActive, symlinkTargetIds]);
 
   const dashArray = useMemo(() => staticEdgeDashArray(vs.edgeStrokeStyle), [vs.edgeStrokeStyle]);
 

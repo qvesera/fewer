@@ -7,6 +7,7 @@ export function computeStats(
   let totalFiles = 0;
   let totalFolders = 0;
   let totalSize = 0;
+  let totalSymlinks = 0;
   const byCategory: DirectoryStats["byCategory"] = {
     code: 0,
     config: 0,
@@ -20,6 +21,7 @@ export function computeStats(
   };
 
   for (const n of nodes) {
+    if (n.data.symlink) totalSymlinks += 1;
     if (n.data.type === "folder") {
       totalFolders += 1;
     } else {
@@ -35,6 +37,7 @@ export function computeStats(
     totalFiles,
     totalFolders,
     totalSize,
+    totalSymlinks,
     byCategory,
   };
 }

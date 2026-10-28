@@ -146,10 +146,10 @@ test("auto-hide is a live filter both ways", () => {
 
   const noneHidden = [] as string[];
 
-  // Threshold 2: all 5 children are auto-hidden.
+  // Threshold 2: the first 2 children stay visible, the rest are auto-hidden.
   const low = reconcileAutoHide(nodes, edges, noneHidden, [], [], 2);
-  expect(low.hiddenIds.length).toBe(5);
-  expect(low.autoHiddenIds.length).toBe(5);
+  expect(low.hiddenIds.length).toBe(3);
+  expect(low.autoHiddenIds.length).toBe(3);
 
   // Threshold 10: children fall under the limit -> revealed (live filter both ways).
   const high = reconcileAutoHide(nodes, edges, low.hiddenIds, low.autoHiddenIds, [], 10);
@@ -158,7 +158,7 @@ test("auto-hide is a live filter both ways", () => {
 
   // Threshold back to 2: re-hidden.
   const backLow = reconcileAutoHide(nodes, edges, high.hiddenIds, high.autoHiddenIds, [], 2);
-  expect(backLow.hiddenIds.length).toBe(5);
+  expect(backLow.hiddenIds.length).toBe(3);
 });
 
 test("auto-hide does not reveal manually-hidden nodes when threshold rises", () => {
@@ -179,18 +179,19 @@ test("auto-hide does not reveal manually-hidden nodes when threshold rises", () 
 test("setShowFiles(true) reveal re-applies the auto-hide limit (files under over-threshold folders stay hidden)", () => {
   // One folder with 12 file children, auto-hide threshold 10 — mirrors the
   // reveal-then-reconcile composition uiSlice.setShowFiles(true) now uses.
+  // Zero-padded ids keep the sort order unambiguous (f00 < f01 < … < f11).
   const folder = makeNode("folder", "folder", null, { isRoot: true });
   const files = Array.from({ length: 12 }, (_, i) =>
-    makeNode(`f${i}`, `f${i}`, "folder", { type: "file" })
+    makeNode(`f${String(i).padStart(2, "0")}`, `f${String(i).padStart(2, "0")}`, "folder", { type: "file" })
   );
   const nodes = [folder, ...files];
   const edges = files.map((f) => makeEdge(`e-${f.id}`, "folder", f.id));
 
-  // Naive reveal removed every file from hiddenIds — reconcile must re-hide
-  // them (folder exceeds the threshold) and tag them as auto-hidden.
+  // Naive reveal removed every file from hiddenIds — the cap re-hides the two
+  // past the limit (the first 10 sort-first) and tags them auto-hidden.
   const { hiddenIds, autoHiddenIds } = reconcileAutoHide(nodes, edges, [], [], [], 10);
-  expect(new Set(hiddenIds)).toEqual(new Set(files.map((f) => f.id)));
-  expect(new Set(autoHiddenIds)).toEqual(new Set(files.map((f) => f.id)));
+  expect(new Set(hiddenIds)).toEqual(new Set(["f10", "f11"]));
+  expect(new Set(autoHiddenIds)).toEqual(new Set(["f10", "f11"]));
 
   // Under the threshold the same reveal keeps all files visible.
   const under = reconcileAutoHide(nodes, edges, [], [], [], 12);
@@ -225,6 +226,8 @@ test("showSubtree skips independentlyHiddenIds and their descendants", () => {
     independentlyHiddenIds: ["a"],
     autoHiddenIds: [],
     revealedFromHidden: [],
+    revealedRootIds: [],
+    autoHideThreshold: 10,
     selectedNodeIds: [],
   });
   useGraphStore.getState().showSubtree("root");
@@ -247,6 +250,8 @@ test("showSubtree from an already-visible root still reveals its hidden descenda
     independentlyHiddenIds: [],
     autoHiddenIds: [],
     revealedFromHidden: [],
+    revealedRootIds: [],
+    autoHideThreshold: 10,
     selectedNodeIds: [],
   });
   useGraphStore.getState().showSubtree("root");

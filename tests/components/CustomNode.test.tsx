@@ -36,6 +36,7 @@ const DEFAULT_SCOPE: GraphViewScope = {
     collapsedFolderIds: [] as string[],
   },
   visibleIds: new Set<string>(["f1", "f2", "f3"]),
+  hoverIds: new Set<string>(),
 };
 
 const FOLDER_DATA = {
@@ -166,6 +167,7 @@ describe("FolderContextMenu", () => {
     const calls = toast.mock.calls.flat();
     expect(calls.some((c: any) => c.title === "Duplicated" && c.description === "src")).toBe(true);
   });
+
 });
 
 // ── File context menu ───────────────────────────────────────────────────
@@ -191,6 +193,7 @@ describe("FileEntryContextMenu", () => {
     const calls = toast.mock.calls.flat();
     expect(calls.some((c: any) => c.title === "Item deleted" && c.description === "index")).toBe(true);
   });
+
 });
 
 // ── Pluralization characterizations ─────────────────────────────────────

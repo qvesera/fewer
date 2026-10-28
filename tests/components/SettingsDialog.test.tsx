@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock boundaries, not the dialog controls, inputs or Zustand actions.
 let signedIn = false;
@@ -210,7 +211,9 @@ describe("Advanced tab controls", () => {
 
   test("scroll-to-zoom switch toggles the store action", async () => {
     await openAdvanced();
-    const control = screen.getByRole("switch");
+    // Query by name: the Advanced tab has more than one switch (Auto-relayout
+    // lives in Layout Policy), and "the only switch" is not a contract.
+    const control = screen.getByRole("switch", { name: "Scroll to Zoom" });
     fireEvent.click(control);
     expect(useGraphStore.getState().scrollAction).toBe("zoom");
     expect(control.getAttribute("aria-checked")).toBe("true");
@@ -218,12 +221,26 @@ describe("Advanced tab controls", () => {
     expect(useGraphStore.getState().scrollAction).toBe("pan");
   });
 
+  test("auto-relayout switch toggles the store flag", async () => {
+    await openAdvanced();
+    const control = screen.getByRole("switch", { name: "Auto-relayout" });
+    expect(control.getAttribute("aria-checked")).toBe("true"); // default on
+    fireEvent.click(control);
+    expect(useGraphStore.getState().autoRelayout).toBe(false);
+    expect(control.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(control);
+    expect(useGraphStore.getState().autoRelayout).toBe(true);
+  });
+
   test("mobile retains advanced layout controls but hides canvas navigation", async () => {
     mobile = true;
     await openAdvanced();
     expect(screen.getByText("Layout Policy")).toBeTruthy();
     expect(screen.queryByText("Canvas Navigation")).toBeNull();
-    expect(screen.queryByRole("switch")).toBeNull();
+    // Layout Policy keeps its own switch on mobile; only the desktop
+    // Canvas Navigation card goes away.
+    expect(screen.getByRole("switch", { name: "Auto-relayout" })).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Scroll to Zoom" })).toBeNull();
   });
 
   test("basic mode hides layout policy and card metrics, not desktop navigation", async () => {
@@ -232,5 +249,61 @@ describe("Advanced tab controls", () => {
     expect(screen.queryByText("Card Metrics")).toBeNull();
     expect(screen.queryByRole("slider")).toBeNull();
     expect(screen.getByText("Canvas Navigation")).toBeTruthy();
+  });
+});
+
+describe("Settings help lives behind info tips (T-173)", () => {
+  // Wrapped in the provider the app mounts (AppShell) so the tooltip opens
+  // with the app's own zero delay.
+  async function openAdvancedTab() {
+    signedIn = true;
+    useGraphStore.setState({
+      advancedModeEnabled: true,
+      tier: "free",
+      maxDisplayDepth: 6,
+      autoHideThreshold: 10,
+      scrollAction: "pan",
+    });
+    render(
+      <TooltipProvider delayDuration={0}>
+        <SettingsDialog />
+      </TooltipProvider>,
+    );
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Advanced" }));
+  }
+
+  test("Layout Policy explainers are sr-only and their tips carry the same sentence", async () => {
+    await openAdvancedTab();
+
+    // The sentences leave the panel but not the DOM: off to screen readers'
+    // eyes (sr-only), reachable from aria-describedby, read in order.
+    const crown = screen.getByText(/Extra spacing between sibling branches/);
+    expect(crown.className).toContain("sr-only");
+    expect(document.getElementById("hint-crown-shyness")).toBeTruthy();
+    expect(document.getElementById("hint-max-depth")).toBeTruthy();
+    expect(screen.getByText(/Hide cards deeper than this level/).className).toContain("sr-only");
+
+    // Controls that can carry it point at it...
+    expect(screen.getByRole("switch", { name: "Auto-relayout" }).getAttribute("aria-describedby")).toBe(
+      "hint-auto-relayout",
+    );
+
+    // ...and the tip is a labelled button that opens the same sentence.
+    const tip = screen.getByRole("button", { name: "About Crown Shyness" });
+    expect(tip.getAttribute("aria-describedby")).toBe("hint-crown-shyness");
+    act(() => tip.focus());
+    const content = await screen.findByRole("tooltip");
+    expect(content.textContent).toContain("Extra spacing between sibling branches");
+  });
+
+  test("group footnotes live on the group's tip, not under the controls", async () => {
+    await openAdvancedTab();
+    // The old visible footnote under the Layout Policy rows is gone - only the
+    // sr-only copy (for aria-describedby and the reading order) remains.
+    expect(screen.getByText(/Organize and Sort always re-flow/).className).toContain("sr-only");
+    // ...and the group header explains when asked.
+    act(() => screen.getByRole("button", { name: "About Layout Policy" }).focus());
+    const content = await screen.findByRole("tooltip");
+    expect(content.textContent).toContain("Organize and Sort always re-flow");
   });
 });

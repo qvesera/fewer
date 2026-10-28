@@ -45,7 +45,23 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+  // Host engines are a backend detail (T-094 seam): feature code routes through
+  // src/lib/fewer/nativeShell.ts (isHost() + hostInvoke) and never imports a
+  // host package directly. The desktop host lives in the private fewer-desktop
+  // repo — neither @tauri-apps/* nor electron is importable here.
+  files: ["src/**/*.{ts,tsx}"],
+  rules: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        {
+          group: ["@tauri-apps/*", "electron", "electron/*"],
+          message: "Host packages are banned in src/ — route through @/lib/fewer/nativeShell.ts (isHost()/hostInvoke).",
+        },
+      ],
+    }],
+  },
+}, {
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "public/libarchive/**", "src-tauri/target/**", "src-tauri/gen/**"]
 }];
 
 export default eslintConfig;

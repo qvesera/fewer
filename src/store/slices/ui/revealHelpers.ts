@@ -1,5 +1,6 @@
 "use client";
 import type { FewerNode, FewerEdge, FileCategory } from "@/lib/fewer/types";
+import type { AutoHideOptions } from "@/lib/fewer/importMerge";
 import { parentMapOf } from "@/lib/fewer/validation";
 import { reconcileAutoHide } from "../graphSlice";
 
@@ -47,10 +48,12 @@ export function applyRevealLimits(args: {
   maxDisplayDepth: number;
   independentlyHiddenIds: string[];
   revealIds: string[];
+  /** Sort order the auto-hide cap follows (see `AutoHideOptions`). */
+  order?: AutoHideOptions;
 }): { hiddenIds: string[]; autoHiddenIds: string[] } {
   const {
     nodes, edges, revealedHidden, autoHiddenIds, revealedRootIds,
-    autoHideThreshold, maxDisplayDepth, independentlyHiddenIds, revealIds,
+    autoHideThreshold, maxDisplayDepth, independentlyHiddenIds, revealIds, order,
   } = args;
   const nodeDepth = new Map(nodes.map((n) => [n.id, n.data.depth ?? 0]));
   const indieSet = new Set(independentlyHiddenIds);
@@ -67,5 +70,6 @@ export function applyRevealLimits(args: {
     autoHiddenIds,
     revealedRootIds,
     autoHideThreshold,
+    order,
   );
 }

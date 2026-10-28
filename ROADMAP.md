@@ -17,8 +17,12 @@
 
 ## 📥 Import & Export
 
-- [ ] **CSV import**: import graph from CSV format (currently export-only)
-- [ ] **DOT import**: import graph from Graphviz DOT format (currently export-only)
+- [x] **Compressed archive import**: visualize the folder tree inside `.zip` / `.tar` / `.tar.gz` by reading the archive's listing, without extracting it
+- [x] **More archive formats**: 7z, RAR, xz, bzip2, Zstandard via a lazily-loaded wasm engine
+- [x] **Look inside archives during folder import**: expand archives found inside an imported folder (advanced option)
+- [ ] **Extract from archive**: open or download a single file from inside an imported archive
+- [x] **CSV import**: import graph from CSV format (Fewer export, or your own spreadsheet with column mapping)
+- [x] **DOT import**: import graph from Graphviz DOT format (Fewer export, or third-party DOT)
 - [ ] **Mermaid import**: parse Mermaid markdown diagrams into the graph
 - [ ] **Mermaid export**: export the graph as Mermaid markdown
 
@@ -39,7 +43,7 @@
 - [x] **Client-side virtualization**: only render visible nodes for large graphs (1000+ nodes)
 - [x] **SOLID principles refactor**: clean up store and component architecture
 - [ ] **Tauri desktop app**: port to Tauri for native file watching, system tray, global hotkeys, better compute
-- [ ] **Symlink handling**: detect and display symlink nodes without infinite recursion
+- [x] **Symlink handling**: detect and display symlink nodes without infinite recursion
 - [x] **Link compression**: shorten share URLs (e.g., compressed graph state)
 
 ## 🖥️ UX

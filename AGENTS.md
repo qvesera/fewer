@@ -2,14 +2,60 @@
 
 This project uses **Next.js 16 + React Flow v12** for an interactive graph-based directory visualizer. Run `bun run dev` to get started.
 
+## Task Tracking — read before any work
+
+No work starts untracked. Full rule: `.clinerules/task-tracking.md`; verb
+reference: `.agents/skills/tasks/SKILL.md` (`bun run task:status` first).
+
+1. `bun run task:status` — resumes/closes an open session, reports how many
+   triaged rows are **not startable**, and lists untracked GitHub issues
+   (adopt them: `python3 scripts/tasks.py intake`).
+2. Find it (`bun run task:find "<words>"`) or create + triage it
+   (`bun run task:add …` → `bun run task:triage <T-###> …`, status `triaged`
+   before any branch or edit exists).
+3. `bun run task:ready` — **before starting anything.** A row is startable only
+   when it is `triaged`, estimated, classified (`--area`), linked to an issue,
+   unblocked, and its issue carries a **milestone**. `start` refuses an unready
+   row and prints why; `--force` overrides. `ready --demote` sends triaged rows
+   whose only gap is a missing milestone back to `backlog` (a release train is
+   part of triage), and `validate` fails on them in CI.
+4. `bun run task:start <T-###>` opens the timed session and sets
+   **in-progress**. Saying **"track bug …"** runs the whole
+   find-or-create-issue-and-start flow in one step.
+5. Every commit carries a `Task: T-###` trailer (the installed hook stamps it
+   and refuses commits while no session is open).
+6. `bun run task:stop <T-###> --note "…"` closes the session, attaches the PR
+   its commits belong to, and moves the row to **review**. If no PR resolves,
+   the row stays `triaged` and the command tells you to run
+   `python3 scripts/tasks.py attach-pr <T-###> <PR#>` once the PR exists.
+   `bun run task:validate` must pass before push, and `task:report` totals go
+   in the PR.
+6. **Decompose at pickup**: before `task:start` on a task estimated ≥ 2400 min
+   (Tier 1+) or with several independent deliverables, split it into 2–6
+   linked subtasks (`task:add --parent T-…`, then `gh-sync`), **asking first**
+   beyond three — then start a child, never the umbrella (`bun run task:tree` shows
+   the hierarchy; `--parent` / `reparent` manage it).
+
 ## Quick Reference
 
 ```bash
 bun install            # Install dependencies
 bun run dev            # Start dev server on port 3000
-bun run build          # Production build
+bun run build          # Production build (standalone server)
+bun run build:desktop  # Static export for the desktop shell → out/
 bun run lint           # Run ESLint
 ```
+
+## Desktop app (private repo)
+
+The standalone desktop build — shell, packaging, release pipeline and its in-app
+docs — lives in the **private `qvesera/fewer-desktop` repo** (forked from this
+one; history shared so upstream merges stay possible). This repo is the web app
+only: `bun run build` produces the Next.js standalone server, and there is no
+static-export / desktop build target here.
+
+Host packages (`@tauri-apps/*`, `electron`) stay banned in `src/` by the ESLint
+`no-restricted-imports` guard.
 
 ## Project Architecture
 
@@ -271,20 +317,39 @@ python3 scripts/migrations.py baseline --list <list-output>     # drift gate
 bun run migrations:verify                                       # wrapper
 ```
 
+## Issue Triage & Delivery
+
+Working a GitHub issue (survey open issues → ask which one first → labels +
+milestone → linked branch → fix → PR): follow
+`.agents/workflows/issue-triage.md`. One issue = one branch = one PR, and one
+ledger row per issue: `python3 scripts/tasks.py attach <N>` claims it and opens
+the timed session (see the workflow's Steps 2/4/6).
+
 ## Landing the Plane (Session Completion)
 
 **MANDATORY WORKFLOW:**
 
+0. **Close the task first**: `bun run task:stop <T-###> --note "…"` records the
+   session's time + effort (harvested from git) and `bun run task:validate`
+   must pass — CI fails a PR whose commits lack a `Task: T-###` trailer or
+   whose task is not in `review`/`done` with recorded time **at HEAD**. Commit
+   the ledger close-out too (`git add TASKS.yaml && git commit …`): a commit
+   staging only `TASKS.yaml` needs no open session and gets no trailer.
 1. **Run quality gates**: `bun run lint && bun run build`
 2. **Update CHANGELOG.md**: Add entry for meaningful changes (new features, fixes, breaking changes) to the Unreleased section via `python3 scripts/changelog.py add <group> "..."`. The changelog must be updated before committing.
 3. **Update package.json**: Check and update the version number in `package.json` to always match the changelog (verify with `python3 scripts/changelog.py validate`).
 4. **Commit changes**: Meaningful commit message (conventional commits)
-5. **PUSH TO REMOTE**: This is MANDATORY
-6. **Verify**: All changes committed AND pushed
+5. **PR metadata**: `python3 scripts/tasks.py pr-metadata <PR#> --dry-run` then
+   `--apply` — labels (`status:*`, type, `category:*`, `size:*`), milestone,
+   assignee (+ project item when the board scope is configured). Never raise a
+   bare PR. Procedure: `.agents/skills/pr/SKILL.md`.
+6. **PUSH TO REMOTE**: This is MANDATORY
+7. **Verify**: All changes committed AND pushed
 
 **CRITICAL RULES:**
 
 - Work is NOT complete until `git push` succeeds
+- Work is NOT tracked until `task:status` shows no open session
 - NEVER push to release/prod
 - NEVER stop before pushing
 - NEVER say "ready to push when you are": YOU must push

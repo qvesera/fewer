@@ -39,7 +39,7 @@ You can stop watching an index at any time:
 ## Supported sources
 
 - Public Apache/nginx auto-index directory listings.
-- GitHub repositories are not watchable — the digest feature targets public file indexes.
+- GitHub repositories are not watchable: the digest feature targets public file indexes.
 
 ## Privacy
 

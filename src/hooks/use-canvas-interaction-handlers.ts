@@ -22,6 +22,13 @@ export function useCanvasInteractionHandlers({
   const onPaneClick = useCallback(() => {
     setRenamingId(null);
     if (leafId) useGraphStore.getState().setActiveLeaf(leafId);
+    // Clicking empty canvas IS "deselect everything in this view". React Flow
+    // clears its own flags (the rings go away), but the STORE is what the
+    // canvas re-stamps from — and onSelectionChange drops that empty report
+    // once the pointer is up (the #285 loop guard), so nothing else cleared
+    // it. The next push then repainted the old selection, and a later Ctrl+click
+    // resurrected it. setSelectedNodeIds also mirrors into the active leaf.
+    useGraphStore.getState().setSelectedNodeIds([]);
   }, [setRenamingId, leafId]);
 
   const onEdgeContextMenu = useCallback(

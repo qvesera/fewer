@@ -7,6 +7,7 @@ import { LOCAL_FS_FEATURES } from "./features";
 import { buildTreeFromHandle } from "./fsHandleWalk";
 import { buildTreeFromEntry } from "./fsEntryWalk";
 import { pickDirectoryViaInput } from "./fsInputFallback";
+import type { ImportProgressFn } from "./importFlow";
 
 // Re-export walkers + fallback so existing callers keep working.
 export { buildTreeFromHandle } from "./fsHandleWalk";
@@ -32,12 +33,13 @@ interface PickerOpts {
 export async function pickDirectoryTree(
   options: ImportOptions = DEFAULT_IMPORT_OPTIONS,
   startIn?: PickerOpts["startIn"],
+  onProgress?: ImportProgressFn,
 ): Promise<TreeEntry | null> {
   // When local-filesystem features are off (e.g. Tauri shell), skip the
   // File System Access API entirely and use the legacy <input webkitdirectory>
   // fallback. The legacy picker works in every webview engine.
   if (!LOCAL_FS_FEATURES.fsaDirectoryPicker) {
-    return pickDirectoryViaInput(options);
+    return pickDirectoryViaInput(options, onProgress);
   }
 
   const w = window as unknown as {
@@ -45,7 +47,7 @@ export async function pickDirectoryTree(
   };
   if (typeof w.showDirectoryPicker !== "function") {
     // Fallback to webkitdirectory input
-    return pickDirectoryViaInput(options);
+    return pickDirectoryViaInput(options, onProgress);
   }
 
   const pickerOpts: PickerOpts = {
@@ -61,6 +63,7 @@ export async function pickDirectoryTree(
     try {
       const handle = await w.showDirectoryPicker!({ ...pickerOpts, mode: "read" });
       setStoredRootHandle(handle);
+      onProgress?.({ phase: "Reading folder" });
       return buildTreeFromHandle(handle, 0, options);
     } catch (err) {
       if (err instanceof DOMException && err.name === "SecurityError") {
@@ -75,6 +78,7 @@ export async function pickDirectoryTree(
   try {
     const handle = await w.showDirectoryPicker(pickerOpts);
     setStoredRootHandle(handle);
+    onProgress?.({ phase: "Reading folder" });
     return buildTreeFromHandle(handle, 0, options);
   } catch (err) {
     // User cancelled — return null instead of throwing
