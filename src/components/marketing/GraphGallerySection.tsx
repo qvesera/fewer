@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { APP_URL } from "@/components/marketing/MarketingLayout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,7 +35,11 @@ function prettyDate(iso: string) {
  * Fetches all items once, filters client-side by category chip.
  */
 export function GraphGallerySection() {
-  const allItemsRef = useRef<GraphGalleryItem[]>([]);
+  // State, not a ref: the memos below must recompute when the fetch lands, and
+  // reading ref.current in render (or in deps) is exactly what the refreshed
+  // react-hooks/refs rule rejects — the old `length > 0 ? "x" : "y"` dep hack
+  // existed only to paper over the ref.
+  const [allItems, setAllItems] = useState<GraphGalleryItem[]>([]);
   const [category, setCategory] = useState("");
   const [visible, setVisible] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -51,7 +55,7 @@ export function GraphGallerySection() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
         if (cancelled) return;
-        allItemsRef.current = json.items;
+        setAllItems(json.items);
         setVisible(PAGE_SIZE);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not load the gallery");
@@ -64,14 +68,14 @@ export function GraphGallerySection() {
 
   // Client-side filter — no API call
   const filtered = useMemo(() => {
-    if (!category) return allItemsRef.current;
-    return allItemsRef.current.filter((i) => i.gallery_category === category);
-  }, [category, /* recompute when allItemsRef changes (mount only) */ allItemsRef.current.length > 0 ? "x" : "y"]);
+    if (!category) return allItems;
+    return allItems.filter((i) => i.gallery_category === category);
+  }, [category, allItems]);
 
   // Distinct categories from the full set (stable, never shrinks)
   const categories = useMemo(() => {
-    return [...new Set(allItemsRef.current.map((i) => i.gallery_category).filter(Boolean))] as string[];
-  }, [allItemsRef.current.length > 0 ? "x" : "y"]);
+    return [...new Set(allItems.map((i) => i.gallery_category).filter(Boolean))] as string[];
+  }, [allItems]);
 
   const shown = filtered.slice(0, visible);
   const hasMore = visible < filtered.length;

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
+
+### Changed
+
+- Dependency wave C: within-range refresh of 49 packages (radix suite, supabase-js/ssr, @xyflow/react, react-day-picker, zustand, eslint chain, ...) — 58 → 9 outdated, the 9 being major-only holds (prisma 7, stripe 23, lucide 1, eslint 10, ...). The refreshed react-hooks rules surfaced render-phase ref access: GraphGallerySection now keeps its fetch results in state (dropping the x/y dep hack), GraphCanvas' #285 stamp cache and TutorialDialog's run-once guard carry scoped, justified disables.
+
+## [0.8.0] - 2026-10-28
+
 ### Changed
 
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
@@ -227,6 +237,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Collapsed groups now take a real slot in the layout: the pill is placed by the layout engine in the view's own coordinates (it no longer jumps to a stray spot when the direction is LR/BT/RL), its block is pill-sized instead of the group's whole expanded footprint (no more empty space in top-down), and horizontal layouts space siblings wide enough that a group's title strip is never overlapped by the card above it
 - Zoom to selection (the crosshair button and Alt+F) centers a collapsed group's pill as the canvas paints it, and the pill's fallback corner follows the active view's layout direction instead of the global one
 - Collapsing a group that holds folder cards no longer re-flows the tree: the group keeps its members' slots as invisible geometry (the pill lands on the group's own block in every layout), and the pill's inherited connections are now **ordinary canvas edges bound to the pill** — they render exactly like any folder→file edge in your connection style (curved / angled / straight shape, solid / dashed / dotted, width, selection highlight), tinted with the group's colour when it has one, instead of a separately drawn layer. **Dragging a collapsed pill moves the group** — one gesture, one undo, per-view — and image exports show the collapsed pill with those wires
+- App header: the fewer mark and its home link are back — they were removed by accident in the desktop split-out (#448), which deleted the whole inShell ternary including the web branch; an e2e guard now pins the brand link.
 
 ### Added
 
