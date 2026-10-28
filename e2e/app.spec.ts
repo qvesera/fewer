@@ -550,3 +550,14 @@ test("sidebar sections and settings explain themselves on hover (T-173)", async 
   await page.getByRole("button", { name: "About Crown Shyness" }).hover();
   await expect(page.getByRole("tooltip")).toContainText(/Extra spacing between sibling branches/);
 });
+
+// The brand mark + home link in the app header (T-209): #448 meant to drop
+// the shell variant of the brand block and deleted the whole ternary — web
+// branch included. Pin it so the header can never lose the mark silently.
+test("the app header keeps the fewer brand link", async ({ page }) => {
+  await page.goto("/app");
+  const brand = page.getByRole("link", { name: "Fewer home" });
+  await expect(brand).toBeVisible();
+  await expect(brand.getByText("fewer")).toBeVisible();
+  await expect(brand.locator("img[alt='fewer logo']")).toBeVisible();
+});
