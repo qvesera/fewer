@@ -5889,3 +5889,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 22, deletions: 2}
   spent_min: 5
   session_count: 1
+- id: "T-210"
+  title: "autoHideCap tests leak sortKey/sortDir from the singleton store (CI order-dependent failure)"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 496
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T16:16:42Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T16:16:42Z"
+    end: "2026-10-28T16:19:00Z"
+    measured: true
+    note: "Root-caused the CI-only autoHideCap failure: the zustand store is a process-wide singleton and layoutSlice.test leaves sortDir=desc; file order differs per checkout so CI ran a contaminator first (reproduced: pair-run had 4 fails pre-fix, 0 post). seedGraph now pins sortKey/sortDir to the canonical defaults. 1850+258 green. Commit 5a30a9a on PR #496."
+    proof: ["5a30a9a", "#496"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 0}
+  spent_min: 2
+  session_count: 1
