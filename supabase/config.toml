@@ -1,5 +1,11 @@
 # Supabase CLI configuration. Used for local dev and applying migrations
 # to a hosted project via `supabase link` + `supabase db push`.
+#
+# History repaired 2026-10-28 (T-071): the out-of-band 0046 rows
+# (20260924090834 on prod, 20260924085520 on dev) were re-headed as `0046`;
+# this comment ride-along makes the push that heals dev's history also
+# trigger apply-dev, so 0047-0052 reach the dev database through the
+# pipeline rather than by hand.
 
 project_id = "fewer"
 
