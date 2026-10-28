@@ -5860,3 +5860,32 @@ tasks:
     effort: null
   spent_min: 14
   session_count: 1
+- id: "T-209"
+  title: "Restore the brand mark + home link in the app header (removed by accident in #448)"
+  status: "review"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: 496
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T14:55:57Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T14:57:33Z"
+    end: "2026-10-28T15:02:46Z"
+    measured: true
+    note: "Restored the web brand link (<Link aria-label=\"Fewer home\"><Logo showText /></Link>) in GlobalNavbar, exactly as pre-#448. Audited #448's other 3 ternary deletions (LicensePanel, PreviewPanel, MarketingLayout T-104 shell variant) — all legitimate shell removals. Added e2e guard pinning the brand link; changelog Fixed entry. 1850+258 + build + tsc + lint green. PR #496."
+    proof: ["4c12c0f", "#496"]
+    effort: {commits: 1, files: 3, insertions: 22, deletions: 2}
+  spent_min: 5
+  session_count: 1
