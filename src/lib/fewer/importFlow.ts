@@ -5,16 +5,77 @@
  * only the import action changes per origin.
  */
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
+import { formatBytes } from "@/lib/fewer/stats";
+import { guessCsvMapping, isCsvMappingUsable, isExportCsv, parseCsvRows } from "@/lib/fewer/csvModel";
+import type { CsvColumnMap } from "@/lib/fewer/csvModel";
+import { detectImportFormat } from "@/lib/fewer/importDetect";
 import { useGraphStore } from "@/store/graphStore";
+import { FILE_IMPORT_FORMATS, type FileImportFormat, type ImportOrigin } from "./importTypes";
 
-export type ImportOrigin = "folder" | "file" | "url" | "cloud";
+// The shared vocabulary lives in ./importTypes — the neutral home that breaks
+// the importFlow ⇄ importDetect / importOptions loops (both closed through
+// these type edges). Re-exported here so existing importers keep their home.
+export { FILE_IMPORT_FORMATS } from "./importTypes";
+export type { FileImportFormat, ImportOrigin } from "./importTypes";
 
-export type FileImportFormat = "json" | "tree" | "script";
+/**
+ * Extensions the archive reader accepts. ONE list serves two jobs: the file
+ * input's accept attribute and the panel's mode detection — so the picker and
+ * the UI can never drift into two disagreeing lists.
+ *
+ * `listArchive` sniffs magic bytes rather than extensions, so this is a UI
+ * hint only: a renamed archive still imports once the user is in archive mode.
+ */
+export const ARCHIVE_EXTENSIONS = [
+  "zip",
+  "tar",
+  "gz",
+  "tgz",
+  "tar.gz",
+  "tar.xz",
+  "tar.bz2",
+  "tar.zst",
+  "7z",
+  "rar",
+  "xz",
+  "bz2",
+  "zst",
+] as const;
 
-/** What the user picked in step 1 for the active origin. */
+/** Derived accept attribute. Always includes archives — never tier/flag gated. */
+export const ARCHIVE_ACCEPT = ARCHIVE_EXTENSIONS.map((e) => `.${e}`).join(",");
+
+/** Does this filename look like an archive the reader can list? */
+export function isArchiveFileName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`));
+}
+
+/**
+ * What the user picked in step 1 for the active origin.
+ *
+ * Archive is NOT its own origin: both payloads below converge on filterTree →
+ * chunkTreeToGraph → setGraph, and the reader sniffs magic bytes, so the
+ * extension is only a UI hint for which panel to show.
+ */
 export type OriginSource =
   | { origin: "folder" }
-  | { origin: "file"; content: string; format: FileImportFormat }
+  | {
+      origin: "file";
+      kind: "text";
+      content: string;
+      /** Resolved: `formatOverride ?? detectImportFormat(content)`. */
+      format: FileImportFormat;
+      /**
+       * The user's choice for THIS file, kept across edits so tweaking a CSV
+       * cell does not flip them back to tree. Cleared by picking a new file or
+       * by the Auto tile. Never resolved here — see `resolveFileFormat`.
+       */
+      formatOverride: FileImportFormat | null;
+      /** Set when the CSV is not our own export: which column plays which role. */
+      csvMapping?: CsvColumnMap;
+    }
+  | { origin: "file"; kind: "archive"; file: File | null; name: string }
   | { origin: "url"; url: string; watch: boolean }
   | {
       origin: "cloud";
@@ -23,6 +84,30 @@ export type OriginSource =
       ref: string;
       name: string;
     };
+
+/** The file origin's text payload (pasted or uploaded as text). */
+export type TextFileSource = Extract<OriginSource, { origin: "file"; kind: "text" }>;
+/** The file origin's archive payload (picked as a binary file). */
+export type ArchiveFileSource = Extract<OriginSource, { origin: "file"; kind: "archive" }>;
+
+/**
+ * Fold detection and the user's intent into the two fields the panel and the
+ * parser both read. Content is the single source of truth for which parser
+ * runs; the override is the user's intent for THIS file.
+ *
+ * Resolution belongs in change handlers, not during render: `isSourceReady`
+ * reads the already-resolved `format`, so a megabyte paste is tokenised once
+ * rather than on every unrelated keystroke.
+ */
+export function resolveFileFormat(
+  content: string,
+  formatOverride: FileImportFormat | null,
+): { format: FileImportFormat; formatOverride: FileImportFormat | null } {
+  // An override that names no real format is no override at all.
+  const override =
+    formatOverride !== null && FILE_IMPORT_FORMATS.includes(formatOverride) ? formatOverride : null;
+  return { format: override ?? detectImportFormat(content), formatOverride: override };
+}
 
 export interface ImportActionResult {
   ok: boolean;
@@ -36,12 +121,36 @@ export interface ImportActionResult {
   notes?: { title: string; description: string }[];
 }
 
+/** One progress report from a step-3 import. Omit `total` when it is unknown. */
+export interface ImportProgress {
+  /** Human-readable step, e.g. "Reading folder" / "Building graph". */
+  phase: string;
+  processed?: number;
+  total?: number;
+}
+
+export type ImportProgressFn = (progress: ImportProgress) => void;
+
+// Re-exported so the whole progress contract is importable from one place.
+export { yieldToUI } from "./asyncYield";
+
+/** Adapt chunkTreeToGraph's raw (processed, total, phase) callback to the
+ *  ImportProgress contract, or undefined when nobody is listening. */
+export function buildProgress(onProgress?: ImportProgressFn) {
+  if (!onProgress) return undefined;
+  return (p: { processed: number; total: number }) =>
+    onProgress({ phase: "Building graph", processed: p.processed, total: p.total });
+}
+
 export const ORIGIN_META: Record<
   ImportOrigin,
   { label: string; blurb: string }
 > = {
   folder: { label: "Folder", blurb: "Scan a directory on this device" },
-  file: { label: "File", blurb: "ASCII tree, JSON graph, or shell script" },
+  file: {
+    label: "File",
+    blurb: "ASCII tree, JSON, CSV, DOT, shell script, or a zip/tar archive",
+  },
   url: { label: "URL", blurb: "GitHub repo or public file index" },
   cloud: { label: "Cloud", blurb: "Linked cloud account (read-only)" },
 };
@@ -51,7 +160,7 @@ export function defaultSourceFor(origin: ImportOrigin): OriginSource {
     case "folder":
       return { origin: "folder" };
     case "file":
-      return { origin: "file", content: "", format: "tree" };
+      return defaultFileSource("text");
     case "url":
       return { origin: "url", url: "", watch: false };
     case "cloud":
@@ -59,13 +168,33 @@ export function defaultSourceFor(origin: ImportOrigin): OriginSource {
   }
 }
 
+/** A fresh source for the file origin's other payload kind (mode switch). */
+export function defaultFileSource(kind: "text" | "archive"): OriginSource {
+  return kind === "archive"
+    ? { origin: "file", kind: "archive", file: null, name: "" }
+    : { origin: "file", kind: "text", content: "", ...resolveFileFormat("", null) };
+}
+
 /** Step 1 → step 2 gate: is the source complete enough to configure? */
 export function isSourceReady(source: OriginSource): boolean {
   switch (source.origin) {
     case "folder":
       return true;
-    case "file":
-      return source.content.trim().length > 0;
+    case "file": {
+      // Archive mode is ready the moment a file is picked — nothing to decode.
+      if (source.kind === "archive") return source.file !== null;
+      if (source.content.trim().length === 0) return false;
+      // A non-export CSV needs a usable column mapping before step 2 can run —
+      // our own export carries its header and needs none. The guess is the
+      // same one the mapper UI pre-fills, so the gate and the parser agree.
+      if (source.format === "csv") {
+        const headers = parseCsvRows(source.content)[0] ?? [];
+        if (!isExportCsv(headers)) {
+          return isCsvMappingUsable(source.csvMapping ?? guessCsvMapping(headers));
+        }
+      }
+      return true;
+    }
     case "url":
       return isValidHttpUrl(source.url);
     case "cloud":
@@ -102,8 +231,8 @@ export async function collectAutoHideNotes(): Promise<
   if (autoHideCount <= 0) return [];
   return [
     {
-      title: "Large folders collapsed",
-      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden (folders with more than ${autoHideThreshold} children). Use Hidden Cards in the sidebar to reveal them.`,
+      title: "Large folders trimmed",
+      description: `${autoHideCount} item${autoHideCount === 1 ? " was" : "s were"} auto-hidden: folders show their first ${autoHideThreshold} items (by the current sort), the rest sit in Hidden Cards in the sidebar.`,
     },
   ];
 }
@@ -114,6 +243,11 @@ export function sourceLabel(source: OriginSource): string {
     case "folder":
       return "Device folder (picker opens on import)";
     case "file": {
+      if (source.kind === "archive") {
+        return source.file
+          ? `${source.name} (${formatBytes(source.file.size)})`
+          : "No archive selected";
+      }
       const n = source.content.trim().split("\n").length;
       return `${source.format.toUpperCase()} payload, ${n} line${n === 1 ? "" : "s"}`;
     }

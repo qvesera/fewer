@@ -142,6 +142,8 @@ export const DEMO_KEYFRAMES = `
    2 iterations then rests. var(--primary) keeps it theme-aware. */
 @keyframes tutorial-attention {
   0%, 100% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 0 transparent; }
+  /* Plain-var fallback first: the shell's WebKit lacks color-mix() (T-091). */
+  50% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px 4px var(--primary); }
   50% { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px 4px color-mix(in srgb, var(--primary) 40%, transparent); }
 }
 

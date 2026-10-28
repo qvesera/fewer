@@ -7,6 +7,7 @@ import { createUiSlice } from "./slices/uiSlice";
 import { createLayoutSlice } from "./slices/layoutSlice";
 import { createThemeSlice } from "./slices/themeSlice";
 import { createTagsSlice } from "./slices/tagsSlice";
+import { createGroupsSlice } from "./slices/groupsSlice";
 
 export const useGraphStore = create<GraphState>()((set, get, api) => ({
   ...createHistorySlice(set, get, api),
@@ -15,6 +16,7 @@ export const useGraphStore = create<GraphState>()((set, get, api) => ({
   ...createLayoutSlice(set, get, api),
   ...createThemeSlice(set, get, api),
   ...createTagsSlice(set, get, api),
+  ...createGroupsSlice(set, get, api),
   /**
    * Record a completed drag operation so undo restores original positions.
    * Called by GraphCanvas on drag stop (single node or multi-selection).

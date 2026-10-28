@@ -10,7 +10,7 @@
  * Only the import action changes per origin; steps 2 is identical everywhere.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,16 +27,18 @@ import { useImport } from "@/hooks/use-github-import";
 import { useWatch } from "@/hooks/use-watch";
 import { ImportOptionsPanel } from "./ImportOptionsPanel";
 import { ImportOriginStep, ORIGIN_ICONS } from "./ImportOriginStep";
-import type { ImportOptions } from "@/lib/fewer/importOptions";
+import { optionScopeFor, type ImportOptions } from "@/lib/fewer/importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "@/lib/fewer/importOptions";
+import { Progress } from "@/components/ui/progress";
 import {
   ORIGIN_META,
   defaultSourceFor,
   isSourceReady,
   sourceLabel,
 } from "@/lib/fewer/importFlow";
-import type { ImportOrigin, OriginSource } from "@/lib/fewer/importFlow";
+import type { ImportOrigin, ImportProgress, OriginSource } from "@/lib/fewer/importFlow";
 import { runImport } from "@/lib/fewer/importAction";
+import { parseGraphDocument } from "@/lib/fewer/localLibrary";
 import { can } from "@/lib/fewer/tiers";
 
 type Step = 1 | 2 | 3;
@@ -54,6 +56,10 @@ const BASIC_MODE_OPTION_DEFAULTS: Partial<ImportOptions> = {
   includeFiles: DEFAULT_IMPORT_OPTIONS.includeFiles,
   extensions: DEFAULT_IMPORT_OPTIONS.extensions,
   caseSensitiveExtensions: DEFAULT_IMPORT_OPTIONS.caseSensitiveExtensions,
+  symlinks: DEFAULT_IMPORT_OPTIONS.symlinks,
+  // Advanced-only: the switch is hidden in basic mode, so the value must not
+  // leak in from a saved/synced advanced preference.
+  expandArchives: DEFAULT_IMPORT_OPTIONS.expandArchives,
 };
 
 interface ImportFlowDialogProps {
@@ -63,6 +69,13 @@ interface ImportFlowDialogProps {
   initialOrigin?: ImportOrigin;
   /** Called once when the dialog is first opened (for lazy-mount tracking). */
   onFirstOpen?: () => void;
+  /** Whether server-backed origins (URL, cloud) are reachable at all. The
+   *  desktop shell passes false — no server exists there (T-099); the parent
+   *  decides via cloudFeature() so this dialog stays server-agnostic. */
+  cloudAvailable?: boolean;
+  /** Shell (T-102): URL + GitHub import work via the host fetch bridge —
+   *  show the "url" origin even though there is no cloud/server behind it. */
+  hostImportAvailable?: boolean;
 }
 
 export function ImportFlowDialog({
@@ -70,6 +83,8 @@ export function ImportFlowDialog({
   onOpenChange,
   initialOrigin = "folder",
   onFirstOpen,
+  cloudAvailable = true,
+  hostImportAvailable = false,
 }: ImportFlowDialogProps) {
   const firstOpenDone = useRef(false);
   const handleFirstOpen = () => {
@@ -94,7 +109,25 @@ export function ImportFlowDialog({
     ...useGraphStore.getState().importOptions,
   }));
   const [importing, setImporting] = useState(false);
+  // A Fewer graph document is a SNAPSHOT: it lands whole (ids, positions, tags,
+  // groups), so the scan/filter options cannot act on it. Parsed once per source
+  // change so the steps 2 and 3 panels never advertise controls that do nothing (T-145).
+  // ponytail: this re-parses the payload the origin step already parsed for
+  // detection (one extra JSON.parse per edit of a pasted file). The upgrade path
+  // is threading a `graphDocument` flag through OriginSource's change handlers.
+  const isGraphDocument = useMemo(
+    () =>
+      source.origin === "file" &&
+      source.kind === "text" &&
+      parseGraphDocument(source.content) !== null,
+    [source],
+  );
   const [actionError, setActionError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  // Bumped on every start and on every close, so a run that settles after the
+  // dialog was closed (or reopened) is dropped instead of toasting, writing an
+  // error, or closing a dialog the user is looking at fresh.
+  const runIdRef = useRef(0);
 
   // Reset the flow on each genuine open transition (open false->true).
   // Re-seed options from the store (the source of truth): this dialog stays
@@ -117,6 +150,7 @@ export function ImportFlowDialog({
       );
       setActionError(null);
       setImporting(false);
+      setProgress(null);
     }
   }, [open, initialOrigin]);
 
@@ -135,16 +169,29 @@ export function ImportFlowDialog({
 
   const handleImport = async () => {
     if (importing) return;
+    const runId = ++runIdRef.current;
     setImporting(true);
     setActionError(null);
+    setProgress(null);
 
-    const result = await runImport(source, options, {
-      importUrl,
-      getUrlResult,
-      watchUrl: watchAdd,
-    });
+    const result = await runImport(
+      source,
+      options,
+      {
+        importUrl,
+        getUrlResult,
+        watchUrl: watchAdd,
+      },
+      (p) => {
+        if (runIdRef.current === runId) setProgress(p);
+      },
+    );
+
+    // The dialog was closed (or reopened) while this run was in flight.
+    if (runIdRef.current !== runId) return;
 
     setImporting(false);
+    setProgress(null);
 
     if (result.cancelled) return; // e.g. native picker dismissed → stay on step 3
     if (!result.ok) {
@@ -161,10 +208,25 @@ export function ImportFlowDialog({
 
   const OriginIcon = ORIGIN_ICONS[origin];
 
-  // Block closing while an import is in flight — otherwise the orphaned
-  // promise would toast and close a freshly reopened dialog.
+  // null = we don't know the total yet → indeterminate bar, no fake percentage.
+  const progressPercent =
+    progress?.total && progress.processed !== undefined
+      ? Math.min(100, Math.round((progress.processed / progress.total) * 100))
+      : null;
+
+  // Closing mid-import ends the *run*, not the work already in flight: bumping
+  // the run id makes the orphaned promise inert (it can no longer toast, show an
+  // error, or close a freshly reopened dialog) and clears the spinner, so a
+  // stuck import can never wedge the dialog again.
+  // ponytail: no AbortSignal plumbing into the walkers — an import that finishes
+  // after the close still applies its result to the store. The upgrade path is a
+  // signal threaded through runImport if that ever becomes a problem.
   const handleOpenChange = (next: boolean) => {
-    if (!next && importing) return;
+    if (!next) {
+      runIdRef.current++;
+      setImporting(false);
+      setProgress(null);
+    }
     onOpenChange(next);
   };
 
@@ -191,7 +253,7 @@ function isEditableTarget(el: HTMLElement): boolean {
         dialogTitle="Import"
         minimizable
         onKeyDown={handleStepKeyDown}
-        className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-md"
+        className="flex max-h-[85vh] flex-col bg-background/95 p-6 shadow-xl backdrop-blur-md sm:max-w-xl"
       >
         <DialogHeader className="border-b border-border/20 pb-3">
           <DialogTitle className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
@@ -254,8 +316,8 @@ function isEditableTarget(el: HTMLElement): boolean {
               }}
               source={source}
               onSourceChange={setSource}
-              advancedFormats={advancedFormats}
-              cloudImport={can("cloudImport", tier)}
+              cloudImport={cloudAvailable && can("cloudImport", tier)}
+              hostImport={hostImportAvailable}
               onRequireAuth={() =>
                 useGraphStore.getState().setAuthOpen(true)
               }
@@ -266,14 +328,27 @@ function isEditableTarget(el: HTMLElement): boolean {
             />
           </div>
 
-          <div className={cn(step !== 2 && "hidden")}>
-            <ImportOptionsPanel
-              options={options}
-              onChange={(partial) =>
-                setOptions((prev) => ({ ...prev, ...partial }))
-              }
-              advancedFormats={advancedFormats}
-            />
+          <div data-testid="import-options-panel" className={cn(step !== 2 && "hidden")}>
+            {/* A graph document is restored whole, so the filter controls would
+                promise things they cannot do — say so instead of showing them. */}
+            {isGraphDocument ? (
+              <div className="rounded-xl border border-primary/40 bg-primary/10 p-4 text-xs leading-relaxed text-foreground/85">
+                <p className="font-semibold">Fewer graph document</p>
+                <p className="mt-1 text-muted-foreground">
+                  Cards, positions, tags and groups are restored exactly as saved, so there is
+                  nothing to configure here.
+                </p>
+              </div>
+            ) : (
+              <ImportOptionsPanel
+                options={options}
+                onChange={(partial) =>
+                  setOptions((prev) => ({ ...prev, ...partial }))
+                }
+                advancedFormats={advancedFormats}
+                scope={optionScopeFor(source)}
+              />
+            )}
           </div>
 
           <div className={cn("space-y-3", step !== 3 && "hidden")}>
@@ -291,6 +366,8 @@ function isEditableTarget(el: HTMLElement): boolean {
                     {sourceLabel(source)}
                   </span>
                 </div>
+                {!isGraphDocument && (
+                <>
                 <div className="flex justify-between gap-3 border-b border-border/10 pb-1.5">
                   <span>Scan depth</span>
                   <span className="font-mono font-medium text-foreground/80">
@@ -319,7 +396,37 @@ function isEditableTarget(el: HTMLElement): boolean {
                       : "All (*)"}
                   </span>
                 </div>
+                </>
+                )}
+                {isGraphDocument && (
+                <div className="flex justify-between gap-3">
+                  <span>Restores</span>
+                  <span className="font-medium text-foreground/85">
+                    Cards, positions, tags, groups
+                  </span>
+                </div>
+                )}
               </div>
+
+              {importing && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                    <span aria-live="polite">
+                      {progress?.phase ?? "Starting import…"}
+                    </span>
+                    {progressPercent !== null && (
+                      <span className="font-mono tabular-nums">
+                        {progressPercent}%
+                      </span>
+                    )}
+                  </div>
+                  <Progress
+                    aria-label="Import progress"
+                    className="h-1.5"
+                    value={progressPercent ?? undefined}
+                  />
+                </div>
+              )}
 
               {actionError && (
                 <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-xs font-medium leading-normal text-red-400 dark:text-red-300">
@@ -328,9 +435,11 @@ function isEditableTarget(el: HTMLElement): boolean {
               )}
 
               <p className="text-[10px] leading-relaxed text-muted-foreground/70">
-                Pressing Import {origin === "folder"
+                {isGraphDocument
+                  ? "Pressing Import restores the graph document exactly as saved."
+                  : <>Pressing Import {origin === "folder"
                   ? "opens your folder picker, then builds the graph."
-                  : "builds the graph with the options above."}
+                  : "builds the graph with the options above."}</>}
               </p>
           </div>
         </div>

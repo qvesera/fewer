@@ -3,6 +3,7 @@
 import type { TreeEntry } from "./types";
 import type { ImportOptions } from "./importOptions";
 import { shouldKeepEmpty, isExtAllowed, isSkipped } from "./fsFilters";
+import { isArchiveName } from "./archiveExpand";
 import { sortFoldersFirst } from "./treeSort";
 
 /**
@@ -29,20 +30,20 @@ function readLegacyEntries(dir: FileSystemDirectoryEntry): Promise<FileSystemEnt
   });
 }
 
-function legacyFileSize(file: FileSystemFileEntry): Promise<number> {
-  return new Promise((resolve) => {
-    file.file((f) => resolve(f.size), () => resolve(0));
-  });
-}
-
 async function buildEntryFileLeaf(entry: FileSystemFileEntry): Promise<TreeEntry> {
+  // Grab the File once and keep it: the legacy API hands us a disk-backed Blob
+  // for free, and the archive reader needs those bytes later.
   let size = 0;
+  let blob: File | undefined;
   try {
-    size = await legacyFileSize(entry);
+    blob = await new Promise<File>((resolve, reject) => {
+      entry.file(resolve, () => reject(new Error("unreadable")));
+    });
+    size = blob.size;
   } catch {
     size = 0;
   }
-  return { name: entry.name, type: "file", size };
+  return { name: entry.name, type: "file", size, archiveBlob: blob };
 }
 
 async function buildEntryDirChild(
@@ -96,12 +97,32 @@ export async function buildTreeFromEntry(
         if (!result) continue;
         children.push(result.childTree);
       } else {
-        if (!isExtAllowed(child.name, options)) continue;
+        // An archive passes the extension filter when expansion is on, so the
+        // filter applies to the files inside it instead of dropping it.
+        if (
+          !isExtAllowed(child.name, options) &&
+          !(options.expandArchives && isArchiveName(child.name))
+        ) {
+          continue;
+        }
         children.push(await buildEntryFileLeaf(child as FileSystemFileEntry));
       }
     }
   }
 
   sortFoldersFirst(children);
-  return { name: entry.name, type: "folder", children };
+  const tree: TreeEntry = { name: entry.name, type: "folder", children };
+
+  // The legacy entry API already gave us every file as a Blob, so the reader
+  // just hands back what buildEntryFileLeaf kept.
+  if (options.expandArchives) {
+    const { expandArchives } = await import("./archiveExpand");
+    await expandArchives(
+      tree,
+      async (leaf) => leaf.archiveBlob ?? null,
+      options,
+    );
+  }
+
+  return tree;
 }

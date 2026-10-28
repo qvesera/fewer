@@ -221,8 +221,7 @@ export function usageMeter(used: number, limit: number): UsageMeter {
 
 /**
  * Which settings tabs exist for the current viewer, in tab-strip order. The
- * Advanced tab is desktop-only unless advanced mode is on. Watched and Cloud
- * exist only for signed-in users (tier !== "guest").
+ * Watched and Cloud exist only for signed-in users (tier !== "guest").
  */
 export function visibleTabs(opts: {
   tier: string;

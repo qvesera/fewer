@@ -1,78 +1,79 @@
 ---
 title: Editing Cards
-description: Add, rename, copy, cut, paste, duplicate, delete, and connect nodes. Explore context menu actions for folders and files, plus the clipboard and undo/redo.
+description: Add, rename, copy, cut, paste, duplicate, delete, and connect cards. Explore context menu actions for folders and files, plus the clipboard and undo/redo.
 ---
 
-Fewer treats your graph like an editable outline. Every node supports the full set of editing actions, either from the **context menu** (right-click) or via **keyboard shortcuts**.
+Fewer treats your graph like an editable outline. Every card supports the full set of editing actions, either from the **context menu** (right-click) or via **keyboard shortcuts**.
 
 ## Adding Cards
 
 - Click **Add File** or **Add Folder** in the sidebar (the File & Actions section)
 - Or press **Alt+N** and pick a type from the dialog
-- New nodes are nested inside the currently selected folder when one is selected, otherwise they are added at the root
-- New nodes auto-enter rename mode and the canvas zooms to them
+- New cards are nested inside the currently selected folder when one is selected, otherwise they are added at the root
+- New cards auto-enter rename mode and the canvas zooms to them
 
-To add a child directly from the canvas, right-click a folder → **Add Child Node** (available in Power User mode).
+To add a child directly from the canvas, right-click a folder → **Add Child Card** (available in Power User mode).
 
 ## Renaming
 
-- Double-click a node, or use the context menu → **Rename**, or press **F2**
+- Double-click a card, or use the context menu → **Rename**, or press **F2**
 - Type the new name and press **Enter** to commit, **Escape** to cancel, or click away (e.g. on the canvas) to confirm and keep the typed name
 - Renaming a folder updates the paths of all of its descendants
 - Renaming a file auto-updates its extension and category icon
 
 ## Copy / Cut / Paste
 
-- **Copy** (Ctrl+C): copies the selected node(s) to the clipboard
-- **Cut** (Ctrl+X): cuts the selection to the clipboard (the node stays visible until pasted)
-- **Paste** (Ctrl+V): pastes cut/copied nodes. Pastes into the selected folder if exactly one folder is selected, otherwise at root
-- **Duplicate** (Ctrl+D): copies a node as a sibling with a "copy" naming convention
+- **Copy** (Ctrl+C): copies the selected card(s) to the clipboard
+- **Cut** (Ctrl+X): cuts the selection to the clipboard (the card stays visible until pasted)
+- **Paste** (Ctrl+V): pastes cut/copied cards. Pastes into the selected folder if exactly one folder is selected, otherwise at root
+- **Duplicate** (Ctrl+D): copies a card as a sibling with a "copy" naming convention
 
 From the context menu, **Paste** on a folder pastes the clipboard contents into that folder specifically.
 
 ## Deleting
 
-- **Delete / Backspace**: removes selected node(s)
-- **Right-click → Delete**: removes a single node
+- **Delete / Backspace**: removes selected card(s)
+- **Right-click → Delete**: removes a single card
 - Deleting a folder cascades: all descendants (children, grandchildren, connections) are removed too
 - **Clear Canvas** (trash icon in the sidebar) wipes the whole graph after a confirmation dialog
 
 ## Unparenting
 
-Right-click a node that has a parent → **Unparent** to detach it from its parent and make it a root-level node.
+Right-click a card that has a parent → **Unparent** to detach it from its parent and make it a root-level card.
 
 ## Batch Actions
 
-Select multiple nodes (Shift+click, Shift+arrows, or Ctrl+A), then right-click any selected node. A **Batch actions** section appears at the top of the context menu:
+Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click any selected card. A **Batch actions** section appears at the top of the context menu:
 
 | Action          | Notes                                                                                                                                                                                |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Rename…         | Opens a batch-rename dialog: find/replace (with `*` wildcard support), prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
-| Copy            | Copies every selected node (with subtrees) to the clipboard                                                                                                                          |
+| Copy            | Copies every selected card (with subtrees) to the clipboard                                                                                                                          |
 | Cut             | Cuts the selection to the clipboard and removes the originals; paste to place them                                                                                                   |
-| Duplicate       | Duplicates each selected node under its same parent                                                                                                                                  |
-| Hide            | Hides the whole selection (and descendant subnodes); press Shift+H to restore. Routes to the active leaf's hide layer when leaves are enabled                                        |
-| Show            | Reveals selected nodes that are currently hidden                                                                                                                                     |
+| Duplicate       | Duplicates each selected card under its same parent                                                                                                                                  |
+| Hide            | Hides the whole selection (and their descendant cards); press Shift+H to restore. Routes to the active leaf's hide layer when leaves are enabled                                        |
+| Show            | Reveals selected cards that are currently hidden                                                                                                                                     |
 | Collapse Folders| Collapses every selected folder                                                                                                                                                      |
 | Expand Folders  | Expands every selected folder                                                                                                                                                        |
-| Copy Paths      | Copies each selected node's full path to the clipboard, one per line                                                                                                                 |
-| Move to Folder… | Opens a folder picker and reparents all selected nodes under the chosen folder in one step — each item keeps its sub-items                                                           |
-| Unparent        | Detaches the top-most selected nodes from their parents (nodes whose parent is also selected keep their in-selection connection)                                                           |
+| Tags            | The same **Tags** submenu a single card's menu has: check/uncheck tags across the whole selection, or create one for all of them (Pro)                                                |
+| Copy Paths      | Desktop app only: copies each selected card's full path to the clipboard, one per line                                                                                                 |
+| Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
+| Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection)                                                           |
 | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
 
-Every batch action is one undoable history entry — Ctrl+Z reverts the whole batch at once.
+Every batch action is one undoable history entry: Ctrl+Z reverts the whole batch at once.
 
 The canvas selection menu also offers **selection helpers** (under a "Select" heading) that replace the current selection rather than acting on it:
 
 | Action | Notes |
 | --- | --- |
 | Select Descendants | Expands the selection to include every descendant of every selected folder |
-| Select Same Extension | Selects every visible node sharing a file extension with any selected node |
-| Select Same Category | Selects every visible node in a category (code, data, media, …) present in the selection |
+| Select Same Extension | Selects every visible card sharing a file extension with any selected card |
+| Select Same Category | Selects every visible card in a category (code, data, media, …) present in the selection |
 
 ## Connecting Cards
 
-Drag from a node's **output handle** to another node's **input handle** to create a parent→child connection. Fewer validates the connection:
+Drag from a card's **output handle** to another card's **input handle** to create a parent→child connection. Fewer validates the connection:
 
 - No cycles: you cannot connect a descendant back to its ancestor
 - No orphans pushed below files: files have no children, so their output handle is hidden
@@ -97,10 +98,10 @@ In Power User mode, right-click a folder for:
 | Unparent              | Make root-level        |
 | Delete                | Cascade                |
 | Show/Hide Children    | Power User mode        |
-| Add Child Node        | Power User mode        |
+| Add Child Card        | Power User mode        |
 | Open in File Explorer | Disabled in the web build |
-| Copy Path             | Power User mode        |
-| Refresh from Disk     | Directory imports only |
+| Copy Path             | Desktop app only: copies the card's full path; hidden in the web app      |
+| Refresh from Disk     | Directory imports only; desktop app re-scans through the shell |
 
 ### Files
 
@@ -108,8 +109,9 @@ In Power User mode, right-click a folder for:
 | ---------------------- | --------------------------------------- |
 | Rename                 | Updates extension/category              |
 | Copy / Cut / Duplicate | Clipboard-aware                         |
+| Copy Path              | Desktop app only: copies the card's full path |
 | Copy Name              | Copies filename to clipboard            |
-| Delete                 | Single node                             |
+| Delete                 | Single card                             |
 | Open File              | Disabled in the web build               |
 
 > **OS integration is switched off in the web build.** "Open in File Explorer"
@@ -118,13 +120,103 @@ In Power User mode, right-click a folder for:
 > are restricted to localhost requests. Both actions are gated by
 > `LOCAL_FS_FEATURES` in `src/lib/fewer/features.ts`, where every flag defaults to
 > `false`; a native build that replaces these paths with OS commands flips them.
-> Importing folders from disk is unaffected — it uses the `webkitdirectory`
+> Importing folders from disk is unaffected: it uses the `webkitdirectory`
 > fallback in every browser.
+
+## Groups
+
+Select two or more cards, right-click → **More Actions → Group N Items** (the
+label carries the selection count) to draw a gray frame around them. The same
+action lives in the card context menus' batch list, and it is identical in the
+web app and the desktop app. A group is an annotation layer, not a folder: it
+never changes the tree, and layout, search, export and undo treat the cards
+exactly as they did before.
+
+- **Membership is explicit**: the cards you picked stay in the group when the
+  layout moves them, so a re-layout never reshuffles who belongs where.
+- **Title**: double-click it (or focus it and press Enter) to rename.
+- **Note**: the note icon opens a small editor; hovering the title shows the
+  note, and the icon is filled once one is set.
+- **Color**: right-click the frame's title bar → **Color…** opens the color
+  picker: drag the picker or type a hex value, and **Reset to default** returns
+  to slate. The border, fill and header tint to match, the colour saves with the
+  graph, and one drag is a single undo step. **Done** or **Escape** closes it.
+- **Collapse**: the chevron hides the group's cards **in this view** and shrinks
+  the frame to a pill; the layout treats that pill as a single card-sized
+  block — so the tree re-flows compactly around it in **every** direction
+  (top-down, bottom-up, and both horizontal ones) instead of keeping the
+  group's whole footprint empty. A group that holds **folder cards** (or cards
+  from different branches) keeps every card's slot instead, so its contents
+  never jump a level — the pill simply sits on the group's own block — and the
+  pill **keeps the connections its hidden cards carried as ordinary edges**:
+  each wire is drawn by the canvas itself, exactly like a folder→file edge, so
+  your **connection style** (shape, dash and width) and the selection highlight
+  apply to it unchanged — and a group with a **colour** keeps its wires tinted
+  with it. You can also **drag the pill** to move the collapsed
+  group — one gesture, one undo step. Expanding brings the cards back,
+  except any you hid yourself. Collapse is per-view state — other panel views
+  keep showing the frame — and, like a folded folder, it is not an undo step.
+- **The frame follows visibility**: the box hugs the cards the canvas actually
+  shows, and its count reads **3 of 5 members** when some are hidden. Hide every
+  member and the frame disappears with them (a collapsed group always keeps its
+  pill); **Show All**, the Hidden Cards panel or **Shift+H** brings everything
+  back at once — and any reveal that returns a collapsed group's cards (the
+  panel's eye, **Show Children**, a single card) expands that group in this
+  view, so a pill never sits over live cards. A single-card reveal is scoped:
+  only the card you asked for comes back — the group's other members stay in
+  the Hidden Cards panel (revealing them one by one) until you press the
+  group's chevron, which reveals the whole cluster.
+- **Select & move**: click the title bar to select the frame (it rings, and
+  **each member card gets its own ring**, so you always see which cards belong
+  to it; card selection clears; the two are mutually exclusive). Shift+click
+  adds another frame. Drag the title bar to move every member card at once:
+  hidden ones included, and release records **one undo step**. **Delete**
+  ungroups the selected frames; **Escape** clears the selection or cancels a
+  move in flight (positions snap back, nothing is recorded).
+- **Resize**: a selected frame grows eight handles; drag a corner or edge to
+  **scale the whole arrangement**: the cards keep their size while their
+  spacing (and the frame) grows or shrinks around the opposite corner/edge.
+  Hold **Shift** for proportional scaling. Like moving, it is one undo step
+  and nothing extra is stored: the frame is always derived from its cards.
+- **Ungroup**: the × drops the frame and keeps the cards.
+
+Right-clicking the title bar also opens the **group menu**: Rename…, Edit
+Note…, Color ▸, Collapse/Expand, **Select Members** (selects every card in the
+group at once), **Include N cards inside** (when a re-flow parked non-member
+cards fully inside the box: one click, one undo step, adds them to the group)
+and Ungroup.
+
+**Nesting**: a group can live inside another. From the group menu, **Move into
+group ▸** picks a container (the list never offers the group itself or its own
+subgroups, so a cycle can't form), and **Move out of group** returns it to the
+top level. A parent's frame grows to hold its children's frames, moving or
+resizing a parent carries its whole subtree, and collapsing a parent hides every
+card beneath it: its children's frames disappear with it, so no orphan pills
+are left behind. Ungrouping a parent re-homes its children rather than deleting
+them.
+
+Every group action is a single undo step — rename, note, colour, membership,
+**Ungroup**, delete: **Ctrl+Z** reverses it. Collapse is the exception: it is
+per-view state, like a folded folder, so it is not recorded and not undone.
+
+**Groups vs tags** — they look alike but answer different questions, and both
+are deliberate:
+
+- A **group** is a *spatial container*: one titled box, on this canvas, holding
+  an explicit list of cards. It moves, scales and collapses them, and it never
+  changes the tree. Free in every tier.
+- A **tag** is a *label* a card carries: many per card, anywhere in the graph,
+  filterable and sortable. It never moves a card. Pro feature.
+
+Rule of thumb: **one place on the canvas → group; one attribute across many
+cards → tag.** Use a group when the point is "these cards belong together
+here"; use a tag when the point is "this card is that kind of thing" and you
+want to find it anywhere. See **Graph Features → Tags**.
 
 ## Undo / Redo
 
-Every editing operation records an undo step — including node moves (drag a
-node, then **Ctrl+Z** to snap it back):
+Every editing operation records an undo step, including card moves (drag a
+card, then **Ctrl+Z** to snap it back):
 
 - **Ctrl+Z**: undo
 - **Ctrl+Shift+Z / Ctrl+Y**: redo
@@ -139,5 +231,5 @@ Use **Relayout** after heavy manual edits to tidy the graph.
 ## Next Steps
 
 - [Keyboard Shortcuts](/docs/shortcuts): full shortcut reference
-- [Graph Features](/docs/graph-features): layout, hidden nodes, and canvas
-- [Settings](/docs/settings): Power User mode and node dimensions
+- [Graph Features](/docs/graph-features): layout, hidden cards, and canvas
+- [Settings](/docs/settings): Power User mode and card dimensions

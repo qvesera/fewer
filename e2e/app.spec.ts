@@ -54,6 +54,22 @@ test("loads the sample project and renders nodes", async ({ page }) => {
   await expect(nodeByName(page, "App.tsx").first()).toBeVisible({ timeout: 10000 });
 });
 
+// /app used to server-render the whole shell, which shipped Radix's useId values
+// in the markup. React derives those ids from the render pass, so any client-only
+// subtree (the ssr:false canvas tree/dialogs, the workspace restored from
+// localStorage) shifted them and React re-rendered the navbar instead of
+// hydrating it: "A tree hydrated but some attributes … didn't match" (#283).
+// The shell is client-only now, so the invariant is simply: no Radix ids arrive
+// from the server — which is also the only thing assertable here, because this
+// suite runs a production build and React reports attribute mismatches only in
+// development builds.
+test("/app server markup carries no Radix-generated ids (#283)", async ({ request }) => {
+  const res = await request.get("/app");
+  expect(res.status()).toBe(200);
+  const html = await res.text();
+  expect(html).not.toContain('id="radix-');
+});
+
 test("adds a node, then undoes and redoes", async ({ page }) => {
   await openCanvas(page);
 
@@ -94,6 +110,61 @@ test("deletes a node from the context menu, then undoes", async ({ page }) => {
   // Undo brings the node (and its whole deleted subtree) back.
   await page.keyboard.press("Control+z");
   await expect(srcHeader(page).first()).toHaveCount(1);
+});
+
+// Regression (#281): dragging a card as the FIRST interaction — nothing selected,
+// so `activeLeafId` was still null — painted the dragged card unselected on the
+// canvas's next push, React Flow re-reported the empty selection, and
+// store → canvas → React Flow → store repeated until React gave up with
+// "Maximum update depth exceeded" and tore the canvas down. Selecting the card
+// first avoided it (the view already had the id), which is why it looked like a
+// "sometimes it works" bug.
+//
+// Both drag modes are covered, and the loop probe is on (`?debugLoop=1`) so a
+// regression shows up as a burst of updates long before React's own limit:
+// React Flow re-adopts every node whose identity changed, so a whole-canvas
+// rebuild per frame is loud even when it does not trip the limit.
+async function dragCard(page: Page, opts: { selectFirst: boolean }) {
+  const errors: string[] = [];
+  const bursts: string[] = [];
+  page.on("console", (m) => {
+    const text = m.text();
+    if (m.type() === "error" || text.includes("Maximum update depth")) errors.push(text);
+    if (text.startsWith("[loop]")) bursts.push(text);
+  });
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+
+  await page.goto("/app?debugLoop=1");
+  await loadSample(page);
+  const card = srcHeader(page).first();
+  await expect(card).toBeVisible({ timeout: 15000 });
+  const before = (await card.boundingBox())!;
+  const startX = before.x + before.width / 2;
+  const startY = before.y + 10;
+
+  if (opts.selectFirst) {
+    await page.mouse.click(startX, startY);
+    await expect(card).toHaveClass(selected(), { timeout: 10000 });
+  }
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(startX + i * 14, startY + i * 8);
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await card.boundingBox())!.x, { timeout: 10000 })
+    .toBeGreaterThan(before.x + 100);
+  expect(errors.filter((e) => e.includes("Maximum update depth"))).toEqual([]);
+  expect(bursts).toEqual([]);
+}
+
+test("dragging a card without selecting it first does not loop the canvas (#281)", async ({ page }) => {
+  await dragCard(page, { selectFirst: false });
+});
+
+test("dragging an already selected card does not loop the canvas (#281)", async ({ page }) => {
+  await dragCard(page, { selectFirst: true });
 });
 
 test("dragging a node is undoable", async ({ page }) => {
@@ -193,6 +264,109 @@ test("Select Children selects the folder's children, not the folder", async ({ p
   await expect(src).not.toHaveClass(selected());
 });
 
+// Shift+drag box select starts on empty pane (React Flow ignores drags that
+// begin on a card) and its rect must fully contain the target — the default
+// SelectionMode.Full only selects cards the rect encloses.
+async function boxSelect(page: Page, targetName: string) {
+  // The sample graph mounts its child cards a beat after the root card, and a
+  // single eager read raced on slow CI runners ("card src must be on the
+  // canvas" with the whole suite red). Poll until the target is really there,
+  // then take the geometry snapshot the drag needs.
+  const scanCards = () =>
+    page.locator(".react-flow__node").evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return {
+          x: r.x,
+          y: r.y,
+          w: r.width,
+          h: r.height,
+          // Cards render their own title first, so match the header, not a child
+          // chip that happens to mention the folder (root lists "src" too).
+          title: (e as HTMLElement).innerText.split("\n")[0].trim(),
+        };
+      }),
+    );
+  await expect
+    .poll(async () => (await scanCards()).some((c) => c.title === targetName), { timeout: 10000 })
+    .toBe(true);
+  const cards = await scanCards();
+  const target = cards.find((c) => c.title === targetName);
+  expect(target, `card "${targetName}" must be on the canvas`).toBeTruthy();
+
+  const pane = (await page.locator(".react-flow__pane").boundingBox())!;
+  const hitsCard = (x: number, y: number) =>
+    cards.some((c) => x > c.x - 6 && x < c.x + c.w + 6 && y > c.y - 6 && y < c.y + c.h + 6);
+
+  let start: { x: number; y: number } | null = null;
+  for (let y = pane.y + 20; y < pane.y + pane.height - 20 && !start; y += 40) {
+    for (let x = pane.x + 20; x < pane.x + pane.width - 20 && !start; x += 40) {
+      if (!hitsCard(x, y) && !hitsCard(x + 2, y + 2)) start = { x, y };
+    }
+  }
+  expect(start, "empty pane point to start the box select from").toBeTruthy();
+
+  const end = {
+    x: start!.x < target!.x ? target!.x + target!.w + 12 : target!.x - 12,
+    y: start!.y < target!.y ? target!.y + target!.h + 12 : target!.y - 12,
+  };
+
+  await page.keyboard.down("Shift");
+  await page.mouse.move(start!.x, start!.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 10 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+}
+
+// Regression (#180): finishing a Shift+drag box select leaves React Flow's
+// group-selection rect (.react-flow__nodesselection-rect) painted over the
+// selected cards with `pointer-events: all`. It sits above them (z-index 3 and
+// later in DOM order), so Ctrl+click landed on the rect and the card never saw
+// it — a card selected by box select could not be deselected until you clicked
+// empty canvas. globals.css now makes that rect click-through.
+test("ctrl+click deselects a card that a shift-drag box select selected", async ({ page }) => {
+  await openCanvas(page);
+  await boxSelect(page, "src");
+
+  const src = srcHeader(page).first();
+  await expect(src).toHaveClass(selected(), { timeout: 10000 });
+
+  // Coordinate click rather than locator.click(): no actionability wait should
+  // be able to mask (or fake) the deselection.
+  const box = (await src.boundingBox())!;
+  await page.keyboard.down("Control");
+  await page.mouse.move(box.x + box.width / 2, box.y + 12);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.keyboard.up("Control");
+
+  await expect(src).not.toHaveClass(selected(), { timeout: 5000 });
+});
+
+test("clicking empty canvas clears the selection, so the next Ctrl+click starts fresh", async ({ page }) => {
+  await openCanvas(page);
+  await boxSelect(page, "src");
+
+  // How many cards the rect encloses depends on layout — what matters is that
+  // the selection is non-trivial before the click.
+  const selectedNodes = page.locator(".react-flow__node.selected");
+  expect(await selectedNodes.count()).toBeGreaterThan(1);
+
+  // Click empty canvas (top-left of the pane; the graph is centred).
+  const pane = (await page.locator(".react-flow__pane").boundingBox())!;
+  await page.mouse.click(pane.x + 12, pane.y + 12);
+  await expect(selectedNodes).toHaveCount(0);
+
+  // The regression: the store kept the box-selected ids (the empty report is
+  // advisory and gets dropped once the pointer is up), so Ctrl+clicking a
+  // fresh card resurrected all of them. Now only the clicked card is selected.
+  const src = srcHeader(page);
+  await src.click({ modifiers: ["Control"] });
+  await expect(selectedNodes).toHaveCount(1);
+  await expect(src).toHaveClass(selected());
+});
+
 test("search finds nodes from the global search bar", async ({ page }) => {
   await openCanvas(page);
 
@@ -268,4 +442,111 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
   await page.mouse.up();
 
   expect(after).not.toBe(before);
+});
+
+// Splitting while a card is selected used to crash: the new leaf had no
+// selection of its own, so it painted the SHARED selection, reported it back,
+// and the two canvases traded `activeLeafId` — each flip re-pushing the other's
+// edges — until React hit its 50-nested-update limit and tore the tree down
+// (#285). Pro-only (the corner grip is gated on panelWorkspace), which is why
+// this suite's build sets NEXT_PUBLIC_ALLOW_TIER_OVERRIDE so `?tier=` works.
+test("splitting the canvas while a card is selected keeps both canvases alive (#285)", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  await page.goto("/app?tier=pro");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  // The precondition: a non-empty selection.
+  await page.locator(".react-flow__node").first().click();
+  await expect(page.locator(".react-flow__node.selected")).toHaveCount(1);
+
+  // Drag the bottom-right corner grip inward: inside the leaf → split mode.
+  const box = await page.locator(".react-flow").first().boundingBox();
+  expect(box).not.toBeNull();
+  const sx = box!.x + box!.width - 6;
+  const sy = box!.y + box!.height - 6;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx - 70, sy - 35, { steps: 5 });
+  await page.mouse.up();
+
+  await expect(page.locator(".react-flow")).toHaveCount(2, { timeout: 10000 });
+  expect(errors.filter((e) => /Maximum update depth/i.test(e))).toEqual([]);
+});
+
+// Changing the layout direction or running Organize re-fits the view to the
+// whole graph (#286). Zoom in first, otherwise the fit is a geometric no-op and
+// the assertion would be vacuous — the point is that a user working close to a
+// card gets the whole graph back after the re-flow.
+async function zoomIntoTheGraph(page: import("@playwright/test").Page) {
+  const flow = page.locator(".react-flow").first();
+  await flow.hover({ position: { x: 200, y: 200 } });
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -900);
+  await page.keyboard.up("Control");
+  await page.waitForTimeout(400);
+  return page.locator(".react-flow__viewport").first().getAttribute("style");
+}
+
+test("Organize re-fits the view to the whole graph (#286)", async ({ page }) => {
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const zoomedIn = await zoomIntoTheGraph(page);
+
+  await page.getByRole("button", { name: "Organize" }).click();
+  // The fit runs 120ms after the re-flow so it targets the settled layout.
+  await page.waitForTimeout(900);
+
+  const after = await page.locator(".react-flow__viewport").first().getAttribute("style");
+  expect(after).not.toBe(zoomedIn);
+});
+
+test("changing the layout direction re-fits the view to the whole graph (#286)", async ({ page }) => {
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const zoomedIn = await zoomIntoTheGraph(page);
+
+  // LayoutPicker: "Vertical" (TB) → "Horizontal" (LR).
+  await page.getByRole("button", { name: /Horizontal/ }).first().click();
+  await page.waitForTimeout(900);
+
+  const after = await page.locator(".react-flow__viewport").first().getAttribute("style");
+  expect(after).not.toBe(zoomedIn);
+});
+
+test("sidebar sections and settings explain themselves on hover (T-173)", async ({ page }) => {
+  // tier=pro: the Advanced tab's Layout Policy is a pro/basic-mode gate, and
+  // the override is inlined into the build the webServer serves.
+  await page.goto("/app?tier=pro");
+
+  // Sidebar: each section carries an About tip; hovering it shows the sentence
+  // without opening the section it explains. Connections & Style starts folded
+  // (Layout ships defaultOpen), so "still closed" is provable. The header's
+  // accessible name carries its drag label, so it is found by its section id.
+  const sectionHeader = page
+    .locator('[data-section-id="edges"] [role="button"][aria-expanded]')
+    .first();
+  await expect(sectionHeader).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: "About Connections & Style" }).hover();
+  await expect(page.getByRole("tooltip")).toContainText(/solid, dashed or dotted/);
+  await expect(sectionHeader).toHaveAttribute("aria-expanded", "false");
+
+  // Settings: the explainers are off the panel - sr-only, wired to their
+  // control - until their tip is engaged.
+  await page.getByRole("button", { name: "Open settings" }).click();
+  await page.getByRole("tab", { name: "Advanced" }).click();
+  await expect(page.getByText(/Extra spacing between sibling branches/)).toHaveClass(/sr-only/);
+  await expect(page.getByRole("switch", { name: "Auto-relayout" })).toHaveAttribute(
+    "aria-describedby",
+    "hint-auto-relayout",
+  );
+  await page.getByRole("button", { name: "About Crown Shyness" }).hover();
+  await expect(page.getByRole("tooltip")).toContainText(/Extra spacing between sibling branches/);
 });

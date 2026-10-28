@@ -1,0 +1,92 @@
+# PR-to-dev Checklist (MANDATORY)
+
+Applies whenever raising a PR targeting `dev`. Do not open the PR until every applicable item passes.
+
+## 0. PR metadata — labels, milestone, assignee, project (MANDATORY)
+
+A PR is never raised bare. Before requesting review:
+
+```bash
+python3 scripts/tasks.py pr-metadata <PR#> --dry-run   # show the derived plan
+python3 scripts/tasks.py pr-metadata <PR#>             # apply (idempotent)
+```
+
+It resolves the task from the `Task: T-###` trailers and sets:
+
+- **labels** — row status + type (`bug`/`enhancement`/`documentation`) +
+  `category:<area>` + one `size:*` (xs ≤60m · s ≤240m · m ≤960m · l ≤2400m ·
+  xl >2400m), replacing stale `size:*`/`status:*` only;
+- **milestone** — the task's → its issue's → the earliest open release train;
+- **assignee** — the task's `assignee` (default `qvesera`);
+- **issue ↔ PR link** — every task row's issue is referenced by the PR in GitHub.
+  `pr-metadata` writes the missing bare `Fixes #<N>` line (a closing keyword with
+  prose on the same line is only a mention) and CI runs it with `--require-link`,
+  so the `Link issue + metadata` check **fails the PR** when the reference is
+  missing — and that check is required on `dev`/`main`, so the PR cannot merge
+  unlinked. Note: GitHub only builds the real Development-sidebar link when the PR
+  targets the **default branch**; on `dev` it is a cross-reference and the sidebar
+  link stays a one-click manual step (the check prints `link: NOTE` instead of
+  failing — a gate that can never go green would block every merge);
+- **close shipped issues by hand** — that same default-branch rule kills
+  **auto-closing** too: `Fixes #<N>` in a PR merged into `dev` never closes the
+  issue (GitHub only auto-closes on default-branch merges — verified 2026-10-26:
+  merged PRs #450/#457 had zero `closingIssuesReferences`). So at ship time,
+  `gh issue close <N> --comment "Shipped via PR #<N>"` each linked issue.
+  Leaving it open is not benign: `reconcile` demotes `done` rows whose issue is
+  open back to `triaged` (and restoring them needs the hop
+  `set-status <T> review` → `set-status <T> done`);
+- **project** — the board is a projection of the ledger, and the **issue** item
+  is that projection: `pr-metadata` hands the PR's task rows to
+  `sync-details --pr <N>` (one writer, and it only writes a field that differs).
+  It never creates a separate item for the PR — a second item per work unit meant
+  two Statuses that flipped on different triggers. Without the `read:project`
+  scope it prints `project: skipped …`; the nightly `board-reconcile` workflow
+  heals the board from the ledger either way.
+
+No tracked task → it derives nothing (and the `tasks` CI job fails the PR for
+the missing trailer anyway). CI re-applies it on every PR event via
+`.github/workflows/pr-metadata.yml`. Full procedure: `.agents/skills/pr/SKILL.md`.
+
+## 1. Quality gates — run all, must pass
+
+```bash
+bun run lint            # ESLint
+bunx tsc --noEmit       # TypeScript
+bun run build           # Next.js production build
+bun run test            # bun test src/lib/fewer
+```
+
+CI (`.github/workflows/ci.yml`) enforces these on PRs to `dev` — catch failures locally first.
+
+## 2. Changelog updated
+
+- Every user-facing change gets an entry in `## [Unreleased]`:
+  `python3 scripts/changelog.py add <added|changed|fixed|performance|security|pwa> "..."`
+- `python3 scripts/changelog.py validate` must exit 0.
+- `package.json` version stays in sync with changelog.
+
+## 3. README updated
+
+If the PR changes user-visible behavior (new feature, new shortcut, changed UI, new export/import format, config), update `README.md` accordingly. Skip only for pure internals.
+
+## 4. Docs created/updated
+
+- Feature docs live in `content/docs/*.md` — update the matching page (e.g. new shortcut → `content/docs/shortcuts.md`, new export format → `content/docs/import-export.md`).
+- New feature with no matching doc page → create one in `content/docs/`.
+- Added keyboard shortcut → also `src/components/fewer/ShortcutsDialog.tsx` must list it.
+
+## 5. Major features → TO-DO.md
+
+If the PR is a major feature (new subsystem, headline capability, notable release), append a one-line entry to `TO-DO.md` (blog-post backlog) with the PR/feature name.
+
+## Project-specific checks
+
+- **PR template**: ALWAYS use `.github/PULL_REQUEST_TEMPLATE.md`.
+- **Conventional commits**: `feat|fix|perf|refactor|...` — commit type maps to changelog group.
+- **Supabase**: if `supabase/migrations/` changed, migration must be idempotent/safe and the PR description notes it.
+- **Env**: if new env vars added, update `.env.example` and run `bun run env:check`.
+- **Tests**: new logic in `src/lib/fewer/` → add/extend a bun test.
+- **Test isolation**: component suites must not register `mock.module` on a shared module — bun's registry is process-wide and leaks across files. If an override is unavoidable, spread the real module (`{ ...await import(…), override }`) so other files' bindings survive, and verify with `bun run test` (all files together), never a single file.
+- **E2E**: UI flow changes → check `e2e/app.spec.ts` still covers/reflects behavior (`bunx playwright test` if feasible).
+- **Accessibility/theme**: new UI must work in light + dark theme and be keyboard-reachable.
+- **Netlify/standalone build**: `bun run build` copies `static` + `public` into `.next/standalone` — verify build script still completes.

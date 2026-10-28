@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** Canonical public host. One place: sitemap.ts and branding.ts default to
+ *  the same string, and the metadata below (metadataBase, OG urls) resolves
+ *  every relative asset through it. */
+const SITE_URL =
+  (process.env.NEXT_PUBLIC_HOME_URL ?? "https://fewer.directory").replace(/\/+$/, "") ||
+  "https://fewer.directory";
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
@@ -23,15 +30,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "fewer | Interactive Directory Graph Visualizer",
   description:
-    "Transform your file system navigation into an art form. Interactive graph-based directory visualization with React Flow, Dagre auto-layout, 7 export formats, keyboard-first navigation, custom themes, and real file system integration.",
+    "fewer turns any directory into an interactive graph you can explore, edit, organise and group, with 8 export formats, keyboard-first navigation, custom themes and real file system integration. Open source (AGPLv3), privacy-first.",
   keywords: [
     "fewer",
     "directory visualization",
     "file system graph",
     "React Flow",
-    "Dagre",
+    "Reingold-Tilford",
     "directory tree visualizer",
     "folder structure tool",
     "file explorer graph",
@@ -54,7 +62,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Yash Srivastava" }],
   icons: {
-    icon: [{ url: "/logo-192.png", type: "image/png" }],
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/logo-192.png", type: "image/png" },
+    ],
     apple: [{ url: "/logo-192.png", type: "image/png" }],
   },
   manifest: "/manifest.json",
@@ -87,7 +98,7 @@ export default function RootLayout({
           id="theme-init"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
-            __html: `(function(){var VARS={background:'--fewer-background',defaultText:'--fewer-text',subtleText:'--fewer-text-subtle',itemHover:'--fewer-item-hover',handle:'--fewer-handle',edge:'--fewer-edge',selectRing:'--fewer-select-ring',folderBg:'--fewer-folder-bg',folderBorder:'--fewer-folder-border',folderText:'--fewer-folder-text',folderIcon:'--fewer-folder-icon',fileBg:'--fewer-file-bg',fileText:'--fewer-file-text',fileSubtleText:'--fewer-file-subtle-text',fileBorder:'--fewer-file-border',fileIcon:'--fewer-file-icon'};var GRADS={background:'--fewer-background-gradient',folderBg:'--fewer-folder-bg-gradient',fileBg:'--fewer-file-bg-gradient'};function hexRgb(h){var m=/^#?([0-9a-fA-F]{6})$/.exec((h||'').trim());if(!m)return null;var n=parseInt(m[1],16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}}function css(c,o){var rgb=hexRgb(c);if(!rgb)return c||'#000';var a=Math.min(1,Math.max(0,Math.round((Number(o)||1)*100)/100));if(a>=1){return '#'+rgb.r.toString(16).padStart(2,'0')+rgb.g.toString(16).padStart(2,'0')+rgb.b.toString(16).padStart(2,'0')}return 'rgba('+rgb.r+', '+rgb.g+', '+rgb.b+', '+a+')'}try{var t=localStorage.getItem('fewer-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;document.documentElement.setAttribute('data-theme',t);if(t==='custom'){var raw=localStorage.getItem('fewer-custom-theme');if(raw){var th=JSON.parse(raw);var st=document.documentElement.style;for(var k in VARS){var c=th&&th[k];if(c&&c.color){st.setProperty(VARS[k],css(c.color,c.opacity));var gv=GRADS[k];if(gv){if(c.gradientTo&&hexRgb(c.gradientTo)){var a=Math.min(360,Math.max(0,Math.round(Number(c.gradientAngle)||135)));st.setProperty(gv,'linear-gradient('+a+'deg,'+css(c.color,c.opacity)+','+css(c.gradientTo,c.opacity)+')')}else{st.removeProperty(gv)}}}}}}}catch(e){}})();`,
+            __html: `(function(){var VARS={background:'--fewer-background',defaultText:'--fewer-text',subtleText:'--fewer-text-subtle',itemHover:'--fewer-item-hover',handle:'--fewer-handle',edge:'--fewer-edge',selectRing:'--fewer-select-ring',folderBg:'--fewer-folder-bg',folderBorder:'--fewer-folder-border',folderText:'--fewer-folder-text',folderIcon:'--fewer-folder-icon',fileBg:'--fewer-file-bg',fileText:'--fewer-file-text',fileSubtleText:'--fewer-file-subtle-text',fileBorder:'--fewer-file-border',fileIcon:'--fewer-file-icon'};var GRADS={background:'--fewer-background-gradient',folderBg:'--fewer-folder-bg-gradient',fileBg:'--fewer-file-bg-gradient'};function hexRgb(h){var m=/^#?([0-9a-fA-F]{6})$/.exec((h||'').trim());if(!m)return null;var n=parseInt(m[1],16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}}function css(c,o){var rgb=hexRgb(c);if(!rgb)return c||'#000';var a=Math.min(1,Math.max(0,Math.round((Number(o)||1)*100)/100));if(a>=1){return '#'+rgb.r.toString(16).padStart(2,'0')+rgb.g.toString(16).padStart(2,'0')+rgb.b.toString(16).padStart(2,'0')}return 'rgba('+rgb.r+', '+rgb.g+', '+rgb.b+', '+a+')'}try{var S=!!window.__TAURI_INTERNALS__;var t=localStorage.getItem('fewer-theme')||(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;document.documentElement.setAttribute('data-theme',t);if(t==='custom'){var raw=localStorage.getItem('fewer-custom-theme');if(raw){var th=JSON.parse(raw);var st=document.documentElement.style;for(var k in VARS){var c=th&&th[k];if(c&&c.color){var op=c.opacity;if(S&&(k==='folderBg'||k==='fileBg')){op=Math.max(op,0.92)}st.setProperty(VARS[k],css(c.color,op));var gv=GRADS[k];if(gv){if(c.gradientTo&&hexRgb(c.gradientTo)){var a=Math.min(360,Math.max(0,Math.round(Number(c.gradientAngle)||135)));st.setProperty(gv,'linear-gradient('+a+'deg,'+css(c.color,op)+','+css(c.gradientTo,op)+')')}else{st.removeProperty(gv)}}}}}}}catch(e){}})();`,
           }}
         />
         <ThemeProvider>{children}<Toaster /></ThemeProvider>

@@ -1,6 +1,6 @@
 ---
 title: Plans
-description: Guest, Free, Pro, and Team tiers — what each includes, prices, and how plans are managed.
+description: Guest, Free, Pro, and Team tiers: what each includes, prices, and how plans are managed.
 ---
 
 Fewer's core runs entirely in the browser. Account tiers unlock two things: client features gated to signed-in or Pro accounts (see the Client Features table below), and server features (saved-graph storage, version snapshots, watch crawls, cloud OAuth connectors, invite emails, and large share payloads).
@@ -16,7 +16,7 @@ Fewer's core runs entirely in the browser. Account tiers unlock two things: clie
 
 ## Client features by tier
 
-Some client-side features require sign-in or a Pro plan. These are cosmetic gates — the server enforces all metered limits regardless.
+Some client-side features require sign-in or a Pro plan. These are cosmetic gates: the server enforces all metered limits regardless.
 
 | Feature | Guest | Free | Pro |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@ Some client-side features require sign-in or a Pro plan. These are cosmetic gate
 | Tags (tag panel, tag menus, tag filter) | ✗ | ✗ | ✓ |
 | Saved graphs sidebar | ✗ | ✓ | ✓ |
 | Graph Analytics | ✗ | ✓ | ✓ |
-| Edge motion (animated edges) | ✗ | ✓ | ✓ |
+| Connection motion (animated connections) | ✗ | ✓ | ✓ |
 | Custom theme editor | ✗ | ✓ | ✓ |
 | Advanced import formats (JSON, script) | ✗ | ✓ | ✓ |
 | Export without watermark | ✗ | ✓ | ✓ |
@@ -32,11 +32,11 @@ Some client-side features require sign-in or a Pro plan. These are cosmetic gate
 
 ### Guest
 
-No account needed. Everything runs locally: disk import, public URLs, all editing and layout, and every export format (SVG, PNG, JSON, CSV, DOT, script, tree). Exports carry the fewer watermark. Share small graphs by encoded-hash link — the compressed hash must stay under **2,000 characters**; larger graphs need a Free account (sign in to store them with a short `#s:` link). No saved graphs, no history, no watched indexes, no cloud connectors.
+No account needed. Everything runs locally: disk import, public URLs, all editing and layout, and every export format (SVG, PNG, JSON, CSV, DOT, script, tree). Exports carry the fewer watermark. Share small graphs by encoded-hash link: the compressed hash must stay under **2,000 characters**; larger graphs need a Free account (sign in to store them with a short `#s:` link). No saved graphs, no history, no watched indexes, no cloud connectors.
 
 ### Free account
 
-A signed-in account with no recurring price. Around 3 saved graphs (updating an existing one is never blocked), a 30-day automatic version history per graph, public "anyone with the link" sharing, the public gallery, and hash/`#s:` short links for moderate payloads. Server quotas are enforced in the API routes themselves — the UI just surfaces the error.
+A signed-in account with no recurring price. Around 3 saved graphs (updating an existing one is never blocked), a 30-day automatic version history per graph, public "anyone with the link" sharing, the public gallery, and hash/`#s:` short links for moderate payloads. Server quotas are enforced in the API routes themselves: the UI just surfaces the error.
 
 ### Pro
 
@@ -48,14 +48,14 @@ Everything in Pro plus org-level tooling for shared workspaces: org workspaces, 
 
 ## How plans are managed
 
-Plans live on each account in the database (`profiles.plan`, one of `free` / `pro` / `team`) and are **assigned by the operator directly in the database** — there is no self-serve checkout while the payment gateway is disabled.
+Plans live on each account in the database (`profiles.plan`, one of `free` / `pro` / `team`) and are **assigned by the operator directly in the database**: there is no self-serve checkout while the payment gateway is disabled.
 
 The payment gateway (Stripe) is behind a **feature flag** that is **switched off by default**:
 
-- Server: `BILLING_ENABLED=false` — all `/api/billing/*` routes return 503.
-- Client: `NEXT_PUBLIC_BILLING_ENABLED=false` — the app hides upgrade/checkout buttons and shows plan-aware status copy instead.
+- Server: `BILLING_ENABLED=false`: all `/api/billing/*` routes return 503.
+- Client: `NEXT_PUBLIC_BILLING_ENABLED=false`: the app hides upgrade/checkout buttons and shows plan-aware status copy instead.
 
-To change a user's plan while the flag is off, run SQL in Supabase Studio (the service role is the only writer — column-level revokes stop users flipping their own plan):
+To change a user's plan while the flag is off, run SQL in Supabase Studio (the service role is the only writer: column-level revokes stop users flipping their own plan):
 
 ```sql
 -- see the current plan
@@ -71,15 +71,15 @@ update profiles set plan = 'team' where user_id = '<uuid>';
 update profiles set plan = 'free' where user_id = '<uuid>';
 ```
 
-Any metered API route re-reads the plan on every request, so a plan change takes effect immediately and requires no deploy (only service-role SQL via Studio — never the anon/authenticated roles).
+Any metered API route re-reads the plan on every request, so a plan change takes effect immediately and requires no deploy (only service-role SQL via Studio: never the anon/authenticated roles).
 
 ## How limits work
 
-Limits are enforced server-side in the API routes (403 `plan_limit`). Nothing local ever stops working: when you hit a cap you can still edit, export, and use everything in the browser — you just can't add new saved rows until you upgrade or remove some. Existing graphs and watches are never deleted when a limit applies.
+Limits are enforced server-side in the API routes (403 `plan_limit`). Nothing local ever stops working: when you hit a cap you can still edit, export, and use everything in the browser: you just can't add new saved rows until you upgrade or remove some. Existing graphs and watches are never deleted when a limit applies.
 
 ## Why this split?
 
-fewer is AGPLv3 — you can always self-host the whole app for free. The paid tiers pay for the servers that make the hosted version convenient: encrypted OAuth token storage, nightly crawls, version snapshot storage, and email delivery.
+fewer is AGPLv3: you can always self-host the whole app for free. The paid tiers pay for the servers that make the hosted version convenient: encrypted OAuth token storage, nightly crawls, version snapshot storage, and email delivery.
 
 ## Next Steps
 

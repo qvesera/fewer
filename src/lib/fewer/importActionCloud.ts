@@ -4,16 +4,17 @@
  * Ported from handleImport in CloudBrowserDialog.tsx.
  */
 import type { ImportOptions } from "@/lib/fewer/importOptions";
-import type { ImportActionResult, OriginSource } from "@/lib/fewer/importFlow";
-import { collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
+import type { ImportActionResult, ImportProgressFn, OriginSource } from "@/lib/fewer/importFlow";
+import { buildProgress, collectAutoHideNotes, importFailure } from "@/lib/fewer/importFlow";
 import { buildCloudTree } from "@/hooks/use-cloud";
-import { filterTree, treeToGraph } from "@/lib/fewer/treeToGraph";
+import { chunkTreeToGraph, filterTree } from "@/lib/fewer/treeToGraph";
 import type { TreeEntry } from "@/lib/fewer/types";
 import { useGraphStore } from "@/store/graphStore";
 
 export async function runCloudImport(
   source: Extract<OriginSource, { origin: "cloud" }>,
   options: ImportOptions,
+  onProgress?: ImportProgressFn,
 ): Promise<ImportActionResult> {
   try {
     if (!source.connectionId || !source.ref) {
@@ -24,6 +25,7 @@ export async function runCloudImport(
       };
     }
 
+    onProgress?.({ phase: "Listing files" });
     const tree = await buildFilteredCloudTree(source, options);
     if (!tree) {
       return {
@@ -33,10 +35,14 @@ export async function runCloudImport(
       };
     }
 
-    const { nodes, edges, hiddenFileIds } = treeToGraph(tree, {
-      idPrefix: `cloud-${source.provider}`,
-      includeFiles: options.includeFiles,
-    });
+    const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
+      tree,
+      {
+        idPrefix: `cloud-${source.provider}`,
+        includeFiles: options.includeFiles,
+      },
+      buildProgress(onProgress),
+    );
 
     useGraphStore.setState({
       dataSource: `cloud:${source.provider}`,

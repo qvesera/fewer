@@ -21,10 +21,10 @@ import { FEWER_SAVE_GRAPH } from "@/lib/fewer/keyboardShortcuts";
 import { resolveRootLocalPath } from "@/lib/fewer/fileOps";
 import type { SavedGraph } from "@/lib/fewer/savedGraphs";
 import { buildDbShareUrl } from "@/lib/fewer/savedGraphs";
+import { getGraphsBackend, type GraphsBackend } from "@/lib/fewer/graphsData";
+import { cloudFeature } from "@/lib/fewer/features";
 import {
-  buildGraphSaveBody,
   buildShareRequestBody,
-  graphSaveError,
   graphSaveUnchanged,
   noChangesToast,
   parseEmailList,
@@ -78,6 +78,8 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const [renameValue, setRenameValue] = useState("");
   const [sharing, setSharing] = useState<SavedGraph | null>(null);
   const [historyFor, setHistoryFor] = useState<SavedGraph | null>(null);
+  // Data backend: the cloud account (T-089).
+  const [backend] = useState<GraphsBackend>(() => getGraphsBackend());
 
   const loadGraphs = useCallback(async () => {
     if (tier === "guest") {
@@ -86,21 +88,14 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/graphs");
-      if (res.status === 401) {
-        setGraphs([]);
-        return;
-      }
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `Failed to load (${res.status})`);
-      if (Array.isArray(json.graphs)) setGraphs(json.graphs);
+      setGraphs(await backend.list());
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not load saved graphs";
       toast({ title: "Could not load saved graphs", description: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [tier, toast]);
+  }, [backend, tier, toast]);
 
   useEffect(() => {
     loadGraphs();
@@ -147,19 +142,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         toast(noChangesToast(target?.name ?? ""));
         return;
       }
-      const res = await fetch("/api/graphs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Sending the existing graph's id makes the API update it in place
-        // (keeping its share link) and records a new version history snapshot.
-        body: JSON.stringify(buildGraphSaveBody(name, data, target?.id ?? null)),
-      });
-      const json = await res.json();
-      const saveError = graphSaveError(res, json);
-      if (saveError) {
-        toast({ title: "Could not save", description: saveError, variant: "destructive" });
-        return;
-      }
+      await backend.save({ id: target?.id ?? null, name, data });
       await finishSave(name, updating);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed";
@@ -198,8 +181,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
   const handleDelete = async (id: string, name: string) => {
     if (tier === "guest") return;
     try {
-      const res = await fetch(`/api/graphs/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
+      await backend.remove(id);
       setGraphs((g) => g.filter((x) => x.id !== id));
       toast({ title: "Deleted", description: `"${name}" removed.` });
     } catch {
@@ -221,12 +203,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     try {
       const graph = graphs.find((g) => g.id === id);
       if (!graph) return;
-      const res = await fetch("/api/graphs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, name, data: graph.data }),
-      });
-      if (!res.ok) throw new Error("Rename failed");
+      await backend.save({ id, name, data: graph.data });
       setRenamingId(null);
       await loadGraphs();
     } catch {
@@ -242,12 +219,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
     // Optimistic update; reverted on failure.
     setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: next } : g)));
     try {
-      const res = await fetch(`/api/graphs/${graph.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_favorite: next }),
-      });
-      if (!res.ok) throw new Error("Pin failed");
+      await backend.setFavorite(graph.id, next);
     } catch {
       setGraphs((gs) => gs.map((g) => (g.id === graph.id ? { ...g, is_favorite: !next } : g)));
       toast({ title: "Could not pin", variant: "destructive" });
@@ -284,7 +256,9 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
         </div>
       ) : graphs.length === 0 ? (
         <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
-          {tier !== "guest" ? "No saved graphs yet. Save one to access it from any device." : "Sign in to save and access your directories."}
+          {tier !== "guest"
+            ? "No saved graphs yet. Save one to access it from any device."
+            : "Sign in to save and access your directories."}
         </p>
       ) : (
         <div className="space-y-1.5 w-full min-w-0">
@@ -379,21 +353,21 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
-                    type="button"
-                    onClick={() => setHistoryFor(g)}
-                    className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Version history"
-                  >
-                    <History className="h-3 w-3" />
-                  </button>
+                      type="button"
+                      onClick={() => setHistoryFor(g)}
+                      className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Version history"
+                    >
+                      <History className="h-3 w-3" />
+                    </button>
                   <button
-                    type="button"
-                    onClick={() => setSharing(g)}
-                    className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Share"
-                  >
-                    <Share2 className="h-3 w-3" />
-                  </button>
+                      type="button"
+                      onClick={() => setSharing(g)}
+                      className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Share"
+                    >
+                      <Share2 className="h-3 w-3" />
+                    </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(g.id, g.name)}
@@ -747,7 +721,7 @@ function ShareGraphDialog({
                   <p className="text-xs font-medium">List in the public gallery</p>
                   <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
                 </div>
-                <Switch checked={gallery} onCheckedChange={(checked) => { if (checked && !requireGalleryProfile()) return; setGallery(checked); }} className="ml-auto shrink-0" />
+                <Switch checked={gallery} onCheckedChange={(checked) => setGallery(checked)} className="ml-auto shrink-0" />
               </div>
               {gallery && (
                 <div className="space-y-1.5 pt-1">
@@ -769,6 +743,15 @@ function ShareGraphDialog({
                       placeholder="What makes this graph interesting?"
                     />
                   </div>
+                  {gallery && (!profile.first_name.trim() || !profile.username.trim()) && (
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                      Your gallery entry will show as Anonymous. Add your name in{" "}
+                      <button type="button" onClick={() => { /* handled by parent — open settings */ }} className="underline cursor-pointer">
+                        Settings → Account
+                      </button>{" "}
+                      to show attribution.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -778,7 +761,7 @@ function ShareGraphDialog({
           {access === "none" ? (
             <p className="text-[11px] text-muted-foreground/70">
               {existingId
-                ? "A share link still exists — use Stop sharing below to make it fully private."
+                ? "A share link still exists: use Stop sharing below to make it fully private."
                 : "This saved graph is private and visible only to you."}
             </p>
           ) : (

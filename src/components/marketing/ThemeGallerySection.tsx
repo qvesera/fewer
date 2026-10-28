@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { APP_URL } from "@/components/marketing/MarketingLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -200,12 +199,12 @@ export function ThemeGallerySection() {
                     <Button size="sm" className="flex-1 cursor-pointer gap-1.5" onClick={() => applyTheme(item)}>
                       <Sparkles className="h-3.5 w-3.5" /> Apply
                     </Button>
-                    <Link
-                      href={`${APP_URL}/#t:${item.id}`}
+                    <a
+                      href={user ? `${APP_URL}/#t:${item.id}` : `${APP_URL}/?auth=open#t:${item.id}`}
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
                     >
                       Open in app
-                    </Link>
+                    </a>
                     {can("galleryPublish", tier) && (
                       <Button
                         size="sm"

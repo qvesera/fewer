@@ -7,13 +7,13 @@ interface LogoProps {
 }
 
 export function Logo({ className, size = 28, showText = false }: LogoProps) {
-  // Calculate width based on logo aspect ratio (approximately 1.09:1)
-  const width = Math.round(size * 1.09);
+  // Aspect from the source of record: viewBox 130.69282 × 117.71568 → 1.11:1
+  const width = Math.round(size * 1.11);
   
   return (
     <div className={`flex items-center gap-2 ${className ?? ""}`}>
       <img
-        src="/logo.png"
+        src="/logo.svg"
         alt="fewer logo"
         width={width}
         height={size}

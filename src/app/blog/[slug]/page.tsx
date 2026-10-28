@@ -5,6 +5,10 @@ import { renderMarkdown } from "@/lib/MarkdownRenderer";
 import { getSupabase } from "@/lib/supabase";
 
 // Serve from Supabase with a 60s revalidate so edits go live without a deploy.
+// (The desktop static export has no server: it renders the in-repo markdown at
+// build time via generateStaticParams/getLocalContent below. This segment config
+// must stay a literal — Next only statically parses it, and a ternary aborts the
+// build with "Invalid segment configuration export detected".)
 export const revalidate = 60;
 
 type PostMeta = {
@@ -40,6 +44,8 @@ async function getPost(slug: string): Promise<{ content: string; meta: PostMeta 
   }
 }
 
+// Static export prerenders every slug from the repo's markdown; the web build
+// renders on demand with ISR.
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {

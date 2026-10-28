@@ -1,7 +1,7 @@
 "use client";
 import { StateCreator } from "zustand";
 import type { GraphState } from "./types";
-import type { ThemeMode, CustomTheme } from "@/lib/fewer/types";
+import type { ThemeMode, CustomTheme, CustomThemeColor } from "@/lib/fewer/types";
 import { DEFAULT_CUSTOM_THEME, THEME_COLOR_META } from "@/lib/fewer/types";
 import { toCssColor, toGradientCss, migrateCustomTheme, deriveShadcnVars } from "@/lib/fewer/themeColors";
 
@@ -89,7 +89,8 @@ export function applyCustomThemeToDOM(theme: CustomTheme) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   for (const meta of THEME_COLOR_META) {
-    const c = theme[meta.key];
+    const raw = theme[meta.key];
+    const c: CustomThemeColor = raw;
     // Main var always stays a solid color: `background-color` consumers
     // (minimap, SVG export, shadcn derivations) can't take a gradient.
     root.style.setProperty(meta.cssVar, toCssColor(c.color, c.opacity));

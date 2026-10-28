@@ -123,6 +123,7 @@ export function useStoreActions() {
       setDirection: s.setDirection,
       setEdgeStyle: s.setEdgeStyle,
       organize: s.organize,
+      organizeAll: s.organizeAll,
       showAll: s.showAll,
       revealAllForLeaf: s.revealAllForLeaf,
       showAllTags: s.showAllTags,

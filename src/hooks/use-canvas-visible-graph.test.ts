@@ -24,6 +24,18 @@ describe("filterVisibleNodes", () => {
     expect(filterVisibleNodes(all, [])).not.toBe(all);
   });
 
+  test("keeps the identity of nodes already locked at zIndex 1000 (#281)", () => {
+    // React Flow re-adopts and re-renders every node whose userNode identity
+    // changed; cloning the whole lens on every drag frame is what cost 1–2 s per
+    // frame at 585 cards.
+    const already = { id: "a", zIndex: 1000 } as unknown as FewerNode;
+    const fresh = { id: "b" } as unknown as FewerNode;
+    const out = filterVisibleNodes([already, fresh], []);
+    expect(out[0]).toBe(already);
+    expect(out[1]).not.toBe(fresh);
+    expect(out[1].zIndex).toBe(1000);
+  });
+
   test("keeps node fields other than zIndex", () => {
     const all = [
       { id: "a", position: { x: 1, y: 2 }, data: { label: "x", path: "a", type: "file" } },

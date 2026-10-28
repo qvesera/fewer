@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import type { RefObject } from "react";
 import { useGraphStore } from "@/store/graphStore";
 import { isAnyDialogOpen, type GraphState } from "@/store/graphStore";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,7 +19,7 @@ import { openNodeFile, openFolderInExplorer } from "@/lib/fewer/fileOps";
  * Global keyboard shortcuts handler. Mounted at the app root.
  * Delegates all logic to the pure rule table in keyboardShortcuts.ts.
  */
-export function KeyboardShortcuts() {
+export function KeyboardShortcuts({ containerRef }: { containerRef: RefObject<HTMLDivElement | null> }) {
   const reactFlow = useReactFlow();
   const { toast } = useToast();
 
@@ -54,8 +55,14 @@ export function KeyboardShortcuts() {
       deleteEdges: getStore().deleteEdges,
       duplicateNodeUnderParent: getStore().duplicateNodeUnderParent,
       setAuthOpen: getStore().setAuthOpen,
-      organize: getStore().organize,
+      organize: getStore().organizeAll,
       reactFlow,
+      // Alt+F centers a bounds-based fit in the pane (T-143). Read through
+      // the ref at press time so the closure always sees the live element.
+      canvasSize: () => {
+        const el = containerRef.current;
+        return el && el.clientWidth > 0 ? { width: el.clientWidth, height: el.clientHeight } : null;
+      },
       toast,
       localFs: LOCAL_FS_FEATURES,
       openNodeFile,
@@ -69,7 +76,7 @@ export function KeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [reactFlow, toast]);
+  }, [reactFlow, toast, containerRef]);
 
   return null;
 }

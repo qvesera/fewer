@@ -40,8 +40,11 @@ export function useCanvasMinimap({ themeColors, isDark, leafId }: UseCanvasMinim
     const base: CSSProperties = {
       width: miniMapSize, height: miniMapSize,
       // Frosted glass like .gm-float: flat 60% alpha lets canvas nodes bleed
-      // through; 80% background + blur keeps the minimap legible.
-      background: "color-mix(in srgb, var(--background) 80%, transparent)",
+      // through; 80% background + blur keeps the minimap legible. The shell's
+      // WebKit lacks color-mix() — plain var() keeps it legible there (T-091).
+      background: CSS.supports?.("background", "color-mix(in srgb, red 50%, transparent)")
+        ? "color-mix(in srgb, var(--background) 80%, transparent)"
+        : "var(--background)",
       backdropFilter: "blur(24px) saturate(200%)",
       WebkitBackdropFilter: "blur(24px) saturate(200%)",
       borderRadius: "12px",

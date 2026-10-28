@@ -39,13 +39,26 @@ def parse(path: pathlib.Path) -> dict:
         m = re.search(rf"^{name}:\s*(.+)$", front, re.M)
         return m.group(1).strip() if m else None
 
+    # Shell variant blocks (T-104): the web seed keeps shell:off content and
+    # drops shell:on content; markers are stripped either way. Mirrors
+    # applyShellBlocks in src/lib/content/localContent.ts (web mode).
+    # CRLF → LF first (Windows checkouts): the marker regexes and the web
+    # renderer both assume \n-only content.
+    content = body.lstrip("\n").replace("\r\n", "\n").replace("\r", "\n")
+    content = re.sub(
+        r"<!--\s*shell:off\s*-->(.*?)<!--\s*/shell:off\s*-->", r"\1", content, flags=re.S
+    )
+    content = re.sub(
+        r"<!--\s*shell:on\s*-->(.*?)<!--\s*/shell:on\s*-->", "", content, flags=re.S
+    )
+
     return {
         "title": field("title"),
         "description": field("description") or "",
         "date": field("date"),
         "author": field("author"),
         "tags": field("tags"),
-        "content": body.lstrip("\n"),
+        "content": content,
     }
 
 
@@ -88,9 +101,7 @@ header = """-- Re-seed content_pages from the markdown in content/docs/ and cont
 --
 -- 0021_content_pages.sql stays the source of record for fresh installs; this
 -- migration brings environments where the seed has already run back in sync
--- (the Crown Shyness copy on the graph-features and settings pages had drifted
--- from the repo markdown: the response curve, its capped top end, and the
--- Organize re-flow).
+-- with the repo markdown.
 --
 -- Idempotent: upserts on (type, slug). `published` is set only on INSERT, so
 -- docs/plans stays hidden in environments where 0028 already applied.

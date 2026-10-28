@@ -58,19 +58,41 @@ test("buildSnapshot contains graph data only — no settings", () => {
     showMiniMap: true,
     localRootPath: "/tmp/root",
     cornerRadius: 12,
+    groups: [{ id: "g-1", title: "Assets", note: "", memberIds: ["a"] }],
   });
 
   const snap = buildSnapshot();
   expect(snap.nodes).toHaveLength(1);
   expect(snap.edges).toEqual([]);
   expect(snap.localRootPath).toBe("/tmp/root");
+  // Groups are graph data (T-124), so they save — unlike the settings below.
+  expect(snap.groups).toEqual([{ id: "g-1", title: "Assets", note: "", memberIds: ["a"] }]);
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "groups", "localRootPath", "nodes", "tags"]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);
   expect("showMiniMap" in snap).toBe(false);
   expect("cornerRadius" in snap).toBe(false);
+});
+
+test("symlink metadata rides along with node data through buildSnapshot/applySnapshot", () => {
+  resetStore();
+  const linkNode = {
+    ...folder("latest", "latest"),
+    data: {
+      label: "latest", path: "/latest", type: "folder",
+      symlink: { target: "v012", resolvedPath: "/tmp/root/v012", insideTree: true, followed: false },
+    },
+  } as FewerNode;
+  useGraphStore.setState({ nodes: [folder("r", "R"), linkNode], edges: [edge("r", "latest")] });
+  const snap = buildSnapshot();
+  expect(JSON.parse(JSON.stringify(snap)).nodes[1].data.symlink).toMatchObject({ target: "v012" });
+
+  resetStore();
+  applySnapshot(snap);
+  const restored = useGraphStore.getState().nodes.find((n) => n.id === "latest")!;
+  expect(restored.data.symlink).toMatchObject({ target: "v012", insideTree: true, followed: false });
 });
 
 // ─── applySnapshot ────────────────────────────────────────────
@@ -114,12 +136,21 @@ test("applySnapshot preserves saved edge list", () => {
 });
 
 // ─── saveGraphLocal / loadGraphLocal ──────────────────────────
-test("local save/load round-trips the graph and its dataSource", () => {
+test("local save/load round-trips the graph, its dataSource and its groups", () => {
   resetStore();
   saveGraphLocal({
     nodes: [folder("a", "A", 5, 7)],
     edges: [edge("a", "b")],
     tags: [{ id: "tag-1", label: "Important", color: "#f87171" }],
+    groups: [
+      {
+        id: "grp-1",
+        title: "Core",
+        note: "",
+        memberIds: ["a", "b"],
+        color: "#3b82f6",
+      },
+    ],
     dataSource: "sample",
     localRootPath: "/home/user/proj",
   });
@@ -131,7 +162,31 @@ test("local save/load round-trips the graph and its dataSource", () => {
   expect(loaded!.data.edges).toHaveLength(1);
   expect(loaded!.data.localRootPath).toBe("/home/user/proj");
   expect(loaded!.data.tags).toEqual([{ id: "tag-1", label: "Important", color: "#f87171" }]);
+  expect(loaded!.data.groups).toHaveLength(1);
+  expect(loaded!.data.groups![0].id).toBe("grp-1");
+  expect(loaded!.data.groups![0].memberIds).toEqual(["a", "b"]);
   expect(loaded!.dataSource).toBe("sample");
+});
+
+test("a cache written before groups existed (T-144) still loads, groups normalize to []", () => {
+  resetStore();
+  // A pre-T-144 payload: no `groups` key at all.
+  sessionStorage.setItem(
+    "fewer-graph",
+    JSON.stringify({
+      version: 1,
+      dataVersion: 2,
+      nodes: [folder("a", "A")],
+      edges: [],
+      tags: [],
+      dataSource: "sample",
+      localRootPath: null,
+    }),
+  );
+  const loaded = loadGraphLocal();
+  expect(loaded).not.toBeNull();
+  expect(loaded!.data.nodes).toHaveLength(1);
+  expect(loaded!.data.groups).toEqual([]);
 });
 
 test("saving an empty graph clears the cached key", () => {

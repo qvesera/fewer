@@ -1,27 +1,17 @@
-import type { ComponentType } from "react";
-import { FileCode, FileJson, FileImage, FileText, FileArchive, FileSpreadsheet, FileVideo, File as FileIcon, FileType } from "lucide-react";
-import type { FileCategory } from "./types";
+import { Position } from "@xyflow/react";
+import type { FewerNode, FewerEdge } from "./types";
+import { childrenIndexOf, nodeIndexOf } from "./graphIndex";
 
-export const CATEGORY_ICON: Record<FileCategory, ComponentType<{ className?: string }>> = {
-  code: FileCode,
-  config: FileJson,
-  image: FileImage,
-  document: FileText,
-  archive: FileArchive,
-  data: FileSpreadsheet,
-  media: FileVideo,
-  binary: FileIcon,
-  text: FileType,
-};
+// CATEGORY_ICON and formatSize live in nodeVisuals.ts (no @xyflow/react import
+// there) so the marketing preview can use the same icons and sizes without
+// pulling the graph library into the landing page bundle. Re-exported here so
+// every existing import path keeps working.
+export { CATEGORY_ICON, formatSize } from "./nodeVisuals";
 
 /** Child badges count edges, not just existing/visible nodes. */
 export function folderChildCount(id: string, isFolder: boolean, edges: FewerEdge[]): number {
-  return isFolder ? edges.filter((edge) => edge.source === id).length : 0;
+  return isFolder ? (childrenIndexOf(edges).get(id)?.length ?? 0) : 0;
 }
-
-
-import { Position } from "@xyflow/react";
-import type { FewerNode, FewerEdge } from "./types";
 
 export function getHandlePositions(layoutDirection?: string): {
   source: Position;
@@ -39,13 +29,6 @@ export function getHandlePositions(layoutDirection?: string): {
     default:
       return { source: Position.Bottom, target: Position.Top };
   }
-}
-
-export function formatSize(bytes: number): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /** Map a dataSource prefix to a display label for "Open in provider". */
@@ -82,9 +65,21 @@ export function sortedChildRows(
   nodes: FewerNode[],
   edges: FewerEdge[],
 ): FewerNode[] {
-  const childIds = edges.filter((e) => e.source === parentId).map((e) => e.target);
-  const ids = new Set(childIds);
-  const children = nodes.filter((n) => ids.has(n.id));
+  const childIds = childrenIndexOf(edges).get(parentId);
+  if (!childIds || childIds.length === 0) return [];
+  const nodeMap = nodeIndexOf(nodes);
+  const seen = new Set<string>();
+  const children: FewerNode[] = [];
+  // Edge order, then the app-wide sort below. Equal labels can't tie: the
+  // connect/rename rules keep sibling names unique, so the sort is a total
+  // order over the rows and the pre-sort order is unobservable.
+  for (const id of childIds) {
+    if (seen.has(id)) continue;
+    const node = nodeMap.get(id);
+    if (!node) continue;
+    seen.add(id);
+    children.push(node);
+  }
   children.sort((a, b) => {
     if (a.data.type !== b.data.type) return a.data.type === "folder" ? -1 : 1;
     return a.data.label.localeCompare(b.data.label);
@@ -100,11 +95,12 @@ export function nodeChildren(
   visibleIds: ReadonlySet<string>,
 ): { children: FewerNode[]; childCount: number; hiddenChildCount: number } {
   if (!isFolder) return { children: [], childCount: 0, hiddenChildCount: 0 };
-  const children = sortedChildRows(id, nodes, edges);
-  const childIds = edges.filter((e) => e.source === id).map((e) => e.target);
+  const childIds = childrenIndexOf(edges).get(id) ?? [];
+  let hiddenChildCount = 0;
+  for (const cid of childIds) if (!visibleIds.has(cid)) hiddenChildCount++;
   return {
-    children,
+    children: sortedChildRows(id, nodes, edges),
     childCount: childIds.length,
-    hiddenChildCount: childIds.filter((cid) => !visibleIds.has(cid)).length,
+    hiddenChildCount,
   };
 }

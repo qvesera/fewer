@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
 import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
+import type { ThemesBackend } from "@/lib/fewer/themesData";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
 import { can } from "@/lib/fewer/tiers";
@@ -34,7 +35,7 @@ import {
   sectionUndoDepth,
 } from "@/lib/fewer/themeEditor";
 
-export function ThemeEditorDialog() {
+export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend } = {}) {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
   const setThemeEditorOpen = useGraphStore((s) => s.setThemeEditorOpen);
   const customTheme = useGraphStore((s) => s.customTheme);
@@ -79,6 +80,16 @@ export function ThemeEditorDialog() {
   };
 
   const loadThemes = useCallback(async () => {
+    if (localThemes) {
+      // Local theme library (T-101): the standalone keeps themes as files.
+      setSharedIds(new Set());
+      try {
+        setSavedThemes(await localThemes.list());
+      } catch {
+        setSavedThemes([]);
+      }
+      return;
+    }
     if (!user) {
       setSavedThemes([]);
       setSharedIds(new Set());
@@ -119,29 +130,45 @@ export function ThemeEditorDialog() {
       return;
     }
     const name = safeText(saveName);
+    // One skeleton for both destinations (they differed only in the body):
+    // save, close, clear, reload, then per-destination toast/publish — in that
+    // exact order, and with each destination's own catch default (library
+    // failures describe nothing new, account failures fall back to a generic).
     setSaving(true);
     try {
-      const res = await fetch("/api/themes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, theme: customTheme }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
-      const savedId: string = json.theme?.id ?? "";
+      let savedId = "";
+      if (localThemes) {
+        await localThemes.save(name, customTheme);
+      } else {
+        const res = await fetch("/api/themes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, theme: customTheme }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Save failed");
+        savedId = json.theme?.id ?? "";
+      }
       setSaveOpen(false);
       setSaveName("");
       await loadThemes();
-      if (shareGallery && savedId) {
+      if (localThemes) {
+        toast({ title: "Theme saved", description: `"${name}" saved to the theme library.` });
+      } else if (shareGallery && savedId) {
         await publishTheme(savedId, name);
       } else {
         toast({ title: "Theme saved", description: `"${name}" saved to your account.` });
       }
-      setShareGallery(false);
-      setGalleryTitle("");
-      setGalleryDescription("");
+      if (!localThemes) {
+        setShareGallery(false);
+        setGalleryTitle("");
+        setGalleryDescription("");
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not save theme";
+      let msg: string | undefined;
+      if (err instanceof Error) msg = err.message;
+      // Library failures describe nothing new; account failures fall back to a generic.
+      else if (!localThemes) msg = "Could not save theme";
       toast({ title: "Could not save", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
@@ -197,6 +224,16 @@ export function ThemeEditorDialog() {
   };
 
   const handleDeleteTheme = async (id: string, name: string) => {
+    if (localThemes) {
+      try {
+        await localThemes.remove(id);
+        setSavedThemes((themes) => themes.filter((t) => t.id !== id));
+        toast({ title: "Deleted", description: `\"${name}\" removed.` });
+      } catch {
+        toast({ title: "Could not delete", variant: "destructive" });
+      }
+      return;
+    }
     if (!user) return;
     try {
       const res = await fetch(`/api/themes/${id}`, { method: "DELETE" });
@@ -209,6 +246,27 @@ export function ThemeEditorDialog() {
   };
 
   const handleRenameTheme = async (id: string) => {
+    if (localThemes) {
+      const nameError = validateTextField(renameValue, { label: "Name", max: 200 });
+      if (nameError) {
+        toast({ title: "Could not rename theme", description: nameError, variant: "destructive" });
+        return;
+      }
+      const name = safeText(renameValue);
+      const theme = savedThemes.find((t) => t.id === id);
+      if (!theme || !name || name === theme.name) {
+        setRenamingId(null);
+        return;
+      }
+      try {
+        const updated = await localThemes.save(name, theme.theme, id);
+        setSavedThemes((themes) => themes.map((t) => (t.id === id ? updated : t)));
+        setRenamingId(null);
+      } catch {
+        toast({ title: "Could not rename", variant: "destructive" });
+      }
+      return;
+    }
     if (!user) return;
     const nameError = validateTextField(renameValue, { label: "Name", max: 200 });
     if (nameError) {
@@ -486,7 +544,7 @@ export function ThemeEditorDialog() {
               )}
               <Button size="sm" className="w-full h-8 text-xs" disabled={saving} onClick={handleSaveTheme}>
                 {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                {user && shareGallery ? "Save & publish" : "Save to account"}
+                {localThemes ? "Save theme" : user && shareGallery ? "Save & publish" : "Save to account"}
               </Button>
             </PopoverContent>
           </Popover>
@@ -599,6 +657,7 @@ export function ThemeEditorDialog() {
                         </>
                       ) : (
                         <>
+                          {!localThemes && (
                           <button
                             onClick={() => {
                               const shared = sharedIds.has(t.id);
@@ -616,12 +675,13 @@ export function ThemeEditorDialog() {
                             }`}
                             title={
                               sharedIds.has(t.id)
-                                ? `"${t.name}" is in the gallery — click to unshare`
+                                ? `"${t.name}" is in the gallery: click to unshare`
                                 : `Publish "${t.name}" to the gallery`
                             }
                           >
                             <Globe className="h-3 w-3" />
                           </button>
+                          )}
                           <button
                             onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
                             className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-foreground transition-colors"
@@ -642,7 +702,7 @@ export function ThemeEditorDialog() {
                   ))
                 ) : (
                   <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground/60">
-                    {user ? "No saved themes yet. Use Save to store one." : "Sign in to sync custom themes to your account."}
+                    {user || localThemes ? "No saved themes yet. Use Save to store one." : "Sign in to sync custom themes to your account."}
                   </div>
                 )}
               </div>

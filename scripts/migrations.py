@@ -367,15 +367,41 @@ def cmd_baseline(args: argparse.Namespace) -> int:
     # real drift that must be repaired first.  Versions above the head are
     # pending — exactly what `db push` is meant to apply — and must not
     # block recovery when a prior apply failed mid-way.
-    remote_head = max(remote, default="")
+    #
+    # The head is therefore taken from versions present on BOTH sides.  A
+    # legacy timestamp version (`20260819101337`) sorts above every `NNNN`
+    # file as a string, so letting an orphan row be the head reclassifies
+    # genuinely-pending migrations as drift — and the remedy printed for
+    # drift is to record them as applied, which skips their DDL for good.
+    # The orphan row is what actually blocks `db push`, and reverting it is
+    # safe precisely because no local file can ever match its version.
+    paired = remote & local
+    remote_head = max(paired, default="")
+    orphans = sorted(v for v in remote - local if v > remote_head)
     drift = sorted(v for v in local - remote if v not in added and v < remote_head)
     pending = sorted(v for v in local - remote if v not in added and v >= remote_head)
 
-    if drift:
+    if orphans:
+        res.error(
+            "history drift: the project's history records version(s) with no local "
+            f"migration file: {', '.join(orphans)}. As strings those sort above every "
+            "numbered migration, so `supabase db push` refuses to append the ones that "
+            f"follow (pending now: {', '.join(pending) if pending else 'none'}). "
+            "Revert the orphan row(s) first — this rewrites history only and runs no "
+            "DDL, and nothing can be replayed because no local file can match a "
+            "timestamp version:\n"
+            f"    supabase migration repair --status reverted {' '.join(orphans)}\n"
+            "Then re-run this check: the numbered migrations become appendable again."
+        )
+    elif drift:
         res.error(
             "history drift: these local migrations are out of order and missing from "
             f"the project's history: {', '.join(drift)}. "
-            "A `supabase db push` would silently skip them. Record them as applied first:\n"
+            "A `supabase db push` would silently skip them. "
+            "Do NOT record them as applied unless their change already exists in that "
+            "database: repair asserts a version is applied and never runs it, so a "
+            "genuinely missing migration would be skipped for good. Confirm the DDL is "
+            "present first, then:\n"
             f"    supabase migration repair --status applied {' '.join(drift)}"
         )
     else:
