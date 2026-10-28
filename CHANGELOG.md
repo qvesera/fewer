@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
 
+### Changed
+
+- Dependency wave C: within-range refresh of 49 packages (radix suite, supabase-js/ssr, @xyflow/react, react-day-picker, zustand, eslint chain, ...) — 58 → 9 outdated, the 9 being major-only holds (prisma 7, stripe 23, lucide 1, eslint 10, ...). The refreshed react-hooks rules surfaced render-phase ref access: GraphGallerySection now keeps its fetch results in state (dropping the x/y dep hack), GraphCanvas' #285 stamp cache and TutorialDialog's run-once guard carry scoped, justified disables.
+
 ## [0.8.0] - 2026-10-28
 
 ### Changed

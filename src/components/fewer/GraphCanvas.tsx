@@ -311,11 +311,16 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // that has no flag at all (RF would keep its internal selection and re-report
   // it forever, #285).
   const lastStampedRef = useRef<readonly FewerNode[] | undefined>(undefined);
+  /* eslint-disable react-hooks/refs -- #285 stamp cache: the "store info from
+     previous renders" ref pattern (React docs). stampSelection diffs against
+     what RF last PAINTED so a clear can emit an explicit `selected: false`;
+     a state write here would re-render inside the memo. */
   const stampedNodes = useMemo(() => {
     const next = stampSelection(positionedNodes, selectionSet, lastStampedRef.current);
     lastStampedRef.current = next;
     return next;
   }, [positionedNodes, selectionSet]);
+  /* eslint-enable react-hooks/refs */
 
   const graphsExists = allNodes.length > 0;
 

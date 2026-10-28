@@ -5982,3 +5982,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 256, deletions: 108}
   spent_min: 19
   session_count: 1
+- id: "T-213"
+  title: "Dependency wave C: routine within-range refresh (radix suite, supabase, xyflow, ...) before the prod release"
+  status: "in-progress"
+  type: "task"
+  area: "infra"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T20:36:23Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T20:36:23Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
