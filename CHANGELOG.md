@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
 ### Changed
 
 - The Plans docs page is hidden while self-serve billing remains untested (BILLING_ENABLED stays off); in-app plan-limit messages no longer link to it (migration 0028)
