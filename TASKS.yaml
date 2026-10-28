@@ -5984,7 +5984,7 @@ tasks:
   session_count: 1
 - id: "T-213"
   title: "Dependency wave C: routine within-range refresh (radix suite, supabase, xyflow, ...) before the prod release"
-  status: "review"
+  status: "done"
   type: "task"
   area: "infra"
   tier: 0
