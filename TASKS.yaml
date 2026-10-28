@@ -3967,7 +3967,7 @@ tasks:
   session_count: 1
 - id: "T-146"
   title: "Nested canvas groups (W4–W6): parentId model, recursive bounds, collapse cascade, transitive move/scale"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: 1
@@ -5798,13 +5798,13 @@ tasks:
   session_count: 2
 - id: "T-207"
   title: "Reconcile main<->dev history: sq elephant"
-  status: "review"
+  status: "in-progress"
   type: "infra"
   area: "infra"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
-  issue: null
+  issue: 490
   pr: 489
   internal: false
   milestone: null
@@ -5823,5 +5823,11 @@ tasks:
     note: "Joined main's squashed release history into dev via -s ours merge (7654068): tree byte-identical to dev (diff=0), main now an ancestor of dev — unblocks release PR #488, which had no CI because the merge ref could not be built. Root cause: release #176 merged with squash."
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-10-28T12:30:14Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 3
-  session_count: 1
+  session_count: 2
