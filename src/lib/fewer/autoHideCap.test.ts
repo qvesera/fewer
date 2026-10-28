@@ -1,6 +1,7 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
 import { computeLargeFolderHiddenIds } from "./importMerge";
+import { DEFAULT_SORT_DIR, DEFAULT_SORT_KEY } from "./sorting";
 import type { FewerEdge, FewerNode } from "./types";
 
 // The auto-hide cap: a folder shows its FIRST `threshold` children (in the
@@ -62,6 +63,12 @@ function seedGraph() {
     showFiles: true,
     categoryFilter: [],
     categoryHiddenIds: [],
+    // The cap reads the CANVAS sort order, and the store is a process-wide
+    // singleton: sibling suites (e.g. layoutSlice.test) leave sortDir at
+    // "desc", and file order differs per checkout — CI failed the cascade
+    // tests for exactly this. Pin the defaults (T-210).
+    sortKey: DEFAULT_SORT_KEY,
+    sortDir: DEFAULT_SORT_DIR,
     viewSettings: {},
     activeLeafId: null,
     tags: [],
