@@ -1602,7 +1602,7 @@ tasks:
   session_count: 1
 - id: "T-063"
   title: "Rust core + Tauri shell: native archive/metadata layer and local FS integration"
-  status: "blocked"
+  status: "wontfix"
   type: "infra"
   area: "infra"
   tier: 1
@@ -2327,7 +2327,7 @@ tasks:
   session_count: 1
 - id: "T-088"
   title: "Offline desktop: local graph library + license-gated pro features + native file UX"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "infra"
   tier: 1
@@ -2472,7 +2472,7 @@ tasks:
   session_count: 2
 - id: "T-093"
   title: "Electron desktop shell — offline desktop app (Chromium renderer; Tauri parked)"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "infra"
   tier: null
@@ -3399,7 +3399,7 @@ tasks:
   session_count: 1
 - id: "T-126"
   title: "Selection thumbnails: thumbnail strip for selected files and folders driven by a pure candidate model and a cached nativeFsReadBytes loader"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "file-ops"
   tier: 0
@@ -3422,7 +3422,7 @@ tasks:
   session_count: 0
 - id: "T-127"
   title: "Host copy_paths and move_paths commands: rsync first with fs.cp/fs.rename and robocopy fallback, progress and cancel, Electron plus Tauri parity"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "file-ops"
   tier: 0
@@ -3445,7 +3445,7 @@ tasks:
   session_count: 0
 - id: "T-128"
   title: "Copy to and Move to context menu: destination picker, progress UI, then refresh the affected folders"
-  status: "blocked"
+  status: "wontfix"
   type: "feat"
   area: "file-ops"
   tier: 0
@@ -5149,7 +5149,7 @@ tasks:
   session_count: 0
 - id: "T-184"
   title: "On-device search index over opened folders using node:sqlite FTS5"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "performance"
   tier: null
@@ -5172,7 +5172,7 @@ tasks:
   session_count: 0
 - id: "T-185"
   title: "Recent folders: reopen a directory without the import flow"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "ux"
   tier: null
@@ -5195,7 +5195,7 @@ tasks:
   session_count: 0
 - id: "T-186"
   title: "Single 44px app header for the standalone shell"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "ui"
   tier: null
@@ -5218,7 +5218,7 @@ tasks:
   session_count: 0
 - id: "T-187"
   title: "Electron application menu and renderer menu bridge for the standalone shell"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "ui"
   tier: null
